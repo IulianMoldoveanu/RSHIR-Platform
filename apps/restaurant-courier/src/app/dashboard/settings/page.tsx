@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, Mail, Phone, User } from 'lucide-react';
+import { Bell, ChevronRight, HelpCircle, Mail, Phone, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { updateAvatarUrlAction, updateVehicleTypeAction } from '../actions';
@@ -106,6 +106,21 @@ export default async function SettingsPage() {
         <ThemeToggle />
       </section>
 
+      {/* Notification preferences link */}
+      <Link
+        href="/dashboard/settings/notifications"
+        className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
+          <Bell className="h-5 w-5 text-violet-400" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-hir-fg">Notificări</p>
+          <p className="mt-0.5 text-xs text-hir-muted-fg">Comenzi, mesaje, urgențe, anunțuri</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
+      </Link>
+
       {/* Help link */}
       <Link
         href="/dashboard/help"
@@ -141,4 +156,3 @@ function ProfileRowItem({
     </li>
   );
 }
-
