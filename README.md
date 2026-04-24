@@ -87,3 +87,17 @@ Apply via `node supabase/apply-sql.mjs <file>` or the Supabase SQL editor.
 | RSHIR-6 End-to-end verification | done |
 
 Sprint 2 will add: menu CRUD, customer storefront, cart, checkout, Stripe test mode, analytics, Vercel Domains automation, AI menu import.
+
+## Sprint 2 — Menu module (RSHIR-7)
+
+`apps/restaurant-admin/src/app/dashboard/menu/` ships full menu management for the active tenant:
+
+- **Categories** — create, rename, soft-delete (toggle `is_active`), reorder via drag-handle (persists `sort_order`).
+- **Items** — full CRUD with image upload to Supabase Storage bucket `menu-images` at path `{tenant_id}/{item_id}.{ext}`, tag input, category filter, name search, per-row availability toggle, bulk availability toggle for multi-select.
+- **Modifiers** — per-item add/edit/delete with `price_delta_ron`.
+- **Realtime availability** — every flip of `is_available` (single or bulk) inserts into `menu_events` so RSHIR-9's storefront receives a Supabase Realtime row and can hide/show the item live.
+- **CSV bulk import** — paste-CSV button accepting `name,description,price,category` rows; missing categories are auto-created.
+
+All mutations are server actions that re-verify `tenant_members` membership before using the service-role client. Forms use Zod schemas in `schemas.ts`.
+
+The storage bucket + its tenant-scoped RLS lives in `supabase/migrations/20260425_100_menu_storage.sql` (applied to project `qfmeojeipncuxeltnvab`).
