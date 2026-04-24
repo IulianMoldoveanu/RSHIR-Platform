@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "HIR Next.js App Router",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "jsx": "preserve",
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "incremental": true,
+    "allowJs": false,
+    "isolatedModules": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}

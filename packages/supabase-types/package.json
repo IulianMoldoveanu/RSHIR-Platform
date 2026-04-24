@@ -1,0 +1,25 @@
+{
+  "name": "@hir/supabase-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./database": "./src/database.types.ts",
+    "./client-browser": "./src/client-browser.ts",
+    "./client-server": "./src/client-server.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "gen": "node ../../supabase/gen-types.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.46.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
