@@ -22,17 +22,17 @@ export function createServerSupabase(
 ) {
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name) {
+      get(name: string): string | undefined {
         return cookies.get(name)?.value;
       },
-      set(name, value, options) {
+      set(name: string, value: string, options: CookieOptions): void {
         try {
           cookies.set?.(name, value, options);
         } catch {
           // server components can't mutate cookies; that's OK
         }
       },
-      remove(name, options) {
+      remove(name: string, options: CookieOptions): void {
         try {
           cookies.set?.(name, '', { ...options, maxAge: 0 });
         } catch {

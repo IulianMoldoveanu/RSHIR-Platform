@@ -32,7 +32,3 @@ const preset: Partial<Config> = {
 };
 
 export default preset;
-
-// CommonJS interop so apps can `require('@hir/ui/tailwind-preset')`.
-module.exports = preset;
-module.exports.default = preset;
