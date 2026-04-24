@@ -1,16 +1,19 @@
-// TODO(RSHIR-5): Replace with the real tenant-context helpers. The shape
-// (getCurrentTenantId, assertTenantMember) is what RSHIR-7 mutations expect —
-// keep these signatures stable so the menu module needs no edits at merge.
+import { cookies } from 'next/headers';
 import { createServerClient } from './supabase/server';
 import { createAdminClient } from './supabase/admin';
+
+export const TENANT_COOKIE = 'selected_tenant_id';
+
+export type TenantSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
 
 /**
  * Verifies that `userId` is a member of `tenantId`. Used as a guard before
  * any service-role write so the admin client cannot be tricked into writing
  * to another tenant.
- *
- * Sprint 1 will resolve the active tenant from a selector cookie / JWT claim.
- * Until then we read cookie `hir_active_tenant_id` directly.
  */
 export async function assertTenantMember(userId: string, tenantId: string): Promise<void> {
   const admin = createAdminClient();
@@ -25,20 +28,46 @@ export async function assertTenantMember(userId: string, tenantId: string): Prom
 }
 
 /**
- * Resolves the active user + tenant in one call. Use this at the top of every
- * server action that mutates tenant-scoped data.
+ * Lists tenants the current user is a member of. Used to populate the tenant
+ * selector dropdown in the dashboard top bar.
  */
-export async function getActiveSession(): Promise<{ userId: string; tenantId: string }> {
+export async function listMemberTenants(userId: string): Promise<TenantSummary[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('tenant_members')
+    .select('tenant_id, tenants:tenants(id, name, slug)')
+    .eq('user_id', userId);
+  if (error) throw new Error(`Failed to load tenants: ${error.message}`);
+  return (data ?? [])
+    .map((row: any) => row.tenants)
+    .filter(Boolean) as TenantSummary[];
+}
+
+/**
+ * Reads `selected_tenant_id` cookie and returns the active tenant if the user
+ * is a member. Falls back to the first membership when no cookie is set.
+ */
+export async function getActiveTenant(): Promise<{
+  user: { id: string; email: string | null };
+  tenant: TenantSummary;
+  tenants: TenantSummary[];
+}> {
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthenticated.');
 
-  const { cookies } = await import('next/headers');
-  const tenantId = cookies().get('hir_active_tenant_id')?.value;
-  if (!tenantId) throw new Error('No active tenant in session.');
+  const tenants = await listMemberTenants(user.id);
+  if (tenants.length === 0) throw new Error('User is not a member of any tenant.');
 
-  await assertTenantMember(user.id, tenantId);
-  return { userId: user.id, tenantId };
+  const cookieTenantId = cookies().get(TENANT_COOKIE)?.value;
+  const tenant =
+    tenants.find((t) => t.id === cookieTenantId) ?? tenants[0];
+
+  return {
+    user: { id: user.id, email: user.email ?? null },
+    tenant,
+    tenants,
+  };
 }
