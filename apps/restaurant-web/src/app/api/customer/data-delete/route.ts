@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/origin-check';
+import { checkLimit, clientIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +17,22 @@ function normalize(value: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // RSHIR-31 H-1: origin check + per-IP rate limit. Redaction is irreversible;
+  // an attacker with one screenshot of a tracking link should not be able to
+  // mass-delete customer records.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+  // 3 deletes per IP per hour: capacity 3, refill ~1/1200s.
+  const rl = checkLimit(`dsr-delete:${clientIp(req)}`, { capacity: 3, refillPerSec: 1 / 1200 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();

@@ -4,14 +4,41 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 
 const BRANDING_BUCKET = 'tenant-branding';
+// RSHIR-31 H-3: image/svg+xml dropped. SVG can carry <script> / <foreignObject>
+// payloads that execute when the storage URL is opened directly (storage origin)
+// or rendered by tools that inline SVG content. Raster only.
 const ALLOWED_MIME = new Set([
   'image/png',
   'image/jpeg',
   'image/webp',
-  'image/svg+xml',
 ]);
 const MAX_BYTES = 4 * 1024 * 1024;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+// RSHIR-31 H-4: magic-byte check. The browser-supplied `file.type` is
+// attacker-controlled; rename a JS payload to logo.png and the bucket
+// accepts it. Verify the actual leading bytes before upload.
+function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
+  const head = new Uint8Array(bytes.slice(0, 12));
+  if (head.length < 4) return false;
+  if (mime === 'image/png') {
+    return (
+      head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47 &&
+      head[4] === 0x0d && head[5] === 0x0a && head[6] === 0x1a && head[7] === 0x0a
+    );
+  }
+  if (mime === 'image/jpeg') {
+    return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  }
+  if (mime === 'image/webp') {
+    // RIFF....WEBP
+    return (
+      head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50
+    );
+  }
+  return false;
+}
 
 export type BrandingKind = 'logo' | 'cover';
 
@@ -46,7 +73,6 @@ function publicUrlFor(path: string): string {
 function extFromMime(mime: string): string {
   const sub = mime.split('/')[1];
   if (sub === 'jpeg') return 'jpg';
-  if (sub === 'svg+xml') return 'svg';
   return sub;
 }
 
@@ -106,12 +132,17 @@ export async function uploadBrandingAsset(
     return { ok: false, error: 'invalid_input', detail: 'file_over_4mb' };
   }
 
+  const bytes = await file.arrayBuffer();
+  if (!matchesDeclaredMime(file.type, bytes)) {
+    return { ok: false, error: 'invalid_input', detail: 'mime_content_mismatch' };
+  }
+
   const path = `${expectedTenantId}/${kind}.${extFromMime(file.type)}`;
   const admin = createAdminClient();
 
   const { error: uploadErr } = await admin.storage
     .from(BRANDING_BUCKET)
-    .upload(path, await file.arrayBuffer(), {
+    .upload(path, bytes, {
       contentType: file.type,
       upsert: true,
     });
