@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import { DailyDigestToggle } from './daily-digest-toggle';
 import { NotificationsToggle } from './notifications-toggle';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,7 @@ export default async function NotificationsSettingsPage() {
   const settings = (row?.settings as Record<string, unknown> | null) ?? {};
   // Default: notifications ON. The toggle only writes `false` to opt out.
   const enabled = settings.email_notifications_enabled !== false;
+  const digestEnabled = settings.daily_digest_enabled !== false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +40,7 @@ export default async function NotificationsSettingsPage() {
       )}
 
       <NotificationsToggle canEdit={role === 'OWNER'} initialEnabled={enabled} />
+      <DailyDigestToggle canEdit={role === 'OWNER'} initialEnabled={digestEnabled} />
     </div>
   );
 }
