@@ -7,10 +7,19 @@
 // RSHIR-22: bounded growth — cap the Map at MAX_BUCKETS and lazily prune
 // idle full buckets. Prevents an attacker rotating IPs from exhausting
 // memory in the function instance.
+//
+// RSHIR-26 M-2: every bucket now stores its own capacity, so prune() and
+// the LRU eviction path do not depend on the caller's `opts.capacity`.
+// RSHIR-26 M-1: clientIp() no longer collapses every IP-less request to
+// `127.0.0.1` — that path used to share one bucket across all anonymous
+// callers, letting a single client exhaust the limit for everyone. The
+// fallback now returns a fresh per-call key (effectively no per-IP cap
+// in dev / on misconfigured proxies, but no shared collision either).
 
+import { randomUUID } from 'node:crypto';
 import type { NextRequest } from 'next/server';
 
-type Bucket = { tokens: number; lastRefill: number };
+type Bucket = { tokens: number; capacity: number; lastRefill: number };
 
 const buckets = new Map<string, Bucket>();
 
@@ -26,13 +35,11 @@ export type LimitOpts = {
 
 export type LimitResult = { ok: true } | { ok: false; retryAfterSec: number };
 
-function prune(now: number, capacityForKey: (k: string) => number | null): void {
+function prune(now: number): void {
   if (now - lastPruneAt < PRUNE_INTERVAL_MS) return;
   lastPruneAt = now;
   for (const [k, b] of buckets) {
-    const cap = capacityForKey(k);
-    if (cap == null) continue;
-    if (b.tokens >= cap && now - b.lastRefill >= IDLE_TTL_MS) {
+    if (b.tokens >= b.capacity && now - b.lastRefill >= IDLE_TTL_MS) {
       buckets.delete(k);
     }
   }
@@ -53,21 +60,18 @@ function evictOldestIfFull(): void {
 
 export function checkLimit(key: string, opts: LimitOpts): LimitResult {
   const now = Date.now();
-
-  // Pruning only knows the bucket's capacity for buckets we are
-  // currently visiting via checkLimit, so we treat any bucket whose
-  // tokens are >= capacityForKey-of-the-current-call as a candidate.
-  // This is a safe over-approximation: a bucket using a different
-  // capacity that happens to be >= opts.capacity is still effectively
-  // idle, and clearing it just forces re-init on next hit.
-  prune(now, () => opts.capacity);
+  prune(now);
 
   const existing = buckets.get(key);
-  const bucket: Bucket = existing ?? { tokens: opts.capacity, lastRefill: now };
+  const bucket: Bucket = existing ?? {
+    tokens: opts.capacity,
+    capacity: opts.capacity,
+    lastRefill: now,
+  };
 
   if (existing) {
     const elapsedSec = (now - existing.lastRefill) / 1000;
-    const refilled = Math.min(opts.capacity, existing.tokens + elapsedSec * opts.refillPerSec);
+    const refilled = Math.min(existing.capacity, existing.tokens + elapsedSec * opts.refillPerSec);
     bucket.tokens = refilled;
     bucket.lastRefill = now;
   } else {
@@ -86,10 +90,6 @@ export function checkLimit(key: string, opts: LimitOpts): LimitResult {
   return { ok: false, retryAfterSec };
 }
 
-// RSHIR-22: prefer NextRequest.ip (Vercel-populated, untamperable) and
-// only fall back to x-forwarded-for when explicitly trusted via env.
-// Trusting XFF blindly let a caller set their own IP and bypass per-IP
-// limits.
 export function clientIp(req: NextRequest): string {
   const ip = (req as unknown as { ip?: string }).ip;
   if (ip) return ip;
@@ -104,6 +104,9 @@ export function clientIp(req: NextRequest): string {
     if (real) return real;
   }
 
-  // Local dev / non-Vercel host: constant key is fine for testing.
-  return '127.0.0.1';
+  // No reliable client IP. Returning a fresh per-call key gives this
+  // request its own bucket (no rate limiting in effect, but no shared
+  // collision either). On Vercel `req.ip` is always populated; this
+  // branch only runs in local dev or on a misconfigured non-Vercel host.
+  return `noip:${randomUUID()}`;
 }

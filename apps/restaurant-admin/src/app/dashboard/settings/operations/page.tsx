@@ -67,7 +67,7 @@ export default async function OperationsSettingsPage() {
         </div>
       )}
 
-      <OperationsClient initial={initial} canEdit={role === 'OWNER'} />
+      <OperationsClient initial={initial} canEdit={role === 'OWNER'} tenantId={tenant.id} />
     </div>
   );
 }

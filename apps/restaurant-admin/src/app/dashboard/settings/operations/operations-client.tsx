@@ -16,9 +16,11 @@ const DAYS: { key: keyof OperationsSettings['opening_hours']; label: string }[] 
 export function OperationsClient({
   initial,
   canEdit,
+  tenantId,
 }: {
   initial: OperationsSettings;
   canEdit: boolean;
+  tenantId: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -54,12 +56,15 @@ export function OperationsClient({
       return;
     }
     start(async () => {
-      const result = await saveOperationsAction({
-        is_accepting_orders: accepting,
-        pause_reason: reason.trim() || null,
-        pickup_eta_minutes: etaNum,
-        opening_hours: hours,
-      });
+      const result = await saveOperationsAction(
+        {
+          is_accepting_orders: accepting,
+          pause_reason: reason.trim() || null,
+          pickup_eta_minutes: etaNum,
+          opening_hours: hours,
+        },
+        tenantId,
+      );
       setFeedback(result);
       if (result.ok) router.refresh();
     });

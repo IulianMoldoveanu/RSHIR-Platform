@@ -20,16 +20,25 @@ function deepMerge(
   return out;
 }
 
-export async function goLiveAction(): Promise<void> {
+// RSHIR-26 M-3: caller passes the tenantId rendered server-side. We refuse
+// the write if the cookie-derived active tenant no longer matches — closes
+// the multi-tenant cookie-race where a user with memberships in two tenants
+// could flip the wrong tenant's "go live" by switching tabs mid-flight.
+export async function goLiveAction(formData: FormData): Promise<void> {
+  const expectedTenantId = String(formData.get('tenantId') ?? '');
+  if (!expectedTenantId) throw new Error('missing_tenant_id');
+
   const { user, tenant } = await getActiveTenant();
-  const role = await getTenantRole(user.id, tenant.id);
+  if (tenant.id !== expectedTenantId) throw new Error('tenant_mismatch');
+
+  const role = await getTenantRole(user.id, expectedTenantId);
   if (role !== 'OWNER') throw new Error('forbidden_owner_only');
 
   const admin = createAdminClient();
   const { data: existing, error: readErr } = await admin
     .from('tenants')
     .select('settings')
-    .eq('id', tenant.id)
+    .eq('id', expectedTenantId)
     .single();
   if (readErr || !existing) throw new Error(readErr?.message ?? 'tenant_read_failed');
 
@@ -44,7 +53,7 @@ export async function goLiveAction(): Promise<void> {
   const { error: writeErr } = await admin
     .from('tenants')
     .update({ settings: merged as never })
-    .eq('id', tenant.id);
+    .eq('id', expectedTenantId);
   if (writeErr) throw new Error(writeErr.message);
 
   revalidatePath('/dashboard');

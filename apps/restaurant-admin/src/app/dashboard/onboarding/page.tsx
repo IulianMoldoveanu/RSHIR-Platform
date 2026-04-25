@@ -77,12 +77,14 @@ function StepRow({
   state,
   current,
   canGoLive,
+  tenantId,
 }: {
   index: number;
   step: Step;
   state: OnboardingState;
   current: boolean;
   canGoLive: boolean;
+  tenantId: string;
 }) {
   const done = state[step.key];
   const isGoLiveStep = step.key === 'went_live';
@@ -116,6 +118,7 @@ function StepRow({
           ))}
           {isGoLiveStep && (
             <form action={goLiveAction}>
+              <input type="hidden" name="tenantId" value={tenantId} />
               <button
                 type="submit"
                 disabled={!canGoLive || !goLiveReady || done}
@@ -195,6 +198,7 @@ export default async function OnboardingPage() {
             state={state}
             current={!allDone && i === currentIndex}
             canGoLive={role === 'OWNER'}
+            tenantId={tenant.id}
           />
         ))}
       </ol>

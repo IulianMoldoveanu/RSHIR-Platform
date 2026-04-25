@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { LOCALE_COOKIE, LOCALES, type Locale } from '@/lib/i18n';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
@@ -8,6 +9,13 @@ function isLocale(v: unknown): v is Locale {
 }
 
 export async function POST(req: NextRequest) {
+  // RSHIR-26 H-1: reject cross-origin POSTs so a malicious page cannot
+  // flip a victim's locale cookie via a hidden form.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();

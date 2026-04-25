@@ -68,10 +68,17 @@ function sanitizeHours(raw: unknown): Record<DayKey, { open: string; close: stri
 
 export async function saveOperationsAction(
   input: OperationsSettings,
+  expectedTenantId: string,
 ): Promise<OperationsActionResult> {
   const { user, tenant } = await getActiveTenant().catch(() => ({ user: null, tenant: null }));
   if (!user || !tenant) return { ok: false, error: 'unauthenticated' };
-  const role = await getTenantRole(user.id, tenant.id);
+  // RSHIR-26 M-3: caller passes the tenantId rendered server-side. Refuse
+  // the write if the cookie-derived active tenant has drifted (multi-tenant
+  // tab race).
+  if (!expectedTenantId || tenant.id !== expectedTenantId) {
+    return { ok: false, error: 'invalid_input', detail: 'tenant_mismatch' };
+  }
+  const role = await getTenantRole(user.id, expectedTenantId);
   if (role !== 'OWNER') return { ok: false, error: 'forbidden_owner_only' };
 
   if (typeof input?.is_accepting_orders !== 'boolean') {
@@ -96,7 +103,7 @@ export async function saveOperationsAction(
   const { data: existing, error: readErr } = await admin
     .from('tenants')
     .select('settings')
-    .eq('id', tenant.id)
+    .eq('id', expectedTenantId)
     .single();
   if (readErr || !existing) return { ok: false, error: 'db_error', detail: readErr?.message };
 
@@ -108,7 +115,7 @@ export async function saveOperationsAction(
   const { error: writeErr } = await admin
     .from('tenants')
     .update({ settings: merged as never })
-    .eq('id', tenant.id);
+    .eq('id', expectedTenantId);
   if (writeErr) return { ok: false, error: 'db_error', detail: writeErr.message };
 
   revalidatePath('/dashboard/settings/operations');
