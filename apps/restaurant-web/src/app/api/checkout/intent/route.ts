@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     parsed.data.items,
     parsed.data.address ?? null,
     parsed.data.fulfillment,
+    parsed.data.promoCode || null,
   );
   if (!quoted.ok) {
     return NextResponse.json({ error: 'quote_failed', reason: quoted.reason }, { status: 422 });
@@ -107,11 +108,35 @@ export async function POST(req: Request) {
       notes: parsed.data.notes || null,
       status: 'PENDING',
       payment_status: 'UNPAID',
+      promo_code_id: q.promo?.id ?? null,
+      discount_ron: q.discountRon,
     })
     .select('id, public_track_token, total_ron')
     .single();
   if (orderErr || !order) {
     return NextResponse.json({ error: 'order_insert_failed', detail: orderErr?.message }, { status: 500 });
+  }
+
+  // RSHIR-33: atomic claim. The SQL function locks the promo row, refuses
+  // when used_count >= max_uses, and is idempotent on order_id. If the
+  // claim fails (race lost) we abort the order so we don't charge a
+  // customer with a code they can't actually use.
+  if (q.promo) {
+    const { data: claimed, error: claimErr } = await admin.rpc('claim_promo_redemption', {
+      p_promo_id: q.promo.id,
+      p_order_id: order.id,
+      p_customer_id: customer.id,
+    });
+    if (claimErr || claimed !== true) {
+      await admin.from('restaurant_orders').delete().eq('id', order.id);
+      return NextResponse.json(
+        {
+          error: 'quote_failed',
+          reason: { kind: 'PROMO_INVALID', reason: 'usage_exhausted' },
+        },
+        { status: 422 },
+      );
+    }
   }
 
   const stripe = getStripe();

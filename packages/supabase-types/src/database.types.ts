@@ -217,6 +217,105 @@ export type Database = {
           },
         ]
       }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          max_uses: number | null
+          min_order_ron: number
+          tenant_id: string
+          used_count: number
+          valid_from: string | null
+          valid_until: string | null
+          value_int: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          max_uses?: number | null
+          min_order_ron?: number
+          tenant_id: string
+          used_count?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          value_int?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_uses?: number | null
+          min_order_ron?: number
+          tenant_id?: string
+          used_count?: number
+          valid_from?: string | null
+          valid_until?: string | null
+          value_int?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promo_redemptions: {
+        Row: {
+          customer_id: string | null
+          id: string
+          order_id: string
+          promo_code_id: string
+          redeemed_at: string
+        }
+        Insert: {
+          customer_id?: string | null
+          id?: string
+          order_id: string
+          promo_code_id: string
+          redeemed_at?: string
+        }
+        Update: {
+          customer_id?: string | null
+          id?: string
+          order_id?: string
+          promo_code_id?: string
+          redeemed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "restaurant_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_menu_categories: {
         Row: {
           created_at: string
@@ -352,11 +451,13 @@ export type Database = {
           delivery_fee_ron: number
           delivery_tier_id: string | null
           delivery_zone_id: string | null
+          discount_ron: number
           hir_delivery_id: string | null
           id: string
           items: Json
           notes: string | null
           payment_status: string
+          promo_code_id: string | null
           public_track_token: string
           status: string
           stripe_payment_intent_id: string | null
@@ -372,11 +473,13 @@ export type Database = {
           delivery_fee_ron?: number
           delivery_tier_id?: string | null
           delivery_zone_id?: string | null
+          discount_ron?: number
           hir_delivery_id?: string | null
           id?: string
           items: Json
           notes?: string | null
           payment_status?: string
+          promo_code_id?: string | null
           public_track_token?: string
           status?: string
           stripe_payment_intent_id?: string | null
@@ -392,11 +495,13 @@ export type Database = {
           delivery_fee_ron?: number
           delivery_tier_id?: string | null
           delivery_zone_id?: string | null
+          discount_ron?: number
           hir_delivery_id?: string | null
           id?: string
           items?: Json
           notes?: string | null
           payment_status?: string
+          promo_code_id?: string | null
           public_track_token?: string
           status?: string
           stripe_payment_intent_id?: string | null
@@ -432,6 +537,13 @@ export type Database = {
             columns: ["delivery_zone_id"]
             isOneToOne: false
             referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -593,6 +705,10 @@ export type Database = {
       }
     }
     Functions: {
+      claim_promo_redemption: {
+        Args: { p_customer_id: string; p_order_id: string; p_promo_id: string }
+        Returns: boolean
+      }
       gdpr_redact_customer: {
         Args: { p_customer_id: string }
         Returns: undefined

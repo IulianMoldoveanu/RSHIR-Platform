@@ -23,11 +23,20 @@ export const customerSchema = z.object({
 
 export const fulfillmentSchema = z.enum(['DELIVERY', 'PICKUP']);
 
+const promoCodeField = z
+  .string()
+  .trim()
+  .max(32)
+  .regex(/^[A-Za-z0-9_-]+$/i, 'invalid promo code')
+  .optional()
+  .or(z.literal(''));
+
 export const quoteRequestSchema = z
   .object({
     items: z.array(cartItemSchema).min(1).max(50),
     fulfillment: fulfillmentSchema.default('DELIVERY'),
     address: addressSchema.optional(),
+    promoCode: promoCodeField,
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',
@@ -41,6 +50,7 @@ export const intentRequestSchema = z
     address: addressSchema.optional(),
     customer: customerSchema,
     notes: z.string().trim().max(500).optional().or(z.literal('')),
+    promoCode: promoCodeField,
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',

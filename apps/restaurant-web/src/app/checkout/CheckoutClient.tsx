@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripeClient } from '@/lib/stripe/client';
@@ -9,18 +9,29 @@ import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { PaymentForm } from './PaymentForm';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
+import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
 
 type Fulfillment = 'DELIVERY' | 'PICKUP';
+
+type PromoKind = 'PERCENT' | 'FIXED' | 'FREE_DELIVERY';
+
+type AppliedPromo = {
+  code: string;
+  kind: PromoKind;
+  value_int: number;
+};
 
 type Quote = {
   lineItems: Array<{ itemId: string; name: string; priceRon: number; quantity: number; lineTotalRon: number }>;
   subtotalRon: number;
   deliveryFeeRon: number;
+  discountRon: number;
   totalRon: number;
   fulfillment: Fulfillment;
   distanceKm: number;
   zoneId: string | null;
   tierId: string | null;
+  promo: { id: string; code: string; kind: PromoKind; valueInt: number } | null;
 };
 
 type IntentResponse = {
@@ -30,11 +41,19 @@ type IntentResponse = {
   quote: Quote;
 };
 
+type PromoFailureReason =
+  | 'not_found'
+  | 'inactive'
+  | 'expired'
+  | 'min_not_met'
+  | 'usage_exhausted';
+
 type QuoteFailureReason =
   | { kind: 'OUTSIDE_ZONE' }
   | { kind: 'NO_TIER'; distanceKm: number }
   | { kind: 'ITEM_UNAVAILABLE'; itemId: string }
-  | { kind: 'EMPTY_MENU' };
+  | { kind: 'EMPTY_MENU' }
+  | { kind: 'PROMO_INVALID'; reason: PromoFailureReason };
 
 type Step = 'form' | 'review' | 'payment' | 'submitting';
 
@@ -72,6 +91,12 @@ export function CheckoutClient(props: {
 
   const [notes, setNotes] = useState('');
 
+  // Promo
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoWorking, setPromoWorking] = useState(false);
+
   // Quote / intent state
   const [quote, setQuote] = useState<Quote | null>(null);
   const [intent, setIntent] = useState<IntentResponse | null>(null);
@@ -79,6 +104,13 @@ export function CheckoutClient(props: {
   const [working, setWorking] = useState(false);
 
   const stripePromise = useMemo(() => getStripeClient(), []);
+
+  useEffect(() => {
+    const stored = readStoredPromo();
+    if (stored) setAppliedPromo(stored);
+    // Only run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const cartTotal = useMemo(() => {
     if (!cart) return 0;
@@ -115,10 +147,12 @@ export function CheckoutClient(props: {
     }
 
     let body: Record<string, unknown>;
+    const promoCode = appliedPromo?.code;
     if (fulfillment === 'PICKUP') {
       body = {
         items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
         fulfillment: 'PICKUP',
+        ...(promoCode ? { promoCode } : {}),
       };
     } else {
       let point = coords;
@@ -139,6 +173,7 @@ export function CheckoutClient(props: {
         items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
         fulfillment: 'DELIVERY',
         address: { line1, line2, city, postalCode, lat: point.lat, lng: point.lng },
+        ...(promoCode ? { promoCode } : {}),
       };
     }
 
@@ -175,6 +210,7 @@ export function CheckoutClient(props: {
         fulfillment,
         customer: { firstName, lastName, phone, email },
         notes,
+        ...(appliedPromo ? { promoCode: appliedPromo.code } : {}),
       };
       if (fulfillment === 'DELIVERY') {
         intentBody.address = {
@@ -210,9 +246,56 @@ export function CheckoutClient(props: {
     }
   }
 
+  async function handleApplyPromo() {
+    if (!cart) return;
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoError(null);
+    setPromoWorking(true);
+    try {
+      const res = await fetch('/api/checkout/promo/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code, subtotalRon: cartTotal }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        const reason = data?.reason as PromoFailureReason | undefined;
+        setPromoError(formatPromoError(reason, locale));
+        setAppliedPromo(null);
+        setQuote(null);
+        // Bounce back to form so user can re-quote with new state.
+        setStep('form');
+        return;
+      }
+      const next: AppliedPromo = {
+        code: String(data.code),
+        kind: data.kind as PromoKind,
+        value_int: Number(data.value_int) || 0,
+      };
+      setAppliedPromo(next);
+      writeStoredPromo(next);
+      setPromoInput('');
+      // Discard stale quote — must re-quote to factor in the discount.
+      setQuote(null);
+      setStep('form');
+    } finally {
+      setPromoWorking(false);
+    }
+  }
+
+  function handleRemovePromo() {
+    setAppliedPromo(null);
+    writeStoredPromo(null);
+    setPromoError(null);
+    setQuote(null);
+    setStep('form');
+  }
+
   function handlePaymentSuccess() {
     if (!intent) return;
     sessionStorage.removeItem(CART_STORAGE_KEY);
+    writeStoredPromo(null);
     router.push(`/track/${intent.publicTrackToken}`);
   }
 
@@ -312,6 +395,17 @@ export function CheckoutClient(props: {
             <textarea className={`${inputCls} min-h-[60px]`} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
           </Field>
         </Section>
+
+        <PromoBox
+          locale={locale}
+          input={promoInput}
+          setInput={setPromoInput}
+          working={promoWorking}
+          applied={appliedPromo}
+          error={promoError}
+          onApply={() => void handleApplyPromo()}
+          onRemove={handleRemovePromo}
+        />
 
         <button
           type="button"
@@ -478,9 +572,104 @@ function ReviewBox({ quote, locale }: { quote: Quote; locale: Locale }) {
           value={formatRon(quote.deliveryFeeRon, locale)}
         />
       )}
+      {quote.discountRon > 0 && (
+        <Row
+          label={`${t(locale, 'promo.cart_discount_label')}${quote.promo ? ` (${quote.promo.code})` : ''}`}
+          value={`− ${formatRon(quote.discountRon, locale)}`}
+        />
+      )}
       <Row bold label={t(locale, 'checkout.total')} value={formatRon(quote.totalRon, locale)} />
     </div>
   );
+}
+
+function PromoBox({
+  locale,
+  input,
+  setInput,
+  working,
+  applied,
+  error,
+  onApply,
+  onRemove,
+}: {
+  locale: Locale;
+  input: string;
+  setInput: (v: string) => void;
+  working: boolean;
+  applied: AppliedPromo | null;
+  error: string | null;
+  onApply: () => void;
+  onRemove: () => void;
+}) {
+  const appliedLabel = applied ? formatAppliedPromo(applied, locale) : null;
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+        {t(locale, 'promo.label')}
+      </h2>
+      {appliedLabel ? (
+        <div className="flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          <span>{appliedLabel}</span>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs font-medium text-emerald-800 underline hover:text-emerald-900"
+            aria-label={t(locale, 'promo.remove')}
+          >
+            ×
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            placeholder={t(locale, 'promo.placeholder')}
+            maxLength={32}
+            className={`${inputCls} flex-1 font-mono uppercase tracking-wide`}
+          />
+          <button
+            type="button"
+            onClick={onApply}
+            disabled={working || input.trim().length === 0}
+            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+          >
+            {working ? t(locale, 'promo.applying') : t(locale, 'promo.apply')}
+          </button>
+        </div>
+      )}
+      {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
+    </section>
+  );
+}
+
+function formatAppliedPromo(p: AppliedPromo, locale: Locale): string {
+  if (p.kind === 'PERCENT') {
+    return t(locale, 'promo.applied_percent_template', { code: p.code, value: p.value_int });
+  }
+  if (p.kind === 'FIXED') {
+    return t(locale, 'promo.applied_fixed_template', { code: p.code, value: p.value_int });
+  }
+  return t(locale, 'promo.applied_free_delivery_template', { code: p.code });
+}
+
+function formatPromoError(reason: PromoFailureReason | undefined, locale: Locale): string {
+  if (!reason) return t(locale, 'promo.err_default');
+  switch (reason) {
+    case 'not_found':
+      return t(locale, 'promo.err_not_found');
+    case 'inactive':
+      return t(locale, 'promo.err_inactive');
+    case 'expired':
+      return t(locale, 'promo.err_expired');
+    case 'usage_exhausted':
+      return t(locale, 'promo.err_usage_exhausted');
+    case 'min_not_met':
+      return t(locale, 'promo.err_default');
+    default:
+      return t(locale, 'promo.err_default');
+  }
 }
 
 function FulfillmentToggle({
@@ -615,6 +804,8 @@ function formatQuoteError(
       return t(locale, 'checkout.err_item_unavailable');
     case 'EMPTY_MENU':
       return t(locale, 'checkout.err_empty_menu');
+    case 'PROMO_INVALID':
+      return formatPromoError(reason.reason, locale);
   }
 }
 

@@ -33,6 +33,7 @@ export async function POST(req: Request) {
     parsed.data.items,
     parsed.data.address ?? null,
     parsed.data.fulfillment,
+    parsed.data.promoCode || null,
   );
 
   if (!result.ok) {

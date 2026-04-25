@@ -9,6 +9,7 @@ import {
   type LatLng,
 } from '@/lib/zones';
 import type { CartItemInput, AddressInput, Fulfillment } from './schemas';
+import { lookupAndValidatePromo, type PromoKind, type PromoLookupFailure } from './promo';
 
 export type PricedLineItem = {
   itemId: string;
@@ -18,22 +19,32 @@ export type PricedLineItem = {
   lineTotalRon: number;
 };
 
+export type AppliedPromo = {
+  id: string;
+  code: string;
+  kind: PromoKind;
+  valueInt: number;
+};
+
 export type Quote = {
   lineItems: PricedLineItem[];
   subtotalRon: number;
   deliveryFeeRon: number;
+  discountRon: number;
   totalRon: number;
   fulfillment: Fulfillment;
   distanceKm: number;
   zoneId: string | null;
   tierId: string | null;
+  promo: AppliedPromo | null;
 };
 
 export type QuoteFailure =
   | { kind: 'OUTSIDE_ZONE' }
   | { kind: 'NO_TIER'; distanceKm: number }
   | { kind: 'ITEM_UNAVAILABLE'; itemId: string }
-  | { kind: 'EMPTY_MENU' };
+  | { kind: 'EMPTY_MENU' }
+  | { kind: 'PROMO_INVALID'; reason: PromoLookupFailure };
 
 export type QuoteResult = { ok: true; quote: Quote } | { ok: false; reason: QuoteFailure };
 
@@ -59,6 +70,7 @@ export async function computeQuote(
   cart: CartItemInput[],
   address: AddressInput | null,
   fulfillment: Fulfillment = 'DELIVERY',
+  promoCode: string | null = null,
 ): Promise<QuoteResult> {
   const { data: items, error: itemsErr } = await admin
     .from('restaurant_menu_items')
@@ -90,17 +102,21 @@ export async function computeQuote(
   const subtotalRon = round2(lineItems.reduce((s, li) => s + li.lineTotalRon, 0));
 
   if (fulfillment === 'PICKUP') {
+    const promoApplied = await applyPromo(admin, tenant.id, promoCode, subtotalRon, 0);
+    if (!promoApplied.ok) return { ok: false, reason: promoApplied.reason };
     return {
       ok: true,
       quote: {
         lineItems,
         subtotalRon,
         deliveryFeeRon: 0,
-        totalRon: subtotalRon,
+        discountRon: promoApplied.discountRon,
+        totalRon: round2(Math.max(0, subtotalRon - promoApplied.discountRon)),
         fulfillment: 'PICKUP',
         distanceKm: 0,
         zoneId: null,
         tierId: null,
+        promo: promoApplied.promo,
       },
     };
   }
@@ -118,20 +134,63 @@ export async function computeQuote(
   if (!tier) return { ok: false, reason: { kind: 'NO_TIER', distanceKm } };
 
   const deliveryFeeRon = round2(tier.price_ron);
-  const totalRon = round2(subtotalRon + deliveryFeeRon);
+
+  const promoApplied = await applyPromo(admin, tenant.id, promoCode, subtotalRon, deliveryFeeRon);
+  if (!promoApplied.ok) return { ok: false, reason: promoApplied.reason };
+
+  // Promo discount applies to subtotal+delivery; FREE_DELIVERY zeros out the
+  // fee so it doesn't get re-added when computing total.
+  const effectiveDelivery =
+    promoApplied.promo?.kind === 'FREE_DELIVERY' ? 0 : deliveryFeeRon;
+  const totalRon = round2(
+    Math.max(0, subtotalRon + effectiveDelivery - promoApplied.discountRon),
+  );
 
   return {
     ok: true,
     quote: {
       lineItems,
       subtotalRon,
-      deliveryFeeRon,
+      deliveryFeeRon: effectiveDelivery,
+      discountRon: promoApplied.discountRon,
       totalRon,
       fulfillment: 'DELIVERY',
       distanceKm: Math.round(distanceKm * 100) / 100,
       zoneId,
       tierId: tier.id,
+      promo: promoApplied.promo,
     },
+  };
+}
+
+async function applyPromo(
+  admin: SupabaseClient<Database>,
+  tenantId: string,
+  rawCode: string | null,
+  subtotalRon: number,
+  deliveryFeeRon: number,
+): Promise<
+  | { ok: true; promo: AppliedPromo | null; discountRon: number }
+  | { ok: false; reason: QuoteFailure }
+> {
+  if (!rawCode || !rawCode.trim()) return { ok: true, promo: null, discountRon: 0 };
+  const result = await lookupAndValidatePromo(
+    admin,
+    tenantId,
+    rawCode,
+    subtotalRon,
+    deliveryFeeRon,
+  );
+  if (!result.ok) return { ok: false, reason: { kind: 'PROMO_INVALID', reason: result.reason } };
+  return {
+    ok: true,
+    promo: {
+      id: result.promo.id,
+      code: result.promo.code,
+      kind: result.promo.kind,
+      valueInt: result.promo.value_int,
+    },
+    discountRon: result.discountRon,
   };
 }
 

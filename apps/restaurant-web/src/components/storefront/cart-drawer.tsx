@@ -7,6 +7,7 @@ import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
+import { previewDiscount, readStoredPromo, type StoredPromo } from '@/lib/cart/promo';
 import { WhatsAppShareButton } from './share-button';
 
 export function CartPill({
@@ -27,10 +28,29 @@ export function CartPill({
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
 
-  useEffect(() => setHydrated(true), []);
+  const [appliedPromo, setAppliedPromo] = useState<StoredPromo | null>(null);
+
+  useEffect(() => {
+    setHydrated(true);
+    setAppliedPromo(readStoredPromo());
+    const refresh = () => setAppliedPromo(readStoredPromo());
+    window.addEventListener('hir:applied-promo-changed', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('hir:applied-promo-changed', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
 
   const count = hydrated ? getCount() : 0;
   const subtotal = hydrated ? getSubtotal() : 0;
+  // Drawer doesn't know the delivery fee yet — show the discount only when
+  // it doesn't depend on it (PERCENT/FIXED). FREE_DELIVERY is hidden until
+  // the user gets a quote on the checkout page.
+  const previewDiscountRon =
+    appliedPromo && appliedPromo.kind !== 'FREE_DELIVERY'
+      ? previewDiscount(appliedPromo, subtotal, 0)
+      : 0;
 
   if (count === 0) return null;
 
@@ -138,6 +158,16 @@ export function CartPill({
                   {formatRon(subtotal, locale)}
                 </span>
               </div>
+              {appliedPromo && previewDiscountRon > 0 && (
+                <div className="flex items-center justify-between px-5 pt-1 text-sm">
+                  <span className="text-emerald-700">
+                    {t(locale, 'promo.cart_discount_label')} ({appliedPromo.code})
+                  </span>
+                  <span className="font-semibold tabular-nums text-emerald-700">
+                    − {formatRon(previewDiscountRon, locale)}
+                  </span>
+                </div>
+              )}
               <SheetFooter className="border-t-0 pt-2">
                 <div className="flex w-full flex-col gap-2">
                   {closedReason ? (
