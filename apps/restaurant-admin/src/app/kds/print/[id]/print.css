@@ -1,0 +1,70 @@
+/* KDS receipt — 80mm thermal-printer friendly. Imported only by the
+   /kds/print/[id] route so it does not leak into the rest of the app. */
+
+.kds-receipt {
+  width: 80mm;
+  margin: 0 auto;
+  padding: 8mm 6mm;
+  background: #ffffff;
+  color: #000000;
+  font-family: ui-monospace, "Courier New", Courier, monospace;
+  font-size: 12pt;
+  line-height: 1.35;
+}
+
+.kds-receipt h1 {
+  font-size: 14pt;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 4mm;
+}
+
+.kds-receipt .meta {
+  font-size: 10pt;
+  text-align: center;
+  margin-bottom: 4mm;
+}
+
+.kds-receipt hr {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 3mm 0;
+}
+
+.kds-receipt ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kds-receipt li {
+  margin-bottom: 2mm;
+}
+
+.kds-receipt .mods {
+  font-size: 10pt;
+  padding-left: 5mm;
+}
+
+.kds-receipt .notes {
+  font-weight: 700;
+  border: 1px dashed #000;
+  padding: 2mm;
+  margin-top: 3mm;
+}
+
+@media print {
+  /* The print dialog already targets only printable content; this just
+     trims the host page chrome down to the receipt itself. */
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .kds-no-print {
+    display: none !important;
+  }
+  .kds-receipt {
+    margin: 0;
+    padding: 4mm;
+  }
+}
