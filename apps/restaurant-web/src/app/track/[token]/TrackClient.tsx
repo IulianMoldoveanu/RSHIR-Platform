@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { formatRon } from '@/lib/format';
+import { t, type Locale, type TKey } from '@/lib/i18n';
 
 const TrackMap = dynamic(() => import('./TrackMap').then((m) => m.TrackMap), {
   ssr: false,
@@ -27,16 +29,16 @@ type TrackOrder = {
   dropoff: { neighborhood: string; city: string } | null;
 };
 
-export function TrackClient({ token }: { token: string }) {
+export function TrackClient({ token, locale }: { token: string; locale: Locale }) {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>
-      <TrackInner token={token} />
+      <TrackInner token={token} locale={locale} />
     </QueryClientProvider>
   );
 }
 
-function TrackInner({ token }: { token: string }) {
+function TrackInner({ token, locale }: { token: string; locale: Locale }) {
   const { data, isLoading, error } = useQuery<{ order: TrackOrder }>({
     queryKey: ['track', token],
     queryFn: async () => {
@@ -53,12 +55,12 @@ function TrackInner({ token }: { token: string }) {
   );
 
   if (isLoading) {
-    return <p className="text-sm text-zinc-500">Se încarcă comanda…</p>;
+    return <p className="text-sm text-zinc-500">{t(locale, 'track.loading')}</p>;
   }
   if (error || !data?.order) {
     return (
       <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-        Comanda nu a fost găsită. Verifică linkul sau sună la restaurant.
+        {t(locale, 'track.not_found')}
       </div>
     );
   }
@@ -70,17 +72,17 @@ function TrackInner({ token }: { token: string }) {
     <div className="space-y-5">
       <header className="space-y-1">
         {order.tenant && <p className="text-xs uppercase tracking-widest text-zinc-400">{order.tenant.name}</p>}
-        <h1 className="text-2xl font-semibold tracking-tight">Comanda ta</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t(locale, 'track.your_order')}</h1>
         <p className="font-mono text-xs text-zinc-500">#{order.id.slice(0, 8)}</p>
       </header>
 
-      <StatusPill status={order.status} paymentStatus={order.paymentStatus} />
+      <StatusPill status={order.status} paymentStatus={order.paymentStatus} locale={locale} />
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">Estimat</p>
-        <p className="mt-1 text-zinc-700">
-          Va fi disponibil când curierul preia comanda — Sprint 4.
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          {t(locale, 'track.estimate_label')}
         </p>
+        <p className="mt-1 text-zinc-700">{t(locale, 'track.estimate_pending')}</p>
       </section>
 
       <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
@@ -88,27 +90,27 @@ function TrackInner({ token }: { token: string }) {
       </section>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">Produse</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">{t(locale, 'track.products')}</p>
         <ul className="space-y-1">
           {order.items.map((it) => (
             <li key={it.itemId} className="flex justify-between">
               <span>
                 {it.quantity}× {it.name}
               </span>
-              <span className="font-mono text-zinc-700">{it.lineTotalRon.toFixed(2)} RON</span>
+              <span className="font-mono text-zinc-700">{formatRon(it.lineTotalRon, locale)}</span>
             </li>
           ))}
         </ul>
         <div className="mt-3 space-y-1 border-t border-zinc-200 pt-3 text-xs text-zinc-700">
-          <Row label="Subtotal" value={`${order.subtotalRon.toFixed(2)} RON`} />
-          <Row label="Taxă livrare" value={`${order.deliveryFeeRon.toFixed(2)} RON`} />
-          <Row label="Total" value={`${order.totalRon.toFixed(2)} RON`} bold />
+          <Row label={t(locale, 'track.subtotal')} value={formatRon(order.subtotalRon, locale)} />
+          <Row label={t(locale, 'track.delivery_fee')} value={formatRon(order.deliveryFeeRon, locale)} />
+          <Row label={t(locale, 'track.total')} value={formatRon(order.totalRon, locale)} bold />
         </div>
       </section>
 
       {order.customer && order.dropoff && (
         <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">Livrare la</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">{t(locale, 'track.delivered_to')}</p>
           <p className="mt-1 text-zinc-800">
             {order.customer.firstName}
             {order.customer.lastNameInitial && ` ${order.customer.lastNameInitial}`}
@@ -124,15 +126,35 @@ function TrackInner({ token }: { token: string }) {
           href={`tel:${order.tenant.phone}`}
           className="block w-full rounded-md bg-purple-700 px-4 py-3 text-center text-sm font-medium text-white shadow-sm hover:bg-purple-800"
         >
-          Sună restaurantul ({order.tenant.phone})
+          {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
         </a>
       )}
     </div>
   );
 }
 
-function StatusPill({ status, paymentStatus }: { status: string; paymentStatus: string }) {
-  const label = STATUS_LABEL_RO[status] ?? status;
+const STATUS_KEYS: Record<string, TKey> = {
+  PENDING: 'track.status_PENDING',
+  CONFIRMED: 'track.status_CONFIRMED',
+  PREPARING: 'track.status_PREPARING',
+  READY: 'track.status_READY',
+  DISPATCHED: 'track.status_DISPATCHED',
+  IN_DELIVERY: 'track.status_IN_DELIVERY',
+  DELIVERED: 'track.status_DELIVERED',
+  CANCELLED: 'track.status_CANCELLED',
+};
+
+function StatusPill({
+  status,
+  paymentStatus,
+  locale,
+}: {
+  status: string;
+  paymentStatus: string;
+  locale: Locale;
+}) {
+  const key = STATUS_KEYS[status];
+  const label = key ? t(locale, key) : status;
   const tone =
     status === 'CANCELLED'
       ? 'bg-rose-100 text-rose-800'
@@ -144,7 +166,7 @@ function StatusPill({ status, paymentStatus }: { status: string; paymentStatus: 
       <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>
       {paymentStatus === 'PAID' && (
         <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-          Plătit
+          {t(locale, 'track.paid')}
         </span>
       )}
     </div>
@@ -159,14 +181,3 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
     </div>
   );
 }
-
-const STATUS_LABEL_RO: Record<string, string> = {
-  PENDING: 'În așteptare',
-  CONFIRMED: 'Confirmată',
-  PREPARING: 'În pregătire',
-  READY: 'Gata de livrare',
-  DISPATCHED: 'Trimisă curierului',
-  IN_DELIVERY: 'În livrare',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};

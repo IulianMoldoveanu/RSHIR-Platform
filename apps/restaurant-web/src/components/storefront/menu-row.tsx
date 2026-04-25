@@ -1,7 +1,8 @@
 import { MenuItemCard } from './menu-item-card';
 import type { MenuCategory } from '@/lib/menu';
+import type { Locale } from '@/lib/i18n';
 
-export function MenuRow({ category }: { category: MenuCategory }) {
+export function MenuRow({ category, locale }: { category: MenuCategory; locale: Locale }) {
   if (category.items.length === 0) return null;
   return (
     <section className="mt-6">
@@ -13,7 +14,7 @@ export function MenuRow({ category }: { category: MenuCategory }) {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {category.items.map((it) => (
-          <MenuItemCard key={it.id} item={it} modifiers={it.modifiers} />
+          <MenuItemCard key={it.id} item={it} modifiers={it.modifiers} locale={locale} />
         ))}
       </div>
     </section>

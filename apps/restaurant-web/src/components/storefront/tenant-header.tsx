@@ -1,20 +1,23 @@
 import Link from 'next/link';
 import { MessageCircle } from 'lucide-react';
+import { t, type Locale } from '@/lib/i18n';
+import { LocaleSwitcher } from './locale-switcher';
 
 type TenantHeaderProps = {
   name: string;
   logoUrl: string | null;
   coverUrl: string | null;
   whatsappPhone: string | null;
+  locale: Locale;
 };
 
-function whatsappOrderUrl(phone: string, name: string): string {
-  const text = `Salut! Vreau să comand de la ${name}.`;
+function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
+  const text = t(locale, 'header.whatsapp_text_template', { name });
   const cleaned = phone.replace(/[^0-9]/g, '');
   return `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`;
 }
 
-export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone }: TenantHeaderProps) {
+export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone, locale }: TenantHeaderProps) {
   return (
     <header className="relative">
       <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-zinc-200 to-zinc-300 sm:h-56">
@@ -29,6 +32,9 @@ export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone }: TenantH
           />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/0 to-black/40" />
+        <div className="absolute right-3 top-3">
+          <LocaleSwitcher current={locale} ariaLabel={t(locale, 'header.switch_locale')} />
+        </div>
       </div>
 
       <div className="mx-auto flex max-w-2xl items-end gap-3 px-4 pb-3 pt-3 sm:gap-4">
@@ -49,20 +55,20 @@ export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone }: TenantH
             href="/bio"
             className="text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"
           >
-            link.bio
+            {t(locale, 'header.bio_link')}
           </Link>
         </div>
 
         {whatsappPhone ? (
           <a
-            href={whatsappOrderUrl(whatsappPhone, name)}
+            href={whatsappOrderUrl(whatsappPhone, name, locale)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Comandă pe WhatsApp</span>
-            <span className="sm:hidden">WhatsApp</span>
+            <span className="hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
+            <span className="sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
           </a>
         ) : null}
       </div>

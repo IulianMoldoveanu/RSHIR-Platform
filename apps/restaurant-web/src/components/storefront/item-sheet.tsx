@@ -4,15 +4,17 @@ import { Minus, Plus } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
 import type { MenuItemWithModifiers } from '@/lib/menu';
 
 type Props = {
   item: MenuItemWithModifiers;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  locale: Locale;
 };
 
-export function ItemSheet({ item, open, onOpenChange }: Props) {
+export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
   const useCartStore = useCart();
   const addItem = useCartStore((s) => s.addItem);
   const [qty, setQty] = useState(1);
@@ -69,7 +71,7 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
         <div className="flex-1 overflow-y-auto px-5 pt-4">
           <SheetHeader className="p-0 pb-3">
             <SheetTitle>{item.name}</SheetTitle>
-            <p className="text-base font-medium text-zinc-900">{formatRon(item.price_ron)}</p>
+            <p className="text-base font-medium text-zinc-900">{formatRon(item.price_ron, locale)}</p>
           </SheetHeader>
 
           {item.description ? (
@@ -79,7 +81,7 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
           {item.modifiers.length > 0 ? (
             <div className="mt-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Extra opțiuni
+                {t(locale, 'item.modifiers_title')}
               </h3>
               <ul className="mt-2 space-y-1.5">
                 {item.modifiers.map((m) => {
@@ -97,7 +99,7 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
                           {m.name}
                         </span>
                         <span className="text-sm text-zinc-600">
-                          +{formatRon(m.price_delta_ron)}
+                          +{formatRon(m.price_delta_ron, locale)}
                         </span>
                       </label>
                     </li>
@@ -108,14 +110,14 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
           ) : null}
 
           <div className="mt-5 flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-700">Cantitate</span>
+            <span className="text-sm font-medium text-zinc-700">{t(locale, 'item.quantity')}</span>
             <div className="flex items-center gap-3 rounded-full bg-zinc-100 p-1">
               <button
                 type="button"
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900 disabled:opacity-50"
                 disabled={qty <= 1}
-                aria-label="Scade cantitatea"
+                aria-label={t(locale, 'item.decrease_qty')}
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -124,7 +126,7 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
                 type="button"
                 onClick={() => setQty((q) => q + 1)}
                 className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
-                aria-label="Crește cantitatea"
+                aria-label={t(locale, 'item.increase_qty')}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -139,8 +141,8 @@ export function ItemSheet({ item, open, onOpenChange }: Props) {
             disabled={!item.is_available}
             className="flex w-full items-center justify-between rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
-            <span>{item.is_available ? 'Adaugă în coș' : 'Momentan indisponibil'}</span>
-            {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal)}</span> : null}
+            <span>{item.is_available ? t(locale, 'item.add_to_cart') : t(locale, 'item.unavailable')}</span>
+            {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal, locale)}</span> : null}
           </button>
         </SheetFooter>
       </SheetContent>

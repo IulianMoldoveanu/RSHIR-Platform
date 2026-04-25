@@ -6,14 +6,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
 import { WhatsAppShareButton } from './share-button';
 
 export function CartPill({
   siteUrl,
   closedReason = null,
+  locale,
 }: {
   siteUrl: string;
   closedReason?: string | null;
+  locale: Locale;
 }) {
   const useCartStore = useCart();
   const [open, setOpen] = useState(false);
@@ -42,23 +45,23 @@ export function CartPill({
           <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold tabular-nums text-zinc-900">
             {count}
           </span>
-          <span className="text-sm font-medium">Vezi coșul</span>
+          <span className="text-sm font-medium">{t(locale, 'cart.view_cart')}</span>
         </span>
-        <span className="text-sm font-semibold tabular-nums">{formatRon(subtotal)}</span>
+        <span className="text-sm font-semibold tabular-nums">{formatRon(subtotal, locale)}</span>
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-h-[85vh] sm:border">
           <SheetHeader>
-            <SheetTitle>Coșul tău</SheetTitle>
-            <p className="text-xs text-zinc-500">{count} produse</p>
+            <SheetTitle>{t(locale, 'cart.title')}</SheetTitle>
+            <p className="text-xs text-zinc-500">{t(locale, 'cart.products_count_template', { count })}</p>
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto px-5 pb-2">
             {items.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-zinc-500">
                 <ShoppingBag className="h-8 w-8" />
-                <p className="text-sm">Coșul e gol.</p>
+                <p className="text-sm">{t(locale, 'cart.empty')}</p>
               </div>
             ) : (
               <ul className="divide-y divide-zinc-100">
@@ -91,7 +94,7 @@ export function CartPill({
                               type="button"
                               onClick={() => updateQty(it.lineId, it.qty - 1)}
                               className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
-                              aria-label="Scade"
+                              aria-label={t(locale, 'cart.decrease')}
                             >
                               <Minus className="h-3 w-3" />
                             </button>
@@ -102,13 +105,13 @@ export function CartPill({
                               type="button"
                               onClick={() => updateQty(it.lineId, it.qty + 1)}
                               className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
-                              aria-label="Crește"
+                              aria-label={t(locale, 'cart.increase')}
                             >
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
                           <span className="text-sm font-semibold tabular-nums text-zinc-900">
-                            {formatRon(total)}
+                            {formatRon(total, locale)}
                           </span>
                         </div>
                       </div>
@@ -116,7 +119,7 @@ export function CartPill({
                         type="button"
                         onClick={() => removeItem(it.lineId)}
                         className="self-start text-zinc-400 hover:text-red-600"
-                        aria-label="Șterge"
+                        aria-label={t(locale, 'cart.remove')}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -130,9 +133,9 @@ export function CartPill({
           {items.length > 0 ? (
             <div className="border-t border-zinc-100 bg-white">
               <div className="flex items-center justify-between px-5 pt-4 text-sm">
-                <span className="text-zinc-600">Subtotal</span>
+                <span className="text-zinc-600">{t(locale, 'cart.subtotal')}</span>
                 <span className="font-semibold tabular-nums text-zinc-900">
-                  {formatRon(subtotal)}
+                  {formatRon(subtotal, locale)}
                 </span>
               </div>
               <SheetFooter className="border-t-0 pt-2">
@@ -145,22 +148,23 @@ export function CartPill({
                       aria-disabled="true"
                       className="flex w-full cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-5 py-3.5 text-sm font-semibold text-zinc-600"
                     >
-                      Închis — checkout indisponibil
+                      {t(locale, 'cart.closed_unavailable')}
                     </button>
                   ) : (
                     <Link
                       href="/checkout"
                       className="flex w-full items-center justify-center rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800"
                     >
-                      Continuă către checkout
+                      {t(locale, 'cart.continue_checkout')}
                     </Link>
                   )}
                   {closedReason && (
                     <p className="text-center text-xs text-zinc-500">{closedReason}</p>
                   )}
                   <WhatsAppShareButton
-                    text="Uite ce am pus în coș de la"
+                    text={t(locale, 'cart.whatsapp_share_text')}
                     url={siteUrl}
+                    label={t(locale, 'item.share_on_whatsapp')}
                     className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-600 px-4 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
                   />
                 </div>

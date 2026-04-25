@@ -15,6 +15,8 @@
  * owner configures a schedule.
  */
 
+import type { Locale } from './i18n';
+
 const TZ = 'Europe/Bucharest';
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export type DayKey = (typeof DAYS)[number];
@@ -157,9 +159,10 @@ export function isOpenNow(settings: unknown, now: Date = new Date()): OpenStatus
   return { open: false };
 }
 
-/** Formats a "next open" Date as a Bucharest-local short label, e.g. "luni 10:00". */
-export function formatNextOpen(date: Date): string {
-  return new Intl.DateTimeFormat('ro-RO', {
+/** Formats a "next open" Date as a locale-aware short label, e.g. "luni 10:00" / "Monday 10:00". */
+export function formatNextOpen(date: Date, locale: Locale = 'ro'): string {
+  const tag = locale === 'en' ? 'en-GB' : 'ro-RO';
+  return new Intl.DateTimeFormat(tag, {
     timeZone: TZ,
     weekday: 'long',
     hour: '2-digit',

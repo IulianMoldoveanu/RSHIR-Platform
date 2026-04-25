@@ -9,18 +9,23 @@ import {
   isAcceptingOrders,
   isOpenNow,
 } from '@/lib/operations';
+import { t } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
-  if (!tenant) return { title: 'HIR Restaurant' };
+  const locale = getLocale();
+  if (!tenant) return { title: t(locale, 'meta.default_title') };
+  const description = t(locale, 'meta.home_description_template', { name: tenant.name });
   return {
-    title: `${tenant.name} — comandă online`,
-    description: `Comandă online direct de la ${tenant.name}.`,
+    title: t(locale, 'meta.home_title_template', { name: tenant.name }),
+    description,
     openGraph: {
       title: tenant.name,
-      description: `Comandă online direct de la ${tenant.name}.`,
+      description,
       images: tenant.settings.cover_url ? [{ url: tenant.settings.cover_url }] : undefined,
       type: 'website',
+      locale: locale === 'en' ? 'en_GB' : 'ro_RO',
     },
   };
 }
@@ -29,6 +34,7 @@ export default async function StorefrontHomePage() {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
+  const locale = getLocale();
   const menu = await getMenuByTenant(tenant.id);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -37,15 +43,17 @@ export default async function StorefrontHomePage() {
   let banner: { title: string; detail?: string } | null = null;
   if (!accepting) {
     banner = {
-      title: 'Restaurantul nu acceptă comenzi acum',
+      title: t(locale, 'home.banner_not_accepting_title'),
       detail:
         (tenant.settings as { pause_reason?: string | null }).pause_reason ?? undefined,
     };
   } else if (!openStatus.open) {
     banner = {
-      title: 'Restaurantul este închis acum',
+      title: t(locale, 'home.banner_closed_title'),
       detail: openStatus.nextOpen
-        ? `Deschidem ${formatNextOpen(openStatus.nextOpen)}`
+        ? t(locale, 'home.banner_next_open_template', {
+            when: formatNextOpen(openStatus.nextOpen, locale),
+          })
         : undefined,
     };
   }
@@ -57,6 +65,7 @@ export default async function StorefrontHomePage() {
         logoUrl={tenant.settings.logo_url ?? null}
         coverUrl={tenant.settings.cover_url ?? null}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
+        locale={locale}
       />
 
       {closed && banner && (
@@ -71,10 +80,10 @@ export default async function StorefrontHomePage() {
       <div className="mx-auto max-w-2xl">
         {menu.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-zinc-500">
-            Meniul nu e încă publicat.
+            {t(locale, 'home.menu_not_published')}
           </p>
         ) : (
-          menu.map((cat) => <MenuRow key={cat.id} category={cat} />)
+          menu.map((cat) => <MenuRow key={cat.id} category={cat} locale={locale} />)
         )}
       </div>
     </main>

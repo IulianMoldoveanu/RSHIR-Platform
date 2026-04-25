@@ -4,11 +4,11 @@ import { Share2 } from 'lucide-react';
 type Props = {
   text: string;
   url: string;
+  label: string;
   className?: string;
-  label?: string;
 };
 
-export function WhatsAppShareButton({ text, url, className, label = 'Share pe WhatsApp' }: Props) {
+export function WhatsAppShareButton({ text, url, className, label }: Props) {
   const message = `${text} ${url}`;
   const href = `https://wa.me/?text=${encodeURIComponent(message)}`;
   return (

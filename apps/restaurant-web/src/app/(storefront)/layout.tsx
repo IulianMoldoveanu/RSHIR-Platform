@@ -4,6 +4,8 @@ import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { HirFooter } from '@/components/storefront/hir-footer';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
+import { t } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +13,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
+  const locale = getLocale();
   const baseUrl = tenantBaseUrl();
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -19,18 +22,24 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   let closedReason: string | null = null;
   if (!accepting) {
-    closedReason = pauseReason ?? 'Restaurantul nu acceptă comenzi acum.';
+    closedReason = pauseReason ?? t(locale, 'layout.not_accepting');
   } else if (!openStatus.open) {
     closedReason = openStatus.nextOpen
-      ? `Închis acum. Deschidem ${formatNextOpen(openStatus.nextOpen)}.`
-      : 'Închis acum.';
+      ? t(locale, 'layout.closed_now_template', {
+          when: formatNextOpen(openStatus.nextOpen, locale),
+        })
+      : t(locale, 'layout.closed_now');
   }
 
   return (
     <StorefrontShell tenantId={tenant.id}>
       {children}
       <HirFooter />
-      <CartPill siteUrl={baseUrl} closedReason={closedReason} />
+      <CartPill
+        siteUrl={baseUrl}
+        closedReason={closedReason}
+        locale={locale}
+      />
     </StorefrontShell>
   );
 }

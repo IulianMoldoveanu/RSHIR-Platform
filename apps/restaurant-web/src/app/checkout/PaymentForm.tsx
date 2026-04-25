@@ -2,16 +2,20 @@
 
 import { useState } from 'react';
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
 
 export function PaymentForm(props: {
   orderId: string;
   amountRon: number;
+  locale: Locale;
   onSuccess: () => void;
   onError: (msg: string) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
+  const { locale } = props;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +29,7 @@ export function PaymentForm(props: {
     });
 
     if (error) {
-      props.onError(error.message ?? 'Plata a eșuat. Încearcă din nou.');
+      props.onError(error.message ?? t(locale, 'checkout.err_payment_failed'));
       setSubmitting(false);
       return;
     }
@@ -40,7 +44,7 @@ export function PaymentForm(props: {
       });
       const data = await res.json();
       if (!res.ok) {
-        props.onError(data?.error ?? 'Comanda nu a putut fi confirmată.');
+        props.onError(data?.error ?? t(locale, 'checkout.err_order_not_confirmed'));
         setSubmitting(false);
         return;
       }
@@ -61,11 +65,11 @@ export function PaymentForm(props: {
         disabled={!stripe || !elements || submitting}
         className="w-full rounded-md bg-purple-700 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-60"
       >
-        {submitting ? 'Se procesează plata…' : `Plătește ${props.amountRon.toFixed(2)} RON`}
+        {submitting
+          ? t(locale, 'checkout.processing_payment')
+          : t(locale, 'checkout.pay_template', { amount: formatRon(props.amountRon, locale) })}
       </button>
-      <p className="text-center text-xs text-zinc-500">
-        Test card: 4242 4242 4242 4242 · orice dată viitoare · orice CVC
-      </p>
+      <p className="text-center text-xs text-zinc-500">{t(locale, 'checkout.test_card_hint')}</p>
     </form>
   );
 }

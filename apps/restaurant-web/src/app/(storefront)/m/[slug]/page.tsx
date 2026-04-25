@@ -8,6 +8,8 @@ import { shortIdFromSlug, buildItemSlug } from '@/lib/slug';
 import { formatRon } from '@/lib/format';
 import { ItemDetailActions } from '@/components/storefront/item-detail-actions';
 import { WhatsAppShareButton } from '@/components/storefront/share-button';
+import { t } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,13 +32,14 @@ export async function generateMetadata({
 }: {
   params: { slug: string };
 }): Promise<Metadata> {
+  const locale = getLocale();
   const loaded = await loadItem(params.slug);
-  if (!loaded) return { title: 'Produs negăsit' };
+  if (!loaded) return { title: t(locale, 'meta.item_not_found') };
   const { tenant, item } = loaded;
   const baseUrl = tenantBaseUrl();
   const canonicalSlug = buildItemSlug(item);
   const url = `${baseUrl}/m/${canonicalSlug}`;
-  const description = truncate(item.description ?? `${item.name} — ${formatRon(item.price_ron)}`, 160);
+  const description = truncate(item.description ?? `${item.name} — ${formatRon(item.price_ron, locale)}`, 160);
 
   return {
     title: `${item.name} — ${tenant.name}`,
@@ -48,6 +51,7 @@ export async function generateMetadata({
       url,
       type: 'website',
       siteName: tenant.name,
+      locale: locale === 'en' ? 'en_GB' : 'ro_RO',
       images: item.image_url ? [{ url: item.image_url, width: 1200, height: 630, alt: item.name }] : [],
     },
     twitter: {
@@ -67,6 +71,7 @@ export async function generateMetadata({
 }
 
 export default async function ItemPage({ params }: { params: { slug: string } }) {
+  const locale = getLocale();
   const loaded = await loadItem(params.slug);
   if (!loaded) notFound();
   const { tenant, item } = loaded;
@@ -95,7 +100,7 @@ export default async function ItemPage({ params }: { params: { slug: string } })
         <Link
           href="/"
           className="absolute left-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md hover:text-zinc-900"
-          aria-label="Înapoi"
+          aria-label={t(locale, 'item.back')}
         >
           <ChevronLeft className="h-5 w-5" />
         </Link>
@@ -104,7 +109,7 @@ export default async function ItemPage({ params }: { params: { slug: string } })
       <div className="mx-auto max-w-2xl px-4 pt-5">
         <p className="text-xs uppercase tracking-widest text-zinc-500">{tenant.name}</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">{item.name}</h1>
-        <p className="mt-1 text-lg font-medium text-zinc-900">{formatRon(item.price_ron)}</p>
+        <p className="mt-1 text-lg font-medium text-zinc-900">{formatRon(item.price_ron, locale)}</p>
 
         {item.description ? (
           <p className="mt-4 text-sm leading-relaxed text-zinc-600">{item.description}</p>
@@ -112,15 +117,15 @@ export default async function ItemPage({ params }: { params: { slug: string } })
 
         <div className="mt-4">
           <WhatsAppShareButton
-            text={`${item.name} de la ${tenant.name} —`}
+            text={t(locale, 'item.share_message_template', { item: item.name, tenant: tenant.name })}
             url={url}
-            label="Share pe WhatsApp"
+            label={t(locale, 'item.share_on_whatsapp')}
           />
         </div>
 
         <hr className="my-6 border-zinc-200" />
 
-        <ItemDetailActions item={item} />
+        <ItemDetailActions item={item} locale={locale} />
       </div>
     </main>
   );

@@ -3,14 +3,16 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
 import type { MenuItem, MenuItemWithModifiers } from '@/lib/menu';
 
 type Props = {
   item: MenuItem;
   modifiers?: MenuItemWithModifiers['modifiers'];
+  locale: Locale;
 };
 
-export function MenuItemCard({ item, modifiers = [] }: Props) {
+export function MenuItemCard({ item, modifiers = [], locale }: Props) {
   const [open, setOpen] = useState(false);
   const itemWithMods: MenuItemWithModifiers = { ...item, modifiers };
 
@@ -35,7 +37,7 @@ export function MenuItemCard({ item, modifiers = [] }: Props) {
           )}
           {!item.is_available ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/75 text-xs font-semibold uppercase tracking-wider text-zinc-700">
-              Momentan indisponibil
+              {t(locale, 'item.unavailable')}
             </div>
           ) : null}
         </div>
@@ -47,19 +49,19 @@ export function MenuItemCard({ item, modifiers = [] }: Props) {
           ) : null}
           <div className="mt-auto flex items-center justify-between pt-2">
             <span className="text-sm font-semibold tabular-nums text-zinc-900">
-              {formatRon(item.price_ron)}
+              {formatRon(item.price_ron, locale)}
             </span>
             {item.is_available ? (
               <span className="inline-flex h-7 items-center gap-1 rounded-full bg-zinc-900 pl-2 pr-2.5 text-xs font-medium text-white">
                 <Plus className="h-3 w-3" />
-                Add
+                {t(locale, 'item.add_short')}
               </span>
             ) : null}
           </div>
         </div>
       </button>
 
-      <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} />
+      <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} locale={locale} />
     </>
   );
 }

@@ -5,19 +5,29 @@ import { resolveTenantFromHost } from '@/lib/tenant';
 import { getTopItems } from '@/lib/menu';
 import { buildItemSlug } from '@/lib/slug';
 import { formatRon } from '@/lib/format';
+import { t } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
+  const locale = getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return { title: 'HIR' };
   return {
-    title: `${tenant.name} — link.bio`,
-    description: `Descoperă produsele recomandate de ${tenant.name}.`,
+    title: t(locale, 'meta.bio_title_template', { name: tenant.name }),
+    description: t(locale, 'meta.bio_description_template', { name: tenant.name }),
+    openGraph: {
+      title: tenant.name,
+      description: t(locale, 'meta.bio_description_template', { name: tenant.name }),
+      type: 'website',
+      locale: locale === 'en' ? 'en_GB' : 'ro_RO',
+    },
   };
 }
 
 export default async function BioPage() {
+  const locale = getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
@@ -45,14 +55,14 @@ export default async function BioPage() {
           href="/"
           className="mt-1 text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"
         >
-          vezi tot meniul →
+          {t(locale, 'bio.view_all_menu')}
         </Link>
       </header>
 
       <section className="mx-auto mt-8 grid max-w-md grid-cols-2 gap-3 px-4">
         {items.length === 0 ? (
           <p className="col-span-2 py-10 text-center text-sm text-zinc-500">
-            Meniul nu e încă publicat.
+            {t(locale, 'bio.menu_not_published')}
           </p>
         ) : (
           items.map((it) => (
@@ -77,7 +87,7 @@ export default async function BioPage() {
               <div className="flex flex-1 flex-col gap-1 p-3">
                 <h2 className="line-clamp-1 text-sm font-semibold text-zinc-900">{it.name}</h2>
                 <span className="mt-auto text-sm font-semibold tabular-nums text-zinc-900">
-                  {formatRon(it.price_ron)}
+                  {formatRon(it.price_ron, locale)}
                 </span>
               </div>
             </Link>

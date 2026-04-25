@@ -3,9 +3,10 @@ import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
 import type { MenuItemWithModifiers } from '@/lib/menu';
 
-export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
+export function ItemDetailActions({ item, locale }: { item: MenuItemWithModifiers; locale: Locale }) {
   const useCartStore = useCart();
   const addItem = useCartStore((s) => s.addItem);
   const [qty, setQty] = useState(1);
@@ -44,7 +45,7 @@ export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
       {item.modifiers.length > 0 ? (
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Extra opțiuni
+            {t(locale, 'item.modifiers_title')}
           </h3>
           <ul className="mt-2 space-y-1.5">
             {item.modifiers.map((m) => {
@@ -61,7 +62,7 @@ export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
                       />
                       {m.name}
                     </span>
-                    <span className="text-sm text-zinc-600">+{formatRon(m.price_delta_ron)}</span>
+                    <span className="text-sm text-zinc-600">+{formatRon(m.price_delta_ron, locale)}</span>
                   </label>
                 </li>
               );
@@ -71,14 +72,14 @@ export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
       ) : null}
 
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-700">Cantitate</span>
+        <span className="text-sm font-medium text-zinc-700">{t(locale, 'item.quantity')}</span>
         <div className="flex items-center gap-3 rounded-full bg-zinc-100 p-1">
           <button
             type="button"
             onClick={() => setQty((q) => Math.max(1, q - 1))}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm disabled:opacity-50"
             disabled={qty <= 1}
-            aria-label="Scade"
+            aria-label={t(locale, 'cart.decrease')}
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -87,7 +88,7 @@ export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
             type="button"
             onClick={() => setQty((q) => q + 1)}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
-            aria-label="Crește"
+            aria-label={t(locale, 'cart.increase')}
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -101,9 +102,13 @@ export function ItemDetailActions({ item }: { item: MenuItemWithModifiers }) {
         className="flex w-full items-center justify-between rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
         <span>
-          {added ? 'Adăugat ✓' : item.is_available ? 'Adaugă în coș' : 'Momentan indisponibil'}
+          {added
+            ? t(locale, 'item.added')
+            : item.is_available
+              ? t(locale, 'item.add_to_cart')
+              : t(locale, 'item.unavailable')}
         </span>
-        {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal)}</span> : null}
+        {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal, locale)}</span> : null}
       </button>
     </div>
   );
