@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json | null
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_addresses: {
         Row: {
           city: string
@@ -459,6 +500,7 @@ export type Database = {
           payment_status: string
           promo_code_id: string | null
           public_track_token: string
+          review_reminder_sent_at: string | null
           status: string
           stripe_payment_intent_id: string | null
           subtotal_ron: number
@@ -481,6 +523,7 @@ export type Database = {
           payment_status?: string
           promo_code_id?: string | null
           public_track_token?: string
+          review_reminder_sent_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           subtotal_ron: number
@@ -503,6 +546,7 @@ export type Database = {
           payment_status?: string
           promo_code_id?: string | null
           public_track_token?: string
+          review_reminder_sent_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
           subtotal_ron?: number
