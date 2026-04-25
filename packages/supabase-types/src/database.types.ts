@@ -477,6 +477,8 @@ export type Database = {
           created_at: string
           custom_domain: string | null
           dispatch_mode: string
+          domain_status: string
+          domain_verified_at: string | null
           id: string
           name: string
           settings: Json
@@ -489,6 +491,8 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           dispatch_mode?: string
+          domain_status?: string
+          domain_verified_at?: string | null
           id?: string
           name: string
           settings?: Json
@@ -501,6 +505,8 @@ export type Database = {
           created_at?: string
           custom_domain?: string | null
           dispatch_mode?: string
+          domain_status?: string
+          domain_verified_at?: string | null
           id?: string
           name?: string
           settings?: Json
@@ -517,6 +523,7 @@ export type Database = {
     }
     Functions: {
       is_tenant_member: { Args: { t_id: string }; Returns: boolean }
+      is_tenant_owner: { Args: { t_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

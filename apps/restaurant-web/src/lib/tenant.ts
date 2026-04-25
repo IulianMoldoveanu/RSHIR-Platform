@@ -27,13 +27,25 @@ type TenantRow = {
   settings: Json;
 };
 
+const SUBDOMAIN_BASES = ['lvh.me', 'hir.ro'] as const;
+
+function subdomainSlug(host: string): string | null {
+  for (const base of SUBDOMAIN_BASES) {
+    const suffix = `.${base}`;
+    if (host.endsWith(suffix)) {
+      const label = host.slice(0, -suffix.length);
+      if (label && !label.includes('.')) return label;
+    }
+  }
+  return null;
+}
+
 /**
  * Resolves the active tenant for the current request from the host header.
  * Lookup order:
- *   1. exact match on `tenants.custom_domain`
- *   2. fallback to leading subdomain → `tenants.slug`
- *
- * Returns null if no tenant matches; the caller is expected to render not-found.
+ *   1. If host is `<slug>.lvh.me` or `<slug>.hir.ro` → resolve by slug.
+ *   2. Otherwise treat host as a custom domain (status must be ACTIVE).
+ * Returns null if neither matches.
  */
 export async function resolveTenantFromHost(): Promise<{
   tenant: ResolvedTenant | null;
@@ -41,19 +53,27 @@ export async function resolveTenantFromHost(): Promise<{
   slug: string;
 }> {
   const h = headers();
-  const host = h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
-  const slug = h.get('x-hir-tenant-slug') ?? host.split('.')[0];
+  const rawHost = h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
+  const host = rawHost.toLowerCase();
+  const subSlug = subdomainSlug(host);
+  const slug = subSlug ?? h.get('x-hir-tenant-slug')?.toLowerCase() ?? host.split('.')[0];
 
   const supabase = getSupabase();
   const SELECT = 'id, slug, name, custom_domain, status, settings';
 
-  let row = (
-    await supabase.from('tenants').select(SELECT).eq('custom_domain', host).maybeSingle()
-  ).data as TenantRow | null;
-
-  if (!row && slug) {
-    row = (await supabase.from('tenants').select(SELECT).eq('slug', slug).maybeSingle())
+  let row: TenantRow | null = null;
+  if (subSlug) {
+    row = (await supabase.from('tenants').select(SELECT).eq('slug', subSlug).maybeSingle())
       .data as TenantRow | null;
+  } else if (host) {
+    row = (
+      await supabase
+        .from('tenants')
+        .select(SELECT)
+        .eq('custom_domain', host)
+        .eq('domain_status', 'ACTIVE')
+        .maybeSingle()
+    ).data as TenantRow | null;
   }
 
   if (!row) return { tenant: null, host, slug };

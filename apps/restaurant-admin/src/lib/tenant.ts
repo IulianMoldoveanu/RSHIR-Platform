@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 import { createServerClient } from './supabase/server';
 import { createAdminClient } from './supabase/admin';
 
@@ -15,6 +16,50 @@ export type TenantSummary = {
  * any service-role write so the admin client cannot be tricked into writing
  * to another tenant.
  */
+export async function getTenantRole(
+  userId: string,
+  tenantId: string,
+): Promise<'OWNER' | 'STAFF' | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('tenant_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error) throw new Error(`Tenant role lookup failed: ${error.message}`);
+  if (!data) return null;
+  return data.role === 'OWNER' ? 'OWNER' : 'STAFF';
+}
+
+/**
+ * Use inside route handlers / server actions that mutate tenant-level config
+ * (custom domain, etc.) where only OWNERs may write.
+ */
+export async function assertTenantOwner(
+  userId: string,
+  tenantId: string,
+): Promise<{ ok: true } | { ok: false; response: NextResponse }> {
+  try {
+    const role = await getTenantRole(userId, tenantId);
+    if (role !== 'OWNER') {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: 'forbidden_owner_only' }, { status: 403 }),
+      };
+    }
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: e instanceof Error ? e.message : 'role_check_failed' },
+        { status: 400 },
+      ),
+    };
+  }
+}
+
 export async function assertTenantMember(userId: string, tenantId: string): Promise<void> {
   const admin = createAdminClient();
   const { data, error } = await admin

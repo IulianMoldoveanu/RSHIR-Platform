@@ -11,6 +11,7 @@ const navItems = [
   { href: '/dashboard/zones', label: 'Zone livrare' },
   { href: '/dashboard/analytics', label: 'Analytics' },
   { href: '/dashboard/settings', label: 'Setari' },
+  { href: '/dashboard/settings/domain', label: 'Domeniu' },
 ];
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
