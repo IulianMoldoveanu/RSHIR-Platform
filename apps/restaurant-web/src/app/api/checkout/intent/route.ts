@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
 import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
+import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,18 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return NextResponse.json({ error: 'tenant_not_found' }, { status: 404 });
+
+  const accepting = isAcceptingOrders(tenant.settings);
+  const openStatus = isOpenNow(tenant.settings);
+  if (!accepting || !openStatus.open) {
+    return NextResponse.json(
+      {
+        error: 'closed',
+        nextOpen: openStatus.nextOpen?.toISOString(),
+      },
+      { status: 503 },
+    );
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = intentRequestSchema.safeParse(body);

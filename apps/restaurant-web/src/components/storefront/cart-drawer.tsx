@@ -8,7 +8,13 @@ import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
 import { WhatsAppShareButton } from './share-button';
 
-export function CartPill({ siteUrl }: { siteUrl: string }) {
+export function CartPill({
+  siteUrl,
+  closedReason = null,
+}: {
+  siteUrl: string;
+  closedReason?: string | null;
+}) {
   const useCartStore = useCart();
   const [open, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -131,12 +137,27 @@ export function CartPill({ siteUrl }: { siteUrl: string }) {
               </div>
               <SheetFooter className="border-t-0 pt-2">
                 <div className="flex w-full flex-col gap-2">
-                  <Link
-                    href="/checkout"
-                    className="flex w-full items-center justify-center rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800"
-                  >
-                    Continuă către checkout
-                  </Link>
+                  {closedReason ? (
+                    <button
+                      type="button"
+                      disabled
+                      title={closedReason}
+                      aria-disabled="true"
+                      className="flex w-full cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-5 py-3.5 text-sm font-semibold text-zinc-600"
+                    >
+                      Închis — checkout indisponibil
+                    </button>
+                  ) : (
+                    <Link
+                      href="/checkout"
+                      className="flex w-full items-center justify-center rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800"
+                    >
+                      Continuă către checkout
+                    </Link>
+                  )}
+                  {closedReason && (
+                    <p className="text-center text-xs text-zinc-500">{closedReason}</p>
+                  )}
                   <WhatsAppShareButton
                     text="Uite ce am pus în coș de la"
                     url={siteUrl}

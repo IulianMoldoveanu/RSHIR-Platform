@@ -4,6 +4,11 @@ import { resolveTenantFromHost } from '@/lib/tenant';
 import { getMenuByTenant } from '@/lib/menu';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { MenuRow } from '@/components/storefront/menu-row';
+import {
+  formatNextOpen,
+  isAcceptingOrders,
+  isOpenNow,
+} from '@/lib/operations';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
@@ -25,6 +30,25 @@ export default async function StorefrontHomePage() {
   if (!tenant) notFound();
 
   const menu = await getMenuByTenant(tenant.id);
+  const accepting = isAcceptingOrders(tenant.settings);
+  const openStatus = isOpenNow(tenant.settings);
+  const closed = !accepting || !openStatus.open;
+
+  let banner: { title: string; detail?: string } | null = null;
+  if (!accepting) {
+    banner = {
+      title: 'Restaurantul nu acceptă comenzi acum',
+      detail:
+        (tenant.settings as { pause_reason?: string | null }).pause_reason ?? undefined,
+    };
+  } else if (!openStatus.open) {
+    banner = {
+      title: 'Restaurantul este închis acum',
+      detail: openStatus.nextOpen
+        ? `Deschidem ${formatNextOpen(openStatus.nextOpen)}`
+        : undefined,
+    };
+  }
 
   return (
     <main className="min-h-screen bg-zinc-50 pb-10">
@@ -34,6 +58,15 @@ export default async function StorefrontHomePage() {
         coverUrl={tenant.settings.cover_url ?? null}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
       />
+
+      {closed && banner && (
+        <div className="mx-auto mt-3 max-w-2xl px-4">
+          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-medium">{banner.title}</p>
+            {banner.detail && <p className="mt-0.5 text-xs">{banner.detail}</p>}
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-2xl">
         {menu.length === 0 ? (
