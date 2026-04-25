@@ -39,7 +39,7 @@ export function CartPill({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-zinc-900 px-5 text-white shadow-xl transition-transform hover:scale-[1.01]"
+        className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 text-white shadow-xl transition-transform hover:scale-[1.01]"
       >
         <span className="flex items-center gap-2.5">
           <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold tabular-nums text-zinc-900">
@@ -153,7 +153,7 @@ export function CartPill({
                   ) : (
                     <Link
                       href="/checkout"
-                      className="flex w-full items-center justify-center rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800"
+                      className="flex w-full items-center justify-center rounded-full bg-[var(--hir-brand)] px-5 py-3.5 text-sm font-semibold text-white hover:opacity-90"
                     >
                       {t(locale, 'cart.continue_checkout')}
                     </Link>

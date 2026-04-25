@@ -2,12 +2,43 @@ import { headers } from 'next/headers';
 import type { Json } from '@hir/supabase-types';
 import { getSupabase } from './supabase';
 
+export type TenantBranding = {
+  logo_url?: string | null;
+  cover_url?: string | null;
+  brand_color?: string | null;
+};
+
 export type TenantSettings = {
   logo_url?: string | null;
   cover_url?: string | null;
   whatsapp_phone?: string | null;
   bio_item_ids?: string[];
+  branding?: TenantBranding;
 };
+
+export const DEFAULT_BRAND_COLOR = '#7c3aed';
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * RSHIR-28: read branding sub-object with sane fallbacks. Falls back to the
+ * legacy top-level `logo_url`/`cover_url` keys so tenants who set those
+ * before the branding bucket existed don't lose imagery.
+ */
+export function brandingFor(settings: TenantSettings): {
+  logoUrl: string | null;
+  coverUrl: string | null;
+  brandColor: string;
+} {
+  const b = settings.branding ?? {};
+  return {
+    logoUrl: b.logo_url ?? settings.logo_url ?? null,
+    coverUrl: b.cover_url ?? settings.cover_url ?? null,
+    brandColor:
+      typeof b.brand_color === 'string' && HEX_RE.test(b.brand_color)
+        ? b.brand_color
+        : DEFAULT_BRAND_COLOR,
+  };
+}
 
 export type ResolvedTenant = {
   id: string;

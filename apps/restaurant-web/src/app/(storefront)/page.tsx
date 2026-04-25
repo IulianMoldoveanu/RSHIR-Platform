@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { resolveTenantFromHost } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { getMenuByTenant } from '@/lib/menu';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { MenuRow } from '@/components/storefront/menu-row';
@@ -17,13 +17,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   if (!tenant) return { title: t(locale, 'meta.default_title') };
   const description = t(locale, 'meta.home_description_template', { name: tenant.name });
+  const { coverUrl } = brandingFor(tenant.settings);
   return {
     title: t(locale, 'meta.home_title_template', { name: tenant.name }),
     description,
     openGraph: {
       title: tenant.name,
       description,
-      images: tenant.settings.cover_url ? [{ url: tenant.settings.cover_url }] : undefined,
+      images: coverUrl ? [{ url: coverUrl }] : undefined,
       type: 'website',
       locale: locale === 'en' ? 'en_GB' : 'ro_RO',
     },
@@ -35,6 +36,7 @@ export default async function StorefrontHomePage() {
   if (!tenant) notFound();
 
   const locale = getLocale();
+  const { logoUrl, coverUrl } = brandingFor(tenant.settings);
   const menu = await getMenuByTenant(tenant.id);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -62,8 +64,8 @@ export default async function StorefrontHomePage() {
     <main className="min-h-screen bg-zinc-50 pb-10">
       <TenantHeader
         name={tenant.name}
-        logoUrl={tenant.settings.logo_url ?? null}
-        coverUrl={tenant.settings.cover_url ?? null}
+        logoUrl={logoUrl}
+        coverUrl={coverUrl}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
       />

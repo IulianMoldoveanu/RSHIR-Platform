@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { HirFooter } from '@/components/storefront/hir-footer';
@@ -15,6 +15,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   const locale = getLocale();
   const baseUrl = tenantBaseUrl();
+  const { brandColor } = brandingFor(tenant.settings);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const pauseReason =
@@ -32,14 +33,16 @@ export default async function StorefrontLayout({ children }: { children: React.R
   }
 
   return (
-    <StorefrontShell tenantId={tenant.id}>
-      {children}
-      <HirFooter />
-      <CartPill
-        siteUrl={baseUrl}
-        closedReason={closedReason}
-        locale={locale}
-      />
-    </StorefrontShell>
+    <div style={{ ['--hir-brand' as never]: brandColor }}>
+      <StorefrontShell tenantId={tenant.id}>
+        {children}
+        <HirFooter />
+        <CartPill
+          siteUrl={baseUrl}
+          closedReason={closedReason}
+          locale={locale}
+        />
+      </StorefrontShell>
+    </div>
   );
 }

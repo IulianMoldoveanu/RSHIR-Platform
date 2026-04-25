@@ -24,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     { href: '/dashboard/analytics', label: 'Analytics' },
     { href: '/dashboard/settings', label: 'Setari' },
     { href: '/dashboard/settings/operations', label: 'Operațiuni' },
+    { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
     { href: '/dashboard/settings/domain', label: 'Domeniu' },
     { href: '/dashboard/settings/notifications', label: 'Notificari' },
   ];
