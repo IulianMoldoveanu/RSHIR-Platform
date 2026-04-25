@@ -10,14 +10,17 @@ import { PaymentForm } from './PaymentForm';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 
+type Fulfillment = 'DELIVERY' | 'PICKUP';
+
 type Quote = {
   lineItems: Array<{ itemId: string; name: string; priceRon: number; quantity: number; lineTotalRon: number }>;
   subtotalRon: number;
   deliveryFeeRon: number;
   totalRon: number;
+  fulfillment: Fulfillment;
   distanceKm: number;
-  zoneId: string;
-  tierId: string;
+  zoneId: string | null;
+  tierId: string | null;
 };
 
 type IntentResponse = {
@@ -40,13 +43,18 @@ export function CheckoutClient(props: {
   tenantSlug: string;
   tenantName: string;
   tenantPhone: string;
+  pickupEnabled: boolean;
+  pickupAddress: string | null;
+  pickupLat: number | null;
+  pickupLng: number | null;
   locale: Locale;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
-  const { locale } = props;
+  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng } = props;
 
   const [step, setStep] = useState<Step>('form');
+  const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
 
   // Customer
   const [firstName, setFirstName] = useState('');
@@ -105,19 +113,33 @@ export function CheckoutClient(props: {
       setError(t(locale, 'checkout.err_cart_empty'));
       return;
     }
-    let point = coords;
-    if (!point) {
-      setGeocoding(true);
-      try {
-        point = await geocodeAddressRo(`${line1}, ${city}, Romania`);
-      } finally {
-        setGeocoding(false);
-      }
+
+    let body: Record<string, unknown>;
+    if (fulfillment === 'PICKUP') {
+      body = {
+        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        fulfillment: 'PICKUP',
+      };
+    } else {
+      let point = coords;
       if (!point) {
-        setError(t(locale, 'checkout.err_geocode_failed'));
-        return;
+        setGeocoding(true);
+        try {
+          point = await geocodeAddressRo(`${line1}, ${city}, Romania`);
+        } finally {
+          setGeocoding(false);
+        }
+        if (!point) {
+          setError(t(locale, 'checkout.err_geocode_failed'));
+          return;
+        }
+        setCoords(point);
       }
-      setCoords(point);
+      body = {
+        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        fulfillment: 'DELIVERY',
+        address: { line1, line2, city, postalCode, lat: point.lat, lng: point.lng },
+      };
     }
 
     setWorking(true);
@@ -125,10 +147,7 @@ export function CheckoutClient(props: {
       const res = await fetch('/api/checkout/quote', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
-          address: { line1, line2, city, postalCode, lat: point.lat, lng: point.lng },
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -151,15 +170,26 @@ export function CheckoutClient(props: {
     setError(null);
     setWorking(true);
     try {
+      const intentBody: Record<string, unknown> = {
+        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        fulfillment,
+        customer: { firstName, lastName, phone, email },
+        notes,
+      };
+      if (fulfillment === 'DELIVERY') {
+        intentBody.address = {
+          line1,
+          line2,
+          city,
+          postalCode,
+          lat: coords!.lat,
+          lng: coords!.lng,
+        };
+      }
       const res = await fetch('/api/checkout/intent', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
-          address: { line1, line2, city, postalCode, lat: coords!.lat, lng: coords!.lng },
-          customer: { firstName, lastName, phone, email },
-          notes,
-        }),
+        body: JSON.stringify(intentBody),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -218,6 +248,14 @@ export function CheckoutClient(props: {
 
       {/* STEP 1: form */}
       <fieldset disabled={step !== 'form' || working} className="space-y-6">
+        {pickupEnabled && (
+          <FulfillmentToggle
+            value={fulfillment}
+            onChange={setFulfillment}
+            locale={locale}
+          />
+        )}
+
         <Section title={t(locale, 'checkout.section_your_data')}>
           <Field label={t(locale, 'checkout.field_first_name')}>
             <input className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
@@ -233,32 +271,41 @@ export function CheckoutClient(props: {
           </Field>
         </Section>
 
-        <Section title={t(locale, 'checkout.section_delivery')}>
-          <Field label={t(locale, 'checkout.field_street')}>
-            <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
-          </Field>
-          <Field label={t(locale, 'checkout.field_apt')}>
-            <input className={inputCls} value={line2} onChange={(e) => setLine2(e.target.value)} />
-          </Field>
-          <Field label={t(locale, 'checkout.field_city')}>
-            <input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} required />
-          </Field>
-          <Field label={t(locale, 'checkout.field_postal')}>
-            <input className={inputCls} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
-          </Field>
-          <p className="text-xs text-zinc-500">
-            {geocoding && t(locale, 'checkout.verifying_address')}
-            {!geocoding && coords && (
-              <span className="text-emerald-700">
-                {t(locale, 'checkout.address_located_template', {
-                  lat: coords.lat.toFixed(4),
-                  lng: coords.lng.toFixed(4),
-                })}
-              </span>
-            )}
-            {!geocoding && !coords && t(locale, 'checkout.will_locate')}
-          </p>
-        </Section>
+        {fulfillment === 'DELIVERY' ? (
+          <Section title={t(locale, 'checkout.section_delivery')}>
+            <Field label={t(locale, 'checkout.field_street')}>
+              <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
+            </Field>
+            <Field label={t(locale, 'checkout.field_apt')}>
+              <input className={inputCls} value={line2} onChange={(e) => setLine2(e.target.value)} />
+            </Field>
+            <Field label={t(locale, 'checkout.field_city')}>
+              <input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} required />
+            </Field>
+            <Field label={t(locale, 'checkout.field_postal')}>
+              <input className={inputCls} value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
+            </Field>
+            <p className="text-xs text-zinc-500">
+              {geocoding && t(locale, 'checkout.verifying_address')}
+              {!geocoding && coords && (
+                <span className="text-emerald-700">
+                  {t(locale, 'checkout.address_located_template', {
+                    lat: coords.lat.toFixed(4),
+                    lng: coords.lng.toFixed(4),
+                  })}
+                </span>
+              )}
+              {!geocoding && !coords && t(locale, 'checkout.will_locate')}
+            </p>
+          </Section>
+        ) : (
+          <PickupBox
+            address={pickupAddress}
+            lat={pickupLat}
+            lng={pickupLng}
+            locale={locale}
+          />
+        )}
 
         <Section title={t(locale, 'checkout.section_notes')}>
           <Field label="">
@@ -270,7 +317,13 @@ export function CheckoutClient(props: {
           type="button"
           onClick={(e) => void handleQuote(e)}
           className="w-full rounded-md bg-purple-700 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-60"
-          disabled={working || !firstName || !lastName || !phone || !line1 || !city}
+          disabled={
+            working ||
+            !firstName ||
+            !lastName ||
+            !phone ||
+            (fulfillment === 'DELIVERY' && (!line1 || !city))
+          }
         >
           {working ? t(locale, 'checkout.calculating') : t(locale, 'checkout.calculate_delivery_fee')}
         </button>
@@ -414,12 +467,123 @@ function ReviewBox({ quote, locale }: { quote: Quote; locale: Locale }) {
   return (
     <div className="space-y-1 text-sm sm:col-span-2">
       <Row label={t(locale, 'checkout.subtotal')} value={formatRon(quote.subtotalRon, locale)} />
-      <Row
-        label={t(locale, 'checkout.delivery_fee_template', { distance: quote.distanceKm.toFixed(1) })}
-        value={formatRon(quote.deliveryFeeRon, locale)}
-      />
+      {quote.fulfillment === 'PICKUP' ? (
+        <Row
+          label={t(locale, 'track.pickup_at_label')}
+          value={formatRon(0, locale)}
+        />
+      ) : (
+        <Row
+          label={t(locale, 'checkout.delivery_fee_template', { distance: quote.distanceKm.toFixed(1) })}
+          value={formatRon(quote.deliveryFeeRon, locale)}
+        />
+      )}
       <Row bold label={t(locale, 'checkout.total')} value={formatRon(quote.totalRon, locale)} />
     </div>
+  );
+}
+
+function FulfillmentToggle({
+  value,
+  onChange,
+  locale,
+}: {
+  value: Fulfillment;
+  onChange: (v: Fulfillment) => void;
+  locale: Locale;
+}) {
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+        {t(locale, 'checkout.section_fulfillment')}
+      </h2>
+      <div className="grid grid-cols-2 gap-2" role="radiogroup">
+        <FulfillmentRadio
+          checked={value === 'DELIVERY'}
+          onSelect={() => onChange('DELIVERY')}
+          label={t(locale, 'checkout.fulfillment_delivery')}
+        />
+        <FulfillmentRadio
+          checked={value === 'PICKUP'}
+          onSelect={() => onChange('PICKUP')}
+          label={t(locale, 'checkout.fulfillment_pickup')}
+        />
+      </div>
+    </section>
+  );
+}
+
+function FulfillmentRadio({
+  checked,
+  onSelect,
+  label,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onSelect}
+      className={
+        'rounded-md border px-3 py-3 text-sm font-medium transition-colors ' +
+        (checked
+          ? 'border-purple-700 bg-purple-50 text-purple-900'
+          : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50')
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function PickupBox({
+  address,
+  lat,
+  lng,
+  locale,
+}: {
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  locale: Locale;
+}) {
+  const mapsUrl =
+    lat !== null && lng !== null
+      ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      : null;
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+        {t(locale, 'checkout.section_pickup')}
+      </h2>
+      {address ? (
+        <div className="space-y-2 text-sm">
+          <p className="text-xs font-medium text-zinc-600">
+            {t(locale, 'checkout.pickup_address_label')}
+          </p>
+          <p className="text-zinc-900">{address}</p>
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-xs font-medium text-purple-700 underline"
+            >
+              {t(locale, 'checkout.pickup_open_in_maps')}
+            </a>
+          )}
+          <p className="text-xs text-emerald-700">{t(locale, 'checkout.pickup_fee_free')}</p>
+        </div>
+      ) : (
+        <p className="text-sm text-rose-700">
+          {t(locale, 'checkout.pickup_address_missing')}
+        </p>
+      )}
+    </section>
   );
 }
 

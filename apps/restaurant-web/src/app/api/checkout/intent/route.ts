@@ -37,12 +37,14 @@ export async function POST(req: Request) {
     admin,
     { id: tenant.id, slug: tenant.slug, settings: tenant.settings },
     parsed.data.items,
-    parsed.data.address,
+    parsed.data.address ?? null,
+    parsed.data.fulfillment,
   );
   if (!quoted.ok) {
     return NextResponse.json({ error: 'quote_failed', reason: quoted.reason }, { status: 422 });
   }
   const q = quoted.quote;
+  const isPickup = q.fulfillment === 'PICKUP';
 
   // Customer (one row per checkout — no auth/dedupe in MVP).
   const { data: customer, error: custErr } = await admin
@@ -60,21 +62,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'customer_insert_failed', detail: custErr?.message }, { status: 500 });
   }
 
-  const { data: address, error: addrErr } = await admin
-    .from('customer_addresses')
-    .insert({
-      customer_id: customer.id,
-      line1: parsed.data.address.line1,
-      line2: parsed.data.address.line2 || null,
-      city: parsed.data.address.city,
-      postal_code: parsed.data.address.postalCode || null,
-      latitude: parsed.data.address.lat,
-      longitude: parsed.data.address.lng,
-    })
-    .select('id')
-    .single();
-  if (addrErr || !address) {
-    return NextResponse.json({ error: 'address_insert_failed', detail: addrErr?.message }, { status: 500 });
+  let addressId: string | null = null;
+  if (!isPickup && parsed.data.address) {
+    const { data: address, error: addrErr } = await admin
+      .from('customer_addresses')
+      .insert({
+        customer_id: customer.id,
+        line1: parsed.data.address.line1,
+        line2: parsed.data.address.line2 || null,
+        city: parsed.data.address.city,
+        postal_code: parsed.data.address.postalCode || null,
+        latitude: parsed.data.address.lat,
+        longitude: parsed.data.address.lng,
+      })
+      .select('id')
+      .single();
+    if (addrErr || !address) {
+      return NextResponse.json({ error: 'address_insert_failed', detail: addrErr?.message }, { status: 500 });
+    }
+    addressId = address.id;
   }
 
   const { data: order, error: orderErr } = await admin
@@ -82,7 +88,7 @@ export async function POST(req: Request) {
     .insert({
       tenant_id: tenant.id,
       customer_id: customer.id,
-      delivery_address_id: address.id,
+      delivery_address_id: addressId,
       items: q.lineItems,
       subtotal_ron: q.subtotalRon,
       delivery_fee_ron: q.deliveryFeeRon,

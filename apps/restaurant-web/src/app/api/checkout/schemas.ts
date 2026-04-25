@@ -21,17 +21,31 @@ export const customerSchema = z.object({
   email: z.string().trim().email().max(200).optional().or(z.literal('')),
 });
 
-export const quoteRequestSchema = z.object({
-  items: z.array(cartItemSchema).min(1).max(50),
-  address: addressSchema,
-});
+export const fulfillmentSchema = z.enum(['DELIVERY', 'PICKUP']);
 
-export const intentRequestSchema = z.object({
-  items: z.array(cartItemSchema).min(1).max(50),
-  address: addressSchema,
-  customer: customerSchema,
-  notes: z.string().trim().max(500).optional().or(z.literal('')),
-});
+export const quoteRequestSchema = z
+  .object({
+    items: z.array(cartItemSchema).min(1).max(50),
+    fulfillment: fulfillmentSchema.default('DELIVERY'),
+    address: addressSchema.optional(),
+  })
+  .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
+    message: 'address required for delivery',
+    path: ['address'],
+  });
+
+export const intentRequestSchema = z
+  .object({
+    items: z.array(cartItemSchema).min(1).max(50),
+    fulfillment: fulfillmentSchema.default('DELIVERY'),
+    address: addressSchema.optional(),
+    customer: customerSchema,
+    notes: z.string().trim().max(500).optional().or(z.literal('')),
+  })
+  .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
+    message: 'address required for delivery',
+    path: ['address'],
+  });
 
 export const confirmRequestSchema = z.object({
   orderId: z.string().uuid(),
@@ -40,5 +54,6 @@ export const confirmRequestSchema = z.object({
 export type CartItemInput = z.infer<typeof cartItemSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
 export type CustomerInput = z.infer<typeof customerSchema>;
+export type Fulfillment = z.infer<typeof fulfillmentSchema>;
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 export type IntentRequest = z.infer<typeof intentRequestSchema>;

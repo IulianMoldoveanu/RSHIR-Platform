@@ -10,6 +10,8 @@ export type OperationsSettings = {
   is_accepting_orders: boolean;
   pause_reason: string | null;
   pickup_eta_minutes: number;
+  pickup_enabled: boolean;
+  pickup_address: string | null;
   opening_hours: Record<DayKey, { open: string; close: string }[]>;
 };
 
@@ -92,10 +94,15 @@ export async function saveOperationsAction(
   const cleanReason =
     typeof input.pause_reason === 'string' ? input.pause_reason.trim().slice(0, 200) : '';
 
+  const cleanPickupAddress =
+    typeof input.pickup_address === 'string' ? input.pickup_address.trim().slice(0, 200) : '';
+
   const payload = {
     is_accepting_orders: input.is_accepting_orders,
     pause_reason: cleanReason || null,
     pickup_eta_minutes: Math.round(eta),
+    pickup_enabled: input.pickup_enabled !== false,
+    pickup_address: cleanPickupAddress || null,
     opening_hours: sanitizeHours(input.opening_hours),
   };
 

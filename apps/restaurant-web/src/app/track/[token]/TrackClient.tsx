@@ -24,7 +24,14 @@ type TrackOrder = {
   createdAt: string;
   updatedAt: string;
   publicTrackToken: string;
-  tenant: { name: string; slug: string; phone: string | null; location: { lat: number; lng: number } | null } | null;
+  fulfillment: 'DELIVERY' | 'PICKUP';
+  tenant: {
+    name: string;
+    slug: string;
+    phone: string | null;
+    location: { lat: number; lng: number } | null;
+    pickupAddress: string | null;
+  } | null;
   customer: { firstName: string; lastNameInitial: string | null } | null;
   dropoff: { neighborhood: string; city: string } | null;
 };
@@ -85,9 +92,22 @@ function TrackInner({ token, locale }: { token: string; locale: Locale }) {
         <p className="mt-1 text-zinc-700">{t(locale, 'track.estimate_pending')}</p>
       </section>
 
-      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-        <TrackMap pickup={pickup} dropoff={null} restaurantName={order.tenant?.name ?? 'Restaurant'} />
-      </section>
+      {order.fulfillment === 'PICKUP' ? (
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+            {t(locale, 'track.pickup_at_label')}
+          </p>
+          <p className="mt-1 text-zinc-900">
+            {order.tenant?.pickupAddress
+              ? t(locale, 'track.pickup_at_template', { address: order.tenant.pickupAddress })
+              : t(locale, 'track.pickup_at_label')}
+          </p>
+        </section>
+      ) : (
+        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <TrackMap pickup={pickup} dropoff={null} restaurantName={order.tenant?.name ?? 'Restaurant'} />
+        </section>
+      )}
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">{t(locale, 'track.products')}</p>
@@ -103,12 +123,16 @@ function TrackInner({ token, locale }: { token: string; locale: Locale }) {
         </ul>
         <div className="mt-3 space-y-1 border-t border-zinc-200 pt-3 text-xs text-zinc-700">
           <Row label={t(locale, 'track.subtotal')} value={formatRon(order.subtotalRon, locale)} />
-          <Row label={t(locale, 'track.delivery_fee')} value={formatRon(order.deliveryFeeRon, locale)} />
+          {order.fulfillment === 'PICKUP' ? (
+            <Row label={t(locale, 'track.pickup_at_label')} value={formatRon(0, locale)} />
+          ) : (
+            <Row label={t(locale, 'track.delivery_fee')} value={formatRon(order.deliveryFeeRon, locale)} />
+          )}
           <Row label={t(locale, 'track.total')} value={formatRon(order.totalRon, locale)} bold />
         </div>
       </section>
 
-      {order.customer && order.dropoff && (
+      {order.fulfillment !== 'PICKUP' && order.customer && order.dropoff && (
         <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">{t(locale, 'track.delivered_to')}</p>
           <p className="mt-1 text-zinc-800">

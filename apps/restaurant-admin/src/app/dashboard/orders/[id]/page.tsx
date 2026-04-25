@@ -67,6 +67,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         id, tenant_id, status, payment_status, items,
         subtotal_ron, delivery_fee_ron, total_ron, notes,
         public_track_token, created_at, updated_at,
+        delivery_address_id,
         customers ( first_name, last_name, phone ),
         customer_addresses ( line1, line2, city, postal_code )
       `,
@@ -90,6 +91,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     public_track_token: string;
     created_at: string;
     updated_at: string;
+    delivery_address_id: string | null;
     customers: { first_name: string | null; last_name: string | null; phone: string | null } | null;
     customer_addresses: {
       line1: string | null;
@@ -98,6 +100,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
       postal_code: string | null;
     } | null;
   };
+
+  const isPickup = order.delivery_address_id === null;
 
   const items = Array.isArray(order.items) ? (order.items as OrderItemSnapshot[]) : [];
   const allowedNext = nextStatuses(order.status);
@@ -117,6 +121,11 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white">
             {STATUS_LABEL[order.status]}
           </span>
+          {isPickup && (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+              Ridicare
+            </span>
+          )}
         </div>
         <p className="text-xs text-zinc-500">
           Creata {new Date(order.created_at).toLocaleString('ro-RO')}
@@ -192,22 +201,34 @@ export default async function OrderDetailPage({ params }: { params: { id: string
             )}
           </div>
 
-          <div className="rounded-md border border-zinc-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-zinc-900">Adresa de livrare</h2>
-            {order.customer_addresses ? (
-              <div className="text-sm text-zinc-700">
-                <p>{order.customer_addresses.line1}</p>
-                {order.customer_addresses.line2 && <p>{order.customer_addresses.line2}</p>}
-                <p className="text-xs text-zinc-500">
-                  {[order.customer_addresses.postal_code, order.customer_addresses.city]
-                    .filter(Boolean)
-                    .join(' • ')}
+          {isPickup ? (
+            <div className="rounded-md border border-zinc-200 bg-white p-4">
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Mod de primire</h2>
+              <p className="text-sm text-zinc-900">Ridicare personală de la restaurant</p>
+              {order.customers?.phone && (
+                <p className="mt-1 text-xs text-zinc-500">
+                  Telefon client: {order.customers.phone}
                 </p>
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-500">Fara adresa.</p>
-            )}
-          </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-md border border-zinc-200 bg-white p-4">
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Adresa de livrare</h2>
+              {order.customer_addresses ? (
+                <div className="text-sm text-zinc-700">
+                  <p>{order.customer_addresses.line1}</p>
+                  {order.customer_addresses.line2 && <p>{order.customer_addresses.line2}</p>}
+                  <p className="text-xs text-zinc-500">
+                    {[order.customer_addresses.postal_code, order.customer_addresses.city]
+                      .filter(Boolean)
+                      .join(' • ')}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500">Fara adresa.</p>
+              )}
+            </div>
+          )}
 
           <div className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900">Plata</h2>

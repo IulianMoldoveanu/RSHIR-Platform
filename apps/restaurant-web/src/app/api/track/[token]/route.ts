@@ -37,6 +37,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
         created_at,
         updated_at,
         public_track_token,
+        delivery_address_id,
         tenants ( name, slug, settings ),
         customers ( first_name, last_name ),
         customer_addresses ( line1, city )
@@ -59,6 +60,10 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
 
   const tenantLat = typeof tenantSettings.location_lat === 'number' ? tenantSettings.location_lat : null;
   const tenantLng = typeof tenantSettings.location_lng === 'number' ? tenantSettings.location_lng : null;
+  const pickupAddress =
+    typeof tenantSettings.pickup_address === 'string' ? tenantSettings.pickup_address : null;
+
+  const isPickup = order.delivery_address_id === null;
 
   return NextResponse.json({
     order: {
@@ -72,6 +77,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
       createdAt: order.created_at,
       updatedAt: order.updated_at,
       publicTrackToken: order.public_track_token,
+      fulfillment: isPickup ? 'PICKUP' : 'DELIVERY',
       tenant: order.tenants
         ? {
             name: order.tenants.name,
@@ -79,6 +85,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
             phone: tenantPhone,
             location:
               tenantLat !== null && tenantLng !== null ? { lat: tenantLat, lng: tenantLng } : null,
+            pickupAddress,
           }
         : null,
       customer: order.customers
@@ -87,15 +94,16 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
             lastNameInitial: initial(order.customers.last_name),
           }
         : null,
-      dropoff: order.customer_addresses
-        ? {
-            neighborhood: neighborhoodOf(
-              order.customer_addresses.line1,
-              order.customer_addresses.city,
-            ),
-            city: order.customer_addresses.city,
-          }
-        : null,
+      dropoff:
+        !isPickup && order.customer_addresses
+          ? {
+              neighborhood: neighborhoodOf(
+                order.customer_addresses.line1,
+                order.customer_addresses.city,
+              ),
+              city: order.customer_addresses.city,
+            }
+          : null,
     },
   });
 }

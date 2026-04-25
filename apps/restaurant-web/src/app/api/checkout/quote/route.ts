@@ -21,7 +21,8 @@ export async function POST(req: Request) {
     getSupabaseAdmin(),
     { id: tenant.id, slug: tenant.slug, settings: tenant.settings },
     parsed.data.items,
-    parsed.data.address,
+    parsed.data.address ?? null,
+    parsed.data.fulfillment,
   );
 
   if (!result.ok) {

@@ -8,7 +8,7 @@ import {
   tenantLocationFromSettings,
   type LatLng,
 } from '@/lib/zones';
-import type { CartItemInput, AddressInput } from './schemas';
+import type { CartItemInput, AddressInput, Fulfillment } from './schemas';
 
 export type PricedLineItem = {
   itemId: string;
@@ -23,9 +23,10 @@ export type Quote = {
   subtotalRon: number;
   deliveryFeeRon: number;
   totalRon: number;
+  fulfillment: Fulfillment;
   distanceKm: number;
-  zoneId: string;
-  tierId: string;
+  zoneId: string | null;
+  tierId: string | null;
 };
 
 export type QuoteFailure =
@@ -56,7 +57,8 @@ export async function computeQuote(
   admin: SupabaseClient<Database>,
   tenant: TenantContext,
   cart: CartItemInput[],
-  address: AddressInput,
+  address: AddressInput | null,
+  fulfillment: Fulfillment = 'DELIVERY',
 ): Promise<QuoteResult> {
   const { data: items, error: itemsErr } = await admin
     .from('restaurant_menu_items')
@@ -87,6 +89,24 @@ export async function computeQuote(
 
   const subtotalRon = round2(lineItems.reduce((s, li) => s + li.lineTotalRon, 0));
 
+  if (fulfillment === 'PICKUP') {
+    return {
+      ok: true,
+      quote: {
+        lineItems,
+        subtotalRon,
+        deliveryFeeRon: 0,
+        totalRon: subtotalRon,
+        fulfillment: 'PICKUP',
+        distanceKm: 0,
+        zoneId: null,
+        tierId: null,
+      },
+    };
+  }
+
+  if (!address) return { ok: false, reason: { kind: 'OUTSIDE_ZONE' } };
+
   const dropoff: LatLng = { lat: address.lat, lng: address.lng };
   const zoneId = await findEnclosingZoneId(admin, tenant.id, dropoff);
   if (!zoneId) return { ok: false, reason: { kind: 'OUTSIDE_ZONE' } };
@@ -107,6 +127,7 @@ export async function computeQuote(
       subtotalRon,
       deliveryFeeRon,
       totalRon,
+      fulfillment: 'DELIVERY',
       distanceKm: Math.round(distanceKm * 100) / 100,
       zoneId,
       tierId: tier.id,

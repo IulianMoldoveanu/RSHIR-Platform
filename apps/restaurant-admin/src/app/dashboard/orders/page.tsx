@@ -55,6 +55,7 @@ type OrderRow = {
   status: OrderStatus;
   total_ron: number;
   created_at: string;
+  delivery_address_id: string | null;
   customers: { first_name: string | null; last_name: string | null } | null;
 };
 
@@ -106,7 +107,7 @@ export default async function OrdersPage({
 
   let q = admin
     .from('restaurant_orders')
-    .select('id, status, total_ron, created_at, customers(first_name, last_name)')
+    .select('id, status, total_ron, created_at, delivery_address_id, customers(first_name, last_name)')
     .eq('tenant_id', tenant.id)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -174,6 +175,11 @@ export default async function OrdersPage({
                         >
                           {STATUS_LABEL[o.status]}
                         </span>
+                        {o.delivery_address_id === null && (
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+                            Ridicare
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 text-zinc-600">
                         <span>{formatRon(Number(o.total_ron))}</span>

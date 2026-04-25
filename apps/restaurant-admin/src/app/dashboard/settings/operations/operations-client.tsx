@@ -27,6 +27,8 @@ export function OperationsClient({
   const [accepting, setAccepting] = useState(initial.is_accepting_orders);
   const [reason, setReason] = useState(initial.pause_reason ?? '');
   const [eta, setEta] = useState(String(initial.pickup_eta_minutes));
+  const [pickupEnabled, setPickupEnabled] = useState(initial.pickup_enabled);
+  const [pickupAddress, setPickupAddress] = useState(initial.pickup_address ?? '');
   const [hours, setHours] = useState(initial.opening_hours);
   const [feedback, setFeedback] = useState<OperationsActionResult | null>(null);
 
@@ -61,6 +63,8 @@ export function OperationsClient({
           is_accepting_orders: accepting,
           pause_reason: reason.trim() || null,
           pickup_eta_minutes: etaNum,
+          pickup_enabled: pickupEnabled,
+          pickup_address: pickupAddress.trim() || null,
           opening_hours: hours,
         },
         tenantId,
@@ -119,6 +123,42 @@ export function OperationsClient({
             onChange={(e) => setEta(e.target.value)}
             className="mt-1 w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
           />
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Ridicare personală</h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Permite clienților să aleagă ridicarea de la restaurant în loc de livrare.
+        </p>
+
+        <label className="mt-3 inline-flex items-center gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={pickupEnabled}
+            onChange={(e) => setPickupEnabled(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <span className="text-sm text-zinc-900">Acceptăm ridicare personală</span>
+        </label>
+
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-zinc-600">
+            Adresă ridicare
+          </label>
+          <input
+            type="text"
+            disabled={!canEdit || !pickupEnabled}
+            maxLength={200}
+            value={pickupAddress}
+            onChange={(e) => setPickupAddress(e.target.value)}
+            placeholder="Str. Republicii 12, Brașov"
+            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none disabled:bg-zinc-50"
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            Adresa pe care o vede clientul când alege ridicare personală.
+          </p>
         </div>
       </section>
 

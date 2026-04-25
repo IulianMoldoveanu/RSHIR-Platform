@@ -12,6 +12,7 @@ export default async function CheckoutPage() {
 
   const locale = getLocale();
   const tenantPhone = readPhone(tenant.settings) ?? '';
+  const pickup = readPickup(tenant.settings);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
@@ -25,6 +26,10 @@ export default async function CheckoutPage() {
         tenantSlug={tenant.slug}
         tenantName={tenant.name}
         tenantPhone={tenantPhone}
+        pickupEnabled={pickup.enabled}
+        pickupAddress={pickup.address}
+        pickupLat={pickup.lat}
+        pickupLng={pickup.lng}
         locale={locale}
       />
     </main>
@@ -39,4 +44,21 @@ function readPhone(settings: unknown): string | null {
     return wa ?? ph ?? null;
   }
   return null;
+}
+
+function readPickup(settings: unknown): {
+  enabled: boolean;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+} {
+  if (settings && typeof settings === 'object') {
+    const s = settings as Record<string, unknown>;
+    const enabled = typeof s.pickup_enabled === 'boolean' ? s.pickup_enabled : true;
+    const address = typeof s.pickup_address === 'string' ? s.pickup_address : null;
+    const lat = typeof s.location_lat === 'number' ? s.location_lat : null;
+    const lng = typeof s.location_lng === 'number' ? s.location_lng : null;
+    return { enabled, address, lat, lng };
+  }
+  return { enabled: true, address: null, lat: null, lng: null };
 }
