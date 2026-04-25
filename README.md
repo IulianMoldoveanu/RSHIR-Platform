@@ -67,6 +67,37 @@ values ('mychef', 'My Chef Brașov', 'RESTAURANT', 'mychef.lvh.me', 'ACTIVE');
 
 Apply via `node supabase/apply-sql.mjs <file>` or the Supabase SQL editor.
 
+## Production
+
+Pilot deploy targets Vercel (push-to-deploy from `main`) + Supabase Edge
+Functions. The full operator runbook — Vercel project setup, custom-domain
+attach flow, Edge Function deploy, smoke checks, rollback — lives in
+[DEPLOY.md](DEPLOY.md).
+
+Quick post-deploy verification:
+
+```bash
+RESTAURANT_WEB_BASE=https://tenant1.hir.ro \
+ADMIN_BASE=https://admin.hir.ro \
+bash scripts/smoke-prod.sh
+```
+
+## Scripts
+
+Helpers under `supabase/` (Postgres + Edge Functions ops):
+
+- `apply-sql.mjs <file.sql>` — POSTs SQL to the Supabase Management API.
+- `deploy-function.mjs <name>` — uploads `functions/<name>/index.ts`.
+- `gen-types.mjs` — regenerates `packages/supabase-types/src/database.types.ts`.
+- `seed-admin.mjs` — seeds the bootstrap super-admin auth user.
+
+Helpers under `scripts/` (release verification):
+
+- `smoke.sh` — sprint-1 multi-tenant routing smoke test (local dev).
+- `smoke-prod.sh` — RSHIR-25 production smoke test (storefront index,
+  `/bio`, `/m/<slug>` + `og:title`, checkout quote API, admin root,
+  signup slug check).
+
 ## Stack
 
 - **Next.js 14** App Router, TypeScript strict, server actions
