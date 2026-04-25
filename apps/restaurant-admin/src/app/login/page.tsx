@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, type FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabase } from '@hir/supabase-types';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage } from '@hir/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage, toast } from '@hir/ui';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState(searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('signedUp') === '1') {
+      toast.success('Cont creat. Conectează-te pentru a continua.');
+    }
+  }, [searchParams]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -69,6 +78,11 @@ export default function LoginPage() {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Se autentifica...' : 'Conectare'}
             </Button>
+            <p className="text-center text-xs text-zinc-500">
+              <a href="/signup" className="underline">
+                Înregistrează un restaurant nou
+              </a>
+            </p>
           </Form>
         </CardContent>
       </Card>
