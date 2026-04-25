@@ -1,0 +1,77 @@
+// RSHIR-54: customer self-cancel via the public track token.
+// Anonymous, token-gated. Only allowed while status = 'PENDING' — once
+// the restaurant accepts (CONFIRMED) the customer must call. We also
+// refuse if payment_status = 'PAID' to keep refund handling out of MVP.
+
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchOrderEvent } from '@/lib/integration-bus';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+const paramsSchema = z.object({ token: z.string().uuid() });
+
+export async function POST(_req: Request, ctx: { params: { token: string } }) {
+  const parsed = paramsSchema.safeParse(ctx.params);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
+  }
+
+  const admin = getSupabaseAdmin();
+
+  const { data: order, error: lookupErr } = await admin
+    .from('restaurant_orders')
+    .select('id, tenant_id, status, payment_status')
+    .eq('public_track_token', parsed.data.token)
+    .single();
+  if (lookupErr || !order) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+
+  if (order.status !== 'PENDING' || order.payment_status === 'PAID') {
+    return NextResponse.json({ error: 'invalid_state', status: order.status }, { status: 409 });
+  }
+
+  const { error: updErr } = await admin
+    .from('restaurant_orders')
+    .update({ status: 'CANCELLED', notes: '[SELF-CANCEL]' })
+    .eq('id', order.id)
+    .eq('status', 'PENDING');
+  if (updErr) {
+    return NextResponse.json({ error: 'cancel_failed', detail: updErr.message }, { status: 500 });
+  }
+
+  // Best-effort audit row (anonymous actor).
+  const auditSb = admin as unknown as {
+    from: (t: string) => {
+      insert: (row: Record<string, unknown>) => Promise<unknown>;
+    };
+  };
+  auditSb
+    .from('audit_log')
+    .insert({
+      tenant_id: order.tenant_id,
+      actor_user_id: null,
+      action: 'order.cancelled',
+      entity_type: 'order',
+      entity_id: order.id,
+      metadata: { source: 'self-cancel', from: 'PENDING' },
+    })
+    .catch((e: unknown) => console.error('[track-cancel] audit insert failed', e));
+
+  // Notify any active POS adapter.
+  await dispatchOrderEvent(order.tenant_id, 'cancelled', {
+    orderId: order.id,
+    source: 'INTERNAL_STOREFRONT',
+    status: 'CANCELLED',
+    items: [],
+    totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+    customer: { firstName: '', phone: '' },
+    dropoff: null,
+    notes: '[SELF-CANCEL]',
+  });
+
+  return NextResponse.json({ ok: true, status: 'CANCELLED' });
+}

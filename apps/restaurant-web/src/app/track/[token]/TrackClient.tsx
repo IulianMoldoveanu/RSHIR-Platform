@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
@@ -172,6 +172,10 @@ function TrackInner({
         </a>
       )}
 
+      {order.status === 'PENDING' && order.paymentStatus !== 'PAID' && (
+        <CancelWidget token={token} locale={locale} />
+      )}
+
       {order.status === 'DELIVERED' && (
         <ReviewWidget token={token} initialDone={order.hasReview} locale={locale} />
       )}
@@ -319,6 +323,51 @@ function ReviewWidget({
         className="mt-3 inline-flex h-10 items-center justify-center rounded-md bg-purple-700 px-4 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-50"
       >
         {submitting ? t(locale, 'track.review_submitting') : t(locale, 'track.review_submit')}
+      </button>
+    </section>
+  );
+}
+
+function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/track/${token}/cancel`, { method: 'POST' });
+      if (res.ok) return;
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? 'cancel_error_generic');
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track', token] }),
+    onError: (e: Error) => {
+      setError(
+        e.message === 'invalid_state'
+          ? t(locale, 'track.cancel_error_state')
+          : t(locale, 'track.cancel_error_generic'),
+      );
+    },
+  });
+
+  function onClick() {
+    setError(null);
+    if (!window.confirm(t(locale, 'track.cancel_confirm'))) return;
+    mutation.mutate();
+  }
+
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+      <p className="text-xs text-zinc-600">{t(locale, 'track.cancel_help')}</p>
+      {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={mutation.isPending}
+        className="mt-3 inline-flex h-10 items-center justify-center rounded-md border border-rose-300 bg-white px-4 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+      >
+        {mutation.isPending
+          ? t(locale, 'track.cancel_submitting')
+          : t(locale, 'track.cancel_button')}
       </button>
     </section>
   );
