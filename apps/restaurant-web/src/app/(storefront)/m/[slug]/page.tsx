@@ -44,7 +44,10 @@ export async function generateMetadata({
   return {
     title: `${item.name} — ${tenant.name}`,
     description,
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      languages: { 'ro-RO': url, en: url, 'x-default': url },
+    },
     openGraph: {
       title: item.name,
       description,
@@ -80,8 +83,30 @@ export default async function ItemPage({ params }: { params: { slug: string } })
   const canonicalSlug = buildItemSlug(item);
   const url = `${baseUrl}/m/${canonicalSlug}`;
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MenuItem',
+    name: item.name,
+    description: item.description ?? undefined,
+    image: item.image_url ?? undefined,
+    url,
+    offers: {
+      '@type': 'Offer',
+      price: item.price_ron.toFixed(2),
+      priceCurrency: 'RON',
+      availability: item.is_available
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url,
+    },
+  };
+
   return (
     <main className="min-h-screen bg-zinc-50 pb-32">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="relative">
         <div className="relative h-72 w-full overflow-hidden bg-zinc-100 sm:h-96">
           {item.image_url ? (

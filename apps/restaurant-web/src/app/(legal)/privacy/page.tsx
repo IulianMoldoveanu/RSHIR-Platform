@@ -1,4 +1,5 @@
-import { resolveTenantFromHost } from '@/lib/tenant';
+import type { Metadata } from 'next';
+import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import {
@@ -9,6 +10,18 @@ import {
 } from '@/lib/cookies-catalog';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = getLocale();
+  const url = `${tenantBaseUrl()}/privacy`;
+  return {
+    title: t(locale, 'privacy.title'),
+    alternates: {
+      canonical: url,
+      languages: { 'ro-RO': url, en: url, 'x-default': url },
+    },
+  };
+}
 
 const DPO_EMAIL = 'dpo@hir.ro';
 const LAST_UPDATED = '2026-04-28';

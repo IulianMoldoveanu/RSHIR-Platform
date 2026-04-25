@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { resolveTenantFromHost } from '@/lib/tenant';
+import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getTopItems } from '@/lib/menu';
 import { buildItemSlug } from '@/lib/slug';
 import { formatRon } from '@/lib/format';
@@ -14,12 +14,18 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return { title: 'HIR' };
+  const url = `${tenantBaseUrl()}/bio`;
   return {
     title: t(locale, 'meta.bio_title_template', { name: tenant.name }),
     description: t(locale, 'meta.bio_description_template', { name: tenant.name }),
+    alternates: {
+      canonical: url,
+      languages: { 'ro-RO': url, en: url, 'x-default': url },
+    },
     openGraph: {
       title: tenant.name,
       description: t(locale, 'meta.bio_description_template', { name: tenant.name }),
+      url,
       type: 'website',
       locale: locale === 'en' ? 'en_GB' : 'ro_RO',
     },
