@@ -2,12 +2,20 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabase } from '@hir/supabase-types';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage, toast } from '@hir/ui';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState(searchParams.get('email') ?? '');

@@ -106,29 +106,49 @@ Helpers under `scripts/` (release verification):
 - **Postgres**: project `qfmeojeipncuxeltnvab` (`eu-central-1` Frankfurt)
 - **pnpm + Turborepo**, **Zod**, `useState`-controlled forms (no RHF in MVP)
 
-## Sprint 1 status (this branch)
+## Status (last updated 2026-04-25)
 
-| Task | Status |
-|---|---|
-| RSHIR-1 Turborepo foundation | done |
-| RSHIR-2 Supabase schema + RLS + seed | done |
-| RSHIR-3 Shared packages | done |
-| RSHIR-4 restaurant-web scaffold | done |
-| RSHIR-5 restaurant-admin scaffold | done |
-| RSHIR-6 End-to-end verification | done |
+7 sprints + 5 hardening passes shipped on `main`. Both apps compile (`pnpm
+build`) and typecheck clean (`pnpm -r typecheck`). Pilot-readiness work
+ongoing — see `## Sprint history` below for the full log.
 
-Sprint 2 will add: menu CRUD, customer storefront, cart, checkout, Stripe test mode, analytics, Vercel Domains automation, AI menu import.
+| Sprint | Theme | Tasks | Status |
+|---|---|---|---|
+| 1 | Foundation | RSHIR-1..6 | done |
+| 2 | Menu + storefront + checkout | RSHIR-7..14 | done |
+| 3 | Bio + AI menu + dispatch | RSHIR-15..18 | done |
+| 4 | Operations + email + sec | RSHIR-19..22 | done |
+| 5 | Onboarding + bilingual + deploy + sec | RSHIR-23..26 | done |
+| 6 | GDPR + branding + pickup + KDS + sec | RSHIR-27..32 | done |
+| 7 | Promo + favorites + digest + SEO + sec | RSHIR-33..37 | done |
+| 8 | Pilot dry-run + deploy fixes | RSHIR-38 (in progress) | wip |
 
-## Sprint 2 — Menu module (RSHIR-7)
+Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
+audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
 
-`apps/restaurant-admin/src/app/dashboard/menu/` ships full menu management for the active tenant:
+### What works end-to-end
 
-- **Categories** — create, rename, soft-delete (toggle `is_active`), reorder via drag-handle (persists `sort_order`).
-- **Items** — full CRUD with image upload to Supabase Storage bucket `menu-images` at path `{tenant_id}/{item_id}.{ext}`, tag input, category filter, name search, per-row availability toggle, bulk availability toggle for multi-select.
-- **Modifiers** — per-item add/edit/delete with `price_delta_ron`.
-- **Realtime availability** — every flip of `is_available` (single or bulk) inserts into `menu_events` so RSHIR-9's storefront receives a Supabase Realtime row and can hide/show the item live.
-- **CSV bulk import** — paste-CSV button accepting `name,description,price,category` rows; missing categories are auto-created.
+- Multi-tenant host routing (`*.lvh.me` local, `*.hir.ro` prod), tenant
+  signup wizard, OWNER/STAFF roles per tenant.
+- Customer storefront: menu browse, real-time availability, cart, Stripe
+  test checkout, address validation, polygonal delivery zones, pickup
+  option, customer recognition cookie + `/account` history + 1-tap
+  repeat order, promo codes (atomic redemption), bilingual RO+EN.
+- Tenant admin: menu CRUD (+ AI photo/PDF import), categories + modifiers,
+  CSV bulk import, orders queue + cancel/transition state machine, KDS
+  tablet view, branding (logo + cover + brand color), domain attach
+  (Vercel API), opening hours + storefront block-when-closed,
+  notifications opt-out, daily revenue digest email, SEO meta + sitemap,
+  GDPR DSR endpoints, cookie consent banner.
+- Operational: Resend new-order email via Edge Function, pg_cron daily
+  digest, Supabase Realtime menu + orders, structured-data JSON-LD per
+  item, robots.txt + per-tenant sitemap, RLS isolation tests.
 
-All mutations are server actions that re-verify `tenant_members` membership before using the service-role client. Forms use Zod schemas in `schemas.ts`.
+### Known gaps before public pilot launch
 
-The storage bucket + its tenant-scoped RLS lives in `supabase/migrations/20260425_100_menu_storage.sql` (applied to project `qfmeojeipncuxeltnvab`).
+- No GitHub remote on `hir-platform/` — Vercel push-to-deploy needs one.
+  See `DEPLOY.md` for the post-remote setup.
+- `vercel.json` not yet validated against a real Vercel project.
+- DNS for `tenant1.hir.ro` / `tenant2.hir.ro` / `admin.hir.ro` /
+  `hir.ro` not yet provisioned.
+- Sentry / observability not wired (deferred to Sprint 9).

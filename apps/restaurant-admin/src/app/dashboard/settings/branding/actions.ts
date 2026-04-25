@@ -2,6 +2,11 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import {
+  DEFAULT_BRAND_COLOR,
+  type BrandingActionResult,
+  type BrandingState,
+} from './types';
 
 const BRANDING_BUCKET = 'tenant-branding';
 // RSHIR-31 H-3: image/svg+xml dropped. SVG can carry <script> / <foreignObject>
@@ -39,30 +44,6 @@ function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
   }
   return false;
 }
-
-export type BrandingKind = 'logo' | 'cover';
-
-export type BrandingActionResult =
-  | { ok: true; branding: BrandingState }
-  | {
-      ok: false;
-      error:
-        | 'forbidden_owner_only'
-        | 'unauthenticated'
-        | 'invalid_input'
-        | 'tenant_mismatch'
-        | 'storage_error'
-        | 'db_error';
-      detail?: string;
-    };
-
-export type BrandingState = {
-  logo_url: string | null;
-  cover_url: string | null;
-  brand_color: string;
-};
-
-export const DEFAULT_BRAND_COLOR = '#7c3aed';
 
 function publicUrlFor(path: string): string {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;

@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { updateOrderStatus, type OrderStatus } from '../dashboard/orders/actions';
+import { updateOrderStatus } from '../dashboard/orders/actions';
+import type { OrderStatus } from '../dashboard/orders/status-machine';
 
 export type KdsOrder = {
   id: string;

@@ -1,13 +1,12 @@
 'use client';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  setBrandColor,
-  uploadBrandingAsset,
-  type BrandingActionResult,
-  type BrandingKind,
-  type BrandingState,
-} from './actions';
+import { setBrandColor, uploadBrandingAsset } from './actions';
+import type {
+  BrandingActionResult,
+  BrandingKind,
+  BrandingState,
+} from './types';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';

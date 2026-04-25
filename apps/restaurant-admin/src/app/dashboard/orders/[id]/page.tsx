@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
-import { nextStatuses, type OrderStatus } from '../actions';
+import { nextStatuses, type OrderStatus } from '../status-machine';
 import { StatusActions } from './status-actions';
 
 export const dynamic = 'force-dynamic';

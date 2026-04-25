@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@hir/ui';
-import { cancelOrder, updateOrderStatus, type OrderStatus } from '../actions';
+import { cancelOrder, updateOrderStatus } from '../actions';
+import type { OrderStatus } from '../status-machine';
 
 const FORWARD_LABEL: Partial<Record<OrderStatus, string>> = {
   CONFIRMED: 'Confirma',

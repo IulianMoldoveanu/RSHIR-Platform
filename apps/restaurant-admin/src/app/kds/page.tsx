@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
-import type { OrderStatus } from '../dashboard/orders/actions';
+import type { OrderStatus } from '../dashboard/orders/status-machine';
 import { KdsClient, type KdsOrder } from './kds-client';
 
 export const dynamic = 'force-dynamic';

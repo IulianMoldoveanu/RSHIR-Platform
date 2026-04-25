@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { BrandingClient } from './branding-client';
-import { DEFAULT_BRAND_COLOR, type BrandingState } from './actions';
+import { DEFAULT_BRAND_COLOR, type BrandingState } from './types';
 
 export const dynamic = 'force-dynamic';
 

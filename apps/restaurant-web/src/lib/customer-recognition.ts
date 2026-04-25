@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
-import { getConsent } from './consent';
+import { getConsent } from './consent.server';
 
 export const CUSTOMER_COOKIE_PREFIX = 'hir-customer-';
 export const CART_BOOTSTRAP_COOKIE_PREFIX = 'hir-cart-bootstrap-';
