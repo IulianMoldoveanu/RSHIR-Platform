@@ -44,7 +44,27 @@ async function enqueue(rows: EventRow[]): Promise<void> {
     const { error } = await admin.from('integration_events').insert(rows as never);
     if (error) {
       console.error('[integration-bus] enqueue failed', error.message);
+      return;
     }
+    // RSHIR-52: best-effort audit row on successful queue insert.
+    const tenantId = rows[0]!.tenant_id;
+    const eventType = rows[0]!.event_type;
+    const auditSb = getSupabaseAdmin() as unknown as {
+      from: (t: string) => {
+        insert: (row: Record<string, unknown>) => Promise<unknown>;
+      };
+    };
+    auditSb
+      .from('audit_log')
+      .insert({
+        tenant_id: tenantId,
+        actor_user_id: null,
+        action: 'integration.dispatched',
+        entity_type: 'integration_event',
+        entity_id: null,
+        metadata: { event_type: eventType, providers: rows.map((r) => r.provider_key) },
+      })
+      .catch((e: unknown) => console.error('[integration-bus] audit insert threw', e));
   } catch (e) {
     console.error('[integration-bus] enqueue threw', e);
   }

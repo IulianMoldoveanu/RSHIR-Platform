@@ -16,6 +16,7 @@ import type {
   OrderPayload,
 } from '@hir/integration-core';
 import { createAdminClient } from './supabase/admin';
+import { logAudit } from './audit';
 
 type EventRow = {
   tenant_id: string;
@@ -45,7 +46,18 @@ async function enqueue(rows: EventRow[]): Promise<void> {
     const { error } = await admin.from('integration_events').insert(rows as never);
     if (error) {
       console.error('[integration-bus] enqueue failed', error.message);
+      return;
     }
+    // RSHIR-52: audit-log a dispatched event per tenant (one audit row covers all providers).
+    const tenantId = rows[0]!.tenant_id;
+    const eventType = rows[0]!.event_type;
+    await logAudit({
+      tenantId,
+      actorUserId: null,
+      action: 'integration.dispatched',
+      entityType: 'integration_event',
+      metadata: { event_type: eventType, providers: rows.map((r) => r.provider_key) },
+    });
   } catch (e) {
     console.error('[integration-bus] enqueue threw', e);
   }

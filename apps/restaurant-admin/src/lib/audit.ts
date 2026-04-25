@@ -20,7 +20,13 @@ export type AuditAction =
   | 'review.hidden'
   | 'review.unhidden'
   | 'menu.sold_out_set'
-  | 'menu.sold_out_cleared';
+  | 'menu.sold_out_cleared'
+  | 'integration.provider_added'
+  | 'integration.provider_removed'
+  | 'integration.dispatched'
+  | 'integration.webhook_received'
+  | 'integration.api_key_created'
+  | 'integration.api_key_revoked';
 
 export async function logAudit(args: {
   tenantId: string;
