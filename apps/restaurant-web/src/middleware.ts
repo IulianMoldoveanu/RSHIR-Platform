@@ -18,6 +18,7 @@ export function middleware(request: NextRequest) {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-hir-host', host);
+  requestHeaders.set('x-hir-host-with-port', rawHost);
   requestHeaders.set('x-hir-tenant-slug', slug);
 
   return NextResponse.next({ request: { headers: requestHeaders } });

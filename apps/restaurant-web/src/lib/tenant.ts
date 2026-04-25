@@ -1,5 +1,13 @@
 import { headers } from 'next/headers';
+import type { Json } from '@hir/supabase-types';
 import { getSupabase } from './supabase';
+
+export type TenantSettings = {
+  logo_url?: string | null;
+  cover_url?: string | null;
+  whatsapp_phone?: string | null;
+  bio_item_ids?: string[];
+};
 
 export type ResolvedTenant = {
   id: string;
@@ -7,6 +15,16 @@ export type ResolvedTenant = {
   name: string;
   custom_domain: string | null;
   status: string;
+  settings: TenantSettings;
+};
+
+type TenantRow = {
+  id: string;
+  slug: string;
+  name: string;
+  custom_domain: string | null;
+  status: string;
+  settings: Json;
 };
 
 /**
@@ -27,23 +45,40 @@ export async function resolveTenantFromHost(): Promise<{
   const slug = h.get('x-hir-tenant-slug') ?? host.split('.')[0];
 
   const supabase = getSupabase();
+  const SELECT = 'id, slug, name, custom_domain, status, settings';
 
-  // 1) try custom_domain
-  let { data: tenant } = await supabase
-    .from('tenants')
-    .select('id, slug, name, custom_domain, status')
-    .eq('custom_domain', host)
-    .maybeSingle();
+  let row = (
+    await supabase.from('tenants').select(SELECT).eq('custom_domain', host).maybeSingle()
+  ).data as TenantRow | null;
 
-  // 2) fall back to slug
-  if (!tenant && slug) {
-    const res = await supabase
-      .from('tenants')
-      .select('id, slug, name, custom_domain, status')
-      .eq('slug', slug)
-      .maybeSingle();
-    tenant = res.data ?? null;
+  if (!row && slug) {
+    row = (await supabase.from('tenants').select(SELECT).eq('slug', slug).maybeSingle())
+      .data as TenantRow | null;
   }
 
-  return { tenant: tenant ?? null, host, slug };
+  if (!row) return { tenant: null, host, slug };
+
+  const settings = (row.settings ?? {}) as TenantSettings;
+  return {
+    tenant: {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      custom_domain: row.custom_domain,
+      status: row.status,
+      settings,
+    },
+    host,
+    slug,
+  };
+}
+
+export function tenantBaseUrl(): string {
+  const h = headers();
+  const hostWithPort =
+    h.get('x-hir-host-with-port') ?? h.get('host') ?? h.get('x-hir-host') ?? '';
+  const hostNoPort = hostWithPort.split(':')[0];
+  const proto =
+    hostNoPort === 'localhost' || hostNoPort.endsWith('.lvh.me') ? 'http' : 'https';
+  return `${proto}://${hostWithPort}`;
 }
