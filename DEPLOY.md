@@ -138,6 +138,32 @@ Exit code 0 = green. The script probes:
 5. Admin `/` (200/302/307).
 6. Admin `/api/signup/check-slug?slug=tenant1` (200 `{available:false}`).
 
+## Uptime monitoring
+
+Both apps expose `GET /api/healthz` (public, RSHIR-40). It performs a
+cheap HEAD count on `tenants` and returns:
+
+```json
+{
+  "ok": true,
+  "app": "restaurant-web",
+  "db": { "ok": true, "latencyMs": 38, "error": null },
+  "totalMs": 41,
+  "buildSha": "<vercel commit sha>",
+  "env": "production",
+  "ts": "2026-04-30T07:12:08.123Z"
+}
+```
+
+HTTP 200 when healthy, 503 when the DB round-trip fails or exceeds
+800ms. Wire UptimeRobot / Better Stack against:
+
+- `https://tenant1.hir.ro/api/healthz`  (storefront)
+- `https://admin.hir.ro/api/healthz`    (admin)
+
+5-minute interval is enough for pilot. The admin middleware whitelists
+`/api/healthz` so the probe is not redirected to `/login`.
+
 ## Rollback
 
 Vercel → Project → **Deployments** → pick the prior green deployment →

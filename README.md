@@ -121,7 +121,7 @@ ongoing — see `## Sprint history` below for the full log.
 | 5 | Onboarding + bilingual + deploy + sec | RSHIR-23..26 | done |
 | 6 | GDPR + branding + pickup + KDS + sec | RSHIR-27..32 | done |
 | 7 | Promo + favorites + digest + SEO + sec | RSHIR-33..37 | done |
-| 8 | Pilot dry-run + deploy fixes + reviews | RSHIR-38, RSHIR-39 | in progress |
+| 8 | Pilot dry-run + reviews + healthz | RSHIR-38..40 | in progress |
 
 Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
 audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
@@ -146,7 +146,9 @@ audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
   `aggregateRating` JSON-LD when ≥1 review exists.
 - Operational: Resend new-order email via Edge Function, pg_cron daily
   digest, Supabase Realtime menu + orders, structured-data JSON-LD per
-  item, robots.txt + per-tenant sitemap, RLS isolation tests.
+  item, robots.txt + per-tenant sitemap, RLS isolation tests,
+  `/api/healthz` liveness + DB-roundtrip probe on both apps for
+  external uptime monitoring (DEPLOY.md §Uptime monitoring).
 
 ### Known gaps before public pilot launch
 

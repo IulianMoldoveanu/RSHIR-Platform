@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient as createSsrClient, type CookieOptions } from '@supabase/ssr';
 
-const PUBLIC_PATHS = ['/login', '/signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup'];
+// `/api/healthz` is public so external uptime monitors can probe without auth.
+const PUBLIC_PATHS = ['/login', '/signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/healthz'];
 
 /**
  * Auth guard: any /dashboard/* path requires a Supabase session, otherwise
