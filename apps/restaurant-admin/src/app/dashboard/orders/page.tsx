@@ -141,7 +141,16 @@ export default async function OrdersPage({
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Comenzi</h1>
           <p className="text-sm text-zinc-600">Ultimele 50 comenzi pentru {tenant.name}.</p>
         </div>
-        <FilterPills active={filter} />
+        <div className="flex items-center gap-3">
+          <a
+            href="/api/dashboard/orders/export"
+            className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            title="Descarcă ultimele 90 zile ca CSV"
+          >
+            Export CSV
+          </a>
+          <FilterPills active={filter} />
+        </div>
       </header>
 
       {rows.length === 0 ? (

@@ -69,7 +69,7 @@ export async function assertTenantMember(userId: string, tenantId: string): Prom
     .eq('tenant_id', tenantId)
     .maybeSingle();
   if (error) throw new Error(`Tenant membership check failed: ${error.message}`);
-  if (!data) throw new Error('Forbidden: user is not a member of this tenant.');
+  if (!data) throw new Error('Forbidden: user is not a member of this restaurant.');
 }
 
 /**
@@ -104,7 +104,7 @@ export async function getActiveTenant(): Promise<{
   if (!user) throw new Error('Unauthenticated.');
 
   const tenants = await listMemberTenants(user.id);
-  if (tenants.length === 0) throw new Error('User is not a member of any tenant.');
+  if (tenants.length === 0) throw new Error('User is not a member of any restaurant.');
 
   const cookieTenantId = cookies().get(TENANT_COOKIE)?.value;
   const tenant =

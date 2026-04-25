@@ -14,6 +14,14 @@ const ACTION_LABELS: Record<string, string> = {
   'promo.created': 'Cod promo creat',
   'promo.deleted': 'Cod promo șters',
   'tenant.went_live': 'Restaurant pornit',
+  'review.hidden': 'Recenzie ascunsă',
+  'review.unhidden': 'Recenzie reafișată',
+};
+
+const ENTITY_LABELS: Record<string, string> = {
+  tenant: 'restaurant',
+  order: 'comandă',
+  review: 'recenzie',
 };
 
 type AuditRow = {
@@ -94,7 +102,7 @@ export default async function AuditLogPage() {
                 </span>
                 {r.entity_type && r.entity_id ? (
                   <span className="ml-3 font-mono text-zinc-500">
-                    {r.entity_type}:{r.entity_id.slice(0, 8)}
+                    {ENTITY_LABELS[r.entity_type] ?? r.entity_type}:{r.entity_id.slice(0, 8)}
                   </span>
                 ) : null}
               </div>
