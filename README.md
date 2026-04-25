@@ -123,6 +123,7 @@ ongoing — see `## Sprint history` below for the full log.
 | 7 | Promo + favorites + digest + SEO + sec | RSHIR-33..37 | done |
 | 8 | Pilot dry-run + reviews + ops + polish | RSHIR-38..42 | done |
 | 9 | Review reminders + menu search + audit log | RSHIR-43..45 | done |
+| 10 | Review moderation + orders CSV + restaurant copy | RSHIR-46..48 | done |
 
 Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
 audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
@@ -156,8 +157,27 @@ audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
 - Storefront menu search: instant client-side filter (case + diacritic
   insensitive) with empty-state.
 - Tenant audit log at `/dashboard/settings/audit`: last 100 actions
-  (status changes, cancellations, branding writes) with actor email +
-  metadata. Best-effort write — never blocks the underlying mutation.
+  (status changes, cancellations, branding writes, review moderation)
+  with actor email + metadata. Best-effort write — never blocks the
+  underlying mutation.
+- Review moderation at `/dashboard/reviews`: tenants soft-hide spam
+  via `hidden_at`; the public `restaurant_review_summary` view skips
+  hidden rows so storefront pill + JSON-LD AggregateRating react
+  automatically.
+- Orders CSV export at `/api/dashboard/orders/export`: 90-day default
+  window, optional ?from / ?to, UTF-8 BOM for Excel diacritics. Wired
+  to a button in the orders header.
+
+## Live demo URLs (no DNS yet)
+
+- Storefront (restaurant 1): https://hir-restaurant-web.vercel.app
+- Tenant dashboard: https://hir-restaurant-admin.vercel.app
+- Healthz probes: `/api/healthz` on both apps return 200 + DB latency
+  for external uptime monitors.
+
+When the operator buys `hir.ro` and points DNS at Vercel, the
+`tenant1.custom_domain` row in Supabase is updated to `tenant1.hir.ro`
+and the demo flips to the real domain without any code change.
 - Operational: Resend new-order email via Edge Function, pg_cron daily
   digest, Supabase Realtime menu + orders, structured-data JSON-LD per
   item, robots.txt + per-tenant sitemap, RLS isolation tests,
