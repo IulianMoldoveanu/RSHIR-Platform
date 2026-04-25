@@ -127,6 +127,12 @@ export function ItemsPanel({
         <Button variant="outline" onClick={() => setImporting(true)} disabled={categories.length === 0}>
           Import CSV
         </Button>
+        <a
+          href="/dashboard/menu/import"
+          className="inline-flex h-9 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50"
+        >
+          Import AI
+        </a>
         <Button onClick={() => setCreating(true)} disabled={categories.length === 0}>
           + Produs nou
         </Button>
