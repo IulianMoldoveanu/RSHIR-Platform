@@ -3,6 +3,7 @@ import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant'
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { HirFooter } from '@/components/storefront/hir-footer';
+import { CookieConsent } from '@/components/legal/cookie-consent';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
@@ -42,6 +43,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
           closedReason={closedReason}
           locale={locale}
         />
+        <CookieConsent locale={locale} />
       </StorefrontShell>
     </div>
   );

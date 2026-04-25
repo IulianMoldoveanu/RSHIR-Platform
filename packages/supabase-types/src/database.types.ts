@@ -67,6 +67,7 @@ export type Database = {
       customers: {
         Row: {
           created_at: string
+          deleted_at: string | null
           email: string | null
           first_name: string | null
           id: string
@@ -76,6 +77,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
@@ -85,6 +87,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           first_name?: string | null
           id?: string
@@ -519,9 +522,81 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_delivery_addresses_30d: {
+        Row: {
+          lat: number | null
+          lng: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_orders_daily: {
+        Row: {
+          avg_value: number | null
+          day: string | null
+          order_count: number | null
+          revenue: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_peak_hours: {
+        Row: {
+          dow: number | null
+          hour: number | null
+          order_count: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_top_items: {
+        Row: {
+          item_id: string | null
+          item_name: string | null
+          order_count: number | null
+          revenue: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      gdpr_redact_customer: {
+        Args: { p_customer_id: string }
+        Returns: undefined
+      }
       is_tenant_member: { Args: { t_id: string }; Returns: boolean }
       is_tenant_owner: { Args: { t_id: string }; Returns: boolean }
     }
