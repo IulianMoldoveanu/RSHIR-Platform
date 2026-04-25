@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hir/delivery-client": "workspace:*",
+    "@hir/integration-core": "workspace:*",
     "@hir/supabase-types": "workspace:*",
     "@hir/ui": "workspace:*",
     "@stripe/react-stripe-js": "^3.0.0",

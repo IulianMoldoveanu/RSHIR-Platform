@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.0",
+    "@hir/integration-core": "workspace:*",
     "@hir/ui": "workspace:*",
     "@hir/supabase-types": "workspace:*",
     "@supabase/ssr": "^0.5.2",

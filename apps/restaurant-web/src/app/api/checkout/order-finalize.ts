@@ -1,6 +1,7 @@
 import 'server-only';
 import { createHirDeliveryClient } from '@hir/delivery-client';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchOrderEvent } from '@/lib/integration-bus';
 
 /**
  * Idempotent: marks a paid order as CONFIRMED and best-effort hands off to
@@ -27,6 +28,28 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     .from('restaurant_orders')
     .update({ payment_status: 'PAID', status: 'CONFIRMED' })
     .eq('id', orderId);
+
+  // RSHIR-51: integration bus — when payment lands, fire status_changed so
+  // any active POS adapter sees the transition PENDING → CONFIRMED. Tenant
+  // id resolution requires a small lookup (the existing query above only
+  // selected id/payment_status/status; tenant_id is not returned).
+  const { data: orderTenant } = await admin
+    .from('restaurant_orders')
+    .select('tenant_id')
+    .eq('id', orderId)
+    .single();
+  if (orderTenant?.tenant_id) {
+    await dispatchOrderEvent(orderTenant.tenant_id, 'status_changed', {
+      orderId,
+      source: 'INTERNAL_STOREFRONT',
+      status: 'CONFIRMED',
+      items: [],
+      totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+      customer: { firstName: '', phone: '' },
+      dropoff: null,
+      notes: null,
+    });
+  }
 
   // TODO Sprint 4: real delivery API wiring
   try {

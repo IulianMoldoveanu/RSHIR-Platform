@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
 import { logAudit } from '@/lib/audit';
+import { dispatchOrderEvent } from '@/lib/integration-bus';
 
 // RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
 // the action if the cookie-derived active tenant has drifted (multi-tenant
@@ -70,6 +71,19 @@ export async function updateOrderStatus(
     metadata: { from: order.status, to: newStatus },
   });
 
+  // RSHIR-51: notify any active POS adapter. Status-only payload is enough
+  // for adapters that already received order.created — they have the rest.
+  await dispatchOrderEvent(tenantId, 'status_changed', {
+    orderId,
+    source: 'INTERNAL_STOREFRONT',
+    status: newStatus,
+    items: [],
+    totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+    customer: { firstName: '', phone: '' },
+    dropoff: null,
+    notes: null,
+  });
+
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -110,6 +124,17 @@ export async function cancelOrder(
     entityType: 'order',
     entityId: orderId,
     metadata: { from: order.status, reason: trimmed ?? null },
+  });
+
+  await dispatchOrderEvent(tenantId, 'cancelled', {
+    orderId,
+    source: 'INTERNAL_STOREFRONT',
+    status: 'CANCELLED',
+    items: [],
+    totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+    customer: { firstName: '', phone: '' },
+    dropoff: null,
+    notes: trimmed ?? null,
   });
 
   revalidatePath('/dashboard/orders');

@@ -14,7 +14,9 @@ import {
 import { PencilIcon, TrashIcon } from './icons';
 import {
   bulkToggleAvailabilityAction,
+  clearItemSoldOutAction,
   deleteItemAction,
+  setItemSoldOutTodayAction,
   toggleItemAvailabilityAction,
 } from './actions';
 import { ItemFormDialog } from './item-form-dialog';
@@ -22,6 +24,11 @@ import { CsvImportDialog } from './csv-import-dialog';
 import type { MenuCategory, MenuItem } from './page';
 
 type FilterCategory = 'all' | string;
+
+function isSoldOutNow(until: string | null): boolean {
+  if (!until) return false;
+  return new Date(until).getTime() > Date.now();
+}
 
 export function ItemsPanel({
   items,
@@ -67,6 +74,23 @@ export function ItemsPanel({
           id: item.id,
           is_available: !item.is_available,
         });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+      }
+    });
+  }
+
+  function toggleSoldOut(item: MenuItem) {
+    const isSoldOut = isSoldOutNow(item.sold_out_until);
+    start(async () => {
+      try {
+        if (isSoldOut) {
+          await clearItemSoldOutAction({ id: item.id });
+          toast.success('Disponibil din nou');
+        } else {
+          await setItemSoldOutTodayAction({ id: item.id });
+          toast.success('Marcat epuizat azi');
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
       }
@@ -180,6 +204,7 @@ export function ItemsPanel({
                 <th className="px-3 py-2">Categorie</th>
                 <th className="px-3 py-2">Pret</th>
                 <th className="px-3 py-2">Disponibil</th>
+                <th className="px-3 py-2">Epuizat azi</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
@@ -237,6 +262,21 @@ export function ItemsPanel({
                         }`}
                       />
                     </button>
+                  </td>
+                  <td className="px-3 py-2">
+                    {(() => {
+                      const soldOut = isSoldOutNow(it.sold_out_until);
+                      return (
+                        <Button
+                          size="sm"
+                          variant={soldOut ? 'default' : 'outline'}
+                          onClick={() => toggleSoldOut(it)}
+                          disabled={pending}
+                        >
+                          {soldOut ? 'Disponibil din nou' : 'Epuizat azi'}
+                        </Button>
+                      );
+                    })()}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Button size="icon" variant="ghost" onClick={() => setEditing(it)}>

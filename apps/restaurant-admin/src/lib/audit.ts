@@ -18,7 +18,9 @@ export type AuditAction =
   | 'promo.deleted'
   | 'tenant.went_live'
   | 'review.hidden'
-  | 'review.unhidden';
+  | 'review.unhidden'
+  | 'menu.sold_out_set'
+  | 'menu.sold_out_cleared';
 
 export async function logAudit(args: {
   tenantId: string;

@@ -58,6 +58,8 @@ export const itemBulkAvailabilitySchema = z.object({
   is_available: z.coerce.boolean(),
 });
 
+export const itemSoldOutSchema = z.object({ id: uuid });
+
 export const modifierCreateSchema = z.object({
   item_id: uuid,
   name: z.string().trim().min(1).max(80),

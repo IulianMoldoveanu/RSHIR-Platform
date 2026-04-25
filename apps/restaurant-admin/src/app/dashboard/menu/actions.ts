@@ -8,6 +8,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 type MenuItemUpdate = Database['public']['Tables']['restaurant_menu_items']['Update'];
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
+import { logAudit } from '@/lib/audit';
+import { dispatchMenuEvent } from '@/lib/integration-bus';
 import {
   categoryCreateSchema,
   categoryDeleteSchema,
@@ -19,6 +21,7 @@ import {
   itemBulkAvailabilitySchema,
   itemCreateSchema,
   itemDeleteSchema,
+  itemSoldOutSchema,
   itemUpdateSchema,
   modifierCreateSchema,
   modifierDeleteSchema,
@@ -296,6 +299,18 @@ export async function toggleItemAvailabilityAction(input: {
     item_id: parsed.id,
     is_available: parsed.is_available,
   });
+
+  // RSHIR-51: integration bus — POS adapters that care about availability
+  // get a separate event; storefront keeps using menu_events directly.
+  await dispatchMenuEvent(tenantId, 'availability_changed', {
+    itemId: parsed.id,
+    name: '',
+    description: null,
+    priceRon: 0,
+    isAvailable: parsed.is_available,
+    categoryId: '',
+  });
+
   revalidatePath('/dashboard/menu');
 }
 
@@ -320,6 +335,170 @@ export async function bulkToggleAvailabilityAction(input: {
     is_available: parsed.is_available,
   }));
   await admin.from('menu_events').insert(events);
+  revalidatePath('/dashboard/menu');
+}
+
+// ============================================================
+// SOLD-OUT TODAY (RSHIR-49)
+// ============================================================
+
+const TZ = 'Europe/Bucharest';
+const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+function parseHm(s: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mn = Number(m[2]);
+  if (h < 0 || h > 24 || mn < 0 || mn >= 60) return null;
+  return h * 60 + mn;
+}
+
+function tzPartsAt(date: Date): { y: number; m: number; d: number; weekday: number } {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(date).map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  const weekdayMap: Record<string, number> = {
+    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
+  };
+  return {
+    y: Number(parts.year),
+    m: Number(parts.month),
+    d: Number(parts.day),
+    weekday: weekdayMap[parts.weekday] ?? 0,
+  };
+}
+
+/** Returns a UTC Date matching y/m/d hh:mm (local minutes-of-day) in TZ. */
+function dateFromLocal(y: number, m: number, d: number, hm: number): Date {
+  const h = Math.floor(hm / 60);
+  const mn = hm % 60;
+  const guess = Date.UTC(y, m - 1, d, h, mn);
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(new Date(guess)).map((p) => [p.type, p.value]),
+  ) as Record<string, string>;
+  const guessAsTzUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour),
+    Number(parts.minute),
+    Number(parts.second),
+  );
+  const offsetMs = guessAsTzUtc - guess;
+  return new Date(guess - offsetMs);
+}
+
+/**
+ * "End of current business day" in Europe/Bucharest. If the tenant has
+ * `opening_hours` configured for today with at least one parseable window,
+ * returns the latest `close` time today. Otherwise falls back to local
+ * midnight at the end of today (24:00). Mirrors restaurant-web/operations.ts.
+ */
+function endOfBusinessDay(settings: unknown, now: Date = new Date()): Date {
+  const today = tzPartsAt(now);
+  const hours = (settings as { opening_hours?: Record<string, Array<{ open: string; close: string }>> } | null)
+    ?.opening_hours;
+  const windows = hours?.[DAYS[today.weekday]];
+  if (Array.isArray(windows) && windows.length > 0) {
+    let latestClose = -1;
+    for (const w of windows) {
+      const close = parseHm(w.close);
+      if (close !== null && close > latestClose) latestClose = close;
+    }
+    if (latestClose > 0) {
+      return dateFromLocal(today.y, today.m, today.d, latestClose);
+    }
+  }
+  // Fallback: local midnight at the start of tomorrow (i.e. end of today).
+  return dateFromLocal(today.y, today.m, today.d, 24 * 60);
+}
+
+export async function setItemSoldOutTodayAction(input: { id: string }) {
+  const { userId, tenantId } = await requireTenant();
+  const parsed = itemSoldOutSchema.parse(input);
+  const admin = createAdminClient();
+
+  const { data: tenantRow, error: tErr } = await admin
+    .from('tenants')
+    .select('settings')
+    .eq('id', tenantId)
+    .maybeSingle();
+  if (tErr) throw new Error(tErr.message);
+
+  const soldOutUntil = endOfBusinessDay(tenantRow?.settings ?? null);
+  const { error } = await admin
+    .from('restaurant_menu_items')
+    .update({ sold_out_until: soldOutUntil.toISOString() })
+    .eq('id', parsed.id)
+    .eq('tenant_id', tenantId);
+  if (error) throw new Error(error.message);
+
+  await admin.from('menu_events').insert({
+    tenant_id: tenantId,
+    item_id: parsed.id,
+    is_available: false,
+  });
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'menu.sold_out_set',
+    entityType: 'menu_item',
+    entityId: parsed.id,
+    metadata: { sold_out_until: soldOutUntil.toISOString() },
+  });
+  revalidatePath('/dashboard/menu');
+}
+
+export async function clearItemSoldOutAction(input: { id: string }) {
+  const { userId, tenantId } = await requireTenant();
+  const parsed = itemSoldOutSchema.parse(input);
+  const admin = createAdminClient();
+
+  const { data: existing, error: existErr } = await admin
+    .from('restaurant_menu_items')
+    .select('id, is_available')
+    .eq('id', parsed.id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (existErr) throw new Error(existErr.message);
+  if (!existing) throw new Error('Produsul nu exista.');
+
+  const { error } = await admin
+    .from('restaurant_menu_items')
+    .update({ sold_out_until: null })
+    .eq('id', parsed.id)
+    .eq('tenant_id', tenantId);
+  if (error) throw new Error(error.message);
+
+  // Reflect the item's underlying availability on the live channel — if
+  // is_available is still false, we shouldn't tell clients it's available.
+  await admin.from('menu_events').insert({
+    tenant_id: tenantId,
+    item_id: parsed.id,
+    is_available: existing.is_available,
+  });
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'menu.sold_out_cleared',
+    entityType: 'menu_item',
+    entityId: parsed.id,
+  });
   revalidatePath('/dashboard/menu');
 }
 

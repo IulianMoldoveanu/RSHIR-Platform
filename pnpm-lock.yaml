@@ -26,6 +26,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.91.0
         version: 0.91.1(zod@3.25.76)
+      '@hir/integration-core':
+        specifier: workspace:*
+        version: link:../../packages/integration-core
       '@hir/supabase-types':
         specifier: workspace:*
         version: link:../../packages/supabase-types
@@ -111,6 +114,9 @@ importers:
       '@hir/delivery-client':
         specifier: workspace:*
         version: link:../../packages/delivery-client
+      '@hir/integration-core':
+        specifier: workspace:*
+        version: link:../../packages/integration-core
       '@hir/supabase-types':
         specifier: workspace:*
         version: link:../../packages/supabase-types
@@ -196,6 +202,12 @@ importers:
   packages/config-tsconfig: {}
 
   packages/delivery-client:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
+  packages/integration-core:
     devDependencies:
       typescript:
         specifier: ^5.6.3

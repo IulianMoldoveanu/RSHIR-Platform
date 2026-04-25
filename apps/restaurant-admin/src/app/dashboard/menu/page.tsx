@@ -19,6 +19,7 @@ export type MenuItem = {
   price_ron: number;
   image_url: string | null;
   is_available: boolean;
+  sold_out_until: string | null;
   tags: string[];
 };
 
@@ -41,7 +42,7 @@ export default async function MenuPage() {
       .order('sort_order', { ascending: true }),
     admin
       .from('restaurant_menu_items')
-      .select('id, category_id, name, description, price_ron, image_url, is_available, tags')
+      .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, tags')
       .eq('tenant_id', tenant.id)
       .order('name', { ascending: true }),
     admin

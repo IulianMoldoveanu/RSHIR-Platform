@@ -6,6 +6,7 @@ import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
 import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { maybeSetCustomerCookie } from '@/lib/customer-recognition';
+import { dispatchOrderEvent } from '@/lib/integration-bus';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -138,6 +139,39 @@ export async function POST(req: Request) {
       );
     }
   }
+
+  // RSHIR-51: emit order.created onto the integration bus so any active
+  // POS adapter for this tenant gets notified asynchronously. STANDALONE
+  // tenants (no integration_providers row) short-circuit to a no-op,
+  // so this adds zero latency for current pilots.
+  await dispatchOrderEvent(tenant.id, 'created', {
+    orderId: order.id,
+    source: 'INTERNAL_STOREFRONT',
+    status: 'PENDING',
+    items: q.lineItems.map((li) => ({
+      name: li.name,
+      qty: li.quantity,
+      priceRon: Number(li.priceRon),
+    })),
+    totals: {
+      subtotalRon: Number(q.subtotalRon),
+      deliveryFeeRon: Number(q.deliveryFeeRon),
+      totalRon: Number(q.totalRon),
+    },
+    customer: {
+      firstName: parsed.data.customer.firstName,
+      phone: parsed.data.customer.phone,
+    },
+    dropoff: parsed.data.address
+      ? {
+          line1: parsed.data.address.line1,
+          city: parsed.data.address.city,
+          lat: parsed.data.address.lat,
+          lng: parsed.data.address.lng,
+        }
+      : null,
+    notes: parsed.data.notes ?? null,
+  });
 
   const stripe = getStripe();
   const intent = await stripe.paymentIntents.create(

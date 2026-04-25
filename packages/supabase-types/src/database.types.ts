@@ -219,6 +219,97 @@ export type Database = {
           },
         ]
       }
+      integration_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_type: string
+          id: number
+          last_error: string | null
+          payload: Json
+          provider_key: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_type: string
+          id?: number
+          last_error?: string | null
+          payload: Json
+          provider_key: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_type?: string
+          id?: number
+          last_error?: string | null
+          payload?: Json
+          provider_key?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_providers: {
+        Row: {
+          config: Json
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          provider_key: string
+          tenant_id: string
+          webhook_secret: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          provider_key: string
+          tenant_id: string
+          webhook_secret: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          provider_key?: string
+          tenant_id?: string
+          webhook_secret?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_providers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       menu_events: {
         Row: {
           at: string
@@ -405,6 +496,7 @@ export type Database = {
           is_available: boolean
           name: string
           price_ron: number
+          sold_out_until: string | null
           sort_order: number
           tags: string[]
           tenant_id: string
@@ -419,6 +511,7 @@ export type Database = {
           is_available?: boolean
           name: string
           price_ron: number
+          sold_out_until?: string | null
           sort_order?: number
           tags?: string[]
           tenant_id: string
@@ -433,6 +526,7 @@ export type Database = {
           is_available?: boolean
           name?: string
           price_ron?: number
+          sold_out_until?: string | null
           sort_order?: number
           tags?: string[]
           tenant_id?: string
@@ -501,6 +595,7 @@ export type Database = {
           promo_code_id: string | null
           public_track_token: string
           review_reminder_sent_at: string | null
+          source: Database["public"]["Enums"]["order_source"]
           status: string
           stripe_payment_intent_id: string | null
           subtotal_ron: number
@@ -524,6 +619,7 @@ export type Database = {
           promo_code_id?: string | null
           public_track_token?: string
           review_reminder_sent_at?: string | null
+          source?: Database["public"]["Enums"]["order_source"]
           status?: string
           stripe_payment_intent_id?: string | null
           subtotal_ron: number
@@ -547,6 +643,7 @@ export type Database = {
           promo_code_id?: string | null
           public_track_token?: string
           review_reminder_sent_at?: string | null
+          source?: Database["public"]["Enums"]["order_source"]
           status?: string
           stripe_payment_intent_id?: string | null
           subtotal_ron?: number
@@ -647,6 +744,53 @@ export type Database = {
           },
         ]
       }
+      tenant_api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at: string | null
+          revoked_at: string | null
+          scopes: string[]
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scopes?: string[]
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scopes?: string[]
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_api_keys_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_members: {
         Row: {
           created_at: string
@@ -687,6 +831,7 @@ export type Database = {
           domain_status: string
           domain_verified_at: string | null
           id: string
+          integration_mode: Database["public"]["Enums"]["integration_mode"]
           name: string
           settings: Json
           slug: string
@@ -701,6 +846,7 @@ export type Database = {
           domain_status?: string
           domain_verified_at?: string | null
           id?: string
+          integration_mode?: Database["public"]["Enums"]["integration_mode"]
           name: string
           settings?: Json
           slug: string
@@ -715,6 +861,7 @@ export type Database = {
           domain_status?: string
           domain_verified_at?: string | null
           id?: string
+          integration_mode?: Database["public"]["Enums"]["integration_mode"]
           name?: string
           settings?: Json
           slug?: string
@@ -829,7 +976,12 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      integration_mode: "STANDALONE" | "POS_PUSH" | "POS_PULL" | "BIDIRECTIONAL"
+      order_source:
+        | "INTERNAL_STOREFRONT"
+        | "EXTERNAL_API"
+        | "POS_PUSH"
+        | "MANUAL_ADMIN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -956,6 +1108,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      integration_mode: ["STANDALONE", "POS_PUSH", "POS_PULL", "BIDIRECTIONAL"],
+      order_source: [
+        "INTERNAL_STOREFRONT",
+        "EXTERNAL_API",
+        "POS_PUSH",
+        "MANUAL_ADMIN",
+      ],
+    },
   },
 } as const

@@ -74,19 +74,21 @@ export async function computeQuote(
 ): Promise<QuoteResult> {
   const { data: items, error: itemsErr } = await admin
     .from('restaurant_menu_items')
-    .select('id, name, price_ron, is_available, tenant_id')
+    .select('id, name, price_ron, is_available, sold_out_until, tenant_id')
     .in('id', cart.map((c) => c.itemId))
     .eq('tenant_id', tenant.id);
 
   if (itemsErr) throw new Error(`menu lookup failed: ${itemsErr.message}`);
   if (!items || items.length === 0) return { ok: false, reason: { kind: 'EMPTY_MENU' } };
 
+  const nowMs = Date.now();
   const byId = new Map(items.map((it) => [it.id, it]));
   const lineItems: PricedLineItem[] = [];
 
   for (const c of cart) {
     const item = byId.get(c.itemId);
-    if (!item || !item.is_available) {
+    const soldOut = !!item?.sold_out_until && new Date(item.sold_out_until).getTime() > nowMs;
+    if (!item || !item.is_available || soldOut) {
       return { ok: false, reason: { kind: 'ITEM_UNAVAILABLE', itemId: c.itemId } };
     }
     const lineTotal = round2(item.price_ron * c.quantity);

@@ -24,7 +24,19 @@ export type MenuCategory = {
 };
 
 const ITEM_COLS =
-  'id, category_id, name, description, price_ron, image_url, is_available, sort_order, tags';
+  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags';
+
+/**
+ * Effective availability: persistent toggle AND not currently sold-out today.
+ * `sold_out_until` is set by the admin via the "Sold out today" button to
+ * the end of the current business day (RSHIR-49) and auto-clears once that
+ * time passes.
+ */
+function isEffectivelyAvailable(it: { is_available: boolean; sold_out_until: string | null }): boolean {
+  if (!it.is_available) return false;
+  if (!it.sold_out_until) return true;
+  return new Date(it.sold_out_until).getTime() <= Date.now();
+}
 
 export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]> {
   const supabase = getSupabase();
@@ -44,7 +56,11 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
   ]);
 
   const cats = (catsRes.data ?? []) as Array<{ id: string; name: string; sort_order: number }>;
-  const items = (itemsRes.data ?? []) as MenuItem[];
+  const rawItems = (itemsRes.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
+  const items: MenuItem[] = rawItems.map(({ sold_out_until, ...rest }) => ({
+    ...rest,
+    is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+  }));
 
   if (cats.length === 0) return [];
 
@@ -80,14 +96,17 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
 
 export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem[]> {
   const supabase = getSupabase();
+  const nowIso = new Date().toISOString();
   const res = await supabase
     .from('restaurant_menu_items')
     .select(ITEM_COLS)
     .eq('tenant_id', tenantId)
     .eq('is_available', true)
+    .or(`sold_out_until.is.null,sold_out_until.lte.${nowIso}`)
     .order('sort_order')
     .limit(limit);
-  return (res.data ?? []) as MenuItem[];
+  const rows = (res.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
+  return rows.map(({ sold_out_until: _so, ...rest }) => rest);
 }
 
 /**
@@ -103,13 +122,17 @@ export async function getItemByShortId(
     .from('restaurant_menu_items')
     .select(ITEM_COLS)
     .eq('tenant_id', tenantId);
-  const items = (res.data ?? []) as MenuItem[];
+  const items = (res.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
 
   const matches = items.filter(
     (it) => it.id.replace(/-/g, '').slice(0, 8).toLowerCase() === shortId.toLowerCase(),
   );
   if (matches.length !== 1) return null;
-  const item = matches[0];
+  const { sold_out_until, ...rest } = matches[0];
+  const item: MenuItem = {
+    ...rest,
+    is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+  };
 
   const modsRes = await supabase
     .from('restaurant_menu_modifiers')
