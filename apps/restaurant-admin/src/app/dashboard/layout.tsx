@@ -1,23 +1,32 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { cn } from '@hir/ui';
 
-const navItems = [
-  { href: '/dashboard/menu', label: 'Meniu' },
-  { href: '/dashboard/orders', label: 'Comenzi' },
-  { href: '/dashboard/zones', label: 'Zone livrare' },
-  { href: '/dashboard/analytics', label: 'Analytics' },
-  { href: '/dashboard/settings', label: 'Setari' },
-  { href: '/dashboard/settings/operations', label: 'Operațiuni' },
-  { href: '/dashboard/settings/domain', label: 'Domeniu' },
-  { href: '/dashboard/settings/notifications', label: 'Notificari' },
-];
+type NavItem = {
+  href: string;
+  label: string;
+  showDot?: boolean;
+};
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, tenant, tenants } = await getActiveTenant();
+  const onboarding = await computeOnboardingState(tenant.id);
+
+  const navItems: NavItem[] = [
+    { href: '/dashboard/onboarding', label: 'Configurare', showDot: !onboarding.went_live },
+    { href: '/dashboard/menu', label: 'Meniu' },
+    { href: '/dashboard/orders', label: 'Comenzi' },
+    { href: '/dashboard/zones', label: 'Zone livrare' },
+    { href: '/dashboard/analytics', label: 'Analytics' },
+    { href: '/dashboard/settings', label: 'Setari' },
+    { href: '/dashboard/settings/operations', label: 'Operațiuni' },
+    { href: '/dashboard/settings/domain', label: 'Domeniu' },
+    { href: '/dashboard/settings/notifications', label: 'Notificari' },
+  ];
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
@@ -31,10 +40,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               key={item.href}
               href={item.href}
               className={cn(
-                'rounded-md px-3 py-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900',
+                'flex items-center justify-between rounded-md px-3 py-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900',
               )}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.showDot && (
+                <span
+                  aria-label="Configurare incompletă"
+                  className="h-2 w-2 rounded-full bg-amber-400"
+                />
+              )}
             </Link>
           ))}
         </nav>
