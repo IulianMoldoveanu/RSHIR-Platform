@@ -107,7 +107,10 @@ export function SignupForm() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name, slug, email, password }),
       });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        requiresEmailConfirmation?: boolean;
+      };
       if (!res.ok) {
         if (res.status === 409) setSlugStatus({ state: 'taken' });
         setError(json.error ?? 'Nu am putut crea contul.');
@@ -115,18 +118,10 @@ export function SignupForm() {
         return;
       }
 
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInErr) {
-        const params = new URLSearchParams({ email, signedUp: '1' });
-        router.push(`/login?${params.toString()}`);
-        return;
-      }
-      router.push('/dashboard');
-      router.refresh();
+      // RSHIR-16: email_confirm is no longer auto-set; user must click link
+      // before sign-in works. Send them to login with a "check inbox" banner.
+      const params = new URLSearchParams({ email, checkEmail: '1' });
+      router.push(`/login?${params.toString()}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Eroare neașteptată');
       setSubmitting(false);

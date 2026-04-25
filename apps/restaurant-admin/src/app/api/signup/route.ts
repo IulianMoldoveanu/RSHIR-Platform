@@ -46,14 +46,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'slug indisponibil' }, { status: 409 });
   }
 
+  // RSHIR-16: do NOT pass email_confirm:true. Supabase will send a confirmation
+  // email automatically; the user cannot sign in until they click the link.
+  // This blocks the "email squatting" path where an attacker pre-confirms a
+  // tenant under a victim's address.
   const { data: created, error: authErr } = await admin.auth.admin.createUser({
     email,
     password,
-    email_confirm: true,
   });
   if (authErr || !created.user) {
+    // Generic message to avoid leaking which emails are already registered.
+    console.error('[signup] auth.createUser failed', authErr?.message);
     return NextResponse.json(
-      { error: authErr?.message ?? 'Nu am putut crea utilizatorul' },
+      { error: 'Nu am putut crea contul. Verifică datele și încearcă din nou.' },
       { status: 400 },
     );
   }
@@ -66,8 +71,9 @@ export async function POST(req: NextRequest) {
     .single();
   if (tenantErr || !tenantRow) {
     await admin.auth.admin.deleteUser(userId);
+    console.error('[signup] tenant insert failed', tenantErr?.message);
     return NextResponse.json(
-      { error: tenantErr?.message ?? 'Nu am putut crea restaurantul' },
+      { error: 'Nu am putut crea restaurantul. Încearcă din nou.' },
       { status: 500 },
     );
   }
@@ -79,8 +85,15 @@ export async function POST(req: NextRequest) {
   if (memberErr) {
     await admin.from('tenants').delete().eq('id', tenantId);
     await admin.auth.admin.deleteUser(userId);
-    return NextResponse.json({ error: memberErr.message }, { status: 500 });
+    console.error('[signup] tenant_members insert failed', memberErr.message);
+    return NextResponse.json(
+      { error: 'Nu am putut finaliza înregistrarea. Încearcă din nou.' },
+      { status: 500 },
+    );
   }
 
-  return NextResponse.json({ tenantId, userId, slug }, { status: 201 });
+  return NextResponse.json(
+    { tenantId, userId, slug, requiresEmailConfirmation: true },
+    { status: 201 },
+  );
 }

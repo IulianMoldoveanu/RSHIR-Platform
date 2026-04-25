@@ -36,6 +36,18 @@ export async function POST(req: NextRequest) {
   }
 
   const bytes = await file.arrayBuffer();
+
+  // RSHIR-16 H4: magic-byte sniff. The browser-supplied `file.type` is
+  // attacker-controllable, and the Supabase storage `allowed_mime_types`
+  // check inspects the same untrusted header. Validate the actual leading
+  // bytes match the declared MIME before we upload or call Claude.
+  if (!matchesDeclaredMime(file.type, bytes)) {
+    return NextResponse.json(
+      { error: 'Conținutul fișierului nu corespunde tipului declarat.' },
+      { status: 400 },
+    );
+  }
+
   const admin = createAdminClient();
   const uploadId = randomUUID();
   const path = `${auth.tenantId}/${uploadId}.${ext}`;
@@ -64,4 +76,29 @@ export async function POST(req: NextRequest) {
     console.error('[menu-import/parse]', message.slice(0, 1000));
     return NextResponse.json({ error: message }, { status: 502 });
   }
+}
+
+function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
+  const head = new Uint8Array(bytes.slice(0, 8));
+  if (head.length < 4) return false;
+  if (mime === 'application/pdf') {
+    // %PDF-
+    return head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+  }
+  if (mime === 'image/jpeg') {
+    return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  }
+  if (mime === 'image/png') {
+    return (
+      head[0] === 0x89 &&
+      head[1] === 0x50 &&
+      head[2] === 0x4e &&
+      head[3] === 0x47 &&
+      head[4] === 0x0d &&
+      head[5] === 0x0a &&
+      head[6] === 0x1a &&
+      head[7] === 0x0a
+    );
+  }
+  return false;
 }

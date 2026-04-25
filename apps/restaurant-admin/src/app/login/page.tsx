@@ -16,7 +16,9 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (searchParams.get('signedUp') === '1') {
+    if (searchParams.get('checkEmail') === '1') {
+      toast.success('Cont creat. Verifică-ți emailul pentru link-ul de confirmare, apoi conectează-te.');
+    } else if (searchParams.get('signedUp') === '1') {
       toast.success('Cont creat. Conectează-te pentru a continua.');
     }
   }, [searchParams]);
