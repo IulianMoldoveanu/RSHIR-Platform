@@ -23,8 +23,8 @@ type TrackOrder = {
   updatedAt: string;
   publicTrackToken: string;
   tenant: { name: string; slug: string; phone: string | null; location: { lat: number; lng: number } | null } | null;
-  customer: { firstName: string; lastName: string; phoneMasked: string | null } | null;
-  dropoff: { line1: string; line2: string | null; city: string; lat: number | null; lng: number | null } | null;
+  customer: { firstName: string; lastNameInitial: string | null } | null;
+  dropoff: { neighborhood: string; city: string } | null;
 };
 
 export function TrackClient({ token }: { token: string }) {
@@ -65,7 +65,6 @@ function TrackInner({ token }: { token: string }) {
 
   const order = data.order;
   const pickup = order.tenant?.location ?? fallbackPickup;
-  const dropoff = order.dropoff?.lat && order.dropoff.lng ? { lat: order.dropoff.lat, lng: order.dropoff.lng } : null;
 
   return (
     <div className="space-y-5">
@@ -84,11 +83,9 @@ function TrackInner({ token }: { token: string }) {
         </p>
       </section>
 
-      {dropoff && (
-        <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <TrackMap pickup={pickup} dropoff={dropoff} restaurantName={order.tenant?.name ?? 'Restaurant'} />
-        </section>
-      )}
+      <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <TrackMap pickup={pickup} dropoff={null} restaurantName={order.tenant?.name ?? 'Restaurant'} />
+      </section>
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">Produse</p>
@@ -113,14 +110,11 @@ function TrackInner({ token }: { token: string }) {
         <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">Livrare la</p>
           <p className="mt-1 text-zinc-800">
-            {order.customer.firstName} {order.customer.lastName}
-            {order.customer.phoneMasked && (
-              <span className="ml-2 font-mono text-xs text-zinc-500">{order.customer.phoneMasked}</span>
-            )}
+            {order.customer.firstName}
+            {order.customer.lastNameInitial && ` ${order.customer.lastNameInitial}`}
           </p>
           <p className="text-zinc-700">
-            {order.dropoff.line1}
-            {order.dropoff.line2 ? `, ${order.dropoff.line2}` : ''}, {order.dropoff.city}
+            {order.dropoff.neighborhood}, {order.dropoff.city}
           </p>
         </section>
       )}

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
 import { confirmRequestSchema } from '../schemas';
@@ -13,6 +14,9 @@ export const dynamic = 'force-dynamic';
  * payment_status → PAID and kick off the delivery handoff.
  */
 export async function POST(req: Request) {
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) return NextResponse.json({ error: 'tenant_not_found' }, { status: 404 });
+
   const body = await req.json().catch(() => null);
   const parsed = confirmRequestSchema.safeParse(body);
   if (!parsed.success) {
@@ -24,6 +28,7 @@ export async function POST(req: Request) {
     .from('restaurant_orders')
     .select('id, stripe_payment_intent_id, payment_status, public_track_token')
     .eq('id', parsed.data.orderId)
+    .eq('tenant_id', tenant.id)
     .single();
   if (error || !order) {
     return NextResponse.json({ error: 'order_not_found' }, { status: 404 });

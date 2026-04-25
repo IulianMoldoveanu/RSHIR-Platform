@@ -25,20 +25,20 @@ export function TrackMap({
   restaurantName,
 }: {
   pickup: LatLng;
-  dropoff: LatLng;
+  dropoff: LatLng | null;
   restaurantName: string;
 }) {
   useEffect(() => {
     L.Marker.prototype.options.icon = defaultIcon;
   }, []);
 
-  const center = {
-    lat: (pickup.lat + dropoff.lat) / 2,
-    lng: (pickup.lng + dropoff.lng) / 2,
-  };
+  const center = dropoff
+    ? { lat: (pickup.lat + dropoff.lat) / 2, lng: (pickup.lng + dropoff.lng) / 2 }
+    : pickup;
+  const zoom = dropoff ? 13 : 14;
 
   return (
-    <MapContainer center={[center.lat, center.lng]} zoom={13} scrollWheelZoom={false} className="h-64 w-full">
+    <MapContainer center={[center.lat, center.lng]} zoom={zoom} scrollWheelZoom={false} className="h-64 w-full">
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -46,9 +46,11 @@ export function TrackMap({
       <Marker position={[pickup.lat, pickup.lng]} icon={defaultIcon}>
         <Popup>{restaurantName}</Popup>
       </Marker>
-      <Marker position={[dropoff.lat, dropoff.lng]} icon={defaultIcon}>
-        <Popup>Adresa de livrare</Popup>
-      </Marker>
+      {dropoff && (
+        <Marker position={[dropoff.lat, dropoff.lng]} icon={defaultIcon}>
+          <Popup>Adresa de livrare</Popup>
+        </Marker>
+      )}
     </MapContainer>
   );
 }

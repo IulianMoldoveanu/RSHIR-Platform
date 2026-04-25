@@ -38,8 +38,8 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
         updated_at,
         public_track_token,
         tenants ( name, slug, settings ),
-        customers ( first_name, last_name, phone ),
-        customer_addresses ( line1, line2, city, latitude, longitude )
+        customers ( first_name, last_name ),
+        customer_addresses ( line1, city )
       `,
     )
     .eq('public_track_token', parsed.data.token)
@@ -84,25 +84,30 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
       customer: order.customers
         ? {
             firstName: order.customers.first_name,
-            lastName: order.customers.last_name,
-            phoneMasked: maskPhone(order.customers.phone),
+            lastNameInitial: initial(order.customers.last_name),
           }
         : null,
       dropoff: order.customer_addresses
         ? {
-            line1: order.customer_addresses.line1,
-            line2: order.customer_addresses.line2,
+            neighborhood: neighborhoodOf(
+              order.customer_addresses.line1,
+              order.customer_addresses.city,
+            ),
             city: order.customer_addresses.city,
-            lat: order.customer_addresses.latitude,
-            lng: order.customer_addresses.longitude,
           }
         : null,
     },
   });
 }
 
-function maskPhone(phone: string | null): string | null {
-  if (!phone) return null;
-  if (phone.length < 4) return phone;
-  return phone.slice(0, 3) + '••••' + phone.slice(-2);
+function initial(name: string | null): string | null {
+  if (!name) return null;
+  const first = name.trim().charAt(0);
+  return first ? `${first.toUpperCase()}.` : null;
+}
+
+function neighborhoodOf(line1: string | null, city: string | null): string {
+  const trimmed = (line1 ?? '').trim();
+  if (!trimmed) return city ?? '';
+  return trimmed.split(',')[0].trim();
 }
