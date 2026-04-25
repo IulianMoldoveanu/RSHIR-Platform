@@ -92,11 +92,19 @@ If the wizard returns `vercel_not_configured`, `VERCEL_TOKEN` /
 `VERCEL_PROJECT_ID` are missing on the **admin** project — fix env, then
 redeploy the admin app.
 
-## Edge Function deploy (`notify-new-order`)
+## Edge Function deploy
+
+Three functions ship today:
+- `notify-new-order` — RSHIR-18, sends owner email when an order is paid.
+- `daily-digest` — RSHIR-35, daily revenue summary at 07:00 UTC.
+- `review-reminder` — RSHIR-43, hourly nudge to /track for unrated paid
+  orders aged 24-30h.
 
 ```sh
-# 1. Deploy the function code
+# 1. Deploy each function's code
 pnpm node supabase/deploy-function.mjs notify-new-order
+pnpm node supabase/deploy-function.mjs daily-digest
+pnpm node supabase/deploy-function.mjs review-reminder
 
 # 2. Set the function secrets (one-time per project; rotate on schedule).
 #    See supabase/README.md for the full RSHIR-22 secret-seeding script.
@@ -112,8 +120,23 @@ supabase secrets set NEXT_PUBLIC_RESTAURANT_WEB_URL=https://hir.ro \
   --project-ref qfmeojeipncuxeltnvab
 ```
 
-Also seed the matching Postgres vault row used by the order-paid
-trigger to authenticate to the function — see
+Also seed the matching Postgres vault rows used by the order-paid
+trigger and the cron jobs to authenticate to the functions:
+
+```sql
+-- one-time, replace each URL if your project ref differs:
+select vault.create_secret(
+  'https://qfmeojeipncuxeltnvab.functions.supabase.co/daily-digest',
+  'daily_digest_url',
+  'daily-digest Edge Function URL');
+select vault.create_secret(
+  'https://qfmeojeipncuxeltnvab.functions.supabase.co/review-reminder',
+  'review_reminder_url',
+  'review-reminder Edge Function URL');
+```
+
+The shared HMAC secret (`notify_new_order_secret`) is reused by all
+three functions — see
 [supabase/README.md](supabase/README.md#rshir-22-notify-new-order-shared-secret).
 
 ## Smoke test
