@@ -6,6 +6,8 @@ import type {
   TopItemRow,
   PeakRow,
   HeatmapPoint,
+  ReviewRow,
+  ReviewsBlock,
 } from './types';
 
 // Views are not in @hir/supabase-types yet; cast through `any` for table access.
@@ -22,11 +24,20 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
     };
   };
 
-  const [dailyRes, topRes, peakRes, heatRes] = await Promise.all([
+  const [dailyRes, topRes, peakRes, heatRes, summaryRes, recentRes] = await Promise.all([
     sb.from('v_orders_daily').select('day, revenue, order_count, avg_value').eq('tenant_id', tenantId),
     sb.from('v_top_items').select('item_id, item_name, order_count, revenue').eq('tenant_id', tenantId),
     sb.from('v_peak_hours').select('dow, hour, order_count').eq('tenant_id', tenantId),
     sb.from('v_delivery_addresses_30d').select('lat, lng').eq('tenant_id', tenantId),
+    // RSHIR-41: surface RSHIR-39 reviews in the analytics dashboard. Aggregate
+    // first; recent rows go through RLS scoped by tenant_member.
+    sb.from('restaurant_review_summary').select('review_count, average_rating').eq('tenant_id', tenantId),
+    supabase
+      .from('restaurant_reviews')
+      .select('id, rating, comment, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(5),
   ]);
 
   const daily = ((dailyRes.data ?? []) as Array<{ day: string; revenue: number | string; order_count: number | string; avg_value: number | string }>)
@@ -77,6 +88,14 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
   const monthOrders = last30.reduce((s, d) => s + d.order_count, 0);
   const avgOrderValue30d = monthOrders === 0 ? 0 : monthRevenue / monthOrders;
 
+  const summaryRow = ((summaryRes.data ?? []) as Array<{ review_count: number | string; average_rating: number | string }>)[0];
+  const recentRows = ((recentRes.data ?? []) as Array<ReviewRow>);
+  const reviews: ReviewsBlock = {
+    count: summaryRow ? Number(summaryRow.review_count) : 0,
+    average: summaryRow ? Number(summaryRow.average_rating) : 0,
+    recent: recentRows,
+  };
+
   return {
     kpis: {
       todayRevenue,
@@ -88,5 +107,6 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
     topItems,
     peakHours,
     heatmap,
+    reviews,
   };
 }

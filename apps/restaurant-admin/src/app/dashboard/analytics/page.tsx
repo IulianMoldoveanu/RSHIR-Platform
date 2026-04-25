@@ -12,7 +12,8 @@ export default async function AnalyticsPage() {
     data.daily.length > 0 ||
     data.topItems.length > 0 ||
     data.peakHours.length > 0 ||
-    data.heatmap.length > 0;
+    data.heatmap.length > 0 ||
+    data.reviews.count > 0;
 
   return (
     <div className="flex flex-col gap-6">

@@ -13,7 +13,7 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import type { AnalyticsData, DailyRow, TopItemRow, PeakRow } from './types';
+import type { AnalyticsData, DailyRow, TopItemRow, PeakRow, ReviewsBlock } from './types';
 
 const HeatmapMap = dynamic(() => import('./heatmap-map').then((m) => m.HeatmapMap), {
   ssr: false,
@@ -133,13 +133,73 @@ function PeakHoursHeatmap({ rows }: { rows: PeakRow[] }) {
   );
 }
 
+function Stars({ value }: { value: number }) {
+  // Render 5 outlined stars filled up to `value` (rounded to nearest 0.5).
+  const v = Math.max(0, Math.min(5, value));
+  const full = Math.floor(v);
+  const half = v - full >= 0.25 && v - full < 0.75;
+  const fullCount = half ? full : Math.round(v);
+  const halfFlag = half ? 1 : 0;
+  return (
+    <span className="text-amber-500" aria-hidden>
+      {'★'.repeat(fullCount)}
+      {halfFlag ? '⯨' : ''}
+      {'☆'.repeat(5 - fullCount - halfFlag)}
+    </span>
+  );
+}
+
+function ReviewsCard({ reviews }: { reviews: ReviewsBlock }) {
+  return (
+    <ChartCard title="Recenzii clienți (toată perioada)" empty={reviews.count === 0}>
+      {reviews.count === 0 ? (
+        <EmptyState
+          title="Nicio recenzie încă"
+          description="Recenziile apar după ce un client lasă o notă pe pagina de tracking a comenzii livrate."
+        />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-semibold text-zinc-900">
+              {reviews.average.toFixed(1)}
+            </span>
+            <Stars value={reviews.average} />
+            <span className="text-sm text-zinc-500">
+              {reviews.count} {reviews.count === 1 ? 'recenzie' : 'recenzii'}
+            </span>
+          </div>
+          {reviews.recent.length > 0 && (
+            <ul className="flex flex-col gap-2 text-sm">
+              {reviews.recent.map((r) => (
+                <li key={r.id} className="rounded border border-zinc-200 bg-zinc-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <Stars value={r.rating} />
+                    <span className="text-xs text-zinc-500">
+                      {new Date(r.created_at).toLocaleDateString('ro-RO')}
+                    </span>
+                  </div>
+                  {r.comment ? (
+                    <p className="mt-1 whitespace-pre-wrap text-zinc-700">{r.comment}</p>
+                  ) : (
+                    <p className="mt-1 italic text-zinc-400">(fără comentariu)</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </ChartCard>
+  );
+}
+
 type Props = {
   data: AnalyticsData;
   hasOrders: boolean;
 };
 
 export function AnalyticsClient({ data, hasOrders }: Props) {
-  const { kpis, daily, topItems, peakHours, heatmap } = data;
+  const { kpis, daily, topItems, peakHours, heatmap, reviews } = data;
 
   return (
     <div className="flex flex-col gap-4">
@@ -287,6 +347,9 @@ export function AnalyticsClient({ data, hasOrders }: Props) {
           <HeatmapMap points={heatmap} />
         )}
       </ChartCard>
+
+      {/* Reviews from RSHIR-39 */}
+      <ReviewsCard reviews={reviews} />
 
       {/* Conversion rate placeholder */}
       <div className="rounded-md border border-zinc-200 bg-white p-4">
