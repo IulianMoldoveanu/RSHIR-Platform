@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import { logAudit } from '@/lib/audit';
 import {
   DEFAULT_BRAND_COLOR,
   type BrandingActionResult,
@@ -151,6 +152,15 @@ export async function uploadBrandingAsset(
     .eq('id', expectedTenantId);
   if (writeErr) return { ok: false, error: 'db_error', detail: writeErr.message };
 
+  await logAudit({
+    tenantId: expectedTenantId,
+    actorUserId: user.id,
+    action: kind === 'logo' ? 'branding.logo_uploaded' : 'branding.cover_uploaded',
+    entityType: 'tenant',
+    entityId: expectedTenantId,
+    metadata: { mime: file.type, size: file.size },
+  });
+
   revalidatePath('/dashboard/settings/branding');
   return { ok: true, branding: next };
 }
@@ -193,6 +203,15 @@ export async function setBrandColor(
     .update({ settings: merged as never })
     .eq('id', expectedTenantId);
   if (error) return { ok: false, error: 'db_error', detail: error.message };
+
+  await logAudit({
+    tenantId: expectedTenantId,
+    actorUserId: user.id,
+    action: 'branding.color_changed',
+    entityType: 'tenant',
+    entityId: expectedTenantId,
+    metadata: { brand_color: next.brand_color },
+  });
 
   revalidatePath('/dashboard/settings/branding');
   return { ok: true, branding: next };

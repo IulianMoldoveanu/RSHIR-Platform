@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
+import { logAudit } from '@/lib/audit';
 
 // RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
 // the action if the cookie-derived active tenant has drifted (multi-tenant
@@ -40,7 +41,7 @@ export async function updateOrderStatus(
   newStatus: OrderStatus,
   expectedTenantId: string,
 ): Promise<void> {
-  const { tenantId } = await requireTenant(expectedTenantId);
+  const { tenantId, userId } = await requireTenant(expectedTenantId);
   const order = await loadOrderForTenant(orderId, tenantId);
 
   const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
@@ -60,6 +61,15 @@ export async function updateOrderStatus(
     .eq('tenant_id', tenantId);
   if (error) throw new Error(error.message);
 
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.status_changed',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: { from: order.status, to: newStatus },
+  });
+
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
@@ -69,7 +79,7 @@ export async function cancelOrder(
   expectedTenantId: string,
   reason?: string,
 ): Promise<void> {
-  const { tenantId } = await requireTenant(expectedTenantId);
+  const { tenantId, userId } = await requireTenant(expectedTenantId);
   const order = await loadOrderForTenant(orderId, tenantId);
 
   if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
@@ -92,6 +102,15 @@ export async function cancelOrder(
     .eq('id', orderId)
     .eq('tenant_id', tenantId);
   if (error) throw new Error(error.message);
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.cancelled',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: { from: order.status, reason: trimmed ?? null },
+  });
 
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);

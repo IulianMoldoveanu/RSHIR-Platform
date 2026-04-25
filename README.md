@@ -122,6 +122,7 @@ ongoing — see `## Sprint history` below for the full log.
 | 6 | GDPR + branding + pickup + KDS + sec | RSHIR-27..32 | done |
 | 7 | Promo + favorites + digest + SEO + sec | RSHIR-33..37 | done |
 | 8 | Pilot dry-run + reviews + ops + polish | RSHIR-38..42 | done |
+| 9 | Review reminders + menu search + audit log | RSHIR-43..45 | done |
 
 Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
 audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
@@ -149,6 +150,14 @@ audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
   items (logo, cover, first promo code, first paid order). Hidden when
   all four are done; otherwise links straight to the relevant settings
   page so the owner closes them in one click.
+- Review reminder email: hourly `pg_cron` job + `review-reminder`
+  Edge Function that nudges customers 24-30h after delivery if they
+  haven't rated yet (idempotent via `review_reminder_sent_at`).
+- Storefront menu search: instant client-side filter (case + diacritic
+  insensitive) with empty-state.
+- Tenant audit log at `/dashboard/settings/audit`: last 100 actions
+  (status changes, cancellations, branding writes) with actor email +
+  metadata. Best-effort write — never blocks the underlying mutation.
 - Operational: Resend new-order email via Edge Function, pg_cron daily
   digest, Supabase Realtime menu + orders, structured-data JSON-LD per
   item, robots.txt + per-tenant sitemap, RLS isolation tests,
