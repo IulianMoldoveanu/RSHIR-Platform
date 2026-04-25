@@ -2,11 +2,16 @@
 // in tenant_members for both demo tenants. Idempotent.
 import { readFileSync } from 'node:fs';
 
-const PROJECT_URL = 'https://qfmeojeipncuxeltnvab.supabase.co';
-const SERVICE_ROLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmbWVvamVpcG5jdXhlbHRudmFiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzA1NjA0OSwiZXhwIjoyMDkyNjMyMDQ5fQ.P9BKkr5NUzr3iodSOkTk-IK70QMHGCpU-qYnkR8KpTU';
-const MGMT_TOKEN = 'sbp_b41b87b61399c784d4056bf8a68ab4db4f584bce';
-const PROJECT_REF = 'qfmeojeipncuxeltnvab';
+const PROJECT_URL = process.env.SUPABASE_URL ?? 'https://qfmeojeipncuxeltnvab.supabase.co';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const MGMT_TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? 'qfmeojeipncuxeltnvab';
+if (!SERVICE_ROLE_KEY || !MGMT_TOKEN) {
+  console.error(
+    'SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ACCESS_TOKEN must be set in the environment.',
+  );
+  process.exit(2);
+}
 
 const EMAIL = 'admin@hir.local';
 const PASSWORD = 'RSHIRdev2026';

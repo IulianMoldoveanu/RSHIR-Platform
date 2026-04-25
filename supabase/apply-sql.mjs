@@ -3,8 +3,12 @@
 import { readFileSync } from 'node:fs';
 import { argv, exit } from 'node:process';
 
-const TOKEN = 'sbp_b41b87b61399c784d4056bf8a68ab4db4f584bce';
-const PROJECT_REF = 'qfmeojeipncuxeltnvab';
+const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? 'qfmeojeipncuxeltnvab';
+if (!TOKEN) {
+  console.error('SUPABASE_ACCESS_TOKEN not set. Export it before running this script.');
+  exit(2);
+}
 
 const file = argv[2];
 if (!file) {

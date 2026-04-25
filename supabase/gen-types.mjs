@@ -2,9 +2,13 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const TOKEN = 'sbp_b41b87b61399c784d4056bf8a68ab4db4f584bce';
-const PROJECT_REF = 'qfmeojeipncuxeltnvab';
+const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
+const PROJECT_REF = process.env.SUPABASE_PROJECT_REF ?? 'qfmeojeipncuxeltnvab';
 const OUT = 'packages/supabase-types/src/database.types.ts';
+if (!TOKEN) {
+  console.error('SUPABASE_ACCESS_TOKEN not set. Export it before running this script.');
+  process.exit(2);
+}
 
 const res = await fetch(
   `https://api.supabase.com/v1/projects/${PROJECT_REF}/types/typescript?included_schemas=public`,
