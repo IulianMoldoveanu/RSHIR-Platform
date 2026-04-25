@@ -32,6 +32,27 @@ function sanitizeWindow(raw: unknown): { open: string; close: string } | null {
   return { open: w.open, close: w.close };
 }
 
+// RSHIR-22: deep-merge for tenants.settings. The previous shallow spread
+// let a partial opening_hours payload (e.g. just `{mon: [...]}`) clobber
+// every other day. We recurse on plain objects and replace arrays
+// wholesale — opening_hours is one whole object so array-replace is the
+// intended behavior for any leaf arrays inside it.
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function deepMerge(
+  base: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...base };
+  for (const k of Object.keys(patch)) {
+    const pv = patch[k];
+    const bv = out[k];
+    out[k] = isPlainObject(bv) && isPlainObject(pv) ? deepMerge(bv, pv) : pv;
+  }
+  return out;
+}
+
 function sanitizeHours(raw: unknown): Record<DayKey, { open: string; close: string }[]> {
   const out: Record<DayKey, { open: string; close: string }[]> = {
     mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [],
@@ -79,14 +100,14 @@ export async function saveOperationsAction(
     .single();
   if (readErr || !existing) return { ok: false, error: 'db_error', detail: readErr?.message };
 
-  const merged = {
-    ...((existing.settings as Record<string, unknown>) ?? {}),
-    ...payload,
-  };
+  const merged = deepMerge(
+    (existing.settings as Record<string, unknown>) ?? {},
+    payload as unknown as Record<string, unknown>,
+  );
 
   const { error: writeErr } = await admin
     .from('tenants')
-    .update({ settings: merged })
+    .update({ settings: merged as never })
     .eq('id', tenant.id);
   if (writeErr) return { ok: false, error: 'db_error', detail: writeErr.message };
 

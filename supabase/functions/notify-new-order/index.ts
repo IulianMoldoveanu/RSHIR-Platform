@@ -11,6 +11,10 @@
 //
 // Env (set as Supabase function secrets via Management API or `supabase
 // secrets set`):
+//   HIR_NOTIFY_SECRET      — shared secret enforced on every request
+//                            (RSHIR-22). The DB trigger sends it as the
+//                            `x-hir-notify-secret` header; mismatch ⇒ 401
+//                            before any DB read.
 //   RESEND_API_KEY         — Resend API key (re_...).
 //   RESEND_FROM_EMAIL      — sender. Until hir.ro is verified, use
 //                            onboarding@resend.dev.
@@ -72,6 +76,20 @@ function renderItems(items: unknown): string {
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
+
+  // RSHIR-22: shared-secret gate. Reject before any DB work so the URL
+  // alone is not enough to invoke. Constant-time compare avoids leaking
+  // the secret length via response timing.
+  const expected = Deno.env.get('HIR_NOTIFY_SECRET');
+  if (!expected) {
+    console.error('[notify-new-order] HIR_NOTIFY_SECRET not configured');
+    return json(500, { error: 'secret_not_configured' });
+  }
+  const got = req.headers.get('x-hir-notify-secret') ?? '';
+  if (got.length !== expected.length) return json(401, { error: 'unauthorized' });
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ got.charCodeAt(i);
+  if (diff !== 0) return json(401, { error: 'unauthorized' });
 
   let body: Body;
   try {
