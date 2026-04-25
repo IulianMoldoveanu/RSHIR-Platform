@@ -36,6 +36,7 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
       .from('restaurant_reviews')
       .select('id, rating, comment, created_at')
       .eq('tenant_id', tenantId)
+      .is('hidden_at', null)
       .order('created_at', { ascending: false })
       .limit(5),
   ]);

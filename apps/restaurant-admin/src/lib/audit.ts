@@ -16,7 +16,9 @@ export type AuditAction =
   | 'notifications.daily_digest_toggled'
   | 'promo.created'
   | 'promo.deleted'
-  | 'tenant.went_live';
+  | 'tenant.went_live'
+  | 'review.hidden'
+  | 'review.unhidden';
 
 export async function logAudit(args: {
   tenantId: string;

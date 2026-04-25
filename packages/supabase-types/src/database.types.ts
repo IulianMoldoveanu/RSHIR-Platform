@@ -603,6 +603,8 @@ export type Database = {
         Row: {
           comment: string | null
           created_at: string
+          hidden_at: string | null
+          hidden_by: string | null
           id: string
           order_id: string
           rating: number
@@ -611,6 +613,8 @@ export type Database = {
         Insert: {
           comment?: string | null
           created_at?: string
+          hidden_at?: string | null
+          hidden_by?: string | null
           id?: string
           order_id: string
           rating: number
@@ -619,6 +623,8 @@ export type Database = {
         Update: {
           comment?: string | null
           created_at?: string
+          hidden_at?: string | null
+          hidden_by?: string | null
           id?: string
           order_id?: string
           rating?: number
