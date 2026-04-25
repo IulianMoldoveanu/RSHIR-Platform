@@ -39,8 +39,8 @@ export default async function NotificationsSettingsPage() {
         </div>
       )}
 
-      <NotificationsToggle canEdit={role === 'OWNER'} initialEnabled={enabled} />
-      <DailyDigestToggle canEdit={role === 'OWNER'} initialEnabled={digestEnabled} />
+      <NotificationsToggle canEdit={role === 'OWNER'} initialEnabled={enabled} tenantId={tenant.id} />
+      <DailyDigestToggle canEdit={role === 'OWNER'} initialEnabled={digestEnabled} tenantId={tenant.id} />
     </div>
   );
 }

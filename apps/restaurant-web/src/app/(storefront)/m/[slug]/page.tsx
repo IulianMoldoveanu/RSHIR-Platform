@@ -10,6 +10,7 @@ import { ItemDetailActions } from '@/components/storefront/item-detail-actions';
 import { WhatsAppShareButton } from '@/components/storefront/share-button';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+import { safeJsonLd } from '@/lib/jsonld';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +106,7 @@ export default async function ItemPage({ params }: { params: { slug: string } })
     <main className="min-h-screen bg-zinc-50 pb-32">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <div className="relative">
         <div className="relative h-72 w-full overflow-hidden bg-zinc-100 sm:h-96">

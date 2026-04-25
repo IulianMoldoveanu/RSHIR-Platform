@@ -4,6 +4,7 @@ import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant'
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getMenuByTenant } from '@/lib/menu';
 import { TenantHeader } from '@/components/storefront/tenant-header';
+import { safeJsonLd } from '@/lib/jsonld';
 import { MenuRow } from '@/components/storefront/menu-row';
 import {
   formatNextOpen,
@@ -103,7 +104,7 @@ export default async function StorefrontHomePage() {
     <main className="min-h-screen bg-zinc-50 pb-10">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(restaurantJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(restaurantJsonLd) }}
       />
       <TenantHeader
         name={tenant.name}

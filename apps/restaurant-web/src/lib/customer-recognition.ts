@@ -45,6 +45,9 @@ export function maybeSetCustomerCookie(
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    httpOnly: false,
+    // RSHIR-37: cookie is read only on the server (account/page.tsx +
+    // account/actions.ts + intent/route.ts). Lock it down so an XSS
+    // landing on the storefront cannot exfiltrate the customer.id.
+    httpOnly: true,
   });
 }

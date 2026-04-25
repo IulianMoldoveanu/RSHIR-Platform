@@ -6,9 +6,10 @@ import { setDailyDigestEnabledAction } from './actions';
 type Props = {
   canEdit: boolean;
   initialEnabled: boolean;
+  tenantId: string;
 };
 
-export function DailyDigestToggle({ canEdit, initialEnabled }: Props) {
+export function DailyDigestToggle({ canEdit, initialEnabled, tenantId }: Props) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [pending, start] = useTransition();
@@ -19,7 +20,7 @@ export function DailyDigestToggle({ canEdit, initialEnabled }: Props) {
     const next = !enabled;
     setError(null);
     start(async () => {
-      const r = await setDailyDigestEnabledAction(next);
+      const r = await setDailyDigestEnabledAction(next, tenantId);
       if (!r.ok) {
         setError(r.detail ?? r.error ?? 'Eroare necunoscută');
         return;

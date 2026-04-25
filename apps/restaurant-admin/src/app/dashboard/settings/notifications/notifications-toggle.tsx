@@ -6,9 +6,10 @@ import { setEmailNotificationsAction } from './actions';
 type Props = {
   canEdit: boolean;
   initialEnabled: boolean;
+  tenantId: string;
 };
 
-export function NotificationsToggle({ canEdit, initialEnabled }: Props) {
+export function NotificationsToggle({ canEdit, initialEnabled, tenantId }: Props) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [pending, start] = useTransition();
@@ -19,7 +20,7 @@ export function NotificationsToggle({ canEdit, initialEnabled }: Props) {
     const next = !enabled;
     setError(null);
     start(async () => {
-      const r = await setEmailNotificationsAction(next);
+      const r = await setEmailNotificationsAction(next, tenantId);
       if (!r.ok) {
         setError(r.detail ?? r.error ?? 'Eroare necunoscută');
         return;
