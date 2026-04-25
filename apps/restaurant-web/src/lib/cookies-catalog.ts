@@ -20,6 +20,15 @@ export const COOKIES_CATALOG: readonly CatalogEntry[] = [
     lifetime: { ro: '30 de zile', en: '30 days' },
   },
   {
+    name: 'hir-customer-{tenantId}',
+    category: 'essential',
+    purpose: {
+      ro: 'Recunoaște dispozitivul ca cel folosit la o comandă anterioară pentru a afișa istoricul comenzilor în Contul tău.',
+      en: 'Recognises this device as the one used for a previous order to show your order history under My orders.',
+    },
+    lifetime: { ro: '180 de zile', en: '180 days' },
+  },
+  {
     name: 'hir_locale',
     category: 'essential',
     purpose: {

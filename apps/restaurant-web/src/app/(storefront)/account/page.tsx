@@ -1,0 +1,144 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
+import { resolveTenantFromHost } from '@/lib/tenant';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { readCustomerCookie } from '@/lib/customer-recognition';
+import { formatRon } from '@/lib/format';
+import { t, type Locale } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n/server';
+import { repeatOrder } from './actions';
+
+export const dynamic = 'force-dynamic';
+
+type OrderItem = {
+  itemId: string;
+  name: string;
+  priceRon: number;
+  quantity: number;
+  lineTotalRon: number;
+};
+
+type OrderRow = {
+  id: string;
+  created_at: string;
+  total_ron: number;
+  items: OrderItem[];
+  public_track_token: string;
+};
+
+function formatDate(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'ro-RO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(iso));
+}
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
+function summarizeItems(items: OrderItem[]): { names: string; more: number } {
+  const names = items.slice(0, 3).map((i) => `${i.quantity}× ${i.name}`).join(', ');
+  const more = Math.max(0, items.length - 3);
+  return { names, more };
+}
+
+async function loadRecentOrders(tenantId: string, customerId: string): Promise<OrderRow[]> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from('restaurant_orders')
+    .select('id, created_at, total_ron, items, public_track_token')
+    .eq('tenant_id', tenantId)
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if (error || !data) return [];
+  return data.map((r) => ({
+    id: r.id,
+    created_at: r.created_at,
+    total_ron: Number(r.total_ron),
+    items: (r.items ?? []) as OrderItem[],
+    public_track_token: r.public_track_token,
+  }));
+}
+
+export default async function AccountPage() {
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) notFound();
+  const locale = getLocale();
+
+  const customerId = readCustomerCookie(tenant.id);
+  const orders = customerId ? await loadRecentOrders(tenant.id, customerId) : [];
+
+  return (
+    <main className="mx-auto min-h-screen max-w-2xl px-4 py-6 pb-32">
+      <div className="mb-4 flex items-center gap-2">
+        <Link
+          href="/"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
+          aria-label={t(locale, 'account.back_to_menu')}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+          {t(locale, 'account.title')}
+        </h1>
+      </div>
+
+      {orders.length === 0 ? (
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
+          <p className="text-base font-medium text-zinc-900">
+            {t(locale, 'account.empty_title')}
+          </p>
+          <p className="mt-1 text-sm text-zinc-600">{t(locale, 'account.empty_body')}</p>
+          <Link
+            href="/"
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[var(--hir-brand)] px-5 text-sm font-medium text-white hover:opacity-90"
+          >
+            {t(locale, 'account.empty_cta')}
+          </Link>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {orders.map((o) => {
+            const { names, more } = summarizeItems(o.items);
+            return (
+              <li key={o.id} className="rounded-xl border border-zinc-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <p className="font-mono text-xs text-zinc-500">
+                    {t(locale, 'account.order_short_id', { id: shortId(o.id) })}
+                  </p>
+                  <p className="text-xs text-zinc-500">{formatDate(o.created_at, locale)}</p>
+                </div>
+                <p className="mt-1 text-sm font-semibold text-zinc-900">
+                  {formatRon(o.total_ron, locale)}
+                </p>
+                <p className="mt-1 line-clamp-2 text-sm text-zinc-700">
+                  {names}
+                  {more > 0 ? `, ${t(locale, 'account.order_items_more', { count: more })}` : ''}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/track/${o.public_track_token}`}
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+                  >
+                    {t(locale, 'account.view_order')}
+                  </Link>
+                  <form action={repeatOrder.bind(null, o.id)}>
+                    <button
+                      type="submit"
+                      className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--hir-brand)] px-4 text-sm font-medium text-white hover:opacity-90"
+                    >
+                      {t(locale, 'account.reorder')}
+                    </button>
+                  </form>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </main>
+  );
+}

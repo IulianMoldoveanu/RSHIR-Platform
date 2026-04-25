@@ -1,6 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import { CartProvider } from '@/lib/cart/provider';
+import { CartBootstrap } from './cart-bootstrap';
 
 export function StorefrontShell({
   tenantId,
@@ -9,5 +10,10 @@ export function StorefrontShell({
   tenantId: string;
   children: ReactNode;
 }) {
-  return <CartProvider tenantId={tenantId}>{children}</CartProvider>;
+  return (
+    <CartProvider tenantId={tenantId}>
+      <CartBootstrap tenantId={tenantId} />
+      {children}
+    </CartProvider>
+  );
 }

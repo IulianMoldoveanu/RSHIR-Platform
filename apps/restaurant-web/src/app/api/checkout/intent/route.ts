@@ -5,6 +5,7 @@ import { getStripe } from '@/lib/stripe/server';
 import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
 import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
+import { maybeSetCustomerCookie } from '@/lib/customer-recognition';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -133,10 +134,14 @@ export async function POST(req: Request) {
     .update({ stripe_payment_intent_id: intent.id })
     .eq('id', order.id);
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     orderId: order.id,
     publicTrackToken: order.public_track_token,
     clientSecret: intent.client_secret,
     quote: q,
   });
+  // RSHIR-34: per-tenant "known device" hint pointing at customer.id.
+  // Not authentication — just lets /account show this device's past orders.
+  maybeSetCustomerCookie(res, tenant.id, customer.id);
+  return res;
 }

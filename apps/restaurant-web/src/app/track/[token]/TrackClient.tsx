@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { formatRon } from '@/lib/format';
@@ -36,16 +37,32 @@ type TrackOrder = {
   dropoff: { neighborhood: string; city: string } | null;
 };
 
-export function TrackClient({ token, locale }: { token: string; locale: Locale }) {
+export function TrackClient({
+  token,
+  locale,
+  showAccountNudge = false,
+}: {
+  token: string;
+  locale: Locale;
+  showAccountNudge?: boolean;
+}) {
   const [client] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={client}>
-      <TrackInner token={token} locale={locale} />
+      <TrackInner token={token} locale={locale} showAccountNudge={showAccountNudge} />
     </QueryClientProvider>
   );
 }
 
-function TrackInner({ token, locale }: { token: string; locale: Locale }) {
+function TrackInner({
+  token,
+  locale,
+  showAccountNudge,
+}: {
+  token: string;
+  locale: Locale;
+  showAccountNudge: boolean;
+}) {
   const { data, isLoading, error } = useQuery<{ order: TrackOrder }>({
     queryKey: ['track', token],
     queryFn: async () => {
@@ -152,6 +169,15 @@ function TrackInner({ token, locale }: { token: string; locale: Locale }) {
         >
           {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
         </a>
+      )}
+
+      {showAccountNudge && order.paymentStatus === 'PAID' && (
+        <Link
+          href="/account"
+          className="block text-center text-sm font-medium text-purple-700 hover:text-purple-900"
+        >
+          {t(locale, 'track.save_account_nudge')}
+        </Link>
       )}
     </div>
   );

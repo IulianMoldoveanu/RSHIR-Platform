@@ -9,6 +9,7 @@ type TenantHeaderProps = {
   coverUrl: string | null;
   whatsappPhone: string | null;
   locale: Locale;
+  showAccountLink?: boolean;
 };
 
 function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
@@ -17,7 +18,14 @@ function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
   return `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`;
 }
 
-export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone, locale }: TenantHeaderProps) {
+export function TenantHeader({
+  name,
+  logoUrl,
+  coverUrl,
+  whatsappPhone,
+  locale,
+  showAccountLink = false,
+}: TenantHeaderProps) {
   return (
     <header className="relative">
       <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-zinc-200 to-zinc-300 sm:h-56">
@@ -51,12 +59,22 @@ export function TenantHeader({ name, logoUrl, coverUrl, whatsappPhone, locale }:
           <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
             {name}
           </h1>
-          <Link
-            href="/bio"
-            className="text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"
-          >
-            {t(locale, 'header.bio_link')}
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/bio"
+              className="text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"
+            >
+              {t(locale, 'header.bio_link')}
+            </Link>
+            {showAccountLink ? (
+              <Link
+                href="/account"
+                className="text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"
+              >
+                {t(locale, 'account.header_link')}
+              </Link>
+            ) : null}
+          </div>
         </div>
 
         {whatsappPhone ? (
