@@ -3,6 +3,15 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { requireTenantAuth } from '@/lib/api-tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { parseMenuImage } from '@/lib/anthropic';
+import { checkLimit } from '@/lib/rate-limit';
+import { assertSameOrigin } from '@/lib/origin-check';
+
+// RSHIR-20: per-tenant Claude budget. Soft cost ceiling is 10 parses/hour
+// ≈ $0.30 worst case at Claude Sonnet 4.6 vision pricing (8 MB PDF input,
+// modest output). This is operational accounting, not a hard guard against
+// abuse — Vercel function timeout (60s) plus the Anthropic per-org rate
+// already cap the absolute worst case, and the per-tenant key prevents one
+// rogue tenant from starving others.
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -16,8 +25,22 @@ const ALLOWED = new Map<string, string>([
 ]);
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
+
+  // 10 parses per tenant per hour: capacity 10, refill ~1/360s.
+  const rl = checkLimit(`menu-parse:${auth.tenantId}`, { capacity: 10, refillPerSec: 1 / 360 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
 
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');

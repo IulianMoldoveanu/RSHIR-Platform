@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { requireTenantAuth } from '@/lib/api-tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,11 @@ const commitSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 

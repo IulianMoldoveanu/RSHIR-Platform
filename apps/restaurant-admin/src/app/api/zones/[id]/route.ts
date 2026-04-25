@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import type { Json } from '@hir/supabase-types';
 import { requireTenantAuth } from '@/lib/api-tenant';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,11 @@ const updateZoneSchema = z
   .refine((v) => Object.keys(v).length > 0, { message: 'No fields to update' });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 
@@ -50,7 +56,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ zone: data });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 

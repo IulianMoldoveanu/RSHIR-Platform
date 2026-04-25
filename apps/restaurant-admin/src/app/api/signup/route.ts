@@ -1,10 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkLimit, clientIp } from '@/lib/rate-limit';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const dynamic = 'force-dynamic';
 
-// TODO: add captcha + rate limit before opening signup beyond invite-only.
+// RSHIR-20: rate-limit + same-origin check now in place. Captcha is still
+// pending if abuse is observed in pilot.
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -22,6 +25,20 @@ const signupSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
+  // 5 signups per IP per hour: capacity 5, refill ~1/720s.
+  const rl = checkLimit(`signup:${clientIp(req)}`, { capacity: 5, refillPerSec: 1 / 720 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = signupSchema.safeParse(body);
   if (!parsed.success) {

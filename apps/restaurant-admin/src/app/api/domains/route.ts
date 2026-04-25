@@ -8,6 +8,7 @@ import {
   readVercelConfig,
   removeProjectDomain,
 } from '@/lib/vercel';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { normalizeDomain, getCurrentTenantDomain } from './shared';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,11 @@ const postSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 
@@ -66,7 +72,12 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, domain, status: 'PENDING_DNS' }, { status: 201 });
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 

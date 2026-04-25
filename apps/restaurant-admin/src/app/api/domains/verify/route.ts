@@ -1,13 +1,19 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { requireTenantAuth } from '@/lib/api-tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantOwner } from '@/lib/tenant';
 import { getProjectDomain, readVercelConfig } from '@/lib/vercel';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { getCurrentTenantDomain, type DomainStatus } from '../shared';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const auth = await requireTenantAuth();
   if (!auth.ok) return auth.response;
 
