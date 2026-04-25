@@ -30,6 +30,11 @@ export const dictionaries = {
       banner_closed_title: 'Restaurantul este închis acum',
       banner_next_open_template: 'Deschidem {when}',
     },
+    menu: {
+      search_placeholder: 'Caută în meniu…',
+      search_clear: 'Șterge căutarea',
+      search_no_results: 'Niciun produs nu se potrivește.',
+    },
     bio: {
       view_all_menu: 'vezi tot meniul →',
       menu_not_published: 'Meniul nu e încă publicat.',
@@ -243,6 +248,11 @@ export const dictionaries = {
       banner_not_accepting_title: 'The restaurant is not accepting orders',
       banner_closed_title: 'The restaurant is closed right now',
       banner_next_open_template: 'Reopens {when}',
+    },
+    menu: {
+      search_placeholder: 'Search the menu…',
+      search_clear: 'Clear search',
+      search_no_results: 'No items match your search.',
     },
     bio: {
       view_all_menu: 'see the full menu →',

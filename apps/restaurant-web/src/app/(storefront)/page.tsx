@@ -6,7 +6,7 @@ import { getMenuByTenant } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
-import { MenuRow } from '@/components/storefront/menu-row';
+import { MenuList } from '@/components/storefront/menu-list';
 import {
   formatNextOpen,
   isAcceptingOrders,
@@ -138,15 +138,15 @@ export default async function StorefrontHomePage() {
         </div>
       )}
 
-      <div className="mx-auto max-w-2xl">
-        {menu.length === 0 ? (
+      {menu.length === 0 ? (
+        <div className="mx-auto max-w-2xl">
           <p className="px-4 py-10 text-center text-sm text-zinc-500">
             {t(locale, 'home.menu_not_published')}
           </p>
-        ) : (
-          menu.map((cat) => <MenuRow key={cat.id} category={cat} locale={locale} />)
-        )}
-      </div>
+        </div>
+      ) : (
+        <MenuList categories={menu} locale={locale} />
+      )}
     </main>
   );
 }
