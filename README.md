@@ -108,9 +108,9 @@ Helpers under `scripts/` (release verification):
 
 ## Status (last updated 2026-04-25)
 
-7 sprints + 5 hardening passes shipped on `main`. Both apps compile (`pnpm
-build`) and typecheck clean (`pnpm -r typecheck`). Pilot-readiness work
-ongoing — see `## Sprint history` below for the full log.
+11 sprints shipped on `main`. Both apps compile (`pnpm build`) and
+typecheck clean (`pnpm -r typecheck`). Pilot-readiness work ongoing —
+see `## Sprint history` below for the full log.
 
 | Sprint | Theme | Tasks | Status |
 |---|---|---|---|
@@ -124,6 +124,7 @@ ongoing — see `## Sprint history` below for the full log.
 | 8 | Pilot dry-run + reviews + ops + polish | RSHIR-38..42 | done |
 | 9 | Review reminders + menu search + audit log | RSHIR-43..45 | done |
 | 10 | Review moderation + orders CSV + restaurant copy | RSHIR-46..48 | done |
+| 11 | Integration architecture (POS-ready, MVP-Mock) + 86-list | RSHIR-49..53 | done |
 
 Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
 audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
@@ -167,6 +168,22 @@ audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
 - Orders CSV export at `/api/dashboard/orders/export`: 90-day default
   window, optional ?from / ?to, UTF-8 BOM for Excel diacritics. Wired
   to a button in the orders header.
+- Per-item "sold out today" toggle in admin menu — sets
+  `sold_out_until` to the end of the tenant's current business day so
+  the storefront filters the item out automatically until the next
+  opening time. Cleared with one click; audit-logged both ways.
+- Integration architecture (POS-ready) at
+  `/dashboard/settings/integrations`: per-tenant `integration_mode`
+  (`STANDALONE` / `POS_PUSH` / `POS_PULL` / `BIDIRECTIONAL`) + provider
+  registry (`mock` shipped, others stubs). External systems POST orders
+  to `/api/public/v1/orders` with `Authorization: Bearer hir_<key>`
+  (sha256-hashed in `tenant_api_keys`). Outbound events queue into
+  `integration_events`, drained every 30s by the
+  `integration-dispatcher` Edge Function with exponential backoff +
+  DLQ at 5 attempts. Inbound webhooks land at
+  `/api/integrations/webhooks/[provider]/[tenant]` with HMAC-SHA256
+  verification. Existing `STANDALONE` tenants pay zero overhead — the
+  bus short-circuits when the tenant has no provider row.
 
 ## Live demo URLs (no DNS yet)
 
