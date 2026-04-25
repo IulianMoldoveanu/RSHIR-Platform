@@ -50,6 +50,19 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
+  // RSHIR-39: surface whether the customer has already left a review so the
+  // /track UI can render the prompt vs the thank-you state without a second
+  // round-trip.
+  let hasReview = false;
+  if (order.status === 'DELIVERED') {
+    const { data: review } = await admin
+      .from('restaurant_reviews')
+      .select('id')
+      .eq('order_id', order.id)
+      .maybeSingle();
+    hasReview = !!review;
+  }
+
   const tenantSettings = (order.tenants?.settings ?? {}) as Record<string, unknown>;
   const tenantPhone =
     typeof tenantSettings.whatsapp_phone === 'string'
@@ -78,6 +91,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
       updatedAt: order.updated_at,
       publicTrackToken: order.public_track_token,
       fulfillment: isPickup ? 'PICKUP' : 'DELIVERY',
+      hasReview,
       tenant: order.tenants
         ? {
             name: order.tenants.name,

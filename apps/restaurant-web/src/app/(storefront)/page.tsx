@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getMenuByTenant } from '@/lib/menu';
+import { getReviewSummary } from '@/lib/reviews';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
 import { MenuRow } from '@/components/storefront/menu-row';
@@ -49,7 +50,10 @@ export default async function StorefrontHomePage() {
 
   const locale = getLocale();
   const { logoUrl, coverUrl } = brandingFor(tenant.settings);
-  const menu = await getMenuByTenant(tenant.id);
+  const [menu, rating] = await Promise.all([
+    getMenuByTenant(tenant.id),
+    getReviewSummary(tenant.id),
+  ]);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const closed = !accepting || !openStatus.open;
@@ -80,6 +84,15 @@ export default async function StorefrontHomePage() {
       streetAddress: pickupAddress ?? undefined,
       addressCountry: 'RO',
     },
+    aggregateRating: rating
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: rating.average.toFixed(1),
+          reviewCount: rating.count,
+          bestRating: 5,
+          worstRating: 1,
+        }
+      : undefined,
   };
 
   let banner: { title: string; detail?: string } | null = null;
@@ -113,6 +126,7 @@ export default async function StorefrontHomePage() {
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
         showAccountLink={hasCustomerCookie}
+        rating={rating}
       />
 
       {closed && banner && (

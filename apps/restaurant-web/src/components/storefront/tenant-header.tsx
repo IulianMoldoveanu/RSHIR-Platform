@@ -10,6 +10,7 @@ type TenantHeaderProps = {
   whatsappPhone: string | null;
   locale: Locale;
   showAccountLink?: boolean;
+  rating?: { average: number; count: number } | null;
 };
 
 function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
@@ -25,6 +26,7 @@ export function TenantHeader({
   whatsappPhone,
   locale,
   showAccountLink = false,
+  rating = null,
 }: TenantHeaderProps) {
   return (
     <header className="relative">
@@ -60,6 +62,16 @@ export function TenantHeader({
             {name}
           </h1>
           <div className="flex items-center gap-3">
+            {rating && rating.count > 0 ? (
+              <span
+                className="inline-flex items-center gap-1 text-xs font-medium text-zinc-700"
+                aria-label={`${rating.average.toFixed(1)} (${rating.count})`}
+              >
+                <span className="text-amber-500">★</span>
+                <span>{rating.average.toFixed(1)}</span>
+                <span className="text-zinc-400">({rating.count})</span>
+              </span>
+            ) : null}
             <Link
               href="/bio"
               className="text-xs uppercase tracking-widest text-zinc-500 hover:text-zinc-700"

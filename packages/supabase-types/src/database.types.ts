@@ -555,6 +555,48 @@ export type Database = {
           },
         ]
       }
+      restaurant_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          order_id: string
+          rating: number
+          tenant_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          rating: number
+          tenant_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          rating?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "restaurant_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_members: {
         Row: {
           created_at: string
@@ -634,6 +676,22 @@ export type Database = {
       }
     }
     Views: {
+      restaurant_review_summary: {
+        Row: {
+          average_rating: number | null
+          review_count: number | null
+          tenant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_delivery_addresses_30d: {
         Row: {
           lat: number | null
@@ -715,6 +773,10 @@ export type Database = {
       }
       is_tenant_member: { Args: { t_id: string }; Returns: boolean }
       is_tenant_owner: { Args: { t_id: string }; Returns: boolean }
+      submit_order_review: {
+        Args: { p_comment: string; p_rating: number; p_token: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

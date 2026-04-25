@@ -121,7 +121,7 @@ ongoing — see `## Sprint history` below for the full log.
 | 5 | Onboarding + bilingual + deploy + sec | RSHIR-23..26 | done |
 | 6 | GDPR + branding + pickup + KDS + sec | RSHIR-27..32 | done |
 | 7 | Promo + favorites + digest + SEO + sec | RSHIR-33..37 | done |
-| 8 | Pilot dry-run + deploy fixes | RSHIR-38 (in progress) | wip |
+| 8 | Pilot dry-run + deploy fixes + reviews | RSHIR-38, RSHIR-39 | in progress |
 
 Zero CRITICAL/HIGH security debt across all sprints (each post-sprint
 audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
@@ -140,6 +140,10 @@ audit closed by a same-sprint hotfix RSHIR-26/31/32/37).
   (Vercel API), opening hours + storefront block-when-closed,
   notifications opt-out, daily revenue digest email, SEO meta + sitemap,
   GDPR DSR endpoints, cookie consent banner.
+- Customer reviews: 1-5 stars + optional comment, submitted from
+  `/track/<token>` after delivery (token-gated SECURITY DEFINER RPC,
+  IP rate-limited). Tenant homepage shows `★ avg (count)` and emits
+  `aggregateRating` JSON-LD when ≥1 review exists.
 - Operational: Resend new-order email via Edge Function, pg_cron daily
   digest, Supabase Realtime menu + orders, structured-data JSON-LD per
   item, robots.txt + per-tenant sitemap, RLS isolation tests.
