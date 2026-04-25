@@ -31,6 +31,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid_request', issues: parsed.error.flatten() }, { status: 400 });
   }
 
+  // RSHIR-32 M-2: server-enforce pickup_enabled (UI gate is not enough).
+  if (parsed.data.fulfillment === 'PICKUP') {
+    const pickupEnabled = (tenant.settings as Record<string, unknown> | null)?.pickup_enabled;
+    if (pickupEnabled === false) {
+      return NextResponse.json({ error: 'pickup_disabled' }, { status: 422 });
+    }
+  }
+
   const admin = getSupabaseAdmin();
 
   const quoted = await computeQuote(

@@ -153,11 +153,14 @@ export async function uploadBrandingAsset(
     ...state,
     [kind === 'logo' ? 'logo_url' : 'cover_url']: publicUrlFor(path),
   };
+  // RSHIR-32 M-3: write branding from a strict allowlist. Any unknown keys
+  // a previous bad write may have set under `branding` are dropped here.
   const merged = {
     ...rawSettings,
     branding: {
-      ...((rawSettings.branding as Record<string, unknown>) ?? {}),
-      ...next,
+      logo_url: next.logo_url,
+      cover_url: next.cover_url,
+      brand_color: next.brand_color,
     },
   };
 
@@ -193,11 +196,13 @@ export async function setBrandColor(
 
   const { state, rawSettings } = await readBranding(expectedTenantId);
   const next: BrandingState = { ...state, brand_color: hex.toLowerCase() };
+  // RSHIR-32 M-3: strict allowlist; see uploadBrandingAsset for rationale.
   const merged = {
     ...rawSettings,
     branding: {
-      ...((rawSettings.branding as Record<string, unknown>) ?? {}),
-      ...next,
+      logo_url: next.logo_url,
+      cover_url: next.cover_url,
+      brand_color: next.brand_color,
     },
   };
 

@@ -19,11 +19,13 @@ export function StatusActions({
   current,
   nextOptions,
   cancellable,
+  tenantId,
 }: {
   orderId: string;
   current: OrderStatus;
   nextOptions: OrderStatus[];
   cancellable: boolean;
+  tenantId: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -33,7 +35,7 @@ export function StatusActions({
     setError(null);
     startTransition(async () => {
       try {
-        await updateOrderStatus(orderId, next);
+        await updateOrderStatus(orderId, next, tenantId);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Eroare necunoscuta.');
@@ -47,7 +49,7 @@ export function StatusActions({
     setError(null);
     startTransition(async () => {
       try {
-        await cancelOrder(orderId, reason);
+        await cancelOrder(orderId, tenantId, reason);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Eroare necunoscuta.');

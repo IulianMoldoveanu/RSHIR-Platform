@@ -190,8 +190,8 @@ export function KdsClient({
       </header>
 
       <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
-        <Column title="ÎN LUCRU" orders={left} now={now} router={router} />
-        <Column title="GATA" orders={right} now={now} router={router} />
+        <Column title="ÎN LUCRU" orders={left} now={now} router={router} tenantId={tenantId} />
+        <Column title="GATA" orders={right} now={now} router={router} tenantId={tenantId} />
       </div>
     </div>
   );
@@ -238,11 +238,13 @@ function Column({
   orders,
   now,
   router,
+  tenantId,
 }: {
   title: string;
   orders: KdsOrder[];
   now: number;
   router: ReturnType<typeof useRouter>;
+  tenantId: string;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -256,7 +258,7 @@ function Column({
       ) : (
         <ul className="flex flex-col gap-3">
           {orders.map((o) => (
-            <OrderCard key={o.id} order={o} now={now} router={router} />
+            <OrderCard key={o.id} order={o} now={now} router={router} tenantId={tenantId} />
           ))}
         </ul>
       )}
@@ -268,10 +270,12 @@ function OrderCard({
   order,
   now,
   router,
+  tenantId,
 }: {
   order: KdsOrder;
   now: number;
   router: ReturnType<typeof useRouter>;
+  tenantId: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -286,7 +290,7 @@ function OrderCard({
     setError(null);
     startTransition(async () => {
       try {
-        await updateOrderStatus(order.id, next);
+        await updateOrderStatus(order.id, next, tenantId);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Eroare necunoscută.');

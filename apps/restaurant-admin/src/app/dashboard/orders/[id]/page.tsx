@@ -139,6 +139,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           current={order.status}
           nextOptions={allowedNext}
           cancellable={cancellable}
+          tenantId={tenant.id}
         />
       </section>
 

@@ -44,15 +44,20 @@ export function nextStatuses(current: OrderStatus): OrderStatus[] {
   return ALLOWED_TRANSITIONS[current] ?? [];
 }
 
-async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
+// RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
+// the action if the cookie-derived active tenant has drifted (multi-tenant
+// tab race — same pattern as RSHIR-26 M-3 for operations / onboarding).
+async function requireTenant(expectedTenantId: string): Promise<{ userId: string; tenantId: string }> {
+  if (!expectedTenantId) throw new Error('missing_tenant_id');
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthenticated.');
   const { tenant } = await getActiveTenant();
-  await assertTenantMember(user.id, tenant.id);
-  return { userId: user.id, tenantId: tenant.id };
+  if (tenant.id !== expectedTenantId) throw new Error('tenant_mismatch');
+  await assertTenantMember(user.id, expectedTenantId);
+  return { userId: user.id, tenantId: expectedTenantId };
 }
 
 async function loadOrderForTenant(orderId: string, tenantId: string) {
@@ -68,8 +73,12 @@ async function loadOrderForTenant(orderId: string, tenantId: string) {
   return data as { id: string; tenant_id: string; status: OrderStatus };
 }
 
-export async function updateOrderStatus(orderId: string, newStatus: OrderStatus): Promise<void> {
-  const { tenantId } = await requireTenant();
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: OrderStatus,
+  expectedTenantId: string,
+): Promise<void> {
+  const { tenantId } = await requireTenant(expectedTenantId);
   const order = await loadOrderForTenant(orderId, tenantId);
 
   const allowed = ALLOWED_TRANSITIONS[order.status] ?? [];
@@ -93,8 +102,12 @@ export async function updateOrderStatus(orderId: string, newStatus: OrderStatus)
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
-export async function cancelOrder(orderId: string, reason?: string): Promise<void> {
-  const { tenantId } = await requireTenant();
+export async function cancelOrder(
+  orderId: string,
+  expectedTenantId: string,
+  reason?: string,
+): Promise<void> {
+  const { tenantId } = await requireTenant(expectedTenantId);
   const order = await loadOrderForTenant(orderId, tenantId);
 
   if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
