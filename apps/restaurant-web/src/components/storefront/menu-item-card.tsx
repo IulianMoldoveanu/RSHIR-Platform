@@ -188,9 +188,15 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
             </div>
           )}
           {!available ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/75 text-[10px] font-semibold uppercase tracking-wider text-zinc-700">
-              {t(locale, 'item.unavailable')}
-            </div>
+            <>
+              <div
+                aria-hidden
+                className="absolute inset-0 bg-white/55 backdrop-blur-[2px]"
+              />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-900/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-md">
+                {t(locale, 'item.unavailable')}
+              </span>
+            </>
           ) : null}
         </div>
       </motion.div>
