@@ -12,6 +12,10 @@ export type OperationsSettings = {
   pickup_eta_minutes: number;
   pickup_enabled: boolean;
   pickup_address: string | null;
+  // Commerce thresholds (per-tenant, both stored in tenant.settings JSONB).
+  // 0 means "not configured" — UI hides the corresponding nudge.
+  min_order_ron: number;
+  free_delivery_threshold_ron: number;
   opening_hours: Record<DayKey, { open: string; close: string }[]>;
 };
 
@@ -97,12 +101,23 @@ export async function saveOperationsAction(
   const cleanPickupAddress =
     typeof input.pickup_address === 'string' ? input.pickup_address.trim().slice(0, 200) : '';
 
+  const minOrder = Number(input.min_order_ron);
+  if (!Number.isFinite(minOrder) || minOrder < 0 || minOrder > 5000) {
+    return { ok: false, error: 'invalid_input', detail: 'min_order_ron must be 0–5000' };
+  }
+  const freeThreshold = Number(input.free_delivery_threshold_ron);
+  if (!Number.isFinite(freeThreshold) || freeThreshold < 0 || freeThreshold > 5000) {
+    return { ok: false, error: 'invalid_input', detail: 'free_delivery_threshold_ron must be 0–5000' };
+  }
+
   const payload = {
     is_accepting_orders: input.is_accepting_orders,
     pause_reason: cleanReason || null,
     pickup_eta_minutes: Math.round(eta),
     pickup_enabled: input.pickup_enabled !== false,
     pickup_address: cleanPickupAddress || null,
+    min_order_ron: Math.round(minOrder * 100) / 100,
+    free_delivery_threshold_ron: Math.round(freeThreshold * 100) / 100,
     opening_hours: sanitizeHours(input.opening_hours),
   };
 

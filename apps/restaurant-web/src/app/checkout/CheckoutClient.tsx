@@ -280,6 +280,15 @@ export function CheckoutClient(props: {
       const data = await res.json();
       if (!res.ok) {
         const reason = data?.reason as QuoteFailureReason | undefined;
+        if (data?.error === 'below_min_order' && typeof data?.min_order_ron === 'number') {
+          setError(
+            t(locale, 'checkout.err_below_min_template', {
+              min: formatRon(Number(data.min_order_ron), locale),
+            }),
+          );
+          setStep('form');
+          return;
+        }
         setError(
           reason
             ? formatQuoteError(reason, props.tenantPhone, locale)

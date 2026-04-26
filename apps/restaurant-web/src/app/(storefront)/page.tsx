@@ -127,6 +127,17 @@ export default async function StorefrontHomePage() {
         locale={locale}
         showAccountLink={hasCustomerCookie}
         rating={rating}
+        minOrderRon={
+          typeof tenant.settings.min_order_ron === 'number' && tenant.settings.min_order_ron > 0
+            ? Number(tenant.settings.min_order_ron)
+            : 0
+        }
+        freeDeliveryThresholdRon={
+          typeof tenant.settings.free_delivery_threshold_ron === 'number' &&
+          tenant.settings.free_delivery_threshold_ron > 0
+            ? Number(tenant.settings.free_delivery_threshold_ron)
+            : 0
+        }
       />
 
       {closed && banner && (

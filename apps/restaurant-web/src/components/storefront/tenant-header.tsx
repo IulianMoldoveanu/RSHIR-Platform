@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { MessageCircle, Star } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
+import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
 
 type TenantHeaderProps = {
@@ -11,6 +12,8 @@ type TenantHeaderProps = {
   locale: Locale;
   showAccountLink?: boolean;
   rating?: { average: number; count: number } | null;
+  minOrderRon?: number;
+  freeDeliveryThresholdRon?: number;
 };
 
 function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
@@ -27,7 +30,24 @@ export function TenantHeader({
   locale,
   showAccountLink = false,
   rating = null,
+  minOrderRon = 0,
+  freeDeliveryThresholdRon = 0,
 }: TenantHeaderProps) {
+  const thresholdParts: string[] = [];
+  if (minOrderRon > 0) {
+    thresholdParts.push(
+      t(locale, 'header.min_order_template', {
+        amount: formatRon(minOrderRon, locale),
+      }),
+    );
+  }
+  if (freeDeliveryThresholdRon > 0) {
+    thresholdParts.push(
+      t(locale, 'header.free_delivery_template', {
+        amount: formatRon(freeDeliveryThresholdRon, locale),
+      }),
+    );
+  }
   return (
     <header className="relative">
       <div
@@ -84,6 +104,11 @@ export function TenantHeader({
             >
               {t(locale, 'header.bio_link')}
             </Link>
+            {thresholdParts.length > 0 && (
+              <span className="text-xs text-zinc-500">
+                {thresholdParts.join(' · ')}
+              </span>
+            )}
             {showAccountLink ? (
               <Link
                 href="/account"

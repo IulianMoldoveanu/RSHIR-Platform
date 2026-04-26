@@ -57,6 +57,21 @@ export async function POST(req: Request) {
   const q = quoted.quote;
   const isPickup = q.fulfillment === 'PICKUP';
 
+  // Defense-in-depth: cart drawer hides the checkout CTA below min_order_ron,
+  // but a determined client can still POST. Reject so we never charge a
+  // customer for a sub-threshold cart.
+  const tenantSettings = tenant.settings as Record<string, unknown> | null;
+  const minOrderRon =
+    typeof tenantSettings?.min_order_ron === 'number' && tenantSettings.min_order_ron > 0
+      ? Number(tenantSettings.min_order_ron)
+      : 0;
+  if (minOrderRon > 0 && Number(q.subtotalRon) < minOrderRon) {
+    return NextResponse.json(
+      { error: 'below_min_order', min_order_ron: minOrderRon, subtotal_ron: q.subtotalRon },
+      { status: 422 },
+    );
+  }
+
   // Customer (one row per checkout — no auth/dedupe in MVP).
   const { data: customer, error: custErr } = await admin
     .from('customers')

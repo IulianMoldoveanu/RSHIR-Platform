@@ -29,6 +29,8 @@ export function OperationsClient({
   const [eta, setEta] = useState(String(initial.pickup_eta_minutes));
   const [pickupEnabled, setPickupEnabled] = useState(initial.pickup_enabled);
   const [pickupAddress, setPickupAddress] = useState(initial.pickup_address ?? '');
+  const [minOrder, setMinOrder] = useState(String(initial.min_order_ron));
+  const [freeThreshold, setFreeThreshold] = useState(String(initial.free_delivery_threshold_ron));
   const [hours, setHours] = useState(initial.opening_hours);
   const [feedback, setFeedback] = useState<OperationsActionResult | null>(null);
 
@@ -57,6 +59,16 @@ export function OperationsClient({
       setFeedback({ ok: false, error: 'invalid_input', detail: 'ETA trebuie să fie un număr pozitiv.' });
       return;
     }
+    const minOrderNum = Number(minOrder);
+    if (!Number.isFinite(minOrderNum) || minOrderNum < 0) {
+      setFeedback({ ok: false, error: 'invalid_input', detail: 'Comanda minimă trebuie să fie ≥ 0.' });
+      return;
+    }
+    const freeThresholdNum = Number(freeThreshold);
+    if (!Number.isFinite(freeThresholdNum) || freeThresholdNum < 0) {
+      setFeedback({ ok: false, error: 'invalid_input', detail: 'Pragul livrării gratuite trebuie să fie ≥ 0.' });
+      return;
+    }
     start(async () => {
       const result = await saveOperationsAction(
         {
@@ -65,6 +77,8 @@ export function OperationsClient({
           pickup_eta_minutes: etaNum,
           pickup_enabled: pickupEnabled,
           pickup_address: pickupAddress.trim() || null,
+          min_order_ron: minOrderNum,
+          free_delivery_threshold_ron: freeThresholdNum,
           opening_hours: hours,
         },
         tenantId,
@@ -159,6 +173,51 @@ export function OperationsClient({
           <p className="mt-1 text-xs text-zinc-500">
             Adresa pe care o vede clientul când alege ridicare personală.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Praguri comerciale</h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Setează pragul minim de comandă și pragul de livrare gratuită. Ambele apar în storefront. Lasă 0 pentru a dezactiva.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-zinc-600">
+              Comandă minimă (RON)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={5000}
+              step={0.5}
+              disabled={!canEdit}
+              value={minOrder}
+              onChange={(e) => setMinOrder(e.target.value)}
+              className="mt-1 w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Sub acest subtotal, checkout-ul e blocat și clientul vede &bdquo;Mai adaugă X RON&rdquo;.
+            </p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-600">
+              Livrare gratuită peste (RON)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={5000}
+              step={0.5}
+              disabled={!canEdit}
+              value={freeThreshold}
+              onChange={(e) => setFreeThreshold(e.target.value)}
+              className="mt-1 w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Doar afișaj — încurajează coșuri mai mari. Taxa reală vine din zone &amp; tarife.
+            </p>
+          </div>
         </div>
       </section>
 

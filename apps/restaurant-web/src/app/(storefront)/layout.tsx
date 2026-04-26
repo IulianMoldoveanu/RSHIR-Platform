@@ -21,6 +21,17 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const pauseReason =
     (tenant.settings as { pause_reason?: string | null }).pause_reason ?? null;
 
+  const settings = tenant.settings as Record<string, unknown> | null;
+  const minOrderRon =
+    typeof settings?.min_order_ron === 'number' && settings.min_order_ron > 0
+      ? Number(settings.min_order_ron)
+      : 0;
+  const freeDeliveryThresholdRon =
+    typeof settings?.free_delivery_threshold_ron === 'number' &&
+    settings.free_delivery_threshold_ron > 0
+      ? Number(settings.free_delivery_threshold_ron)
+      : 0;
+
   let closedReason: string | null = null;
   if (!accepting) {
     closedReason = pauseReason ?? t(locale, 'layout.not_accepting');
@@ -37,7 +48,12 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <StorefrontShell tenantId={tenant.id}>
         {children}
         <HirFooter />
-        <CartPill closedReason={closedReason} locale={locale} />
+        <CartPill
+          closedReason={closedReason}
+          locale={locale}
+          minOrderRon={minOrderRon}
+          freeDeliveryThresholdRon={freeDeliveryThresholdRon}
+        />
         <CookieConsent locale={locale} />
       </StorefrontShell>
     </div>

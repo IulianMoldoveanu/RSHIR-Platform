@@ -12,9 +12,13 @@ import { previewDiscount, readStoredPromo, type StoredPromo } from '@/lib/cart/p
 export function CartPill({
   closedReason = null,
   locale,
+  minOrderRon = 0,
+  freeDeliveryThresholdRon = 0,
 }: {
   closedReason?: string | null;
   locale: Locale;
+  minOrderRon?: number;
+  freeDeliveryThresholdRon?: number;
 }) {
   const useCartStore = useCart();
   const [open, setOpen] = useState(false);
@@ -152,6 +156,57 @@ export function CartPill({
 
           {items.length > 0 ? (
             <div className="border-t border-zinc-100 bg-white">
+              {/* Threshold nudges (B1 + B6 from conversion research). Both
+                  optional per tenant — render only when configured > 0.
+                  Free-delivery progress bar comes first because it's
+                  motivational; min-order hard-block disables checkout. */}
+              {(() => {
+                const belowMin = minOrderRon > 0 && subtotal < minOrderRon;
+                const remainingToFree = Math.max(0, freeDeliveryThresholdRon - subtotal);
+                const showFreeBar = freeDeliveryThresholdRon > 0;
+                const reachedFree = showFreeBar && remainingToFree === 0;
+                const pct = showFreeBar
+                  ? Math.min(100, Math.round((subtotal / freeDeliveryThresholdRon) * 100))
+                  : 0;
+                return (
+                  <>
+                    {showFreeBar && (
+                      <div className="px-5 pt-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={reachedFree ? 'font-medium text-emerald-700' : 'text-zinc-600'}>
+                            {reachedFree
+                              ? t(locale, 'cart.free_delivery_reached')
+                              : t(locale, 'cart.free_delivery_progress_template', {
+                                  amount: formatRon(remainingToFree, locale),
+                                })}
+                          </span>
+                          <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
+                            {formatRon(freeDeliveryThresholdRon, locale)}
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              reachedFree ? 'bg-emerald-500' : 'bg-[var(--hir-brand)]'
+                            }`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {belowMin && (
+                      <div className="mx-5 mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                        <span>
+                          {t(locale, 'cart.below_min_order_template', {
+                            remaining: formatRon(minOrderRon - subtotal, locale),
+                            min: formatRon(minOrderRon, locale),
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               <div className="flex items-center justify-between px-5 pt-4 text-sm">
                 <span className="text-zinc-600">{t(locale, 'cart.subtotal')}</span>
                 <span className="font-semibold tabular-nums text-zinc-900">
@@ -179,6 +234,17 @@ export function CartPill({
                       className="flex w-full cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-5 py-3.5 text-sm font-semibold text-zinc-600"
                     >
                       {t(locale, 'cart.closed_unavailable')}
+                    </button>
+                  ) : minOrderRon > 0 && subtotal < minOrderRon ? (
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="flex w-full cursor-not-allowed items-center justify-center rounded-full bg-zinc-300 px-5 py-3.5 text-sm font-semibold text-zinc-600"
+                    >
+                      {t(locale, 'cart.below_min_cta_template', {
+                        remaining: formatRon(minOrderRon - subtotal, locale),
+                      })}
                     </button>
                   ) : (
                     <Link

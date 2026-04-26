@@ -11,6 +11,8 @@ const DEFAULTS: OperationsSettings = {
   pickup_eta_minutes: 30,
   pickup_enabled: true,
   pickup_address: null,
+  min_order_ron: 0,
+  free_delivery_threshold_ron: 0,
   opening_hours: {
     mon: [{ open: '10:00', close: '22:00' }],
     tue: [{ open: '10:00', close: '22:00' }],
@@ -51,6 +53,15 @@ export default async function OperationsSettingsPage() {
         : DEFAULTS.pickup_enabled,
     pickup_address:
       typeof settings.pickup_address === 'string' ? settings.pickup_address : null,
+    min_order_ron:
+      typeof settings.min_order_ron === 'number' && settings.min_order_ron >= 0
+        ? settings.min_order_ron
+        : DEFAULTS.min_order_ron,
+    free_delivery_threshold_ron:
+      typeof settings.free_delivery_threshold_ron === 'number' &&
+      settings.free_delivery_threshold_ron >= 0
+        ? settings.free_delivery_threshold_ron
+        : DEFAULTS.free_delivery_threshold_ron,
     opening_hours:
       settings.opening_hours && typeof settings.opening_hours === 'object'
         ? { ...DEFAULTS.opening_hours, ...(settings.opening_hours as OperationsSettings['opening_hours']) }

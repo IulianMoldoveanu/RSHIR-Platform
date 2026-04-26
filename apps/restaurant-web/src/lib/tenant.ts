@@ -14,6 +14,10 @@ export type TenantSettings = {
   whatsapp_phone?: string | null;
   bio_item_ids?: string[];
   branding?: TenantBranding;
+  // Commerce thresholds (set in admin Operations & program). 0 / undefined
+  // means "not configured" — UI hides the corresponding nudge.
+  min_order_ron?: number;
+  free_delivery_threshold_ron?: number;
 };
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';
