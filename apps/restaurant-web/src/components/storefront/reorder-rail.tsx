@@ -60,6 +60,8 @@ export function ReorderRail({
                 <img
                   src={item.image_url}
                   alt={item.name}
+                  width={144}
+                  height={96}
                   className="h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"

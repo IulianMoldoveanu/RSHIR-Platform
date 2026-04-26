@@ -62,6 +62,8 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
             <img
               src={item.image_url}
               alt={item.name}
+              width={672}
+              height={224}
               className="h-full w-full object-cover"
               loading="lazy"
               decoding="async"

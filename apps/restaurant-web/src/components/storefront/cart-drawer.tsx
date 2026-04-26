@@ -113,6 +113,8 @@ export function CartPill({
                           <img
                             src={it.imageUrl}
                             alt={it.name}
+                            width={64}
+                            height={64}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />

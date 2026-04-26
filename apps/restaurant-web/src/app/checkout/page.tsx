@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { resolveTenantFromHost } from '@/lib/tenant';
+import { ChevronLeft } from 'lucide-react';
+import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { CheckoutClient } from './CheckoutClient';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
@@ -13,12 +15,34 @@ export default async function CheckoutPage() {
   const locale = getLocale();
   const tenantPhone = readPhone(tenant.settings) ?? '';
   const pickup = readPickup(tenant.settings);
+  const { logoUrl } = brandingFor(tenant.settings);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
-      <header className="mb-6">
-        <p className="text-xs uppercase tracking-widest text-zinc-400">{tenant.name}</p>
-        <h1 className="text-2xl font-semibold tracking-tight">{t(locale, 'checkout.title')}</h1>
+      <header className="mb-6 flex items-center gap-3">
+        <Link
+          href="/"
+          aria-label={t(locale, 'checkout.back_to_menu')}
+          className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoUrl}
+            alt={tenant.name}
+            width={40}
+            height={40}
+            className="h-10 w-10 flex-none rounded-lg object-cover"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs uppercase tracking-widest text-zinc-400">{tenant.name}</p>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">
+            {t(locale, 'checkout.title')}
+          </h1>
+        </div>
       </header>
 
       <CheckoutClient

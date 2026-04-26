@@ -62,6 +62,8 @@ export function TenantHeader({
           <img
             src={coverUrl}
             alt=""
+            width={1200}
+            height={400}
             className="h-full w-full object-cover"
             loading="eager"
             fetchPriority="high"
@@ -77,7 +79,13 @@ export function TenantHeader({
         <div className="-mt-10 flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-md sm:h-24 sm:w-24">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={name} className="h-full w-full object-cover" />
+            <img
+              src={logoUrl}
+              alt={name}
+              width={96}
+              height={96}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <span className="text-xl font-semibold text-zinc-900">{name.slice(0, 2).toUpperCase()}</span>
           )}

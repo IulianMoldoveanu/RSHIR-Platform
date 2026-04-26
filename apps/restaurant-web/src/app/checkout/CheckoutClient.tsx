@@ -519,7 +519,14 @@ export function CheckoutClient(props: {
 
         <Section title={t(locale, 'checkout.section_notes')}>
           <Field label="">
-            <textarea className={`${inputCls} min-h-[60px]`} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} />
+            <textarea
+              className={`${inputCls} min-h-[60px]`}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={500}
+              aria-label={t(locale, 'checkout.section_notes')}
+              placeholder={t(locale, 'checkout.notes_placeholder')}
+            />
           </Field>
         </Section>
 
