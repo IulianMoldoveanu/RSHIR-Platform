@@ -58,6 +58,18 @@ type QuoteFailureReason =
 
 type Step = 'form' | 'review' | 'payment' | 'submitting';
 
+// Normalize whatever the user typed into a 9-digit local RO mobile number.
+// Accepts +40, 0040, 40, leading 0, or bare digits. Caps at 9 — extra digits
+// after a paste from contacts get silently dropped instead of failing
+// server-side validation. Empty when the input has no digits.
+function normalizeRoPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('0040')) return digits.slice(4, 13);
+  if (digits.startsWith('40')) return digits.slice(2, 11);
+  if (digits.startsWith('0')) return digits.slice(1, 10);
+  return digits.slice(0, 9);
+}
+
 export function CheckoutClient(props: {
   tenantId: string;
   tenantSlug: string;
@@ -258,7 +270,7 @@ export function CheckoutClient(props: {
           modifierIds: i.modifiers.map((m) => m.id),
         })),
         fulfillment,
-        customer: { firstName, lastName, phone, email },
+        customer: { firstName, lastName, phone: phone ? `+40${phone}` : '', email },
         notes,
         ...(appliedPromo ? { promoCode: appliedPromo.code } : {}),
       };
@@ -412,7 +424,25 @@ export function CheckoutClient(props: {
             <input className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} required />
           </Field>
           <Field label={t(locale, 'checkout.field_phone')}>
-            <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} required inputMode="tel" />
+            <div className="flex items-stretch overflow-hidden rounded-md border border-zinc-300 bg-white shadow-sm focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500">
+              <span
+                aria-hidden
+                className="flex items-center bg-zinc-50 px-2.5 text-sm font-medium text-zinc-600"
+              >
+                +40
+              </span>
+              <input
+                className="w-full border-none bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-0"
+                value={phone}
+                onChange={(e) => setPhone(normalizeRoPhone(e.target.value))}
+                inputMode="tel"
+                autoComplete="tel-national"
+                placeholder="7XX XXX XXX"
+                pattern="[0-9]{9}"
+                maxLength={9}
+                required
+              />
+            </div>
           </Field>
           <Field label={t(locale, 'checkout.field_email_optional')}>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
@@ -511,7 +541,7 @@ export function CheckoutClient(props: {
             working ||
             !firstName ||
             !lastName ||
-            !phone ||
+            phone.length !== 9 ||
             (fulfillment === 'DELIVERY' && (!line1 || !city))
           }
         >
