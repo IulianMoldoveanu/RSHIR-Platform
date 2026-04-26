@@ -18,7 +18,7 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
-import { BookOpen, Info, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
+import { BookOpen, ImageOff, Info, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
 import {
   bulkToggleAvailabilityAction,
   clearItemSoldOutAction,
@@ -248,14 +248,31 @@ export function ItemsPanel({
                   </td>
                   <td className="px-3 py-2">
                     {it.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={it.image_url}
-                        alt={it.name}
-                        className="h-10 w-10 rounded object-cover"
-                      />
+                      <span className="group/img relative inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={it.image_url}
+                          alt={it.name}
+                          className="h-12 w-12 rounded-md object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <span className="pointer-events-none absolute left-14 top-0 z-10 hidden rounded-lg border border-zinc-200 bg-white p-1 shadow-lg group-hover/img:block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={it.image_url}
+                            alt=""
+                            className="h-48 w-48 rounded object-cover"
+                          />
+                        </span>
+                      </span>
                     ) : (
-                      <div className="h-10 w-10 rounded bg-zinc-100" />
+                      <span
+                        title="Imagine lipsă — produsul va arăta gol pe storefront."
+                        className="flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-amber-300 bg-amber-50 text-amber-700"
+                      >
+                        <ImageOff className="h-4 w-4" aria-hidden />
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
