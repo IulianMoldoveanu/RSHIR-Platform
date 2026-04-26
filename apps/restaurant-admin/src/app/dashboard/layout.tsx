@@ -1,22 +1,15 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
-import { cn } from '@hir/ui';
-
-type NavItem = {
-  href: string;
-  label: string;
-  showDot?: boolean;
-};
+import { SidebarNav, type SidebarItem } from './sidebar-nav';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, tenant, tenants } = await getActiveTenant();
   const onboarding = await computeOnboardingState(tenant.id);
 
-  const navItems: NavItem[] = [
+  const navItems: SidebarItem[] = [
     { href: '/dashboard/onboarding', label: 'Configurare', showDot: !onboarding.went_live },
     { href: '/dashboard/menu', label: 'Meniu' },
     { href: '/dashboard/orders', label: 'Comenzi' },
@@ -40,25 +33,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="flex h-14 items-center border-b border-zinc-200 px-4 text-sm font-semibold tracking-tight">
           HIR Admin
         </div>
-        <nav className="flex flex-1 flex-col gap-1 p-2 text-sm">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'flex items-center justify-between rounded-md px-3 py-2 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900',
-              )}
-            >
-              <span>{item.label}</span>
-              {item.showDot && (
-                <span
-                  aria-label="Configurare incompletă"
-                  className="h-2 w-2 rounded-full bg-amber-400"
-                />
-              )}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav items={navItems} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

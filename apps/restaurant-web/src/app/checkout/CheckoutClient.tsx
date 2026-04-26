@@ -410,7 +410,7 @@ export function CheckoutClient(props: {
         <button
           type="button"
           onClick={(e) => void handleQuote(e)}
-          className="w-full rounded-md bg-purple-700 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-60"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
           disabled={
             working ||
             !firstName ||
@@ -419,7 +419,13 @@ export function CheckoutClient(props: {
             (fulfillment === 'DELIVERY' && (!line1 || !city))
           }
         >
-          {working ? t(locale, 'checkout.calculating') : t(locale, 'checkout.calculate_delivery_fee')}
+          {working
+            ? t(locale, 'checkout.calculating')
+            : cartTotal > 0
+              ? t(locale, 'checkout.continue_with_total_template', {
+                  amount: formatRon(cartTotal, locale),
+                })
+              : t(locale, 'checkout.calculate_delivery_fee')}
         </button>
       </fieldset>
 
@@ -439,7 +445,7 @@ export function CheckoutClient(props: {
               type="button"
               onClick={() => void handleProceedToPayment()}
               disabled={working}
-              className="flex-1 rounded-md bg-purple-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-60"
+              className="flex h-12 flex-1 items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
             >
               {working
                 ? t(locale, 'checkout.preparing_payment')

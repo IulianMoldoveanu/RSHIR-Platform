@@ -63,7 +63,7 @@ export function PaymentForm(props: {
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
-        className="w-full rounded-md bg-purple-700 px-4 py-3 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-60"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
       >
         {submitting
           ? t(locale, 'checkout.processing_payment')

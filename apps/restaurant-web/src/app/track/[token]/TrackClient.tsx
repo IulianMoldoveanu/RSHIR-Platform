@@ -166,7 +166,7 @@ function TrackInner({
       {order.tenant?.phone && (
         <a
           href={`tel:${order.tenant.phone}`}
-          className="block w-full rounded-md bg-purple-700 px-4 py-3 text-center text-sm font-medium text-white shadow-sm hover:bg-purple-800"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
         >
           {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
         </a>
@@ -320,7 +320,7 @@ function ReviewWidget({
         type="button"
         onClick={submit}
         disabled={rating < 1 || submitting}
-        className="mt-3 inline-flex h-10 items-center justify-center rounded-md bg-purple-700 px-4 text-sm font-medium text-white shadow-sm hover:bg-purple-800 disabled:opacity-50"
+        className="mt-3 inline-flex h-12 items-center justify-center rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-50"
       >
         {submitting ? t(locale, 'track.review_submitting') : t(locale, 'track.review_submit')}
       </button>
