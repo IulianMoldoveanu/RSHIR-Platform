@@ -18,7 +18,7 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
-import { BookOpen, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
+import { BookOpen, Info, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
 import {
   bulkToggleAvailabilityAction,
   clearItemSoldOutAction,
@@ -176,9 +176,10 @@ export function ItemsPanel({
       </div>
 
       {categories.length === 0 && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          Adauga mai intai o categorie din tab-ul "Categorii".
-        </p>
+        <div className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
+          <p>Adaugă mai întâi o categorie din tab-ul „Categorii".</p>
+        </div>
       )}
 
       {selected.size > 0 && (

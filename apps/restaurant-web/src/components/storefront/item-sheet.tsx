@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, UtensilsCrossed } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
@@ -64,9 +64,14 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
               alt={item.name}
               className="h-full w-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           </div>
-        ) : null}
+        ) : (
+          <div className="flex h-32 w-full items-center justify-center bg-zinc-50 text-zinc-300 sm:rounded-t-2xl">
+            <UtensilsCrossed className="h-12 w-12" aria-hidden />
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-5 pt-4">
           <SheetHeader className="p-0 pb-3">
@@ -139,7 +144,8 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
             type="button"
             onClick={handleAdd}
             disabled={!item.is_available}
-            className="flex w-full items-center justify-between rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
+            className="flex h-12 w-full items-center justify-between rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             <span>{item.is_available ? t(locale, 'item.add_to_cart') : t(locale, 'item.unavailable')}</span>
             {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal, locale)}</span> : null}
