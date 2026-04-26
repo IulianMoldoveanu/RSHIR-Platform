@@ -1,10 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Plus, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
+import {
+  easeOutSoft,
+  motionDurations,
+  subtlePulse,
+  tapPress,
+  useShouldReduceMotion,
+} from '@/lib/motion';
 import type { MenuItem, MenuItemWithModifiers } from '@/lib/menu';
 
 type Props = {
@@ -27,6 +35,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
   const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups: [] };
   const available = item.is_available;
   const hasModifiers = modifiers.length > 0;
+  const reduceMotion = useShouldReduceMotion();
 
   useEffect(() => {
     if (!justAdded) return;
@@ -66,25 +75,30 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
 
   return (
     <>
-      <div
+      <motion.div
         role="button"
         tabIndex={available ? 0 : -1}
         onClick={handleCardClick}
         onKeyDown={handleKey}
         aria-label={item.name}
         aria-disabled={!available}
-        className={`group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md ${
+        whileHover={available && !reduceMotion ? { y: -2 } : undefined}
+        transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+        className={`group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:border-zinc-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${
           available ? 'cursor-pointer' : 'opacity-70'
         }`}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {item.popular_rank !== null && available && (
-            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-800 ring-1 ring-inset ring-purple-200">
+            <motion.span
+              animate={reduceMotion ? undefined : subtlePulse}
+              className="inline-flex w-fit items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-800 ring-1 ring-inset ring-purple-200"
+            >
               <Flame className="h-3 w-3" aria-hidden />
               {item.popular_rank === 1
                 ? t(locale, 'item.popular_top')
                 : t(locale, 'item.popular_rank_template', { rank: String(item.popular_rank) })}
-            </span>
+            </motion.span>
           )}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 sm:text-base">
             {item.name}
@@ -99,9 +113,16 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
               {formatRon(item.price_ron, locale)}
             </span>
             {available ? (
-              <button
+              <motion.button
                 type="button"
                 onClick={handleAddClick}
+                whileTap={reduceMotion ? undefined : tapPress}
+                animate={
+                  justAdded && !reduceMotion
+                    ? { scale: [1, 1.08, 1] }
+                    : undefined
+                }
+                transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
                 aria-label={
                   hasModifiers
                     ? t(locale, 'item.add_short')
@@ -113,18 +134,34 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                     : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800'
                 }`}
               >
-                {justAdded ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    {t(locale, 'item.added')}
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-3.5 w-3.5" />
-                    {t(locale, 'item.add_short')}
-                  </>
-                )}
-              </button>
+                <AnimatePresence mode="wait" initial={false}>
+                  {justAdded ? (
+                    <motion.span
+                      key="added"
+                      initial={reduceMotion ? false : { opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, scale: 0.85 }}
+                      transition={{ duration: motionDurations.tap }}
+                      className="inline-flex items-center gap-1"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      {t(locale, 'item.added')}
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="add"
+                      initial={reduceMotion ? false : { opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, scale: 0.85 }}
+                      transition={{ duration: motionDurations.tap }}
+                      className="inline-flex items-center gap-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {t(locale, 'item.add_short')}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
             ) : (
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 {t(locale, 'item.unavailable')}
@@ -156,7 +193,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
             </div>
           ) : null}
         </div>
-      </div>
+      </motion.div>
 
       {available && (
         <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} locale={locale} />

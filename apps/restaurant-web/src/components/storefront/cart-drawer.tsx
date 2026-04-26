@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
@@ -8,6 +9,12 @@ import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { previewDiscount, readStoredPromo, type StoredPromo } from '@/lib/cart/promo';
+import {
+  easeOutSoft,
+  motionDurations,
+  tapPress,
+  useShouldReduceMotion,
+} from '@/lib/motion';
 import { ReorderRail } from './reorder-rail';
 import type { MenuItemWithModifiers } from '@/lib/menu';
 
@@ -35,6 +42,7 @@ export function CartPill({
   const removeItem = useCartStore((s) => s.removeItem);
 
   const [appliedPromo, setAppliedPromo] = useState<StoredPromo | null>(null);
+  const reduceMotion = useShouldReduceMotion();
 
   useEffect(() => {
     setHydrated(true);
@@ -66,25 +74,46 @@ export function CartPill({
       ? previewDiscount(appliedPromo, subtotal, 0)
       : 0;
 
-  if (count === 0) return null;
-
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 text-white shadow-xl transition-transform hover:scale-[1.01]"
-      >
-        <span className="flex items-center gap-2.5">
-          <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold tabular-nums text-zinc-900">
-            {count}
-          </span>
-          <span className="text-sm font-medium">
-            {t(locale, 'cart.products_count_template', { count: String(count) })}
-          </span>
-        </span>
-        <span className="text-sm font-semibold tabular-nums">{formatRon(subtotal, locale)}</span>
-      </button>
+      <AnimatePresence>
+        {count > 0 && (
+          <motion.button
+            type="button"
+            onClick={() => setOpen(true)}
+            initial={reduceMotion ? false : { y: 80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={reduceMotion ? undefined : { y: 80, opacity: 0 }}
+            transition={{ duration: motionDurations.sheet, ease: easeOutSoft }}
+            whileTap={reduceMotion ? undefined : tapPress}
+            className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 text-white shadow-xl"
+          >
+            <span className="flex items-center gap-2.5">
+              <motion.span
+                key={count}
+                initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+                className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold tabular-nums text-zinc-900"
+              >
+                {count}
+              </motion.span>
+              <span className="text-sm font-medium">
+                {t(locale, 'cart.products_count_template', { count: String(count) })}
+              </span>
+            </span>
+            <motion.span
+              key={subtotal}
+              initial={reduceMotion ? false : { y: -6, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+              className="text-sm font-semibold tabular-nums"
+            >
+              {formatRon(subtotal, locale)}
+            </motion.span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:inset-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-h-[85vh] sm:border">
@@ -102,11 +131,19 @@ export function CartPill({
               </div>
             ) : (
               <ul className="divide-y divide-zinc-100">
+                <AnimatePresence initial={false}>
                 {items.map((it) => {
                   const total = lineTotalRon(it);
                   const modText = it.modifiers.map((m) => m.name).join(', ');
                   return (
-                    <li key={it.lineId} className="flex gap-3 py-3">
+                    <motion.li
+                      key={it.lineId}
+                      layout={!reduceMotion}
+                      initial={reduceMotion ? false : { opacity: 0, height: 0, x: 16 }}
+                      animate={{ opacity: 1, height: 'auto', x: 0 }}
+                      exit={reduceMotion ? undefined : { opacity: 0, height: 0, x: -16 }}
+                      transition={{ duration: motionDurations.enter, ease: easeOutSoft }}
+                      className="flex gap-3 py-3">
                       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
                         {it.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -162,9 +199,10 @@ export function CartPill({
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
-                    </li>
+                    </motion.li>
                   );
                 })}
+                </AnimatePresence>
               </ul>
             )}
             {items.length > 0 && filteredUpsell.length > 0 && (
@@ -209,11 +247,16 @@ export function CartPill({
                           </span>
                         </div>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-                          <div
-                            className={`h-full rounded-full transition-all ${
+                          <motion.div
+                            className={`h-full rounded-full ${
                               reachedFree ? 'bg-emerald-500' : 'bg-[var(--hir-brand)]'
                             }`}
-                            style={{ width: `${pct}%` }}
+                            initial={false}
+                            animate={{ width: `${pct}%` }}
+                            transition={{
+                              duration: reduceMotion ? 0 : 0.6,
+                              ease: easeOutSoft,
+                            }}
                           />
                         </div>
                       </div>
