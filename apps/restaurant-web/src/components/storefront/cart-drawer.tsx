@@ -138,11 +138,27 @@ export function CartPill({
 
           <div className="flex-1 overflow-y-auto px-5 pb-2">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center text-zinc-500">
-                <ShoppingBag className="h-10 w-10 text-zinc-300" />
-                <p className="text-sm font-semibold text-zinc-800">{t(locale, 'cart.empty')}</p>
-                <p className="max-w-xs text-xs text-zinc-500">{t(locale, 'cart.empty_hint')}</p>
-              </div>
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: motionDurations.enter, ease: easeOutSoft }}
+                className="flex flex-col items-center gap-3 py-12 text-center text-zinc-500"
+              >
+                <motion.div
+                  animate={
+                    reduceMotion
+                      ? undefined
+                      : { y: [0, -4, 0], transition: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } }
+                  }
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100"
+                >
+                  <ShoppingBag className="h-8 w-8 text-zinc-400" />
+                </motion.div>
+                <p className="text-base font-semibold text-zinc-800">{t(locale, 'cart.empty')}</p>
+                <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
+                  {t(locale, 'cart.empty_hint')}
+                </p>
+              </motion.div>
             ) : (
               <ul className="divide-y divide-zinc-100">
                 <AnimatePresence initial={false}>

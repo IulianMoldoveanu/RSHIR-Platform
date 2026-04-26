@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Receipt } from 'lucide-react';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { readCustomerCookie } from '@/lib/customer-recognition';
@@ -105,14 +105,19 @@ export default async function AccountPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
-          <p className="text-base font-medium text-zinc-900">
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-10 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-50">
+            <Receipt className="h-7 w-7 text-purple-600" />
+          </div>
+          <p className="text-lg font-semibold text-zinc-900">
             {t(locale, 'account.empty_title')}
           </p>
-          <p className="mt-1 text-sm text-zinc-600">{t(locale, 'account.empty_body')}</p>
+          <p className="max-w-sm text-sm leading-relaxed text-zinc-600">
+            {t(locale, 'account.empty_body')}
+          </p>
           <Link
             href="/"
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[var(--hir-brand)] px-5 text-sm font-medium text-white hover:opacity-90"
+            className="mt-2 inline-flex h-11 items-center justify-center rounded-full bg-[var(--hir-brand)] px-6 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:opacity-95 active:scale-[0.98]"
           >
             {t(locale, 'account.empty_cta')}
           </Link>
