@@ -51,7 +51,7 @@ export function MenuList({
   return (
     <div className="mx-auto max-w-2xl">
       <div className="relative px-4 pt-3">
-        <Search className="pointer-events-none absolute left-7 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <Search className="pointer-events-none absolute left-7 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400 transition-colors" />
         <input
           type="search"
           inputMode="search"
@@ -59,18 +59,24 @@ export function MenuList({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(locale, 'menu.search_placeholder')}
           aria-label={t(locale, 'menu.search_placeholder')}
-          className="h-10 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm focus:border-purple-600 focus:outline-none"
+          className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm transition-all focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-500/15"
         />
-        {query.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setQuery('')}
-            aria-label={t(locale, 'menu.search_clear')}
-            className="absolute right-7 top-1/2 -translate-y-1/2 rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
+        <AnimatePresence>
+          {query.length > 0 && (
+            <motion.button
+              type="button"
+              onClick={() => setQuery('')}
+              aria-label={t(locale, 'menu.search_clear')}
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduceMotion ? undefined : { opacity: 0, scale: 0.6 }}
+              transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+              className="absolute right-7 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800"
+            >
+              <X className="h-3.5 w-3.5" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       {filtered.length === 0 ? (
