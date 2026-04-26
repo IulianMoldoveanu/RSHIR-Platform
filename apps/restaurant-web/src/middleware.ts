@@ -21,6 +21,15 @@ export function middleware(request: NextRequest) {
   requestHeaders.set('x-hir-host-with-port', rawHost);
   requestHeaders.set('x-hir-tenant-slug', slug);
 
+  // Preview-host tenant override: on Vercel auto-generated URLs and local
+  // dev, accept ?tenant=<slug> as the chosen tenant. resolveTenantFromHost
+  // gates the override to non-canonical hosts so end-users on the real
+  // production domain can't switch tenants by URL.
+  const tenantParam = request.nextUrl.searchParams.get('tenant');
+  if (tenantParam) {
+    requestHeaders.set('x-hir-tenant-override', tenantParam.trim().toLowerCase());
+  }
+
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

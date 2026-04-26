@@ -68,7 +68,7 @@ type TenantRow = {
   settings: Json;
 };
 
-const SUBDOMAIN_BASES = ['lvh.me', 'hir.ro'] as const;
+const SUBDOMAIN_BASES = ['lvh.me', 'hir.ro', 'rshir.ro'] as const;
 
 function subdomainSlug(host: string): string | null {
   for (const base of SUBDOMAIN_BASES) {
@@ -79,6 +79,18 @@ function subdomainSlug(host: string): string | null {
     }
   }
   return null;
+}
+
+/**
+ * True for Vercel auto-generated preview / production URLs (e.g.
+ * hir-restaurant-abc123-iulianmoldoveanus-projects.vercel.app). On those
+ * hosts the host-derived slug never matches a real tenant, so we accept a
+ * `?tenant=<slug>` or `x-hir-tenant-slug` header override for staging/QA.
+ * The override is hard-disabled on canonical (production custom-domain)
+ * hosts so end-users can't tenant-switch by URL param.
+ */
+function isPreviewHost(host: string): boolean {
+  return host.endsWith('.vercel.app') || host === 'localhost' || host.endsWith('.lvh.me');
 }
 
 /**
@@ -103,7 +115,17 @@ export async function resolveTenantFromHost(): Promise<{
   const SELECT = 'id, slug, name, custom_domain, status, settings';
 
   let row: TenantRow | null = null;
-  if (subSlug) {
+  // Preview-host tenant override (?tenant=<slug>). Only honored on
+  // Vercel auto-generated URLs and local dev — production canonical
+  // hosts ignore the override so end-users can't tenant-switch by URL.
+  const overrideSlug = isPreviewHost(host)
+    ? h.get('x-hir-tenant-override')?.toLowerCase() ?? null
+    : null;
+
+  if (overrideSlug) {
+    row = (await supabase.from('tenants').select(SELECT).eq('slug', overrideSlug).maybeSingle())
+      .data as TenantRow | null;
+  } else if (subSlug) {
     row = (await supabase.from('tenants').select(SELECT).eq('slug', subSlug).maybeSingle())
       .data as TenantRow | null;
   } else if (host) {
