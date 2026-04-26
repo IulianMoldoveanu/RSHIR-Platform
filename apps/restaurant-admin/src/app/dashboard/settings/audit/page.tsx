@@ -1,3 +1,5 @@
+import { ListChecks } from 'lucide-react';
+import { EmptyState } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 
@@ -16,6 +18,14 @@ const ACTION_LABELS: Record<string, string> = {
   'tenant.went_live': 'Restaurant pornit',
   'review.hidden': 'Recenzie ascunsă',
   'review.unhidden': 'Recenzie reafișată',
+  'menu.sold_out_set': 'Marcat epuizat azi',
+  'menu.sold_out_cleared': 'Disponibil din nou',
+  'integration.provider_added': 'Furnizor integrare adăugat',
+  'integration.provider_removed': 'Furnizor integrare șters',
+  'integration.dispatched': 'Eveniment integrare trimis',
+  'integration.webhook_received': 'Webhook integrare primit',
+  'integration.api_key_created': 'Cheie API creată',
+  'integration.api_key_revoked': 'Cheie API revocată',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -79,9 +89,11 @@ export default async function AuditLogPage() {
       </header>
 
       {rows.length === 0 ? (
-        <p className="rounded-lg border border-zinc-200 bg-white p-6 text-sm text-zinc-500">
-          Nicio acțiune înregistrată încă.
-        </p>
+        <EmptyState
+          icon={<ListChecks className="h-10 w-10" />}
+          title="Nicio acțiune înregistrată încă."
+          description="Acțiunile de moderare, branding și integrări apar aici imediat ce apar."
+        />
       ) : (
         <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
           {rows.map((r) => (

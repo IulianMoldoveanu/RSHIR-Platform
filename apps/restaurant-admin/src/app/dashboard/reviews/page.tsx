@@ -1,3 +1,5 @@
+import { Star } from 'lucide-react';
+import { EmptyState } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { ModerationRow } from './moderation-row';
@@ -7,9 +9,14 @@ export const dynamic = 'force-dynamic';
 function Stars({ value }: { value: number }) {
   const v = Math.max(0, Math.min(5, Math.round(value)));
   return (
-    <span className="text-amber-500" aria-label={`${v} din 5`}>
-      {'★'.repeat(v)}
-      <span className="text-zinc-300">{'★'.repeat(5 - v)}</span>
+    <span className="inline-flex items-center gap-0.5" aria-label={`${v} din 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star
+          key={n}
+          className={`h-3.5 w-3.5 ${n <= v ? 'fill-amber-400 text-amber-400' : 'text-zinc-300'}`}
+          aria-hidden
+        />
+      ))}
     </span>
   );
 }
@@ -45,9 +52,11 @@ export default async function ReviewsModerationPage() {
           Vizibile ({visible.length})
         </h2>
         {visible.length === 0 ? (
-          <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500">
-            Nicio recenzie publicată încă.
-          </p>
+          <EmptyState
+            icon={<Star className="h-10 w-10" />}
+            title="Nicio recenzie publicată încă."
+            description="Recenziile primite de la clienți după livrare vor apărea aici."
+          />
         ) : (
           <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
             {visible.map((r) => (
