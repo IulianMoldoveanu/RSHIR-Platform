@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Star, TriangleAlert } from 'lucide-react';
+import { MessageCircle, Star, TriangleAlert } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -199,6 +199,10 @@ function TrackInner({
 
       {order.status === 'DELIVERED' && (
         <ReviewWidget token={token} initialDone={order.hasReview} locale={locale} />
+      )}
+
+      {order.paymentStatus === 'PAID' && order.tenant && order.status !== 'CANCELLED' && (
+        <ShareCard tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
 
       {showAccountNudge && order.paymentStatus === 'PAID' && (
@@ -558,6 +562,35 @@ function TrackSkeleton() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ShareCard({
+  tenantName,
+  tenantSlug,
+  locale,
+}: {
+  tenantName: string;
+  tenantSlug: string;
+  locale: Locale;
+}) {
+  // Conversion B15-lite: WhatsApp deep-link share. RO's dominant viral
+  // channel; one-tap from a successful order is the strongest organic
+  // acquisition moment we have. Referral codes are not yet wired so the
+  // message just points back to the tenant storefront.
+  const url = `https://${tenantSlug}.hir.ro`;
+  const text = t(locale, 'track.share_message_template', { tenant: tenantName, url });
+  const href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+    >
+      <MessageCircle className="h-4 w-4" aria-hidden />
+      {t(locale, 'track.share_whatsapp')}
+    </a>
   );
 }
 
