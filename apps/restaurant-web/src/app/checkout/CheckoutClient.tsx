@@ -589,6 +589,10 @@ export function CheckoutClient(props: {
           onRemove={handleRemovePromo}
         />
 
+        {/* Sticky-bottom container on mobile so the CTA stays in reach while
+            the user fills the form. On sm+ it falls back to inline placement
+            and the surrounding spacing is identical to before. */}
+        <div className="sticky bottom-0 -mx-4 border-t border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <button
           type="submit"
           className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
@@ -608,6 +612,7 @@ export function CheckoutClient(props: {
                 })
               : t(locale, 'checkout.calculate_delivery_fee')}
         </button>
+        </div>
       </fieldset>
       </form>
 
