@@ -115,6 +115,8 @@ export default async function ItemPage({ params }: { params: { slug: string } })
             <img
               src={item.image_url}
               alt={item.name}
+              width={1200}
+              height={800}
               className="h-full w-full object-cover"
               loading="eager"
               fetchPriority="high"
@@ -124,10 +126,17 @@ export default async function ItemPage({ params }: { params: { slug: string } })
               <UtensilsCrossed className="h-16 w-16" aria-hidden />
             </div>
           )}
+          {/* Top scrim so the back chevron stays readable on bright
+              photos. Bottom is intentionally clean — the title row sits
+              right below the image. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/30 via-black/10 to-transparent"
+          />
         </div>
         <Link
           href="/"
-          className="absolute left-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md transition-colors hover:bg-white hover:text-zinc-900"
+          className="absolute left-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-zinc-700 shadow-md backdrop-blur transition-all hover:bg-white hover:text-zinc-900 active:scale-[0.94] motion-reduce:active:scale-100"
           aria-label={t(locale, 'item.back')}
         >
           <ChevronLeft className="h-5 w-5" />
