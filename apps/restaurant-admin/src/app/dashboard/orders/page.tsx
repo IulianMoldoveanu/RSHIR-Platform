@@ -133,20 +133,35 @@ export default async function OrdersPage({
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 
-  let q = admin
-    .from('restaurant_orders')
-    .select('id, status, source, payment_method, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
-    .eq('tenant_id', tenant.id)
-    .order('created_at', { ascending: false })
-    .limit(50);
+  // Try the SELECT with payment_method (added by 20260504_001). If the
+  // migration hasn't applied yet, fall back to the legacy column set so the
+  // admin queue keeps working — payment_method is undefined and the Cash
+  // chip just doesn't render until the column exists.
+  const COLS_FULL =
+    'id, status, source, payment_method, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
+  const COLS_LEGACY =
+    'id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
 
-  if (filter === 'active') {
-    q = q.in('status', ACTIVE_STATUSES);
-  } else if (filter === 'today') {
-    q = q.gte('created_at', startOfTodayIso());
+  async function loadOrders(cols: string) {
+    let q = admin
+      .from('restaurant_orders')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select(cols as any)
+      .eq('tenant_id', tenant.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (filter === 'active') {
+      q = q.in('status', ACTIVE_STATUSES);
+    } else if (filter === 'today') {
+      q = q.gte('created_at', startOfTodayIso());
+    }
+    return q;
   }
 
-  const { data, error } = await q;
+  let { data, error } = await loadOrders(COLS_FULL);
+  if (error && /payment_method/i.test(error.message ?? '')) {
+    ({ data, error } = await loadOrders(COLS_LEGACY));
+  }
   if (error) throw new Error(error.message);
 
   const rows = (data ?? []) as unknown as OrderRow[];

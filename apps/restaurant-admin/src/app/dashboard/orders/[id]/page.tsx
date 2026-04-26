@@ -61,22 +61,38 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from('restaurant_orders')
-    .select(
-      `
-        id, tenant_id, status, payment_status, payment_method, items,
-        subtotal_ron, delivery_fee_ron, total_ron, notes,
-        public_track_token, created_at, updated_at,
-        delivery_address_id,
-        customers ( first_name, last_name, phone ),
-        customer_addresses ( line1, line2, city, postal_code )
-      `,
-    )
-    .eq('id', params.id)
-    .eq('tenant_id', tenant.id)
-    .maybeSingle();
-
+  // Defensive SELECT for the payment_method column (20260504_001 migration);
+  // if the column hasn't shipped yet, fall back to the legacy set and the
+  // 'Cash' chip + 'Mark paid' button just don't render.
+  const COLS_FULL = `
+    id, tenant_id, status, payment_status, payment_method, items,
+    subtotal_ron, delivery_fee_ron, total_ron, notes,
+    public_track_token, created_at, updated_at,
+    delivery_address_id,
+    customers ( first_name, last_name, phone ),
+    customer_addresses ( line1, line2, city, postal_code )
+  `;
+  const COLS_LEGACY = `
+    id, tenant_id, status, payment_status, items,
+    subtotal_ron, delivery_fee_ron, total_ron, notes,
+    public_track_token, created_at, updated_at,
+    delivery_address_id,
+    customers ( first_name, last_name, phone ),
+    customer_addresses ( line1, line2, city, postal_code )
+  `;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const loadOrder = (cols: string) =>
+    admin
+      .from('restaurant_orders')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select(cols as any)
+      .eq('id', params.id)
+      .eq('tenant_id', tenant.id)
+      .maybeSingle();
+  let { data, error } = await loadOrder(COLS_FULL);
+  if (error && /payment_method/i.test(error.message ?? '')) {
+    ({ data, error } = await loadOrder(COLS_LEGACY));
+  }
   if (error) throw new Error(error.message);
   if (!data) notFound();
 
