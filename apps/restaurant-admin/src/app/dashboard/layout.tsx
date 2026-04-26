@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { redirect } from 'next/navigation';
 import {
   BookOpen,
   ExternalLink,
@@ -17,7 +18,20 @@ import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 import { MobileSidebar } from './mobile-sidebar';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const { user, tenant, tenants } = await getActiveTenant();
+  // getActiveTenant throws on unauthenticated / no-tenant. In a Server
+  // Component an uncaught throw renders the generic 'Application error'
+  // page — bad UX and worse for first-time users hitting the bare admin
+  // URL. Redirect to /login (no auth) or /signup (auth but no membership).
+  let active: Awaited<ReturnType<typeof getActiveTenant>>;
+  try {
+    active = await getActiveTenant();
+  } catch (err) {
+    const msg = (err as Error).message ?? '';
+    if (msg.includes('Unauthenticated')) redirect('/login');
+    if (msg.includes('not a member')) redirect('/signup');
+    throw err;
+  }
+  const { user, tenant, tenants } = active;
   const onboarding = await computeOnboardingState(tenant.id);
   // Best-guess slug-based URL until TenantSummary surfaces custom_domain.
   // Owner can always paste their actual domain; this is a convenience link.
