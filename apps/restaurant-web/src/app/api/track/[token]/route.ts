@@ -75,6 +75,10 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
   const tenantLng = typeof tenantSettings.location_lng === 'number' ? tenantSettings.location_lng : null;
   const pickupAddress =
     typeof tenantSettings.pickup_address === 'string' ? tenantSettings.pickup_address : null;
+  const pickupEtaMinutes =
+    typeof tenantSettings.pickup_eta_minutes === 'number' && tenantSettings.pickup_eta_minutes > 0
+      ? Math.round(tenantSettings.pickup_eta_minutes)
+      : null;
 
   const isPickup = order.delivery_address_id === null;
 
@@ -100,6 +104,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
             location:
               tenantLat !== null && tenantLng !== null ? { lat: tenantLat, lng: tenantLng } : null,
             pickupAddress,
+            pickupEtaMinutes,
           }
         : null,
       customer: order.customers

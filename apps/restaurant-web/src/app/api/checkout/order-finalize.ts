@@ -51,10 +51,15 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     });
   }
 
-  // TODO Sprint 4: real delivery API wiring
+  // TODO Sprint 4: real delivery API wiring. The stub fields below mean
+  // *any* attempt to reach the delivery API will fail with a 4xx — fine for
+  // the throw-and-swallow Sprint 1 placeholder, but if the env vars are
+  // accidentally populated on a non-Sprint-4 build we'd be sending malformed
+  // payloads at the real service. Gate on baseUrl instead.
+  if (!process.env.HIR_DELIVERY_API_BASE_URL) return;
   try {
     const client = createHirDeliveryClient({
-      baseUrl: process.env.HIR_DELIVERY_API_BASE_URL ?? '',
+      baseUrl: process.env.HIR_DELIVERY_API_BASE_URL,
       apiKey: process.env.HIR_DELIVERY_API_KEY ?? '',
     });
     await client.createOrder({

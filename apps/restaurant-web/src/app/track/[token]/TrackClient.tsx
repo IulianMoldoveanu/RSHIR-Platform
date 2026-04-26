@@ -43,6 +43,7 @@ type TrackOrder = {
     phone: string | null;
     location: { lat: number; lng: number } | null;
     pickupAddress: string | null;
+    pickupEtaMinutes: number | null;
   } | null;
   customer: { firstName: string; lastNameInitial: string | null } | null;
   dropoff: { neighborhood: string; city: string } | null;
@@ -122,6 +123,7 @@ function TrackInner({
         updatedAt={order.updatedAt}
         paymentStatus={order.paymentStatus}
         locale={locale}
+        targetMinutes={order.tenant?.pickupEtaMinutes ?? null}
       />
 
       {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
@@ -220,9 +222,12 @@ const STATUS_KEYS: Record<string, TKey> = {
 const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'IN_DELIVERY', 'DELIVERED'] as const;
 const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'] as const;
 
-// Honest fallback: ~35 min total target until tenants can configure prep
-// time per restaurant. Beats the empty "Vom afișa o estimare în curând".
-const DEFAULT_TOTAL_MINUTES = 35;
+// Honest fallbacks when the tenant hasn't configured prep time. Pickup gets
+// a tighter default (no driving) than delivery. Operators set
+// pickup_eta_minutes in admin → Operations & program; we fall through to
+// these constants only when nothing is set.
+const DEFAULT_PICKUP_MINUTES = 20;
+const DEFAULT_DELIVERY_MINUTES = 35;
 
 function Timeline({
   status,
@@ -231,6 +236,7 @@ function Timeline({
   updatedAt,
   paymentStatus,
   locale,
+  targetMinutes,
 }: {
   status: string;
   fulfillment: 'DELIVERY' | 'PICKUP';
@@ -238,14 +244,21 @@ function Timeline({
   updatedAt: string;
   paymentStatus: string;
   locale: Locale;
+  targetMinutes: number | null;
 }) {
   const steps = fulfillment === 'PICKUP' ? PICKUP_STEPS : DELIVERY_STEPS;
   const cancelled = status === 'CANCELLED';
   const delivered = status === 'DELIVERED';
   const currentIdx = (steps as readonly string[]).indexOf(status);
 
+  const totalMinutes =
+    targetMinutes && targetMinutes > 0
+      ? targetMinutes
+      : fulfillment === 'PICKUP'
+        ? DEFAULT_PICKUP_MINUTES
+        : DEFAULT_DELIVERY_MINUTES;
   const elapsed = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
-  const remaining = Math.max(0, DEFAULT_TOTAL_MINUTES - elapsed);
+  const remaining = Math.max(0, totalMinutes - elapsed);
 
   let etaText: string;
   if (cancelled) {
