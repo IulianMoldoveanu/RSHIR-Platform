@@ -868,12 +868,26 @@ function PromoBox({
         {t(locale, 'promo.label')}
       </h2>
       {appliedLabel ? (
-        <div className="flex items-center justify-between rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-          <span>{appliedLabel}</span>
+        <div className="flex items-center justify-between rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900 shadow-sm">
+          <span className="flex items-center gap-2">
+            <svg
+              aria-hidden
+              className="h-4 w-4 flex-none text-emerald-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+            <span className="font-medium">{appliedLabel}</span>
+          </span>
           <button
             type="button"
             onClick={onRemove}
-            className="text-xs font-medium text-emerald-800 underline hover:text-emerald-900"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900"
             aria-label={t(locale, 'promo.remove')}
           >
             ×
@@ -892,13 +906,18 @@ function PromoBox({
             type="button"
             onClick={onApply}
             disabled={working || input.trim().length === 0}
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:hover:scale-100"
           >
             {working ? t(locale, 'promo.applying') : t(locale, 'promo.apply')}
           </button>
         </div>
       )}
-      {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
+      {error && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-rose-700">
+          <span aria-hidden>⚠</span>
+          {error}
+        </p>
+      )}
     </section>
   );
 }
