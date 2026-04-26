@@ -58,7 +58,8 @@ type QuoteFailureReason =
   | { kind: 'NO_TIER'; distanceKm: number }
   | { kind: 'ITEM_UNAVAILABLE'; itemId: string }
   | { kind: 'EMPTY_MENU' }
-  | { kind: 'PROMO_INVALID'; reason: PromoFailureReason };
+  | { kind: 'PROMO_INVALID'; reason: PromoFailureReason }
+  | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' };
 
 type Step = 'form' | 'review' | 'payment' | 'submitting';
 
@@ -1064,6 +1065,14 @@ function formatQuoteError(
       return t(locale, 'checkout.err_empty_menu');
     case 'PROMO_INVALID':
       return formatPromoError(reason.reason, locale);
+    case 'GROUP_CONSTRAINT':
+      return t(
+        locale,
+        reason.reason === 'too_few'
+          ? 'checkout.err_group_too_few_template'
+          : 'checkout.err_group_too_many_template',
+        { group: reason.groupName },
+      );
   }
 }
 
