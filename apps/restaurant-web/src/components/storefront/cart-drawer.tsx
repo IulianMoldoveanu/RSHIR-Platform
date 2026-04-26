@@ -183,6 +183,29 @@ export function CartPill({
                   ) : (
                     <Link
                       href="/checkout"
+                      onClick={() => {
+                        try {
+                          const snapshot = {
+                            items: items.map((it) => ({
+                              itemId: it.itemId,
+                              name: it.name,
+                              priceRon: it.unitPriceRon,
+                              quantity: it.qty,
+                              modifiers: it.modifiers.map((m) => ({
+                                id: m.id,
+                                name: m.name,
+                                priceDeltaRon: m.price_delta_ron,
+                              })),
+                              notes: it.notes,
+                            })),
+                          };
+                          window.sessionStorage.setItem('hir.cart', JSON.stringify(snapshot));
+                        } catch {
+                          // sessionStorage might be disabled (private mode);
+                          // checkout will render its empty-cart state and
+                          // route the user back here, which is recoverable.
+                        }
+                      }}
                       className="flex w-full items-center justify-center rounded-full bg-[var(--hir-brand)] px-5 py-3.5 text-sm font-semibold text-white hover:opacity-90"
                     >
                       {t(locale, 'cart.continue_checkout')}

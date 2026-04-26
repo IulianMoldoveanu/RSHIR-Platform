@@ -11,12 +11,19 @@ import {
 import type { CartItemInput, AddressInput, Fulfillment } from './schemas';
 import { lookupAndValidatePromo, type PromoKind, type PromoLookupFailure } from './promo';
 
+export type PricedModifier = {
+  id: string;
+  name: string;
+  priceDeltaRon: number;
+};
+
 export type PricedLineItem = {
   itemId: string;
   name: string;
   priceRon: number;
   quantity: number;
   lineTotalRon: number;
+  modifiers: PricedModifier[];
 };
 
 export type AppliedPromo = {
@@ -81,6 +88,26 @@ export async function computeQuote(
   if (itemsErr) throw new Error(`menu lookup failed: ${itemsErr.message}`);
   if (!items || items.length === 0) return { ok: false, reason: { kind: 'EMPTY_MENU' } };
 
+  // Resolve any client-supplied modifier ids in one round-trip. Server is
+  // authoritative on price_delta_ron — we never trust the client value. We
+  // also enforce that each modifier belongs to the item it was attached to
+  // (no swapping a $0 modifier id from item A onto item B).
+  const allModifierIds = Array.from(
+    new Set(cart.flatMap((c) => c.modifierIds ?? [])),
+  );
+  const modifiersById = new Map<
+    string,
+    { id: string; item_id: string; name: string; price_delta_ron: number }
+  >();
+  if (allModifierIds.length > 0) {
+    const { data: mods, error: modsErr } = await admin
+      .from('restaurant_menu_modifiers')
+      .select('id, item_id, name, price_delta_ron')
+      .in('id', allModifierIds);
+    if (modsErr) throw new Error(`modifier lookup failed: ${modsErr.message}`);
+    for (const m of mods ?? []) modifiersById.set(m.id, m);
+  }
+
   const nowMs = Date.now();
   const byId = new Map(items.map((it) => [it.id, it]));
   const lineItems: PricedLineItem[] = [];
@@ -91,13 +118,24 @@ export async function computeQuote(
     if (!item || !item.is_available || soldOut) {
       return { ok: false, reason: { kind: 'ITEM_UNAVAILABLE', itemId: c.itemId } };
     }
-    const lineTotal = round2(item.price_ron * c.quantity);
+    const pricedMods: PricedModifier[] = [];
+    for (const modId of c.modifierIds ?? []) {
+      const m = modifiersById.get(modId);
+      if (!m || m.item_id !== item.id) {
+        return { ok: false, reason: { kind: 'ITEM_UNAVAILABLE', itemId: c.itemId } };
+      }
+      pricedMods.push({ id: m.id, name: m.name, priceDeltaRon: m.price_delta_ron });
+    }
+    const modSum = pricedMods.reduce((s, m) => s + m.priceDeltaRon, 0);
+    const unitPrice = round2(item.price_ron + modSum);
+    const lineTotal = round2(unitPrice * c.quantity);
     lineItems.push({
       itemId: item.id,
       name: item.name,
       priceRon: item.price_ron,
       quantity: c.quantity,
       lineTotalRon: lineTotal,
+      modifiers: pricedMods,
     });
   }
 

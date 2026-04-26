@@ -16,6 +16,16 @@ export const cartSnapshotSchema = z.object({
       name: z.string(),
       priceRon: z.number().nonnegative(),
       quantity: z.number().int().positive().max(50),
+      modifiers: z
+        .array(
+          z.object({
+            id: z.string().uuid(),
+            name: z.string(),
+            priceDeltaRon: z.number(),
+          }),
+        )
+        .default([]),
+      notes: z.string().optional(),
     }),
   ),
 });

@@ -88,7 +88,19 @@ export function CheckoutClient(props: {
   const [city, setCity] = useState('Brașov');
   const [postalCode, setPostalCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  // Captures the address text the coords were geocoded against. If the user
+  // edits any field after blurring, coords no longer matches the typed text;
+  // we invalidate to force a fresh geocode on the next quote attempt.
+  const [coordsForText, setCoordsForText] = useState<string>('');
   const [geocoding, setGeocoding] = useState(false);
+
+  const currentAddressKey = `${line1.trim()}|${line2.trim()}|${city.trim()}|${postalCode.trim()}`;
+  useEffect(() => {
+    if (coords && coordsForText && coordsForText !== currentAddressKey) {
+      setCoords(null);
+      setCoordsForText('');
+    }
+  }, [coords, coordsForText, currentAddressKey]);
 
   const [notes, setNotes] = useState('');
 
@@ -115,7 +127,10 @@ export function CheckoutClient(props: {
 
   const cartTotal = useMemo(() => {
     if (!cart) return 0;
-    return cart.items.reduce((s, l) => s + l.priceRon * l.quantity, 0);
+    return cart.items.reduce((s, l) => {
+      const modSum = l.modifiers.reduce((ms, m) => ms + m.priceDeltaRon, 0);
+      return s + (l.priceRon + modSum) * l.quantity;
+    }, 0);
   }, [cart]);
 
   // ────────────────────────────────────────────────
@@ -131,8 +146,10 @@ export function CheckoutClient(props: {
       if (!hit) {
         setError(t(locale, 'checkout.err_address_not_found'));
         setCoords(null);
+        setCoordsForText('');
       } else {
         setCoords(hit);
+        setCoordsForText(currentAddressKey);
       }
     } finally {
       setGeocoding(false);
@@ -151,7 +168,11 @@ export function CheckoutClient(props: {
     const promoCode = appliedPromo?.code;
     if (fulfillment === 'PICKUP') {
       body = {
-        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        items: cart.items.map((i) => ({
+          itemId: i.itemId,
+          quantity: i.quantity,
+          modifierIds: i.modifiers.map((m) => m.id),
+        })),
         fulfillment: 'PICKUP',
         ...(promoCode ? { promoCode } : {}),
       };
@@ -169,9 +190,14 @@ export function CheckoutClient(props: {
           return;
         }
         setCoords(point);
+        setCoordsForText(currentAddressKey);
       }
       body = {
-        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        items: cart.items.map((i) => ({
+          itemId: i.itemId,
+          quantity: i.quantity,
+          modifierIds: i.modifiers.map((m) => m.id),
+        })),
         fulfillment: 'DELIVERY',
         address: { line1, line2, city, postalCode, lat: point.lat, lng: point.lng },
         ...(promoCode ? { promoCode } : {}),
@@ -207,7 +233,11 @@ export function CheckoutClient(props: {
     setWorking(true);
     try {
       const intentBody: Record<string, unknown> = {
-        items: cart.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity })),
+        items: cart.items.map((i) => ({
+          itemId: i.itemId,
+          quantity: i.quantity,
+          modifierIds: i.modifiers.map((m) => m.id),
+        })),
         fulfillment,
         customer: { firstName, lastName, phone, email },
         notes,
