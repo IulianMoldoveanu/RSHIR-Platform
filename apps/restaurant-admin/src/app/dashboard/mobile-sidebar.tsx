@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@hir/ui';
-import { SidebarNav, type SidebarItem } from './sidebar-nav';
+import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 
 // §6 P2 — Mobile sidebar. Hidden on lg+ where the static <aside> is shown.
 // On <lg the dashboard top-bar gets a hamburger button that opens a left
 // Sheet containing the same SidebarNav. Auto-closes on route change so
 // the user doesn't have to manually dismiss after picking a destination.
 
-export function MobileSidebar({ items }: { items: SidebarItem[] }) {
+export function MobileSidebar({ entries }: { entries: SidebarEntry[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -45,7 +45,7 @@ export function MobileSidebar({ items }: { items: SidebarItem[] }) {
               HIR
             </SheetTitle>
           </SheetHeader>
-          <SidebarNav items={items} />
+          <SidebarNav entries={entries} />
         </SheetContent>
       </Sheet>
     </>
