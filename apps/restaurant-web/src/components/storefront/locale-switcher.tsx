@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { motion } from 'framer-motion';
 import type { Locale } from '@/lib/i18n';
+import { tapPress, useShouldReduceMotion } from '@/lib/motion';
 
 const OPTIONS: Array<{ value: Locale; flag: string; label: string }> = [
   { value: 'ro', flag: '🇷🇴', label: 'RO' },
@@ -19,6 +21,7 @@ export function LocaleSwitcher({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [active, setActive] = useState<Locale>(current);
+  const reduceMotion = useShouldReduceMotion();
 
   function pick(next: Locale) {
     if (next === active || pending) return;
@@ -45,21 +48,34 @@ export function LocaleSwitcher({
       {OPTIONS.map((opt) => {
         const selected = opt.value === active;
         return (
-          <button
+          <motion.button
             key={opt.value}
             type="button"
             onClick={() => pick(opt.value)}
             disabled={pending}
             aria-pressed={selected}
-            className={`flex h-9 items-center gap-1 rounded-full px-3 font-medium transition-colors ${
-              selected
-                ? 'bg-zinc-900 text-white'
-                : 'text-zinc-600 hover:text-zinc-900'
+            whileTap={reduceMotion ? undefined : tapPress}
+            className={`relative flex h-9 items-center gap-1 rounded-full px-3 font-medium transition-colors ${
+              selected ? 'text-white' : 'text-zinc-600 hover:text-zinc-900'
             } disabled:opacity-60`}
           >
-            <span aria-hidden>{opt.flag}</span>
-            <span>{opt.label}</span>
-          </button>
+            {selected && (
+              <motion.span
+                layoutId="locale-active"
+                className="absolute inset-0 rounded-full bg-zinc-900"
+                transition={{
+                  type: 'spring',
+                  stiffness: 500,
+                  damping: 35,
+                  duration: reduceMotion ? 0 : undefined,
+                }}
+              />
+            )}
+            <span aria-hidden className="relative">
+              {opt.flag}
+            </span>
+            <span className="relative">{opt.label}</span>
+          </motion.button>
         );
       })}
     </div>
