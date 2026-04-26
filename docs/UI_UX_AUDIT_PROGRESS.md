@@ -3,7 +3,15 @@
 Tracks the autonomous polish session against `docs/UI_UX_AUDIT.md`.
 Last updated: 2026-04-26.
 
-## Shipped (20 commits on `main`)
+## Shipped (23 commits on `main`)
+
+Latest additions over the original tracker:
+- `ce7c3ea` — Inter via next/font on both apps + Tailwind preset wired (audit §Typography ✅).
+- `1e0aab0` — Admin menu items: 192px image hover preview + ImageOff dashed-amber badge for missing images (§9 P1 ✅).
+
+`§8 P1 sound + tab-title flash` was discovered to be **already implemented**
+in `orders-realtime.tsx` (WebAudio chime + `(N)` title increment) — no
+work needed; the original audit missed it.
 
 ### Bigger bets (audit § Bigger bets)
 | # | Title | Status |
@@ -37,11 +45,11 @@ Last updated: 2026-04-26.
 - **§6 Sidebar:** P0 grouping with icons (icons ✅; grouping deferred); P0 active-state indicator ✅; P1 smaller header (HIR mark + wordmark) ✅; P1 "Vezi storefront" link ✅; P2 mobile responsiveness ✅.
 - **§7 Dashboard home:** P0 4 KPI cards ✅; P0 active orders panel ✅; P1 max-w-6xl wrapper ✅; P1 "Vezi raport complet →" button ✅. *Deferred:* P2 "Anunț de la HIR" slot.
 - **§8 Orders queue:** P0 row-level Link wrap ✅; P0 stale-PENDING danger threshold ✅; P1 item count column ✅; P1 conditional pill (hide when grouped) ✅. *Deferred:* P1 sound + tab title flash, P2 kanban toggle, P2 CSV filename hint (already implemented earlier).
-- **§9 Menu management:** P0 "Epuizat azi" → toggle icon ✅; P1 search icon ✅; P2 confirm() → Dialog ✅. *Deferred:* P0 drag-to-reorder, P1 inline-editable price, P1 image hover preview, P2 sticky bulk action bar.
+- **§9 Menu management:** P0 "Epuizat azi" → toggle icon ✅; P1 search icon ✅; P1 image hover preview + missing-image dashed-amber badge ✅; P2 confirm() → Dialog ✅. *Deferred:* P0 drag-to-reorder, P1 inline-editable price, P2 sticky bulk action bar.
 - **§10 Polish checklist:** P2 progress bar ✅; P2 copy tightening ✅.
 
 ### Cross-cutting (audit §Cross-cutting)
-- **Typography:** ⏳ deferred (Inter / Geist via next/font is a separate pass).
+- **Typography:** ✅ Inter wired via `next/font/google` on both apps with `--font-sans` CSS var; Tailwind preset's `fontFamily.sans` falls back to system stack so first paint never flashes Times-New-Roman (`ce7c3ea`).
 - **Spacing & rounding:** ✅ Cards standardized to rounded-xl across admin (`01013c4`).
 - **Color:** ✅ STATUS_PILL palette consolidated 7→4 hue families (`05dc359`).
 - **Iconography:** ✅ Custom PencilIcon/TrashIcon → lucide Pencil/Trash2 (`78cec1f`); 🍽️ → UtensilsCrossed everywhere; ★ → lucide Star in widgets and reviews moderation.
@@ -59,11 +67,11 @@ visual polish pass:
 - **§4 P0 Sticky-bottom checkout CTA** — touched but not landed; needs careful mobile-Safari testing because the existing form layout already has a bottom-dependent flow. Worth its own dedicated pass.
 - **§4 P0 Cart-summary collapsible** — restructures the checkout step 1 layout meaningfully. Worth a focused pass.
 - **§7 P2 "Anunț de la HIR" slot** — needs `tenants.dismissed_announcement_id` field + admin-side announcement table. Schema work.
-- **§8 P1 Sound + tab-title flash on PENDING** — small but needs an `/notification.mp3` asset and document.title flicker logic; nice candidate for next batch.
+<!-- §8 P1 sound + tab-title flash: already shipped in orders-realtime.tsx, audit was outdated -->
 - **§9 P0 Drag-to-reorder** — needs `@dnd-kit/sortable` and a server action. Worth a focused pass.
 - **§9 P1 Inline-editable price** — small mutation flow. Nice next batch.
 - **Mobile-sidebar grouping (§6 P0 grouping):** Icons + active-state shipped; grouping items into 6 collapsible sections with `<details>` was scoped out so the flat list keeps working. Worth a separate pass with copy review.
-- **Typography (Inter/Geist):** Separate pass; touches every layout root.
+<!-- Typography (Inter): shipped in ce7c3ea -->
 
 ## Scripts / artifacts
 
