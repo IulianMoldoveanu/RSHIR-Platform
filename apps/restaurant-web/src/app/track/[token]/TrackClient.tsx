@@ -101,14 +101,23 @@ function TrackInner({
         <p className="font-mono text-xs text-zinc-500">#{order.id.slice(0, 8)}</p>
       </header>
 
-      <StatusPill status={order.status} paymentStatus={order.paymentStatus} locale={locale} />
+      <Timeline
+        status={order.status}
+        fulfillment={order.fulfillment}
+        createdAt={order.createdAt}
+        updatedAt={order.updatedAt}
+        paymentStatus={order.paymentStatus}
+        locale={locale}
+      />
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-          {t(locale, 'track.estimate_label')}
-        </p>
-        <p className="mt-1 text-zinc-700">{t(locale, 'track.estimate_pending')}</p>
-      </section>
+      {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+        <a
+          href={`tel:${order.tenant.phone}`}
+          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
+        >
+          {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
+        </a>
+      )}
 
       {order.fulfillment === 'PICKUP' ? (
         <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
@@ -163,15 +172,6 @@ function TrackInner({
         </section>
       )}
 
-      {order.tenant?.phone && (
-        <a
-          href={`tel:${order.tenant.phone}`}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
-        >
-          {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
-        </a>
-      )}
-
       {order.status === 'PENDING' && order.paymentStatus !== 'PAID' && (
         <CancelWidget token={token} locale={locale} />
       )}
@@ -203,32 +203,123 @@ const STATUS_KEYS: Record<string, TKey> = {
   CANCELLED: 'track.status_CANCELLED',
 };
 
-function StatusPill({
+const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'IN_DELIVERY', 'DELIVERED'] as const;
+const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'] as const;
+
+// Honest fallback: ~35 min total target until tenants can configure prep
+// time per restaurant. Beats the empty "Vom afișa o estimare în curând".
+const DEFAULT_TOTAL_MINUTES = 35;
+
+function Timeline({
   status,
+  fulfillment,
+  createdAt,
+  updatedAt,
   paymentStatus,
   locale,
 }: {
   status: string;
+  fulfillment: 'DELIVERY' | 'PICKUP';
+  createdAt: string;
+  updatedAt: string;
   paymentStatus: string;
   locale: Locale;
 }) {
-  const key = STATUS_KEYS[status];
-  const label = key ? t(locale, key) : status;
-  const tone =
-    status === 'CANCELLED'
-      ? 'bg-rose-100 text-rose-800'
-      : status === 'DELIVERED'
-        ? 'bg-emerald-100 text-emerald-800'
-        : 'bg-amber-100 text-amber-900';
+  const steps = fulfillment === 'PICKUP' ? PICKUP_STEPS : DELIVERY_STEPS;
+  const cancelled = status === 'CANCELLED';
+  const delivered = status === 'DELIVERED';
+  const currentIdx = (steps as readonly string[]).indexOf(status);
+
+  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
+  const remaining = Math.max(0, DEFAULT_TOTAL_MINUTES - elapsed);
+
+  let etaText: string;
+  if (cancelled) {
+    etaText = t(locale, 'track.eta_cancelled');
+  } else if (delivered) {
+    const when = new Date(updatedAt).toLocaleTimeString(locale === 'ro' ? 'ro-RO' : 'en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    etaText = t(locale, 'track.eta_delivered_template', { when });
+  } else if (fulfillment === 'PICKUP') {
+    etaText = t(locale, 'track.eta_pickup_template', { minutes: String(remaining || 5) });
+  } else {
+    etaText = t(locale, 'track.eta_template', { minutes: String(remaining || 5) });
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{label}</span>
-      {paymentStatus === 'PAID' && (
-        <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-          {t(locale, 'track.paid')}
-        </span>
+    <section
+      className={`rounded-xl border p-4 ${
+        cancelled ? 'border-rose-200 bg-rose-50' : 'border-zinc-200 bg-white'
+      }`}
+    >
+      <div className="flex items-baseline justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          {t(locale, 'track.timeline_title')}
+        </p>
+        {paymentStatus === 'PAID' && !cancelled && (
+          <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+            {t(locale, 'track.paid')}
+          </span>
+        )}
+      </div>
+      <p className={`mt-1 text-base font-semibold ${cancelled ? 'text-rose-800' : 'text-zinc-900'}`}>
+        {etaText}
+      </p>
+
+      {!cancelled && (
+        <ol className="mt-4 space-y-3">
+          {steps.map((s, i) => {
+            const completed = i < currentIdx || delivered;
+            const current = i === currentIdx && !delivered;
+            const isLast = i === steps.length - 1;
+            const labelKey = STATUS_KEYS[s];
+            return (
+              <li key={s} className="relative flex items-start gap-3">
+                {!isLast && (
+                  <span
+                    aria-hidden
+                    className={`absolute left-[11px] top-6 h-full w-0.5 ${
+                      completed ? 'bg-purple-600' : 'bg-zinc-200'
+                    }`}
+                  />
+                )}
+                <span
+                  aria-hidden
+                  className={`relative z-10 flex h-6 w-6 flex-none items-center justify-center rounded-full border-2 ${
+                    completed
+                      ? 'border-purple-600 bg-purple-600 text-white'
+                      : current
+                        ? 'border-purple-600 bg-white'
+                        : 'border-zinc-300 bg-white'
+                  }`}
+                >
+                  {completed ? (
+                    <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
+                      <path d="M10.28 3.22a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06l1.47 1.47 3.97-3.97a.75.75 0 0 1 1.06 0Z" />
+                    </svg>
+                  ) : current ? (
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600" />
+                  ) : null}
+                </span>
+                <span
+                  className={`pt-0.5 text-sm ${
+                    completed
+                      ? 'text-zinc-500 line-through decoration-zinc-300'
+                      : current
+                        ? 'font-semibold text-zinc-900'
+                        : 'text-zinc-500'
+                  }`}
+                >
+                  {labelKey ? t(locale, labelKey) : s}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       )}
-    </div>
+    </section>
   );
 }
 

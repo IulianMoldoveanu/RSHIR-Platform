@@ -193,6 +193,11 @@ export const dictionaries = {
       cancel_submitting: 'Se anulează…',
       cancel_error_state: 'Comanda nu mai poate fi anulată online — sună la restaurant.',
       cancel_error_generic: 'Nu am putut anula comanda. Încearcă din nou.',
+      timeline_title: 'Progresul comenzii',
+      eta_template: 'Estimare livrare: {minutes} min',
+      eta_pickup_template: 'Gata de ridicare în ~{minutes} min',
+      eta_delivered_template: 'Livrată {when}',
+      eta_cancelled: 'Comandă anulată',
     },
     meta: {
       default_title: 'HIR Restaurant',
@@ -419,6 +424,11 @@ export const dictionaries = {
       cancel_submitting: 'Cancelling…',
       cancel_error_state: 'This order can no longer be cancelled online — please call the restaurant.',
       cancel_error_generic: "Couldn't cancel the order. Try again.",
+      timeline_title: 'Order progress',
+      eta_template: 'ETA: {minutes} min',
+      eta_pickup_template: 'Ready for pickup in ~{minutes} min',
+      eta_delivered_template: 'Delivered {when}',
+      eta_cancelled: 'Order cancelled',
     },
     meta: {
       default_title: 'HIR Restaurant',
