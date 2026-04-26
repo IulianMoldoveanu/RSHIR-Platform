@@ -63,28 +63,34 @@ export async function GET(req: NextRequest) {
     : new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   const admin = createAdminClient();
-  const { data: rows, error } = await admin
-    .from('restaurant_orders')
-    .select(
-      `
-        id,
-        created_at,
-        status,
-        payment_status,
-        items,
-        subtotal_ron,
-        delivery_fee_ron,
-        discount_ron,
-        total_ron,
-        notes,
-        customers ( first_name, last_name, phone ),
-        customer_addresses ( line1, city )
-      `,
-    )
-    .eq('tenant_id', tenant.id)
-    .gte('created_at', start.toISOString())
-    .lte('created_at', end.toISOString())
-    .order('created_at', { ascending: false });
+  // Defensive SELECT: try with payment_method (20260504_001 column); fall
+  // back to legacy columns if the migration hasn't shipped. CSV exports
+  // generated pre-migration just have an empty payment_method column.
+  const COLS_FULL = `
+    id, created_at, status, payment_status, payment_method, items,
+    subtotal_ron, delivery_fee_ron, discount_ron, total_ron, notes,
+    customers ( first_name, last_name, phone ),
+    customer_addresses ( line1, city )
+  `;
+  const COLS_LEGACY = `
+    id, created_at, status, payment_status, items,
+    subtotal_ron, delivery_fee_ron, discount_ron, total_ron, notes,
+    customers ( first_name, last_name, phone ),
+    customer_addresses ( line1, city )
+  `;
+  const loadRows = (cols: string) =>
+    admin
+      .from('restaurant_orders')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select(cols as any)
+      .eq('tenant_id', tenant.id)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+      .order('created_at', { ascending: false });
+  let { data: rows, error } = await loadRows(COLS_FULL);
+  if (error && /payment_method/i.test(error.message ?? '')) {
+    ({ data: rows, error } = await loadRows(COLS_LEGACY));
+  }
 
   if (error) {
     return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 });
@@ -94,6 +100,7 @@ export async function GET(req: NextRequest) {
     'id',
     'created_at',
     'status',
+    'payment_method',
     'payment_status',
     'customer_name',
     'customer_phone',
@@ -108,13 +115,15 @@ export async function GET(req: NextRequest) {
   ];
 
   const lines = [headers.join(',')];
-  for (const r of rows ?? []) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const r of (rows ?? []) as any[]) {
     const customerName =
       [r.customers?.first_name, r.customers?.last_name].filter(Boolean).join(' ').trim() || '';
     const cells = [
       r.id,
       r.created_at,
       r.status,
+      r.payment_method ?? '',
       r.payment_status,
       customerName,
       r.customers?.phone ?? '',
