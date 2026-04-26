@@ -1,7 +1,7 @@
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@hir/ui';
-import type { MenuCategory, MenuItem, MenuModifier } from './page';
+import type { MenuCategory, MenuItem, MenuModifier, MenuModifierGroup } from './page';
 import { CategoriesPanel } from './categories-panel';
 import { ItemsPanel } from './items-panel';
 import { ModifiersPanel } from './modifiers-panel';
@@ -10,17 +10,19 @@ export function MenuTabs({
   categories,
   items,
   modifiers,
+  modifierGroups,
 }: {
   categories: MenuCategory[];
   items: MenuItem[];
   modifiers: MenuModifier[];
+  modifierGroups: MenuModifierGroup[];
 }) {
   return (
     <Tabs defaultValue="items" className="w-full">
       <TabsList>
         <TabsTrigger value="items">Produse ({items.length})</TabsTrigger>
         <TabsTrigger value="categories">Categorii ({categories.length})</TabsTrigger>
-        <TabsTrigger value="modifiers">Modificatori ({modifiers.length})</TabsTrigger>
+        <TabsTrigger value="modifiers">Opțiuni ({modifierGroups.length + modifiers.length})</TabsTrigger>
       </TabsList>
 
       <TabsContent value="items">
@@ -30,7 +32,7 @@ export function MenuTabs({
         <CategoriesPanel categories={categories} />
       </TabsContent>
       <TabsContent value="modifiers">
-        <ModifiersPanel items={items} modifiers={modifiers} />
+        <ModifiersPanel items={items} modifiers={modifiers} modifierGroups={modifierGroups} />
       </TabsContent>
     </Tabs>
   );

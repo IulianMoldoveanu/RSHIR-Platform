@@ -29,6 +29,18 @@ export type MenuModifier = {
   item_id: string;
   name: string;
   price_delta_ron: number;
+  group_id?: string | null;
+  sort_order?: number;
+};
+
+export type MenuModifierGroup = {
+  id: string;
+  item_id: string;
+  name: string;
+  is_required: boolean;
+  select_min: number;
+  select_max: number | null;
+  sort_order: number;
 };
 
 export default async function MenuPage() {
@@ -46,11 +58,56 @@ export default async function MenuPage() {
       .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, tags')
       .eq('tenant_id', tenant.id)
       .order('name', { ascending: true }),
-    admin
-      .from('restaurant_menu_modifiers')
-      .select('id, item_id, name, price_delta_ron, restaurant_menu_items!inner(tenant_id)')
-      .eq('restaurant_menu_items.tenant_id', tenant.id),
+    // Defensive: try the SELECT including new columns; fall back if the
+    // 20260505_001 migration hasn't shipped yet.
+    (async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (admin
+        .from('restaurant_menu_modifiers')
+        .select('id, item_id, name, price_delta_ron, group_id, sort_order, restaurant_menu_items!inner(tenant_id)') as any)
+        .eq('restaurant_menu_items.tenant_id', tenant.id);
+      if (r.error && /group_id|sort_order/i.test(r.error.message ?? '')) {
+        return admin
+          .from('restaurant_menu_modifiers')
+          .select('id, item_id, name, price_delta_ron, restaurant_menu_items!inner(tenant_id)')
+          .eq('restaurant_menu_items.tenant_id', tenant.id);
+      }
+      return r;
+    })(),
   ]);
+
+  // Pull modifier groups separately; defensive on the table existing.
+  let groupRows: MenuModifierGroup[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const g = await (admin as any)
+      .from('restaurant_menu_modifier_groups')
+      .select('id, item_id, name, is_required, select_min, select_max, sort_order, restaurant_menu_items!inner(tenant_id)')
+      .eq('restaurant_menu_items.tenant_id', tenant.id);
+    if (!g.error && Array.isArray(g.data)) {
+      groupRows = g.data.map(
+        (row: {
+          id: string;
+          item_id: string;
+          name: string;
+          is_required: boolean;
+          select_min: number;
+          select_max: number | null;
+          sort_order: number;
+        }) => ({
+          id: row.id,
+          item_id: row.item_id,
+          name: row.name,
+          is_required: row.is_required,
+          select_min: row.select_min,
+          select_max: row.select_max,
+          sort_order: row.sort_order,
+        }),
+      );
+    }
+  } catch {
+    groupRows = [];
+  }
 
   if (catsRes.error) throw new Error(catsRes.error.message);
   if (itemsRes.error) throw new Error(itemsRes.error.message);
@@ -59,7 +116,14 @@ export default async function MenuPage() {
   const categories = (catsRes.data ?? []) as MenuCategory[];
   const items = (itemsRes.data ?? []) as MenuItem[];
   const modifiers = ((modsRes.data ?? []) as Array<MenuModifier & { restaurant_menu_items?: unknown }>).map(
-    ({ id, item_id, name, price_delta_ron }) => ({ id, item_id, name, price_delta_ron }),
+    ({ id, item_id, name, price_delta_ron, group_id, sort_order }) => ({
+      id,
+      item_id,
+      name,
+      price_delta_ron,
+      group_id: group_id ?? null,
+      sort_order: typeof sort_order === 'number' ? sort_order : 0,
+    }),
   );
 
   const storefrontUrl = `https://${tenant.slug}.hir.ro`;
@@ -81,7 +145,7 @@ export default async function MenuPage() {
           <p className="text-xs text-zinc-500">{tenant.name}</p>
         </div>
       </div>
-      <MenuTabs categories={categories} items={items} modifiers={modifiers} />
+      <MenuTabs categories={categories} items={items} modifiers={modifiers} modifierGroups={groupRows} />
     </div>
   );
 }

@@ -26,6 +26,9 @@ import {
   modifierCreateSchema,
   modifierDeleteSchema,
   modifierUpdateSchema,
+  modifierGroupCreateSchema,
+  modifierGroupDeleteSchema,
+  modifierGroupUpdateSchema,
 } from './schemas';
 
 const MENU_BUCKET = 'menu-images';
@@ -524,10 +527,111 @@ export async function createModifierAction(formData: FormData) {
     item_id: formData.get('item_id'),
     name: formData.get('name'),
     price_delta_ron: formData.get('price_delta_ron'),
+    group_id: formData.get('group_id') ?? '',
   });
   await assertItemBelongsToTenant(parsed.item_id, tenantId);
   const admin = createAdminClient();
-  const { error } = await admin.from('restaurant_menu_modifiers').insert(parsed);
+  // Normalize: empty string → null FK, real uuid → group assignment.
+  const groupId = parsed.group_id && parsed.group_id !== '' ? parsed.group_id : null;
+  const { error } = await admin.from('restaurant_menu_modifiers').insert({
+    item_id: parsed.item_id,
+    name: parsed.name,
+    price_delta_ron: parsed.price_delta_ron,
+    // Cast through unknown until supabase-types regenerates with the column
+    // (migration 20260505_001 may have shipped post-typegen).
+    ...(groupId ? { group_id: groupId } : {}),
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath('/dashboard/menu');
+}
+
+// ============================================================
+// MODIFIER GROUPS (size variants, required choices)
+// ============================================================
+
+// supabase-js types don't yet know about restaurant_menu_modifier_groups
+// (typegen was last run pre-migration 20260505_001). Cast through unknown
+// to escape both the table-name typing and the row-shape inference for
+// inserts/updates. PostgREST validates at runtime via the actual schema.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AdminAny = any;
+
+export async function createModifierGroupAction(formData: FormData) {
+  const { tenantId } = await requireTenant();
+  const parsed = modifierGroupCreateSchema.parse({
+    item_id: formData.get('item_id'),
+    name: formData.get('name'),
+    is_required: formData.get('is_required') ?? 'off',
+    select_min: formData.get('select_min'),
+    select_max: formData.get('select_max') ?? '',
+    sort_order: formData.get('sort_order') ?? '0',
+  });
+  await assertItemBelongsToTenant(parsed.item_id, tenantId);
+  const admin = createAdminClient() as unknown as AdminAny;
+  const { error } = await admin.from('restaurant_menu_modifier_groups').insert({
+    item_id: parsed.item_id,
+    name: parsed.name,
+    is_required: parsed.is_required,
+    select_min: parsed.select_min,
+    select_max: parsed.select_max,
+    sort_order: parsed.sort_order ?? 0,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath('/dashboard/menu');
+}
+
+export async function updateModifierGroupAction(formData: FormData) {
+  const { tenantId } = await requireTenant();
+  const parsed = modifierGroupUpdateSchema.parse({
+    id: formData.get('id'),
+    name: formData.get('name'),
+    is_required: formData.get('is_required') ?? 'off',
+    select_min: formData.get('select_min'),
+    select_max: formData.get('select_max') ?? '',
+    sort_order: formData.get('sort_order') ?? '0',
+  });
+  const admin = createAdminClient() as unknown as AdminAny;
+  const { data: grp, error: grpErr } = await admin
+    .from('restaurant_menu_modifier_groups')
+    .select('id, restaurant_menu_items!inner(tenant_id)')
+    .eq('id', parsed.id)
+    .maybeSingle();
+  if (grpErr) throw new Error(grpErr.message);
+  if (!grp || grp.restaurant_menu_items?.tenant_id !== tenantId) {
+    throw new Error('Grupul nu apartine acestui restaurant.');
+  }
+  const { error } = await admin
+    .from('restaurant_menu_modifier_groups')
+    .update({
+      name: parsed.name,
+      is_required: parsed.is_required,
+      select_min: parsed.select_min,
+      select_max: parsed.select_max,
+      sort_order: parsed.sort_order ?? 0,
+    })
+    .eq('id', parsed.id);
+  if (error) throw new Error(error.message);
+  revalidatePath('/dashboard/menu');
+}
+
+export async function deleteModifierGroupAction(formData: FormData) {
+  const { tenantId } = await requireTenant();
+  const parsed = modifierGroupDeleteSchema.parse({ id: formData.get('id') });
+  const admin = createAdminClient() as unknown as AdminAny;
+  const { data: grp, error: grpErr } = await admin
+    .from('restaurant_menu_modifier_groups')
+    .select('id, restaurant_menu_items!inner(tenant_id)')
+    .eq('id', parsed.id)
+    .maybeSingle();
+  if (grpErr) throw new Error(grpErr.message);
+  if (!grp || grp.restaurant_menu_items?.tenant_id !== tenantId) {
+    throw new Error('Grupul nu apartine acestui restaurant.');
+  }
+  // ON DELETE CASCADE on the FK drops options under this group.
+  const { error } = await admin
+    .from('restaurant_menu_modifier_groups')
+    .delete()
+    .eq('id', parsed.id);
   if (error) throw new Error(error.message);
   revalidatePath('/dashboard/menu');
 }

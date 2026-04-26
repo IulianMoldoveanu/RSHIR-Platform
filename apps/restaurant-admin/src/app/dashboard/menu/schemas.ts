@@ -64,11 +64,37 @@ export const modifierCreateSchema = z.object({
   item_id: uuid,
   name: z.string().trim().min(1).max(80),
   price_delta_ron: z.coerce.number().min(-100000).max(100000),
+  // Optional: attach to an existing group on create. Empty string ignored
+  // (FormData can't easily express "null", so the action treats unset / ''
+  // as "ungrouped optional").
+  group_id: z.union([uuid, z.literal('')]).optional(),
 });
 
 export const modifierUpdateSchema = modifierCreateSchema.extend({ id: uuid }).omit({ item_id: true });
 
 export const modifierDeleteSchema = z.object({ id: uuid });
+
+// Modifier groups (size variants, required choices, etc.).
+export const modifierGroupCreateSchema = z.object({
+  item_id: uuid,
+  name: z.string().trim().min(1).max(80),
+  is_required: z
+    .union([z.literal('on'), z.literal('off'), z.boolean()])
+    .optional()
+    .transform((v) => v === true || v === 'on'),
+  select_min: z.coerce.number().int().min(0).max(20),
+  select_max: z
+    .union([z.coerce.number().int().min(1).max(20), z.literal(''), z.literal('null')])
+    .optional()
+    .transform((v) => (v === '' || v === 'null' || v === undefined ? null : v)),
+  sort_order: z.coerce.number().int().min(0).max(1000).optional().default(0),
+});
+
+export const modifierGroupUpdateSchema = modifierGroupCreateSchema
+  .extend({ id: uuid })
+  .omit({ item_id: true });
+
+export const modifierGroupDeleteSchema = z.object({ id: uuid });
 
 const csvRowSchema = z.object({
   name: z.string().trim().min(1),
