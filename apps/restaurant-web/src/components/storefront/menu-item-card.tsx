@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Plus, UtensilsCrossed } from 'lucide-react';
+import { Flame, Plus, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
@@ -30,6 +30,14 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
         className="group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md disabled:cursor-default disabled:opacity-70 disabled:hover:shadow-sm"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {item.popular_rank !== null && available && (
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-800 ring-1 ring-inset ring-purple-200">
+              <Flame className="h-3 w-3" aria-hidden />
+              {item.popular_rank === 1
+                ? t(locale, 'item.popular_top')
+                : t(locale, 'item.popular_rank_template', { rank: String(item.popular_rank) })}
+            </span>
+          )}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 sm:text-base">
             {item.name}
           </h3>

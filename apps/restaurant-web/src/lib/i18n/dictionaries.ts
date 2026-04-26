@@ -54,6 +54,8 @@ export const dictionaries = {
       unavailable: 'Momentan indisponibil',
       added: 'Adăugat ✓',
       add_short: 'Adaugă',
+      popular_top: 'Cel mai comandat',
+      popular_rank_template: 'Top {rank}',
     },
     cart: {
       title: 'Coșul tău',
@@ -300,6 +302,8 @@ export const dictionaries = {
       unavailable: 'Currently unavailable',
       added: 'Added ✓',
       add_short: 'Add',
+      popular_top: 'Most ordered',
+      popular_rank_template: 'Top {rank}',
     },
     cart: {
       title: 'Your cart',

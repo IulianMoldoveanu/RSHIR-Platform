@@ -10,6 +10,10 @@ export type MenuItem = {
   is_available: boolean;
   sort_order: number;
   tags: string[];
+  // 1 = #1 most-ordered last 30 days (tenant-wide), 2 / 3 = #2 / #3, null
+  // = not in the top-3. Renders as a "Cel mai comandat" / "Top vânzări"
+  // badge on the menu card. Computed in getMenuByTenant from order history.
+  popular_rank: 1 | 2 | 3 | null;
 };
 
 export type MenuModifier = { id: string; name: string; price_delta_ron: number };
@@ -38,10 +42,57 @@ function isEffectivelyAvailable(it: { is_available: boolean; sold_out_until: str
   return new Date(it.sold_out_until).getTime() <= Date.now();
 }
 
+const POPULAR_WINDOW_DAYS = 30;
+const POPULAR_TOP_N = 3;
+const POPULAR_MIN_QTY = 5; // an item needs ≥5 sold to qualify — avoids ranking
+                           // brand-new items #1 just because nothing else has
+                           // sold yet.
+
+/**
+ * Returns a Map<itemId, rank> for the top-N most-ordered items at this tenant
+ * over the last POPULAR_WINDOW_DAYS, drawing from restaurant_orders.items
+ * JSONB. Excludes CANCELLED orders. Map is empty if nothing qualifies.
+ */
+async function loadPopularRanks(tenantId: string): Promise<Map<string, 1 | 2 | 3>> {
+  const supabase = getSupabase();
+  const sinceIso = new Date(
+    Date.now() - POPULAR_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const { data: orders } = await supabase
+    .from('restaurant_orders')
+    .select('items')
+    .eq('tenant_id', tenantId)
+    .neq('status', 'CANCELLED')
+    .gte('created_at', sinceIso)
+    .limit(2000);
+
+  const tally = new Map<string, number>();
+  const rows = (orders ?? []) as Array<{ items: unknown }>;
+  for (const o of rows) {
+    const items = Array.isArray(o.items) ? (o.items as Array<{ itemId?: string; quantity?: number }>) : [];
+    for (const li of items) {
+      if (!li || typeof li.itemId !== 'string') continue;
+      const qty = typeof li.quantity === 'number' && li.quantity > 0 ? li.quantity : 1;
+      tally.set(li.itemId, (tally.get(li.itemId) ?? 0) + qty);
+    }
+  }
+
+  const ranked = Array.from(tally.entries())
+    .filter(([, q]) => q >= POPULAR_MIN_QTY)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, POPULAR_TOP_N);
+
+  const out = new Map<string, 1 | 2 | 3>();
+  ranked.forEach(([id], i) => {
+    out.set(id, (i + 1) as 1 | 2 | 3);
+  });
+  return out;
+}
+
 export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]> {
   const supabase = getSupabase();
 
-  const [catsRes, itemsRes] = await Promise.all([
+  const [catsRes, itemsRes, popularRanks] = await Promise.all([
     supabase
       .from('restaurant_menu_categories')
       .select('id, name, sort_order')
@@ -53,13 +104,17 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
       .select(ITEM_COLS)
       .eq('tenant_id', tenantId)
       .order('sort_order'),
+    loadPopularRanks(tenantId),
   ]);
 
   const cats = (catsRes.data ?? []) as Array<{ id: string; name: string; sort_order: number }>;
-  const rawItems = (itemsRes.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
+  const rawItems = (itemsRes.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
   const items: MenuItem[] = rawItems.map(({ sold_out_until, ...rest }) => ({
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+    popular_rank: popularRanks.get(rest.id) ?? null,
   }));
 
   if (cats.length === 0) return [];
@@ -105,8 +160,10 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
     .or(`sold_out_until.is.null,sold_out_until.lte.${nowIso}`)
     .order('sort_order')
     .limit(limit);
-  const rows = (res.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
-  return rows.map(({ sold_out_until: _so, ...rest }) => rest);
+  const rows = (res.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
+  return rows.map(({ sold_out_until: _so, ...rest }) => ({ ...rest, popular_rank: null }));
 }
 
 /**
@@ -122,7 +179,9 @@ export async function getItemByShortId(
     .from('restaurant_menu_items')
     .select(ITEM_COLS)
     .eq('tenant_id', tenantId);
-  const items = (res.data ?? []) as Array<MenuItem & { sold_out_until: string | null }>;
+  const items = (res.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
 
   const matches = items.filter(
     (it) => it.id.replace(/-/g, '').slice(0, 8).toLowerCase() === shortId.toLowerCase(),
@@ -132,6 +191,7 @@ export async function getItemByShortId(
   const item: MenuItem = {
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+    popular_rank: null,
   };
 
   const modsRes = await supabase
