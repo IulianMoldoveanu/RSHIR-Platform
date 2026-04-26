@@ -16,9 +16,35 @@ export type MenuItem = {
   popular_rank: 1 | 2 | 3 | null;
 };
 
-export type MenuModifier = { id: string; name: string; price_delta_ron: number };
+export type MenuModifier = {
+  id: string;
+  name: string;
+  price_delta_ron: number;
+  /** Sort order within a group, or among ungrouped modifiers. */
+  sort_order?: number;
+};
 
-export type MenuItemWithModifiers = MenuItem & { modifiers: MenuModifier[] };
+/**
+ * A group of modifier options for a single menu item — e.g. "Mărime"
+ * (required, choose 1) or "Toppings" (optional, max 5). Modifiers
+ * with no group_id render as the legacy ungrouped optional list.
+ */
+export type MenuModifierGroup = {
+  id: string;
+  name: string;
+  isRequired: boolean;
+  selectMin: number;
+  selectMax: number | null;
+  sortOrder: number;
+  options: MenuModifier[];
+};
+
+export type MenuItemWithModifiers = MenuItem & {
+  /** Ungrouped optional modifiers (legacy pattern, group_id IS NULL). */
+  modifiers: MenuModifier[];
+  /** Grouped modifier sets with required / min / max constraints. */
+  modifierGroups: MenuModifierGroup[];
+};
 
 export type MenuCategory = {
   id: string;
@@ -119,25 +145,132 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
 
   if (cats.length === 0) return [];
 
-  let modsByItem = new Map<string, MenuModifier[]>();
+  // ungrouped modifiers per item (legacy: group_id IS NULL)
+  const ungroupedByItem = new Map<string, MenuModifier[]>();
+  // groups + their option lists per item
+  const groupsByItem = new Map<string, MenuModifierGroup[]>();
+
   if (items.length > 0) {
     const itemIds = items.map((i) => i.id);
-    const modsRes = await supabase
-      .from('restaurant_menu_modifiers')
-      .select('id, item_id, name, price_delta_ron')
-      .in('item_id', itemIds);
-    const mods = (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>;
-    mods.forEach((m) => {
-      const arr = modsByItem.get(m.item_id) ?? [];
-      arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
-      modsByItem.set(m.item_id, arr);
-    });
+
+    // Pull ALL modifier rows for these items (grouped + ungrouped).
+    // Cast through any until supabase-types regenerates with group_id +
+    // sort_order from 20260505_001. If the migration hasn't shipped yet,
+    // PostgREST returns an error; we catch and fall back to the legacy
+    // SELECT so the menu keeps loading without groups.
+    let modRows: Array<{
+      id: string;
+      item_id: string;
+      name: string;
+      price_delta_ron: number;
+      group_id: string | null;
+      sort_order: number;
+    }> = [];
+    {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (supabase
+        .from('restaurant_menu_modifiers')
+        .select('id, item_id, name, price_delta_ron, group_id, sort_order') as any)
+        .in('item_id', itemIds);
+      if (r.error && /group_id|sort_order/i.test(r.error.message ?? '')) {
+        const legacy = await supabase
+          .from('restaurant_menu_modifiers')
+          .select('id, item_id, name, price_delta_ron')
+          .in('item_id', itemIds);
+        const legacyRows = (legacy.data ?? []) as Array<{
+          id: string;
+          item_id: string;
+          name: string;
+          price_delta_ron: number;
+        }>;
+        modRows = legacyRows.map((m) => ({
+          id: m.id,
+          item_id: m.item_id,
+          name: m.name,
+          price_delta_ron: m.price_delta_ron,
+          group_id: null,
+          sort_order: 0,
+        }));
+      } else if (!r.error && Array.isArray(r.data)) {
+        modRows = r.data as typeof modRows;
+      }
+    }
+
+    // Pull groups; defensive on the table existing (pre-migration the
+    // PostgREST schema cache may not know about it — same fallback).
+    let groupRows: Array<{
+      id: string;
+      item_id: string;
+      name: string;
+      is_required: boolean;
+      select_min: number;
+      select_max: number | null;
+      sort_order: number;
+    }> = [];
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const g = await ((supabase as any)
+        .from('restaurant_menu_modifier_groups')
+        .select('id, item_id, name, is_required, select_min, select_max, sort_order'))
+        .in('item_id', itemIds);
+      if (!g.error && Array.isArray(g.data)) groupRows = g.data;
+    } catch {
+      groupRows = [];
+    }
+
+    // Index modifiers by group_id so we can attach them to their groups.
+    const modsByGroup = new Map<string, MenuModifier[]>();
+    for (const m of modRows) {
+      const opt: MenuModifier = {
+        id: m.id,
+        name: m.name,
+        price_delta_ron: Number(m.price_delta_ron),
+        sort_order: m.sort_order,
+      };
+      if (m.group_id === null) {
+        const arr = ungroupedByItem.get(m.item_id) ?? [];
+        arr.push(opt);
+        ungroupedByItem.set(m.item_id, arr);
+      } else {
+        const arr = modsByGroup.get(m.group_id) ?? [];
+        arr.push(opt);
+        modsByGroup.set(m.group_id, arr);
+      }
+    }
+
+    // Sort everything by sort_order so the renderer doesn't have to.
+    for (const arr of ungroupedByItem.values()) {
+      arr.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    }
+    for (const arr of modsByGroup.values()) {
+      arr.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    }
+
+    // Build groups attached to their item.
+    for (const g of groupRows.sort((a, b) => a.sort_order - b.sort_order)) {
+      const group: MenuModifierGroup = {
+        id: g.id,
+        name: g.name,
+        isRequired: g.is_required,
+        selectMin: g.select_min,
+        selectMax: g.select_max,
+        sortOrder: g.sort_order,
+        options: modsByGroup.get(g.id) ?? [],
+      };
+      const arr = groupsByItem.get(g.item_id) ?? [];
+      arr.push(group);
+      groupsByItem.set(g.item_id, arr);
+    }
   }
 
   const itemsByCat = new Map<string, MenuItemWithModifiers[]>();
   items.forEach((it) => {
     const arr = itemsByCat.get(it.category_id) ?? [];
-    arr.push({ ...it, modifiers: modsByItem.get(it.id) ?? [] });
+    arr.push({
+      ...it,
+      modifiers: ungroupedByItem.get(it.id) ?? [],
+      modifierGroups: groupsByItem.get(it.id) ?? [],
+    });
     itemsByCat.set(it.category_id, arr);
   });
 
@@ -202,6 +335,11 @@ export async function getTopPopularItems(
       is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
       popular_rank: ranks.get(rest.id) ?? null,
       modifiers: modsByItem.get(rest.id) ?? [],
+      // The cart-upsell rail opens the standard ItemSheet which knows how
+      // to fetch group state on its own. For now we ship empty groups; if
+      // an item with required groups appears here, the sheet will fetch
+      // and render them when opened (or the user gets the legacy flow).
+      modifierGroups: [] as MenuModifierGroup[],
     }))
     .filter((it) => it.is_available)
     .sort((a, b) => (a.popular_rank ?? 99) - (b.popular_rank ?? 99))
@@ -288,5 +426,5 @@ export async function getItemByShortId(
     .eq('item_id', item.id);
   const modifiers = (modsRes.data ?? []) as MenuModifier[];
 
-  return { ...item, modifiers };
+  return { ...item, modifiers, modifierGroups: [] as MenuModifierGroup[] };
 }

@@ -24,7 +24,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
   const [justAdded, setJustAdded] = useState(false);
   const useCartStore = useCart();
   const addItem = useCartStore((s) => s.addItem);
-  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers };
+  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups: [] };
   const available = item.is_available;
   const hasModifiers = modifiers.length > 0;
 
