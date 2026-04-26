@@ -5,7 +5,15 @@ import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { Star, TriangleAlert } from 'lucide-react';
-import { Skeleton } from '@hir/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Skeleton,
+} from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 
@@ -430,6 +438,7 @@ function ReviewWidget({
 function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -438,7 +447,10 @@ function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(body.error ?? 'cancel_error_generic');
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track', token] }),
+    onSuccess: () => {
+      setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['track', token] });
+    },
     onError: (e: Error) => {
       setError(
         e.message === 'invalid_state'
@@ -448,26 +460,52 @@ function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
     },
   });
 
-  function onClick() {
-    setError(null);
-    if (!window.confirm(t(locale, 'track.cancel_confirm'))) return;
-    mutation.mutate();
-  }
-
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
       <p className="text-xs text-zinc-600">{t(locale, 'track.cancel_help')}</p>
       {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
       <button
         type="button"
-        onClick={onClick}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
         disabled={mutation.isPending}
-        className="mt-3 inline-flex h-10 items-center justify-center rounded-md border border-rose-300 bg-white px-4 text-sm font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+        className="mt-3 inline-flex h-10 items-center justify-center rounded-md border border-rose-300 bg-white px-4 text-sm font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
       >
         {mutation.isPending
           ? t(locale, 'track.cancel_submitting')
           : t(locale, 'track.cancel_button')}
       </button>
+
+      <Dialog open={open} onOpenChange={(o) => !mutation.isPending && setOpen(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t(locale, 'track.cancel_button')}</DialogTitle>
+            <DialogDescription>{t(locale, 'track.cancel_confirm')}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={mutation.isPending}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              {locale === 'en' ? 'Back' : 'Înapoi'}
+            </button>
+            <button
+              type="button"
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+              className="inline-flex h-10 items-center justify-center rounded-md bg-rose-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"
+            >
+              {mutation.isPending
+                ? t(locale, 'track.cancel_submitting')
+                : t(locale, 'track.cancel_button')}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -3,6 +3,12 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   Input,
   Select,
@@ -44,6 +50,7 @@ export function ItemsPanel({
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [deleting, setDeleting] = useState<MenuItem | null>(null);
   const [pending, start] = useTransition();
 
   const filtered = useMemo(() => {
@@ -112,16 +119,18 @@ export function ItemsPanel({
     });
   }
 
-  function onDelete(item: MenuItem) {
-    if (!confirm(`Stergi "${item.name}"?`)) return;
+  function confirmDelete() {
+    const item = deleting;
+    if (!item) return;
     const fd = new FormData();
     fd.set('id', item.id);
     start(async () => {
       try {
         await deleteItemAction(fd);
-        toast.success('Produs sters');
+        toast.success('Produs șters');
+        setDeleting(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -306,7 +315,12 @@ export function ItemsPanel({
                     <Button size="icon" variant="ghost" onClick={() => setEditing(it)} aria-label="Editează">
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => onDelete(it)} aria-label="Șterge">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setDeleting(it)}
+                      aria-label="Șterge"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </td>
@@ -335,6 +349,30 @@ export function ItemsPanel({
       {importing && (
         <CsvImportDialog onClose={() => setImporting(false)} />
       )}
+
+      <Dialog open={deleting !== null} onOpenChange={(o) => !o && setDeleting(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Șterge produs</DialogTitle>
+            <DialogDescription>
+              Sigur vrei să ștergi <strong className="text-zinc-900">{deleting?.name ?? ''}</strong>?
+              Acțiunea nu poate fi reversată.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)} disabled={pending}>
+              Anulează
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              disabled={pending}
+              className="bg-rose-600 text-white hover:bg-rose-700"
+            >
+              {pending ? 'Se șterge…' : 'Șterge'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

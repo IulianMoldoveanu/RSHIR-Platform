@@ -39,14 +39,17 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: 'Anulate',
 };
 
+// Cross-cutting palette consolidation (audit §Color): drop from 7 hue
+// families to 4. amber=PENDING (needs attention), purple=in-progress,
+// emerald=DELIVERED (success), rose=CANCELLED.
 const STATUS_PILL: Record<OrderStatus, string> = {
   PENDING: 'bg-amber-100 text-amber-800 ring-amber-200',
-  CONFIRMED: 'bg-blue-100 text-blue-800 ring-blue-200',
-  PREPARING: 'bg-indigo-100 text-indigo-800 ring-indigo-200',
-  READY: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-  DISPATCHED: 'bg-violet-100 text-violet-800 ring-violet-200',
+  CONFIRMED: 'bg-purple-100 text-purple-800 ring-purple-200',
+  PREPARING: 'bg-purple-100 text-purple-800 ring-purple-200',
+  READY: 'bg-purple-100 text-purple-800 ring-purple-200',
+  DISPATCHED: 'bg-purple-100 text-purple-800 ring-purple-200',
   IN_DELIVERY: 'bg-purple-100 text-purple-800 ring-purple-200',
-  DELIVERED: 'bg-zinc-100 text-zinc-700 ring-zinc-200',
+  DELIVERED: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
   CANCELLED: 'bg-rose-100 text-rose-800 ring-rose-200',
 };
 
