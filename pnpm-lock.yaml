@@ -21,6 +21,58 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
 
+  apps/copilot:
+    dependencies:
+      '@hir/supabase-types':
+        specifier: workspace:*
+        version: link:../../packages/supabase-types
+      '@hir/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@supabase/supabase-js':
+        specifier: ^2.46.1
+        version: 2.104.1
+      next:
+        specifier: 14.2.18
+        version: 14.2.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.1
+        version: 22.19.17
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.1
+        version: 18.3.7(@types/react@18.3.28)
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.0(postcss@8.5.10)
+      eslint:
+        specifier: ^9.15.0
+        version: 9.39.4(jiti@1.21.7)
+      eslint-config-next:
+        specifier: 14.2.18
+        version: 14.2.18(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
+      postcss:
+        specifier: ^8.4.49
+        version: 8.5.10
+      tailwindcss:
+        specifier: ^3.4.15
+        version: 3.4.19
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+
   apps/restaurant-admin:
     dependencies:
       '@anthropic-ai/sdk':
@@ -50,6 +102,9 @@ importers:
       leaflet.heat:
         specifier: ^0.2.0
         version: 0.2.0
+      lucide-react:
+        specifier: ^0.460.0
+        version: 0.460.0(react@18.3.1)
       next:
         specifier: 14.2.18
         version: 14.2.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

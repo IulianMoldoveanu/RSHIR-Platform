@@ -4,7 +4,8 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, TriangleAlert } from 'lucide-react';
+import { Skeleton } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 
@@ -81,12 +82,16 @@ function TrackInner({
   );
 
   if (isLoading) {
-    return <p className="text-sm text-zinc-500">{t(locale, 'track.loading')}</p>;
+    return <TrackSkeleton />;
   }
   if (error || !data?.order) {
     return (
-      <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-        {t(locale, 'track.not_found')}
+      <div
+        role="alert"
+        className="flex items-start gap-3 rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"
+      >
+        <TriangleAlert className="h-5 w-5 flex-none" aria-hidden />
+        <p>{t(locale, 'track.not_found')}</p>
       </div>
     );
   }
@@ -464,6 +469,39 @@ function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
           : t(locale, 'track.cancel_button')}
       </button>
     </section>
+  );
+}
+
+function TrackSkeleton() {
+  return (
+    <div className="space-y-5" aria-busy="true" aria-live="polite">
+      <header className="space-y-1">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-7 w-44" />
+        <Skeleton className="h-3 w-20" />
+      </header>
+      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+        <Skeleton className="mb-2 h-3 w-28" />
+        <Skeleton className="h-5 w-48" />
+        <ol className="mt-4 space-y-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <li key={i} className="flex items-center gap-3">
+              <Skeleton className="h-6 w-6 rounded-full" />
+              <Skeleton className="h-3 flex-1 max-w-40" />
+            </li>
+          ))}
+        </ol>
+      </section>
+      <Skeleton className="h-12 w-full rounded-full" />
+      <section className="rounded-xl border border-zinc-200 bg-white p-4">
+        <Skeleton className="mb-3 h-3 w-20" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
+      </section>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   Button,
+  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -11,6 +12,7 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
+import { BookOpen } from 'lucide-react';
 import { PencilIcon, TrashIcon } from './icons';
 import {
   bulkToggleAvailabilityAction,
@@ -185,7 +187,21 @@ export function ItemsPanel({
 
       <div className="rounded-md border border-zinc-200 bg-white">
         {filtered.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-500">Niciun produs.</p>
+          <EmptyState
+            className="border-0 bg-transparent"
+            icon={<BookOpen className="h-10 w-10" />}
+            title={search ? 'Niciun produs nu se potrivește căutării.' : 'Niciun produs încă.'}
+            description={
+              search
+                ? 'Încearcă alt termen sau șterge filtrele.'
+                : 'Adaugă primul produs din meniu sau importă rapid din CSV/imagine.'
+            }
+            action={
+              !search && categories.length > 0 ? (
+                <Button onClick={() => setCreating(true)}>+ Produs nou</Button>
+              ) : undefined
+            }
+          />
         ) : (
           <table className="w-full text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs text-zinc-500">

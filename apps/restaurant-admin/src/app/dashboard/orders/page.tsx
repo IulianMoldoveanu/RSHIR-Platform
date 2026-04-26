@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { Receipt } from 'lucide-react';
+import { EmptyState } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { OrdersRealtime } from './orders-realtime';
@@ -154,9 +156,12 @@ export default async function OrdersPage({
       </header>
 
       {rows.length === 0 ? (
-        <div className="flex h-48 items-center justify-center rounded-md border border-dashed border-zinc-300 bg-white text-sm text-zinc-500">
-          Nicio comanda pentru filtrul curent.
-        </div>
+        <EmptyState
+          icon={<Receipt className="h-10 w-10" />}
+          title="Nicio comandă pentru filtrul curent."
+          description="Comenzile noi apar aici imediat ce un client plasează prima comandă."
+          hint='Filtrul curent: schimbă-l în "Toate" pentru a vedea istoricul complet.'
+        />
       ) : (
         <div className="flex flex-col gap-6">
           {groupsToRender.map((status) => {

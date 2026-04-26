@@ -79,9 +79,10 @@ export function CartPill({
 
           <div className="flex-1 overflow-y-auto px-5 pb-2">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-zinc-500">
-                <ShoppingBag className="h-8 w-8" />
-                <p className="text-sm">{t(locale, 'cart.empty')}</p>
+              <div className="flex flex-col items-center gap-2 py-10 text-center text-zinc-500">
+                <ShoppingBag className="h-10 w-10 text-zinc-300" />
+                <p className="text-sm font-semibold text-zinc-800">{t(locale, 'cart.empty')}</p>
+                <p className="max-w-xs text-xs text-zinc-500">{t(locale, 'cart.empty_hint')}</p>
               </div>
             ) : (
               <ul className="divide-y divide-zinc-100">
