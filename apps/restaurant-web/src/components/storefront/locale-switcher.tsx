@@ -51,7 +51,7 @@ export function LocaleSwitcher({
             onClick={() => pick(opt.value)}
             disabled={pending}
             aria-pressed={selected}
-            className={`flex h-7 items-center gap-1 rounded-full px-2 font-medium transition-colors ${
+            className={`flex h-9 items-center gap-1 rounded-full px-3 font-medium transition-colors ${
               selected
                 ? 'bg-zinc-900 text-white'
                 : 'text-zinc-600 hover:text-zinc-900'

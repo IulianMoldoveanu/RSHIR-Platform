@@ -125,7 +125,7 @@ export function TenantHeader({
             href={whatsappOrderUrl(whatsappPhone, name, locale)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-10 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
+            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
           >
             <MessageCircle className="h-4 w-4" />
             <span className="hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>

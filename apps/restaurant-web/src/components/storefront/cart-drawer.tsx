@@ -117,7 +117,7 @@ export function CartPill({
                             <button
                               type="button"
                               onClick={() => updateQty(it.lineId, it.qty - 1)}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
+                              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
                               aria-label={t(locale, 'cart.decrease')}
                             >
                               <Minus className="h-3 w-3" />
@@ -128,7 +128,7 @@ export function CartPill({
                             <button
                               type="button"
                               onClick={() => updateQty(it.lineId, it.qty + 1)}
-                              className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
+                              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
                               aria-label={t(locale, 'cart.increase')}
                             >
                               <Plus className="h-3 w-3" />
@@ -142,7 +142,7 @@ export function CartPill({
                       <button
                         type="button"
                         onClick={() => removeItem(it.lineId)}
-                        className="self-start text-zinc-400 hover:text-red-600"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-red-600"
                         aria-label={t(locale, 'cart.remove')}
                       >
                         <Trash2 className="h-4 w-4" />
