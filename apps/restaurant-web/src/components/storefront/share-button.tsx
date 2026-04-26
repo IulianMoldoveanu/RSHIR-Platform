@@ -1,5 +1,5 @@
 'use client';
-import { Share2 } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 
 type Props = {
   text: string;
@@ -18,10 +18,10 @@ export function WhatsAppShareButton({ text, url, className, label }: Props) {
       rel="noopener noreferrer"
       className={
         className ??
-        'inline-flex items-center gap-1.5 rounded-full border border-emerald-600 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50'
+        'inline-flex h-10 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-800 shadow-sm transition-all hover:scale-[1.02] hover:bg-emerald-100 active:scale-[0.98] motion-reduce:hover:scale-100 motion-reduce:active:scale-100'
       }
     >
-      <Share2 className="h-3.5 w-3.5" />
+      <MessageCircle className="h-4 w-4" />
       {label}
     </a>
   );
