@@ -57,6 +57,9 @@ export const dictionaries = {
       popular_top: 'Cel mai comandat',
       popular_rank_template: 'Top {rank}',
     },
+    reorder: {
+      rail_title: 'Comandă din nou',
+    },
     cart: {
       title: 'Coșul tău',
       products_count_template: '{count} produse',
@@ -304,6 +307,9 @@ export const dictionaries = {
       add_short: 'Add',
       popular_top: 'Most ordered',
       popular_rank_template: 'Top {rank}',
+    },
+    reorder: {
+      rail_title: 'Order again',
     },
     cart: {
       title: 'Your cart',

@@ -2,11 +2,12 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
-import { getMenuByTenant } from '@/lib/menu';
+import { getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
 import { MenuList } from '@/components/storefront/menu-list';
+import { ReorderRail } from '@/components/storefront/reorder-rail';
 import {
   formatNextOpen,
   isAcceptingOrders,
@@ -57,7 +58,11 @@ export default async function StorefrontHomePage() {
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const closed = !accepting || !openStatus.open;
-  const hasCustomerCookie = readCustomerCookie(tenant.id) !== null;
+  const customerId = readCustomerCookie(tenant.id);
+  const hasCustomerCookie = customerId !== null;
+  const reorderItems = customerId
+    ? await getRecentlyOrderedItems(tenant.id, customerId, menu)
+    : [];
 
   const baseUrl = tenantBaseUrl();
   const pickupAddress =
@@ -146,6 +151,12 @@ export default async function StorefrontHomePage() {
             <p className="font-medium">{banner.title}</p>
             {banner.detail && <p className="mt-0.5 text-xs">{banner.detail}</p>}
           </div>
+        </div>
+      )}
+
+      {reorderItems.length > 0 && !closed && (
+        <div className="mx-auto max-w-2xl">
+          <ReorderRail items={reorderItems} locale={locale} />
         </div>
       )}
 

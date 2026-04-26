@@ -167,6 +167,52 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
 }
 
 /**
+ * Returns up to N items from the customer's most recent orders at this tenant
+ * — newest first, deduped, restricted to items still on the live menu.
+ * Used by the storefront home to render a "Comandă din nou" rail for
+ * returning customers (cookie-recognized, not auth).
+ */
+export async function getRecentlyOrderedItems(
+  tenantId: string,
+  customerId: string,
+  menu: MenuCategory[],
+  limit = 5,
+): Promise<MenuItemWithModifiers[]> {
+  const supabase = getSupabase();
+  const { data: orders } = await supabase
+    .from('restaurant_orders')
+    .select('items, created_at')
+    .eq('tenant_id', tenantId)
+    .eq('customer_id', customerId)
+    .neq('status', 'CANCELLED')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  const liveById = new Map<string, MenuItemWithModifiers>();
+  for (const c of menu) {
+    for (const it of c.items) {
+      if (it.is_available) liveById.set(it.id, it);
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: MenuItemWithModifiers[] = [];
+  const rows = (orders ?? []) as Array<{ items: unknown }>;
+  for (const o of rows) {
+    const items = Array.isArray(o.items) ? (o.items as Array<{ itemId?: string }>) : [];
+    for (const li of items) {
+      if (!li || typeof li.itemId !== 'string' || seen.has(li.itemId)) continue;
+      const live = liveById.get(li.itemId);
+      if (!live) continue;
+      seen.add(li.itemId);
+      out.push(live);
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/**
  * Look up an item by short-id prefix (first 8 hex chars of UUID, no dashes).
  * Tenant-scoped. Returns null on no/multiple matches.
  */
