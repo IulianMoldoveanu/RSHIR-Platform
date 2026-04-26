@@ -3,11 +3,12 @@
 Tracks the autonomous polish session against `docs/UI_UX_AUDIT.md`.
 Last updated: 2026-04-26.
 
-## Shipped (23 commits on `main`)
+## Shipped (25 commits on `main`)
 
 Latest additions over the original tracker:
 - `ce7c3ea` — Inter via next/font on both apps + Tailwind preset wired (audit §Typography ✅).
 - `1e0aab0` — Admin menu items: 192px image hover preview + ImageOff dashed-amber badge for missing images (§9 P1 ✅).
+- `9353482` — Sidebar grouping into 6 sections via `<details>` (Bigger Bet #2 final ✅).
 
 `§8 P1 sound + tab-title flash` was discovered to be **already implemented**
 in `orders-realtime.tsx` (WebAudio chime + `(N)` title increment) — no
@@ -17,7 +18,7 @@ work needed; the original audit missed it.
 | # | Title | Status |
 |---|---|---|
 | 1 | Vertical menu list + sticky category tabs | ✅ shipped — `e01ad17` |
-| 2 | Admin sidebar v2 (icons + active state + mobile drawer) | ✅ partial — icons + active state + mobile sidebar shipped (`6a3425d`, `682c653`, `d2bfb23`); grouping into 6 sections with `<details>` accordion deferred |
+| 2 | Admin sidebar v2 (icons + active state + mobile drawer + grouping) | ✅ shipped — `682c653` active state + `6a3425d` icons + `d2bfb23` mobile drawer + `9353482` grouped sections |
 | 3 | Order tracking timeline | ✅ shipped — `c4072a1` |
 | 4 | Dashboard home with live KPIs + active orders | ✅ shipped — `6a3425d` |
 | 5 | One-screen checkout | ⏳ deferred (post-pilot per audit recommendation) |
@@ -42,7 +43,7 @@ work needed; the original audit missed it.
 - **§3 Cart drawer:** P1 cart pill copy "{count} produse · {total}" ✅; P2 WhatsApp share moved out of cart footer ✅; P2 empty-state copy nudge ✅. *Deferred:* P2 cart pill thumbnail.
 - **§4 Checkout:** P1 step indicator filled progress bars ✅; P1 "Continuă" copy ✅; Q10 live total ✅. *Deferred:* P0 sticky-bottom CTA on mobile, P0 cart-summary collapsible accordion, P1 inline geocode feedback (display_name not coords), P1 promo collapsible inside cart summary, P2 raw `<input>` consolidation.
 - **§5 Track:** P0 vertical timeline ✅; P0 ETA ✅; P1 tel above totals ✅; P1 status colors switched to brand purple ✅; P2 ★ → lucide Star ✅. *Deferred:* P2 PICKUP map.
-- **§6 Sidebar:** P0 grouping with icons (icons ✅; grouping deferred); P0 active-state indicator ✅; P1 smaller header (HIR mark + wordmark) ✅; P1 "Vezi storefront" link ✅; P2 mobile responsiveness ✅.
+- **§6 Sidebar:** P0 grouping with icons ✅; P0 active-state indicator ✅; P1 smaller header (HIR mark + wordmark) ✅; P1 "Vezi storefront" link ✅; P2 mobile responsiveness ✅. **Bigger Bet #2 fully complete.**
 - **§7 Dashboard home:** P0 4 KPI cards ✅; P0 active orders panel ✅; P1 max-w-6xl wrapper ✅; P1 "Vezi raport complet →" button ✅. *Deferred:* P2 "Anunț de la HIR" slot.
 - **§8 Orders queue:** P0 row-level Link wrap ✅; P0 stale-PENDING danger threshold ✅; P1 item count column ✅; P1 conditional pill (hide when grouped) ✅. *Deferred:* P1 sound + tab title flash, P2 kanban toggle, P2 CSV filename hint (already implemented earlier).
 - **§9 Menu management:** P0 "Epuizat azi" → toggle icon ✅; P1 search icon ✅; P1 image hover preview + missing-image dashed-amber badge ✅; P2 confirm() → Dialog ✅. *Deferred:* P0 drag-to-reorder, P1 inline-editable price, P2 sticky bulk action bar.
@@ -70,7 +71,7 @@ visual polish pass:
 <!-- §8 P1 sound + tab-title flash: already shipped in orders-realtime.tsx, audit was outdated -->
 - **§9 P0 Drag-to-reorder** — needs `@dnd-kit/sortable` and a server action. Worth a focused pass.
 - **§9 P1 Inline-editable price** — small mutation flow. Nice next batch.
-- **Mobile-sidebar grouping (§6 P0 grouping):** Icons + active-state shipped; grouping items into 6 collapsible sections with `<details>` was scoped out so the flat list keeps working. Worth a separate pass with copy review.
+<!-- §6 P0 grouping: shipped in 9353482 -->
 <!-- Typography (Inter): shipped in ce7c3ea -->
 
 ## Scripts / artifacts
