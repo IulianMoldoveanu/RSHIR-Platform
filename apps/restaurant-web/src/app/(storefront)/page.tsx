@@ -162,6 +162,26 @@ export default async function StorefrontHomePage() {
           <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <p className="font-medium">{banner.title}</p>
             {banner.detail && <p className="mt-0.5 text-xs">{banner.detail}</p>}
+            {phone && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <a
+                  href={`tel:${phone}`}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-medium text-amber-900 ring-1 ring-amber-300 transition-colors hover:bg-amber-100"
+                >
+                  {t(locale, 'home.banner_call_template', { phone })}
+                </a>
+                {tenant.settings.whatsapp_phone && (
+                  <a
+                    href={`https://wa.me/${(tenant.settings.whatsapp_phone ?? '').replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                  >
+                    {t(locale, 'home.banner_whatsapp')}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
