@@ -406,9 +406,24 @@ export function CartPill({
                           // route the user back here, which is recoverable.
                         }
                       }}
-                      className="flex w-full items-center justify-center rounded-full bg-[var(--hir-brand)] px-5 py-3.5 text-sm font-semibold text-white hover:opacity-90"
+                      className="group flex w-full items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] hover:shadow-md active:scale-[0.99] motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
                     >
-                      {t(locale, 'cart.continue_checkout')}
+                      <span>{t(locale, 'cart.continue_checkout')}</span>
+                      <span className="ml-2 inline-flex items-center gap-1.5 tabular-nums">
+                        {formatRon(subtotal - previewDiscountRon, locale)}
+                        <svg
+                          aria-hidden
+                          className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M5 12h14M13 5l7 7-7 7" />
+                        </svg>
+                      </span>
                     </Link>
                   )}
                   {closedReason && (
