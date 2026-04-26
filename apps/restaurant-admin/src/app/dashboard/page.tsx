@@ -8,6 +8,7 @@ import { getActiveTenant } from '@/lib/tenant';
 import { PolishChecklist } from './polish-checklist';
 import { KpiCards } from './kpi-cards';
 import { ActiveOrdersPanel } from './active-orders-panel';
+import { CodPendingPanel } from './cod-pending-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +72,10 @@ export default async function DashboardOverviewPage({
 
       <Suspense fallback={<KpiSkeleton />}>
         <KpiCards tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <CodPendingPanel tenantId={tenant.id} />
       </Suspense>
 
       <Suspense fallback={<ActiveSkeleton />}>
