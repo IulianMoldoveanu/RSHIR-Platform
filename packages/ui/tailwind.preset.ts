@@ -15,7 +15,11 @@ const preset: Partial<Config> = {
     },
     extend: {
       fontFamily: {
+        // Apps wire `next/font` (Inter) into html className with
+        // variable: '--font-sans'; we fall back to the system stack so
+        // first paint never sees an unstyled Times-New-Roman.
         sans: [
+          'var(--font-sans)',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
