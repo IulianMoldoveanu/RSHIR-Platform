@@ -82,9 +82,23 @@ export function CheckoutClient(props: {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
 
-  // Address
+  // Address — Romanian apartment-block deliveries reliably need
+  // bloc/scară/etaj/apartament as discrete fields (couriers use them
+  // to actually find the door). We surface 4 short inputs and pack
+  // them into the API's `line2` string at submit time.
   const [line1, setLine1] = useState('');
-  const [line2, setLine2] = useState('');
+  const [aptBlock, setAptBlock] = useState('');
+  const [aptStair, setAptStair] = useState('');
+  const [aptFloor, setAptFloor] = useState('');
+  const [aptUnit, setAptUnit] = useState('');
+  const line2 = useMemo(() => {
+    const parts: string[] = [];
+    if (aptBlock.trim()) parts.push(`Bl. ${aptBlock.trim()}`);
+    if (aptStair.trim()) parts.push(`Sc. ${aptStair.trim()}`);
+    if (aptFloor.trim()) parts.push(`Et. ${aptFloor.trim()}`);
+    if (aptUnit.trim()) parts.push(`Ap. ${aptUnit.trim()}`);
+    return parts.join(', ');
+  }, [aptBlock, aptStair, aptFloor, aptUnit]);
   const [city, setCity] = useState('Brașov');
   const [postalCode, setPostalCode] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -401,9 +415,41 @@ export function CheckoutClient(props: {
             <Field label={t(locale, 'checkout.field_street')}>
               <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
             </Field>
-            <Field label={t(locale, 'checkout.field_apt')}>
-              <input className={inputCls} value={line2} onChange={(e) => setLine2(e.target.value)} />
-            </Field>
+            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
+              <span className="text-xs font-medium text-zinc-700">
+                {t(locale, 'checkout.field_apt_group')}
+              </span>
+              <div className="grid grid-cols-4 gap-2">
+                <input
+                  className={inputCls}
+                  value={aptBlock}
+                  onChange={(e) => setAptBlock(e.target.value)}
+                  aria-label={t(locale, 'checkout.field_apt_block')}
+                  placeholder={t(locale, 'checkout.field_apt_block')}
+                />
+                <input
+                  className={inputCls}
+                  value={aptStair}
+                  onChange={(e) => setAptStair(e.target.value)}
+                  aria-label={t(locale, 'checkout.field_apt_stair')}
+                  placeholder={t(locale, 'checkout.field_apt_stair')}
+                />
+                <input
+                  className={inputCls}
+                  value={aptFloor}
+                  onChange={(e) => setAptFloor(e.target.value)}
+                  aria-label={t(locale, 'checkout.field_apt_floor')}
+                  placeholder={t(locale, 'checkout.field_apt_floor')}
+                />
+                <input
+                  className={inputCls}
+                  value={aptUnit}
+                  onChange={(e) => setAptUnit(e.target.value)}
+                  aria-label={t(locale, 'checkout.field_apt_unit')}
+                  placeholder={t(locale, 'checkout.field_apt_unit')}
+                />
+              </div>
+            </label>
             <Field label={t(locale, 'checkout.field_city')}>
               <input className={inputCls} value={city} onChange={(e) => setCity(e.target.value)} required />
             </Field>
