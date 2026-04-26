@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { MessageCircle, Star, TriangleAlert } from 'lucide-react';
+import { Banknote, MessageCircle, Star, TriangleAlert } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ type TrackOrder = {
   id: string;
   status: string;
   paymentStatus: string;
+  paymentMethod: 'CARD' | 'COD' | null;
   items: OrderItem[];
   subtotalRon: number;
   deliveryFeeRon: number;
@@ -130,6 +131,19 @@ function TrackInner({
             : (order.tenant?.deliveryEtaMinutes ?? null)
         }
       />
+
+      {order.paymentMethod === 'COD' &&
+        order.paymentStatus === 'UNPAID' &&
+        order.status !== 'CANCELLED' && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <Banknote className="mt-0.5 h-5 w-5 flex-none text-emerald-600" aria-hidden />
+            <p>
+              {t(locale, 'track.cod_reminder_template', {
+                amount: formatRon(order.totalRon, locale),
+              })}
+            </p>
+          </div>
+        )}
 
       {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
         <a
