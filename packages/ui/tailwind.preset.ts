@@ -30,6 +30,20 @@ const preset: Partial<Config> = {
           'sans-serif',
         ],
       },
+      keyframes: {
+        // Shimmer overlay for skeleton loaders. The :before pseudo is a
+        // translucent gradient strip; we slide it across the element via
+        // translateX(-100% → 200%) for a soft shine. Paired with
+        // animate-pulse so reduced-motion still gets the gentle opacity
+        // pulse via Tailwind's motion-reduce: variant on the :before.
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(200%)' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 2.2s linear infinite',
+      },
     },
   },
   plugins: [animate],
