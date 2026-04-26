@@ -61,6 +61,7 @@ type OrderRow = {
   id: string;
   status: OrderStatus;
   source: OrderSource | null;
+  payment_method: 'CARD' | 'COD' | null;
   total_ron: number;
   created_at: string;
   delivery_address_id: string | null;
@@ -134,7 +135,7 @@ export default async function OrdersPage({
 
   let q = admin
     .from('restaurant_orders')
-    .select('id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
+    .select('id, status, source, payment_method, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
     .eq('tenant_id', tenant.id)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -239,6 +240,11 @@ export default async function OrdersPage({
                             {o.source && o.source !== 'INTERNAL_STOREFRONT' && (
                               <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800 ring-1 ring-inset ring-sky-200">
                                 {SOURCE_LABEL[o.source]}
+                              </span>
+                            )}
+                            {o.payment_method === 'COD' && (
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                                Cash
                               </span>
                             )}
                           </div>

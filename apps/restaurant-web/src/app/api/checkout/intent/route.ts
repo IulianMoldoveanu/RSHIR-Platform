@@ -41,6 +41,14 @@ export async function POST(req: Request) {
     }
   }
 
+  // Server-enforce cod_enabled (UI hides the radio when off).
+  if (parsed.data.paymentMethod === 'COD') {
+    const codEnabled = (tenant.settings as Record<string, unknown> | null)?.cod_enabled;
+    if (codEnabled !== true) {
+      return NextResponse.json({ error: 'cod_disabled' }, { status: 422 });
+    }
+  }
+
   const admin = getSupabaseAdmin();
 
   const quoted = await computeQuote(
@@ -126,7 +134,11 @@ export async function POST(req: Request) {
       payment_status: 'UNPAID',
       promo_code_id: q.promo?.id ?? null,
       discount_ron: q.discountRon,
-    })
+      // payment_method column shipped in 20260504_001_orders_payment_method.sql.
+      // Cast through `as never` until supabase-types regenerates from the
+      // post-migration schema.
+      payment_method: parsed.data.paymentMethod,
+    } as never)
     .select('id, public_track_token, total_ron')
     .single();
   if (orderErr || !order) {
@@ -189,6 +201,21 @@ export async function POST(req: Request) {
     notes: parsed.data.notes ?? null,
   });
 
+  // COD: skip Stripe entirely. Order is PENDING/UNPAID; the restaurant
+  // collects cash on delivery and the admin marks payment_status PAID
+  // post-delivery (manually or via the courier app's complete-order flow).
+  // The customer skips the payment step on the client and lands on /track.
+  if (parsed.data.paymentMethod === 'COD') {
+    const res = NextResponse.json({
+      orderId: order.id,
+      publicTrackToken: order.public_track_token,
+      paymentMethod: 'COD',
+      quote: q,
+    });
+    maybeSetCustomerCookie(res, tenant.id, customer.id);
+    return res;
+  }
+
   const stripe = getStripe();
   const intent = await stripe.paymentIntents.create(
     {
@@ -212,6 +239,7 @@ export async function POST(req: Request) {
   const res = NextResponse.json({
     orderId: order.id,
     publicTrackToken: order.public_track_token,
+    paymentMethod: 'CARD',
     clientSecret: intent.client_secret,
     quote: q,
   });

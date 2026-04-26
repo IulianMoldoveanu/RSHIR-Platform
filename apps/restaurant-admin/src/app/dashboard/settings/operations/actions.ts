@@ -20,6 +20,9 @@ export type OperationsSettings = {
   // means "not configured" — falls back to the hardcoded /track default.
   delivery_eta_min_minutes: number;
   delivery_eta_max_minutes: number;
+  // Cash-on-delivery (B9). When true, storefront checkout exposes a "Cash"
+  // payment option that skips Stripe entirely.
+  cod_enabled: boolean;
   opening_hours: Record<DayKey, { open: string; close: string }[]>;
 };
 
@@ -134,6 +137,7 @@ export async function saveOperationsAction(
     free_delivery_threshold_ron: Math.round(freeThreshold * 100) / 100,
     delivery_eta_min_minutes: Math.round(etaMin),
     delivery_eta_max_minutes: Math.round(safeMax),
+    cod_enabled: input.cod_enabled === true,
     opening_hours: sanitizeHours(input.opening_hours),
   };
 

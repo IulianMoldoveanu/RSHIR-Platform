@@ -44,6 +44,8 @@ export const quoteRequestSchema = z
     path: ['address'],
   });
 
+export const paymentMethodSchema = z.enum(['CARD', 'COD']);
+
 export const intentRequestSchema = z
   .object({
     items: z.array(cartItemSchema).min(1).max(50),
@@ -52,6 +54,7 @@ export const intentRequestSchema = z
     customer: customerSchema,
     notes: z.string().trim().max(500).optional().or(z.literal('')),
     promoCode: promoCodeField,
+    paymentMethod: paymentMethodSchema.default('CARD'),
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',

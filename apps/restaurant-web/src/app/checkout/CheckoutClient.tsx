@@ -38,9 +38,13 @@ type Quote = {
 type IntentResponse = {
   orderId: string;
   publicTrackToken: string;
-  clientSecret: string;
+  paymentMethod: 'CARD' | 'COD';
+  /** Only set when paymentMethod === 'CARD'. */
+  clientSecret?: string;
   quote: Quote;
 };
+
+type PaymentMethod = 'CARD' | 'COD';
 
 type PromoFailureReason =
   | 'not_found'
@@ -79,14 +83,18 @@ export function CheckoutClient(props: {
   pickupAddress: string | null;
   pickupLat: number | null;
   pickupLng: number | null;
+  codEnabled: boolean;
   locale: Locale;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
-  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng } = props;
+  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled } = props;
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
+  // Default 'CARD' so existing tenants and tenants without COD configured
+  // see the unchanged Stripe flow. The radio only appears when codEnabled.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
 
   // Customer
   const [firstName, setFirstName] = useState('');
@@ -275,6 +283,7 @@ export function CheckoutClient(props: {
         fulfillment,
         customer: { firstName, lastName, phone: phone ? `+40${phone}` : '', email },
         notes,
+        paymentMethod,
         ...(appliedPromo ? { promoCode: appliedPromo.code } : {}),
       };
       if (fulfillment === 'DELIVERY') {
@@ -311,7 +320,17 @@ export function CheckoutClient(props: {
         );
         return;
       }
-      setIntent(data as IntentResponse);
+      const response = data as IntentResponse;
+      setIntent(response);
+      // COD orders skip the Stripe step entirely. Order is already PENDING
+      // in the DB; the customer goes straight to /track and the restaurant
+      // confirms via the admin UI.
+      if (response.paymentMethod === 'COD') {
+        sessionStorage.removeItem(CART_STORAGE_KEY);
+        writeStoredPromo(null);
+        router.push(`/track/${response.publicTrackToken}`);
+        return;
+      }
       setStep('payment');
     } catch (err) {
       setError((err as Error).message);
@@ -540,6 +559,25 @@ export function CheckoutClient(props: {
           </Field>
         </Section>
 
+        {codEnabled && (
+          <Section title={t(locale, 'checkout.section_payment_method')}>
+            <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2">
+              <PaymentMethodChip
+                active={paymentMethod === 'CARD'}
+                onClick={() => setPaymentMethod('CARD')}
+                title={t(locale, 'checkout.payment_method_card')}
+                hint={t(locale, 'checkout.payment_method_card_hint')}
+              />
+              <PaymentMethodChip
+                active={paymentMethod === 'COD'}
+                onClick={() => setPaymentMethod('COD')}
+                title={t(locale, 'checkout.payment_method_cod')}
+                hint={t(locale, 'checkout.payment_method_cod_hint')}
+              />
+            </div>
+          </Section>
+        )}
+
         <PromoBox
           locale={locale}
           input={promoInput}
@@ -593,14 +631,21 @@ export function CheckoutClient(props: {
             >
               {working
                 ? t(locale, 'checkout.preparing_payment')
-                : t(locale, 'checkout.pay_template', { amount: formatRon(quote.totalRon, locale) })}
+                : paymentMethod === 'COD'
+                  ? t(locale, 'checkout.place_order_cod_template', {
+                      amount: formatRon(quote.totalRon, locale),
+                    })
+                  : t(locale, 'checkout.pay_template', {
+                      amount: formatRon(quote.totalRon, locale),
+                    })}
             </button>
           </div>
         </Section>
       )}
 
-      {/* STEP 3: payment */}
-      {step === 'payment' && intent && (
+      {/* STEP 3: payment (CARD only — COD short-circuits to /track from
+          handleProceedToPayment, never lands on this step). */}
+      {step === 'payment' && intent && intent.clientSecret && (
         <Section title={t(locale, 'checkout.section_payment')}>
           <Elements stripe={stripePromise} options={{ clientSecret: intent.clientSecret, locale }}>
             <PaymentForm
@@ -623,6 +668,34 @@ export function CheckoutClient(props: {
 
 const inputCls =
   'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500';
+
+function PaymentMethodChip({
+  active,
+  onClick,
+  title,
+  hint,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-3 text-left transition-colors ${
+        active
+          ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-200'
+          : 'border-zinc-200 bg-white hover:bg-zinc-50'
+      }`}
+    >
+      <span className="text-sm font-semibold text-zinc-900">{title}</span>
+      <span className="text-xs text-zinc-600">{hint}</span>
+    </button>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

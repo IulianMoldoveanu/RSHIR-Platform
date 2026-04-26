@@ -15,6 +15,7 @@ const DEFAULTS: OperationsSettings = {
   free_delivery_threshold_ron: 0,
   delivery_eta_min_minutes: 0,
   delivery_eta_max_minutes: 0,
+  cod_enabled: false,
   opening_hours: {
     mon: [{ open: '10:00', close: '22:00' }],
     tue: [{ open: '10:00', close: '22:00' }],
@@ -74,6 +75,7 @@ export default async function OperationsSettingsPage() {
       settings.delivery_eta_max_minutes >= 0
         ? settings.delivery_eta_max_minutes
         : DEFAULTS.delivery_eta_max_minutes,
+    cod_enabled: typeof settings.cod_enabled === 'boolean' ? settings.cod_enabled : DEFAULTS.cod_enabled,
     opening_hours:
       settings.opening_hours && typeof settings.opening_hours === 'object'
         ? { ...DEFAULTS.opening_hours, ...(settings.opening_hours as OperationsSettings['opening_hours']) }

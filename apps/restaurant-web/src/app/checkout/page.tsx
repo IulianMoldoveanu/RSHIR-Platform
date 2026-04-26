@@ -16,6 +16,7 @@ export default async function CheckoutPage() {
   const tenantPhone = readPhone(tenant.settings) ?? '';
   const pickup = readPickup(tenant.settings);
   const { logoUrl } = brandingFor(tenant.settings);
+  const codEnabled = tenant.settings.cod_enabled === true;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
@@ -54,6 +55,7 @@ export default async function CheckoutPage() {
         pickupAddress={pickup.address}
         pickupLat={pickup.lat}
         pickupLng={pickup.lng}
+        codEnabled={codEnabled}
         locale={locale}
       />
     </main>

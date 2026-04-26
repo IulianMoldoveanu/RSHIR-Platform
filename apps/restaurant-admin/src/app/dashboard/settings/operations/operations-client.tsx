@@ -29,6 +29,7 @@ export function OperationsClient({
   const [eta, setEta] = useState(String(initial.pickup_eta_minutes));
   const [pickupEnabled, setPickupEnabled] = useState(initial.pickup_enabled);
   const [pickupAddress, setPickupAddress] = useState(initial.pickup_address ?? '');
+  const [codEnabled, setCodEnabled] = useState(initial.cod_enabled);
   const [minOrder, setMinOrder] = useState(String(initial.min_order_ron));
   const [freeThreshold, setFreeThreshold] = useState(String(initial.free_delivery_threshold_ron));
   const [etaMin, setEtaMin] = useState(String(initial.delivery_eta_min_minutes));
@@ -93,6 +94,7 @@ export function OperationsClient({
           free_delivery_threshold_ron: freeThresholdNum,
           delivery_eta_min_minutes: etaMinNum,
           delivery_eta_max_minutes: etaMaxNum,
+          cod_enabled: codEnabled,
           opening_hours: hours,
         },
         tenantId,
@@ -188,6 +190,24 @@ export function OperationsClient({
             Adresa pe care o vede clientul când alege ridicare personală.
           </p>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Metode de plată</h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Plata cu cardul (prin Stripe) e activă mereu. Activează plata cash dacă acceptați
+          ramburs la livrare — clienții români îl preferă pentru prima comandă.
+        </p>
+        <label className="mt-3 inline-flex items-center gap-3">
+          <input
+            type="checkbox"
+            disabled={!canEdit}
+            checked={codEnabled}
+            onChange={(e) => setCodEnabled(e.target.checked)}
+            className="h-4 w-4"
+          />
+          <span className="text-sm text-zinc-900">Acceptăm plată cash la livrare</span>
+        </label>
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-5">

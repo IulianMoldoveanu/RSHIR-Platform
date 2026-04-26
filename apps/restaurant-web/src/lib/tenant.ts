@@ -20,6 +20,10 @@ export type TenantSettings = {
   free_delivery_threshold_ron?: number;
   delivery_eta_min_minutes?: number;
   delivery_eta_max_minutes?: number;
+  // Cash-on-delivery toggle. When true, checkout shows a Card / Cash radio
+  // and Cash skips the Stripe payment intent entirely. Default false to
+  // keep existing tenants on the card-only flow.
+  cod_enabled?: boolean;
 };
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';
