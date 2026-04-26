@@ -1,8 +1,15 @@
 /**
- * Typed client for the HIR Delivery API (provided by pharmacy-saas-phase1's
- * NestJS public API: POST /public/v1/orders, etc.).
+ * Typed HTTP client for an external courier-dispatch service.
  *
- * Sprint 1: TYPE SIGNATURES ONLY. Implementations throw — Sprint 4 wires them up.
+ * The contract is intentionally vendor-neutral — the same interface served
+ * pharmacy-saas-phase1's NestJS API (Sprint 1 stub) and now serves the new
+ * RSHIR courier app. Each adapter just maps these fields to its own payload
+ * shape on the wire.
+ *
+ * The HIR-side caller never sees vendor-specific details: it builds the
+ * CreateDeliveryOrderInput and gets back a DeliveryOrder with a stable
+ * `externalOrderId` echoed for correlation, plus the courier service's
+ * own id + tracking token.
  */
 
 export type DeliveryOrderItem = {
@@ -34,6 +41,8 @@ export type CreateDeliveryOrderInput = {
   items: DeliveryOrderItem[];
   totalRon: number;
   deliveryFeeRon: number;
+  /** 'CARD' = paid online, 'COD' = courier collects cash. */
+  paymentMethod?: 'CARD' | 'COD';
   notes?: string;
 };
 
@@ -62,25 +71,74 @@ export interface HirDeliveryClient {
 }
 
 export type HirDeliveryClientConfig = {
-  baseUrl: string; // e.g. https://pharmacy-api-production-baa6.up.railway.app
-  apiKey: string;  // tenant API key (TenantApiKey table on pharma-api)
+  /** e.g. https://courier-beta-seven.vercel.app */
+  baseUrl: string;
+  /** Bearer token issued by the courier service to this restaurant tenant. */
+  apiKey: string;
+  /** Optional path prefix override; defaults to /api/external/orders. */
+  pathPrefix?: string;
+  /** Optional fetch implementation; defaults to global fetch (Node 18+). */
+  fetch?: typeof fetch;
 };
 
-const NOT_IMPLEMENTED = 'not implemented yet — Sprint 4 wires this to pharmacy-saas-phase1 public API';
+class DeliveryApiError extends Error {
+  constructor(
+    public status: number,
+    public body: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DeliveryApiError';
+  }
+}
 
-/**
- * Returns a stub client whose methods throw. Sprint 4 will replace with the real fetch impl.
- */
-export function createHirDeliveryClient(_config: HirDeliveryClientConfig): HirDeliveryClient {
+export function createHirDeliveryClient(config: HirDeliveryClientConfig): HirDeliveryClient {
+  if (!config.baseUrl) {
+    throw new Error('createHirDeliveryClient: baseUrl is required');
+  }
+  if (!config.apiKey) {
+    throw new Error('createHirDeliveryClient: apiKey is required');
+  }
+  const base = config.baseUrl.replace(/\/$/, '');
+  const prefix = (config.pathPrefix ?? '/api/external/orders').replace(/\/$/, '');
+  const f = config.fetch ?? fetch;
+
+  async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const url = `${base}${prefix}${path}`;
+    const res = await f(url, {
+      method,
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+        authorization: `Bearer ${config.apiKey}`,
+        'user-agent': '@hir/delivery-client',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new DeliveryApiError(
+        res.status,
+        text,
+        `delivery API ${method} ${url} failed: ${res.status} ${text.slice(0, 200)}`,
+      );
+    }
+    return text ? (JSON.parse(text) as T) : ({} as T);
+  }
+
   return {
-    async createOrder(_input) {
-      throw new Error(NOT_IMPLEMENTED);
+    async createOrder(input) {
+      return call<DeliveryOrder>('POST', '', input);
     },
-    async getOrderStatus(_id) {
-      throw new Error(NOT_IMPLEMENTED);
+    async getOrderStatus(deliveryOrderId) {
+      return call<DeliveryOrder>('GET', `/${encodeURIComponent(deliveryOrderId)}`);
     },
-    async cancelOrder(_id, _reason) {
-      throw new Error(NOT_IMPLEMENTED);
+    async cancelOrder(deliveryOrderId, reason) {
+      return call<DeliveryOrder>('POST', `/${encodeURIComponent(deliveryOrderId)}/cancel`, {
+        reason: reason ?? null,
+      });
     },
   };
 }
+
+export { DeliveryApiError };
