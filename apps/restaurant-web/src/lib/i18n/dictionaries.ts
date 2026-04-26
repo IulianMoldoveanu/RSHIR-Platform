@@ -183,6 +183,7 @@ export const dictionaries = {
       reorder: 'Comandă din nou',
       reorder_some_unavailable: 'Unele produse nu mai sunt disponibile și au fost sărite.',
       reorder_none_available: 'Niciun produs din această comandă nu mai este disponibil.',
+      payment_cash: 'Cash la livrare',
     },
     track: {
       loading: 'Se încarcă comanda…',
@@ -446,6 +447,7 @@ export const dictionaries = {
       reorder: 'Order again',
       reorder_some_unavailable: 'Some items are no longer available and were skipped.',
       reorder_none_available: 'None of the items from this order are available right now.',
+      payment_cash: 'Cash on delivery',
     },
     track: {
       loading: 'Loading order…',

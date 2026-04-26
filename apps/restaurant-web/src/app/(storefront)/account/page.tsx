@@ -25,6 +25,8 @@ type OrderRow = {
   total_ron: number;
   items: OrderItem[];
   public_track_token: string;
+  payment_method: 'CARD' | 'COD' | null;
+  payment_status: string | null;
 };
 
 function formatDate(iso: string, locale: Locale): string {
@@ -46,20 +48,36 @@ function summarizeItems(items: OrderItem[]): { names: string; more: number } {
 
 async function loadRecentOrders(tenantId: string, customerId: string): Promise<OrderRow[]> {
   const admin = getSupabaseAdmin();
-  const { data, error } = await admin
-    .from('restaurant_orders')
-    .select('id, created_at, total_ron, items, public_track_token')
-    .eq('tenant_id', tenantId)
-    .eq('customer_id', customerId)
-    .order('created_at', { ascending: false })
-    .limit(10);
+  // Defensive SELECT: try with payment_method (20260504_001 column); on
+  // 'column does not exist' fall back to the legacy set so the page stays
+  // alive when the migration lags the code deploy.
+  const COLS_FULL = 'id, created_at, total_ron, items, public_track_token, payment_method, payment_status';
+  const COLS_LEGACY = 'id, created_at, total_ron, items, public_track_token';
+
+  async function loadWith(cols: string) {
+    return admin
+      .from('restaurant_orders')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select(cols as any)
+      .eq('tenant_id', tenantId)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+  }
+  let { data, error } = await loadWith(COLS_FULL);
+  if (error && /payment_method/i.test(error.message ?? '')) {
+    ({ data, error } = await loadWith(COLS_LEGACY));
+  }
   if (error || !data) return [];
-  return data.map((r) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((r) => ({
     id: r.id,
     created_at: r.created_at,
     total_ron: Number(r.total_ron),
     items: (r.items ?? []) as OrderItem[],
     public_track_token: r.public_track_token,
+    payment_method: (r.payment_method as 'CARD' | 'COD' | null | undefined) ?? null,
+    payment_status: (r.payment_status as string | null | undefined) ?? null,
   }));
 }
 
@@ -111,9 +129,16 @@ export default async function AccountPage() {
                   </p>
                   <p className="text-xs text-zinc-500">{formatDate(o.created_at, locale)}</p>
                 </div>
-                <p className="mt-1 text-sm font-semibold text-zinc-900">
-                  {formatRon(o.total_ron, locale)}
-                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    {formatRon(o.total_ron, locale)}
+                  </p>
+                  {o.payment_method === 'COD' && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                      {t(locale, 'account.payment_cash')}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 line-clamp-2 text-sm text-zinc-700">
                   {names}
                   {more > 0 ? `, ${t(locale, 'account.order_items_more', { count: more })}` : ''}
