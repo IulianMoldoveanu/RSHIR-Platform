@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TriangleAlert } from 'lucide-react';
 import { Elements } from '@stripe/react-stripe-js';
@@ -115,6 +115,11 @@ export function CheckoutClient(props: {
   const [intent, setIntent] = useState<IntentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [error]);
 
   const stripePromise = useMemo(() => getStripeClient(), []);
 
@@ -356,6 +361,7 @@ export function CheckoutClient(props: {
 
       {error && (
         <div
+          ref={errorRef}
           role="alert"
           className="flex items-start gap-2.5 rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800"
         >
@@ -365,6 +371,7 @@ export function CheckoutClient(props: {
       )}
 
       {/* STEP 1: form */}
+      <form onSubmit={(e) => void handleQuote(e)} noValidate>
       <fieldset disabled={step !== 'form' || working} className="space-y-6">
         {pickupEnabled && (
           <FulfillmentToggle
@@ -443,8 +450,7 @@ export function CheckoutClient(props: {
         />
 
         <button
-          type="button"
-          onClick={(e) => void handleQuote(e)}
+          type="submit"
           className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
           disabled={
             working ||
@@ -463,6 +469,7 @@ export function CheckoutClient(props: {
               : t(locale, 'checkout.calculate_delivery_fee')}
         </button>
       </fieldset>
+      </form>
 
       {/* STEP 2: review */}
       {step === 'review' && quote && (
@@ -544,7 +551,7 @@ function ProgressIndicator({ step, locale }: { step: Step; locale: Locale }) {
   // connector lines with proper progress segments that visually indicate
   // how far along the customer is.
   return (
-    <ol className="flex items-stretch gap-2 text-xs text-zinc-500" aria-label="Pași checkout">
+    <ol className="flex items-stretch gap-2 text-xs text-zinc-500" aria-label={t(locale, 'checkout.aria_progress')}>
       {labels.map((label, i) => {
         const idx = i + 1;
         const completed = idx < stepNum;

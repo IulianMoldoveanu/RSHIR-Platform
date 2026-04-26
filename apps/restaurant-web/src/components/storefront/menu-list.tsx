@@ -80,7 +80,7 @@ export function MenuList({
               the bar shows would no longer match what's visible below. */}
           {query.trim().length === 0 && (
             <div className="mt-3 px-4">
-              <CategoryTabs categories={filtered.map((c) => ({ id: c.id, name: c.name }))} />
+              <CategoryTabs categories={filtered.map((c) => ({ id: c.id, name: c.name }))} locale={locale} />
             </div>
           )}
 

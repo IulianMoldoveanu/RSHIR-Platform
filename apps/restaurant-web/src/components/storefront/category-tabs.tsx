@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { t, type Locale } from '@/lib/i18n';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -12,8 +13,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export function CategoryTabs({
   categories,
+  locale,
 }: {
   categories: Array<{ id: string; name: string }>;
+  locale: Locale;
 }) {
   const [activeId, setActiveId] = useState<string>(categories[0]?.id ?? '');
   const stripRef = useRef<HTMLDivElement>(null);
@@ -66,7 +69,7 @@ export function CategoryTabs({
 
   return (
     <nav
-      aria-label="Categorii meniu"
+      aria-label={t(locale, 'menu.aria_categories')}
       className="sticky top-0 z-20 -mx-4 border-b border-zinc-200 bg-white/95 backdrop-blur"
     >
       <div

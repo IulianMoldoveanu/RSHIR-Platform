@@ -491,7 +491,7 @@ function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
               disabled={mutation.isPending}
               className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
-              {locale === 'en' ? 'Back' : 'Înapoi'}
+              {t(locale, 'track.cancel_back')}
             </button>
             <button
               type="button"
