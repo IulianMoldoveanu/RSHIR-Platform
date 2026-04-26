@@ -53,7 +53,7 @@ const STATUS_PILL: Record<OrderStatus, string> = {
   CANCELLED: 'bg-rose-100 text-rose-800 ring-rose-200',
 };
 
-type Filter = 'active' | 'today' | 'all';
+type Filter = 'active' | 'today' | 'all' | 'cash';
 
 type OrderSource = 'INTERNAL_STOREFRONT' | 'EXTERNAL_API' | 'POS_PUSH' | 'MANUAL_ADMIN';
 
@@ -89,7 +89,7 @@ function itemCount(items: unknown): number {
 
 function parseFilter(value: string | string[] | undefined): Filter {
   const v = Array.isArray(value) ? value[0] : value;
-  if (v === 'today' || v === 'all') return v;
+  if (v === 'today' || v === 'all' || v === 'cash') return v;
   return 'active';
 }
 
@@ -142,7 +142,7 @@ export default async function OrdersPage({
   const COLS_LEGACY =
     'id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
 
-  async function loadOrders(cols: string) {
+  async function loadOrders(cols: string, includeCashFilter: boolean) {
     let q = admin
       .from('restaurant_orders')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,13 +154,22 @@ export default async function OrdersPage({
       q = q.in('status', ACTIVE_STATUSES);
     } else if (filter === 'today') {
       q = q.gte('created_at', startOfTodayIso());
+    } else if (filter === 'cash' && includeCashFilter) {
+      // Outstanding COD reconciliation. Cast through unknown until
+      // supabase-types regenerates with the payment_method column.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q = (q as any).eq('payment_method', 'COD').eq('payment_status', 'UNPAID')
+        .neq('status', 'CANCELLED');
     }
     return q;
   }
 
-  let { data, error } = await loadOrders(COLS_FULL);
+  let { data, error } = await loadOrders(COLS_FULL, true);
   if (error && /payment_method/i.test(error.message ?? '')) {
-    ({ data, error } = await loadOrders(COLS_LEGACY));
+    // Pre-migration: drop the cash filter (column missing) but still render
+    // the rest. The user clicked Cash but the data isn't there yet — better
+    // to show the regular queue than a hard 500.
+    ({ data, error } = await loadOrders(COLS_LEGACY, false));
   }
   if (error) throw new Error(error.message);
 
@@ -298,6 +307,7 @@ function FilterPills({ active }: { active: Filter }) {
   const pills: Array<{ value: Filter; label: string }> = [
     { value: 'active', label: 'Active' },
     { value: 'today', label: 'Azi' },
+    { value: 'cash', label: 'Cash neîncasat' },
     { value: 'all', label: 'Toate' },
   ];
   return (
