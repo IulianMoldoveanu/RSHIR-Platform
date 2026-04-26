@@ -23,6 +23,7 @@ import { getActiveTenant } from '@/lib/tenant';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarItem } from './sidebar-nav';
+import { MobileSidebar } from './mobile-sidebar';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, tenant, tenants } = await getActiveTenant();
@@ -57,7 +58,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
-      <aside className="flex w-56 flex-col border-r border-zinc-200 bg-white">
+      <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-zinc-200 px-4">
           <span
             aria-hidden
@@ -71,8 +72,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-zinc-200 bg-white px-6">
-          <TenantSelector tenants={tenants} activeTenantId={tenant.id} />
+        <header className="flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <MobileSidebar items={navItems} />
+            <TenantSelector tenants={tenants} activeTenantId={tenant.id} />
+          </div>
 
           <div className="flex items-center gap-3 text-xs text-zinc-500">
             <a
@@ -96,7 +100,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
     </div>
   );

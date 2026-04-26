@@ -24,13 +24,15 @@ export const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = 'SheetOverlay';
 
-type Side = 'bottom' | 'right';
+type Side = 'bottom' | 'right' | 'left';
 
 const sideStyles: Record<Side, string> = {
   bottom:
     'inset-x-0 bottom-0 max-h-[92vh] rounded-t-2xl border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
   right:
     'inset-y-0 right-0 h-full w-full max-w-md border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
+  left:
+    'inset-y-0 left-0 h-full w-full max-w-xs border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left',
 };
 
 interface SheetContentProps
