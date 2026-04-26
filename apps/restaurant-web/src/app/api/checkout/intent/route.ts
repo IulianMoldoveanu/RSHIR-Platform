@@ -117,28 +117,34 @@ export async function POST(req: Request) {
     addressId = address.id;
   }
 
+  // payment_method column ships in 20260504_001_orders_payment_method.sql
+  // and the column has DEFAULT 'CARD'. We only set it explicitly when the
+  // customer chose COD — that way the code deploy is decoupled from the
+  // migration: pre-migration, CARD orders work (column omitted, no error);
+  // post-migration, COD orders also work. The cast through `as never` keeps
+  // typecheck green until supabase-types regenerates.
+  const orderInsert: Record<string, unknown> = {
+    tenant_id: tenant.id,
+    customer_id: customer.id,
+    delivery_address_id: addressId,
+    items: q.lineItems,
+    subtotal_ron: q.subtotalRon,
+    delivery_fee_ron: q.deliveryFeeRon,
+    total_ron: q.totalRon,
+    delivery_zone_id: q.zoneId,
+    delivery_tier_id: q.tierId,
+    notes: parsed.data.notes || null,
+    status: 'PENDING',
+    payment_status: 'UNPAID',
+    promo_code_id: q.promo?.id ?? null,
+    discount_ron: q.discountRon,
+  };
+  if (parsed.data.paymentMethod === 'COD') {
+    orderInsert.payment_method = 'COD';
+  }
   const { data: order, error: orderErr } = await admin
     .from('restaurant_orders')
-    .insert({
-      tenant_id: tenant.id,
-      customer_id: customer.id,
-      delivery_address_id: addressId,
-      items: q.lineItems,
-      subtotal_ron: q.subtotalRon,
-      delivery_fee_ron: q.deliveryFeeRon,
-      total_ron: q.totalRon,
-      delivery_zone_id: q.zoneId,
-      delivery_tier_id: q.tierId,
-      notes: parsed.data.notes || null,
-      status: 'PENDING',
-      payment_status: 'UNPAID',
-      promo_code_id: q.promo?.id ?? null,
-      discount_ron: q.discountRon,
-      // payment_method column shipped in 20260504_001_orders_payment_method.sql.
-      // Cast through `as never` until supabase-types regenerates from the
-      // post-migration schema.
-      payment_method: parsed.data.paymentMethod,
-    } as never)
+    .insert(orderInsert as never)
     .select('id, public_track_token, total_ron')
     .single();
   if (orderErr || !order) {
