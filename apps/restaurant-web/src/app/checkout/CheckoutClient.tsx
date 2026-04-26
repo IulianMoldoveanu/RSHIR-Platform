@@ -189,6 +189,10 @@ export function CheckoutClient(props: {
 
   async function handleQuote(e: React.FormEvent) {
     e.preventDefault();
+    return runQuote(appliedPromo?.code);
+  }
+
+  async function runQuote(promoCode: string | undefined): Promise<void> {
     setError(null);
     if (!cart || cart.items.length === 0) {
       setError(t(locale, 'checkout.err_cart_empty'));
@@ -196,7 +200,6 @@ export function CheckoutClient(props: {
     }
 
     let body: Record<string, unknown>;
-    const promoCode = appliedPromo?.code;
     if (fulfillment === 'PICKUP') {
       body = {
         items: cart.items.map((i) => ({
@@ -344,12 +347,19 @@ export function CheckoutClient(props: {
         kind: data.kind as PromoKind,
         value_int: Number(data.value_int) || 0,
       };
+      const wasReviewing = step === 'review';
       setAppliedPromo(next);
       writeStoredPromo(next);
       setPromoInput('');
-      // Discard stale quote — must re-quote to factor in the discount.
       setQuote(null);
-      setStep('form');
+      // If the user was already on the review step, auto re-quote with the
+      // new discount so they don't have to re-tap the primary CTA — pass the
+      // code explicitly because setAppliedPromo state hasn't flushed yet.
+      if (wasReviewing) {
+        await runQuote(next.code);
+      } else {
+        setStep('form');
+      }
     } finally {
       setPromoWorking(false);
     }
