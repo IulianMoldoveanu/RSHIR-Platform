@@ -58,7 +58,7 @@ export default async function ReviewsModerationPage() {
             description="Recenziile primite de la clienți după livrare vor apărea aici."
           />
         ) : (
-          <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+          <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white">
             {visible.map((r) => (
               <li key={r.id} className="flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1">
@@ -89,7 +89,7 @@ export default async function ReviewsModerationPage() {
           <h2 className="mb-3 text-sm font-semibold text-zinc-800">
             Ascunse ({hidden.length})
           </h2>
-          <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-zinc-50">
+          <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-zinc-50">
             {hidden.map((r) => (
               <li key={r.id} className="flex flex-col gap-2 px-4 py-3 text-sm opacity-70 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex-1">

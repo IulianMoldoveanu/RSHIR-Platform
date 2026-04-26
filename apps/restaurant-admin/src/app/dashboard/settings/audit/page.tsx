@@ -95,7 +95,7 @@ export default async function AuditLogPage() {
           description="Acțiunile de moderare, branding și integrări apar aici imediat ce apar."
         />
       ) : (
-        <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+        <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white">
           {rows.map((r) => (
             <li key={r.id} className="flex flex-col gap-1 px-4 py-3 text-sm">
               <div className="flex items-baseline justify-between gap-3">

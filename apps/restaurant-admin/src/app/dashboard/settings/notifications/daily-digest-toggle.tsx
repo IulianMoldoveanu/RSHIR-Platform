@@ -31,7 +31,7 @@ export function DailyDigestToggle({ canEdit, initialEnabled, tenantId }: Props) 
   };
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-5">
+    <section className="rounded-xl border border-zinc-200 bg-white p-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-zinc-900">

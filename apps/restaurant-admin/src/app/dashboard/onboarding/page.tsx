@@ -93,7 +93,7 @@ function StepRow({
   return (
     <li
       className={
-        'flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:gap-4 ' +
+        'flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:gap-4 ' +
         (current ? 'border-amber-300 ring-1 ring-amber-200' : 'border-zinc-200')
       }
     >

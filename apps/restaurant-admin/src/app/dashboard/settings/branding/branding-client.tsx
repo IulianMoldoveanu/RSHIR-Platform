@@ -91,7 +91,7 @@ export function BrandingClient({
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Logo</h2>
         <p className="mt-1 text-xs text-zinc-600">
           Apare în antetul storefront-ului. Recomandat: pătrat, min. 256×256, PNG/SVG cu fundal transparent. Max 4 MB.
@@ -150,7 +150,7 @@ export function BrandingClient({
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Imagine de copertă</h2>
         <p className="mt-1 text-xs text-zinc-600">
           Banner mare deasupra meniului. Recomandat 16:9 (ex. 1600×900). Orice raport e acceptat — afișarea se face cu object-fit. Max 4 MB.
@@ -204,7 +204,7 @@ export function BrandingClient({
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Culoare de brand</h2>
         <p className="mt-1 text-xs text-zinc-600">
           Folosită pe butoanele principale ale storefront-ului (ex. „Comandă"). Format hex #rrggbb.

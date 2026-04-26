@@ -95,7 +95,7 @@ function AddProviderForm({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-5">
+    <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5">
       <p className="text-sm font-medium text-zinc-900">Adaugă furnizor</p>
 
       <div className="flex flex-col gap-1">
@@ -209,7 +209,7 @@ function CreateApiKeyForm({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-5">
+    <div className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5">
       <p className="text-sm font-medium text-zinc-900">Generează cheie API</p>
 
       <div className="flex flex-col gap-1">

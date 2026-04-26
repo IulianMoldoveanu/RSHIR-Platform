@@ -43,7 +43,7 @@ export function DomainSettings({ canEdit, domain, status, verifiedAt }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-zinc-500">Domeniu curent</p>
@@ -89,7 +89,7 @@ export function DomainSettings({ canEdit, domain, status, verifiedAt }: Props) {
       </section>
 
       {!domain && canEdit && (
-        <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Adaugă un domeniu</h2>
           <p className="mt-1 text-xs text-zinc-600">
             Folosește un domeniu pe care îl deții deja. După salvare îți vom arăta
@@ -119,7 +119,7 @@ export function DomainSettings({ canEdit, domain, status, verifiedAt }: Props) {
       )}
 
       {(status === 'PENDING_DNS' || status === 'PENDING_SSL') && domain && (
-        <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <section className="rounded-xl border border-zinc-200 bg-white p-5">
           <h2 className="text-sm font-semibold text-zinc-900">Configurare DNS</h2>
           <p className="mt-1 text-xs text-zinc-600">
             Adaugă acest record CNAME la registrarul tău (ex. ROTLD, GoDaddy,
@@ -143,7 +143,7 @@ export function DomainSettings({ canEdit, domain, status, verifiedAt }: Props) {
       )}
 
       {status === 'FAILED' && (
-        <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <section className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
           <p className="font-medium">Verificarea a eșuat.</p>
           <p className="mt-1 text-xs">
             Verifică că recordul CNAME este corect și că nu mai există vreun A/AAAA
