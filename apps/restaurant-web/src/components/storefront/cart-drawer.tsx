@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Check, Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
@@ -43,6 +43,10 @@ export function CartPill({
 
   const [appliedPromo, setAppliedPromo] = useState<StoredPromo | null>(null);
   const reduceMotion = useShouldReduceMotion();
+  // Track free-delivery transitions so we can fire a one-shot celebration
+  // animation the moment the user crosses the threshold.
+  const [reachedFreeDeliveryAt, setReachedFreeDeliveryAt] = useState<number | null>(null);
+  const wasReachedRef = useRef(false);
 
   useEffect(() => {
     setHydrated(true);
@@ -55,6 +59,16 @@ export function CartPill({
       window.removeEventListener('storage', refresh);
     };
   }, []);
+
+  // Free-delivery celebration: trigger a state reset 1.8s after the
+  // burst fired so AnimatePresence cleanly exits the check icon.
+  useEffect(() => {
+    if (reachedFreeDeliveryAt === null) return;
+    const elapsed = Date.now() - reachedFreeDeliveryAt;
+    const remaining = Math.max(0, 1800 - elapsed);
+    const timer = window.setTimeout(() => setReachedFreeDeliveryAt(null), remaining + 100);
+    return () => window.clearTimeout(timer);
+  }, [reachedFreeDeliveryAt]);
 
   // B2: filter upsell candidates to items not already in the cart. The rail
   // is hidden if every popular item is already there (well-rounded order).
@@ -230,10 +244,47 @@ export function CartPill({
                 const pct = showFreeBar
                   ? Math.min(100, Math.round((subtotal / freeDeliveryThresholdRon) * 100))
                   : 0;
+
+                // Fire celebration only on the false → true transition.
+                // wasReachedRef persists across renders; setting state in
+                // a render block is OK because we guard on transition.
+                if (reachedFree && !wasReachedRef.current) {
+                  wasReachedRef.current = true;
+                  if (reachedFreeDeliveryAt === null) {
+                    queueMicrotask(() => setReachedFreeDeliveryAt(Date.now()));
+                  }
+                } else if (!reachedFree && wasReachedRef.current) {
+                  wasReachedRef.current = false;
+                }
                 return (
                   <>
                     {showFreeBar && (
-                      <div className="px-5 pt-3">
+                      <div className="relative px-5 pt-3">
+                        <AnimatePresence>
+                          {reachedFree &&
+                            reachedFreeDeliveryAt !== null &&
+                            Date.now() - reachedFreeDeliveryAt < 1800 && (
+                              <motion.div
+                                key="celebrate"
+                                initial={
+                                  reduceMotion ? false : { opacity: 0, scale: 0.4, rotate: -30 }
+                                }
+                                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                                exit={
+                                  reduceMotion
+                                    ? undefined
+                                    : { opacity: 0, scale: 1.6, transition: { duration: 0.3 } }
+                                }
+                                transition={{
+                                  duration: 0.45,
+                                  ease: [0.34, 1.56, 0.64, 1],
+                                }}
+                                className="pointer-events-none absolute right-5 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg"
+                              >
+                                <Check className="h-4 w-4" />
+                              </motion.div>
+                            )}
+                        </AnimatePresence>
                         <div className="flex items-center justify-between text-xs">
                           <span className={reachedFree ? 'font-medium text-emerald-700' : 'text-zinc-600'}>
                             {reachedFree
