@@ -5,6 +5,7 @@ import { CartPill } from '@/components/storefront/cart-drawer';
 import { HirFooter } from '@/components/storefront/hir-footer';
 import { CookieConsent } from '@/components/legal/cookie-consent';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
+import { getTopPopularItems } from '@/lib/menu';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 
@@ -20,6 +21,11 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const openStatus = isOpenNow(tenant.settings);
   const pauseReason =
     (tenant.settings as { pause_reason?: string | null }).pause_reason ?? null;
+
+  // Cart-upsell candidates: top-N popular items for the tenant. Fetched once
+  // here (cart drawer is mounted on every storefront page); empty when the
+  // tenant has no qualifying order history yet.
+  const upsellItems = await getTopPopularItems(tenant.id);
 
   const settings = tenant.settings as Record<string, unknown> | null;
   const minOrderRon =
@@ -53,6 +59,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
           locale={locale}
           minOrderRon={minOrderRon}
           freeDeliveryThresholdRon={freeDeliveryThresholdRon}
+          upsellItems={upsellItems}
         />
         <CookieConsent locale={locale} />
       </StorefrontShell>

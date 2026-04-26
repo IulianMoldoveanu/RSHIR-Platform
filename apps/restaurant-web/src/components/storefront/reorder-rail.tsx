@@ -1,37 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ComponentType, type SVGProps } from 'react';
 import { Plus, RotateCcw, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import type { MenuItemWithModifiers } from '@/lib/menu';
 
-// Conversion B13. Returning customers (cookie-recognized) see a horizontal
-// rail of items they've ordered before, above the menu. Baymard's grocery /
-// food-delivery research is explicit: returning users seek "Buy it again"
-// above the fold; rendering it as a carousel beats forcing them through the
-// full menu. We open the same ItemSheet so modifiers re-confirm — the user
-// gets one tap to a familiar order without bypassing required choices.
+// Conversion B13 / B2. Compact horizontal rail of items, each opening the
+// standard ItemSheet so modifiers re-confirm. Used in two places:
+//   - storefront home: returning customers see "Comandă din nou".
+//   - cart drawer: anyone with items sees "Mai vrei și asta?" (top sellers).
+// Baymard / Wolt / DoorDash all ship the same shape — rendering as a carousel
+// beats either a full menu re-scan or no nudge at all.
+
+type RailIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 export function ReorderRail({
   items,
   locale,
+  title,
+  icon: Icon = RotateCcw,
+  className = 'px-4 pt-4',
 }: {
   items: MenuItemWithModifiers[];
   locale: Locale;
+  /** Defaults to t('reorder.rail_title') for backwards compat. */
+  title?: string;
+  icon?: RailIcon;
+  /** Override outer wrapper padding when embedded in a denser container. */
+  className?: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   if (items.length === 0) return null;
   const open = items.find((i) => i.id === openId) ?? null;
+  const heading = title ?? t(locale, 'reorder.rail_title');
 
   return (
-    <section className="px-4 pt-4">
+    <section className={className}>
       <div className="mb-2 flex items-center gap-2">
-        <RotateCcw className="h-4 w-4 text-zinc-500" aria-hidden />
-        <h2 className="text-sm font-semibold tracking-tight text-zinc-900">
-          {t(locale, 'reorder.rail_title')}
-        </h2>
+        <Icon className="h-4 w-4 text-zinc-500" aria-hidden />
+        <h2 className="text-sm font-semibold tracking-tight text-zinc-900">{heading}</h2>
       </div>
       <div
         className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2"

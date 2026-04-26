@@ -1,24 +1,29 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { previewDiscount, readStoredPromo, type StoredPromo } from '@/lib/cart/promo';
+import { ReorderRail } from './reorder-rail';
+import type { MenuItemWithModifiers } from '@/lib/menu';
 
 export function CartPill({
   closedReason = null,
   locale,
   minOrderRon = 0,
   freeDeliveryThresholdRon = 0,
+  upsellItems = [],
 }: {
   closedReason?: string | null;
   locale: Locale;
   minOrderRon?: number;
   freeDeliveryThresholdRon?: number;
+  /** Top-popular items for cart upsell (B2). Filtered against current cart. */
+  upsellItems?: MenuItemWithModifiers[];
 }) {
   const useCartStore = useCart();
   const [open, setOpen] = useState(false);
@@ -42,6 +47,14 @@ export function CartPill({
       window.removeEventListener('storage', refresh);
     };
   }, []);
+
+  // B2: filter upsell candidates to items not already in the cart. The rail
+  // is hidden if every popular item is already there (well-rounded order).
+  const cartItemIds = useMemo(() => new Set(items.map((i) => i.itemId)), [items]);
+  const filteredUpsell = useMemo(
+    () => upsellItems.filter((it) => !cartItemIds.has(it.id)),
+    [upsellItems, cartItemIds],
+  );
 
   const count = hydrated ? getCount() : 0;
   const subtotal = hydrated ? getSubtotal() : 0;
@@ -151,6 +164,15 @@ export function CartPill({
                   );
                 })}
               </ul>
+            )}
+            {items.length > 0 && filteredUpsell.length > 0 && (
+              <ReorderRail
+                items={filteredUpsell}
+                locale={locale}
+                title={t(locale, 'cart.upsell_title')}
+                icon={Flame}
+                className="pt-4"
+              />
             )}
           </div>
 

@@ -167,6 +167,48 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
 }
 
 /**
+ * Returns the tenant's top-N most-ordered items over the last 30 days, with
+ * modifiers attached. Used by the cart drawer to render an "Also order"
+ * upsell rail (Wolt / Glovo / DoorDash 'Complement your Cart' pattern).
+ * Returns [] when no item has hit the popularity floor.
+ */
+export async function getTopPopularItems(
+  tenantId: string,
+  limit = 5,
+): Promise<MenuItemWithModifiers[]> {
+  const ranks = await loadPopularRanks(tenantId);
+  if (ranks.size === 0) return [];
+
+  const supabase = getSupabase();
+  const ids = Array.from(ranks.keys());
+  const [itemsRes, modsRes] = await Promise.all([
+    supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),
+    supabase.from('restaurant_menu_modifiers').select('id, item_id, name, price_delta_ron').in('item_id', ids),
+  ]);
+
+  const rawItems = (itemsRes.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
+  const modsByItem = new Map<string, MenuModifier[]>();
+  for (const m of (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>) {
+    const arr = modsByItem.get(m.item_id) ?? [];
+    arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
+    modsByItem.set(m.item_id, arr);
+  }
+
+  return rawItems
+    .map(({ sold_out_until, ...rest }) => ({
+      ...rest,
+      is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+      popular_rank: ranks.get(rest.id) ?? null,
+      modifiers: modsByItem.get(rest.id) ?? [],
+    }))
+    .filter((it) => it.is_available)
+    .sort((a, b) => (a.popular_rank ?? 99) - (b.popular_rank ?? 99))
+    .slice(0, limit);
+}
+
+/**
  * Returns up to N items from the customer's most recent orders at this tenant
  * — newest first, deduped, restricted to items still on the live menu.
  * Used by the storefront home to render a "Comandă din nou" rail for

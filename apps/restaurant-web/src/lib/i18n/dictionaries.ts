@@ -77,6 +77,7 @@ export const dictionaries = {
       free_delivery_reached: 'Felicitări — livrare gratuită!',
       below_min_order_template: 'Mai adaugă {remaining} pentru a comanda (minim {min}).',
       below_min_cta_template: 'Mai adaugă {remaining}',
+      upsell_title: 'Mai vrei și asta?',
     },
     checkout: {
       title: 'Finalizează comanda',
@@ -328,6 +329,7 @@ export const dictionaries = {
       free_delivery_reached: 'Nice — free delivery unlocked!',
       below_min_order_template: 'Add {remaining} more to order (minimum {min}).',
       below_min_cta_template: 'Add {remaining} more',
+      upsell_title: 'Add something else?',
     },
     checkout: {
       title: 'Complete your order',
