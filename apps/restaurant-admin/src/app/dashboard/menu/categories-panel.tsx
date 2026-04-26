@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useTransition, type FormEvent } from 'react';
-import { Button, Input, toast } from '@hir/ui';
+import { Button, EmptyState, Input, toast } from '@hir/ui';
+import { FolderTree } from 'lucide-react';
 import { EyeIcon, EyeOffIcon, GripIcon, PencilIcon, TrashIcon } from './icons';
 import {
   createCategoryAction,
@@ -127,7 +128,12 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
 
       <div className="rounded-md border border-zinc-200 bg-white">
         {ordered.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-500">Nicio categorie. Adauga prima ta categorie.</p>
+          <EmptyState
+            className="border-0 bg-transparent"
+            icon={<FolderTree className="h-10 w-10" />}
+            title="Nicio categorie încă."
+            description="Categoriile organizează produsele pe pagina meniului. Adaugă-le din formularul de mai sus."
+          />
         ) : (
           <ul>
             {ordered.map((c, idx) => (

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition, type FormEvent } from 'react';
 import {
   Button,
+  EmptyState,
   Input,
   Select,
   SelectContent,
@@ -11,6 +12,7 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
+import { ChefHat } from 'lucide-react';
 import { TrashIcon } from './icons';
 import {
   createModifierAction,
@@ -132,7 +134,16 @@ export function ModifiersPanel({
 
       <div className="rounded-md border border-zinc-200 bg-white">
         {itemModifiers.length === 0 ? (
-          <p className="p-4 text-sm text-zinc-500">Niciun modificator pentru acest produs.</p>
+          <EmptyState
+            className="border-0 bg-transparent"
+            icon={<ChefHat className="h-10 w-10" />}
+            title="Niciun modificator pentru acest produs."
+            description={
+              itemId
+                ? 'Adaugă opțiuni precum „Fără ceapă”, „Extra brânză” sau „Mărime mare” cu preț variabil.'
+                : 'Selectează un produs din lista de mai sus pentru a-i gestiona modificatorii.'
+            }
+          />
         ) : (
           <ul>
             {itemModifiers.map((m) => (
