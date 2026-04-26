@@ -9,6 +9,7 @@ import { createAdminClient } from './supabase/admin';
 export type AuditAction =
   | 'order.status_changed'
   | 'order.cancelled'
+  | 'order.cod_marked_paid'
   | 'branding.logo_uploaded'
   | 'branding.cover_uploaded'
   | 'branding.color_changed'

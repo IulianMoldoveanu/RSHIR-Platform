@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { nextStatuses, type OrderStatus } from '../status-machine';
+import { markCodOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
 
 export const dynamic = 'force-dynamic';
@@ -64,7 +65,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     .from('restaurant_orders')
     .select(
       `
-        id, tenant_id, status, payment_status, items,
+        id, tenant_id, status, payment_status, payment_method, items,
         subtotal_ron, delivery_fee_ron, total_ron, notes,
         public_track_token, created_at, updated_at,
         delivery_address_id,
@@ -83,6 +84,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     id: string;
     status: OrderStatus;
     payment_status: string;
+    payment_method: 'CARD' | 'COD' | null;
     items: OrderItemSnapshot[] | unknown;
     subtotal_ron: number;
     delivery_fee_ron: number;
@@ -233,9 +235,32 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
           <div className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900">Plata</h2>
-            <p className="text-sm text-zinc-700">
-              {PAYMENT_LABEL[order.payment_status] ?? order.payment_status}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-zinc-700">
+              <span>{PAYMENT_LABEL[order.payment_status] ?? order.payment_status}</span>
+              {order.payment_method === 'COD' && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                  Cash la livrare
+                </span>
+              )}
+              {order.payment_method === 'CARD' && (
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                  Card
+                </span>
+              )}
+            </div>
+            {order.payment_method === 'COD' && order.payment_status === 'UNPAID' && (
+              <form action={markCodOrderPaid.bind(null, order.id, tenant.id)} className="mt-3">
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700"
+                >
+                  Marcheaza plata cash primita
+                </button>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Apasă după ce curierul a încasat numerarul.
+                </p>
+              </form>
+            )}
           </div>
 
           <div className="rounded-md border border-zinc-200 bg-white p-4">

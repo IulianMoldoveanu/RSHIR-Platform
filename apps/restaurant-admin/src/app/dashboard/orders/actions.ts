@@ -88,6 +88,59 @@ export async function updateOrderStatus(
   revalidatePath(`/dashboard/orders/${orderId}`);
 }
 
+/**
+ * Mark a Cash-on-Delivery order as paid. Only eligible when payment_method
+ * is COD and the order is currently UNPAID — card flows go through Stripe
+ * webhook + /confirm and are out of scope here.
+ */
+export async function markCodOrderPaid(
+  orderId: string,
+  expectedTenantId: string,
+): Promise<void> {
+  const { tenantId, userId } = await requireTenant(expectedTenantId);
+
+  const admin = createAdminClient();
+  const { data: existing, error: readErr } = await admin
+    .from('restaurant_orders')
+    .select('id, payment_method, payment_status')
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!existing) throw new Error('Comanda nu exista in acest restaurant.');
+
+  const row = existing as unknown as {
+    id: string;
+    payment_method: 'CARD' | 'COD' | null;
+    payment_status: string;
+  };
+  if (row.payment_method !== 'COD') {
+    throw new Error('Doar comenzile cu plata cash pot fi marcate manual.');
+  }
+  if (row.payment_status === 'PAID') {
+    return;
+  }
+
+  const { error } = await admin
+    .from('restaurant_orders')
+    .update({ payment_status: 'PAID' })
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId);
+  if (error) throw new Error(error.message);
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.cod_marked_paid',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: { from: row.payment_status, to: 'PAID' },
+  });
+
+  revalidatePath('/dashboard/orders');
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
 export async function cancelOrder(
   orderId: string,
   expectedTenantId: string,
