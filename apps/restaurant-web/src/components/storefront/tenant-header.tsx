@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Star } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { LocaleSwitcher } from './locale-switcher';
 
@@ -30,7 +30,13 @@ export function TenantHeader({
 }: TenantHeaderProps) {
   return (
     <header className="relative">
-      <div className="relative h-40 w-full overflow-hidden bg-gradient-to-br from-zinc-200 to-zinc-300 sm:h-56">
+      <div
+        className={`relative h-40 w-full overflow-hidden sm:h-56 ${
+          coverUrl
+            ? 'bg-zinc-200'
+            : 'bg-gradient-to-br from-purple-700/25 via-purple-500/10 to-purple-300/5'
+        }`}
+      >
         {coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -67,7 +73,7 @@ export function TenantHeader({
                 className="inline-flex items-center gap-1 text-xs font-medium text-zinc-700"
                 aria-label={`${rating.average.toFixed(1)} (${rating.count})`}
               >
-                <span className="text-amber-500">★</span>
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                 <span>{rating.average.toFixed(1)}</span>
                 <span className="text-zinc-400">({rating.count})</span>
               </span>

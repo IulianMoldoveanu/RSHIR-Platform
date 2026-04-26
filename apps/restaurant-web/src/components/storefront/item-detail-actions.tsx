@@ -95,21 +95,28 @@ export function ItemDetailActions({ item, locale }: { item: MenuItemWithModifier
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={handleAdd}
-        disabled={!item.is_available}
-        className="flex w-full items-center justify-between rounded-full bg-zinc-900 px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
-      >
-        <span>
-          {added
-            ? t(locale, 'item.added')
-            : item.is_available
-              ? t(locale, 'item.add_to_cart')
-              : t(locale, 'item.unavailable')}
-        </span>
-        {item.is_available ? <span className="tabular-nums">{formatRon(lineTotal, locale)}</span> : null}
-      </button>
+      {/* Sticky bottom on mobile (audit §2 P0) — frees the screen for content
+          and keeps the primary action one-thumb-reachable. Inline on desktop. */}
+      <div className="sticky bottom-0 -mx-4 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-0 sm:pt-1">
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={!item.is_available}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
+          className="flex h-12 w-full items-center justify-between rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        >
+          <span>
+            {added
+              ? t(locale, 'item.added')
+              : item.is_available
+                ? t(locale, 'item.add_to_cart')
+                : t(locale, 'item.unavailable')}
+          </span>
+          {item.is_available ? (
+            <span className="tabular-nums">{formatRon(lineTotal, locale)}</span>
+          ) : null}
+        </button>
+      </div>
     </div>
   );
 }

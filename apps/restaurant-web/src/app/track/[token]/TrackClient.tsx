@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { Star } from 'lucide-react';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 
@@ -387,11 +388,13 @@ function ReviewWidget({
             aria-checked={rating === n}
             aria-label={`${n}`}
             onClick={() => setRating(n)}
-            className={`h-10 w-10 rounded-md text-xl transition ${
-              n <= rating ? 'text-amber-500' : 'text-zinc-300 hover:text-amber-300'
-            }`}
+            className="flex h-11 w-11 items-center justify-center rounded-md transition-colors hover:bg-zinc-50"
           >
-            ★
+            <Star
+              className={`h-7 w-7 transition-colors ${
+                n <= rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-300'
+              }`}
+            />
           </button>
         ))}
       </div>

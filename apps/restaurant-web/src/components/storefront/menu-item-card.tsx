@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
@@ -66,7 +66,9 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
               decoding="async"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-3xl text-zinc-400">🍽️</div>
+            <div className="flex h-full items-center justify-center text-zinc-300">
+              <UtensilsCrossed className="h-8 w-8" aria-hidden />
+            </div>
           )}
           {!available ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white/75 text-[10px] font-semibold uppercase tracking-wider text-zinc-700">

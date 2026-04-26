@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, UtensilsCrossed } from 'lucide-react';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getItemByShortId } from '@/lib/menu';
 import { shortIdFromSlug, buildItemSlug } from '@/lib/slug';
@@ -120,12 +120,14 @@ export default async function ItemPage({ params }: { params: { slug: string } })
               fetchPriority="high"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-6xl">🍽️</div>
+            <div className="flex h-full items-center justify-center text-zinc-300">
+              <UtensilsCrossed className="h-16 w-16" aria-hidden />
+            </div>
           )}
         </div>
         <Link
           href="/"
-          className="absolute left-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md hover:text-zinc-900"
+          className="absolute left-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md transition-colors hover:bg-white hover:text-zinc-900"
           aria-label={t(locale, 'item.back')}
         >
           <ChevronLeft className="h-5 w-5" />
