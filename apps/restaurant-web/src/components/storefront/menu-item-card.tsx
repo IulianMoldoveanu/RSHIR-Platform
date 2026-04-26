@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
-import { Flame, Plus, UtensilsCrossed } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, Flame, Plus, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
+import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import type { MenuItem, MenuItemWithModifiers } from '@/lib/menu';
@@ -13,21 +14,68 @@ type Props = {
 };
 
 // Row layout (Glovo / Wolt / UberEats style): text on the left, square image
-// on the right. Replaces the previous 260px-wide horizontally-scrolling card
-// — see docs/UI_UX_AUDIT.md §1.
+// on the right. Tapping anywhere on the card opens the modifier sheet —
+// EXCEPT the Add pill, which quick-adds when the item has no modifiers
+// (saves a tap; on the QA conversion-friction list). Tapping Add on an
+// item that does have modifiers still opens the sheet so required-or-
+// optional choices land properly.
 export function MenuItemCard({ item, modifiers = [], locale }: Props) {
   const [open, setOpen] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const useCartStore = useCart();
+  const addItem = useCartStore((s) => s.addItem);
   const itemWithMods: MenuItemWithModifiers = { ...item, modifiers };
   const available = item.is_available;
+  const hasModifiers = modifiers.length > 0;
+
+  useEffect(() => {
+    if (!justAdded) return;
+    const t = window.setTimeout(() => setJustAdded(false), 1200);
+    return () => window.clearTimeout(t);
+  }, [justAdded]);
+
+  function handleCardClick() {
+    if (!available) return;
+    setOpen(true);
+  }
+
+  function handleAddClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!available) return;
+    if (hasModifiers) {
+      setOpen(true);
+      return;
+    }
+    addItem({
+      itemId: item.id,
+      name: item.name,
+      unitPriceRon: item.price_ron,
+      imageUrl: item.image_url,
+      modifiers: [],
+    });
+    setJustAdded(true);
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (!available) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen(true);
+    }
+  }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={!available}
+      <div
+        role="button"
+        tabIndex={available ? 0 : -1}
+        onClick={handleCardClick}
+        onKeyDown={handleKey}
         aria-label={item.name}
-        className="group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md disabled:cursor-default disabled:opacity-70 disabled:hover:shadow-sm"
+        aria-disabled={!available}
+        className={`group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:shadow-md ${
+          available ? 'cursor-pointer' : 'opacity-70'
+        }`}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {item.popular_rank !== null && available && (
@@ -51,10 +99,32 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
               {formatRon(item.price_ron, locale)}
             </span>
             {available ? (
-              <span className="inline-flex h-8 items-center gap-1 rounded-full bg-purple-700 pl-2.5 pr-3 text-xs font-medium text-white shadow-sm transition-colors group-hover:bg-purple-800">
-                <Plus className="h-3.5 w-3.5" />
-                {t(locale, 'item.add_short')}
-              </span>
+              <button
+                type="button"
+                onClick={handleAddClick}
+                aria-label={
+                  hasModifiers
+                    ? t(locale, 'item.add_short')
+                    : t(locale, 'item.add_to_cart')
+                }
+                className={`inline-flex h-9 items-center gap-1 rounded-full pl-2.5 pr-3 text-xs font-medium text-white shadow-sm transition-colors ${
+                  justAdded
+                    ? 'bg-emerald-600'
+                    : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800'
+                }`}
+              >
+                {justAdded ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    {t(locale, 'item.added')}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3.5 w-3.5" />
+                    {t(locale, 'item.add_short')}
+                  </>
+                )}
+              </button>
             ) : (
               <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                 {t(locale, 'item.unavailable')}
@@ -86,7 +156,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
             </div>
           ) : null}
         </div>
-      </button>
+      </div>
 
       {available && (
         <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} locale={locale} />
