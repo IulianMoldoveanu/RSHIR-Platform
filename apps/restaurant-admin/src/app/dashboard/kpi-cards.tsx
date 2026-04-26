@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Receipt, ShoppingCart, Star, TrendingDown, TrendingUp } from 'lucide-react';
+import { Receipt, ShieldCheck, ShoppingCart, Star, TrendingDown, TrendingUp } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Server component. Pulls 4 KPIs for "today" + a delta vs yesterday so the
@@ -118,11 +118,24 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
   const ordersDelta = pctDelta(s.todayOrders, s.yesterdayOrders);
   const avgTicket = s.todayOrders > 0 ? s.todaySalesRon / s.todayOrders : 0;
 
+  // Positioning ribbon: HIR doesn't take a per-order cut. Frame today's
+  // sales as money the tenant kept vs. a 30% aggregator (Glovo/Tazz typical).
+  // Hidden when there are zero sales today — nothing to celebrate yet.
+  const aggregatorWouldTake = s.todaySalesRon * 0.3;
+
   return (
-    <section
-      aria-label="Statistici azi"
-      className="grid grid-cols-2 gap-3 lg:grid-cols-4"
-    >
+    <section aria-label="Statistici azi" className="flex flex-col gap-3">
+      {s.todaySalesRon > 0 && (
+        <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          <ShieldCheck className="h-4 w-4 flex-none text-emerald-600" aria-hidden />
+          <p>
+            <span className="font-semibold">Comision platformă: 0 RON.</span>{' '}
+            Pe un agregator cu 30% comision azi ai fi plătit ~
+            <span className="font-mono tabular-nums">{formatRon(aggregatorWouldTake)}</span>.
+          </p>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <Card
         label="Vânzări azi"
         value={formatRon(s.todaySalesRon)}
@@ -155,6 +168,7 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
           Vezi recenziile →
         </p>
       </Link>
+      </div>
     </section>
   );
 }

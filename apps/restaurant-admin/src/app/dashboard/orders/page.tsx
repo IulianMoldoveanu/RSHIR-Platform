@@ -55,14 +55,23 @@ const STATUS_PILL: Record<OrderStatus, string> = {
 
 type Filter = 'active' | 'today' | 'all';
 
+type OrderSource = 'INTERNAL_STOREFRONT' | 'EXTERNAL_API' | 'POS_PUSH' | 'MANUAL_ADMIN';
+
 type OrderRow = {
   id: string;
   status: OrderStatus;
+  source: OrderSource | null;
   total_ron: number;
   created_at: string;
   delivery_address_id: string | null;
   items: unknown;
   customers: { first_name: string | null; last_name: string | null } | null;
+};
+
+const SOURCE_LABEL: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, string> = {
+  EXTERNAL_API: 'API',
+  POS_PUSH: 'POS',
+  MANUAL_ADMIN: 'Manual',
 };
 
 const PENDING_DANGER_MS = 5 * 60_000;
@@ -125,7 +134,7 @@ export default async function OrdersPage({
 
   let q = admin
     .from('restaurant_orders')
-    .select('id, status, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
+    .select('id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
     .eq('tenant_id', tenant.id)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -225,6 +234,11 @@ export default async function OrdersPage({
                             {o.delivery_address_id === null && (
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
                                 Ridicare
+                              </span>
+                            )}
+                            {o.source && o.source !== 'INTERNAL_STOREFRONT' && (
+                              <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800 ring-1 ring-inset ring-sky-200">
+                                {SOURCE_LABEL[o.source]}
                               </span>
                             )}
                           </div>

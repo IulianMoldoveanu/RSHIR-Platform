@@ -1,3 +1,4 @@
+import { ExternalLink } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { MenuTabs } from './menu-tabs';
@@ -61,11 +62,24 @@ export default async function MenuPage() {
     ({ id, item_id, name, price_delta_ron }) => ({ id, item_id, name, price_delta_ron }),
   );
 
+  const storefrontUrl = `https://${tenant.slug}.hir.ro`;
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Meniu</h1>
-        <p className="text-xs text-zinc-500">{tenant.name}</p>
+        <div className="flex items-center gap-3">
+          <a
+            href={storefrontUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          >
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            Previzualizare client
+          </a>
+          <p className="text-xs text-zinc-500">{tenant.name}</p>
+        </div>
       </div>
       <MenuTabs categories={categories} items={items} modifiers={modifiers} />
     </div>
