@@ -106,9 +106,14 @@ export function MenuList({
                   transition={{ duration: motionDurations.enter, ease: easeOutSoft }}
                   className="scroll-mt-20 pt-6"
                 >
-                  <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
-                    {cat.name}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
+                      {cat.name}
+                    </h2>
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums">
+                      {cat.items.length}
+                    </span>
+                  </div>
                   <div className="mt-3 grid grid-cols-1 gap-3">
                     {cat.items.map((it, idx) => (
                       <motion.div
