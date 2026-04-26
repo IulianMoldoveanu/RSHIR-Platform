@@ -74,6 +74,17 @@ function normalizeRoPhone(raw: string): string {
   return digits.slice(0, 9);
 }
 
+type Prefill = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  line1: string;
+  line2: string;
+  city: string;
+  postalCode: string;
+};
+
 export function CheckoutClient(props: {
   tenantId: string;
   tenantSlug: string;
@@ -84,11 +95,12 @@ export function CheckoutClient(props: {
   pickupLat: number | null;
   pickupLng: number | null;
   codEnabled: boolean;
+  prefill: Prefill | null;
   locale: Locale;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
-  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled } = props;
+  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled, prefill } = props;
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
@@ -96,17 +108,21 @@ export function CheckoutClient(props: {
   // see the unchanged Stripe flow. The radio only appears when codEnabled.
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
 
-  // Customer
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  // Customer — prefilled from the most recent order for known customers
+  // (cookie-recognized). Speeds up repeat checkout by ~5 fields.
+  const [firstName, setFirstName] = useState(prefill?.firstName ?? '');
+  const [lastName, setLastName] = useState(prefill?.lastName ?? '');
+  const [phone, setPhone] = useState(prefill?.phone ?? '');
+  const [email, setEmail] = useState(prefill?.email ?? '');
 
   // Address — Romanian apartment-block deliveries reliably need
   // bloc/scară/etaj/apartament as discrete fields (couriers use them
   // to actually find the door). We surface 4 short inputs and pack
   // them into the API's `line2` string at submit time.
-  const [line1, setLine1] = useState('');
+  const [line1, setLine1] = useState(prefill?.line1 ?? '');
+  // line2 in prior orders is the 'Bl. X, Sc. Y, Et. Z, Ap. W' string we
+  // built. We don't try to back-parse into the 4 fields — let the user
+  // re-enter or keep blank; it's optional anyway.
   const [aptBlock, setAptBlock] = useState('');
   const [aptStair, setAptStair] = useState('');
   const [aptFloor, setAptFloor] = useState('');
@@ -119,8 +135,8 @@ export function CheckoutClient(props: {
     if (aptUnit.trim()) parts.push(`Ap. ${aptUnit.trim()}`);
     return parts.join(', ');
   }, [aptBlock, aptStair, aptFloor, aptUnit]);
-  const [city, setCity] = useState('Brașov');
-  const [postalCode, setPostalCode] = useState('');
+  const [city, setCity] = useState(prefill?.city || 'Brașov');
+  const [postalCode, setPostalCode] = useState(prefill?.postalCode ?? '');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   // Captures the address text the coords were geocoded against. If the user
   // edits any field after blurring, coords no longer matches the typed text;

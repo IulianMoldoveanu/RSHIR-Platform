@@ -2,9 +2,86 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
+import { readCustomerCookie } from '@/lib/customer-recognition';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { CheckoutClient } from './CheckoutClient';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+
+// Pre-fill the form for known customers from their most recent order.
+// Cuts ~5 fields off repeat-checkout flow (name, phone, email, street, city).
+type PrefillData = {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  line1: string;
+  line2: string;
+  city: string;
+  postalCode: string;
+};
+
+async function loadPrefill(tenantId: string, customerId: string): Promise<PrefillData | null> {
+  const admin = getSupabaseAdmin();
+  const { data: cust } = await admin
+    .from('customers')
+    .select('first_name, last_name, phone, email')
+    .eq('id', customerId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (!cust) return null;
+
+  // Walk this customer's most recent orders and pick the first one that
+  // had a delivery address; that's the address they're most likely to
+  // re-use. Pickup-only customers fall through with empty address fields.
+  const { data: lastOrder } = await admin
+    .from('restaurant_orders')
+    .select('delivery_address_id')
+    .eq('tenant_id', tenantId)
+    .eq('customer_id', customerId)
+    .not('delivery_address_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let line1 = '';
+  let line2 = '';
+  let city = '';
+  let postalCode = '';
+  if (lastOrder?.delivery_address_id) {
+    const { data: addr } = await admin
+      .from('customer_addresses')
+      .select('line1, line2, city, postal_code')
+      .eq('id', lastOrder.delivery_address_id)
+      .maybeSingle();
+    if (addr) {
+      line1 = addr.line1 ?? '';
+      line2 = addr.line2 ?? '';
+      city = addr.city ?? '';
+      postalCode = addr.postal_code ?? '';
+    }
+  }
+
+  // Strip the +40 prefix the API stores so the input shows the bare 9-digit
+  // local part — matches what the masked phone input expects.
+  const phoneRaw = (cust.phone ?? '').replace(/\D/g, '');
+  const phoneLocal = phoneRaw.startsWith('40')
+    ? phoneRaw.slice(2)
+    : phoneRaw.startsWith('0')
+      ? phoneRaw.slice(1)
+      : phoneRaw;
+
+  return {
+    firstName: cust.first_name ?? '',
+    lastName: cust.last_name ?? '',
+    phone: phoneLocal.slice(0, 9),
+    email: cust.email ?? '',
+    line1,
+    line2,
+    city,
+    postalCode,
+  };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +94,9 @@ export default async function CheckoutPage() {
   const pickup = readPickup(tenant.settings);
   const { logoUrl } = brandingFor(tenant.settings);
   const codEnabled = tenant.settings.cod_enabled === true;
+
+  const customerId = readCustomerCookie(tenant.id);
+  const prefill = customerId ? await loadPrefill(tenant.id, customerId) : null;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
@@ -56,6 +136,7 @@ export default async function CheckoutPage() {
         pickupLat={pickup.lat}
         pickupLng={pickup.lng}
         codEnabled={codEnabled}
+        prefill={prefill}
         locale={locale}
       />
     </main>
