@@ -31,6 +31,8 @@ export function OperationsClient({
   const [pickupAddress, setPickupAddress] = useState(initial.pickup_address ?? '');
   const [minOrder, setMinOrder] = useState(String(initial.min_order_ron));
   const [freeThreshold, setFreeThreshold] = useState(String(initial.free_delivery_threshold_ron));
+  const [etaMin, setEtaMin] = useState(String(initial.delivery_eta_min_minutes));
+  const [etaMax, setEtaMax] = useState(String(initial.delivery_eta_max_minutes));
   const [hours, setHours] = useState(initial.opening_hours);
   const [feedback, setFeedback] = useState<OperationsActionResult | null>(null);
 
@@ -69,6 +71,16 @@ export function OperationsClient({
       setFeedback({ ok: false, error: 'invalid_input', detail: 'Pragul livrării gratuite trebuie să fie ≥ 0.' });
       return;
     }
+    const etaMinNum = Number(etaMin);
+    const etaMaxNum = Number(etaMax);
+    if (!Number.isFinite(etaMinNum) || etaMinNum < 0 || !Number.isFinite(etaMaxNum) || etaMaxNum < 0) {
+      setFeedback({ ok: false, error: 'invalid_input', detail: 'Estimările trebuie să fie ≥ 0.' });
+      return;
+    }
+    if (etaMinNum > 0 && etaMaxNum > 0 && etaMaxNum < etaMinNum) {
+      setFeedback({ ok: false, error: 'invalid_input', detail: 'Estimarea maximă trebuie să fie ≥ minimă.' });
+      return;
+    }
     start(async () => {
       const result = await saveOperationsAction(
         {
@@ -79,6 +91,8 @@ export function OperationsClient({
           pickup_address: pickupAddress.trim() || null,
           min_order_ron: minOrderNum,
           free_delivery_threshold_ron: freeThresholdNum,
+          delivery_eta_min_minutes: etaMinNum,
+          delivery_eta_max_minutes: etaMaxNum,
           opening_hours: hours,
         },
         tenantId,
@@ -217,6 +231,45 @@ export function OperationsClient({
             <p className="mt-1 text-xs text-zinc-500">
               Doar afișaj — încurajează coșuri mai mari. Taxa reală vine din zone &amp; tarife.
             </p>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-zinc-100 pt-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Estimare livrare (minute)
+          </h3>
+          <p className="mt-1 text-xs text-zinc-600">
+            Apare în antetul storefront-ului ca interval (ex. „25–40 min&rdquo;). Afișarea unui
+            interval reduce reclamațiile despre întârzieri vs. un singur număr. Lasă 0 / 0 pentru a folosi valoarea implicită.
+          </p>
+          <div className="mt-3 flex items-end gap-2">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">Min.</label>
+              <input
+                type="number"
+                min={0}
+                max={240}
+                step={5}
+                disabled={!canEdit}
+                value={etaMin}
+                onChange={(e) => setEtaMin(e.target.value)}
+                className="mt-1 w-24 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              />
+            </div>
+            <span className="pb-2 text-zinc-400">–</span>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">Max.</label>
+              <input
+                type="number"
+                min={0}
+                max={240}
+                step={5}
+                disabled={!canEdit}
+                value={etaMax}
+                onChange={(e) => setEtaMax(e.target.value)}
+                className="mt-1 w-24 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              />
+            </div>
           </div>
         </div>
       </section>

@@ -18,6 +18,8 @@ export type TenantSettings = {
   // means "not configured" — UI hides the corresponding nudge.
   min_order_ron?: number;
   free_delivery_threshold_ron?: number;
+  delivery_eta_min_minutes?: number;
+  delivery_eta_max_minutes?: number;
 };
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';

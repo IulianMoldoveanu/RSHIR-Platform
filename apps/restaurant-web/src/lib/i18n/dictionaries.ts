@@ -25,6 +25,8 @@ export const dictionaries = {
       en: 'EN',
       min_order_template: 'Min. {amount}',
       free_delivery_template: 'Livrare gratuită peste {amount}',
+      delivery_eta_range_template: 'Livrare {min}–{max} min',
+      delivery_eta_single_template: 'Livrare ~{minutes} min',
     },
     home: {
       menu_not_published: 'Meniul nu e încă publicat.',
@@ -278,6 +280,8 @@ export const dictionaries = {
       en: 'EN',
       min_order_template: 'Min. {amount}',
       free_delivery_template: 'Free delivery over {amount}',
+      delivery_eta_range_template: 'Delivery {min}–{max} min',
+      delivery_eta_single_template: 'Delivery ~{minutes} min',
     },
     home: {
       menu_not_published: 'The menu has not been published yet.',

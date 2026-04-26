@@ -14,6 +14,8 @@ type TenantHeaderProps = {
   rating?: { average: number; count: number } | null;
   minOrderRon?: number;
   freeDeliveryThresholdRon?: number;
+  deliveryEtaMinMinutes?: number;
+  deliveryEtaMaxMinutes?: number;
 };
 
 function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
@@ -32,8 +34,24 @@ export function TenantHeader({
   rating = null,
   minOrderRon = 0,
   freeDeliveryThresholdRon = 0,
+  deliveryEtaMinMinutes = 0,
+  deliveryEtaMaxMinutes = 0,
 }: TenantHeaderProps) {
   const thresholdParts: string[] = [];
+  if (deliveryEtaMinMinutes > 0 && deliveryEtaMaxMinutes > 0) {
+    thresholdParts.push(
+      t(locale, 'header.delivery_eta_range_template', {
+        min: String(deliveryEtaMinMinutes),
+        max: String(deliveryEtaMaxMinutes),
+      }),
+    );
+  } else if (deliveryEtaMinMinutes > 0) {
+    thresholdParts.push(
+      t(locale, 'header.delivery_eta_single_template', {
+        minutes: String(deliveryEtaMinMinutes),
+      }),
+    );
+  }
   if (minOrderRon > 0) {
     thresholdParts.push(
       t(locale, 'header.min_order_template', {

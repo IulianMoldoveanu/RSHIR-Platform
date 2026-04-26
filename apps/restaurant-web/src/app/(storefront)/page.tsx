@@ -143,6 +143,18 @@ export default async function StorefrontHomePage() {
             ? Number(tenant.settings.free_delivery_threshold_ron)
             : 0
         }
+        deliveryEtaMinMinutes={
+          typeof tenant.settings.delivery_eta_min_minutes === 'number' &&
+          tenant.settings.delivery_eta_min_minutes > 0
+            ? Number(tenant.settings.delivery_eta_min_minutes)
+            : 0
+        }
+        deliveryEtaMaxMinutes={
+          typeof tenant.settings.delivery_eta_max_minutes === 'number' &&
+          tenant.settings.delivery_eta_max_minutes > 0
+            ? Number(tenant.settings.delivery_eta_max_minutes)
+            : 0
+        }
       />
 
       {closed && banner && (

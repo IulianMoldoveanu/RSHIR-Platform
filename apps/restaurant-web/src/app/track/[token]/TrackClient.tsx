@@ -44,6 +44,7 @@ type TrackOrder = {
     location: { lat: number; lng: number } | null;
     pickupAddress: string | null;
     pickupEtaMinutes: number | null;
+    deliveryEtaMinutes: number | null;
   } | null;
   customer: { firstName: string; lastNameInitial: string | null } | null;
   dropoff: { neighborhood: string; city: string } | null;
@@ -123,7 +124,11 @@ function TrackInner({
         updatedAt={order.updatedAt}
         paymentStatus={order.paymentStatus}
         locale={locale}
-        targetMinutes={order.tenant?.pickupEtaMinutes ?? null}
+        targetMinutes={
+          order.fulfillment === 'PICKUP'
+            ? (order.tenant?.pickupEtaMinutes ?? null)
+            : (order.tenant?.deliveryEtaMinutes ?? null)
+        }
       />
 
       {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (

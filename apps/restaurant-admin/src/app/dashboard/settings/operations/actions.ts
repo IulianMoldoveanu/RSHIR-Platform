@@ -16,6 +16,10 @@ export type OperationsSettings = {
   // 0 means "not configured" — UI hides the corresponding nudge.
   min_order_ron: number;
   free_delivery_threshold_ron: number;
+  // Delivery prep+driving time range surfaced on the storefront. 0 / 0
+  // means "not configured" — falls back to the hardcoded /track default.
+  delivery_eta_min_minutes: number;
+  delivery_eta_max_minutes: number;
   opening_hours: Record<DayKey, { open: string; close: string }[]>;
 };
 
@@ -109,6 +113,16 @@ export async function saveOperationsAction(
   if (!Number.isFinite(freeThreshold) || freeThreshold < 0 || freeThreshold > 5000) {
     return { ok: false, error: 'invalid_input', detail: 'free_delivery_threshold_ron must be 0–5000' };
   }
+  const etaMin = Number(input.delivery_eta_min_minutes);
+  const etaMax = Number(input.delivery_eta_max_minutes);
+  if (!Number.isFinite(etaMin) || etaMin < 0 || etaMin > 240) {
+    return { ok: false, error: 'invalid_input', detail: 'delivery_eta_min_minutes must be 0–240' };
+  }
+  if (!Number.isFinite(etaMax) || etaMax < 0 || etaMax > 240) {
+    return { ok: false, error: 'invalid_input', detail: 'delivery_eta_max_minutes must be 0–240' };
+  }
+  // If both are set, max must be ≥ min — clamp to keep persisted state sane.
+  const safeMax = etaMin > 0 && etaMax > 0 && etaMax < etaMin ? etaMin : etaMax;
 
   const payload = {
     is_accepting_orders: input.is_accepting_orders,
@@ -118,6 +132,8 @@ export async function saveOperationsAction(
     pickup_address: cleanPickupAddress || null,
     min_order_ron: Math.round(minOrder * 100) / 100,
     free_delivery_threshold_ron: Math.round(freeThreshold * 100) / 100,
+    delivery_eta_min_minutes: Math.round(etaMin),
+    delivery_eta_max_minutes: Math.round(safeMax),
     opening_hours: sanitizeHours(input.opening_hours),
   };
 

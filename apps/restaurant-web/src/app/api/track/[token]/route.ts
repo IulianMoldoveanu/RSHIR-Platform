@@ -79,6 +79,14 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
     typeof tenantSettings.pickup_eta_minutes === 'number' && tenantSettings.pickup_eta_minutes > 0
       ? Math.round(tenantSettings.pickup_eta_minutes)
       : null;
+  // For DELIVERY orders, use the *min* of the configured range as the target
+  // — under-promise / over-deliver beats the inverse for repeat-order intent
+  // (Tazz Trustpilot pattern).
+  const deliveryEtaMinutes =
+    typeof tenantSettings.delivery_eta_min_minutes === 'number' &&
+    tenantSettings.delivery_eta_min_minutes > 0
+      ? Math.round(tenantSettings.delivery_eta_min_minutes)
+      : null;
 
   const isPickup = order.delivery_address_id === null;
 
@@ -105,6 +113,7 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
               tenantLat !== null && tenantLng !== null ? { lat: tenantLat, lng: tenantLng } : null,
             pickupAddress,
             pickupEtaMinutes,
+            deliveryEtaMinutes,
           }
         : null,
       customer: order.customers

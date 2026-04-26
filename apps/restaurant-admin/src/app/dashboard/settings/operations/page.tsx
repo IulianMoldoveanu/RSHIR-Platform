@@ -13,6 +13,8 @@ const DEFAULTS: OperationsSettings = {
   pickup_address: null,
   min_order_ron: 0,
   free_delivery_threshold_ron: 0,
+  delivery_eta_min_minutes: 0,
+  delivery_eta_max_minutes: 0,
   opening_hours: {
     mon: [{ open: '10:00', close: '22:00' }],
     tue: [{ open: '10:00', close: '22:00' }],
@@ -62,6 +64,16 @@ export default async function OperationsSettingsPage() {
       settings.free_delivery_threshold_ron >= 0
         ? settings.free_delivery_threshold_ron
         : DEFAULTS.free_delivery_threshold_ron,
+    delivery_eta_min_minutes:
+      typeof settings.delivery_eta_min_minutes === 'number' &&
+      settings.delivery_eta_min_minutes >= 0
+        ? settings.delivery_eta_min_minutes
+        : DEFAULTS.delivery_eta_min_minutes,
+    delivery_eta_max_minutes:
+      typeof settings.delivery_eta_max_minutes === 'number' &&
+      settings.delivery_eta_max_minutes >= 0
+        ? settings.delivery_eta_max_minutes
+        : DEFAULTS.delivery_eta_max_minutes,
     opening_hours:
       settings.opening_hours && typeof settings.opening_hours === 'object'
         ? { ...DEFAULTS.opening_hours, ...(settings.opening_hours as OperationsSettings['opening_hours']) }
