@@ -167,6 +167,7 @@ export async function POST(req: Request) {
       name: li.name,
       qty: li.quantity,
       priceRon: Number(li.priceRon),
+      modifiers: li.modifiers.map((m) => m.name),
     })),
     totals: {
       subtotalRon: Number(q.subtotalRon),

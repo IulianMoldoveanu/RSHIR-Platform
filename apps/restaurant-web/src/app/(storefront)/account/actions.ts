@@ -20,6 +20,9 @@ type StoredOrderItem = {
   priceRon: number;
   quantity: number;
   lineTotalRon: number;
+  // Newer orders persist modifiers (id + name + priceDeltaRon). Older orders
+  // pre-modifier-fix won't have this — we treat absence as no modifiers.
+  modifiers?: Array<{ id: string; name: string; priceDeltaRon: number }>;
 };
 
 function modifiersKey(mods: CartModifier[]): string {
@@ -70,11 +73,39 @@ export async function repeatOrder(orderId: string): Promise<void> {
       .map((m) => [m.id, m]),
   );
 
+  // Re-fetch modifiers to validate they still exist + carry their current
+  // price_delta_ron (in case the operator changed it since the order ran).
+  const requestedModIds = Array.from(
+    new Set(orderItems.flatMap((i) => (i.modifiers ?? []).map((m) => m.id))),
+  );
+  const liveModifiersById = new Map<
+    string,
+    { id: string; item_id: string; name: string; price_delta_ron: number }
+  >();
+  if (requestedModIds.length > 0) {
+    const { data: modRows } = await admin
+      .from('restaurant_menu_modifiers')
+      .select('id, item_id, name, price_delta_ron')
+      .in('id', requestedModIds);
+    for (const m of modRows ?? []) liveModifiersById.set(m.id, m);
+  }
+
   const cartItems: CartItem[] = [];
   for (const line of orderItems) {
     const live = availableById.get(line.itemId);
     if (!live) continue;
     const modifiers: CartModifier[] = [];
+    for (const m of line.modifiers ?? []) {
+      const liveMod = liveModifiersById.get(m.id);
+      // Drop modifiers that no longer exist or have moved to a different
+      // item — pricing.ts would reject them at quote time anyway.
+      if (!liveMod || liveMod.item_id !== line.itemId) continue;
+      modifiers.push({
+        id: liveMod.id,
+        name: liveMod.name,
+        price_delta_ron: Number(liveMod.price_delta_ron),
+      });
+    }
     cartItems.push({
       lineId: `${line.itemId}::${modifiersKey(modifiers)}`,
       itemId: line.itemId,
