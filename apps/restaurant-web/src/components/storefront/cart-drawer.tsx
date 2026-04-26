@@ -8,14 +8,15 @@ import { lineTotalRon } from '@/lib/cart/store';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { previewDiscount, readStoredPromo, type StoredPromo } from '@/lib/cart/promo';
-import { WhatsAppShareButton } from './share-button';
 
 export function CartPill({
-  siteUrl,
   closedReason = null,
   locale,
 }: {
-  siteUrl: string;
+  /** Kept on the props for backwards compat with parent layouts; the
+   *  in-cart WhatsApp share lived here pre-§3 P2. Storefront callers
+   *  may still pass it — no-op now. */
+  siteUrl?: string;
   closedReason?: string | null;
   locale: Locale;
 }) {
@@ -194,12 +195,10 @@ export function CartPill({
                   {closedReason && (
                     <p className="text-center text-xs text-zinc-500">{closedReason}</p>
                   )}
-                  <WhatsAppShareButton
-                    text={t(locale, 'cart.whatsapp_share_text')}
-                    url={siteUrl}
-                    label={t(locale, 'item.share_on_whatsapp')}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-600 px-4 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
-                  />
+                  {/* §3 P2: WhatsApp share moved out of the cart footer —
+                      it competed with the primary checkout CTA and lowered
+                      conversion. Tenant-header still has its own WhatsApp
+                      ordering button for customers who prefer that path. */}
                 </div>
               </SheetFooter>
             </div>
