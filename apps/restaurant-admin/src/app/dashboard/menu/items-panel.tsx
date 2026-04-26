@@ -76,12 +76,11 @@ export function ItemsPanel({
   }
 
   function toggleAvailability(item: MenuItem) {
+    const next = !item.is_available;
     start(async () => {
       try {
-        await toggleItemAvailabilityAction({
-          id: item.id,
-          is_available: !item.is_available,
-        });
+        await toggleItemAvailabilityAction({ id: item.id, is_available: next });
+        toast.success(next ? 'Produs disponibil' : 'Produs indisponibil');
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
       }

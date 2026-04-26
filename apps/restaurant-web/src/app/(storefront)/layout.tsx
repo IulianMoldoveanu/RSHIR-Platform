@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { HirFooter } from '@/components/storefront/hir-footer';
@@ -15,7 +15,6 @@ export default async function StorefrontLayout({ children }: { children: React.R
   if (!tenant) notFound();
 
   const locale = getLocale();
-  const baseUrl = tenantBaseUrl();
   const { brandColor } = brandingFor(tenant.settings);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -38,11 +37,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <StorefrontShell tenantId={tenant.id}>
         {children}
         <HirFooter />
-        <CartPill
-          siteUrl={baseUrl}
-          closedReason={closedReason}
-          locale={locale}
-        />
+        <CartPill closedReason={closedReason} locale={locale} />
         <CookieConsent locale={locale} />
       </StorefrontShell>
     </div>

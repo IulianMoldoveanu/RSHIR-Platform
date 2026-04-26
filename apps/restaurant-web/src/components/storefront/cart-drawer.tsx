@@ -13,10 +13,6 @@ export function CartPill({
   closedReason = null,
   locale,
 }: {
-  /** Kept on the props for backwards compat with parent layouts; the
-   *  in-cart WhatsApp share lived here pre-§3 P2. Storefront callers
-   *  may still pass it — no-op now. */
-  siteUrl?: string;
   closedReason?: string | null;
   locale: Locale;
 }) {

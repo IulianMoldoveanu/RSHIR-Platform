@@ -17,6 +17,9 @@ export async function GET(
   if (!authed) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+  if (!authed.scopes.includes('orders.read')) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
 
   const { id } = params;
   const admin = getSupabaseAdmin();

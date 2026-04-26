@@ -46,7 +46,10 @@ const orderBodySchema = z.object({
     })
     .optional(),
   notes: z.string().trim().max(500).optional().or(z.literal('')),
-});
+}).refine(
+  (v) => v.fulfillment !== 'DELIVERY' || !!v.dropoff,
+  { message: 'dropoff is required when fulfillment is DELIVERY', path: ['dropoff'] },
+);
 
 export async function POST(req: Request) {
   const authed = await authenticateBearerKey(req.headers.get('authorization'));
