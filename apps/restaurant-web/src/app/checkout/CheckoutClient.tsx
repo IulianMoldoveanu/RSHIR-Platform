@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TriangleAlert } from 'lucide-react';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripeClient } from '@/lib/stripe/client';
 import { geocodeAddressRo } from '@/lib/zones/nominatim';
@@ -324,8 +325,12 @@ export function CheckoutClient(props: {
       <CartSummaryBox cart={cart} fallbackTotal={cartTotal} quote={quote} locale={locale} />
 
       {error && (
-        <div role="alert" className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
-          {error}
+        <div
+          role="alert"
+          className="flex items-start gap-2.5 rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800"
+        >
+          <TriangleAlert className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
+          <p>{error}</p>
         </div>
       )}
 
@@ -505,22 +510,36 @@ function ProgressIndicator({ step, locale }: { step: Step; locale: Locale }) {
     t(locale, 'checkout.step_review'),
     t(locale, 'checkout.step_payment'),
   ];
+  // Filled progress bar pattern (audit §4 P1) — replaces the thin h-px
+  // connector lines with proper progress segments that visually indicate
+  // how far along the customer is.
   return (
-    <ol className="flex items-center gap-2 text-xs text-zinc-500">
+    <ol className="flex items-stretch gap-2 text-xs text-zinc-500" aria-label="Pași checkout">
       {labels.map((label, i) => {
         const idx = i + 1;
-        const active = idx <= stepNum;
+        const completed = idx < stepNum;
+        const current = idx === stepNum;
+        const active = completed || current;
         return (
-          <li key={label} className="flex items-center gap-2">
+          <li key={label} className="flex flex-1 flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex h-5 w-5 flex-none items-center justify-center rounded-full text-[10px] font-semibold ${
+                  active ? 'bg-purple-700 text-white' : 'bg-zinc-200 text-zinc-600'
+                }`}
+              >
+                {completed ? '✓' : idx}
+              </span>
+              <span
+                className={`truncate ${current ? 'font-semibold text-zinc-900' : active ? 'font-medium text-zinc-700' : ''}`}
+              >
+                {label}
+              </span>
+            </div>
             <span
-              className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold ${
-                active ? 'bg-purple-700 text-white' : 'bg-zinc-200 text-zinc-600'
-              }`}
-            >
-              {idx}
-            </span>
-            <span className={active ? 'font-medium text-zinc-800' : ''}>{label}</span>
-            {idx < 3 && <span aria-hidden className="h-px w-6 bg-zinc-300" />}
+              aria-hidden
+              className={`h-1 rounded-full ${active ? 'bg-purple-600' : 'bg-zinc-200'}`}
+            />
           </li>
         );
       })}

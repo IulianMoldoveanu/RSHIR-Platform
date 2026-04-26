@@ -65,7 +65,9 @@ export function CartPill({
           <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-1.5 text-xs font-bold tabular-nums text-zinc-900">
             {count}
           </span>
-          <span className="text-sm font-medium">{t(locale, 'cart.view_cart')}</span>
+          <span className="text-sm font-medium">
+            {t(locale, 'cart.products_count_template', { count: String(count) })}
+          </span>
         </span>
         <span className="text-sm font-semibold tabular-nums">{formatRon(subtotal, locale)}</span>
       </button>
