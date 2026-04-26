@@ -49,17 +49,32 @@ export async function PolishChecklist({ tenantId }: { tenantId: string }) {
   const remaining = items.filter((i) => !i.done);
   if (remaining.length === 0) return null;
 
+  const done = items.length - remaining.length;
+  const pct = Math.round((done / items.length) * 100);
+
   return (
-    <section className="rounded-lg border border-purple-200 bg-purple-50 p-5">
+    <section className="rounded-xl border border-purple-200 bg-purple-50 p-5">
       <header className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold text-purple-900">
-          Continuă să-ți optimizezi restaurantul
+          Optimizează-ți restaurantul
         </h2>
-        <span className="text-xs text-purple-700">
-          {items.length - remaining.length}/{items.length}
+        <span className="text-xs font-medium text-purple-700 tabular-nums">
+          {done}/{items.length}
         </span>
       </header>
-      <ul className="mt-3 flex flex-col gap-2 text-sm">
+      <div
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="mt-3 h-1 overflow-hidden rounded-full bg-purple-100"
+      >
+        <span
+          className="block h-full rounded-full bg-purple-600 transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <ul className="mt-4 flex flex-col gap-2 text-sm">
         {items.map((item) => (
           <li key={item.label} className="flex items-center gap-3">
             <span

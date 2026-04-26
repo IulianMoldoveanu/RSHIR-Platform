@@ -58,8 +58,21 @@ type OrderRow = {
   total_ron: number;
   created_at: string;
   delivery_address_id: string | null;
+  items: unknown;
   customers: { first_name: string | null; last_name: string | null } | null;
 };
+
+const PENDING_DANGER_MS = 5 * 60_000;
+
+function itemCount(items: unknown): number {
+  if (!Array.isArray(items)) return 0;
+  return items.reduce<number>(
+    (s, it) => s + (typeof it === 'object' && it !== null && 'quantity' in it
+      ? Number((it as { quantity?: number }).quantity ?? 1)
+      : 1),
+    0,
+  );
+}
 
 function parseFilter(value: string | string[] | undefined): Filter {
   const v = Array.isArray(value) ? value[0] : value;
@@ -109,7 +122,7 @@ export default async function OrdersPage({
 
   let q = admin
     .from('restaurant_orders')
-    .select('id, status, total_ron, created_at, delivery_address_id, customers(first_name, last_name)')
+    .select('id, status, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)')
     .eq('tenant_id', tenant.id)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -173,42 +186,66 @@ export default async function OrdersPage({
                   <span className="text-zinc-400">({items.length})</span>
                 </h2>
                 <ul className="flex flex-col divide-y divide-zinc-100 rounded-md border border-zinc-200 bg-white">
-                  {items.map((o) => (
-                    <li
-                      key={o.id}
-                      className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-xs text-zinc-500">#{shortId(o.id)}</span>
-                        <span className="font-medium text-zinc-900">
-                          {(o.customers?.first_name ?? 'Anonim').trim()}{' '}
-                          {lastInitial(o.customers?.last_name ?? null)}
-                        </span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_PILL[o.status]}`}
-                        >
-                          {STATUS_LABEL[o.status]}
-                        </span>
-                        {o.delivery_address_id === null && (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
-                            Ridicare
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-zinc-600">
-                        <span>{formatRon(Number(o.total_ron))}</span>
-                        <span className="w-10 text-right text-xs text-zinc-400">
-                          {timeAgo(o.created_at)}
-                        </span>
+                  {items.map((o) => {
+                    const ageMs = Date.now() - new Date(o.created_at).getTime();
+                    const stalePending = o.status === 'PENDING' && ageMs > PENDING_DANGER_MS;
+                    const count = itemCount(o.items);
+                    // Don't render the status pill while grouped (the section
+                    // heading already announces the state). Show it only when
+                    // the user is on "Toate" so mixed states are scannable.
+                    const showPill = filter === 'all';
+                    return (
+                      <li key={o.id} className="text-sm">
                         <Link
                           href={`/dashboard/orders/${o.id}`}
-                          className="rounded-md border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                          className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-zinc-50"
                         >
-                          Deschide
+                          <div className="flex min-w-0 items-center gap-3">
+                            {stalePending && (
+                              <span
+                                aria-label="În așteptare de >5 minute"
+                                className="h-2 w-2 flex-none rounded-full bg-rose-500"
+                              />
+                            )}
+                            <span className="font-mono text-xs text-zinc-500">#{shortId(o.id)}</span>
+                            <span className="truncate font-medium text-zinc-900">
+                              {(o.customers?.first_name ?? 'Anonim').trim()}{' '}
+                              {lastInitial(o.customers?.last_name ?? null)}
+                            </span>
+                            {showPill && (
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_PILL[o.status]}`}
+                              >
+                                {STATUS_LABEL[o.status]}
+                              </span>
+                            )}
+                            {o.delivery_address_id === null && (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+                                Ridicare
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-zinc-600">
+                            {count > 0 && (
+                              <span className="hidden text-xs text-zinc-500 sm:inline">
+                                {count} {count === 1 ? 'produs' : 'produse'}
+                              </span>
+                            )}
+                            <span className="font-mono tabular-nums">
+                              {formatRon(Number(o.total_ron))}
+                            </span>
+                            <span
+                              className={`w-12 text-right text-xs tabular-nums ${
+                                stalePending ? 'font-semibold text-rose-600' : 'text-zinc-400'
+                              }`}
+                            >
+                              {timeAgo(o.created_at)}
+                            </span>
+                          </div>
                         </Link>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             );

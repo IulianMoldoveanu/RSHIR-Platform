@@ -12,8 +12,7 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
-import { BookOpen } from 'lucide-react';
-import { PencilIcon, TrashIcon } from './icons';
+import { BookOpen, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
 import {
   bulkToggleAvailabilityAction,
   clearItemSoldOutAction,
@@ -130,12 +129,15 @@ export function ItemsPanel({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Cauta..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
-        />
+        <div className="relative max-w-xs flex-1 sm:flex-none">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <Input
+            placeholder="Caută..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
         <Select value={filter} onValueChange={(v) => setFilter(v as FilterCategory)}>
           <SelectTrigger className="w-48">
             <SelectValue />
@@ -283,23 +285,29 @@ export function ItemsPanel({
                     {(() => {
                       const soldOut = isSoldOutNow(it.sold_out_until);
                       return (
-                        <Button
-                          size="sm"
-                          variant={soldOut ? 'default' : 'outline'}
+                        <button
+                          type="button"
                           onClick={() => toggleSoldOut(it)}
                           disabled={pending}
+                          aria-label={soldOut ? 'Marchează disponibil din nou' : 'Marchează epuizat azi'}
+                          title={soldOut ? 'Disponibil din nou' : 'Epuizat azi'}
+                          className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-50 ${
+                            soldOut
+                              ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                              : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700'
+                          }`}
                         >
-                          {soldOut ? 'Disponibil din nou' : 'Epuizat azi'}
-                        </Button>
+                          {soldOut ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                        </button>
                       );
                     })()}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    <Button size="icon" variant="ghost" onClick={() => setEditing(it)}>
-                      <PencilIcon className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" onClick={() => setEditing(it)} aria-label="Editează">
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" onClick={() => onDelete(it)}>
-                      <TrashIcon className="h-4 w-4" />
+                    <Button size="icon" variant="ghost" onClick={() => onDelete(it)} aria-label="Șterge">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </td>
                 </tr>
