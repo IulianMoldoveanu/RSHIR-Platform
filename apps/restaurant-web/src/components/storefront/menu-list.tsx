@@ -5,6 +5,7 @@ import { Search, X } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
 import { t, type Locale } from '@/lib/i18n';
 import { MenuItemCard } from './menu-item-card';
+import { CategoryTabs } from './category-tabs';
 
 // RSHIR-44: client-side search across the loaded menu. We keep all the data
 // the server already shipped down (categories + items + modifiers) so the
@@ -74,21 +75,39 @@ export function MenuList({
           {t(locale, 'menu.search_no_results')}
         </p>
       ) : (
-        filtered.map((cat) => (
-          <section key={cat.id} className="mt-6">
-            <h2 className="px-4 text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
-              {cat.name}
-            </h2>
-            <div
-              className="no-scrollbar mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2"
-              style={{ WebkitOverflowScrolling: 'touch' }}
-            >
-              {cat.items.map((it) => (
-                <MenuItemCard key={it.id} item={it} modifiers={it.modifiers} locale={locale} />
-              ))}
+        <>
+          {/* Hide the sticky tabs while the user is searching — the categories
+              the bar shows would no longer match what's visible below. */}
+          {query.trim().length === 0 && (
+            <div className="mt-3 px-4">
+              <CategoryTabs categories={filtered.map((c) => ({ id: c.id, name: c.name }))} />
             </div>
-          </section>
-        ))
+          )}
+
+          <div className="px-4">
+            {filtered.map((cat) => (
+              <section
+                key={cat.id}
+                id={`cat-${cat.id}`}
+                className="scroll-mt-20 pt-6"
+              >
+                <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
+                  {cat.name}
+                </h2>
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  {cat.items.map((it) => (
+                    <MenuItemCard
+                      key={it.id}
+                      item={it}
+                      modifiers={it.modifiers}
+                      locale={locale}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
