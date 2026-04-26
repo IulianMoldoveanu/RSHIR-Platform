@@ -1,9 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
 import { t, type Locale } from '@/lib/i18n';
+import { easeOutSoft, motionDurations, useShouldReduceMotion } from '@/lib/motion';
 import { MenuItemCard } from './menu-item-card';
 import { CategoryTabs } from './category-tabs';
 
@@ -28,6 +30,7 @@ export function MenuList({
   locale: Locale;
 }) {
   const [query, setQuery] = useState('');
+  const reduceMotion = useShouldReduceMotion();
 
   const filtered = useMemo(() => {
     const trimmed = query.trim();
@@ -85,27 +88,48 @@ export function MenuList({
           )}
 
           <div className="px-4">
-            {filtered.map((cat) => (
-              <section
-                key={cat.id}
-                id={`cat-${cat.id}`}
-                className="scroll-mt-20 pt-6"
-              >
-                <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
-                  {cat.name}
-                </h2>
-                <div className="mt-3 grid grid-cols-1 gap-3">
-                  {cat.items.map((it) => (
-                    <MenuItemCard
-                      key={it.id}
-                      item={it}
-                      modifiers={it.modifiers}
-                      locale={locale}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+            <AnimatePresence mode="popLayout" initial={false}>
+              {filtered.map((cat) => (
+                <motion.section
+                  key={cat.id}
+                  id={`cat-${cat.id}`}
+                  layout={!reduceMotion}
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                  transition={{ duration: motionDurations.enter, ease: easeOutSoft }}
+                  className="scroll-mt-20 pt-6"
+                >
+                  <h2 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">
+                    {cat.name}
+                  </h2>
+                  <div className="mt-3 grid grid-cols-1 gap-3">
+                    {cat.items.map((it, idx) => (
+                      <motion.div
+                        key={it.id}
+                        layout={!reduceMotion}
+                        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: motionDurations.enter,
+                          ease: easeOutSoft,
+                          // Stagger items within a category so the eye
+                          // tracks down naturally on first paint. Cap at 200ms
+                          // so a 20-item category doesn't drag.
+                          delay: Math.min(idx * 0.03, 0.2),
+                        }}
+                      >
+                        <MenuItemCard
+                          item={it}
+                          modifiers={it.modifiers}
+                          locale={locale}
+                        />
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.section>
+              ))}
+            </AnimatePresence>
           </div>
         </>
       )}

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, type ComponentType, type SVGProps } from 'react';
+import { motion } from 'framer-motion';
 import { Plus, RotateCcw, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
+import { easeOutSoft, motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
 import type { MenuItemWithModifiers } from '@/lib/menu';
 
 // Conversion B13 / B2. Compact horizontal rail of items, each opening the
@@ -32,6 +34,7 @@ export function ReorderRail({
   className?: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const reduceMotion = useShouldReduceMotion();
   if (items.length === 0) return null;
   const open = items.find((i) => i.id === openId) ?? null;
   const heading = title ?? t(locale, 'reorder.rail_title');
@@ -46,13 +49,22 @@ export function ReorderRail({
         className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {items.map((item) => (
-          <button
+        {items.map((item, idx) => (
+          <motion.button
             key={item.id}
             type="button"
             onClick={() => setOpenId(item.id)}
             aria-label={item.name}
-            className="group flex w-36 flex-none flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md"
+            initial={reduceMotion ? false : { opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{
+              duration: motionDurations.enter,
+              ease: easeOutSoft,
+              delay: Math.min(idx * 0.04, 0.2),
+            }}
+            whileHover={reduceMotion ? undefined : { y: -2 }}
+            whileTap={reduceMotion ? undefined : tapPress}
+            className="group flex w-36 flex-none flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
           >
             <div className="relative h-24 w-full overflow-hidden rounded-xl bg-zinc-100">
               {item.image_url ? (
@@ -84,7 +96,7 @@ export function ReorderRail({
                 {t(locale, 'item.add_short')}
               </span>
             </div>
-          </button>
+          </motion.button>
         ))}
       </div>
 

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { t, type Locale } from '@/lib/i18n';
+import { motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -20,6 +22,7 @@ export function CategoryTabs({
 }) {
   const [activeId, setActiveId] = useState<string>(categories[0]?.id ?? '');
   const stripRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useShouldReduceMotion();
 
   useEffect(() => {
     if (categories.length === 0) return;
@@ -80,20 +83,39 @@ export function CategoryTabs({
         {categories.map((c) => {
           const active = c.id === activeId;
           return (
-            <button
+            <motion.button
               key={c.id}
               type="button"
               data-chip={c.id}
               onClick={() => jumpTo(c.id)}
+              whileTap={reduceMotion ? undefined : tapPress}
+              transition={{ duration: motionDurations.tap }}
               aria-current={active ? 'true' : undefined}
-              className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                active
-                  ? 'bg-zinc-900 text-white'
-                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900'
+              className={`relative shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                active ? 'text-white' : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
-              {c.name}
-            </button>
+              {/* Sliding active background — Wolt-style. layoutId means
+                  the same DOM node is reused across chips and framer
+                  morphs position+size smoothly. The inactive bg is a
+                  separate static layer so the strip's empty state still
+                  has visible chip outlines. */}
+              {active ? (
+                <motion.span
+                  layoutId="category-tab-active"
+                  className="absolute inset-0 rounded-full bg-zinc-900"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 500,
+                    damping: 35,
+                    duration: reduceMotion ? 0 : undefined,
+                  }}
+                />
+              ) : (
+                <span aria-hidden className="absolute inset-0 rounded-full bg-zinc-100" />
+              )}
+              <span className="relative">{c.name}</span>
+            </motion.button>
           );
         })}
       </div>
