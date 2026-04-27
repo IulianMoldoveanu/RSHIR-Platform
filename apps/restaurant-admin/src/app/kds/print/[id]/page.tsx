@@ -89,7 +89,7 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
                   ))}
                 </div>
               )}
-              {it.notes && <div className="mods">// {it.notes}</div>}
+              {it.notes && <div className="mods">{`// ${it.notes}`}</div>}
             </li>
           );
         })}

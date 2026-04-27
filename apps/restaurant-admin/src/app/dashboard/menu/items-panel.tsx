@@ -177,7 +177,7 @@ export function ItemsPanel({
       {categories.length === 0 && (
         <div className="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           <Info className="mt-0.5 h-4 w-4 flex-none" aria-hidden />
-          <p>Adaugă mai întâi o categorie din tab-ul „Categorii".</p>
+          <p>Adaugă mai întâi o categorie din tab-ul „Categorii”.</p>
         </div>
       )}
 

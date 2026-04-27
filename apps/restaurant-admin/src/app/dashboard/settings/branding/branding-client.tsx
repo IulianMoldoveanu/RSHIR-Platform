@@ -207,7 +207,7 @@ export function BrandingClient({
       <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Culoare de brand</h2>
         <p className="mt-1 text-xs text-zinc-600">
-          Folosită pe butoanele principale ale storefront-ului (ex. „Comandă"). Format hex #rrggbb.
+          Folosită pe butoanele principale ale storefront-ului (ex. „Comandă”). Format hex #rrggbb.
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">

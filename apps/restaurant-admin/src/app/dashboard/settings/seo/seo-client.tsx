@@ -49,7 +49,7 @@ export function SeoClient({
           className="rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none disabled:bg-zinc-50"
         />
         <p className="text-xs text-zinc-500">
-          Apare în structured data Restaurant. Liber, ex: „Pizza, Italian".
+          Apare în structured data Restaurant. Liber, ex: „Pizza, Italian”.
         </p>
       </div>
 
