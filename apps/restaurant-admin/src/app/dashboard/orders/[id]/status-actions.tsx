@@ -7,12 +7,12 @@ import { cancelOrder, updateOrderStatus } from '../actions';
 import type { OrderStatus } from '../status-machine';
 
 const FORWARD_LABEL: Partial<Record<OrderStatus, string>> = {
-  CONFIRMED: 'Confirma',
-  PREPARING: 'Trece in preparare',
-  READY: 'Marcheaza gata',
+  CONFIRMED: 'Confirmă',
+  PREPARING: 'Trece în preparare',
+  READY: 'Marchează gata',
   DISPATCHED: 'Trimite',
-  IN_DELIVERY: 'In livrare',
-  DELIVERED: 'Marcheaza livrata',
+  IN_DELIVERY: 'În livrare',
+  DELIVERED: 'Marchează livrată',
 };
 
 export function StatusActions({
@@ -39,13 +39,13 @@ export function StatusActions({
         await updateOrderStatus(orderId, next, tenantId);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Eroare necunoscuta.');
+        setError(e instanceof Error ? e.message : 'Eroare necunoscută.');
       }
     });
   };
 
   const onCancel = () => {
-    if (!confirm('Anulezi aceasta comanda?')) return;
+    if (!confirm('Anulezi această comandă?')) return;
     const reason = prompt('Motiv (optional)') ?? undefined;
     setError(null);
     startTransition(async () => {
@@ -53,7 +53,7 @@ export function StatusActions({
         await cancelOrder(orderId, tenantId, reason);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Eroare necunoscuta.');
+        setError(e instanceof Error ? e.message : 'Eroare necunoscută.');
       }
     });
   };
@@ -80,11 +80,11 @@ export function StatusActions({
             disabled={pending}
             onClick={onCancel}
           >
-            Anuleaza
+            Anulează
           </Button>
         )}
         {forwardOptions.length === 0 && !cancellable && (
-          <span className="text-xs text-zinc-500">Comanda este intr-o stare finala ({current}).</span>
+          <span className="text-xs text-zinc-500">Comanda este într-o stare finală ({current}).</span>
         )}
       </div>
       {error && <p className="text-xs text-rose-600">{error}</p>}

@@ -23,7 +23,7 @@ function parseCsv(text: string): { rows: Row[]; errors: string[] } {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  if (lines.length === 0) return { rows: [], errors: ['Niciun rand.'] };
+  if (lines.length === 0) return { rows: [], errors: ['Niciun rând.'] };
 
   // Skip header if it looks like one.
   const first = lines[0].toLowerCase();
@@ -96,7 +96,7 @@ export function CsvImportDialog({ onClose }: { onClose: () => void }) {
         );
         onClose();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -109,7 +109,7 @@ export function CsvImportDialog({ onClose }: { onClose: () => void }) {
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <p className="text-xs text-zinc-500">
-            Lipeste randuri sub forma <code>name,description,price,category</code>. Header optional.
+            Lipește rânduri sub forma <code>name,description,price,category</code>. Header optional.
             Categoriile noi sunt create automat.
           </p>
           <textarea
@@ -121,10 +121,10 @@ export function CsvImportDialog({ onClose }: { onClose: () => void }) {
           />
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-              Anuleaza
+              Anulează
             </Button>
             <Button type="submit" disabled={pending || !text.trim()}>
-              {pending ? 'Se importa...' : 'Importa'}
+              {pending ? 'Se importă...' : 'Importă'}
             </Button>
           </DialogFooter>
         </form>
