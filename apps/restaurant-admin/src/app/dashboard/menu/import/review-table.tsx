@@ -133,7 +133,7 @@ export function ReviewTable({
           onClick={() => onSubmit(rows.filter((r) => r.include))}
           disabled={submitting || selectedCount === 0}
         >
-          {submitting ? 'Se importa...' : `Importa ${selectedCount} produse`}
+          {submitting ? 'Se importă...' : `Importă ${selectedCount} produse`}
         </Button>
       </div>
     </div>
