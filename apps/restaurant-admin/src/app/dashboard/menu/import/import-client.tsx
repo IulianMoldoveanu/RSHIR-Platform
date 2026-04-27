@@ -45,7 +45,7 @@ export function ImportClient() {
   function onPickFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     if (f && f.size > MAX_BYTES) {
-      toast.error('Fisierul depaseste 8 MB.');
+      toast.error('Fișierul depășește 8 MB.');
       return;
     }
     setFile(f);
@@ -64,18 +64,18 @@ export function ImportClient() {
       });
       const json = (await res.json()) as ParseResponse | { error: string };
       if (!res.ok || 'error' in json) {
-        throw new Error('error' in json ? json.error : 'Parsare esuata');
+        throw new Error('error' in json ? json.error : 'Parsare eșuată');
       }
       const flat = flatten(json.parsed.categories);
       if (flat.length === 0) {
-        toast.error('Niciun produs detectat. Incearca alt fisier.');
+        toast.error('Niciun produs detectat. Încearcă alt fișier.');
         setRows([]);
         return;
       }
       setRows(flat);
-      toast.success(`${flat.length} produse extrase. Verifica si confirma.`);
+      toast.success(`${flat.length} produse extrase. Verifică și confirmă.`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+      toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
     } finally {
       setParsing(false);
     }
@@ -83,7 +83,7 @@ export function ImportClient() {
 
   function onCommit(selected: ReviewRow[]) {
     if (selected.length === 0) {
-      toast.error('Selecteaza cel putin un produs.');
+      toast.error('Selectează cel puțin un produs.');
       return;
     }
     start(async () => {
@@ -101,11 +101,11 @@ export function ImportClient() {
           }),
         });
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? 'Salvare esuata');
+        if (!res.ok) throw new Error(json.error ?? 'Salvare eșuată');
         toast.success(`${json.created} produse importate.`);
         router.push('/dashboard/menu');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -114,7 +114,7 @@ export function ImportClient() {
     return (
       <div className="flex flex-col gap-4 rounded-lg border border-zinc-200 bg-white p-6">
         <div>
-          <h2 className="text-sm font-medium text-zinc-900">Incarca meniul</h2>
+          <h2 className="text-sm font-medium text-zinc-900">Încarcă meniul</h2>
           <p className="mt-1 text-xs text-zinc-500">
             PDF, JPEG sau PNG. Maxim 8 MB. Claude Vision va extrage categoriile,
             produsele si preturile pentru verificare.
@@ -128,7 +128,7 @@ export function ImportClient() {
             onChange={onPickFile}
           />
           <span className="font-medium">
-            {file ? file.name : 'Click pentru a alege un fisier'}
+            {file ? file.name : 'Click pentru a alege un fișier'}
           </span>
           <span className="text-xs text-zinc-500">
             {file
@@ -138,7 +138,7 @@ export function ImportClient() {
         </label>
         <div className="flex justify-end">
           <Button onClick={onParse} disabled={!file || parsing}>
-            {parsing ? 'Se proceseaza... (~30s)' : 'Proceseaza cu AI'}
+            {parsing ? 'Se procesează... (~30s)' : 'Procesează cu AI'}
           </Button>
         </div>
       </div>

@@ -270,7 +270,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                   type="submit"
                   className="inline-flex h-9 items-center rounded-md bg-emerald-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-emerald-700"
                 >
-                  Marcheaza plata cash primita
+                  Marchează plata cash primită
                 </button>
                 <p className="mt-1 text-[11px] text-zinc-500">
                   Apasă după ce curierul a încasat numerarul.
