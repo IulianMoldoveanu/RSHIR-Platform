@@ -61,7 +61,7 @@ export function ReviewTable({
               <th className="px-3 py-2 text-left">Categorie</th>
               <th className="px-3 py-2 text-left">Produs</th>
               <th className="px-3 py-2 text-left">Descriere</th>
-              <th className="w-28 px-3 py-2 text-right">Pret (RON)</th>
+              <th className="w-28 px-3 py-2 text-right">Preț (RON)</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +115,7 @@ export function ReviewTable({
                     className="h-8 text-right"
                   />
                   {r.flagged && (
-                    <p className="mt-1 text-[10px] text-amber-700">verifica pretul</p>
+                    <p className="mt-1 text-[10px] text-amber-700">verifică prețul</p>
                   )}
                 </td>
               </tr>
@@ -126,7 +126,7 @@ export function ReviewTable({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onReset} disabled={submitting}>
-          Reseteaza
+          Resetează
         </Button>
         <Button
           type="button"
