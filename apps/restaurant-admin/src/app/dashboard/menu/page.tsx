@@ -128,7 +128,8 @@ export default async function MenuPage() {
     }),
   );
 
-  const storefrontUrl = `https://${tenant.slug}.hir.ro`;
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
+  const storefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
 
   return (
     <div className="flex flex-col gap-4">

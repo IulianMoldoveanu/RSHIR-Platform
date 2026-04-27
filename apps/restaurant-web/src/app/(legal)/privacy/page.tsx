@@ -23,7 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const DPO_EMAIL = 'dpo@hir.ro';
+// DPO contact is env-driven so the legal page reflects whatever address the
+// operator publishes; default keeps the page usable in dev/preview without
+// asserting an address we don't own.
+const DPO_EMAIL = process.env.NEXT_PUBLIC_DPO_EMAIL || 'privacy@example.com';
 const LAST_UPDATED = '2026-04-28';
 
 function readContactEmail(settings: unknown): string | null {

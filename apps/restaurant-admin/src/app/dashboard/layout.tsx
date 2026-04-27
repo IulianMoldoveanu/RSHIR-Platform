@@ -35,7 +35,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const onboarding = await computeOnboardingState(tenant.id);
   // Best-guess slug-based URL until TenantSummary surfaces custom_domain.
   // Owner can always paste their actual domain; this is a convenience link.
-  const tenantStorefrontUrl = `https://${tenant.slug}.hir.ro`;
+  // PRIMARY_DOMAIN comes from NEXT_PUBLIC_PRIMARY_DOMAIN; falls back to a
+  // localhost link so the sidebar doesn't open a domain we don't own.
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
+  const tenantStorefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
 
   // §6 P0 — flat list grouped into 6 logical sections per audit. Onboarding
   // pinned at the top and only when not yet live (the dot indicator already

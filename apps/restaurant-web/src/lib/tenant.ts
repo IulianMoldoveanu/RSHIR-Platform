@@ -68,7 +68,13 @@ type TenantRow = {
   settings: Json;
 };
 
-const SUBDOMAIN_BASES = ['lvh.me', 'hir.ro', 'rshir.ro'] as const;
+// Primary public domain is env-driven so the codebase isn't tied to any one
+// brand registration. Set NEXT_PUBLIC_PRIMARY_DOMAIN (e.g. "myrestaurants.com")
+// in Vercel to match the apex you actually own. `lvh.me` is kept as a dev
+// fallback (resolves any subdomain to 127.0.0.1) so local dev still works
+// without configuration.
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const SUBDOMAIN_BASES: string[] = ['lvh.me', ...(PRIMARY_DOMAIN ? [PRIMARY_DOMAIN] : [])];
 
 function subdomainSlug(host: string): string | null {
   for (const base of SUBDOMAIN_BASES) {
@@ -96,7 +102,8 @@ function isPreviewHost(host: string): boolean {
 /**
  * Resolves the active tenant for the current request from the host header.
  * Lookup order:
- *   1. If host is `<slug>.lvh.me` or `<slug>.hir.ro` → resolve by slug.
+ *   1. If host is `<slug>.lvh.me` or `<slug>.<NEXT_PUBLIC_PRIMARY_DOMAIN>`
+ *      → resolve by slug.
  *   2. Otherwise treat host as a custom domain (status must be ACTIVE).
  * Returns null if neither matches.
  */

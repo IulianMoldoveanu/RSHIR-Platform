@@ -1,4 +1,5 @@
 export function HirFooter() {
+  const brandUrl = process.env.NEXT_PUBLIC_BRAND_URL;
   return (
     <footer className="mx-auto mt-12 max-w-2xl px-4 pb-32 pt-8 text-center text-xs text-zinc-400">
       <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5">
@@ -8,14 +9,18 @@ export function HirFooter() {
         </span>
       </div>
       <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 leading-relaxed">
-        <a
-          href="https://hir.ro"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-zinc-500 transition-colors hover:text-zinc-800"
-        >
-          made by HIR
-        </a>
+        {brandUrl ? (
+          <a
+            href={brandUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-zinc-500 transition-colors hover:text-zinc-800"
+          >
+            made by HIR
+          </a>
+        ) : (
+          <span className="font-medium text-zinc-500">made by HIR</span>
+        )}
         <span aria-hidden className="text-zinc-300">·</span>
         <a
           href="/privacy"
