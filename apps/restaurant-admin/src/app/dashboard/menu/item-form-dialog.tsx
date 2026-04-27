@@ -40,7 +40,7 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!categoryId) {
-      toast.error('Selecteaza o categorie.');
+      toast.error('Selectează o categorie.');
       return;
     }
     const fd = new FormData();
@@ -57,10 +57,10 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
       try {
         if (mode === 'create') await createItemAction(fd);
         else await updateItemAction(fd);
-        toast.success(mode === 'create' ? 'Produs adaugat' : 'Produs actualizat');
+        toast.success(mode === 'create' ? 'Produs adăugat' : 'Produs actualizat');
         onClose();
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -69,7 +69,7 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>{mode === 'create' ? 'Produs nou' : 'Editeaza produs'}</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'Produs nou' : 'Editează produs'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
@@ -146,7 +146,7 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
             />
             {item?.image_url && !imageFile && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.image_url} alt="" className="mt-1 h-20 w-20 rounded object-cover" />
+              <img src={item.image_url} alt="" width={80} height={80} className="mt-1 h-20 w-20 rounded object-cover" />
             )}
           </div>
 
@@ -156,15 +156,15 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
               checked={isAvailable}
               onChange={(e) => setIsAvailable(e.target.checked)}
             />
-            Disponibil pentru comanda
+            Disponibil pentru comandă
           </label>
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={pending}>
-              Anuleaza
+              Anulează
             </Button>
             <Button type="submit" disabled={pending}>
-              {pending ? 'Se salveaza...' : 'Salveaza'}
+              {pending ? 'Se salvează...' : 'Salvează'}
             </Button>
           </DialogFooter>
         </form>
