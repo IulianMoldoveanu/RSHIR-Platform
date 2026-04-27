@@ -9,21 +9,21 @@ import { StatusActions } from './status-actions';
 export const dynamic = 'force-dynamic';
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING: 'In asteptare',
-  CONFIRMED: 'Confirmata',
-  PREPARING: 'In preparare',
+  PENDING: 'În așteptare',
+  CONFIRMED: 'Confirmată',
+  PREPARING: 'În preparare',
   READY: 'Gata',
-  DISPATCHED: 'Trimisa',
-  IN_DELIVERY: 'In livrare',
-  DELIVERED: 'Livrata',
-  CANCELLED: 'Anulata',
+  DISPATCHED: 'Trimisă',
+  IN_DELIVERY: 'În livrare',
+  DELIVERED: 'Livrată',
+  CANCELLED: 'Anulată',
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
-  UNPAID: 'Neplatita',
-  PAID: 'Platita',
-  REFUNDED: 'Rambursata',
-  FAILED: 'Esuata',
+  UNPAID: 'Neplătită',
+  PAID: 'Plătită',
+  REFUNDED: 'Rambursată',
+  FAILED: 'Eșuată',
 };
 
 type OrderItemSnapshot = {
@@ -130,11 +130,11 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
         <Link href="/dashboard/orders" className="text-xs text-zinc-500 hover:text-zinc-900">
-          ← Inapoi la comenzi
+          ← Înapoi la comenzi
         </Link>
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-            Comanda #{shortId(order.id)}
+            Comandă #{shortId(order.id)}
           </h1>
           <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white">
             {STATUS_LABEL[order.status]}
@@ -146,12 +146,12 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           )}
         </div>
         <p className="text-xs text-zinc-500">
-          Creata {new Date(order.created_at).toLocaleString('ro-RO')}
+          Creată {new Date(order.created_at).toLocaleString('ro-RO')}
         </p>
       </header>
 
       <section className="rounded-md border border-zinc-200 bg-white p-4">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-900">Tranzitii</h2>
+        <h2 className="mb-2 text-sm font-semibold text-zinc-900">Tranziții</h2>
         <StatusActions
           orderId={order.id}
           current={order.status}
@@ -165,7 +165,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         <section className="rounded-md border border-zinc-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">Produse</h2>
           {items.length === 0 ? (
-            <p className="text-xs text-zinc-500">Fara linii.</p>
+            <p className="text-xs text-zinc-500">Fără linii.</p>
           ) : (
             <ul className="flex flex-col divide-y divide-zinc-100 text-sm">
               {items.map((it, idx) => {
@@ -216,7 +216,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                 )}
               </div>
             ) : (
-              <p className="text-xs text-zinc-500">Fara client asociat.</p>
+              <p className="text-xs text-zinc-500">Fără client asociat.</p>
             )}
           </div>
 
@@ -232,7 +232,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
             </div>
           ) : (
             <div className="rounded-md border border-zinc-200 bg-white p-4">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Adresa de livrare</h2>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Adresă de livrare</h2>
               {order.customer_addresses ? (
                 <div className="text-sm text-zinc-700">
                   <p>{order.customer_addresses.line1}</p>
@@ -244,13 +244,13 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                   </p>
                 </div>
               ) : (
-                <p className="text-xs text-zinc-500">Fara adresa.</p>
+                <p className="text-xs text-zinc-500">Fără adresă.</p>
               )}
             </div>
           )}
 
           <div className="rounded-md border border-zinc-200 bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold text-zinc-900">Plata</h2>
+            <h2 className="mb-2 text-sm font-semibold text-zinc-900">Plată</h2>
             <div className="flex items-center gap-2 text-sm text-zinc-700">
               <span>{PAYMENT_LABEL[order.payment_status] ?? order.payment_status}</span>
               {order.payment_method === 'COD' && (
