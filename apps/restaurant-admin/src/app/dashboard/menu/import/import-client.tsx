@@ -75,7 +75,7 @@ export function ImportClient() {
       setRows(flat);
       toast.success(`${flat.length} produse extrase. Verifica si confirma.`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+      toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
     } finally {
       setParsing(false);
     }
@@ -105,7 +105,7 @@ export function ImportClient() {
         toast.success(`${json.created} produse importate.`);
         router.push('/dashboard/menu');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
