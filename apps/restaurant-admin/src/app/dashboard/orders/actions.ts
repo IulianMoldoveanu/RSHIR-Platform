@@ -100,13 +100,23 @@ export async function markCodOrderPaid(
   const { tenantId, userId } = await requireTenant(expectedTenantId);
 
   const admin = createAdminClient();
+  // Defensive: if 20260504_001 (payment_method column) hasn't applied to
+  // this database yet, surface a clean Romanian error instead of leaking
+  // PostgREST's raw "column does not exist" string into the toast.
   const { data: existing, error: readErr } = await admin
     .from('restaurant_orders')
     .select('id, payment_method, payment_status')
     .eq('id', orderId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (readErr) throw new Error(readErr.message);
+  if (readErr) {
+    if (/payment_method|payment_status/i.test(readErr.message ?? '')) {
+      throw new Error(
+        'Marcarea cash nu este disponibilă încă — migrația plății nu a fost aplicată.',
+      );
+    }
+    throw new Error(readErr.message);
+  }
   if (!existing) throw new Error('Comanda nu exista in acest restaurant.');
 
   const row = existing as unknown as {
