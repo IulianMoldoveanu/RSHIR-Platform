@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
 import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
@@ -11,7 +12,19 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Same-origin gate. Without this a third-party page could initiate a paid
+  // order in a logged-in customer's browser via a cross-origin POST. The
+  // attacker can't see the response (CORS blocks the read) but the side
+  // effect — Stripe payment intent + a real order — is what we're stopping.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json(
+      { error: 'forbidden_origin', reason: origin.reason },
+      { status: 403 },
+    );
+  }
+
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return NextResponse.json({ error: 'tenant_not_found' }, { status: 404 });
 

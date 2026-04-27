@@ -2,7 +2,8 @@
 // (Next headers) and Stripe — we vi.mock both so we can hit early-return
 // branches without a request context.
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { NextRequest } from 'next/server';
 
 vi.mock('@/lib/tenant', () => ({
   resolveTenantFromHost: vi.fn(async () => ({
@@ -30,17 +31,33 @@ vi.mock('../order-finalize', () => ({
 
 import { POST } from './route';
 
-function makeReq(body: unknown) {
-  return new Request('http://localhost/api/checkout/confirm', {
+const ALLOWED = 'https://demo.hir.ro';
+
+function makeReq(body: unknown, opts: { origin?: string | null } = {}) {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const origin = opts.origin === undefined ? ALLOWED : opts.origin;
+  if (origin) headers['origin'] = origin;
+  return new NextRequest('http://localhost/api/checkout/confirm', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
   });
 }
 
 describe('POST /api/checkout/confirm', () => {
+  beforeEach(() => {
+    process.env.ALLOWED_ORIGINS = ALLOWED;
+  });
   afterEach(() => {
+    delete process.env.ALLOWED_ORIGINS;
     vi.clearAllMocks();
+  });
+
+  it('returns 403 forbidden_origin when Origin header is missing', async () => {
+    const res = await POST(makeReq({ orderId: '00000000-0000-0000-0000-000000000000' }, { origin: null }));
+    expect(res.status).toBe(403);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('forbidden_origin');
   });
 
   it('returns 404 tenant_not_found when host does not resolve', async () => {
