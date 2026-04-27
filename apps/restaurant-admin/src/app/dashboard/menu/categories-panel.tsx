@@ -45,10 +45,10 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
     start(async () => {
       try {
         await createCategoryAction(fd);
-        toast.success('Categorie adaugata');
+        toast.success('Categorie adăugată');
         setName('');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -61,10 +61,10 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
     start(async () => {
       try {
         await updateCategoryAction(fd);
-        toast.success('Categorie actualizata');
+        toast.success('Categorie actualizată');
         setEditingId(null);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -77,21 +77,21 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
       try {
         await toggleCategoryActiveAction(fd);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
 
   function onDelete(id: string) {
-    if (!confirm('Stergi (dezactivezi) aceasta categorie?')) return;
+    if (!confirm('Ștergi (dezactivezi) această categorie?')) return;
     const fd = new FormData();
     fd.set('id', id);
     start(async () => {
       try {
         await deleteCategoryAction(fd);
-        toast.success('Categorie dezactivata');
+        toast.success('Categorie dezactivată');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -107,7 +107,7 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
       try {
         await reorderCategoriesAction(ids);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -116,13 +116,13 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
     <div className="flex flex-col gap-4">
       <form onSubmit={onCreate} className="flex items-center gap-2">
         <Input
-          placeholder="Nume categorie noua..."
+          placeholder="Nume categorie nouă..."
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="max-w-xs"
         />
         <Button type="submit" disabled={pending || !name.trim()}>
-          Adauga
+          Adaugă
         </Button>
       </form>
 
@@ -161,10 +161,10 @@ export function CategoriesPanel({ categories }: { categories: MenuCategory[] }) 
                       className="max-w-xs"
                     />
                     <Button size="sm" onClick={() => onSaveEdit(c.id)} disabled={pending}>
-                      Salveaza
+                      Salvează
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
-                      Anuleaza
+                      Anulează
                     </Button>
                   </>
                 ) : (
