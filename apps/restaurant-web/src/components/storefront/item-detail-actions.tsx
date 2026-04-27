@@ -77,7 +77,7 @@ export function ItemDetailActions({ item, locale }: { item: MenuItemWithModifier
           <button
             type="button"
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm disabled:opacity-50"
             disabled={qty <= 1}
             aria-label={t(locale, 'cart.decrease')}
           >
@@ -87,7 +87,7 @@ export function ItemDetailActions({ item, locale }: { item: MenuItemWithModifier
           <button
             type="button"
             onClick={() => setQty((q) => q + 1)}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm"
             aria-label={t(locale, 'cart.increase')}
           >
             <Plus className="h-4 w-4" />

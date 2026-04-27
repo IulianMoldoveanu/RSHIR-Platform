@@ -124,7 +124,8 @@ Deno.serve(async (req: Request) => {
     .eq('id', body.tenant_id)
     .maybeSingle();
   if (tenantErr || !tenant) {
-    return json(404, { error: 'tenant_not_found', detail: tenantErr?.message });
+    if (tenantErr) console.error('[notify-new-order] tenant lookup failed:', tenantErr.message);
+    return json(404, { error: 'tenant_not_found' });
   }
   const optedOut =
     (tenant.settings as Record<string, unknown> | null)?.email_notifications_enabled === false;
@@ -148,7 +149,8 @@ Deno.serve(async (req: Request) => {
     .eq('tenant_id', body.tenant_id)
     .maybeSingle();
   if (orderErr || !order) {
-    return json(404, { error: 'order_not_found', detail: orderErr?.message });
+    if (orderErr) console.error('[notify-new-order] order lookup failed:', orderErr.message);
+    return json(404, { error: 'order_not_found' });
   }
   if (order.payment_status !== 'PAID') {
     // Trigger guarantees this, but stay defensive.
@@ -162,7 +164,8 @@ Deno.serve(async (req: Request) => {
     .eq('tenant_id', body.tenant_id)
     .eq('role', 'OWNER');
   if (memErr) {
-    return json(500, { error: 'members_query_failed', detail: memErr.message });
+    console.error('[notify-new-order] members query failed:', memErr.message);
+    return json(500, { error: 'members_query_failed' });
   }
   const recipients: string[] = [];
   for (const m of members ?? []) {

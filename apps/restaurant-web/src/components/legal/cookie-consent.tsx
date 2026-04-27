@@ -82,6 +82,13 @@ export function CookieConsent({ locale }: { locale: Locale }) {
                 type="button"
                 onClick={() => pick('all')}
                 disabled={pending}
+                // autoFocus pulls the user's tab focus into the dialog when it
+                // mounts. Without this, keyboard users could tab past the
+                // banner into the underlying page (which is content they may
+                // not yet have accepted analytics for) without ever getting a
+                // chance to choose. The "accept all" button is the safer
+                // primary because dismissing-as-essential is one tab back.
+                autoFocus
                 className="h-10 rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-60 motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
               >
                 {t(locale, 'consent.accept_all')}

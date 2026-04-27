@@ -218,7 +218,7 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 type="button"
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
                 whileTap={reduceMotion ? undefined : tapPress}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900 disabled:opacity-50"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900 disabled:opacity-50"
                 disabled={qty <= 1}
                 aria-label={t(locale, 'item.decrease_qty')}
               >
@@ -229,7 +229,7 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 type="button"
                 onClick={() => setQty((q) => q + 1)}
                 whileTap={reduceMotion ? undefined : tapPress}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
                 aria-label={t(locale, 'item.increase_qty')}
               >
                 <Plus className="h-4 w-4" />
