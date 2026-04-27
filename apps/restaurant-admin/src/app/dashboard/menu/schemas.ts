@@ -60,6 +60,11 @@ export const itemBulkAvailabilitySchema = z.object({
 
 export const itemSoldOutSchema = z.object({ id: uuid });
 
+export const itemReorderSchema = z.object({
+  category_id: uuid,
+  ids: z.array(uuid).min(1),
+});
+
 export const modifierCreateSchema = z.object({
   item_id: uuid,
   name: z.string().trim().min(1).max(80),

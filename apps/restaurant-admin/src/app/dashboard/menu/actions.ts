@@ -21,6 +21,7 @@ import {
   itemBulkAvailabilitySchema,
   itemCreateSchema,
   itemDeleteSchema,
+  itemReorderSchema,
   itemSoldOutSchema,
   itemUpdateSchema,
   modifierCreateSchema,
@@ -197,6 +198,19 @@ export async function createItemAction(formData: FormData) {
     imageUrl = await uploadImage(tenantId, itemId, file);
   }
 
+  // Append new items to the end of their category — same semantics as the
+  // category list. Default 0 collides for every legacy row, so a freshly-
+  // computed nextOrder gives drag-to-reorder a meaningful starting point.
+  const { data: maxRow } = await admin
+    .from('restaurant_menu_items')
+    .select('sort_order')
+    .eq('tenant_id', tenantId)
+    .eq('category_id', parsed.category_id)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxRow?.sort_order ?? -1) + 1;
+
   const { error } = await admin.from('restaurant_menu_items').insert({
     id: itemId,
     tenant_id: tenantId,
@@ -207,6 +221,7 @@ export async function createItemAction(formData: FormData) {
     image_url: imageUrl,
     is_available: parsed.is_available,
     tags: parsed.tags ?? [],
+    sort_order: nextOrder,
   });
   if (error) throw new Error(error.message);
   revalidatePath('/dashboard/menu');
@@ -265,6 +280,39 @@ export async function updateItemAction(formData: FormData) {
       item_id: parsed.id,
       is_available: parsed.is_available,
     });
+  }
+  revalidatePath('/dashboard/menu');
+}
+
+export async function reorderItemsAction(input: {
+  category_id: string;
+  ids: string[];
+}): Promise<void> {
+  const { tenantId } = await requireTenant();
+  const parsed = itemReorderSchema.parse(input);
+  const admin = createAdminClient();
+
+  // Verify the category belongs to this tenant before mutating items.
+  const { data: cat, error: catErr } = await admin
+    .from('restaurant_menu_categories')
+    .select('id')
+    .eq('id', parsed.category_id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (catErr) throw new Error(catErr.message);
+  if (!cat) throw new Error('Categorie inexistenta.');
+
+  // Update sort_order for each item in the supplied order. Tenant + category
+  // scoping in the WHERE prevents reordering rows from a different tenant or
+  // a different category by id-spoofing.
+  for (let i = 0; i < parsed.ids.length; i++) {
+    const { error } = await admin
+      .from('restaurant_menu_items')
+      .update({ sort_order: i })
+      .eq('id', parsed.ids[i])
+      .eq('tenant_id', tenantId)
+      .eq('category_id', parsed.category_id);
+    if (error) throw new Error(error.message);
   }
   revalidatePath('/dashboard/menu');
 }
