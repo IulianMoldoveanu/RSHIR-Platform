@@ -176,6 +176,9 @@ export async function createItemAction(formData: FormData) {
     category_id: formData.get('category_id'),
     tags: formData.get('tags') ?? '',
     is_available: formData.get('is_available'),
+    prep_minutes: formData.get('prep_minutes') ?? '',
+    serving_size_grams: formData.get('serving_size_grams') ?? '',
+    serving_size_label: formData.get('serving_size_label') ?? '',
   });
 
   const admin = createAdminClient();
@@ -207,6 +210,9 @@ export async function createItemAction(formData: FormData) {
     image_url: imageUrl,
     is_available: parsed.is_available,
     tags: parsed.tags ?? [],
+    prep_minutes: parsed.prep_minutes,
+    serving_size_grams: parsed.serving_size_grams,
+    serving_size_label: parsed.serving_size_label,
   });
   if (error) throw new Error(error.message);
   revalidatePath('/dashboard/menu');
@@ -222,6 +228,9 @@ export async function updateItemAction(formData: FormData) {
     category_id: formData.get('category_id'),
     tags: formData.get('tags') ?? '',
     is_available: formData.get('is_available'),
+    prep_minutes: formData.get('prep_minutes') ?? '',
+    serving_size_grams: formData.get('serving_size_grams') ?? '',
+    serving_size_label: formData.get('serving_size_label') ?? '',
   });
 
   const admin = createAdminClient();
@@ -248,6 +257,9 @@ export async function updateItemAction(formData: FormData) {
     category_id: parsed.category_id,
     tags: parsed.tags ?? [],
     is_available: parsed.is_available,
+    prep_minutes: parsed.prep_minutes,
+    serving_size_grams: parsed.serving_size_grams,
+    serving_size_label: parsed.serving_size_label,
   };
   if (imageUrl !== undefined) update.image_url = imageUrl;
 
