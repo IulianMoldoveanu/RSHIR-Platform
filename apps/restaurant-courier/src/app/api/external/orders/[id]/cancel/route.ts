@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { authenticateApiKey } from '@/lib/api-key';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendWebhook } from '@/lib/webhook';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,16 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
     created_at: string;
     updated_at: string;
   };
+
+  // Fire-and-forget webhook to the third-party that posted the order. Never
+  // throws — the helper updates the order's webhook bookkeeping fields.
+  void sendWebhook(out.id, {
+    event: 'order.cancelled',
+    orderId: out.id,
+    externalOrderId: out.source_order_id ?? null,
+    status: out.status,
+    occurredAt: out.updated_at,
+  });
 
   return NextResponse.json({
     id: out.id,

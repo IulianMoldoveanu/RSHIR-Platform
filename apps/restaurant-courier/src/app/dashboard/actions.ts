@@ -4,6 +4,24 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendWebhook } from '@/lib/webhook';
+
+async function notifySubscriber(orderId: string, status: string): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('courier_orders')
+    .select('source_order_id, updated_at')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (!data) return;
+  void sendWebhook(orderId, {
+    event: 'order.status_changed',
+    orderId,
+    externalOrderId: (data as { source_order_id: string | null }).source_order_id ?? null,
+    status,
+    occurredAt: (data as { updated_at: string }).updated_at,
+  });
+}
 
 export async function logoutAction() {
   const supabase = createServerClient();
@@ -68,11 +86,14 @@ export async function endShiftAction() {
 export async function markPickedUpAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
-  await admin
+  const { data } = await admin
     .from('courier_orders')
     .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
     .eq('id', orderId)
-    .eq('assigned_courier_user_id', userId);
+    .eq('assigned_courier_user_id', userId)
+    .select('id')
+    .maybeSingle();
+  if (data) await notifySubscriber(orderId, 'PICKED_UP');
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
@@ -80,11 +101,14 @@ export async function markPickedUpAction(orderId: string) {
 export async function markDeliveredAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
-  await admin
+  const { data } = await admin
     .from('courier_orders')
     .update({ status: 'DELIVERED', updated_at: new Date().toISOString() })
     .eq('id', orderId)
-    .eq('assigned_courier_user_id', userId);
+    .eq('assigned_courier_user_id', userId)
+    .select('id')
+    .maybeSingle();
+  if (data) await notifySubscriber(orderId, 'DELIVERED');
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
@@ -93,7 +117,7 @@ export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
   // Only accept if currently CREATED or OFFERED and unassigned.
-  await admin
+  const { data } = await admin
     .from('courier_orders')
     .update({
       status: 'ACCEPTED',
@@ -102,7 +126,10 @@ export async function acceptOrderAction(orderId: string) {
     })
     .eq('id', orderId)
     .in('status', ['CREATED', 'OFFERED'])
-    .is('assigned_courier_user_id', null);
+    .is('assigned_courier_user_id', null)
+    .select('id')
+    .maybeSingle();
+  if (data) await notifySubscriber(orderId, 'ACCEPTED');
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
