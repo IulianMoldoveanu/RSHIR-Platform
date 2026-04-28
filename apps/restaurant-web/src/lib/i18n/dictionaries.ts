@@ -27,6 +27,7 @@ export const dictionaries = {
       free_delivery_template: 'Livrare gratuită peste {amount}',
       delivery_eta_range_template: 'Livrare {min}–{max} min',
       delivery_eta_single_template: 'Livrare ~{minutes} min',
+      today_orders_template: '{count} oameni au comandat azi',
     },
     home: {
       menu_not_published: 'Meniul nu e încă publicat.',
@@ -71,6 +72,9 @@ export const dictionaries = {
     },
     reorder: {
       rail_title: 'Comandă din nou',
+    },
+    storefront_cta: {
+      view_menu: 'Vezi meniul',
     },
     cart: {
       title: 'Coșul tău',
@@ -304,6 +308,7 @@ export const dictionaries = {
       free_delivery_template: 'Free delivery over {amount}',
       delivery_eta_range_template: 'Delivery {min}–{max} min',
       delivery_eta_single_template: 'Delivery ~{minutes} min',
+      today_orders_template: '{count} people ordered today',
     },
     home: {
       menu_not_published: 'The menu has not been published yet.',
@@ -348,6 +353,9 @@ export const dictionaries = {
     },
     reorder: {
       rail_title: 'Order again',
+    },
+    storefront_cta: {
+      view_menu: 'View menu',
     },
     cart: {
       title: 'Your cart',

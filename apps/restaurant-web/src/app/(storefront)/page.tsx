@@ -9,6 +9,8 @@ import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
 import { MenuList } from '@/components/storefront/menu-list';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
+import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
+import { getTodayOrderCount } from '@/lib/orders/today-count';
 import {
   formatNextOpen,
   isAcceptingOrders,
@@ -52,9 +54,10 @@ export default async function StorefrontHomePage() {
 
   const locale = getLocale();
   const { logoUrl, coverUrl } = brandingFor(tenant.settings);
-  const [menu, rating] = await Promise.all([
+  const [menu, rating, todayOrderCount] = await Promise.all([
     getMenuByTenant(tenant.id),
     getReviewSummary(tenant.id),
+    getTodayOrderCount(tenant.id),
   ]);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -75,6 +78,12 @@ export default async function StorefrontHomePage() {
       ? ((tenant.settings as { cuisine?: string }).cuisine ?? '').trim() || null
       : null;
   const phone = tenant.settings.whatsapp_phone ?? null;
+
+  const freeDeliveryThresholdRon =
+    typeof tenant.settings.free_delivery_threshold_ron === 'number' &&
+    tenant.settings.free_delivery_threshold_ron > 0
+      ? Number(tenant.settings.free_delivery_threshold_ron)
+      : 0;
 
   const restaurantJsonLd = {
     '@context': 'https://schema.org',
@@ -138,12 +147,8 @@ export default async function StorefrontHomePage() {
             ? Number(tenant.settings.min_order_ron)
             : 0
         }
-        freeDeliveryThresholdRon={
-          typeof tenant.settings.free_delivery_threshold_ron === 'number' &&
-          tenant.settings.free_delivery_threshold_ron > 0
-            ? Number(tenant.settings.free_delivery_threshold_ron)
-            : 0
-        }
+        freeDeliveryThresholdRon={freeDeliveryThresholdRon}
+        todayOrderCount={todayOrderCount}
         deliveryEtaMinMinutes={
           typeof tenant.settings.delivery_eta_min_minutes === 'number' &&
           tenant.settings.delivery_eta_min_minutes > 0
@@ -157,6 +162,8 @@ export default async function StorefrontHomePage() {
             : 0
         }
       />
+
+      <FreeDeliveryProgress thresholdRon={freeDeliveryThresholdRon} locale={locale} />
 
       {closed && banner && (
         <div className="mx-auto mt-3 max-w-2xl px-4">

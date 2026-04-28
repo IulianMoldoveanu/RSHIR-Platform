@@ -303,16 +303,39 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
  * Returns the tenant's top-N most-ordered items over the last 30 days, with
  * modifiers attached. Used by the cart drawer to render an "Also order"
  * upsell rail (Wolt / Glovo / DoorDash 'Complement your Cart' pattern).
- * Returns [] when no item has hit the popularity floor.
+ *
+ * Falls back (S3) to the first N available items by sort_order when the
+ * tenant has no qualifying order history yet — guarantees the rail shows
+ * up for newly-launched tenants instead of being silently empty.
  */
 export async function getTopPopularItems(
   tenantId: string,
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const ranks = await loadPopularRanks(tenantId);
-  if (ranks.size === 0) return [];
-
   const supabase = getSupabase();
+  const ranks = await loadPopularRanks(tenantId);
+
+  if (ranks.size === 0) {
+    const fallback = await getTopItems(tenantId, limit);
+    if (fallback.length === 0) return [];
+    const ids = fallback.map((it) => it.id);
+    const modsRes = await supabase
+      .from('restaurant_menu_modifiers')
+      .select('id, item_id, name, price_delta_ron')
+      .in('item_id', ids);
+    const modsByItem = new Map<string, MenuModifier[]>();
+    for (const m of (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>) {
+      const arr = modsByItem.get(m.item_id) ?? [];
+      arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
+      modsByItem.set(m.item_id, arr);
+    }
+    return fallback.map((it) => ({
+      ...it,
+      modifiers: modsByItem.get(it.id) ?? [],
+      modifierGroups: [] as MenuModifierGroup[],
+    }));
+  }
+
   const ids = Array.from(ranks.keys());
   const [itemsRes, modsRes] = await Promise.all([
     supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),

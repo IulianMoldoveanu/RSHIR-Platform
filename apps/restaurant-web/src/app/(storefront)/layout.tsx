@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
+import { EmptyCartCta } from '@/components/storefront/empty-cart-cta';
 import { HirFooter } from '@/components/storefront/hir-footer';
 import { CookieConsent } from '@/components/legal/cookie-consent';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
@@ -61,6 +62,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
           freeDeliveryThresholdRon={freeDeliveryThresholdRon}
           upsellItems={upsellItems}
         />
+        <EmptyCartCta locale={locale} />
         <CookieConsent locale={locale} />
       </StorefrontShell>
     </div>
