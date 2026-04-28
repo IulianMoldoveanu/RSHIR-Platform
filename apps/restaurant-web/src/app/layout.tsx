@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import './globals.css';
@@ -24,7 +26,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const locale = getLocale();
   return (
     <html lang={locale} className={inter.variable}>
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
