@@ -11,6 +11,8 @@ import { MenuList } from '@/components/storefront/menu-list';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
+import { NewsletterPopup } from '@/components/storefront/newsletter-popup';
+import { NewsletterBanner } from '@/components/storefront/newsletter-banner';
 import {
   formatNextOpen,
   isAcceptingOrders,
@@ -53,7 +55,7 @@ export default async function StorefrontHomePage() {
   if (!tenant) notFound();
 
   const locale = getLocale();
-  const { logoUrl, coverUrl } = brandingFor(tenant.settings);
+  const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
   const [menu, rating, todayOrderCount] = await Promise.all([
     getMenuByTenant(tenant.id),
     getReviewSummary(tenant.id),
@@ -134,6 +136,7 @@ export default async function StorefrontHomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(restaurantJsonLd) }}
       />
+      <NewsletterBanner />
       <TenantHeader
         name={tenant.name}
         logoUrl={logoUrl}
@@ -214,6 +217,8 @@ export default async function StorefrontHomePage() {
       ) : (
         <MenuList categories={menu} locale={locale} />
       )}
+
+      <NewsletterPopup brandColor={brandColor} />
     </main>
   );
 }

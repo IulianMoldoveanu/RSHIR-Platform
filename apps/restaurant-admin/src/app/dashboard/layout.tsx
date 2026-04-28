@@ -54,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       icon: 'megaphone' as const,
       items: [
         { href: '/dashboard/promos', label: 'Coduri reducere' },
+        { href: '/dashboard/marketing/newsletter', label: 'Newsletter' },
         { href: '/dashboard/reviews', label: 'Recenzii' },
         { href: '/dashboard/analytics', label: 'Analytics' },
       ],
