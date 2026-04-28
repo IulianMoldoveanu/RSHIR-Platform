@@ -40,7 +40,7 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     .from('restaurant_orders')
     .update({ payment_status: 'PAID', status: 'CONFIRMED' })
     .eq('id', orderId)
-    .eq('payment_status', 'PENDING')
+    .eq('payment_status', 'UNPAID')
     .select('id');
   if (updErr) throw new Error(updErr.message);
   if (!claimed || claimed.length === 0) {
