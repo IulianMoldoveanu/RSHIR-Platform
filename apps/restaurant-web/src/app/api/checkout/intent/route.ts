@@ -93,7 +93,10 @@ export async function POST(req: Request) {
     .select('id')
     .single();
   if (custErr || !customer) {
-    return NextResponse.json({ error: 'customer_insert_failed', detail: custErr?.message }, { status: 500 });
+    // SECURITY: don't echo DB error.message to public callers — leaks
+    // constraint names, columns, and bound values. Log server-side.
+    console.error('[checkout/intent] customer insert failed', custErr?.message);
+    return NextResponse.json({ error: 'customer_insert_failed' }, { status: 500 });
   }
 
   let addressId: string | null = null;
@@ -112,7 +115,8 @@ export async function POST(req: Request) {
       .select('id')
       .single();
     if (addrErr || !address) {
-      return NextResponse.json({ error: 'address_insert_failed', detail: addrErr?.message }, { status: 500 });
+      console.error('[checkout/intent] address insert failed', addrErr?.message);
+      return NextResponse.json({ error: 'address_insert_failed' }, { status: 500 });
     }
     addressId = address.id;
   }
@@ -148,7 +152,8 @@ export async function POST(req: Request) {
     .select('id, public_track_token, total_ron')
     .single();
   if (orderErr || !order) {
-    return NextResponse.json({ error: 'order_insert_failed', detail: orderErr?.message }, { status: 500 });
+    console.error('[checkout/intent] order insert failed', orderErr?.message);
+    return NextResponse.json({ error: 'order_insert_failed' }, { status: 500 });
   }
 
   // RSHIR-33: atomic claim. The SQL function locks the promo row, refuses

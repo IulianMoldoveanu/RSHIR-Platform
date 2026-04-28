@@ -40,7 +40,9 @@ export async function POST(_req: Request, ctx: { params: { token: string } }) {
     .eq('id', order.id)
     .eq('status', 'PENDING');
   if (updErr) {
-    return NextResponse.json({ error: 'cancel_failed', detail: updErr.message }, { status: 500 });
+    // SECURITY: don't echo DB error.message to anonymous callers (token-only auth).
+    console.error('[track/cancel] order update failed', updErr.message);
+    return NextResponse.json({ error: 'cancel_failed' }, { status: 500 });
   }
 
   // Best-effort audit row (anonymous actor).

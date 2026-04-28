@@ -51,7 +51,11 @@ export async function POST(req: NextRequest, ctx: { params: { token: string } })
   });
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 });
+    // SECURITY: don't echo DB error.message to anonymous callers — Postgres
+    // error strings can include constraint names, table names, and bound
+    // parameter values. Log server-side; return a generic 500.
+    console.error('[track/review] submit_order_review failed', error.message);
+    return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
 
   const result = String(data);
