@@ -6,6 +6,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Plug } from 'lucide-react';
+import { EmptyState } from '@hir/ui';
 import {
   addProvider,
   removeProvider,
@@ -348,8 +350,47 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys }: Pr
     });
   };
 
+  const showOnboarding =
+    providers.length === 0 &&
+    apiKeys.length === 0 &&
+    !showAddProvider &&
+    !showCreateKey;
+
   return (
     <div className="flex flex-col gap-8">
+      {showOnboarding && (
+        <EmptyState
+          icon={<Plug className="h-10 w-10" />}
+          title="Nicio integrare configurată încă"
+          description="Conectează un POS extern (Mock, Freya, iiko, SmartCash) sau generează o cheie API pentru ca un sistem terț să trimită comenzi în HIR. Toate evenimentele trec prin coada noastră de dispatch cu retry și audit log."
+          hint={
+            canEdit
+              ? 'Începe cu „Adaugă furnizor" pentru a conecta un POS, sau „Generează cheie API" pentru a permite POST către /api/public/v1/orders.'
+              : 'Doar utilizatorii cu rolul OWNER pot configura integrări.'
+          }
+          action={
+            canEdit ? (
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddProvider(true)}
+                  className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700"
+                >
+                  Adaugă furnizor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateKey(true)}
+                  className="rounded-md border border-zinc-200 bg-white px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                >
+                  Generează cheie API
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
+      )}
+
       {/* Providers section */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -372,7 +413,7 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys }: Pr
           />
         )}
 
-        {providers.length === 0 && !showAddProvider && (
+        {providers.length === 0 && !showAddProvider && !showOnboarding && (
           <p className="text-sm text-zinc-500">
             Niciun furnizor configurat.{' '}
             {canEdit && (
@@ -463,7 +504,7 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys }: Pr
           />
         )}
 
-        {apiKeys.length === 0 && !showCreateKey && (
+        {apiKeys.length === 0 && !showCreateKey && !showOnboarding && (
           <p className="text-sm text-zinc-500">Nicio cheie API generată.</p>
         )}
 

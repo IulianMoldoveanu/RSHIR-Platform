@@ -21,6 +21,7 @@ export type MenuItem = {
   image_url: string | null;
   is_available: boolean;
   sold_out_until: string | null;
+  sort_order: number;
   tags: string[];
 };
 
@@ -55,8 +56,9 @@ export default async function MenuPage() {
       .order('sort_order', { ascending: true }),
     admin
       .from('restaurant_menu_items')
-      .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, tags')
+      .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags')
       .eq('tenant_id', tenant.id)
+      .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
     // Defensive: try the SELECT including new columns; fall back if the
     // 20260505_001 migration hasn't shipped yet.
