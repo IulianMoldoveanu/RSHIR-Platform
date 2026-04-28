@@ -82,7 +82,7 @@ export function ItemsPanel({
         await toggleItemAvailabilityAction({ id: item.id, is_available: next });
         toast.success(next ? 'Produs disponibil' : 'Produs indisponibil');
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -99,7 +99,7 @@ export function ItemsPanel({
           toast.success('Marcat epuizat azi');
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -113,7 +113,7 @@ export function ItemsPanel({
         toast.success(`${ids.length} produse actualizate`);
         setSelected(new Set());
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Eroare necunoscuta');
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
   }
@@ -185,13 +185,13 @@ export function ItemsPanel({
         <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
           <span>{selected.size} selectate</span>
           <Button size="sm" variant="outline" onClick={() => bulkSet(true)} disabled={pending}>
-            Marcheaza disponibile
+            Marchează disponibile
           </Button>
           <Button size="sm" variant="outline" onClick={() => bulkSet(false)} disabled={pending}>
-            Marcheaza indisponibile
+            Marchează indisponibile
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-            Anuleaza
+            Anulează
           </Button>
         </div>
       )}
@@ -252,6 +252,8 @@ export function ItemsPanel({
                         <img
                           src={it.image_url}
                           alt={it.name}
+                          width={48}
+                          height={48}
                           className="h-12 w-12 rounded-md object-cover"
                           loading="lazy"
                           decoding="async"
@@ -261,6 +263,8 @@ export function ItemsPanel({
                           <img
                             src={it.image_url}
                             alt=""
+                            width={192}
+                            height={192}
                             className="h-48 w-48 rounded object-cover"
                           />
                         </span>
