@@ -149,6 +149,7 @@ export function ItemsPanel({
     if (!reorderEnabled || filter === 'all') return;
     if (dragIndex === null || dragIndex === targetIndex) return;
     const ids = filtered.map((it) => it.id);
+    const prevIds = [...ids];
     const [moved] = ids.splice(dragIndex, 1);
     ids.splice(targetIndex, 0, moved);
     setLocalOrder((prev) => ({ ...prev, [filter]: ids }));
@@ -157,6 +158,7 @@ export function ItemsPanel({
       try {
         await reorderItemsAction({ category_id: filter, ids });
       } catch (err) {
+        setLocalOrder((prev) => ({ ...prev, [filter]: prevIds }));
         toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
