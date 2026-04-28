@@ -1,15 +1,6 @@
 import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
-import {
-  BookOpen,
-  ExternalLink,
-  LayoutDashboard,
-  Megaphone,
-  Receipt,
-  Rocket,
-  Settings,
-  Sliders,
-} from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { logoutAction } from './actions';
@@ -88,15 +79,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             href: '/dashboard/onboarding',
             label: 'Configurare inițială',
             showDot: true,
-            icon: Rocket,
+            icon: 'rocket' as const,
           },
         ]),
-    { href: '/dashboard', label: 'Acasă', icon: LayoutDashboard },
-    { href: '/dashboard/orders', label: 'Comenzi', icon: Receipt },
-    { href: '/dashboard/menu', label: 'Meniu', icon: BookOpen },
+    { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
+    { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
+    { href: '/dashboard/menu', label: 'Meniu', icon: 'bookOpen' as const },
     {
       label: 'Marketing',
-      icon: Megaphone,
+      icon: 'megaphone' as const,
       items: [
         { href: '/dashboard/promos', label: 'Coduri reducere' },
         { href: '/dashboard/reviews', label: 'Recenzii' },
@@ -105,7 +96,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     },
     {
       label: 'Operațiuni',
-      icon: Sliders,
+      icon: 'sliders' as const,
       items: [
         { href: '/dashboard/zones', label: 'Zone livrare' },
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
@@ -114,7 +105,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     },
     {
       label: 'Configurare',
-      icon: Settings,
+      icon: 'settings' as const,
       items: [
         { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
         { href: '/dashboard/settings/domain', label: 'Domeniu' },

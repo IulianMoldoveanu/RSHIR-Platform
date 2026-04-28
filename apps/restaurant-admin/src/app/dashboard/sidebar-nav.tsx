@@ -2,19 +2,47 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, type LucideIcon } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronDown,
+  LayoutDashboard,
+  type LucideIcon,
+  Megaphone,
+  Receipt,
+  Rocket,
+  Settings,
+  Sliders,
+} from 'lucide-react';
 import { cn } from '@hir/ui';
+
+// Icons referenced by NAME (string) instead of function reference. Passing
+// the function ref `Rocket` from a Server Component to this Client Component
+// is what was crashing the dashboard — Next.js cannot serialize function
+// values across the server/client boundary, throwing a generic digest-only
+// error in production. We resolve the name back to the Lucide component
+// on the client, which is safe.
+const ICONS: Record<string, LucideIcon> = {
+  rocket: Rocket,
+  layoutDashboard: LayoutDashboard,
+  receipt: Receipt,
+  bookOpen: BookOpen,
+  megaphone: Megaphone,
+  sliders: Sliders,
+  settings: Settings,
+};
+
+export type IconName = keyof typeof ICONS;
 
 export type SidebarItem = {
   href: string;
   label: string;
   showDot?: boolean;
-  icon?: LucideIcon;
+  icon?: IconName;
 };
 
 export type SidebarGroup = {
   label: string;
-  icon?: LucideIcon;
+  icon?: IconName;
   items: SidebarItem[];
 };
 
@@ -59,7 +87,7 @@ function SidebarGroupRow({
   matches: (href: string) => boolean;
 }) {
   const anyActive = group.items.some((i) => matches(i.href));
-  const Icon = group.icon;
+  const Icon = group.icon ? ICONS[group.icon] : undefined;
   return (
     <details className="group/sb" open={anyActive}>
       <summary
@@ -110,7 +138,7 @@ function SidebarLeafRow({
   active: boolean;
   compact?: boolean;
 }) {
-  const Icon = item.icon;
+  const Icon = item.icon ? ICONS[item.icon] : undefined;
   return (
     <Link
       href={item.href}
