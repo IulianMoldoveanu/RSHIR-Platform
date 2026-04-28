@@ -1,3 +1,54 @@
 @import '@hir/ui/styles.css';
 
-html, body { height: 100%; }
+/*
+ * HIR Curier — Wolt Drive-tier dark theme.
+ *
+ * Forced dark by default. Couriers work outdoors in sunlight; high-contrast
+ * dark surfaces with a single purple accent are easier to glance at than
+ * white-on-white. Light mode is opt-in via `?theme=light` (NOT a priority).
+ *
+ * Palette anchors:
+ *   bg        zinc-950   (#09090b)
+ *   surface   zinc-900   (#18181b)
+ *   border    zinc-800   (#27272a)
+ *   muted-fg  zinc-400   (#a1a1aa)
+ *   fg        zinc-100   (#f4f4f5)
+ *   accent    violet-500 (#8b5cf6)  — HIR purple
+ *   success   emerald-400(#34d399)
+ *   danger    rose-500   (#f43f5e)
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  height: 100%;
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+  }
+  /* Tap-highlight is too bright on dark; soften it. */
+  * {
+    -webkit-tap-highlight-color: rgba(139, 92, 246, 0.25);
+  }
+}
+
+@layer utilities {
+  /* Pulsing dot for the "current stage" timeline marker. */
+  .dot-pulse {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.6);
+    animation: dot-pulse 1.6s ease-out infinite;
+  }
+  @keyframes dot-pulse {
+    0%   { box-shadow: 0 0 0 0    rgba(139, 92, 246, 0.6); }
+    70%  { box-shadow: 0 0 0 12px rgba(139, 92, 246, 0);   }
+    100% { box-shadow: 0 0 0 0    rgba(139, 92, 246, 0);   }
+  }
+}

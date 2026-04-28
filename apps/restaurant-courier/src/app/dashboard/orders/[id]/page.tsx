@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@hir/ui';
+import { Package } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -7,6 +7,9 @@ import {
   markPickedUpAction,
   markDeliveredAction,
 } from '../../actions';
+import { OrderTimeline } from '@/components/order-timeline';
+import { MapLink, PhoneLink } from '@/components/nav-buttons';
+import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +20,11 @@ type OrderDetail = {
   customer_first_name: string | null;
   customer_phone: string | null;
   pickup_line1: string | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
   dropoff_line1: string | null;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
   items: unknown;
   total_ron: number | null;
   delivery_fee_ron: number | null;
@@ -36,7 +43,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const { data } = await admin
     .from('courier_orders')
     .select(
-      'id, status, source_type, customer_first_name, customer_phone, pickup_line1, dropoff_line1, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id',
+      'id, status, source_type, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id',
     )
     .eq('id', params.id)
     .maybeSingle();
@@ -53,106 +60,106 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
   const deliveredBound = markDeliveredAction.bind(null, order.id);
 
-  const items = Array.isArray(order.items) ? (order.items as Array<{ name: string; quantity: number }>) : [];
+  const items = Array.isArray(order.items)
+    ? (order.items as Array<{ name: string; quantity: number }>)
+    : [];
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
+    <div className="mx-auto flex max-w-xl flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-900">Comandă</h1>
-        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+        <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
+        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
           {order.status}
         </span>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Client</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <p>{order.customer_first_name ?? '—'}</p>
-          {order.customer_phone ? (
-            <a href={`tel:${order.customer_phone}`} className="text-purple-600 underline">
-              {order.customer_phone}
-            </a>
-          ) : null}
-          <p className="text-xs text-zinc-500">
-            Sursă: {order.source_type} · Plată: {order.payment_method ?? '—'}
-          </p>
-        </CardContent>
-      </Card>
+      {/* Pickup card. */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
+          Ridicare
+        </p>
+        <p className="mt-1 text-sm font-medium text-zinc-100">
+          {order.pickup_line1 ?? '—'}
+        </p>
+        <div className="mt-3">
+          <MapLink
+            address={order.pickup_line1}
+            lat={order.pickup_lat}
+            lng={order.pickup_lng}
+          />
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Ridicare</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">{order.pickup_line1 ?? '—'}</CardContent>
-      </Card>
+      {/* Timeline. */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <OrderTimeline status={order.status} />
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Livrare</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">{order.dropoff_line1 ?? '—'}</CardContent>
-      </Card>
+      {/* Dropoff card. */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+          Livrare
+        </p>
+        <p className="mt-1 text-sm font-medium text-zinc-100">
+          {order.dropoff_line1 ?? '—'}
+        </p>
+        <p className="mt-1 text-xs text-zinc-400">
+          {order.customer_first_name ?? 'Client'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <MapLink
+            address={order.dropoff_line1}
+            lat={order.dropoff_lat}
+            lng={order.dropoff_lng}
+          />
+          <PhoneLink phone={order.customer_phone} />
+        </div>
+      </section>
 
+      {/* Items + payment. */}
       {items.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Produse</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1 text-sm">
-              {items.map((it, i) => (
-                <li key={i}>
-                  {it.quantity}× {it.name}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+            <Package className="h-3 w-3" /> Produse
+          </p>
+          <ul className="space-y-1 text-sm text-zinc-200">
+            {items.map((it, i) => (
+              <li key={i}>
+                <span className="text-zinc-500">{it.quantity}×</span> {it.name}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Total</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          <p>
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400">Total</span>
+          <span className="text-base font-semibold text-zinc-100">
             {order.total_ron != null ? `${Number(order.total_ron).toFixed(2)} RON` : '—'}
-          </p>
-          {order.delivery_fee_ron != null ? (
-            <p className="text-xs text-zinc-500">
-              Taxă livrare: {Number(order.delivery_fee_ron).toFixed(2)} RON
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col gap-2">
-        {isAvailable ? (
-          <form action={acceptBound}>
-            <Button type="submit" className="w-full">
-              Acceptă comanda
-            </Button>
-          </form>
+          </span>
+        </div>
+        {order.delivery_fee_ron != null ? (
+          <div className="mt-1 flex items-center justify-between text-xs">
+            <span className="text-zinc-500">Taxă livrare</span>
+            <span className="text-zinc-300">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
+          </div>
         ) : null}
+        <div className="mt-1 flex items-center justify-between text-xs">
+          <span className="text-zinc-500">Plată</span>
+          <span className="text-zinc-300">{order.payment_method ?? '—'}</span>
+        </div>
+      </section>
 
-        {isMine && order.status === 'ACCEPTED' ? (
-          <form action={pickedUpBound}>
-            <Button type="submit" className="w-full">
-              Am ridicat
-            </Button>
-          </form>
-        ) : null}
-
-        {isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT') ? (
-          <form action={deliveredBound}>
-            <Button type="submit" className="w-full">
-              Am livrat
-            </Button>
-          </form>
-        ) : null}
-      </div>
+      <OrderActions
+        orderId={order.id}
+        status={order.status}
+        isMine={isMine}
+        isAvailable={isAvailable}
+        acceptAction={acceptBound}
+        pickedUpAction={pickedUpBound}
+        deliveredAction={deliveredBound}
+      />
     </div>
   );
 }

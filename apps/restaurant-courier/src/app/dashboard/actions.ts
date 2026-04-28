@@ -98,18 +98,30 @@ export async function markPickedUpAction(orderId: string) {
   revalidatePath('/dashboard/orders');
 }
 
-export async function markDeliveredAction(orderId: string) {
+export async function markDeliveredAction(orderId: string, proofUrl?: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
+  const update: Record<string, unknown> = {
+    status: 'DELIVERED',
+    updated_at: new Date().toISOString(),
+  };
+  if (proofUrl) {
+    update.delivered_proof_url = proofUrl;
+    update.delivered_proof_taken_at = new Date().toISOString();
+  }
   const { data } = await admin
     .from('courier_orders')
-    .update({ status: 'DELIVERED', updated_at: new Date().toISOString() })
+    .update(update)
     .eq('id', orderId)
     .eq('assigned_courier_user_id', userId)
     .select('id')
     .maybeSingle();
   if (data) await notifySubscriber(orderId, 'DELIVERED');
   revalidatePath(`/dashboard/orders/${orderId}`);
+  revalidatePath('/dashboard/orders');
+}
+
+export async function refreshOrdersAction() {
   revalidatePath('/dashboard/orders');
 }
 
