@@ -29,10 +29,50 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     const msg = (err as Error).message ?? '';
     if (msg.includes('Unauthenticated')) redirect('/login');
     if (msg.includes('not a member')) redirect('/signup');
-    throw err;
+    console.error('[dashboard/layout] unexpected getActiveTenant failure:', msg);
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 text-center">
+        <div className="max-w-md rounded-xl border border-rose-200 bg-white p-6 shadow-sm">
+          <h1 className="text-base font-semibold text-zinc-900">
+            Nu am putut încărca dashboard-ul
+          </h1>
+          <pre className="mt-3 max-h-40 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-700">
+            {msg || 'unknown error'}
+          </pre>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <a
+              href="/login"
+              className="inline-flex h-10 items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Reconectare
+            </a>
+            <a
+              href="/signup"
+              className="inline-flex h-10 items-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              Cont nou
+            </a>
+          </div>
+        </div>
+      </main>
+    );
   }
   const { user, tenant, tenants } = active;
-  const onboarding = await computeOnboardingState(tenant.id);
+  let onboarding: Awaited<ReturnType<typeof computeOnboardingState>>;
+  try {
+    onboarding = await computeOnboardingState(tenant.id);
+  } catch (err) {
+    // Don't fail the whole dashboard if the onboarding probe (which reads
+    // delivery_zones + menu counts) errors — just degrade to "not yet live".
+    console.error('[dashboard/layout] computeOnboardingState failed:', (err as Error).message);
+    onboarding = {
+      menu_added: false,
+      hours_set: false,
+      zones_set: false,
+      went_live: false,
+      completed_at: null,
+    };
+  }
   // Best-guess slug-based URL until TenantSummary surfaces custom_domain.
   // Owner can always paste their actual domain; this is a convenience link.
   const tenantStorefrontUrl = `https://${tenant.slug}.hir.ro`;
