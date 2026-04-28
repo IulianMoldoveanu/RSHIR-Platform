@@ -22,14 +22,14 @@ export default function GlobalError({
               A apărut o eroare
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
-              Detalii tehnice (mesaj real + digest pentru log):
+              Ne-am lovit de o problemă neprevăzută. Reîncearcă în câteva secunde sau
+              trimite codul de mai jos echipei dacă persistă.
             </p>
-            <pre className="mt-3 max-h-48 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-700 whitespace-pre-wrap">
-              {error.message || 'unknown error'}
-              {error.digest ? `\n\ndigest: ${error.digest}` : ''}
-              {error.name ? `\n\nname: ${error.name}` : ''}
-              {error.stack ? `\n\nstack:\n${error.stack.split('\n').slice(0, 5).join('\n')}` : ''}
-            </pre>
+            {error.digest && (
+              <pre className="mt-3 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-500">
+                ref: {error.digest}
+              </pre>
+            )}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
