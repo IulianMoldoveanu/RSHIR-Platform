@@ -9,6 +9,8 @@ import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
 import { MenuList } from '@/components/storefront/menu-list';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
+import { NewsletterPopup } from '@/components/storefront/newsletter-popup';
+import { NewsletterBanner } from '@/components/storefront/newsletter-banner';
 import {
   formatNextOpen,
   isAcceptingOrders,
@@ -51,7 +53,7 @@ export default async function StorefrontHomePage() {
   if (!tenant) notFound();
 
   const locale = getLocale();
-  const { logoUrl, coverUrl } = brandingFor(tenant.settings);
+  const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
   const [menu, rating] = await Promise.all([
     getMenuByTenant(tenant.id),
     getReviewSummary(tenant.id),
@@ -125,6 +127,7 @@ export default async function StorefrontHomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(restaurantJsonLd) }}
       />
+      <NewsletterBanner />
       <TenantHeader
         name={tenant.name}
         logoUrl={logoUrl}
@@ -207,6 +210,8 @@ export default async function StorefrontHomePage() {
       ) : (
         <MenuList categories={menu} locale={locale} />
       )}
+
+      <NewsletterPopup brandColor={brandColor} />
     </main>
   );
 }
