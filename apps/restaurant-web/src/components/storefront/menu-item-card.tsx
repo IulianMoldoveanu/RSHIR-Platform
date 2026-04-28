@@ -136,7 +136,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                     ? t(locale, 'item.add_short')
                     : t(locale, 'item.add_to_cart')
                 }
-                className={`inline-flex h-9 items-center gap-1 rounded-full pl-2.5 pr-3 text-xs font-medium text-white shadow-sm transition-colors ${
+                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-colors ${
                   justAdded
                     ? 'bg-emerald-600'
                     : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800'

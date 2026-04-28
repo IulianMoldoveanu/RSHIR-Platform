@@ -64,7 +64,17 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           router.refresh();
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // After a CHANNEL_ERROR / TIMED_OUT and the client auto-reconnects,
+        // the channel re-subscribes — but any orders inserted while we were
+        // disconnected won't replay through this stream. Force a single
+        // server fetch so the queue catches up after a transient outage.
+        if (status === 'SUBSCRIBED') {
+          router.refresh();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[orders-realtime] channel disrupted:', status);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);

@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
     .limit(BATCH_SIZE);
   if (pickErr) {
     console.error('[integration-dispatcher] pick error', pickErr.message);
-    return json(500, { error: 'pick_failed', detail: pickErr.message });
+    return json(500, { error: 'pick_failed' });
   }
 
   const events = (rows ?? []) as EventRow[];

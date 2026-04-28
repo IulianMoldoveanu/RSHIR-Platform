@@ -85,7 +85,8 @@ Deno.serve(async (req: Request) => {
     .eq('id', body.tenant_id)
     .maybeSingle();
   if (tenantErr || !tenant) {
-    return json(404, { error: 'tenant_not_found', detail: tenantErr?.message });
+    if (tenantErr) console.error('[notify-customer-status] tenant lookup failed:', tenantErr.message);
+    return json(404, { error: 'tenant_not_found' });
   }
 
   const { data: order, error: orderErr } = await supabase
@@ -98,7 +99,8 @@ Deno.serve(async (req: Request) => {
     .eq('tenant_id', body.tenant_id)
     .maybeSingle();
   if (orderErr || !order) {
-    return json(404, { error: 'order_not_found', detail: orderErr?.message });
+    if (orderErr) console.error('[notify-customer-status] order lookup failed:', orderErr.message);
+    return json(404, { error: 'order_not_found' });
   }
 
   const customer = (order.customers ?? null) as
@@ -136,12 +138,12 @@ Deno.serve(async (req: Request) => {
     const r = await resend.emails.send({ from: FROM, to: customer.email, subject, text });
     if (r.error) {
       console.error('[notify-customer-status] resend error', r.error);
-      return json(502, { error: 'resend_failed', detail: r.error.message });
+      return json(502, { error: 'resend_failed' });
     }
     return json(200, { ok: true, sent: customer.email, status: 'CONFIRMED' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[notify-customer-status] resend throw', msg);
-    return json(502, { error: 'resend_threw', detail: msg });
+    return json(502, { error: 'resend_threw' });
   }
 });
