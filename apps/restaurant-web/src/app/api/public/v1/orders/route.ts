@@ -99,8 +99,9 @@ export async function POST(req: Request) {
     .select('id')
     .single();
   if (custErr || !custRow) {
+    console.error('[public/v1/orders] customer insert failed', custErr?.message);
     return NextResponse.json(
-      { error: 'order_insert_failed', detail: custErr?.message },
+      { error: 'order_insert_failed' },
       { status: 500 },
     );
   }
@@ -144,8 +145,9 @@ export async function POST(req: Request) {
     .select('id, public_track_token')
     .single();
   if (orderErr || !order) {
+    console.error('[public/v1/orders] order insert failed', orderErr?.message);
     return NextResponse.json(
-      { error: 'order_insert_failed', detail: orderErr?.message },
+      { error: 'order_insert_failed' },
       { status: 500 },
     );
   }
