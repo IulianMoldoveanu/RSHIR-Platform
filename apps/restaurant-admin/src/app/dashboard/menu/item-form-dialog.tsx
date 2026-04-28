@@ -36,6 +36,15 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
   const [tags, setTags] = useState(item?.tags?.join(', ') ?? '');
   const [isAvailable, setIsAvailable] = useState(item?.is_available ?? true);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [prepMinutes, setPrepMinutes] = useState(
+    item?.prep_minutes !== null && item?.prep_minutes !== undefined ? String(item.prep_minutes) : '',
+  );
+  const [servingGrams, setServingGrams] = useState(
+    item?.serving_size_grams !== null && item?.serving_size_grams !== undefined
+      ? String(item.serving_size_grams)
+      : '',
+  );
+  const [servingLabel, setServingLabel] = useState(item?.serving_size_label ?? '');
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -50,6 +59,9 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
     fd.set('category_id', categoryId);
     fd.set('tags', tags);
     fd.set('is_available', isAvailable ? 'on' : 'off');
+    fd.set('prep_minutes', prepMinutes);
+    fd.set('serving_size_grams', servingGrams);
+    fd.set('serving_size_label', servingLabel);
     if (imageFile) fd.set('image', imageFile);
     if (mode === 'edit' && item) fd.set('id', item.id);
 
@@ -133,6 +145,51 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
               onChange={(e) => setTags(e.target.value)}
               placeholder="vegan, picant, popular"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="prep_minutes">Timp de pregătire (minute)</Label>
+              <Input
+                id="prep_minutes"
+                type="number"
+                min="0"
+                max="240"
+                step="1"
+                inputMode="numeric"
+                value={prepMinutes}
+                onChange={(e) => setPrepMinutes(e.target.value)}
+                placeholder="ex: 15"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="serving_size_grams">Cantitate (grame)</Label>
+              <Input
+                id="serving_size_grams"
+                type="number"
+                min="1"
+                max="4999"
+                step="1"
+                inputMode="numeric"
+                value={servingGrams}
+                onChange={(e) => setServingGrams(e.target.value)}
+                placeholder="ex: 350"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="serving_size_label">Etichetă cantitate</Label>
+            <Input
+              id="serving_size_label"
+              value={servingLabel}
+              onChange={(e) => setServingLabel(e.target.value)}
+              maxLength={60}
+              placeholder="ex: 350ml, 1 porție 2 persoane, set 8 piese"
+            />
+            <p className="text-xs text-zinc-500">
+              Dacă e completat, are prioritate față de cantitatea în grame.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">

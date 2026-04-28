@@ -10,6 +10,15 @@ export type MenuItem = {
   is_available: boolean;
   sort_order: number;
   tags: string[];
+  // Optional per-item prep time in minutes (0–240). When set, renders a
+  // "Gata în X min" badge on the card. Per-item, not category — kebab and
+  // soup have very different prep times in the same kitchen.
+  prep_minutes: number | null;
+  // Optional integer grams. Drives a per-100g unit price line.
+  serving_size_grams: number | null;
+  // Optional free-text override (e.g. "1 porție 2 persoane", "350ml",
+  // "set 8 piese"). When set, takes priority over the grams-based label.
+  serving_size_label: string | null;
   // 1 = #1 most-ordered last 30 days (tenant-wide), 2 / 3 = #2 / #3, null
   // = not in the top-3. Renders as a "Cel mai comandat" / "Top vânzări"
   // badge on the menu card. Computed in getMenuByTenant from order history.
@@ -54,7 +63,7 @@ export type MenuCategory = {
 };
 
 const ITEM_COLS =
-  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags';
+  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label';
 
 /**
  * Effective availability: persistent toggle AND not currently sold-out today.
