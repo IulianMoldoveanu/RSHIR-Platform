@@ -325,6 +325,8 @@ export function ItemsPanel({
                         <img
                           src={it.image_url}
                           alt={it.name}
+                          width={48}
+                          height={48}
                           className="h-12 w-12 rounded-md object-cover"
                           loading="lazy"
                           decoding="async"
@@ -334,6 +336,8 @@ export function ItemsPanel({
                           <img
                             src={it.image_url}
                             alt=""
+                            width={192}
+                            height={192}
                             className="h-48 w-48 rounded object-cover"
                           />
                         </span>
