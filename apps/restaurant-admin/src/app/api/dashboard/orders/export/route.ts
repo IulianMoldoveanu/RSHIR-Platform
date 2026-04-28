@@ -22,9 +22,17 @@ type Item = {
   line_total_ron?: number;
 };
 
+// CSV injection guard: Excel/Sheets/LibreOffice interpret cells starting
+// with `=`, `+`, `-`, `@`, or a leading tab/CR as formulas — a malicious
+// customer note like `=HYPERLINK("https://evil")` would execute on open.
+// Prefix any such value with a single quote, which the spreadsheet will
+// strip on open. See OWASP "Formula Injection".
+const FORMULA_PREFIX_RE = /^[=+\-@\t\r]/;
+
 function escapeCsv(v: unknown): string {
   if (v === null || v === undefined) return '';
-  const s = String(v);
+  let s = String(v);
+  if (FORMULA_PREFIX_RE.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
