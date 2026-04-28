@@ -36,12 +36,26 @@ export async function registerCourierAction(
     return { ok: false, error: 'Nu am putut crea contul. Verifică datele și încearcă din nou.' };
   }
 
+  // Look up the default HIR fleet — every new self-registered courier lands
+  // here unless they're invited via a fleet-owner-issued link (future PR).
+  const { data: defaultFleet } = await admin
+    .from('courier_fleets')
+    .select('id')
+    .eq('slug', 'hir-default')
+    .maybeSingle();
+  if (!defaultFleet) {
+    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
+    console.error('[courier register] default fleet missing — apply migration 002');
+    return { ok: false, error: 'Configurarea platformei e incompletă. Contactează suportul.' };
+  }
+
   const { error: profileErr } = await admin.from('courier_profiles').insert({
     user_id: created.user.id,
     full_name: fullName,
     phone,
     vehicle_type: vehicleType,
     status: 'INACTIVE',
+    fleet_id: (defaultFleet as { id: string }).id,
   });
   if (profileErr) {
     // Roll back the auth user so the email is reusable.

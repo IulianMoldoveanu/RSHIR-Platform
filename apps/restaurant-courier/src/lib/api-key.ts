@@ -8,6 +8,8 @@ export type ApiKeyContext = {
   /** When set, requests are tagged as HIR_TENANT (orders posted by an HIR
    *  restaurant) instead of EXTERNAL_API (third-party clients). */
   hirTenantId: string | null;
+  /** Multi-fleet white-label scoping. Every key belongs to exactly one fleet. */
+  fleetId: string;
 };
 
 export type ApiKeyResult =
@@ -36,7 +38,7 @@ export async function authenticateApiKey(req: Request): Promise<ApiKeyResult> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('courier_api_keys')
-    .select('id, owner_user_id, scopes, key_hash, is_active, hir_tenant_id')
+    .select('id, owner_user_id, scopes, key_hash, is_active, hir_tenant_id, fleet_id')
     .eq('key_hash', hash)
     .maybeSingle();
 
@@ -67,6 +69,7 @@ export async function authenticateApiKey(req: Request): Promise<ApiKeyResult> {
       ownerUserId: data.owner_user_id,
       scopes: Array.isArray(data.scopes) ? data.scopes : [],
       hirTenantId: data.hir_tenant_id ?? null,
+      fleetId: data.fleet_id,
     },
   };
 }

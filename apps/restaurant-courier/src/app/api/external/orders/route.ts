@@ -38,7 +38,14 @@ const createOrderSchema = z.object({
   deliveryFeeRon: z.number().nonnegative(),
   paymentMethod: z.enum(['CARD', 'COD']).optional(),
   notes: z.string().optional(),
-});
+  /** Subscribe to status-change webhooks. Omit to opt out. */
+  webhookCallbackUrl: z.string().url().optional(),
+  /** Required iff webhookCallbackUrl is set. Used as HMAC-SHA256 secret. */
+  webhookSecret: z.string().min(16).optional(),
+}).refine(
+  (data) => !data.webhookCallbackUrl || !!data.webhookSecret,
+  { message: 'webhookSecret required when webhookCallbackUrl is set', path: ['webhookSecret'] },
+);
 
 function makeTrackToken(): string {
   return randomBytes(16).toString('hex');
@@ -100,6 +107,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin
     .from('courier_orders')
     .insert({
+      fleet_id: auth.ctx.fleetId,
       source_type: sourceType,
       source_tenant_id: auth.ctx.hirTenantId,
       source_order_id: input.externalOrderId,
@@ -117,6 +125,8 @@ export async function POST(req: NextRequest) {
       payment_method: input.paymentMethod ?? 'CARD',
       status: 'CREATED',
       public_track_token: makeTrackToken(),
+      webhook_callback_url: input.webhookCallbackUrl ?? null,
+      webhook_secret: input.webhookSecret ?? null,
     })
     .select('id, source_order_id, status, public_track_token, created_at, updated_at')
     .single();
