@@ -19,7 +19,7 @@ export async function geocodeAddressRo(address: string): Promise<LatLng | null> 
 
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'hir-restaurant-suite/0.1 (contact: ops@hir.ro)',
+      'User-Agent': `hir-restaurant-suite/0.1 (contact: ${process.env.NOMINATIM_CONTACT_EMAIL || 'ops@example.com'})`,
       Accept: 'application/json',
     },
     cache: 'no-store',

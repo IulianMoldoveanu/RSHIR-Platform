@@ -10,6 +10,7 @@ export default async function DomainSettingsPage() {
   const role = await getTenantRole(user.id, tenant.id);
   const current = await getCurrentTenantDomain(tenant.id);
   const vercelReady = readVercelConfig().kind === 'configured';
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
 
   return (
     <div className="flex flex-col gap-6">
@@ -19,7 +20,7 @@ export default async function DomainSettingsPage() {
         </h1>
         <p className="text-sm text-zinc-600">
           Atașează propriul domeniu (ex. <code className="rounded bg-zinc-100 px-1">menu.restaurantul-tau.ro</code>)
-          în locul subdomeniului <code className="rounded bg-zinc-100 px-1">{tenant.slug}.hir.ro</code>.
+          în locul subdomeniului <code className="rounded bg-zinc-100 px-1">{tenant.slug}.{primaryDomain}</code>.
         </p>
       </header>
 

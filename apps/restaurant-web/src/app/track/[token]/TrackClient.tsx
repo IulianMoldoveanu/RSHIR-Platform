@@ -598,7 +598,8 @@ function ShareCard({
   // channel; one-tap from a successful order is the strongest organic
   // acquisition moment we have. Referral codes are not yet wired so the
   // message just points back to the tenant storefront.
-  const url = `https://${tenantSlug}.hir.ro`;
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
+  const url = `https://${tenantSlug}.${primaryDomain}`;
   const text = t(locale, 'track.share_message_template', { tenant: tenantName, url });
   const href = `https://wa.me/?text=${encodeURIComponent(text)}`;
   return (

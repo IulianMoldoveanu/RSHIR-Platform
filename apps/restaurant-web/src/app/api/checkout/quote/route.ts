@@ -1,13 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { quoteRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Same-origin gate — quote is server-priced (price/promo lookup) and
+  // accepting cross-origin POSTs would let third-party pages probe pricing,
+  // promo validity, and pickup gating against any tenant the victim's
+  // browser has visited.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json(
+      { error: 'forbidden_origin', reason: origin.reason },
+      { status: 403 },
+    );
+  }
+
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return NextResponse.json({ error: 'tenant_not_found' }, { status: 404 });
 

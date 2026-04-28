@@ -50,6 +50,7 @@ type PromoFailureReason =
   | 'not_found'
   | 'inactive'
   | 'expired'
+  | 'not_yet_valid'
   | 'min_not_met'
   | 'usage_exhausted';
 
@@ -941,6 +942,8 @@ function formatPromoError(reason: PromoFailureReason | undefined, locale: Locale
       return t(locale, 'promo.err_inactive');
     case 'expired':
       return t(locale, 'promo.err_expired');
+    case 'not_yet_valid':
+      return t(locale, 'promo.err_not_yet_valid');
     case 'usage_exhausted':
       return t(locale, 'promo.err_usage_exhausted');
     case 'min_not_met':

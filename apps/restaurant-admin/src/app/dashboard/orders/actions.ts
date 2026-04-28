@@ -131,12 +131,31 @@ export async function markCodOrderPaid(
     return;
   }
 
-  const { error } = await admin
+  // Atomic guard: another admin (or a webhook) could have flipped this row
+  // between the SELECT above and the UPDATE here. The filter on payment_method
+  // + payment_status ensures we never silently mark a CARD or already-PAID
+  // order as cash-paid. The pre-read still produces the friendlier error
+  // messages above; this is the actual write-time invariant.
+  // Cast through unknown — payment_method column is in the live DB (migration
+  // 20260504_001) but supabase-types hasn't been regenerated; same pattern as
+  // dashboard/orders/page.tsx around its cash filter.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const guarded = (admin
     .from('restaurant_orders')
     .update({ payment_status: 'PAID' })
     .eq('id', orderId)
-    .eq('tenant_id', tenantId);
+    .eq('tenant_id', tenantId) as any)
+    .eq('payment_method', 'COD')
+    .eq('payment_status', 'UNPAID')
+    .select('id');
+  const { data: claimed, error } = (await guarded) as {
+    data: Array<{ id: string }> | null;
+    error: { message: string } | null;
+  };
   if (error) throw new Error(error.message);
+  if (!claimed || claimed.length === 0) {
+    throw new Error('Comanda nu mai e eligibilă (a fost modificată între timp).');
+  }
 
   await logAudit({
     tenantId,

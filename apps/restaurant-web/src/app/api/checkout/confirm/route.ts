@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { confirmRequestSchema } from '../schemas';
 import { markOrderPaidAndDispatch } from '../order-finalize';
 
@@ -13,7 +14,20 @@ export const dynamic = 'force-dynamic';
  * We verify with Stripe (defense-in-depth alongside the webhook), then flip
  * payment_status → PAID and kick off the delivery handoff.
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Same-origin gate. The webhook is the source of truth for payment events;
+  // this client-driven confirm is an optimization to flip the UI faster. A
+  // cross-origin caller could attempt to fast-path mark someone else's order
+  // CONFIRMED — Stripe verification still gates the actual update, but we
+  // close the door earlier.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json(
+      { error: 'forbidden_origin', reason: origin.reason },
+      { status: 403 },
+    );
+  }
+
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return NextResponse.json({ error: 'tenant_not_found' }, { status: 404 });
 

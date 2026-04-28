@@ -8,6 +8,7 @@ export type PromoLookupFailure =
   | 'not_found'
   | 'inactive'
   | 'expired'
+  | 'not_yet_valid'
   | 'min_not_met'
   | 'usage_exhausted';
 
@@ -94,7 +95,10 @@ export async function lookupAndValidatePromo(
 
   const now = Date.now();
   if (promo.valid_from && Date.parse(promo.valid_from) > now) {
-    return { ok: false, reason: 'expired' };
+    // Promo is in the future ("starts on X") — distinct from "expired" so the
+    // UI can give an accurate message instead of telling the customer their
+    // valid code is over.
+    return { ok: false, reason: 'not_yet_valid' };
   }
   if (promo.valid_until && Date.parse(promo.valid_until) < now) {
     return { ok: false, reason: 'expired' };
