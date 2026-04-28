@@ -140,6 +140,7 @@ export async function createApiKey(
 
   const raw = `hir_${randomBytes(32).toString('base64url')}`;
   const hash = createHash('sha256').update(raw).digest('hex');
+  const keyPrefix = raw.slice(0, 8);
 
   const sb = integrationSb();
   const { data, error } = await sb
@@ -147,6 +148,7 @@ export async function createApiKey(
     .insert({
       tenant_id: guard.tenantId,
       key_hash: hash,
+      key_prefix: keyPrefix,
       label,
       scopes,
     })

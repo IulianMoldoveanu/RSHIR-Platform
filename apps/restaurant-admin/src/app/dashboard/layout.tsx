@@ -16,11 +16,34 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     const msg = (err as Error).message ?? '';
     if (msg.includes('Unauthenticated')) redirect('/login');
     if (msg.includes('not a member')) redirect('/signup');
+    console.error('[dashboard/layout] unexpected getActiveTenant failure:', msg);
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 text-center">
         <div className="max-w-md rounded-xl border border-rose-200 bg-white p-6 shadow-sm">
-          <h1 className="text-base font-semibold text-zinc-900">Nu am putut încărca dashboard-ul</h1>
-          <pre className="mt-3 overflow-x-auto rounded bg-zinc-50 p-3 text-left text-xs">{msg}</pre>
+          <h1 className="text-base font-semibold text-zinc-900">
+            Nu am putut încărca dashboard-ul
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            A apărut o eroare la rezolvarea contului tău. Detalii pentru
+            depanare:
+          </p>
+          <pre className="mt-3 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-700">
+            {msg || 'unknown error'}
+          </pre>
+          <div className="mt-4 flex justify-center gap-2 text-sm">
+            <a
+              href="/login"
+              className="rounded-md bg-zinc-900 px-3 py-2 font-medium text-white hover:bg-zinc-800"
+            >
+              Încearcă din nou
+            </a>
+            <a
+              href="/signup"
+              className="rounded-md border border-zinc-300 px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Creează un restaurant
+            </a>
+          </div>
         </div>
       </main>
     );
@@ -33,7 +56,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     console.error('[dashboard/layout] onboarding probe failed:', (err as Error).message);
     onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: false, completed_at: null };
   }
-  const tenantStorefrontUrl = `https://${tenant.slug}.hiraisolutions.ro`;
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
+  const tenantStorefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
 
   const navEntries: SidebarEntry[] = [
     ...(onboarding.went_live
@@ -54,10 +78,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       icon: 'megaphone' as const,
       items: [
         { href: '/dashboard/promos', label: 'Coduri reducere' },
+        { href: '/dashboard/marketing/newsletter', label: 'Newsletter' },
         { href: '/dashboard/reviews', label: 'Recenzii' },
         { href: '/dashboard/analytics', label: 'Analytics' },
       ],
     },
+    { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
     {
       label: 'Operațiuni',
       icon: 'sliders' as const,

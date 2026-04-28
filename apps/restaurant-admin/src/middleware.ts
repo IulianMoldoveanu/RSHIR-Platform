@@ -21,9 +21,27 @@ export async function middleware(request: NextRequest) {
     request: { headers: request.headers },
   });
 
+  // Fail loud and readable when the deploy is missing Supabase env vars,
+  // instead of letting createSsrClient throw "Cannot read URL of undefined"
+  // which surfaces as the opaque "Application error: server-side exception"
+  // page on the client. Affects both auth-gated paths and /login.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnon) {
+    console.error(
+      '[middleware] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY missing — preview/prod env not fully configured. Path:',
+      pathname,
+    );
+    return new NextResponse(
+      'Server configuration error: Supabase env vars not set on this deployment. ' +
+        'Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel project settings.',
+      { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } },
+    );
+  }
+
   const supabase = createSsrClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnon,
     {
       cookies: {
         get(name: string): string | undefined {

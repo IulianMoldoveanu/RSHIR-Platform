@@ -27,6 +27,7 @@ export const dictionaries = {
       free_delivery_template: 'Livrare gratuită peste {amount}',
       delivery_eta_range_template: 'Livrare {min}–{max} min',
       delivery_eta_single_template: 'Livrare ~{minutes} min',
+      today_orders_template: '{count} oameni au comandat azi',
     },
     home: {
       menu_not_published: 'Meniul nu e încă publicat.',
@@ -58,6 +59,7 @@ export const dictionaries = {
       unavailable: 'Momentan indisponibil',
       added: 'Adăugat ✓',
       add_short: 'Adaugă',
+      prep_template: 'Gata în {minutes} min',
       popular_top: 'Cel mai comandat',
       popular_rank_template: 'Top {rank}',
       required_label: 'Obligatoriu',
@@ -71,6 +73,9 @@ export const dictionaries = {
     },
     reorder: {
       rail_title: 'Comandă din nou',
+    },
+    storefront_cta: {
+      view_menu: 'Vezi meniul',
     },
     cart: {
       title: 'Coșul tău',
@@ -178,6 +183,7 @@ export const dictionaries = {
       err_not_found: 'Codul nu este valid pentru acest restaurant.',
       err_inactive: 'Codul a fost dezactivat.',
       err_expired: 'Codul nu mai este valabil.',
+      err_not_yet_valid: 'Codul nu este încă activ.',
       err_min_not_met_template: 'Codul necesită o comandă de minim {min} RON.',
       err_usage_exhausted: 'Codul a fost folosit deja de prea multe ori.',
       err_default: 'Codul nu poate fi aplicat.',
@@ -264,7 +270,7 @@ export const dictionaries = {
       title: 'Politica de confidențialitate',
       last_updated_template: 'Ultima actualizare: {date}',
       operator_title: 'Cine operează acest site',
-      operator_body_template: 'Site-ul este operat de {tenant}. Infrastructura tehnică este furnizată de HIR (hir.ro), care prelucrează datele în calitate de împuternicit conform GDPR.',
+      operator_body_template: 'Site-ul este operat de {tenant}. Infrastructura tehnică este furnizată de HIR, care prelucrează datele în calitate de împuternicit conform GDPR.',
       data_collected_title: 'Ce date colectăm',
       data_collected_body: 'Pentru a procesa comenzile tale colectăm: nume, telefon, email (opțional), adresa de livrare, conținutul comenzii și statusul plății prin Stripe (datele cardului NU sunt stocate de noi). Folosim cookie-uri esențiale pentru coș și limbă, plus, cu acordul tău, cookie-uri opționale pentru analiză.',
       retention_title: 'Cât păstrăm datele',
@@ -304,6 +310,7 @@ export const dictionaries = {
       free_delivery_template: 'Free delivery over {amount}',
       delivery_eta_range_template: 'Delivery {min}–{max} min',
       delivery_eta_single_template: 'Delivery ~{minutes} min',
+      today_orders_template: '{count} people ordered today',
     },
     home: {
       menu_not_published: 'The menu has not been published yet.',
@@ -335,6 +342,7 @@ export const dictionaries = {
       unavailable: 'Currently unavailable',
       added: 'Added ✓',
       add_short: 'Add',
+      prep_template: 'Ready in {minutes} min',
       popular_top: 'Most ordered',
       popular_rank_template: 'Top {rank}',
       required_label: 'Required',
@@ -348,6 +356,9 @@ export const dictionaries = {
     },
     reorder: {
       rail_title: 'Order again',
+    },
+    storefront_cta: {
+      view_menu: 'View menu',
     },
     cart: {
       title: 'Your cart',
@@ -455,6 +466,7 @@ export const dictionaries = {
       err_not_found: 'This code is not valid for this restaurant.',
       err_inactive: 'This code has been disabled.',
       err_expired: 'This code has expired.',
+      err_not_yet_valid: 'This code is not active yet.',
       err_min_not_met_template: 'This code requires an order of at least {min} RON.',
       err_usage_exhausted: 'This code has already been used too many times.',
       err_default: 'This code cannot be applied.',
@@ -541,7 +553,7 @@ export const dictionaries = {
       title: 'Privacy policy',
       last_updated_template: 'Last updated: {date}',
       operator_title: 'Who runs this site',
-      operator_body_template: 'This site is run by {tenant}. The underlying infrastructure is provided by HIR (hir.ro), which acts as a data processor under the GDPR.',
+      operator_body_template: 'This site is run by {tenant}. The underlying infrastructure is provided by HIR, which acts as a data processor under the GDPR.',
       data_collected_title: 'What data we collect',
       data_collected_body: 'To fulfil your orders we collect: name, phone, email (optional), delivery address, the order contents and the Stripe payment status (we do NOT store card details). We use essential cookies for the cart and language and, with your consent, optional analytics cookies.',
       retention_title: 'How long we keep it',

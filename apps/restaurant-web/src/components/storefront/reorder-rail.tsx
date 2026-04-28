@@ -46,7 +46,7 @@ export function ReorderRail({
         <h2 className="text-sm font-semibold tracking-tight text-zinc-900">{heading}</h2>
       </div>
       <div
-        className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-2"
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {items.map((item, idx) => (
@@ -64,7 +64,7 @@ export function ReorderRail({
             }}
             whileHover={reduceMotion ? undefined : { y: -2 }}
             whileTap={reduceMotion ? undefined : tapPress}
-            className="group flex w-36 flex-none flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+            className="group flex w-36 flex-none snap-start flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
           >
             <div className="relative h-24 w-full overflow-hidden rounded-xl bg-zinc-100">
               {item.image_url ? (

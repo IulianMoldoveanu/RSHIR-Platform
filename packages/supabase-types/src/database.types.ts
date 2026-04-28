@@ -495,7 +495,10 @@ export type Database = {
           image_url: string | null
           is_available: boolean
           name: string
+          prep_minutes: number | null
           price_ron: number
+          serving_size_grams: number | null
+          serving_size_label: string | null
           sold_out_until: string | null
           sort_order: number
           tags: string[]
@@ -510,7 +513,10 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name: string
+          prep_minutes?: number | null
           price_ron: number
+          serving_size_grams?: number | null
+          serving_size_label?: string | null
           sold_out_until?: string | null
           sort_order?: number
           tags?: string[]
@@ -525,7 +531,10 @@ export type Database = {
           image_url?: string | null
           is_available?: boolean
           name?: string
+          prep_minutes?: number | null
           price_ron?: number
+          serving_size_grams?: number | null
+          serving_size_label?: string | null
           sold_out_until?: string | null
           sort_order?: number
           tags?: string[]

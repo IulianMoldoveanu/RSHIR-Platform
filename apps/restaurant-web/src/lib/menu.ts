@@ -10,6 +10,15 @@ export type MenuItem = {
   is_available: boolean;
   sort_order: number;
   tags: string[];
+  // Optional per-item prep time in minutes (0–240). When set, renders a
+  // "Gata în X min" badge on the card. Per-item, not category — kebab and
+  // soup have very different prep times in the same kitchen.
+  prep_minutes: number | null;
+  // Optional integer grams. Drives a per-100g unit price line.
+  serving_size_grams: number | null;
+  // Optional free-text override (e.g. "1 porție 2 persoane", "350ml",
+  // "set 8 piese"). When set, takes priority over the grams-based label.
+  serving_size_label: string | null;
   // 1 = #1 most-ordered last 30 days (tenant-wide), 2 / 3 = #2 / #3, null
   // = not in the top-3. Renders as a "Cel mai comandat" / "Top vânzări"
   // badge on the menu card. Computed in getMenuByTenant from order history.
@@ -54,7 +63,7 @@ export type MenuCategory = {
 };
 
 const ITEM_COLS =
-  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags';
+  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label';
 
 /**
  * Effective availability: persistent toggle AND not currently sold-out today.
@@ -303,16 +312,39 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
  * Returns the tenant's top-N most-ordered items over the last 30 days, with
  * modifiers attached. Used by the cart drawer to render an "Also order"
  * upsell rail (Wolt / Glovo / DoorDash 'Complement your Cart' pattern).
- * Returns [] when no item has hit the popularity floor.
+ *
+ * Falls back (S3) to the first N available items by sort_order when the
+ * tenant has no qualifying order history yet — guarantees the rail shows
+ * up for newly-launched tenants instead of being silently empty.
  */
 export async function getTopPopularItems(
   tenantId: string,
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const ranks = await loadPopularRanks(tenantId);
-  if (ranks.size === 0) return [];
-
   const supabase = getSupabase();
+  const ranks = await loadPopularRanks(tenantId);
+
+  if (ranks.size === 0) {
+    const fallback = await getTopItems(tenantId, limit);
+    if (fallback.length === 0) return [];
+    const ids = fallback.map((it) => it.id);
+    const modsRes = await supabase
+      .from('restaurant_menu_modifiers')
+      .select('id, item_id, name, price_delta_ron')
+      .in('item_id', ids);
+    const modsByItem = new Map<string, MenuModifier[]>();
+    for (const m of (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>) {
+      const arr = modsByItem.get(m.item_id) ?? [];
+      arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
+      modsByItem.set(m.item_id, arr);
+    }
+    return fallback.map((it) => ({
+      ...it,
+      modifiers: modsByItem.get(it.id) ?? [],
+      modifierGroups: [] as MenuModifierGroup[],
+    }));
+  }
+
   const ids = Array.from(ranks.keys());
   const [itemsRes, modsRes] = await Promise.all([
     supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),

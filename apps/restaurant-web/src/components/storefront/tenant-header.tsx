@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Banknote, Clock, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
+import { Banknote, Clock, Flame, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
@@ -16,7 +16,14 @@ type TenantHeaderProps = {
   freeDeliveryThresholdRon?: number;
   deliveryEtaMinMinutes?: number;
   deliveryEtaMaxMinutes?: number;
+  /** Today's non-cancelled order count for the social-proof pill (S2).
+   *  Pill renders only when >= 5 — see TODAY_ORDERS_PILL_FLOOR. */
+  todayOrderCount?: number;
 };
+
+// Avoid awkward "1 comandă azi" early in the day. Once 5 orders are in,
+// the flame pill becomes a useful social-proof signal.
+const TODAY_ORDERS_PILL_FLOOR = 5;
 
 function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
   const text = t(locale, 'header.whatsapp_text_template', { name });
@@ -36,7 +43,9 @@ export function TenantHeader({
   freeDeliveryThresholdRon = 0,
   deliveryEtaMinMinutes = 0,
   deliveryEtaMaxMinutes = 0,
+  todayOrderCount = 0,
 }: TenantHeaderProps) {
+  const showTodayPill = todayOrderCount >= TODAY_ORDERS_PILL_FLOOR;
   // Compute the ETA chip text once.
   let etaText: string | null = null;
   if (deliveryEtaMinMinutes > 0 && deliveryEtaMaxMinutes > 0) {
@@ -163,9 +172,17 @@ export function TenantHeader({
       {/* Chip strip — ETA · min order · free delivery threshold. Renders
           only when at least one chip is configured. Each chip has its
           own icon + tinted bg for visual separation. */}
-      {(etaText || minOrderRon > 0 || freeDeliveryThresholdRon > 0) && (
+      {(etaText || minOrderRon > 0 || freeDeliveryThresholdRon > 0 || showTodayPill) && (
         <div className="mx-auto max-w-2xl px-4 pb-3">
           <div className="flex flex-wrap items-center gap-2">
+            {showTodayPill && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-800 ring-1 ring-inset ring-orange-200">
+                <Flame className="h-3 w-3" aria-hidden />
+                {t(locale, 'header.today_orders_template', {
+                  count: String(todayOrderCount),
+                })}
+              </span>
+            )}
             {etaText && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
                 <Clock className="h-3 w-3" aria-hidden />

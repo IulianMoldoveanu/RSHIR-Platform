@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, Plus, UtensilsCrossed } from 'lucide-react';
+import { Minus, Plus, Timer, UtensilsCrossed } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
@@ -13,6 +13,7 @@ import {
   useShouldReduceMotion,
 } from '@/lib/motion';
 import type { MenuItemWithModifiers, MenuModifier, MenuModifierGroup } from '@/lib/menu';
+import { servingInfoLine } from '@/lib/serving';
 
 type Props = {
   item: MenuItemWithModifiers;
@@ -161,6 +162,18 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
           <SheetHeader className="p-0 pb-3">
             <SheetTitle>{item.name}</SheetTitle>
             <p className="text-base font-medium text-zinc-900">{formatRon(item.price_ron, locale)}</p>
+            {(() => {
+              const line = servingInfoLine(item, locale);
+              return line ? (
+                <p className="text-sm text-zinc-500">{line}</p>
+              ) : null;
+            })()}
+            {item.prep_minutes !== null && item.prep_minutes !== undefined ? (
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                <Timer className="h-3.5 w-3.5" aria-hidden />
+                {t(locale, 'item.prep_template', { minutes: String(item.prep_minutes) })}
+              </span>
+            ) : null}
           </SheetHeader>
 
           {item.description ? (
@@ -218,7 +231,7 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 type="button"
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
                 whileTap={reduceMotion ? undefined : tapPress}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900 disabled:opacity-50"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900 disabled:opacity-50"
                 disabled={qty <= 1}
                 aria-label={t(locale, 'item.decrease_qty')}
               >
@@ -229,7 +242,7 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 type="button"
                 onClick={() => setQty((q) => q + 1)}
                 whileTap={reduceMotion ? undefined : tapPress}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
                 aria-label={t(locale, 'item.increase_qty')}
               >
                 <Plus className="h-4 w-4" />

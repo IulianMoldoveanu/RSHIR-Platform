@@ -12,6 +12,7 @@ import {
   Rocket,
   Settings,
   Sliders,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@hir/ui';
 
@@ -29,6 +30,7 @@ const ICONS: Record<string, LucideIcon> = {
   megaphone: Megaphone,
   sliders: Sliders,
   settings: Settings,
+  sparkles: Sparkles,
 };
 
 export type IconName = keyof typeof ICONS;

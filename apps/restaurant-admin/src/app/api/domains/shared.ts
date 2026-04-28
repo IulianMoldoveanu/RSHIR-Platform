@@ -3,13 +3,21 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const FQDN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 // RSHIR-20: refuse to attach platform-controlled or local-dev suffixes as a
-// tenant custom domain. Lets a tenant claim e.g. `rogue.hir.ro` or
-// `attacker.lvh.me` and trick the Vercel routing layer into pointing at them.
-const BLOCKED_SUFFIXES = ['hir.ro', 'lvh.me', 'vercel.app', 'localhost'];
+// tenant custom domain. Otherwise a tenant could claim e.g. `rogue.<our-apex>`
+// or `attacker.lvh.me` and trick the Vercel routing layer into pointing at
+// them. Static infra suffixes are baked in; the operator's primary apex
+// (NEXT_PUBLIC_PRIMARY_DOMAIN) is added at runtime so the block list always
+// matches the deployment.
+const STATIC_BLOCKED_SUFFIXES = ['lvh.me', 'vercel.app', 'localhost'];
+
+function blockedSuffixes(): string[] {
+  const primary = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN?.trim().toLowerCase();
+  return primary ? [primary, ...STATIC_BLOCKED_SUFFIXES] : STATIC_BLOCKED_SUFFIXES;
+}
 
 export function isBlockedDomain(fqdn: string): boolean {
   const host = fqdn.toLowerCase();
-  return BLOCKED_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
+  return blockedSuffixes().some((s) => host === s || host.endsWith(`.${s}`));
 }
 
 export function normalizeDomain(input: string): string | null {
@@ -20,11 +28,10 @@ export function normalizeDomain(input: string): string | null {
 }
 
 // Smoke-check sanity (manual, no test runner wired):
-//   normalizeDomain('attacker.lvh.me')   -> null
-//   normalizeDomain('foo.hir.ro')        -> null
-//   normalizeDomain('hir.ro')            -> null
-//   normalizeDomain('app.vercel.app')    -> null
-//   normalizeDomain('comanda.tei.ro')    -> 'comanda.tei.ro'
+//   normalizeDomain('attacker.lvh.me')         -> null
+//   normalizeDomain('foo.<your-apex>')         -> null  (when NEXT_PUBLIC_PRIMARY_DOMAIN is set)
+//   normalizeDomain('app.vercel.app')          -> null
+//   normalizeDomain('comanda.tei.ro')          -> 'comanda.tei.ro'
 
 export type DomainStatus = 'NONE' | 'PENDING_DNS' | 'PENDING_SSL' | 'ACTIVE' | 'FAILED';
 

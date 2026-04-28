@@ -29,10 +29,24 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     return; // already finalized
   }
 
-  await admin
+  // Atomic guard: the Stripe webhook and the client-driven /confirm both call
+  // this function and can race within ~100ms of each other on the happy path.
+  // Without the payment_status filter both threads would (a) flip the order
+  // PAID twice — harmless — and (b) BOTH proceed past this point and call
+  // dispatchOrderEvent + dispatchToCourier, producing duplicate courier-side
+  // orders. The filter ensures only the first writer continues; the second
+  // sees zero affected rows and returns.
+  const { data: claimed, error: updErr } = await admin
     .from('restaurant_orders')
     .update({ payment_status: 'PAID', status: 'CONFIRMED' })
-    .eq('id', orderId);
+    .eq('id', orderId)
+    .eq('payment_status', 'UNPAID')
+    .select('id');
+  if (updErr) throw new Error(updErr.message);
+  if (!claimed || claimed.length === 0) {
+    // Another thread already claimed this order — they will dispatch.
+    return;
+  }
 
   // Hydrate the full order for downstream dispatch + integration bus. Single
   // round-trip with relational shorthand.

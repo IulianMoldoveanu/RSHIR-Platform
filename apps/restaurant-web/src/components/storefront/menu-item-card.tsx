@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Flame, Plus, UtensilsCrossed } from 'lucide-react';
+import { Check, Flame, Plus, Timer, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
@@ -14,6 +14,7 @@ import {
   useShouldReduceMotion,
 } from '@/lib/motion';
 import type { MenuItem, MenuItemWithModifiers } from '@/lib/menu';
+import { servingInfoLine } from '@/lib/serving';
 
 type Props = {
   item: MenuItem;
@@ -103,15 +104,22 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 sm:text-base">
             {item.name}
           </h3>
+          {item.prep_minutes !== null && item.prep_minutes !== undefined ? (
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+              <Timer className="h-3 w-3" aria-hidden />
+              {t(locale, 'item.prep_template', { minutes: String(item.prep_minutes) })}
+            </span>
+          ) : null}
           {item.description ? (
             <p className="line-clamp-2 text-xs leading-snug text-zinc-500 sm:text-sm">
               {item.description}
             </p>
           ) : null}
-          <div className="mt-auto flex items-center justify-between gap-2 pt-2">
-            <span className="text-base font-semibold tabular-nums text-zinc-900">
-              {formatRon(item.price_ron, locale)}
-            </span>
+          <div className="mt-auto flex flex-col gap-0.5 pt-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-base font-semibold tabular-nums text-zinc-900">
+                {formatRon(item.price_ron, locale)}
+              </span>
             {available ? (
               <motion.button
                 type="button"
@@ -128,7 +136,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                     ? t(locale, 'item.add_short')
                     : t(locale, 'item.add_to_cart')
                 }
-                className={`inline-flex h-9 items-center gap-1 rounded-full pl-2.5 pr-3 text-xs font-medium text-white shadow-sm transition-colors ${
+                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-colors ${
                   justAdded
                     ? 'bg-emerald-600'
                     : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800'
@@ -167,6 +175,13 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                 {t(locale, 'item.unavailable')}
               </span>
             )}
+            </div>
+            {(() => {
+              const line = servingInfoLine(item, locale);
+              return line ? (
+                <span className="text-xs text-zinc-500">{line}</span>
+              ) : null;
+            })()}
           </div>
         </div>
 

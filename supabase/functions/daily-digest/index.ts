@@ -265,7 +265,8 @@ Deno.serve(async (req: Request) => {
       .eq('id', body.tenant_id)
       .maybeSingle();
     if (error || !data) {
-      return json(404, { error: 'tenant_not_found', detail: error?.message });
+      if (error) console.error('[daily-digest] tenant lookup failed:', error.message);
+      return json(404, { error: 'tenant_not_found' });
     }
     tenants = [data as typeof tenants[number]];
   } else {
@@ -273,7 +274,8 @@ Deno.serve(async (req: Request) => {
       .from('tenants')
       .select('id, name, settings');
     if (error) {
-      return json(500, { error: 'tenants_query_failed', detail: error.message });
+      console.error('[daily-digest] tenants query failed:', error.message);
+      return json(500, { error: 'tenants_query_failed' });
     }
     tenants = (data ?? []) as typeof tenants;
   }

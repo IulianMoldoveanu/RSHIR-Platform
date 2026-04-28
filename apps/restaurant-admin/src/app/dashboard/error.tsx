@@ -20,12 +20,18 @@ export default function DashboardError({
           A apărut o eroare la încărcare
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Ceva nu a mers cum trebuie. Detalii tehnice:
+          Ceva nu a mers cum trebuie. Reîncearcă în câteva secunde sau trimite codul
+          de mai jos echipei dacă persistă.
         </p>
-        <pre className="mt-3 max-h-48 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-700">
-          {error.message || 'unknown error'}
-          {error.digest ? `\n\ndigest: ${error.digest}` : ''}
-        </pre>
+        {/* SECURITY: do not render error.message — Next surfaces server-side
+            error strings that can leak SQL fragments, internal hostnames,
+            JWT claims, and stack traces to anyone who can trip the boundary.
+            Same redaction as global-error.tsx (PR #21). */}
+        {error.digest && (
+          <pre className="mt-3 overflow-x-auto rounded-md bg-zinc-50 p-3 text-left text-xs text-zinc-500">
+            ref: {error.digest}
+          </pre>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"

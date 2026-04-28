@@ -21,7 +21,11 @@ export type MenuItem = {
   image_url: string | null;
   is_available: boolean;
   sold_out_until: string | null;
+  sort_order: number;
   tags: string[];
+  prep_minutes: number | null;
+  serving_size_grams: number | null;
+  serving_size_label: string | null;
 };
 
 export type MenuModifier = {
@@ -55,8 +59,9 @@ export default async function MenuPage() {
       .order('sort_order', { ascending: true }),
     admin
       .from('restaurant_menu_items')
-      .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, tags')
+      .select('id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label')
       .eq('tenant_id', tenant.id)
+      .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
     // Defensive: try the SELECT including new columns; fall back if the
     // 20260505_001 migration hasn't shipped yet.
@@ -126,7 +131,8 @@ export default async function MenuPage() {
     }),
   );
 
-  const storefrontUrl = `https://${tenant.slug}.hir.ro`;
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
+  const storefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
 
   return (
     <div className="flex flex-col gap-4">

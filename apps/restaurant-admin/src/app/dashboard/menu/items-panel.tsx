@@ -18,11 +18,12 @@ import {
   SelectValue,
   toast,
 } from '@hir/ui';
-import { BookOpen, ImageOff, Info, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
+import { BookOpen, GripVertical, ImageOff, Info, Moon, Pencil, Search, Sun, Trash2 } from 'lucide-react';
 import {
   bulkToggleAvailabilityAction,
   clearItemSoldOutAction,
   deleteItemAction,
+  reorderItemsAction,
   setItemSoldOutTodayAction,
   toggleItemAvailabilityAction,
 } from './actions';
@@ -52,15 +53,41 @@ export function ItemsPanel({
   const [importing, setImporting] = useState(false);
   const [deleting, setDeleting] = useState<MenuItem | null>(null);
   const [pending, start] = useTransition();
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Optimistic local order overrides server order while a reorder is in
+  // flight, keyed by category. Cleared once the server data refreshes
+  // (revalidatePath in the action).
+  const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({});
+
+  // Drag-to-reorder is only meaningful when the user is filtered to a single
+  // category AND not searching — otherwise the dropped position is ambiguous
+  // (cross-category drag has no defined semantics, search results are a
+  // virtual subset).
+  const reorderEnabled = filter !== 'all' && search.trim() === '';
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter((it) => {
+    let rows = items.filter((it) => {
       if (filter !== 'all' && it.category_id !== filter) return false;
       if (q && !it.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [items, filter, search]);
+    if (reorderEnabled && filter !== 'all') {
+      const local = localOrder[filter];
+      if (local) {
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const ordered = local
+          .map((id) => byId.get(id))
+          .filter((r): r is MenuItem => Boolean(r));
+        // Append any row that arrived after the local order was set.
+        for (const r of rows) {
+          if (!ordered.find((x) => x.id === r.id)) ordered.push(r);
+        }
+        rows = ordered;
+      }
+    }
+    return rows;
+  }, [items, filter, search, reorderEnabled, localOrder]);
 
   const categoriesById = useMemo(
     () => new Map(categories.map((c) => [c.id, c])),
@@ -113,6 +140,25 @@ export function ItemsPanel({
         toast.success(`${ids.length} produse actualizate`);
         setSelected(new Set());
       } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
+      }
+    });
+  }
+
+  function onDrop(targetIndex: number) {
+    if (!reorderEnabled || filter === 'all') return;
+    if (dragIndex === null || dragIndex === targetIndex) return;
+    const ids = filtered.map((it) => it.id);
+    const prevIds = [...ids];
+    const [moved] = ids.splice(dragIndex, 1);
+    ids.splice(targetIndex, 0, moved);
+    setLocalOrder((prev) => ({ ...prev, [filter]: ids }));
+    setDragIndex(null);
+    start(async () => {
+      try {
+        await reorderItemsAction({ category_id: filter, ids });
+      } catch (err) {
+        setLocalOrder((prev) => ({ ...prev, [filter]: prevIds }));
         toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
       }
     });
@@ -181,6 +227,12 @@ export function ItemsPanel({
         </div>
       )}
 
+      {reorderEnabled && filtered.length > 1 && (
+        <p className="text-xs text-zinc-500">
+          Trage rândurile de mâner pentru a reordona produsele în această categorie. Ordinea se salvează automat și se reflectă pe storefront.
+        </p>
+      )}
+
       {selected.size > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm">
           <span>{selected.size} selectate</span>
@@ -217,6 +269,7 @@ export function ItemsPanel({
           <table className="w-full text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs text-zinc-500">
               <tr>
+                {reorderEnabled && <th className="w-6 px-2 py-2" aria-label="Reordonare" />}
                 <th className="w-8 px-3 py-2">
                   <input
                     type="checkbox"
@@ -236,8 +289,28 @@ export function ItemsPanel({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((it) => (
-                <tr key={it.id} className="border-b border-zinc-100 last:border-b-0">
+              {filtered.map((it, idx) => (
+                <tr
+                  key={it.id}
+                  draggable={reorderEnabled}
+                  onDragStart={reorderEnabled ? () => setDragIndex(idx) : undefined}
+                  onDragOver={reorderEnabled ? (e) => e.preventDefault() : undefined}
+                  onDrop={reorderEnabled ? () => onDrop(idx) : undefined}
+                  className={`border-b border-zinc-100 last:border-b-0 ${
+                    reorderEnabled && dragIndex === idx ? 'opacity-60' : ''
+                  }`}
+                >
+                  {reorderEnabled && (
+                    <td className="px-2 py-2">
+                      <span
+                        className="flex h-6 w-6 cursor-grab items-center justify-center text-zinc-400 hover:text-zinc-600 active:cursor-grabbing"
+                        title="Trage pentru a reordona"
+                        aria-label="Mâner reordonare"
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </span>
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
@@ -252,6 +325,8 @@ export function ItemsPanel({
                         <img
                           src={it.image_url}
                           alt={it.name}
+                          width={48}
+                          height={48}
                           className="h-12 w-12 rounded-md object-cover"
                           loading="lazy"
                           decoding="async"
@@ -261,6 +336,8 @@ export function ItemsPanel({
                           <img
                             src={it.image_url}
                             alt=""
+                            width={192}
+                            height={192}
                             className="h-48 w-48 rounded object-cover"
                           />
                         </span>

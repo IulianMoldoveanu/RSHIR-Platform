@@ -100,13 +100,23 @@ export async function markCodOrderPaid(
   const { tenantId, userId } = await requireTenant(expectedTenantId);
 
   const admin = createAdminClient();
+  // Defensive: if 20260504_001 (payment_method column) hasn't applied to
+  // this database yet, surface a clean Romanian error instead of leaking
+  // PostgREST's raw "column does not exist" string into the toast.
   const { data: existing, error: readErr } = await admin
     .from('restaurant_orders')
     .select('id, payment_method, payment_status')
     .eq('id', orderId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (readErr) throw new Error(readErr.message);
+  if (readErr) {
+    if (/payment_method|payment_status/i.test(readErr.message ?? '')) {
+      throw new Error(
+        'Marcarea cash nu este disponibilă încă — migrația plății nu a fost aplicată.',
+      );
+    }
+    throw new Error(readErr.message);
+  }
   if (!existing) throw new Error('Comanda nu exista in acest restaurant.');
 
   const row = existing as unknown as {
@@ -121,12 +131,31 @@ export async function markCodOrderPaid(
     return;
   }
 
-  const { error } = await admin
+  // Atomic guard: another admin (or a webhook) could have flipped this row
+  // between the SELECT above and the UPDATE here. The filter on payment_method
+  // + payment_status ensures we never silently mark a CARD or already-PAID
+  // order as cash-paid. The pre-read still produces the friendlier error
+  // messages above; this is the actual write-time invariant.
+  // Cast through unknown — payment_method column is in the live DB (migration
+  // 20260504_001) but supabase-types hasn't been regenerated; same pattern as
+  // dashboard/orders/page.tsx around its cash filter.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const guarded = (admin
     .from('restaurant_orders')
     .update({ payment_status: 'PAID' })
     .eq('id', orderId)
-    .eq('tenant_id', tenantId);
+    .eq('tenant_id', tenantId) as any)
+    .eq('payment_method', 'COD')
+    .eq('payment_status', 'UNPAID')
+    .select('id');
+  const { data: claimed, error } = (await guarded) as {
+    data: Array<{ id: string }> | null;
+    error: { message: string } | null;
+  };
   if (error) throw new Error(error.message);
+  if (!claimed || claimed.length === 0) {
+    throw new Error('Comanda nu mai e eligibilă (a fost modificată între timp).');
+  }
 
   await logAudit({
     tenantId,

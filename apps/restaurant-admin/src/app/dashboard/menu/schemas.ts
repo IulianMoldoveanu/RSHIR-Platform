@@ -32,6 +32,22 @@ const tagsSchema = z
       .filter(Boolean),
   );
 
+// Optional integer field that arrives as either an empty string (unset
+// FormData input), a numeric string, or undefined. Empty/undefined → null;
+// otherwise validated as int in [min, max].
+function optionalIntField(min: number, max: number) {
+  return z
+    .union([z.literal(''), z.string(), z.number(), z.undefined(), z.null()])
+    .transform((v) => {
+      if (v === '' || v === undefined || v === null) return null;
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : null;
+    })
+    .refine((n) => n === null || (Number.isInteger(n) && n >= min && n <= max), {
+      message: `Trebuie să fie un întreg între ${min} și ${max}.`,
+    });
+}
+
 export const itemCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).optional().or(z.literal('')),
@@ -42,6 +58,17 @@ export const itemCreateSchema = z.object({
     .union([z.literal('on'), z.literal('off'), z.boolean()])
     .optional()
     .transform((v) => v === true || v === 'on'),
+  // 0–240 min, NULL means "no badge".
+  prep_minutes: optionalIntField(0, 240),
+  // 1–4999 g, NULL means "no per-100g line".
+  serving_size_grams: optionalIntField(1, 4999),
+  // Free-text override, max 60 chars; '' → null.
+  serving_size_label: z
+    .string()
+    .trim()
+    .max(60)
+    .optional()
+    .transform((s) => (s && s.length > 0 ? s : null)),
 });
 
 export const itemUpdateSchema = itemCreateSchema.extend({ id: uuid });
@@ -59,6 +86,11 @@ export const itemBulkAvailabilitySchema = z.object({
 });
 
 export const itemSoldOutSchema = z.object({ id: uuid });
+
+export const itemReorderSchema = z.object({
+  category_id: uuid,
+  ids: z.array(uuid).min(1),
+});
 
 export const modifierCreateSchema = z.object({
   item_id: uuid,
