@@ -3,6 +3,10 @@
 import { z } from 'zod';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import {
+  notifyCustomerOfReservationRequest,
+  notifyRestaurantOfNewReservation,
+} from '@/lib/reservations-email';
 
 const requestSchema = z.object({
   first_name: z.string().min(1).max(100),
@@ -66,9 +70,67 @@ export async function requestReservation(
     return { ok: false, error: row.message || 'Rezervarea nu a putut fi acceptată.' };
   }
 
+  // Best-effort transactional emails. Reservation already persisted; we
+  // never throw if Resend is misconfigured / down.
+  void fireReservationEmails(tenant.id, tenant.name, tenant.slug, data, sb).catch(
+    (err) => console.error('[storefront/rezervari] email fan-out failed', err),
+  );
+
   return {
     ok: true,
     reservationId: String(row.reservation_id),
     trackToken: String(row.public_track_token),
   };
+}
+
+async function fireReservationEmails(
+  tenantId: string,
+  tenantName: string,
+  tenantSlug: string,
+  data: z.infer<typeof requestSchema>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+): Promise<void> {
+  const { data: settings } = await sb
+    .from('reservation_settings')
+    .select('notify_email')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  const adminLink =
+    (process.env.NEXT_PUBLIC_ADMIN_BASE_URL ?? 'https://admin.hir.ro') +
+    '/dashboard/reservations';
+
+  const customerEmail =
+    data.email && data.email.length > 0 ? data.email : null;
+  const notifyEmail =
+    (settings?.notify_email as string | null | undefined) ?? null;
+
+  // Restaurant notification (operator-facing).
+  if (notifyEmail) {
+    await notifyRestaurantOfNewReservation({
+      notifyEmail,
+      tenantName,
+      customerFirstName: data.first_name,
+      customerPhone: data.phone,
+      customerEmail,
+      partySize: data.party_size,
+      requestedAtIso: data.requested_at,
+      notes: data.notes && data.notes.length > 0 ? data.notes : null,
+      adminLink,
+    });
+  }
+
+  // Customer-facing acknowledgement (only if they gave us an email).
+  if (customerEmail) {
+    await notifyCustomerOfReservationRequest({
+      customerEmail,
+      tenantName,
+      partySize: data.party_size,
+      requestedAtIso: data.requested_at,
+    });
+  }
+
+  // tenantSlug is reserved for future per-tenant deep links.
+  void tenantSlug;
 }
