@@ -83,7 +83,7 @@ export default async function ReservationsPage() {
           href="/dashboard"
           className="text-xs text-zinc-500 hover:text-zinc-900"
         >
-          ← inapoi
+          ← Înapoi
         </Link>
       </div>
 

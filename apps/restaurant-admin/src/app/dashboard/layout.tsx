@@ -91,6 +91,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/zones', label: 'Zone livrare' },
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
         { href: '/dashboard/settings/notifications', label: 'Notificări' },
+        { href: '/dashboard/reservations', label: 'Rezervări' },
       ],
     },
     {
@@ -100,6 +101,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
         { href: '/dashboard/settings/domain', label: 'Domeniu' },
         { href: '/dashboard/settings/seo', label: 'SEO' },
+        { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
