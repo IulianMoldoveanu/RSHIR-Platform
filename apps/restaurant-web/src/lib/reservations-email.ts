@@ -22,6 +22,9 @@ export type CustomerNotifyInput = {
   tenantName: string;
   partySize: number;
   requestedAtIso: string;
+  /** Absolute /rezervari/track/[token] URL. When set the email gets a
+   *  CTA button so the customer can see live status as it changes. */
+  trackUrl?: string | null;
 };
 
 function formatDate(iso: string): string {
@@ -82,11 +85,14 @@ export async function notifyCustomerOfReservationRequest(
 ): Promise<void> {
   const when = formatDate(input.requestedAtIso);
   const subject = `Rezervarea ta la ${input.tenantName} a fost trimisă`;
+  const trackBlock = input.trackUrl
+    ? `\n\nVezi statusul rezervării: ${input.trackUrl}`
+    : '';
   const text = [
     `Salut!`,
     '',
     `Restaurantul ${input.tenantName} a primit cererea ta de rezervare pentru ${input.partySize} persoane pe ${when}.`,
-    `Vom reveni în scurt timp cu o confirmare prin telefon sau email.`,
+    `Vom reveni în scurt timp cu o confirmare prin telefon sau email.` + trackBlock,
     '',
     `Mulțumim,`,
     `Echipa ${input.tenantName}`,
@@ -101,6 +107,11 @@ export async function notifyCustomerOfReservationRequest(
   <p style="line-height:1.5;font-size:14px">
     Vom reveni în scurt timp cu o confirmare prin telefon sau email.
   </p>
+  ${
+    input.trackUrl
+      ? `<p style="margin-top:20px"><a href="${escapeHtml(input.trackUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Vezi statusul rezervării</a></p>`
+      : ''
+  }
   <p style="margin-top:24px;color:#71717a;font-size:12px">Echipa ${escapeHtml(input.tenantName)}</p>
 </div>
 `.trim();
