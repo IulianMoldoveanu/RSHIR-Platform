@@ -19,6 +19,9 @@ type TenantHeaderProps = {
   /** Today's non-cancelled order count for the social-proof pill (S2).
    *  Pill renders only when >= 5 — see TODAY_ORDERS_PILL_FLOOR. */
   todayOrderCount?: number;
+  /** When true, surface a /rezervari link next to /bio. Driven by
+   *  reservation_settings.is_enabled in the storefront page. */
+  reservationsEnabled?: boolean;
 };
 
 // Avoid awkward "1 comandă azi" early in the day. Once 5 orders are in,
@@ -44,6 +47,7 @@ export function TenantHeader({
   deliveryEtaMinMinutes = 0,
   deliveryEtaMaxMinutes = 0,
   todayOrderCount = 0,
+  reservationsEnabled = false,
 }: TenantHeaderProps) {
   const showTodayPill = todayOrderCount >= TODAY_ORDERS_PILL_FLOOR;
   // Compute the ETA chip text once.
@@ -143,6 +147,14 @@ export function TenantHeader({
             >
               {t(locale, 'header.bio_link')}
             </Link>
+            {reservationsEnabled ? (
+              <Link
+                href="/rezervari"
+                className="text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-800"
+              >
+                {t(locale, 'header.reservations_link')}
+              </Link>
+            ) : null}
             {showAccountLink ? (
               <Link
                 href="/account"
