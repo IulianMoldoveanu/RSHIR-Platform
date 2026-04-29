@@ -253,6 +253,16 @@ Deno.serve(async (req: Request) => {
     }
 
     await auditLog(supabase, 'courier_mirror.order_created', order.pharma_order_id, inserted.id);
+
+    // Fire-and-forget Web Push to all active couriers in the fleet. Same
+    // hook the restaurant-courier external/orders route uses (#68). Pharma
+    // orders need the ping too — without it, couriers would only see the
+    // order via the realtime feed when they happen to look at the app.
+    void firePushDispatch(fleetId, inserted.id, {
+      title: 'HIR Courier — Comandă farmacie',
+      body: 'Ai o nouă livrare farma disponibilă.',
+    });
+
     return json(200, { ok: true, courier_order_id: inserted.id });
   }
 
@@ -309,6 +319,45 @@ Deno.serve(async (req: Request) => {
 
   return json(400, { error: 'unknown_event', event });
 });
+
+// ---------------------------------------------------------------------------
+// Push helper — pings courier-push-dispatch for newly mirrored pharma
+// orders. Fire-and-forget; failures are logged but never block the
+// webhook response since the order has already been persisted.
+// ---------------------------------------------------------------------------
+async function firePushDispatch(
+  fleetId: string,
+  orderId: string,
+  payload: { title?: string; body?: string } = {},
+): Promise<void> {
+  try {
+    const url = `${Deno.env.get('SUPABASE_URL')}/functions/v1/courier-push-dispatch`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+      },
+      body: JSON.stringify({
+        fleet_id: fleetId,
+        order_id: orderId,
+        ...payload,
+      }),
+    });
+    if (!res.ok) {
+      console.error(
+        '[courier-mirror-pharma] push dispatch non-2xx',
+        res.status,
+        await res.text().catch(() => ''),
+      );
+    }
+  } catch (err) {
+    console.error(
+      '[courier-mirror-pharma] push dispatch fetch failed',
+      (err as Error).message,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Audit helper — logs to courier_mirror_audit (a lightweight local table,
