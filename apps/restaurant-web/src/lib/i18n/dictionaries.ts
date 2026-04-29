@@ -29,6 +29,7 @@ export const dictionaries = {
       delivery_eta_range_template: 'Livrare {min}–{max} min',
       delivery_eta_single_template: 'Livrare ~{minutes} min',
       today_orders_template: '{count} oameni au comandat azi',
+      loyalty_points_template: '{count} puncte',
     },
     home: {
       menu_not_published: 'Meniul nu e încă publicat.',
@@ -313,6 +314,7 @@ export const dictionaries = {
       delivery_eta_range_template: 'Delivery {min}–{max} min',
       delivery_eta_single_template: 'Delivery ~{minutes} min',
       today_orders_template: '{count} people ordered today',
+      loyalty_points_template: '{count} points',
     },
     home: {
       menu_not_published: 'The menu has not been published yet.',

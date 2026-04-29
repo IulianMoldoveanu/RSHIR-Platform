@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Banknote, Clock, Flame, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
+import { Banknote, Clock, Flame, Gift, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
@@ -22,6 +22,9 @@ type TenantHeaderProps = {
   /** When true, surface a /rezervari link next to /bio. Driven by
    *  reservation_settings.is_enabled in the storefront page. */
   reservationsEnabled?: boolean;
+  /** Loyalty points pill for cookie-recognized customers. Null when
+   *  loyalty disabled or balance is 0. */
+  loyaltyPoints?: number | null;
 };
 
 // Avoid awkward "1 comandă azi" early in the day. Once 5 orders are in,
@@ -48,6 +51,7 @@ export function TenantHeader({
   deliveryEtaMaxMinutes = 0,
   todayOrderCount = 0,
   reservationsEnabled = false,
+  loyaltyPoints = null,
 }: TenantHeaderProps) {
   const showTodayPill = todayOrderCount >= TODAY_ORDERS_PILL_FLOOR;
   // Compute the ETA chip text once.
@@ -184,9 +188,21 @@ export function TenantHeader({
       {/* Chip strip — ETA · min order · free delivery threshold. Renders
           only when at least one chip is configured. Each chip has its
           own icon + tinted bg for visual separation. */}
-      {(etaText || minOrderRon > 0 || freeDeliveryThresholdRon > 0 || showTodayPill) && (
+      {(etaText ||
+        minOrderRon > 0 ||
+        freeDeliveryThresholdRon > 0 ||
+        showTodayPill ||
+        (loyaltyPoints !== null && loyaltyPoints > 0)) && (
         <div className="mx-auto max-w-2xl px-4 pb-3">
           <div className="flex flex-wrap items-center gap-2">
+            {loyaltyPoints !== null && loyaltyPoints > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-800 ring-1 ring-inset ring-purple-200">
+                <Gift className="h-3 w-3" aria-hidden />
+                {t(locale, 'header.loyalty_points_template', {
+                  count: String(loyaltyPoints),
+                })}
+              </span>
+            )}
             {showTodayPill && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-[11px] font-medium text-orange-800 ring-1 ring-inset ring-orange-200">
                 <Flame className="h-3 w-3" aria-hidden />

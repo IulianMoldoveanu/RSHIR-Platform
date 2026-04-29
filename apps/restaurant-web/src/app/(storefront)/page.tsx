@@ -12,6 +12,7 @@ import { ReorderRail } from '@/components/storefront/reorder-rail';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
 import { isReservationsEnabled } from '@/lib/reservations';
+import { getLoyaltyBalance } from '@/lib/loyalty';
 import { NewsletterPopup } from '@/components/storefront/newsletter-popup';
 import { NewsletterBanner } from '@/components/storefront/newsletter-banner';
 import {
@@ -68,9 +69,10 @@ export default async function StorefrontHomePage() {
   const closed = !accepting || !openStatus.open;
   const customerId = readCustomerCookie(tenant.id);
   const hasCustomerCookie = customerId !== null;
-  const reorderItems = customerId
-    ? await getRecentlyOrderedItems(tenant.id, customerId, menu)
-    : [];
+  const [reorderItems, loyalty] = await Promise.all([
+    customerId ? getRecentlyOrderedItems(tenant.id, customerId, menu) : Promise.resolve([]),
+    customerId ? getLoyaltyBalance(tenant.id, customerId) : Promise.resolve(null),
+  ]);
 
   const baseUrl = tenantBaseUrl();
   const pickupAddress =
@@ -147,6 +149,7 @@ export default async function StorefrontHomePage() {
         locale={locale}
         showAccountLink={hasCustomerCookie}
         reservationsEnabled={reservationsEnabled}
+        loyaltyPoints={loyalty?.points ?? null}
         rating={rating}
         minOrderRon={
           typeof tenant.settings.min_order_ron === 'number' && tenant.settings.min_order_ron > 0
