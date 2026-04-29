@@ -1,4 +1,4 @@
-import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock } from 'lucide-react';
+import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap } from 'lucide-react';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import {
   getThreadForTenant,
@@ -6,6 +6,7 @@ import {
   getTenantFacts,
   getBriefSchedule,
   getLatestSuggestions,
+  getAutoExecutedActions,
 } from '@/lib/ai-ceo/queries';
 import { BriefScheduleEditor } from './brief-schedule-editor';
 import { SuggestionsList } from './suggestions-list';
@@ -37,12 +38,13 @@ function truncate(s: string | null, n: number): string {
 export default async function AiCeoPage() {
   const { user, tenant } = await getActiveTenant();
 
-  const [thread, runs, facts, brief, suggestions, role] = await Promise.all([
+  const [thread, runs, facts, brief, suggestions, autoActions, role] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
     getTenantFacts(tenant.id),
     getBriefSchedule(tenant.id),
     getLatestSuggestions(tenant.id),
+    getAutoExecutedActions(tenant.id, 7),
     getTenantRole(user.id, tenant.id),
   ]);
   const canEditBrief = role === 'OWNER';
@@ -222,7 +224,45 @@ export default async function AiCeoPage() {
           />
         </section>
 
-        {/* 5. Tenant facts the bot has learned */}
+        {/* 5. Auto-executed actions log (last 7 days) */}
+        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                <Zap className="h-3.5 w-3.5" aria-hidden />
+                Acțiuni executate (7 zile)
+              </p>
+              <h2 className="mt-1 text-base font-semibold text-zinc-900">Ce a făcut botul singur</h2>
+            </div>
+          </div>
+          {autoActions.length === 0 ? (
+            <p className="mt-4 rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+              Botul nu a executat acțiuni încă. Când va lua decizii automate (ex. activare promoție,
+              trimitere email), apar aici sub formă de jurnal.
+            </p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-1.5">
+              {autoActions.map((a, i) => (
+                <li
+                  key={`${a.runId}-${i}`}
+                  className="flex items-baseline justify-between gap-3 rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                      {a.kind}
+                    </p>
+                    <p className="truncate text-zinc-900">{a.summary ?? '—'}</p>
+                  </div>
+                  <span className="flex-none text-[11px] tabular-nums text-zinc-500">
+                    {formatDateTime(a.at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* 6. Tenant facts the bot has learned */}
         <section className="rounded-xl border border-zinc-200 bg-white p-5">
           <div className="flex items-start justify-between">
             <div>
