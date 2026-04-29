@@ -112,7 +112,7 @@ export function ReservationsClient({
   const [busy, start] = useTransition();
   const [settings, setSettings] = useState<Settings>(initialSettings);
   const [showSettings, setShowSettings] = useState(false);
-  const [view, setView] = useState<'list' | 'agenda'>('list');
+  const [view, setView] = useState<'list' | 'agenda' | 'week'>('list');
 
   function update<K extends keyof Settings>(key: K, value: Settings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
@@ -225,6 +225,15 @@ export function ReservationsClient({
               }`}
             >
               Agendă
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('week')}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                view === 'week' ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              Săptămână
             </button>
           </div>
           <div className="text-xs text-zinc-500">
@@ -398,6 +407,99 @@ export function ReservationsClient({
           onCompleted={onCompleted}
         />
       )}
+
+      {view === 'week' && <WeekView days={agendaDays} />}
+    </div>
+  );
+}
+
+// 7-day overview grid: today + next 6 days as columns, reservations stacked
+// chronologically within each column. Read-only by design — operators jump
+// to Agendă for actions. The value is the "Friday looks slammed, Tuesday is
+// empty" glance, not click-to-edit interactions.
+function WeekView({ days }: { days: Map<string, Reservation[]> }) {
+  const today = new Date();
+  const cols: Array<{ key: string; label: string; sublabel: string; rows: Reservation[] }> = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const key = dayKey(d.toISOString());
+    const rows = days.get(key) ?? [];
+    const isToday = i === 0;
+    const isTomorrow = i === 1;
+    const label = isToday
+      ? 'Astăzi'
+      : isTomorrow
+        ? 'Mâine'
+        : d.toLocaleDateString('ro-RO', { weekday: 'short' });
+    const sublabel = d.toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' });
+    cols.push({ key, label, sublabel, rows });
+  }
+  const maxGuests = cols.reduce((m, c) => {
+    const g = c.rows.reduce((s, r) => s + r.party_size, 0);
+    return g > m ? g : m;
+  }, 0);
+  return (
+    <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
+      <div className="grid min-w-[840px] grid-cols-7 divide-x divide-zinc-200">
+        {cols.map((c, idx) => {
+          const totalGuests = c.rows.reduce((s, r) => s + r.party_size, 0);
+          const requestedCount = c.rows.filter((r) => r.status === 'REQUESTED').length;
+          const heatRatio = maxGuests > 0 ? totalGuests / maxGuests : 0;
+          return (
+            <div key={c.key} className={`flex flex-col ${idx === 0 ? 'bg-purple-50/30' : ''}`}>
+              <div className="border-b border-zinc-200 px-2 py-2">
+                <div className="flex items-baseline justify-between gap-1">
+                  <p className="text-xs font-semibold capitalize text-zinc-900">{c.label}</p>
+                  {requestedCount > 0 && (
+                    <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-900">
+                      {requestedCount}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-500 capitalize tabular-nums">{c.sublabel}</p>
+                {totalGuests > 0 && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                      <div
+                        className="h-full bg-purple-500"
+                        style={{ width: `${Math.round(heatRatio * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] tabular-nums text-zinc-600">
+                      {totalGuests}p
+                    </span>
+                  </div>
+                )}
+              </div>
+              <ul className="flex flex-col gap-1 p-1.5">
+                {c.rows.length === 0 ? (
+                  <li className="px-1 py-2 text-center text-[11px] text-zinc-400">—</li>
+                ) : (
+                  c.rows.map((r) => (
+                    <li
+                      key={r.id}
+                      className={`rounded border px-1.5 py-1 text-[11px] ${
+                        r.status === 'REQUESTED'
+                          ? 'border-amber-300 bg-amber-50'
+                          : 'border-zinc-200 bg-zinc-50'
+                      }`}
+                    >
+                      <div className="flex items-baseline justify-between gap-1">
+                        <span className="font-semibold tabular-nums text-zinc-900">
+                          {formatTimeOnly(r.requested_at)}
+                        </span>
+                        <span className="tabular-nums text-zinc-600">{r.party_size}p</span>
+                      </div>
+                      <p className="truncate text-zinc-700">{r.customer_first_name}</p>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
