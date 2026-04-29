@@ -39,6 +39,30 @@ export default async function IntegrationsPage() {
     .eq('tenant_id', tenant.id)
     .order('created_at', { ascending: true });
 
+  // Recent dispatch queue entries — gives the operator a clear view of which
+  // outbound POS events succeeded/failed without leaving the integrations
+  // page. Limit 50 keeps the page fast even on a busy tenant.
+  const sbEvents = admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          order: (col: string, opts: { ascending: boolean }) => {
+            limit: (n: number) => Promise<{
+              data: Record<string, unknown>[] | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+  };
+  const { data: events } = await sbEvents
+    .from('integration_events')
+    .select('id, provider_key, event_type, status, attempts, last_error, scheduled_for, sent_at, created_at')
+    .eq('tenant_id', tenant.id)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -70,6 +94,17 @@ export default async function IntegrationsPage() {
           scopes: string[];
           last_used_at: string | null;
           is_active: boolean;
+          created_at: string;
+        }>}
+        events={(events ?? []) as Array<{
+          id: number;
+          provider_key: string;
+          event_type: string;
+          status: 'PENDING' | 'SENT' | 'FAILED' | 'DEAD';
+          attempts: number;
+          last_error: string | null;
+          scheduled_for: string;
+          sent_at: string | null;
           created_at: string;
         }>}
       />

@@ -32,11 +32,24 @@ type ApiKey = {
   created_at: string;
 };
 
+type IntegrationEvent = {
+  id: number;
+  provider_key: string;
+  event_type: string;
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'DEAD';
+  attempts: number;
+  last_error: string | null;
+  scheduled_for: string;
+  sent_at: string | null;
+  created_at: string;
+};
+
 type Props = {
   tenantId: string;
   canEdit: boolean;
   providers: Provider[];
   apiKeys: ApiKey[];
+  events: IntegrationEvent[];
 };
 
 const PROVIDER_OPTIONS = [
@@ -312,7 +325,14 @@ function ShowKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void
 
 // ------- Main Client Component -------
 
-export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys }: Props) {
+const STATUS_LABELS: Record<IntegrationEvent['status'], { label: string; cls: string }> = {
+  PENDING: { label: 'În așteptare', cls: 'bg-amber-50 text-amber-700' },
+  SENT: { label: 'Trimis', cls: 'bg-emerald-50 text-emerald-700' },
+  FAILED: { label: 'Eșuat (retry)', cls: 'bg-rose-50 text-rose-700' },
+  DEAD: { label: 'Renunțat', cls: 'bg-zinc-200 text-zinc-700' },
+};
+
+export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, events }: Props) {
   const router = useRouter();
   const [showAddProvider, setShowAddProvider] = useState(false);
   const [showCreateKey, setShowCreateKey] = useState(false);
@@ -561,6 +581,58 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys }: Pr
           </div>
         )}
       </section>
+
+      {/* Events / dispatch queue section */}
+      {(providers.length > 0 || apiKeys.length > 0 || events.length > 0) && (
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-zinc-900">Evenimente recente</h2>
+            <span className="text-xs text-zinc-500">Ultimele 50</span>
+          </div>
+
+          {events.length === 0 ? (
+            <p className="text-sm text-zinc-500">
+              Niciun eveniment de integrare încă. Apar aici imediat ce o comandă sau modificare de meniu este trimisă către un POS conectat.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+              <table className="w-full text-sm">
+                <thead className="border-b border-zinc-200 bg-zinc-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Când</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Furnizor</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Eveniment</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Încercări</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Eroare</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {events.map((e) => {
+                    const meta = STATUS_LABELS[e.status];
+                    return (
+                      <tr key={e.id}>
+                        <td className="px-4 py-2 text-xs text-zinc-500 whitespace-nowrap">{fmt(e.created_at)}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-zinc-700">{e.provider_key}</td>
+                        <td className="px-4 py-2 font-mono text-xs text-zinc-900">{e.event_type}</td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-xs tabular-nums text-zinc-700">{e.attempts}</td>
+                        <td className="px-4 py-2 text-xs text-zinc-600 max-w-[280px] truncate" title={e.last_error ?? ''}>
+                          {e.last_error ?? '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {actionError && (
         <p className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
