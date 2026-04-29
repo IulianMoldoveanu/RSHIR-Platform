@@ -9,6 +9,8 @@ import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { maybeSetCustomerCookie } from '@/lib/customer-recognition';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
+import { readCustomerCookie } from '@/lib/customer-recognition';
+import { validateRedemption } from '@/lib/loyalty';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -107,6 +109,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Loyalty redemption — applied AGAINST the cookie-recognized customer's
+  // accumulated balance (each checkout creates a new customer row, but the
+  // cookie persists their loyalty across visits). Validation only — the
+  // atomic deduction (fn_loyalty_redeem) runs after the order row is
+  // created so we have an order_id to log against.
+  const requestedRedeemPoints = parsed.data.redeemPoints ?? 0;
+  const recognizedCustomerId = readCustomerCookie(tenant.id);
+  let loyaltyDiscountRon = 0;
+  if (requestedRedeemPoints > 0) {
+    if (!recognizedCustomerId) {
+      // No prior cookie → no balance to redeem against.
+      return NextResponse.json(
+        { error: 'loyalty_no_account' },
+        { status: 422 },
+      );
+    }
+    const validation = await validateRedemption(
+      tenant.id,
+      recognizedCustomerId,
+      requestedRedeemPoints,
+      Number(q.totalRon),
+    );
+    if (!validation.ok) {
+      return NextResponse.json(
+        { error: 'loyalty_invalid', reason: validation.reason },
+        { status: 422 },
+      );
+    }
+    loyaltyDiscountRon = validation.discountRon;
+  }
+
+  const finalTotalRon = Number(
+    Math.max(0, Number(q.totalRon) - loyaltyDiscountRon).toFixed(2),
+  );
+  const finalDiscountRon = Number(
+    (Number(q.discountRon) + loyaltyDiscountRon).toFixed(2),
+  );
+
   // Customer (one row per checkout — no auth/dedupe in MVP).
   const { data: customer, error: custErr } = await admin
     .from('customers')
@@ -161,14 +201,14 @@ export async function POST(req: NextRequest) {
     items: q.lineItems,
     subtotal_ron: q.subtotalRon,
     delivery_fee_ron: q.deliveryFeeRon,
-    total_ron: q.totalRon,
+    total_ron: finalTotalRon,
     delivery_zone_id: q.zoneId,
     delivery_tier_id: q.tierId,
     notes: parsed.data.notes || null,
     status: 'PENDING',
     payment_status: 'UNPAID',
     promo_code_id: q.promo?.id ?? null,
-    discount_ron: q.discountRon,
+    discount_ron: finalDiscountRon,
   };
   if (parsed.data.paymentMethod === 'COD') {
     orderInsert.payment_method = 'COD';
@@ -205,6 +245,31 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Loyalty redemption — atomic deduct via SECURITY DEFINER RPC. We
+  // already validated in validateRedemption() above; this re-checks under
+  // a row lock so a concurrent redemption can't double-spend the balance.
+  // Returns NULL when balance is insufficient (race lost) — abort the
+  // order so the customer isn't charged a discount they didn't get.
+  if (loyaltyDiscountRon > 0 && recognizedCustomerId) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = admin as any;
+    const { data: newBalance, error: redeemErr } = await sb.rpc('fn_loyalty_redeem', {
+      p_tenant_id: tenant.id,
+      p_customer_id: recognizedCustomerId,
+      p_order_id: order.id,
+      p_points: requestedRedeemPoints,
+      p_note: 'redeemed at checkout',
+    });
+    if (redeemErr || newBalance === null) {
+      console.error('[checkout/intent] loyalty redeem failed', redeemErr?.message);
+      await admin.from('restaurant_orders').delete().eq('id', order.id);
+      return NextResponse.json(
+        { error: 'loyalty_invalid', reason: 'insufficient_balance' },
+        { status: 422 },
+      );
+    }
+  }
+
   // RSHIR-51: emit order.created onto the integration bus so any active
   // POS adapter for this tenant gets notified asynchronously. STANDALONE
   // tenants (no integration_providers row) short-circuit to a no-op,
@@ -222,7 +287,7 @@ export async function POST(req: NextRequest) {
     totals: {
       subtotalRon: Number(q.subtotalRon),
       deliveryFeeRon: Number(q.deliveryFeeRon),
-      totalRon: Number(q.totalRon),
+      totalRon: finalTotalRon,
     },
     customer: {
       firstName: parsed.data.customer.firstName,
@@ -239,6 +304,16 @@ export async function POST(req: NextRequest) {
     notes: parsed.data.notes ?? null,
   });
 
+  // The quote in the response reflects the FINAL totals — including any
+  // loyalty discount applied above. Client uses these for the receipt UI.
+  const responseQuote = {
+    ...q,
+    totalRon: finalTotalRon,
+    discountRon: finalDiscountRon,
+    loyaltyDiscountRon,
+    redeemedPoints: loyaltyDiscountRon > 0 ? requestedRedeemPoints : 0,
+  };
+
   // COD: skip Stripe entirely. Order is PENDING/UNPAID; the restaurant
   // collects cash on delivery and the admin marks payment_status PAID
   // post-delivery (manually or via the courier app's complete-order flow).
@@ -248,7 +323,7 @@ export async function POST(req: NextRequest) {
       orderId: order.id,
       publicTrackToken: order.public_track_token,
       paymentMethod: 'COD',
-      quote: q,
+      quote: responseQuote,
     });
     maybeSetCustomerCookie(res, tenant.id, customer.id);
     return res;
@@ -279,7 +354,7 @@ export async function POST(req: NextRequest) {
     publicTrackToken: order.public_track_token,
     paymentMethod: 'CARD',
     clientSecret: intent.client_secret,
-    quote: q,
+    quote: responseQuote,
   });
   // RSHIR-34: per-tenant "known device" hint pointing at customer.id.
   // Not authentication — just lets /account show this device's past orders.

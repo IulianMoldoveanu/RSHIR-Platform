@@ -76,3 +76,45 @@ export async function getLoyaltyHistory(
     createdAt: r.created_at as string,
   }));
 }
+
+export type RedemptionValidation =
+  | { ok: true; discountRon: number; settings: Settings }
+  | {
+      ok: false;
+      reason:
+        | 'loyalty_disabled'
+        | 'no_account'
+        | 'below_min'
+        | 'insufficient_balance'
+        | 'exceeds_cap';
+    };
+
+/** Validates a redemption attempt against settings + balance + the cap.
+ *  Returns the RON discount the redemption is worth, or a typed reason.
+ *  Caller must still call fn_loyalty_redeem to atomically deduct. */
+export async function validateRedemption(
+  tenantId: string,
+  customerId: string,
+  redeemPoints: number,
+  totalRon: number,
+): Promise<RedemptionValidation> {
+  const balance = await getLoyaltyBalance(tenantId, customerId);
+  if (!balance) {
+    // getLoyaltyBalance returns null when settings missing/disabled OR
+    // balance is 0 — either way we can't redeem.
+    return { ok: false, reason: balance === null ? 'no_account' : 'loyalty_disabled' };
+  }
+  const { settings, points } = balance;
+  if (redeemPoints < settings.min_points_to_redeem) {
+    return { ok: false, reason: 'below_min' };
+  }
+  if (redeemPoints > points) {
+    return { ok: false, reason: 'insufficient_balance' };
+  }
+  const discountRon = Number((redeemPoints * settings.ron_per_point).toFixed(2));
+  const cap = Number(((totalRon * settings.max_redemption_pct) / 100).toFixed(2));
+  if (discountRon > cap) {
+    return { ok: false, reason: 'exceeds_cap' };
+  }
+  return { ok: true, discountRon, settings };
+}
