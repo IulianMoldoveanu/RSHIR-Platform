@@ -36,7 +36,7 @@ export function ReservationForm({
   partySizeMax: number;
 }) {
   const [submitting, start] = useTransition();
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ message: string; trackToken: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState('');
@@ -70,9 +70,11 @@ export function ReservationForm({
         setError(result.error);
         return;
       }
-      setSuccess(
-        'Rezervarea a fost înregistrată. Vă vom confirma în scurt timp prin telefon.',
-      );
+      setSuccess({
+        message:
+          'Rezervarea a fost înregistrată. Vă vom confirma în scurt timp prin telefon.',
+        trackToken: result.trackToken,
+      });
     });
   }
 
@@ -83,7 +85,13 @@ export function ReservationForm({
         <h2 className="mt-3 text-lg font-semibold text-emerald-900">
           Rezervare trimisă
         </h2>
-        <p className="mt-2 text-sm text-emerald-800">{success}</p>
+        <p className="mt-2 text-sm text-emerald-800">{success.message}</p>
+        <a
+          href={`/rezervari/track/${success.trackToken}`}
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-md bg-emerald-700 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800"
+        >
+          Vezi statusul rezervării
+        </a>
       </div>
     );
   }
