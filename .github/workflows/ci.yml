@@ -1,0 +1,50 @@
+# CI gate: typecheck + lint + tests on every PR + main push.
+#
+# Vercel handles deployment, but `next build` strips test files, so type
+# errors in *.test.ts files were slipping past CI for weeks. This workflow
+# closes that gap by running `pnpm typecheck` (which sees the whole repo)
+# alongside lint + tests.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: typecheck · lint · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # --if-present skips workspaces (config-*, etc.) that don't define
+      # the script — keeps the gate strict where it matters and quiet
+      # where it doesn't.
+      - name: Typecheck (all workspaces)
+        run: pnpm -r --if-present typecheck
+
+      - name: Lint (all workspaces)
+        run: pnpm -r --if-present lint
+
+      - name: Test (all workspaces)
+        run: pnpm -r --if-present test
