@@ -28,7 +28,11 @@ export type AuditAction =
   | 'integration.dispatched'
   | 'integration.webhook_received'
   | 'integration.api_key_created'
-  | 'integration.api_key_revoked';
+  | 'integration.api_key_revoked'
+  | 'loyalty.settings_updated'
+  | 'loyalty.points_earned'
+  | 'loyalty.points_redeemed'
+  | 'loyalty.points_adjusted';
 
 export async function logAudit(args: {
   tenantId: string;
