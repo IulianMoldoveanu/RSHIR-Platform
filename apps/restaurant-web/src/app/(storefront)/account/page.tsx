@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ChevronLeft, Receipt } from 'lucide-react';
+import { ChevronLeft, Gift, Receipt } from 'lucide-react';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+import { getLoyaltyBalance, getLoyaltyHistory, type LoyaltyLedgerEntry } from '@/lib/loyalty';
 import { repeatOrder } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -81,13 +82,38 @@ async function loadRecentOrders(tenantId: string, customerId: string): Promise<O
   }));
 }
 
+function formatLedgerDate(iso: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'ro-RO', {
+    dateStyle: 'medium',
+  }).format(new Date(iso));
+}
+
+function ledgerKindLabel(kind: LoyaltyLedgerEntry['kind'], locale: Locale): string {
+  switch (kind) {
+    case 'earned':
+      return t(locale, 'account.loyalty_kind_earned');
+    case 'redeemed':
+      return t(locale, 'account.loyalty_kind_redeemed');
+    case 'expired':
+      return t(locale, 'account.loyalty_kind_expired');
+    case 'adjusted':
+      return t(locale, 'account.loyalty_kind_adjusted');
+    case 'welcome_bonus':
+      return t(locale, 'account.loyalty_kind_welcome_bonus');
+  }
+}
+
 export default async function AccountPage() {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
   const locale = getLocale();
 
   const customerId = readCustomerCookie(tenant.id);
-  const orders = customerId ? await loadRecentOrders(tenant.id, customerId) : [];
+  const [orders, loyalty, loyaltyHistory] = await Promise.all([
+    customerId ? loadRecentOrders(tenant.id, customerId) : Promise.resolve([]),
+    customerId ? getLoyaltyBalance(tenant.id, customerId) : Promise.resolve(null),
+    customerId ? getLoyaltyHistory(tenant.id, customerId, 5) : Promise.resolve([]),
+  ]);
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-6 pb-32">
@@ -103,6 +129,60 @@ export default async function AccountPage() {
           {t(locale, 'account.title')}
         </h1>
       </div>
+
+      {loyalty && (
+        <section className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-purple-900">
+              <Gift className="h-4 w-4" aria-hidden />
+              {t(locale, 'account.loyalty_card_title')}
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-semibold tracking-tight text-purple-900">
+                {t(locale, 'account.loyalty_balance_template', {
+                  count: String(loyalty.points),
+                })}
+              </p>
+              <p className="text-[11px] text-purple-700">
+                {t(locale, 'account.loyalty_value_template', {
+                  amount: formatRon(
+                    Number((loyalty.points * loyalty.settings.ron_per_point).toFixed(2)),
+                    locale,
+                  ),
+                })}
+              </p>
+            </div>
+          </div>
+          {loyaltyHistory.length > 0 && (
+            <div className="mt-3 border-t border-purple-100 pt-3">
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-purple-600">
+                {t(locale, 'account.loyalty_history_title')}
+              </p>
+              <ul className="space-y-1.5">
+                {loyaltyHistory.map((entry) => (
+                  <li key={entry.id} className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-700">
+                      {ledgerKindLabel(entry.kind, locale)}
+                      <span className="ml-2 text-zinc-400">
+                        {formatLedgerDate(entry.createdAt, locale)}
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        'tabular-nums font-medium ' +
+                        (entry.points > 0 ? 'text-emerald-700' : 'text-rose-700')
+                      }
+                    >
+                      {entry.points > 0 ? '+' : ''}
+                      {entry.points}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
 
       {orders.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-10 text-center">
