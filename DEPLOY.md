@@ -95,8 +95,8 @@ redeploy the admin app.
 ## Web Push — VAPID key provisioning (Phase C)
 
 The courier app supports Web Push notifications via `courier-push-register` and
-`courier-push-dispatch` Edge Functions. VAPID signing in `courier-push-dispatch`
-is stubbed pending key provisioning. Complete setup:
+`courier-push-dispatch` Edge Functions. **VAPID signing is implemented** —
+provision keys then deploy:
 
 ### 1. Generate a VAPID key pair (one-time per environment)
 
@@ -135,11 +135,24 @@ pnpm node supabase/deploy-function.mjs courier-push-register
 pnpm node supabase/deploy-function.mjs courier-push-dispatch
 ```
 
-### 5. Implement VAPID signing in `courier-push-dispatch`
+### 5. Smoke-test the dispatch
 
-The dispatch function has the subscription fan-out skeleton ready. Once keys
-are provisioned, complete the TODO block using the Web Crypto API (Deno-native)
-or import `https://deno.land/x/webpush/mod.ts`.
+After deploying, send a manual push to verify signing works end-to-end:
+
+```sh
+curl -X POST \
+  https://qfmeojeipncuxeltnvab.supabase.co/functions/v1/courier-push-dispatch \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"fleet_id":"<fleet-uuid>","order_id":"<order-uuid>",
+       "title":"Test","body":"VAPID smoke test"}'
+```
+
+Successful response: `{"ok":true,"sent":N,"pruned":0,"failed":0,"total":N}`.
+A 410/404 from any subscription endpoint is auto-pruned from
+`courier_push_subscriptions`.
+
+If you see `vapid_not_configured`, the secrets above are missing.
 
 ---
 
