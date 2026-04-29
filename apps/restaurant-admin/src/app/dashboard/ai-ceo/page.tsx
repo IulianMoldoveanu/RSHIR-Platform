@@ -1,11 +1,12 @@
 import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock } from 'lucide-react';
-import { getActiveTenant } from '@/lib/tenant';
+import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import {
   getThreadForTenant,
   getRecentAgentRuns,
   getTenantFacts,
   getBriefSchedule,
 } from '@/lib/ai-ceo/queries';
+import { BriefScheduleEditor } from './brief-schedule-editor';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,14 +33,16 @@ function truncate(s: string | null, n: number): string {
 }
 
 export default async function AiCeoPage() {
-  const { tenant } = await getActiveTenant();
+  const { user, tenant } = await getActiveTenant();
 
-  const [thread, runs, facts, brief] = await Promise.all([
+  const [thread, runs, facts, brief, role] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
     getTenantFacts(tenant.id),
     getBriefSchedule(tenant.id),
+    getTenantRole(user.id, tenant.id),
   ]);
+  const canEditBrief = role === 'OWNER';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -181,7 +184,7 @@ export default async function AiCeoPage() {
               )}
               {brief.consecutive_skips >= 3 && !brief.enabled && (
                 <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Brief-ul a fost pus în pauză automat după 3 zile fără răspuns. Răspunde pe Telegram pentru a-l reactiva.
+                  Brief-ul a fost pus în pauză automat după 3 zile fără răspuns. Salvează cu „Activ&rdquo; bifat ca să-l reactivezi.
                 </p>
               )}
             </dl>
@@ -190,6 +193,14 @@ export default async function AiCeoPage() {
               <p className="font-medium text-zinc-900">Brief-ul nu e încă configurat.</p>
               <p className="mt-1">Se activează automat după ce conectezi botul pe Telegram.</p>
             </div>
+          )}
+          {brief && (
+            <BriefScheduleEditor
+              tenantId={tenant.id}
+              canEdit={canEditBrief}
+              initialEnabled={brief.enabled}
+              initialHour={brief.delivery_hour_local}
+            />
           )}
         </section>
 
