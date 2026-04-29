@@ -1,10 +1,11 @@
 # GloriaFood RO Leads — Prioritized Shortlist (2026-04-29)
 
-Companion to `2026-04-29-gloriafood-ro-leads-prioritized.csv`. Source: `2026-04-29-gloriafood-ro-restaurants-leads.md` (36 leads, 18 cities). Enriched via WebFetch on homepage + `/contact` for leads missing phone/email; ~30 successful fetches before remote rate-limiting hit. 6 leads remain "needs manual enrichment".
+Companion to `2026-04-29-gloriafood-ro-leads-prioritized.csv`. Source: `2026-04-29-gloriafood-ro-restaurants-leads.md` (36 leads from urlscan free tier) + `2026-04-29-gloriafood-commoncrawl-summary.md` (4 new leads from Common Crawl pass) = **40 total leads, 19 cities**. Enriched via WebFetch on homepage + `/contact`.
 
-## Top 10 P1 leads — call this week
+## 🔥 Top P1 leads — call this week
 
-1. **King Rolls** (București + Craiova, 3 locations) — fusion kebab chain, 3 location-specific emails (`vitan@`, `afi@`, `craiova@kingrolls.ro`), Bucharest mall presence (AFI Park) + Electroputere Mall Craiova. Highest-LTV account in batch.
+1. **🥇 Old Shanghai (București)** — `oldshanghai-bucuresti.ro` — **THE WARMEST LEAD IN THE BATCH.** Only Chinese restaurant in corpus, NEW from Common Crawl. **Direct Gmail to owner** (`oldshanghairestaurant@gmail.com`), 2 phone lines (`+40 752 284 431` RO/EN and `+40 752 313 626` CN — bilingual operations). Address: Strada Morilor 46, București. Pitch angle: GloriaFood retiring + we have multi-lingual storefront support already. **CALL FIRST.**
+2. **King Rolls** (București + Craiova, 3 locations) — fusion kebab chain, 3 location-specific emails (`vitan@`, `afi@`, `craiova@kingrolls.ro`), Bucharest mall presence (AFI Park) + Electroputere Mall Craiova. Highest-LTV account in batch.
 2. **Pizzeria Allegria** (Bistrița + Năsăud, 2 locations) — clean phone+email enriched from `/contact`; pizza chain segment template fits.
 3. **Time2Eat** (București + Ilfov, 3 zones: Mogoșoaia/Chiajna/Buftea) — `mivadelivery.ro`-style delivery-first model, 2 phone lines, exactly the dispatch ICP.
 4. **Suzana Ribs & Wings** (București, Palatul Bragadiru) — premium venue, full contact (`reservation@suzanaribs.ro`), strong consumer brand.
@@ -42,11 +43,15 @@ Companion to `2026-04-29-gloriafood-ro-leads-prioritized.csv`. Source: `2026-04-
 | Târgu Mureș | 0 | 2 | 0 | 0 | 2 |
 | Motru | 0 | 0 | 1 | 0 | 1 |
 | Unknown | 0 | 0 | 0 | 5 | 5 |
-| **Total** | **5** | **18** | **5** | **8** | **36** |
+| Hunedoara (NEW from CC) | 0 | 1 | 0 | 0 | 1 |
+| Vaslui (NEW from CC) | 0 | 0 | 1 | 0 | 1 |
+| **Total** | **6** | **20** | **6** | **8** | **40** |
+
+(Sibiu count bumped from 1→2 with Twenty Pizza; București bumped from 8→9 with Old Shanghai.)
 
 ## Reachable count
 
-**P1 + P2 with phone present: 23 leads.** This is the "can call tomorrow" number. (All 5 P1 have phone; 18 of 18 P2 have phone — every P2 by construction includes phone or email, and in this batch all P2 entries except none have a phone.)
+**P1 + P2 with phone present: 26 leads** (was 23 — +3 from CC: Old Shanghai, Twenty Pizza, Hotel Astoria). This is the "can call tomorrow" number. (All 5 P1 have phone; 18 of 18 P2 have phone — every P2 by construction includes phone or email, and in this batch all P2 entries except none have a phone.)
 
 P1 + P2 with email present: 11 leads. Email-first sequence applies cleanly to these; the rest get phone-first.
 
