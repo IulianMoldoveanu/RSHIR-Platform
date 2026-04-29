@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { quoteRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
 
@@ -9,6 +10,18 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  // Quote is the public price oracle — gives back delivery fee, promo
+  // validity, pickup gating. Scripted enumeration could probe promo codes
+  // or be used to fingerprint tenants. 30 quotes per IP per minute
+  // (capacity 30, refill 1/2s) easily covers cart re-pricing.
+  const rl = checkLimit(`checkout-quote:${clientIp(req)}`, { capacity: 30, refillPerSec: 1 / 2 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   // Same-origin gate — quote is server-priced (price/promo lookup) and
   // accepting cross-origin POSTs would let third-party pages probe pricing,
   // promo validity, and pickup gating against any tenant the victim's
