@@ -70,16 +70,23 @@ export async function requestReservation(
     return { ok: false, error: row.message || 'Rezervarea nu a putut fi acceptată.' };
   }
 
+  const trackToken = String(row.public_track_token);
+
   // Best-effort transactional emails. Reservation already persisted; we
   // never throw if Resend is misconfigured / down.
-  void fireReservationEmails(tenant.id, tenant.name, tenant.slug, data, sb).catch(
-    (err) => console.error('[storefront/rezervari] email fan-out failed', err),
-  );
+  void fireReservationEmails(
+    tenant.id,
+    tenant.name,
+    tenant.slug,
+    data,
+    sb,
+    trackToken,
+  ).catch((err) => console.error('[storefront/rezervari] email fan-out failed', err));
 
   return {
     ok: true,
     reservationId: String(row.reservation_id),
-    trackToken: String(row.public_track_token),
+    trackToken,
   };
 }
 
@@ -90,6 +97,7 @@ async function fireReservationEmails(
   data: z.infer<typeof requestSchema>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sb: any,
+  trackToken: string,
 ): Promise<void> {
   const { data: settings } = await sb
     .from('reservation_settings')
@@ -100,6 +108,12 @@ async function fireReservationEmails(
   const adminLink =
     (process.env.NEXT_PUBLIC_ADMIN_BASE_URL ?? 'https://admin.hir.ro') +
     '/dashboard/reservations';
+
+  // Build the public storefront /rezervari/track/[token] URL using the
+  // same base used elsewhere for storefront deep-links.
+  const storefrontBase =
+    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hir.ro';
+  const trackUrl = `${storefrontBase.replace(/\/$/, '')}/rezervari/track/${trackToken}`;
 
   const customerEmail =
     data.email && data.email.length > 0 ? data.email : null;
@@ -128,6 +142,7 @@ async function fireReservationEmails(
       tenantName,
       partySize: data.party_size,
       requestedAtIso: data.requested_at,
+      trackUrl,
     });
   }
 
