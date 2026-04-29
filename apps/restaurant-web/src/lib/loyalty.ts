@@ -43,3 +43,36 @@ export async function getLoyaltyBalance(
 
   return { points, settings };
 }
+
+export type LoyaltyLedgerEntry = {
+  id: number;
+  kind: 'earned' | 'redeemed' | 'expired' | 'adjusted' | 'welcome_bonus';
+  points: number;
+  createdAt: string;
+};
+
+/** Returns the customer's most recent loyalty ledger entries (newest first).
+ *  Empty array when the customer has no account. */
+export async function getLoyaltyHistory(
+  tenantId: string,
+  customerId: string,
+  limit = 5,
+): Promise<LoyaltyLedgerEntry[]> {
+  const admin = getSupabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  const { data } = await sb
+    .from('loyalty_ledger')
+    .select('id, kind, points, created_at')
+    .eq('tenant_id', tenantId)
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (!Array.isArray(data)) return [];
+  return data.map((r) => ({
+    id: r.id as number,
+    kind: r.kind as LoyaltyLedgerEntry['kind'],
+    points: r.points as number,
+    createdAt: r.created_at as string,
+  }));
+}
