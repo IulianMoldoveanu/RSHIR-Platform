@@ -1,9 +1,9 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Camera, X } from 'lucide-react';
+import { useState } from 'react';
 import { SwipeButton } from '@/components/swipe-button';
-import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
+import { PhotoProofUpload } from '@/components/photo-proof-upload';
 
 /**
  * Client-side action panel for the order detail page. Renders the right
@@ -18,6 +18,8 @@ type Props = {
   status: string;
   isMine: boolean;
   isAvailable: boolean;
+  vertical: 'restaurant' | 'pharma';
+  pharmaMetadata: PharmaMetadata | null;
   acceptAction: () => Promise<void>;
   pickedUpAction: () => Promise<void>;
   /** Server action that accepts an optional proof URL. */
@@ -29,59 +31,30 @@ export function OrderActions({
   status,
   isMine,
   isAvailable,
+  vertical,
+  pharmaMetadata,
   acceptAction,
   pickedUpAction,
   deliveredAction,
 }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pharmaOk, setPharmaOk] = useState(false);
+  const [pharmaProofUrl, setPharmaProofUrl] = useState<string | undefined>(undefined);
+  const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
 
-  function handlePickPhoto() {
-    fileInputRef.current?.click();
+  const isDeliveryPhase = isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT');
+
+  function handlePharmaComplete(urls: { delivery?: string; id?: string; prescription?: string }) {
+    setPharmaOk(true);
+    if (urls.delivery) setPharmaProofUrl(urls.delivery);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setProofFile(file);
-    setProofPreview(URL.createObjectURL(file));
-    setUploadError(null);
+  function handleRestaurantPhotoComplete(urls: { delivery?: string }) {
+    setRestaurantProofUrl(urls.delivery);
   }
 
-  function clearPhoto() {
-    setProofFile(null);
-    if (proofPreview) URL.revokeObjectURL(proofPreview);
-    setProofPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  async function uploadProofAndMarkDelivered() {
-    let publicUrl: string | undefined;
-    if (proofFile) {
-      try {
-        const supabase = getBrowserSupabase();
-        const ext = proofFile.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `${orderId}/${Date.now()}.${ext}`;
-        const { error } = await supabase.storage
-          .from('courier-proofs')
-          .upload(path, proofFile, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: proofFile.type || 'image/jpeg',
-          });
-        if (error) throw error;
-        const { data } = supabase.storage.from('courier-proofs').getPublicUrl(path);
-        publicUrl = data.publicUrl;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Eroare la încărcarea fotografiei';
-        setUploadError(msg);
-        // Don't proceed — let the courier retry or skip the photo by clearing.
-        throw err;
-      }
-    }
-    await deliveredAction(publicUrl);
+  async function handleDeliverConfirm() {
+    const proofUrl = vertical === 'pharma' ? pharmaProofUrl : restaurantProofUrl;
+    await deliveredAction(proofUrl);
   }
 
   return (
@@ -97,59 +70,36 @@ export function OrderActions({
         />
       ) : null}
 
-      {isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT') ? (
+      {isDeliveryPhase ? (
         <>
-          {/* Photo capture step — optional but encouraged. */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-300">
-                Dovadă livrare (opțional)
-              </span>
-              {proofPreview ? (
-                <button
-                  type="button"
-                  onClick={clearPhoto}
-                  className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-300"
-                >
-                  <X className="h-3 w-3" /> elimină
-                </button>
-              ) : null}
-            </div>
-            {proofPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={proofPreview}
-                alt="Previzualizare dovadă livrare"
-                className="h-32 w-full rounded-lg object-cover"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={handlePickPhoto}
-                className="flex h-20 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-400 hover:border-violet-500 hover:text-violet-300"
-              >
-                <Camera className="h-4 w-4" />
-                Fă o fotografie
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFileChange}
-              className="hidden"
+          {/* Pharma: show verification section first; delivery swipe is gated. */}
+          {vertical === 'pharma' && !pharmaOk ? (
+            <PharmaChecks
+              orderId={orderId}
+              pharmaMetadata={pharmaMetadata ?? {}}
+              onAllSatisfied={handlePharmaComplete}
             />
-            {uploadError ? (
-              <p className="mt-2 text-[11px] text-rose-400">{uploadError}</p>
-            ) : null}
-          </div>
+          ) : null}
 
-          <SwipeButton
-            label="→ Glisează pentru a confirma livrare"
-            onConfirm={uploadProofAndMarkDelivered}
-            variant="success"
-          />
+          {/* Restaurant: photo proof (optional) shown above the swipe, does not block it. */}
+          {vertical === 'restaurant' ? (
+            <PhotoProofUpload
+              orderId={orderId}
+              vertical="restaurant"
+              requiresId={false}
+              requiresPrescription={false}
+              onComplete={handleRestaurantPhotoComplete}
+            />
+          ) : null}
+
+          {/* Delivery swipe: for pharma, only shown after pharma checks pass. */}
+          {vertical === 'restaurant' || pharmaOk ? (
+            <SwipeButton
+              label="→ Glisează pentru a confirma livrare"
+              onConfirm={handleDeliverConfirm}
+              variant="success"
+            />
+          ) : null}
         </>
       ) : null}
     </div>

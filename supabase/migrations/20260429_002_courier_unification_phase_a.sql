@@ -23,6 +23,12 @@ create index if not exists idx_courier_orders_fleet_vertical
   on public.courier_orders (fleet_id, vertical, status)
   where status in ('PENDING', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT');
 
+-- pharma_metadata: optional JSON for pharma-specific order fields.
+-- Populated by the Phase B webhook sync when vertical='pharma'.
+-- Example: { "requires_id_verification": true, "requires_prescription": true }
+alter table public.courier_orders
+  add column if not exists pharma_metadata jsonb null;
+
 -- ============================================================
 -- 2. allowed_verticals on courier_fleets
 -- ============================================================

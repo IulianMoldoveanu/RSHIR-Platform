@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { VerticalBadge } from '@/components/vertical-badge';
 import { refreshOrdersAction } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 type OrderRow = {
   id: string;
   status: string;
+  vertical: 'restaurant' | 'pharma';
   customer_first_name: string | null;
   pickup_line1: string | null;
   dropoff_line1: string | null;
@@ -31,13 +33,13 @@ export default async function OrdersPage() {
   const [{ data: assignedData }, { data: openData }] = await Promise.all([
     admin
       .from('courier_orders')
-      .select('id, status, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
+      .select('id, status, vertical, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
       .eq('assigned_courier_user_id', user.id)
       .in('status', ACTIVE_STATUSES)
       .order('created_at', { ascending: false }),
     admin
       .from('courier_orders')
-      .select('id, status, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
+      .select('id, status, vertical, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
       .is('assigned_courier_user_id', null)
       .in('status', ['CREATED', 'OFFERED'])
       .order('created_at', { ascending: false })
@@ -126,14 +128,17 @@ function OrderListItem({ order }: { order: OrderRow }) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-zinc-100">
-              {order.customer_first_name ?? 'Client'}
-              {order.delivery_fee_ron != null ? (
-                <span className="ml-2 text-xs font-normal text-violet-300">
-                  +{Number(order.delivery_fee_ron).toFixed(2)} RON
-                </span>
-              ) : null}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-medium text-zinc-100">
+                {order.customer_first_name ?? 'Client'}
+                {order.delivery_fee_ron != null ? (
+                  <span className="ml-2 text-xs font-normal text-violet-300">
+                    +{Number(order.delivery_fee_ron).toFixed(2)} RON
+                  </span>
+                ) : null}
+              </p>
+              <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
+            </div>
             <p className="mt-0.5 truncate text-xs text-zinc-500">
               {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
             </p>

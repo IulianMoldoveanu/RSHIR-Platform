@@ -92,6 +92,57 @@ If the wizard returns `vercel_not_configured`, `VERCEL_TOKEN` /
 `VERCEL_PROJECT_ID` are missing on the **admin** project — fix env, then
 redeploy the admin app.
 
+## Web Push — VAPID key provisioning (Phase C)
+
+The courier app supports Web Push notifications via `courier-push-register` and
+`courier-push-dispatch` Edge Functions. VAPID signing in `courier-push-dispatch`
+is stubbed pending key provisioning. Complete setup:
+
+### 1. Generate a VAPID key pair (one-time per environment)
+
+```sh
+npx web-push generate-vapid-keys
+```
+
+Copy the output:
+```
+Public Key: <base64url>
+Private Key: <base64url>
+```
+
+### 2. Set Supabase Edge Function secrets
+
+```sh
+supabase secrets set VAPID_PUBLIC_KEY=<public-key> \
+  --project-ref qfmeojeipncuxeltnvab
+supabase secrets set VAPID_PRIVATE_KEY=<private-key> \
+  --project-ref qfmeojeipncuxeltnvab
+supabase secrets set VAPID_SUBJECT=mailto:courier@hiraisolutions.ro \
+  --project-ref qfmeojeipncuxeltnvab
+```
+
+### 3. Set the Next.js env var
+
+Add to `apps/restaurant-courier/.env.local` (and Vercel project env):
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=<same-public-key>
+```
+
+### 4. Deploy Edge Functions
+
+```sh
+pnpm node supabase/deploy-function.mjs courier-push-register
+pnpm node supabase/deploy-function.mjs courier-push-dispatch
+```
+
+### 5. Implement VAPID signing in `courier-push-dispatch`
+
+The dispatch function has the subscription fan-out skeleton ready. Once keys
+are provisioned, complete the TODO block using the Web Crypto API (Deno-native)
+or import `https://deno.land/x/webpush/mod.ts`.
+
+---
+
 ## Edge Function deploy
 
 Three functions ship today:
