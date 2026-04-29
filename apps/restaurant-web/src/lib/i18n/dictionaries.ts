@@ -38,6 +38,7 @@ export const dictionaries = {
       banner_next_open_template: 'Deschidem {when}',
       banner_call_template: 'Sună {phone}',
       banner_whatsapp: 'Scrie pe WhatsApp',
+      banner_book_table: 'Rezervă o masă',
     },
     menu: {
       search_placeholder: 'Caută în meniu…',
@@ -342,6 +343,7 @@ export const dictionaries = {
       banner_not_accepting_title: 'The restaurant is not accepting orders',
       banner_call_template: 'Call {phone}',
       banner_whatsapp: 'Message on WhatsApp',
+      banner_book_table: 'Book a table',
       banner_closed_title: 'The restaurant is closed right now',
       banner_next_open_template: 'Reopens {when}',
     },
