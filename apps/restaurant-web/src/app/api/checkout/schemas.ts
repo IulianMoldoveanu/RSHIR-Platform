@@ -55,6 +55,11 @@ export const intentRequestSchema = z
     notes: z.string().trim().max(500).optional().or(z.literal('')),
     promoCode: promoCodeField,
     paymentMethod: paymentMethodSchema.default('CARD'),
+    // Optional loyalty redemption. Server validates against the cookie-
+    // recognized customer's balance, the tenant's min_points_to_redeem
+    // threshold, and the max_redemption_pct cap. Cap at 1M to keep the
+    // schema sane; real caps come from settings.
+    redeemPoints: z.number().int().nonnegative().max(1_000_000).optional(),
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',
