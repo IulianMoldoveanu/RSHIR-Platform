@@ -26,6 +26,7 @@ const ACTION_LABELS: Record<string, string> = {
   'integration.webhook_received': 'Webhook integrare primit',
   'integration.api_key_created': 'Cheie API creată',
   'integration.api_key_revoked': 'Cheie API revocată',
+  'ai_ceo.brief_schedule_updated': 'Orar brief AI CEO actualizat',
 };
 
 const ENTITY_LABELS: Record<string, string> = {

@@ -39,7 +39,8 @@ export type AuditAction =
   | 'reservation.cancelled'
   | 'reservation.noshow'
   | 'reservation.completed'
-  | 'reservation.settings_updated';
+  | 'reservation.settings_updated'
+  | 'ai_ceo.brief_schedule_updated';
 
 export async function logAudit(args: {
   tenantId: string;
