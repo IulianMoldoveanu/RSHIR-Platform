@@ -375,7 +375,7 @@ function ResvList({
             {r.customer_email && <span>✉ {r.customer_email}</span>}
           </div>
           {r.notes && (
-            <div className="mt-1 text-xs italic text-zinc-500">"{r.notes}"</div>
+            <div className="mt-1 text-xs italic text-zinc-500">&ldquo;{r.notes}&rdquo;</div>
           )}
           {r.rejection_reason && (
             <div className="mt-1 text-xs text-rose-700">
