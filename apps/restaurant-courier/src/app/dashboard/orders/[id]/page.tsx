@@ -9,14 +9,22 @@ import {
 } from '../../actions';
 import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
+import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
+
+type PharmaMetadata = {
+  requires_id_verification?: boolean;
+  requires_prescription?: boolean;
+};
 
 type OrderDetail = {
   id: string;
   status: string;
   source_type: string;
+  vertical: 'restaurant' | 'pharma';
+  pharma_metadata: PharmaMetadata | null;
   customer_first_name: string | null;
   customer_phone: string | null;
   pickup_line1: string | null;
@@ -43,7 +51,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const { data } = await admin
     .from('courier_orders')
     .select(
-      'id, status, source_type, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id',
+      'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id',
     )
     .eq('id', params.id)
     .maybeSingle();
@@ -64,10 +72,15 @@ export default async function OrderDetailPage({ params }: { params: { id: string
     ? (order.items as Array<{ name: string; quantity: number }>)
     : [];
 
+  const vertical = order.vertical ?? 'restaurant';
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
+          <VerticalBadge vertical={vertical} />
+        </div>
         <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
           {order.status}
         </span>
@@ -156,6 +169,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         status={order.status}
         isMine={isMine}
         isAvailable={isAvailable}
+        vertical={vertical}
+        pharmaMetadata={order.pharma_metadata}
         acceptAction={acceptBound}
         pickedUpAction={pickedUpBound}
         deliveredAction={deliveredBound}
