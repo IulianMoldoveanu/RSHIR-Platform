@@ -87,6 +87,13 @@ type Prefill = {
   postalCode: string;
 };
 
+type LoyaltyContext = {
+  balancePoints: number;
+  ronPerPoint: number;
+  minPointsToRedeem: number;
+  maxRedemptionPct: number;
+};
+
 export function CheckoutClient(props: {
   tenantId: string;
   tenantSlug: string;
@@ -98,11 +105,16 @@ export function CheckoutClient(props: {
   pickupLng: number | null;
   codEnabled: boolean;
   prefill: Prefill | null;
+  loyalty: LoyaltyContext | null;
   locale: Locale;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
-  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled, prefill } = props;
+  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled, prefill, loyalty } =
+    props;
+
+  // Loyalty redemption toggle — wired up after the quote state below.
+  const [redeemActive, setRedeemActive] = useState(false);
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
@@ -168,6 +180,28 @@ export function CheckoutClient(props: {
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const errorRef = useRef<HTMLDivElement | null>(null);
+
+  // Compute the redeemable points + discount the customer is allowed to
+  // burn against the current quote. Server is authoritative — this is for
+  // displaying the toggle. Returns null when not eligible (no balance, no
+  // quote yet, or below threshold).
+  const loyaltyRedeem = useMemo(() => {
+    if (!loyalty || !quote) return null;
+    if (loyalty.balancePoints < loyalty.minPointsToRedeem) return null;
+    const cap = (Number(quote.totalRon) * loyalty.maxRedemptionPct) / 100;
+    const maxByPoints = loyalty.balancePoints * loyalty.ronPerPoint;
+    const discountRon = Math.min(cap, maxByPoints);
+    if (discountRon <= 0) return null;
+    const points = Math.min(
+      loyalty.balancePoints,
+      Math.floor(discountRon / loyalty.ronPerPoint),
+    );
+    if (points < loyalty.minPointsToRedeem) return null;
+    return {
+      points,
+      discountRon: Number((points * loyalty.ronPerPoint).toFixed(2)),
+    };
+  }, [loyalty, quote]);
 
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -303,6 +337,7 @@ export function CheckoutClient(props: {
         notes,
         paymentMethod,
         ...(appliedPromo ? { promoCode: appliedPromo.code } : {}),
+        ...(redeemActive && loyaltyRedeem ? { redeemPoints: loyaltyRedeem.points } : {}),
       };
       if (fulfillment === 'DELIVERY') {
         intentBody.address = {
@@ -329,6 +364,25 @@ export function CheckoutClient(props: {
             }),
           );
           setStep('form');
+          return;
+        }
+        if (data?.error === 'loyalty_no_account') {
+          setError(t(locale, 'loyalty.err_no_account'));
+          setRedeemActive(false);
+          return;
+        }
+        if (data?.error === 'loyalty_invalid') {
+          const r = data?.reason as string | undefined;
+          const key =
+            r === 'below_min'
+              ? 'loyalty.err_below_min'
+              : r === 'insufficient_balance'
+                ? 'loyalty.err_insufficient_balance'
+                : r === 'exceeds_cap'
+                  ? 'loyalty.err_exceeds_cap'
+                  : 'loyalty.err_default';
+          setError(t(locale, key));
+          setRedeemActive(false);
           return;
         }
         setError(
@@ -637,8 +691,48 @@ export function CheckoutClient(props: {
       {/* STEP 2: review */}
       {step === 'review' && quote && (
         <Section title={t(locale, 'checkout.section_confirm')}>
-          <ReviewBox quote={quote} locale={locale} />
-          <div className="flex gap-2 pt-3">
+          <ReviewBox
+            quote={quote}
+            locale={locale}
+            loyaltyDiscountRon={
+              redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0
+            }
+          />
+          {loyaltyRedeem && (
+            <button
+              type="button"
+              onClick={() => setRedeemActive((v) => !v)}
+              aria-pressed={redeemActive}
+              className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition-colors sm:col-span-2 ${
+                redeemActive
+                  ? 'border-purple-600 bg-purple-50'
+                  : 'border-zinc-200 bg-white hover:bg-zinc-50'
+              }`}
+            >
+              <span className="flex flex-col">
+                <span className="font-medium text-zinc-900">
+                  {t(locale, 'loyalty.redeem_label_template', {
+                    points: String(loyaltyRedeem.points),
+                  })}
+                </span>
+                <span className="text-xs text-zinc-500">
+                  {t(locale, 'loyalty.redeem_value_template', {
+                    amount: formatRon(loyaltyRedeem.discountRon, locale),
+                  })}
+                </span>
+              </span>
+              <span
+                className={`text-xs font-semibold ${
+                  redeemActive ? 'text-purple-700' : 'text-zinc-500'
+                }`}
+              >
+                {redeemActive
+                  ? t(locale, 'loyalty.redeem_active')
+                  : t(locale, 'loyalty.redeem_apply')}
+              </span>
+            </button>
+          )}
+          <div className="flex gap-2 pt-3 sm:col-span-2">
             <button
               type="button"
               onClick={() => setStep('form')}
@@ -656,10 +750,24 @@ export function CheckoutClient(props: {
                 ? t(locale, 'checkout.preparing_payment')
                 : paymentMethod === 'COD'
                   ? t(locale, 'checkout.place_order_cod_template', {
-                      amount: formatRon(quote.totalRon, locale),
+                      amount: formatRon(
+                        Math.max(
+                          0,
+                          Number(quote.totalRon) -
+                            (redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0),
+                        ),
+                        locale,
+                      ),
                     })
                   : t(locale, 'checkout.pay_template', {
-                      amount: formatRon(quote.totalRon, locale),
+                      amount: formatRon(
+                        Math.max(
+                          0,
+                          Number(quote.totalRon) -
+                            (redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0),
+                        ),
+                        locale,
+                      ),
                     })}
             </button>
           </div>
@@ -817,7 +925,16 @@ function CartSummaryBox({
   );
 }
 
-function ReviewBox({ quote, locale }: { quote: Quote; locale: Locale }) {
+function ReviewBox({
+  quote,
+  locale,
+  loyaltyDiscountRon = 0,
+}: {
+  quote: Quote;
+  locale: Locale;
+  loyaltyDiscountRon?: number;
+}) {
+  const finalTotal = Math.max(0, Number(quote.totalRon) - loyaltyDiscountRon);
   return (
     <div className="space-y-1 text-sm sm:col-span-2">
       <Row label={t(locale, 'checkout.subtotal')} value={formatRon(quote.subtotalRon, locale)} />
@@ -838,7 +955,13 @@ function ReviewBox({ quote, locale }: { quote: Quote; locale: Locale }) {
           value={`− ${formatRon(quote.discountRon, locale)}`}
         />
       )}
-      <Row bold label={t(locale, 'checkout.total')} value={formatRon(quote.totalRon, locale)} />
+      {loyaltyDiscountRon > 0 && (
+        <Row
+          label={t(locale, 'loyalty.discount_label')}
+          value={`− ${formatRon(loyaltyDiscountRon, locale)}`}
+        />
+      )}
+      <Row bold label={t(locale, 'checkout.total')} value={formatRon(finalTotal, locale)} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { getLoyaltyBalance } from '@/lib/loyalty';
 import { CheckoutClient } from './CheckoutClient';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
@@ -96,7 +97,10 @@ export default async function CheckoutPage() {
   const codEnabled = tenant.settings.cod_enabled === true;
 
   const customerId = readCustomerCookie(tenant.id);
-  const prefill = customerId ? await loadPrefill(tenant.id, customerId) : null;
+  const [prefill, loyalty] = await Promise.all([
+    customerId ? loadPrefill(tenant.id, customerId) : Promise.resolve(null),
+    customerId ? getLoyaltyBalance(tenant.id, customerId) : Promise.resolve(null),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
@@ -137,6 +141,16 @@ export default async function CheckoutPage() {
         pickupLng={pickup.lng}
         codEnabled={codEnabled}
         prefill={prefill}
+        loyalty={
+          loyalty
+            ? {
+                balancePoints: loyalty.points,
+                ronPerPoint: Number(loyalty.settings.ron_per_point),
+                minPointsToRedeem: loyalty.settings.min_points_to_redeem,
+                maxRedemptionPct: loyalty.settings.max_redemption_pct,
+              }
+            : null
+        }
         locale={locale}
       />
     </main>
