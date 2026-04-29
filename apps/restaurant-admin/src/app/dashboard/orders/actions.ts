@@ -7,6 +7,7 @@ import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
 import { logAudit } from '@/lib/audit';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { awardLoyaltyForDeliveredOrder } from '@/lib/loyalty';
 
 // RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
 // the action if the cookie-derived active tenant has drifted (multi-tenant
@@ -83,6 +84,11 @@ export async function updateOrderStatus(
     dropoff: null,
     notes: null,
   });
+
+  // Award loyalty points on DELIVERED. Best-effort — never throws.
+  if (newStatus === 'DELIVERED') {
+    await awardLoyaltyForDeliveredOrder({ tenantId, orderId });
+  }
 
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);
