@@ -50,6 +50,13 @@ export type CopilotSuggestion = {
   createdAt: string | null;
 };
 
+export type CopilotAutoAction = {
+  runId: string;
+  kind: string;
+  summary: string | null;
+  at: string | null;
+};
+
 export async function getThreadForTenant(tenantId: string): Promise<CopilotThread | null> {
   try {
     const admin = createAdminClient() as any;
@@ -184,6 +191,72 @@ export async function getLatestSuggestions(
     }));
   } catch (err) {
     console.warn('[ai-ceo/queries] getLatestSuggestions threw:', (err as Error).message);
+    return [];
+  }
+}
+
+// Pulls auto-executed actions (the "what did the bot actually do" feed) from
+// the last `days` days of agent runs. The bot's domain owns the jsonb shape;
+// we defensively project { kind, summary, at } and skip rows where no
+// actions were executed. Empty result is normal until the bot learns to
+// auto-execute — the section degrades to "Botul nu a executat acțiuni încă".
+export async function getAutoExecutedActions(
+  tenantId: string,
+  days: number,
+): Promise<CopilotAutoAction[]> {
+  try {
+    const admin = createAdminClient() as any;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await admin
+      .from('copilot_agent_runs')
+      .select('id, created_at, auto_executed_actions')
+      .eq('restaurant_id', tenantId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) {
+      console.warn('[ai-ceo/queries] getAutoExecutedActions:', error.message);
+      return [];
+    }
+    const out: CopilotAutoAction[] = [];
+    for (const row of data ?? []) {
+      const actions = Array.isArray(row?.auto_executed_actions)
+        ? row.auto_executed_actions
+        : [];
+      for (const a of actions) {
+        if (a && typeof a === 'object') {
+          const obj = a as Record<string, unknown>;
+          out.push({
+            runId: String(row.id ?? ''),
+            kind: String(obj.kind ?? obj.type ?? 'action'),
+            summary:
+              typeof obj.summary === 'string'
+                ? obj.summary
+                : typeof obj.title === 'string'
+                  ? obj.title
+                  : null,
+            at:
+              typeof obj.at === 'string'
+                ? obj.at
+                : typeof obj.executed_at === 'string'
+                  ? obj.executed_at
+                  : (row.created_at ?? null),
+          });
+        }
+      }
+    }
+    // Newest first, capped to a sensible number for the timeline view.
+    out.sort((a, b) => {
+      const ta = a.at ? new Date(a.at).getTime() : 0;
+      const tb = b.at ? new Date(b.at).getTime() : 0;
+      return tb - ta;
+    });
+    return out.slice(0, 25);
+  } catch (err) {
+    console.warn(
+      '[ai-ceo/queries] getAutoExecutedActions threw:',
+      (err as Error).message,
+    );
     return [];
   }
 }
