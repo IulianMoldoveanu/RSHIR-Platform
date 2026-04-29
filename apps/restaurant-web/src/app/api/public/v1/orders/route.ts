@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../auth';
 
 export const runtime = 'nodejs';
@@ -58,6 +59,20 @@ export async function POST(req: Request) {
   }
   if (!authed.scopes.includes('orders.write')) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  // Rate-limit per API key (not per IP — POS systems often share egress
+  // IPs with other tenants). 60 writes/min is generous for a single POS
+  // and shuts the door on a leaked key being used to flood the queue.
+  const rl = checkLimit(`pub-orders-write:${authed.keyId}`, {
+    capacity: 60,
+    refillPerSec: 1,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
   }
 
   const body = await req.json().catch(() => null);

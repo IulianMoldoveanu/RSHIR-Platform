@@ -34,9 +34,17 @@ vi.mock('@/lib/supabase-admin', () => ({
   }),
 }));
 
-const dispatchMock = vi.fn(async () => undefined);
+const dispatchMock = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock('@/lib/integration-bus', () => ({
   dispatchOrderEvent: (...args: unknown[]) => dispatchMock(...args),
+}));
+
+type LimitResult = { ok: true } | { ok: false; retryAfterSec: number };
+const checkLimitMock = vi.fn(
+  (_key: string, _opts: unknown): LimitResult => ({ ok: true }),
+);
+vi.mock('@/lib/rate-limit', () => ({
+  checkLimit: (key: string, opts: unknown) => checkLimitMock(key, opts),
 }));
 
 import { POST } from './route';
@@ -61,6 +69,7 @@ function makeReq(body: unknown, headers: Record<string, string> = {}) {
 describe('POST /api/public/v1/orders', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    checkLimitMock.mockReturnValue({ ok: true });
   });
   afterEach(() => {
     vi.resetAllMocks();
@@ -236,5 +245,44 @@ describe('POST /api/public/v1/orders', () => {
     expect((custRow as { tenant_id: string }).tenant_id).toBe(TENANT_ID);
     const [orderRow] = orderInsertMock.mock.calls[0];
     expect((orderRow as { tenant_id: string }).tenant_id).toBe(TENANT_ID);
+  });
+
+  it('returns 429 when the per-key rate limit is exhausted (no DB write)', async () => {
+    authMock.mockResolvedValue({
+      tenantId: TENANT_ID,
+      keyId: API_KEY_ID,
+      scopes: ['orders.write'],
+    });
+    checkLimitMock.mockReturnValue({ ok: false, retryAfterSec: 30 });
+    const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('30');
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('rate_limited');
+    // Auth must have happened, but no DB write — leaked key + flood is
+    // capped by the bucket.
+    expect(authMock).toHaveBeenCalled();
+    expect(customerInsertMock).not.toHaveBeenCalled();
+    expect(orderInsertMock).not.toHaveBeenCalled();
+    expect(dispatchMock).not.toHaveBeenCalled();
+  });
+
+  it('rate-limit key is scoped per API key (verifies cache key contains keyId)', async () => {
+    authMock.mockResolvedValue({
+      tenantId: TENANT_ID,
+      keyId: API_KEY_ID,
+      scopes: ['orders.write'],
+    });
+    customerInsertMock.mockReturnValue({ data: { id: 'cust-1' }, error: null });
+    orderInsertMock.mockReturnValue({
+      data: { id: 'order-1', public_track_token: 'tok-1' },
+      error: null,
+    });
+    await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+    expect(checkLimitMock).toHaveBeenCalledTimes(1);
+    const [key] = checkLimitMock.mock.calls[0];
+    // Two tenants sharing one egress IP must not exhaust each other's
+    // bucket — the key has to include the per-key id.
+    expect(key).toContain(API_KEY_ID);
   });
 });

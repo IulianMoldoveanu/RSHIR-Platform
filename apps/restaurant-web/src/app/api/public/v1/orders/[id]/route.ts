@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../../auth';
 
 export const runtime = 'nodejs';
@@ -19,6 +20,20 @@ export async function GET(
   }
   if (!authed.scopes.includes('orders.read')) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  }
+
+  // Rate-limit per API key. Reads are cheaper than writes, so 600/min is
+  // a fine ceiling for a polling POS without inviting abuse from a leaked
+  // key.
+  const rl = checkLimit(`pub-orders-read:${authed.keyId}`, {
+    capacity: 600,
+    refillPerSec: 10,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
   }
 
   const { id } = params;
