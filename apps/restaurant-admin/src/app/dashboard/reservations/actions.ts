@@ -6,6 +6,10 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import {
+  notifyCustomerOfReservationDecision,
+  type DecisionKind,
+} from '@/lib/email/reservation-emails';
 
 const decisionSchema = z.object({
   reservationId: z.string().uuid(),
@@ -55,12 +59,54 @@ async function transitionStatus(
       update.rejection_reason = String(metadata.reason).slice(0, 500);
     }
 
+    // Pull the row first so we have the customer's email + the
+    // request's snapshot fields we need for the decision email.
+    // Tenant ID is double-checked on the UPDATE below as defense-in-depth.
+    const { data: resv } = await sb
+      .from('reservations')
+      .select(
+        'customer_email, customer_first_name, party_size, requested_at',
+      )
+      .eq('id', reservationId)
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+
     const { error } = await sb
       .from('reservations')
       .update(update)
       .eq('id', reservationId)
       .eq('tenant_id', tenantId);
     if (error) return { ok: false, error: error.message };
+
+    // Best-effort customer email on a real status decision (not COMPLETED
+    // / NOSHOW which are operational, not customer-facing). Skipped when
+    // no customer_email was given, when Resend isn't configured, etc.
+    if (
+      resv &&
+      (resv as { customer_email?: string | null }).customer_email &&
+      (newStatus === 'CONFIRMED' || newStatus === 'REJECTED' || newStatus === 'CANCELLED')
+    ) {
+      const row = resv as {
+        customer_email: string;
+        customer_first_name: string;
+        party_size: number;
+        requested_at: string;
+      };
+      const { tenant } = await getActiveTenant();
+      void notifyCustomerOfReservationDecision(newStatus as DecisionKind, {
+        customerEmail: row.customer_email,
+        customerFirstName: row.customer_first_name,
+        tenantName: tenant.name,
+        partySize: row.party_size,
+        requestedAtIso: row.requested_at,
+        rejectionReason:
+          newStatus === 'REJECTED'
+            ? (metadata.reason as string | undefined) ?? null
+            : null,
+      }).catch((err) =>
+        console.error('[reservations] decision email failed', err),
+      );
+    }
 
     await logAudit({
       tenantId,
