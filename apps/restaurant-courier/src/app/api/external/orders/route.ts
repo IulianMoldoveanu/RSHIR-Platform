@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { authenticateApiKey } from '@/lib/api-key';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { dispatchCourierPushForNewOrder } from '@/lib/push/dispatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,6 +136,15 @@ export async function POST(req: NextRequest) {
     console.error('[api/external/orders] insert failed:', error?.message);
     return NextResponse.json({ error: 'create_failed' }, { status: 500 });
   }
+
+  // Fire-and-forget Web Push to all active couriers in the fleet. The
+  // helper swallows errors so a misconfigured push pipeline can't block
+  // order creation. Couriers without a subscription just don't get the
+  // notification — the realtime feed picks the order up either way.
+  void dispatchCourierPushForNewOrder({
+    fleetId: auth.ctx.fleetId,
+    orderId: data.id,
+  });
 
   return NextResponse.json(shapeOrder(data as never), { status: 201 });
 }
