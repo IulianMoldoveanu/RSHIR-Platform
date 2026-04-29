@@ -10,6 +10,9 @@ import { KpiCards } from './kpi-cards';
 import { ActiveOrdersPanel } from './active-orders-panel';
 import { CodPendingPanel } from './cod-pending-panel';
 import { TodayReservationsPanel } from './today-reservations-panel';
+import { OwnerValueHero } from './owner-value-hero';
+import { GloriaFoodRescueBanner } from './gloriafood-rescue-banner';
+import { StorefrontShareTile } from './storefront-share-tile';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,8 +58,15 @@ export default async function DashboardOverviewPage({
     if (!state.went_live) redirect('/dashboard/onboarding');
   }
 
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
+  const storefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <Suspense fallback={null}>
+        <GloriaFoodRescueBanner tenantId={tenant.id} />
+      </Suspense>
+
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{tenant.name}</h1>
@@ -70,6 +80,10 @@ export default async function DashboardOverviewPage({
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </header>
+
+      <Suspense fallback={null}>
+        <OwnerValueHero tenantId={tenant.id} />
+      </Suspense>
 
       <Suspense fallback={<KpiSkeleton />}>
         <KpiCards tenantId={tenant.id} />
@@ -86,6 +100,8 @@ export default async function DashboardOverviewPage({
       <Suspense fallback={null}>
         <TodayReservationsPanel tenantId={tenant.id} />
       </Suspense>
+
+      <StorefrontShareTile storefrontUrl={storefrontUrl} tenantName={tenant.name} />
 
       <PolishChecklist tenantId={tenant.id} />
     </div>

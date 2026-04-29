@@ -119,9 +119,10 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
   const avgTicket = s.todayOrders > 0 ? s.todaySalesRon / s.todayOrders : 0;
 
   // Positioning ribbon: HIR doesn't take a per-order cut. Frame today's
-  // sales as money the tenant kept vs. a 30% aggregator (Glovo/Tazz typical).
+  // sales as money the tenant kept vs. a ~25% aggregator (conservative middle
+  // of the 22–30% Wolt/Glovo range RO restaurants pay in 2026).
   // Hidden when there are zero sales today — nothing to celebrate yet.
-  const aggregatorWouldTake = s.todaySalesRon * 0.3;
+  const aggregatorWouldTake = s.todaySalesRon * 0.25;
 
   return (
     <section aria-label="Statistici azi" className="flex flex-col gap-3">
@@ -130,7 +131,7 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
           <ShieldCheck className="h-4 w-4 flex-none text-emerald-600" aria-hidden />
           <p>
             <span className="font-semibold">Comision platformă: 0 RON.</span>{' '}
-            Pe un agregator cu 30% comision azi ai fi plătit ~
+            Pe un agregator cu ~25% comision azi ai fi plătit ~
             <span className="font-mono tabular-nums">{formatRon(aggregatorWouldTake)}</span>.
           </p>
         </div>
