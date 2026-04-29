@@ -5,8 +5,10 @@ import {
   getRecentAgentRuns,
   getTenantFacts,
   getBriefSchedule,
+  getLatestSuggestions,
 } from '@/lib/ai-ceo/queries';
 import { BriefScheduleEditor } from './brief-schedule-editor';
+import { SuggestionsList } from './suggestions-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,14 +37,16 @@ function truncate(s: string | null, n: number): string {
 export default async function AiCeoPage() {
   const { user, tenant } = await getActiveTenant();
 
-  const [thread, runs, facts, brief, role] = await Promise.all([
+  const [thread, runs, facts, brief, suggestions, role] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
     getTenantFacts(tenant.id),
     getBriefSchedule(tenant.id),
+    getLatestSuggestions(tenant.id),
     getTenantRole(user.id, tenant.id),
   ]);
   const canEditBrief = role === 'OWNER';
+  const canActSuggestions = role === 'OWNER';
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -204,18 +208,18 @@ export default async function AiCeoPage() {
           )}
         </section>
 
-        {/* 4. Suggestions awaiting approval (Phase 4 placeholder) */}
-        <section className="rounded-xl border border-dashed border-purple-200 bg-purple-50/40 p-5">
+        {/* 4. Suggestions awaiting approval (latest brief run) */}
+        <section className="rounded-xl border border-purple-200 bg-purple-50/40 p-5">
           <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-purple-700">
             <Lightbulb className="h-3.5 w-3.5" aria-hidden />
             Sugestii pentru aprobare
           </p>
-          <h2 className="mt-1 text-base font-semibold text-zinc-900">În curând</h2>
-          <p className="mt-3 text-sm text-zinc-700">
-            Această secțiune se activează cu Faza 4 — va lista postări sociale, oferte și emailuri
-            sugerate de AI CEO. Botul va genera 3 sugestii / zi care apar aici cu butoane Aprobă /
-            Respinge.
-          </p>
+          <h2 className="mt-1 text-base font-semibold text-zinc-900">Ultimele propuneri</h2>
+          <SuggestionsList
+            tenantId={tenant.id}
+            canAct={canActSuggestions}
+            initial={suggestions}
+          />
         </section>
 
         {/* 5. Tenant facts the bot has learned */}
