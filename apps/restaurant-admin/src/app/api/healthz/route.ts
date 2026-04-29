@@ -21,12 +21,15 @@ export async function GET() {
       .select('id', { count: 'exact', head: true });
     dbLatencyMs = Date.now() - t0;
     if (error) {
-      dbErrorMsg = error.message;
+      // Don't expose raw DB error text publicly; log server-side only.
+      console.error('[healthz] db error', error.message);
+      dbErrorMsg = 'db_error';
     } else {
       dbOk = true;
     }
   } catch (e: unknown) {
-    dbErrorMsg = e instanceof Error ? e.message : 'unknown';
+    console.error('[healthz] db exception', e instanceof Error ? e.message : e);
+    dbErrorMsg = 'db_exception';
   }
 
   const totalMs = Date.now() - startedAt;
