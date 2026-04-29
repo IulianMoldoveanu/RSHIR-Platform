@@ -32,7 +32,14 @@ export type AuditAction =
   | 'loyalty.settings_updated'
   | 'loyalty.points_earned'
   | 'loyalty.points_redeemed'
-  | 'loyalty.points_adjusted';
+  | 'loyalty.points_adjusted'
+  | 'reservation.requested'
+  | 'reservation.confirmed'
+  | 'reservation.rejected'
+  | 'reservation.cancelled'
+  | 'reservation.noshow'
+  | 'reservation.completed'
+  | 'reservation.settings_updated';
 
 export async function logAudit(args: {
   tenantId: string;
