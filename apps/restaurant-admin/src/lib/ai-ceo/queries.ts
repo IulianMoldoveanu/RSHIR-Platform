@@ -34,6 +34,13 @@ export type CopilotTenantFact = {
   updated_at: string | null;
 };
 
+export type CopilotBriefSchedule = {
+  enabled: boolean;
+  delivery_hour_local: number;
+  last_sent_at: string | null;
+  consecutive_skips: number;
+};
+
 export async function getThreadForTenant(tenantId: string): Promise<CopilotThread | null> {
   try {
     const admin = createAdminClient() as any;
@@ -92,6 +99,31 @@ export async function getRecentAgentRuns(
   } catch (err) {
     console.warn('[ai-ceo/queries] getRecentAgentRuns threw:', (err as Error).message);
     return [];
+  }
+}
+
+export async function getBriefSchedule(tenantId: string): Promise<CopilotBriefSchedule | null> {
+  try {
+    const admin = createAdminClient() as any;
+    const { data, error } = await admin
+      .from('copilot_brief_schedules')
+      .select('enabled, delivery_hour_local, last_sent_at, consecutive_skips')
+      .eq('tenant_id', tenantId)
+      .maybeSingle();
+    if (error) {
+      console.warn('[ai-ceo/queries] getBriefSchedule:', error.message);
+      return null;
+    }
+    if (!data) return null;
+    return {
+      enabled: Boolean(data.enabled),
+      delivery_hour_local: Number(data.delivery_hour_local ?? 8),
+      last_sent_at: data.last_sent_at ?? null,
+      consecutive_skips: Number(data.consecutive_skips ?? 0),
+    };
+  } catch (err) {
+    console.warn('[ai-ceo/queries] getBriefSchedule threw:', (err as Error).message);
+    return null;
   }
 }
 
