@@ -19,6 +19,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
+// @ts-expect-error — npm:web-push has no Deno types but works at runtime
+import webpush from 'npm:web-push@3.6.7';
 
 type Body = { order_id: string; tenant_id: string; status: string };
 
@@ -164,10 +166,67 @@ Deno.serve(async (req: Request) => {
       console.error('[notify-customer-status] resend error', r.error);
       return json(502, { error: 'resend_failed' });
     }
-    return json(200, { ok: true, sent: customer.email, status: body.status });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[notify-customer-status] resend throw', msg);
     return json(502, { error: 'resend_threw' });
   }
+
+  // Best-effort Web Push to any browser subscriptions the customer opted in to
+  // on the /track page. Failures here don't affect the email response.
+  const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY');
+  const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY');
+  const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:courier@hiraisolutions.ro';
+
+  if (VAPID_PUBLIC && VAPID_PRIVATE) {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+
+    const { data: pushSubs } = await supabase
+      .from('customer_push_subscriptions')
+      .select('id, endpoint, p256dh, auth')
+      .eq('order_id', order.id);
+
+    if (pushSubs && pushSubs.length > 0) {
+      const notification = JSON.stringify({
+        title: `${tenant.name} — ${copy.subjectSuffix}`,
+        body: copy.line,
+        token: order.public_track_token,
+        orderId: shortId(order.id),
+      });
+
+      await Promise.allSettled(
+        (pushSubs as Array<{ id: string; endpoint: string; p256dh: string; auth: string }>).map(
+          async (s) => {
+            try {
+              await webpush.sendNotification(
+                { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+                notification,
+                { TTL: 60 },
+              );
+            } catch (err) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const status = (err as any)?.statusCode;
+              if (status === 410 || status === 404) {
+                // Stale subscription — prune it.
+                await supabase
+                  .from('customer_push_subscriptions')
+                  .delete()
+                  .eq('id', s.id);
+                console.log('[notify-customer-status] pruned stale push sub', s.endpoint);
+              } else {
+                console.error(
+                  '[notify-customer-status] push failed',
+                  s.endpoint,
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  (err as any)?.message ?? String(err),
+                );
+              }
+            }
+          },
+        ),
+      );
+    }
+  }
+
+  return json(200, { ok: true, sent: customer.email, status: body.status });
 });

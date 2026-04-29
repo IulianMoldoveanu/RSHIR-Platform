@@ -3,9 +3,9 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Banknote, MessageCircle, Star, TriangleAlert } from 'lucide-react';
+import { Banknote, Bell, MessageCircle, Star, TriangleAlert } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -212,6 +212,8 @@ function TrackInner({
           </p>
         </section>
       )}
+
+      <PushOptInTile token={token} orderStatus={order.status} />
 
       {order.status === 'PENDING' && order.paymentStatus !== 'PAID' && (
         <CancelWidget token={token} locale={locale} />
@@ -550,6 +552,139 @@ function CancelWidget({ token, locale }: { token: string; locale: Locale }) {
       </Dialog>
     </section>
   );
+}
+
+const ACTIVE_STATUSES = new Set([
+  'PENDING',
+  'CONFIRMED',
+  'PREPARING',
+  'READY',
+  'DISPATCHED',
+  'IN_DELIVERY',
+]);
+
+const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
+
+function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: string }) {
+  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof Notification === 'undefined') {
+      setPermission('unsupported');
+      return;
+    }
+    setPermission(Notification.permission);
+    // If already subscribed in a previous page load, don't show the tile again.
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(`hir_push_${token}`)) {
+      setSubscribed(true);
+    }
+  }, [token]);
+
+  // Don't render if: order is done, notifications denied/unsupported, or already subscribed.
+  if (!ACTIVE_STATUSES.has(orderStatus)) return null;
+  if (permission === 'unsupported' || permission === 'denied') return null;
+  if (subscribed) return null;
+  // Don't render server-side or before permission state is hydrated (avoid flash).
+  if (typeof Notification === 'undefined') return null;
+
+  async function handleSubscribe() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== 'granted') {
+        setBusy(false);
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.register('/service-worker.js');
+      // Wait for the SW to be ready before calling pushManager.
+      await navigator.serviceWorker.ready;
+
+      const existing = await reg.pushManager.getSubscription();
+      const sub =
+        existing ??
+        (await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as any,
+        }));
+
+      const subJson = sub.toJSON() as {
+        endpoint: string;
+        keys: { p256dh: string; auth: string };
+      };
+
+      const res = await fetch(`/api/track/${token}/push/subscribe`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
+      });
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? 'subscribe_failed');
+      }
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(`hir_push_${token}`, '1');
+      }
+      setSubscribed(true);
+    } catch (e) {
+      setError('Nu am putut activa notificările. Încearcă din nou.');
+      console.error('[PushOptInTile]', e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (subscribed) {
+    return (
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        Notificările sunt activate. Te anunțăm când comanda e gata.
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+      <div className="flex items-start gap-3">
+        <Bell className="mt-0.5 h-5 w-5 flex-none text-purple-600" aria-hidden />
+        <div className="flex-1">
+          <p className="font-semibold text-zinc-900">Primește notificare când e gata comanda</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Îți trimitem o notificare în browser când statusul comenzii se schimbă.
+          </p>
+          {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
+          <button
+            type="button"
+            onClick={handleSubscribe}
+            disabled={busy}
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-50"
+          >
+            {busy ? 'Se activează…' : 'Activează notificări'}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Convert a base64url VAPID public key to a Uint8Array for pushManager.subscribe. */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    output[i] = raw.charCodeAt(i);
+  }
+  return output;
 }
 
 function TrackSkeleton() {
