@@ -5,9 +5,9 @@
 // when the order flips into a customer-actionable state. We look up the
 // customer email and send a Resend email tailored to the new status.
 //
-// MVP scope: only `CONFIRMED` is supported. `READY`, `DISPATCHED`,
-// `IN_DELIVERY` are flagged for Sprint 12 (the trigger already routes
-// them here so adding the email is a one-file change later).
+// Handles CONFIRMED, READY, DISPATCHED, IN_DELIVERY — the four statuses
+// the DB trigger forwards. DELIVERED is intentionally excluded (the
+// customer just received the food; an email is noise).
 //
 // Env (Supabase function secrets):
 //   HIR_NOTIFY_SECRET      shared secret with the DB trigger
@@ -61,9 +61,8 @@ Deno.serve(async (req: Request) => {
     return json(400, { error: 'invalid_body' });
   }
 
-  // MVP: only CONFIRMED. Other statuses are intentionally accepted (200) so
-  // future trigger updates that route more states here don't error out.
-  if (body.status !== 'CONFIRMED') {
+  const HANDLED = new Set(['CONFIRMED', 'READY', 'DISPATCHED', 'IN_DELIVERY']);
+  if (!HANDLED.has(body.status)) {
     return json(200, { ok: true, skipped: 'status_not_handled', status: body.status });
   }
 
@@ -119,11 +118,36 @@ Deno.serve(async (req: Request) => {
   const greeting = customer.first_name
     ? `Salut, ${customer.first_name}!`
     : 'Salut!';
-  const subject = `Comanda #${shortId(order.id)} — confirmată de ${tenant.name}`;
+
+  const COPY: Record<string, { subjectSuffix: string; line: string }> = {
+    CONFIRMED: {
+      subjectSuffix: `confirmată de ${tenant.name}`,
+      line: `${tenant.name} a confirmat comanda ta. O începem să o pregătim.`,
+    },
+    READY: {
+      subjectSuffix: `gata de plecare`,
+      line: `${tenant.name} a finalizat comanda ta. Curierul o ridică imediat.`,
+    },
+    DISPATCHED: {
+      subjectSuffix: `în drum spre tine`,
+      line: `Curierul a preluat comanda ta de la ${tenant.name} și pornește spre tine.`,
+    },
+    IN_DELIVERY: {
+      subjectSuffix: `aproape la tine`,
+      line: `Curierul este aproape — ține telefonul la îndemână.`,
+    },
+  };
+  const copy = COPY[body.status];
+  // HANDLED set is checked above, so this is unreachable — but keep a type-
+  // safe guard so a future status added to the set without a copy entry is
+  // skipped instead of crashing.
+  if (!copy) return json(200, { ok: true, skipped: 'no_copy_for_status', status: body.status });
+
+  const subject = `Comanda #${shortId(order.id)} — ${copy.subjectSuffix}`;
   const text = [
     greeting,
     '',
-    `${tenant.name} a confirmat comanda ta. O începem să o pregătim.`,
+    copy.line,
     '',
     `Total: ${fmtRon(order.total_ron)}`,
     trackLink ? `Vezi statusul: ${trackLink}` : '',
@@ -140,7 +164,7 @@ Deno.serve(async (req: Request) => {
       console.error('[notify-customer-status] resend error', r.error);
       return json(502, { error: 'resend_failed' });
     }
-    return json(200, { ok: true, sent: customer.email, status: 'CONFIRMED' });
+    return json(200, { ok: true, sent: customer.email, status: body.status });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[notify-customer-status] resend throw', msg);
