@@ -13,6 +13,7 @@ import { TodayReservationsPanel } from './today-reservations-panel';
 import { OwnerValueHero } from './owner-value-hero';
 import { GloriaFoodRescueBanner } from './gloriafood-rescue-banner';
 import { StorefrontShareTile } from './storefront-share-tile';
+import { AiCeoWidget } from './ai-ceo-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,10 @@ export default async function DashboardOverviewPage({
 
       <Suspense fallback={null}>
         <TodayReservationsPanel tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <AiCeoWidget tenantId={tenant.id} />
       </Suspense>
 
       <StorefrontShareTile storefrontUrl={storefrontUrl} tenantName={tenant.name} />
