@@ -189,6 +189,28 @@ export default async function OnboardingPage() {
         </div>
       )}
 
+      {!state.menu_added && (
+        <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="text-sm font-semibold text-purple-900">
+                Vii de la GloriaFood?
+              </p>
+              <p className="mt-0.5 text-xs text-purple-700">
+                Importă meniul în 5 minute dintr-un export CSV. Categoriile, prețurile și
+                descrierile sunt mapate automat.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/onboarding/migrate-from-gloriafood"
+              className="inline-flex shrink-0 items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-700"
+            >
+              Migrează din GloriaFood →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <ol className="flex flex-col gap-3">
         {STEPS.map((step, i) => (
           <StepRow
