@@ -11,6 +11,7 @@ import { MenuList } from '@/components/storefront/menu-list';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
+import { isReservationsEnabled } from '@/lib/reservations';
 import { NewsletterPopup } from '@/components/storefront/newsletter-popup';
 import { NewsletterBanner } from '@/components/storefront/newsletter-banner';
 import {
@@ -56,10 +57,11 @@ export default async function StorefrontHomePage() {
 
   const locale = getLocale();
   const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
-  const [menu, rating, todayOrderCount] = await Promise.all([
+  const [menu, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
     getMenuByTenant(tenant.id),
     getReviewSummary(tenant.id),
     getTodayOrderCount(tenant.id),
+    isReservationsEnabled(tenant.id),
   ]);
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
@@ -144,6 +146,7 @@ export default async function StorefrontHomePage() {
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
         showAccountLink={hasCustomerCookie}
+        reservationsEnabled={reservationsEnabled}
         rating={rating}
         minOrderRon={
           typeof tenant.settings.min_order_ron === 'number' && tenant.settings.min_order_ron > 0

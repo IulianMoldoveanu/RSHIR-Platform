@@ -17,6 +17,7 @@ export const dictionaries = {
     },
     header: {
       bio_link: 'link.bio',
+      reservations_link: 'rezervă o masă',
       whatsapp_long: 'Comandă pe WhatsApp',
       whatsapp_short: 'WhatsApp',
       whatsapp_text_template: 'Salut! Vreau să comand de la {name}.',
@@ -300,6 +301,7 @@ export const dictionaries = {
     },
     header: {
       bio_link: 'link.bio',
+      reservations_link: 'book a table',
       whatsapp_long: 'Order on WhatsApp',
       whatsapp_short: 'WhatsApp',
       whatsapp_text_template: 'Hi! I would like to order from {name}.',
