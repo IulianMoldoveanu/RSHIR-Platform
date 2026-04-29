@@ -41,6 +41,15 @@ export type CopilotBriefSchedule = {
   consecutive_skips: number;
 };
 
+export type CopilotSuggestion = {
+  runId: string;
+  index: number;
+  type: string;
+  title: string;
+  status: string;
+  createdAt: string | null;
+};
+
 export async function getThreadForTenant(tenantId: string): Promise<CopilotThread | null> {
   try {
     const admin = createAdminClient() as any;
@@ -124,6 +133,58 @@ export async function getBriefSchedule(tenantId: string): Promise<CopilotBriefSc
   } catch (err) {
     console.warn('[ai-ceo/queries] getBriefSchedule threw:', (err as Error).message);
     return null;
+  }
+}
+
+// Pulls the most recent daily-brief run with suggestions and projects them
+// alongside the parallel suggestion_status[] array. Capped at 5 (the brief
+// itself only ever generates 3, but a future weekly digest may add more).
+// Schema lives in the bot's domain — same any-cast + best-effort pattern as
+// the other readers.
+export async function getLatestSuggestions(
+  tenantId: string,
+): Promise<CopilotSuggestion[]> {
+  try {
+    const admin = createAdminClient() as any;
+    const { data, error } = await admin
+      .from('copilot_agent_runs')
+      .select('id, created_at, metadata, suggestion_status')
+      .eq('restaurant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) {
+      console.warn('[ai-ceo/queries] getLatestSuggestions:', error.message);
+      return [];
+    }
+    // Find the most recent run that actually carried suggestions.
+    const run = (data ?? []).find((row: any) => {
+      const meta = row?.metadata;
+      return (
+        meta &&
+        typeof meta === 'object' &&
+        meta.kind === 'daily_brief' &&
+        Array.isArray(meta.suggestions) &&
+        meta.suggestions.length > 0
+      );
+    });
+    if (!run) return [];
+    const suggestions = (run.metadata?.suggestions ?? []) as Array<{
+      id?: string;
+      type?: string;
+      title?: string;
+    }>;
+    const status = Array.isArray(run.suggestion_status) ? run.suggestion_status : [];
+    return suggestions.slice(0, 5).map((s, i) => ({
+      runId: String(run.id ?? ''),
+      index: i,
+      type: String(s.type ?? 'unknown'),
+      title: String(s.title ?? s.id ?? '(fără titlu)'),
+      status: String(status[i] ?? 'pending'),
+      createdAt: run.created_at ?? null,
+    }));
+  } catch (err) {
+    console.warn('[ai-ceo/queries] getLatestSuggestions threw:', (err as Error).message);
+    return [];
   }
 }
 
