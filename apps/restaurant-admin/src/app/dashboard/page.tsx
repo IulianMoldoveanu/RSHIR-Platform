@@ -9,6 +9,7 @@ import { PolishChecklist } from './polish-checklist';
 import { KpiCards } from './kpi-cards';
 import { ActiveOrdersPanel } from './active-orders-panel';
 import { CodPendingPanel } from './cod-pending-panel';
+import { TodayReservationsPanel } from './today-reservations-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,10 @@ export default async function DashboardOverviewPage({
 
       <Suspense fallback={<ActiveSkeleton />}>
         <ActiveOrdersPanel tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <TodayReservationsPanel tenantId={tenant.id} />
       </Suspense>
 
       <PolishChecklist tenantId={tenant.id} />
