@@ -64,7 +64,7 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           router.refresh();
         },
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         // After a CHANNEL_ERROR / TIMED_OUT and the client auto-reconnects,
         // the channel re-subscribes — but any orders inserted while we were
         // disconnected won't replay through this stream. Force a single
