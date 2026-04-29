@@ -43,7 +43,10 @@ vi.mock('@/lib/integration-bus', () => ({
 
 // rate-limit shim: pass-through by default. Individual tests can override
 // to simulate a 429.
-const checkLimitMock = vi.fn(() => ({ ok: true }));
+type LimitResult = { ok: true } | { ok: false; retryAfterSec: number };
+const checkLimitMock = vi.fn(
+  (_key: string, _opts: unknown): LimitResult => ({ ok: true }),
+);
 vi.mock('@/lib/rate-limit', () => ({
   checkLimit: (key: string, opts: unknown) => checkLimitMock(key, opts),
   clientIp: () => '127.0.0.1',
