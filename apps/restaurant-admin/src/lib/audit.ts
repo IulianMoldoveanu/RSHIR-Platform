@@ -22,6 +22,7 @@ export type AuditAction =
   | 'review.unhidden'
   | 'menu.sold_out_set'
   | 'menu.sold_out_cleared'
+  | 'menu.gloriafood_import'
   | 'integration.provider_added'
   | 'integration.provider_removed'
   | 'integration.dispatched'
