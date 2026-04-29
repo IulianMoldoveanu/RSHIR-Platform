@@ -3,17 +3,30 @@
 // the restaurant accepts (CONFIRMED) the customer must call. We also
 // refuse if payment_status = 'PAID' to keep refund handling out of MVP.
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { checkLimit, clientIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const paramsSchema = z.object({ token: z.string().uuid() });
 
-export async function POST(_req: Request, ctx: { params: { token: string } }) {
+export async function POST(req: NextRequest, ctx: { params: { token: string } }) {
+  // Token-only auth — a leaked or guessed token + scripted POST could
+  // enumerate cancellable orders. 10 cancels per IP per minute is plenty
+  // for a real customer (one order, one click) and shuts the door on
+  // brute-forcing the UUID space.
+  const rl = checkLimit(`track-cancel:${clientIp(req)}`, { capacity: 10, refillPerSec: 1 / 6 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   const parsed = paramsSchema.safeParse(ctx.params);
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });

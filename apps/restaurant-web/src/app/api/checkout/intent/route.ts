@@ -8,11 +8,25 @@ import { computeQuote } from '../pricing';
 import { isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { maybeSetCustomerCookie } from '@/lib/customer-recognition';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { checkLimit, clientIp } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  // Each successful intent allocates a Stripe PaymentIntent + customer +
+  // order rows. Without a limit, a script can burn thousands of cents in
+  // Stripe object overhead. 10 attempts per IP per minute (capacity 10,
+  // refill 1/6s) is generous for a real customer (typical checkout retries
+  // 1-3 times) but blocks scripted abuse.
+  const rl = checkLimit(`checkout-intent:${clientIp(req)}`, { capacity: 10, refillPerSec: 1 / 6 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   // Same-origin gate. Without this a third-party page could initiate a paid
   // order in a logged-in customer's browser via a cross-origin POST. The
   // attacker can't see the response (CORS blocks the read) but the side
