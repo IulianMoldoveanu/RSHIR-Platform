@@ -65,7 +65,7 @@ async function transitionStatus(
     const { data: resv } = await sb
       .from('reservations')
       .select(
-        'customer_email, customer_first_name, party_size, requested_at',
+        'customer_email, customer_first_name, party_size, requested_at, public_track_token',
       )
       .eq('id', reservationId)
       .eq('tenant_id', tenantId)
@@ -91,8 +91,18 @@ async function transitionStatus(
         customer_first_name: string;
         party_size: number;
         requested_at: string;
+        public_track_token: string | null;
       };
       const { tenant } = await getActiveTenant();
+      // Build the storefront /rezervari/track/[token] absolute URL. The
+      // env var is the same one used to wire the cookie origin checks +
+      // Stripe webhook receipts. Tenants on a custom domain can override
+      // it; otherwise we fall back to the apex restaurant-web URL.
+      const storefrontBase =
+        process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hir.ro';
+      const trackUrl = row.public_track_token
+        ? `${storefrontBase.replace(/\/$/, '')}/rezervari/track/${row.public_track_token}`
+        : null;
       void notifyCustomerOfReservationDecision(newStatus as DecisionKind, {
         customerEmail: row.customer_email,
         customerFirstName: row.customer_first_name,
@@ -103,6 +113,7 @@ async function transitionStatus(
           newStatus === 'REJECTED'
             ? (metadata.reason as string | undefined) ?? null
             : null,
+        trackUrl,
       }).catch((err) =>
         console.error('[reservations] decision email failed', err),
       );

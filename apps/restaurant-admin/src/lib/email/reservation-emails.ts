@@ -10,6 +10,9 @@ export type DecisionEmailInput = {
   partySize: number;
   requestedAtIso: string;
   rejectionReason?: string | null;
+  /** Optional /rezervari/track/[token] absolute URL. When provided, the
+   *  email gets a CTA button that deep-links to the live status page. */
+  trackUrl?: string | null;
 };
 
 function formatDate(iso: string): string {
@@ -79,10 +82,17 @@ export async function notifyCustomerOfReservationDecision(
         )}</p>`
       : '';
 
+  const trackBlock = input.trackUrl
+    ? `\n\nVezi statusul rezervării: ${input.trackUrl}`
+    : '';
+  const trackHtml = input.trackUrl
+    ? `<p style="margin-top:20px"><a href="${escapeHtml(input.trackUrl)}" style="display:inline-block;background:${copy.accent};color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Vezi statusul rezervării</a></p>`
+    : '';
+
   const text = [
     `Salut ${input.customerFirstName},`,
     '',
-    copy.body(when, input.partySize) + reasonBlock,
+    copy.body(when, input.partySize) + reasonBlock + trackBlock,
     '',
     `Echipa ${input.tenantName}`,
   ].join('\n');
@@ -99,6 +109,7 @@ export async function notifyCustomerOfReservationDecision(
     ${escapeHtml(copy.body(when, input.partySize))}
   </p>
   ${reasonHtml}
+  ${trackHtml}
   <p style="margin-top:24px;color:#71717a;font-size:12px">Echipa ${escapeHtml(input.tenantName)}</p>
 </div>
 `.trim();
