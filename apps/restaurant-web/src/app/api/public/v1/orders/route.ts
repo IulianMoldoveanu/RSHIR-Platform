@@ -42,8 +42,8 @@ const orderBodySchema = z.object({
       line1: z.string().trim().min(3).max(200),
       line2: z.string().trim().max(200).optional().or(z.literal('')),
       city: z.string().trim().min(2).max(100),
-      lat: z.number().optional(),
-      lng: z.number().optional(),
+      lat: z.number().min(-90).max(90).optional(),
+      lng: z.number().min(-180).max(180).optional(),
     })
     .optional(),
   notes: z.string().trim().max(500).optional().or(z.literal('')),

@@ -2,7 +2,13 @@ import { SignupForm } from './signup-form';
 
 export const dynamic = 'force-dynamic';
 
-export default function SignupPage() {
+export default function SignupPage({
+  searchParams,
+}: {
+  searchParams: { ref?: string };
+}) {
+  const ref = typeof searchParams.ref === 'string' ? searchParams.ref.trim().toLowerCase() : undefined;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10">
       <div className="w-full max-w-md space-y-6">
@@ -12,7 +18,7 @@ export default function SignupPage() {
             Site propriu, comenzi online, livrare. Demo gratuit Brașov.
           </p>
         </div>
-        <SignupForm />
+        <SignupForm referralCode={ref} />
       </div>
     </main>
   );

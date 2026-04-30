@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { t } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
 
 // Track A #11: storefront newsletter popup. Triggers on whichever happens
 // first: 30s on page, or 50% scroll. Single dismissal stored in cookie
@@ -26,7 +28,7 @@ function setDismissCookie(): void {
 
 type Status = 'idle' | 'sending' | 'success' | 'already' | 'error';
 
-export function NewsletterPopup({ brandColor }: { brandColor: string }) {
+export function NewsletterPopup({ brandColor, locale }: { brandColor: string; locale: Locale }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [consent, setConsent] = useState(false);
@@ -67,7 +69,7 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
     e.preventDefault();
     if (status === 'sending') return;
     if (!consent) {
-      setErrorMsg('Trebuie să accepți termenii pentru a te abona.');
+      setErrorMsg(t(locale, 'newsletter_popup.err_consent'));
       setStatus('error');
       return;
     }
@@ -83,8 +85,8 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
       if (!res.ok || !data.ok) {
         setErrorMsg(
           res.status === 429
-            ? 'Prea multe încercări. Reîncearcă în câteva minute.'
-            : 'Ceva nu a mers. Reîncearcă.',
+            ? t(locale, 'newsletter_popup.err_rate_limit')
+            : t(locale, 'newsletter_popup.err_generic'),
         );
         setStatus('error');
         return;
@@ -96,7 +98,7 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
       }
       setDismissCookie();
     } catch {
-      setErrorMsg('Ceva nu a mers. Reîncearcă.');
+      setErrorMsg(t(locale, 'newsletter_popup.err_generic'));
       setStatus('error');
     }
   }
@@ -120,7 +122,7 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
         <button
           type="button"
           onClick={dismiss}
-          aria-label="Închide"
+          aria-label={t(locale, 'newsletter_popup.close_aria')}
           className="absolute right-3 top-3 rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
         >
           <X className="h-5 w-5" aria-hidden />
@@ -129,12 +131,14 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
         {success ? (
           <div className="py-4 text-center">
             <h2 id="newsletter-title" className="text-lg font-semibold text-zinc-900">
-              {status === 'already' ? 'Ești deja abonat' : 'Verifică-ți emailul'}
+              {status === 'already'
+                ? t(locale, 'newsletter_popup.already_title')
+                : t(locale, 'newsletter_popup.success_title')}
             </h2>
             <p className="mt-2 text-sm text-zinc-600">
               {status === 'already'
-                ? 'Adresa este deja înregistrată. Mulțumim!'
-                : 'Ți-am trimis un link de confirmare. După confirmare primești codul de 10%.'}
+                ? t(locale, 'newsletter_popup.already_body')
+                : t(locale, 'newsletter_popup.success_body')}
             </p>
             <button
               type="button"
@@ -142,15 +146,15 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
               className="mt-5 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
               style={{ background: brandColor }}
             >
-              Am înțeles
+              {t(locale, 'newsletter_popup.understood')}
             </button>
           </div>
         ) : (
           <form onSubmit={submit}>
             <h2 id="newsletter-title" className="pr-8 text-lg font-semibold text-zinc-900">
-              Comandă mai ieftin: -10% la prima comandă
+              {t(locale, 'newsletter_popup.title')}
             </h2>
-            <p className="mt-1 text-sm text-zinc-600">Trimitem o singură ofertă pe lună.</p>
+            <p className="mt-1 text-sm text-zinc-600">{t(locale, 'newsletter_popup.body')}</p>
 
             <label className="mt-4 block text-sm">
               <span className="sr-only">Email</span>
@@ -175,9 +179,9 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
                 className="mt-0.5 h-4 w-4"
               />
               <span>
-                Sunt de acord să primesc emailuri promoționale și am citit{' '}
+                {t(locale, 'newsletter_popup.consent')}{' '}
                 <a href="/privacy" className="underline" target="_blank" rel="noopener noreferrer">
-                  politica de confidențialitate
+                  {t(locale, 'newsletter_popup.privacy_link')}
                 </a>
                 .
               </span>
@@ -195,7 +199,7 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
               className="mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               style={{ background: brandColor }}
             >
-              {status === 'sending' ? 'Se trimite…' : 'Vreau codul de 10%'}
+              {status === 'sending' ? t(locale, 'newsletter_popup.sending') : t(locale, 'newsletter_popup.cta')}
             </button>
 
             <button
@@ -203,7 +207,7 @@ export function NewsletterPopup({ brandColor }: { brandColor: string }) {
               onClick={dismiss}
               className="mt-2 w-full rounded-lg px-4 py-2 text-xs text-zinc-500 hover:text-zinc-700"
             >
-              Nu, mulțumesc
+              {t(locale, 'newsletter_popup.dismiss')}
             </button>
           </form>
         )}

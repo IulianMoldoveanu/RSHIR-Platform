@@ -1,12 +1,5 @@
 'use client';
 
-// TODO: wire ?ref= capture into the tenant create flow when it exists.
-// Currently /signup does not read the ref param — the partner referral row
-// must be added manually by a platform admin after the restaurant signs up.
-// When tenant create flow is updated, read the `ref` query param from the
-// signup URL and insert a partner_referrals row (partner_id = lookup by id,
-// tenant_id = new tenant) before completing the flow.
-
 import { useState } from 'react';
 
 export function InvitePanel({ referralUrl }: { referralUrl: string }) {

@@ -13,8 +13,8 @@ const addressSchema = z.object({
   city: z.string().min(1),
   postalCode: z.string().optional(),
   country: z.string().min(1),
-  latitude: z.number(),
-  longitude: z.number(),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
 });
 
 const itemSchema = z.object({

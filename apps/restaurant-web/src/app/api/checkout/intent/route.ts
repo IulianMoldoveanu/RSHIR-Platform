@@ -11,6 +11,7 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { validateRedemption } from '@/lib/loyalty';
+import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from '@/lib/i18n';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -148,6 +149,10 @@ export async function POST(req: NextRequest) {
   );
 
   // Customer (one row per checkout — no auth/dedupe in MVP).
+  // Persist the storefront locale so notify-customer-status emails ship in
+  // the customer's chosen language. Default to RO when the cookie is unset.
+  const localeCookie = req.cookies.get(LOCALE_COOKIE)?.value;
+  const customerLocale = isLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
   const { data: customer, error: custErr } = await admin
     .from('customers')
     .insert({
@@ -156,7 +161,8 @@ export async function POST(req: NextRequest) {
       last_name: parsed.data.customer.lastName,
       phone: parsed.data.customer.phone,
       email: parsed.data.customer.email || null,
-    })
+      locale: customerLocale,
+    } as never)
     .select('id')
     .single();
   if (custErr || !customer) {

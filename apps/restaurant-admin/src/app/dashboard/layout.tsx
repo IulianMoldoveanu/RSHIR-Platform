@@ -7,6 +7,7 @@ import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 import { MobileSidebar } from './mobile-sidebar';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   let active: Awaited<ReturnType<typeof getActiveTenant>>;
@@ -159,6 +160,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
+      <PwaInstallPrompt />
     </div>
   );
 }

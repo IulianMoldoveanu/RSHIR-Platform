@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const ip = clientIp(req);
   const limit = checkLimit(`notify-live:${ip}`, { capacity: 5, refillPerSec: 1 / 12 });
   if (!limit.ok) {
