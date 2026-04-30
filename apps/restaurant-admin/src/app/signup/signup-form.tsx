@@ -35,7 +35,7 @@ type SlugStatus =
   | { state: 'invalid' }
   | { state: 'taken' };
 
-export function SignupForm() {
+export function SignupForm({ referralCode }: { referralCode?: string }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -105,7 +105,7 @@ export function SignupForm() {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, slug, email, password }),
+        body: JSON.stringify({ name, slug, email, password, ...(referralCode ? { ref: referralCode } : {}) }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;

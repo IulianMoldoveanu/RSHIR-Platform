@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
+import { assertSameOrigin } from '@/lib/origin-check';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
@@ -28,6 +29,11 @@ const resellerSchema = z.object({
 const bodySchema = z.discriminatedUnion('kind', [restaurantSchema, resellerSchema]);
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const ip = clientIp(req);
   // 5 requests / minute per IP
   const rl = checkLimit(`migrate-leads:${ip}`, {

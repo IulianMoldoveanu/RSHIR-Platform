@@ -27,6 +27,32 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
   const unreadRef = useRef(0);
   const baseTitleRef = useRef<string>('');
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const flashEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function stopFlash() {
+    if (flashTimerRef.current !== null) {
+      clearInterval(flashTimerRef.current);
+      flashTimerRef.current = null;
+    }
+    if (flashEndRef.current !== null) {
+      clearTimeout(flashEndRef.current);
+      flashEndRef.current = null;
+    }
+    document.title = baseTitleRef.current || 'HIR Admin';
+  }
+
+  function startFlash(count: number) {
+    stopFlash();
+    let show = true;
+    const label = `(${count}) HIR Admin`;
+    document.title = label;
+    flashTimerRef.current = setInterval(() => {
+      show = !show;
+      document.title = show ? label : (baseTitleRef.current || 'HIR Admin');
+    }, 1000);
+    flashEndRef.current = setTimeout(stopFlash, 30_000);
+  }
 
   useEffect(() => {
     baseTitleRef.current = document.title.replace(/^\(\d+\)\s*/, '');
@@ -36,12 +62,24 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
       });
     }
 
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        unreadRef.current = 0;
+        stopFlash();
+      }
+    };
     const onFocus = () => {
       unreadRef.current = 0;
-      document.title = baseTitleRef.current;
+      stopFlash();
     };
+    document.addEventListener('visibilitychange', onVisibilityChange);
     window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onFocus);
+      stopFlash();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -85,13 +123,17 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
   function handleNewOrder(row: OrderInsertRow) {
     const shortId = row.id.slice(0, 8);
     const totalRon = Number(row.total_ron ?? 0).toFixed(2);
+    const quiet =
+      typeof localStorage !== 'undefined' && localStorage.getItem('hir_admin_quiet') === '1';
 
     if (!document.hasFocus()) {
       unreadRef.current += 1;
-      document.title = `(${unreadRef.current}) ${baseTitleRef.current || 'HIR Admin'}`;
+      startFlash(unreadRef.current);
     }
 
-    playChime();
+    if (!quiet) {
+      playChime();
+    }
 
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       try {

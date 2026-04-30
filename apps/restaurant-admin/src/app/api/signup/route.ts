@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,7 @@ const signupSchema = z.object({
     .regex(SLUG_RE, 'Slug invalid'),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(10).max(72),
+  ref: z.string().trim().toLowerCase().min(3).max(30).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { name, slug, email, password } = parsed.data;
+  const { name, slug, email, password, ref } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -107,6 +109,56 @@ export async function POST(req: NextRequest) {
       { error: 'Nu am putut finaliza înregistrarea. Încearcă din nou.' },
       { status: 500 },
     );
+  }
+
+  // Referral attribution — must never fail the signup.
+  // partners + partner_referrals are not yet in the generated Supabase types
+  // (migration 20260507_003_reseller_program.sql ships with this commit; types
+  // regenerate on next `supabase gen types`). Cast through unknown as audit.ts
+  // does for audit_log.
+  if (ref) {
+    try {
+      type AnyTable = {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (col: string, val: string) => {
+              maybeSingle: () => Promise<{ data: { id: string } | null; error: { message: string } | null }>;
+            };
+          };
+          insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+      const db = admin as unknown as AnyTable;
+
+      const { data: partner, error: partnerLookupErr } = await db
+        .from('partners')
+        .select('id')
+        .eq('code', ref)
+        .maybeSingle();
+      if (partnerLookupErr) {
+        console.warn('[signup] partner lookup error for ref=%s: %s', ref, partnerLookupErr.message);
+      } else if (!partner) {
+        console.warn('[signup] unknown partner code ref=%s — skipping referral', ref);
+      } else {
+        const { error: referralErr } = await db
+          .from('partner_referrals')
+          .insert({ partner_id: partner.id, tenant_id: tenantId, source: 'self_serve' });
+        if (referralErr) {
+          console.error('[signup] partner_referrals insert failed ref=%s: %s', ref, referralErr.message);
+        } else {
+          void logAudit({
+            tenantId,
+            actorUserId: null,
+            action: 'partner.referral_attributed',
+            entityType: 'partner',
+            entityId: String(partner.id),
+            metadata: { tenant_id: tenantId, partner_id: partner.id, code: ref },
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[signup] referral attribution threw', e);
+    }
   }
 
   return NextResponse.json(

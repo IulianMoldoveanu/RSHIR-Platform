@@ -235,7 +235,7 @@ export default async function StorefrontHomePage() {
         <MenuList categories={menu} locale={locale} />
       )}
 
-      <NewsletterPopup brandColor={brandColor} />
+      <NewsletterPopup brandColor={brandColor} locale={locale} />
     </main>
   );
 }

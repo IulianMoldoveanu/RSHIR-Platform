@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
     .from('restaurant_orders')
     .select(
       `id, tenant_id, status, total_ron, public_track_token,
-       customers ( first_name, email )`,
+       customers ( first_name, email, locale )`,
     )
     .eq('id', body.order_id)
     .eq('tenant_id', body.tenant_id)
@@ -105,11 +105,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const customer = (order.customers ?? null) as
-    | { first_name: string | null; email: string | null }
+    | { first_name: string | null; email: string | null; locale: string | null }
     | null;
   if (!customer?.email) {
     return json(200, { ok: true, skipped: 'no_customer_email' });
   }
+  const locale: 'ro' | 'en' = customer.locale === 'en' ? 'en' : 'ro';
 
   if (!RESEND_API_KEY) return json(500, { error: 'resend_not_configured' });
 
@@ -118,15 +119,15 @@ Deno.serve(async (req: Request) => {
     : null;
 
   const greeting = customer.first_name
-    ? `Salut, ${customer.first_name}!`
-    : 'Salut!';
+    ? locale === 'en'
+      ? `Hi, ${customer.first_name}!`
+      : `Salut, ${customer.first_name}!`
+    : locale === 'en'
+      ? 'Hi!'
+      : 'Salut!';
 
-  // TODO(i18n): email copy is RO-only. When locale-aware emails ship, read the
-  // customer's preferred locale from the `customers` row (or the order's
-  // `locale` column if one is added) and swap in the EN strings from
-  // apps/restaurant-web/src/lib/i18n/dictionaries.ts. Tracked follow-up to
-  // the storefront EN locale work in feat/expansion-wave-4.
-  const COPY: Record<string, { subjectSuffix: string; line: string }> = {
+  type StatusCopy = { subjectSuffix: string; line: string };
+  const COPY_RO: Record<string, StatusCopy> = {
     CONFIRMED: {
       subjectSuffix: `confirmată de ${tenant.name}`,
       line: `${tenant.name} a confirmat comanda ta. O începem să o pregătim.`,
@@ -144,20 +145,42 @@ Deno.serve(async (req: Request) => {
       line: `Curierul este aproape — ține telefonul la îndemână.`,
     },
   };
+  const COPY_EN: Record<string, StatusCopy> = {
+    CONFIRMED: {
+      subjectSuffix: `confirmed by ${tenant.name}`,
+      line: `${tenant.name} confirmed your order. We're starting to prepare it.`,
+    },
+    READY: {
+      subjectSuffix: `ready for pickup`,
+      line: `${tenant.name} finished your order. The courier is picking it up now.`,
+    },
+    DISPATCHED: {
+      subjectSuffix: `on its way`,
+      line: `The courier picked up your order from ${tenant.name} and is heading your way.`,
+    },
+    IN_DELIVERY: {
+      subjectSuffix: `almost there`,
+      line: `The courier is close — keep your phone handy.`,
+    },
+  };
+  const COPY = locale === 'en' ? COPY_EN : COPY_RO;
   const copy = COPY[body.status];
   // HANDLED set is checked above, so this is unreachable — but keep a type-
   // safe guard so a future status added to the set without a copy entry is
   // skipped instead of crashing.
   if (!copy) return json(200, { ok: true, skipped: 'no_copy_for_status', status: body.status });
 
-  const subject = `Comanda #${shortId(order.id)} — ${copy.subjectSuffix}`;
+  const subjectPrefix = locale === 'en' ? 'Order' : 'Comanda';
+  const subject = `${subjectPrefix} #${shortId(order.id)} — ${copy.subjectSuffix}`;
+  const totalLabel = locale === 'en' ? 'Total' : 'Total';
+  const trackLineLabel = locale === 'en' ? 'Track your order' : 'Vezi statusul';
   const text = [
     greeting,
     '',
     copy.line,
     '',
-    `Total: ${fmtRon(order.total_ron)}`,
-    trackLink ? `Vezi statusul: ${trackLink}` : '',
+    `${totalLabel}: ${fmtRon(order.total_ron)}`,
+    trackLink ? `${trackLineLabel}: ${trackLink}` : '',
     '',
     '— HIR Restaurant Suite',
   ]
@@ -172,6 +195,7 @@ Deno.serve(async (req: Request) => {
     totalRon: fmtRon(order.total_ron),
     trackLink: trackLink || undefined,
     statusBadge: copy.subjectSuffix,
+    locale,
   });
 
   const resend = new Resend(RESEND_API_KEY);
@@ -258,21 +282,29 @@ function renderStatusHtml(opts: {
   totalRon: string;
   trackLink?: string;
   statusBadge: string;
+  locale: 'ro' | 'en';
 }): string {
+  const isEn = opts.locale === 'en';
+  const ctaLabel = isEn ? 'Track your order' : 'Vezi statusul comenzii';
+  const orderLabel = isEn ? 'Order' : 'Comanda';
+  const totalLabel = isEn ? 'Order total' : 'Total comandă';
+  const footerNote = isEn
+    ? 'Sent via HIR Restaurant Suite — order direct, no aggregator commission.'
+    : 'Trimis prin HIR Restaurant Suite — comandă direct, fără comision agregator.';
   const cta = opts.trackLink
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
          <tr>
            <td style="border-radius:9999px;background:#7c3aed">
              <a href="${escapeHtml(opts.trackLink)}"
                 style="display:inline-block;padding:12px 28px;font-family:Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9999px">
-               Vezi statusul comenzii
+               ${escapeHtml(ctaLabel)}
              </a>
            </td>
          </tr>
        </table>`
     : '';
   return `<!doctype html>
-<html lang="ro">
+<html lang="${isEn ? 'en' : 'ro'}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -285,7 +317,7 @@ function renderStatusHtml(opts: {
           <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
             <tr>
               <td style="padding:20px 24px;background:#7c3aed;color:#ffffff">
-                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">Comanda #${escapeHtml(opts.orderShortId)}</p>
+                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">${escapeHtml(orderLabel)} #${escapeHtml(opts.orderShortId)}</p>
                 <p style="margin:4px 0 0;font-size:18px;font-weight:600">${escapeHtml(opts.tenantName)}</p>
               </td>
             </tr>
@@ -296,7 +328,7 @@ function renderStatusHtml(opts: {
                 ${cta}
                 <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e4e4e7;padding-top:12px;margin-top:8px">
                   <tr>
-                    <td style="font-size:13px;color:#71717a">Total comandă</td>
+                    <td style="font-size:13px;color:#71717a">${escapeHtml(totalLabel)}</td>
                     <td align="right" style="font-size:14px;font-weight:600;color:#18181b">${escapeHtml(opts.totalRon)}</td>
                   </tr>
                 </table>
@@ -304,7 +336,7 @@ function renderStatusHtml(opts: {
             </tr>
             <tr>
               <td style="padding:14px 24px;background:#fafafa;border-top:1px solid #e4e4e7;font-size:11px;color:#a1a1aa;text-align:center">
-                Trimis prin HIR Restaurant Suite — comandă direct, fără comision agregator.
+                ${escapeHtml(footerNote)}
               </td>
             </tr>
           </table>

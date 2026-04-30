@@ -44,6 +44,7 @@ export type AuditAction =
   | 'ai_ceo.suggestion_acted'
   | 'partner.created'
   | 'partner.referral_added'
+  | 'partner.referral_attributed'
   | 'partner.commission_marked_paid'
   | 'partner.profile_updated';
 
