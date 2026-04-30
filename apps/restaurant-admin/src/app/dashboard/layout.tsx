@@ -59,6 +59,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
   const tenantStorefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
 
+  const isPlatformAdmin = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes((user.email ?? '').toLowerCase());
+
   const navEntries: SidebarEntry[] = [
     ...(onboarding.went_live
       ? []
@@ -106,6 +112,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
     },
+    ...(isPlatformAdmin
+      ? [
+          {
+            href: '/dashboard/admin/partners',
+            label: 'Parteneri',
+            icon: 'users' as const,
+          },
+        ]
+      : []),
   ];
 
   return (

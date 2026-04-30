@@ -1,6 +1,14 @@
 // HIR Restaurant Web — Service Worker
 // Handles Web Push notifications for the customer order-tracking page.
-// Kept minimal: no caching strategy, push only.
+// Also registers a fetch handler (required for PWA installability in some
+// browsers). No caching strategy yet — pass-through only.
+
+// Minimal fetch pass-through. Browsers require at least one fetch handler for
+// the service worker to count toward installability criteria.
+self.addEventListener('fetch', (_event) => {
+  // Pass-through: no offline cache yet. Real caching strategy is roadmap item.
+  return;
+});
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;

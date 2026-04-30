@@ -24,6 +24,7 @@ export async function StorefrontShareTile({ storefrontUrl, tenantName }: Props) 
 
   return (
     <section
+      id="share"
       aria-label="Distribuie storefrontul"
       className="rounded-xl border border-zinc-200 bg-white p-5"
     >
