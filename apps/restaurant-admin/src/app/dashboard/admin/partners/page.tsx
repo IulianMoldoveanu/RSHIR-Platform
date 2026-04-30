@@ -21,6 +21,17 @@ type Partner = {
   commission_this_month_cents: number;
 };
 
+type Commission = {
+  id: string;
+  partner_id: string;
+  period_start: string;
+  period_end: string;
+  amount_cents: number;
+  status: string;
+  paid_at: string | null;
+  paid_via: string | null;
+};
+
 export default async function PartnersPage() {
   // ── Auth + platform-admin gate ──────────────────────────────
   const supabase = createServerClient();
@@ -71,7 +82,7 @@ export default async function PartnersPage() {
 
   const { data: rawCommissions } = await admin
     .from('partner_commissions')
-    .select('partner_id, amount_cents, period_start, status');
+    .select('id, partner_id, amount_cents, period_start, period_end, status, paid_at, paid_via');
 
   // ── Aggregate client-side (no reporting view yet) ────────────
   const now = new Date();
@@ -106,6 +117,17 @@ export default async function PartnersPage() {
     commission_this_month_cents: commissionsByPartner[p.id as string] ?? 0,
   }));
 
+  const commissions: Commission[] = (rawCommissions ?? []).map((c) => ({
+    id: c.id as string,
+    partner_id: c.partner_id as string,
+    period_start: c.period_start as string,
+    period_end: c.period_end as string,
+    amount_cents: Number(c.amount_cents ?? 0),
+    status: c.status as string,
+    paid_at: (c.paid_at as string | null) ?? null,
+    paid_via: (c.paid_via as string | null) ?? null,
+  }));
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -117,7 +139,7 @@ export default async function PartnersPage() {
           Vizibil doar administratorilor de platformă.
         </p>
       </header>
-      <PartnersClient partners={partners} />
+      <PartnersClient partners={partners} commissions={commissions} />
     </div>
   );
 }

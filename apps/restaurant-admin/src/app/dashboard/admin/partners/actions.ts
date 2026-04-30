@@ -156,6 +156,7 @@ export async function addReferral(input: {
 export async function markCommissionPaid(input: {
   commission_id: string;
   paid_via: string;
+  notes?: string;
 }): Promise<PartnerActionResult> {
   const guard = await requirePlatformAdmin();
   if ('error' in guard) return { ok: false, error: guard.error };
@@ -167,6 +168,7 @@ export async function markCommissionPaid(input: {
       status: 'PAID',
       paid_at: new Date().toISOString(),
       paid_via: input.paid_via,
+      ...(input.notes ? { notes: input.notes } : {}),
     })
     .eq('id', input.commission_id);
 
