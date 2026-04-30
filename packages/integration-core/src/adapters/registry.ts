@@ -1,12 +1,17 @@
 import type { IntegrationAdapter, ProviderKey } from '../contract';
 import { mockAdapter } from './mock';
+import { freyaAdapter } from './freya';
+import { posnetAdapter } from './posnet';
+import { iikoAdapter } from './iiko';
 
 const REGISTRY: Partial<Record<ProviderKey, IntegrationAdapter>> = {
   mock: mockAdapter,
-  // Future: iiko, smartcash, freya, posnet, custom — register here as
-  // adapters are implemented. Throwing on unknown keys is intentional;
-  // a tenant configured with an unimplemented provider should fail loudly
-  // so the operator notices.
+  freya: freyaAdapter,
+  posnet: posnetAdapter,
+  iiko: iikoAdapter,
+  // Future: smartcash, custom — register here as adapters are implemented.
+  // Throwing on unknown keys is intentional; a tenant configured with an
+  // unimplemented provider should fail loudly so the operator notices.
 };
 
 export function getAdapter(key: ProviderKey): IntegrationAdapter {

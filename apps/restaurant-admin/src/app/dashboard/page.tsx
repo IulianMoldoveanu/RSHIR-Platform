@@ -12,6 +12,7 @@ import { CodPendingPanel } from './cod-pending-panel';
 import { TodayReservationsPanel } from './today-reservations-panel';
 import { OwnerValueHero } from './owner-value-hero';
 import { GloriaFoodRescueBanner } from './gloriafood-rescue-banner';
+import { GoLiveCelebration } from './go-live-celebration';
 import { StorefrontShareTile } from './storefront-share-tile';
 import { AiCeoWidget } from './ai-ceo-widget';
 
@@ -66,6 +67,10 @@ export default async function DashboardOverviewPage({
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <Suspense fallback={null}>
         <GloriaFoodRescueBanner tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <GoLiveCelebration tenantId={tenant.id} storefrontUrl={storefrontUrl} />
       </Suspense>
 
       <header className="flex flex-wrap items-end justify-between gap-3">

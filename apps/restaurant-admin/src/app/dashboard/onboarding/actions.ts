@@ -42,11 +42,13 @@ export async function goLiveAction(formData: FormData): Promise<void> {
     .single();
   if (readErr || !existing) throw new Error(readErr?.message ?? 'tenant_read_failed');
 
+  const nowIso = new Date().toISOString();
   const merged = deepMerge((existing.settings as Record<string, unknown>) ?? {}, {
     is_accepting_orders: true,
     onboarding: {
       went_live: true,
-      completed_at: new Date().toISOString(),
+      completed_at: nowIso,
+      went_live_at: nowIso,
     },
   });
 

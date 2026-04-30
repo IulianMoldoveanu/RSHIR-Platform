@@ -41,7 +41,10 @@ export type AuditAction =
   | 'reservation.completed'
   | 'reservation.settings_updated'
   | 'ai_ceo.brief_schedule_updated'
-  | 'ai_ceo.suggestion_acted';
+  | 'ai_ceo.suggestion_acted'
+  | 'partner.created'
+  | 'partner.referral_added'
+  | 'partner.commission_marked_paid';
 
 export async function logAudit(args: {
   tenantId: string;

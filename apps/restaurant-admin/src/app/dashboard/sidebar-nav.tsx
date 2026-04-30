@@ -13,6 +13,7 @@ import {
   Settings,
   Sliders,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { cn } from '@hir/ui';
 
@@ -31,6 +32,7 @@ const ICONS: Record<string, LucideIcon> = {
   sliders: Sliders,
   settings: Settings,
   sparkles: Sparkles,
+  users: Users,
 };
 
 export type IconName = keyof typeof ICONS;

@@ -1,12 +1,20 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
+
+export const viewport: Viewport = {
+  themeColor: '#7c3aed',
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
@@ -28,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang={locale} className={inter.variable}>
       <body className="font-sans antialiased">
         {children}
+        <PwaInstallPrompt />
         <Analytics />
         <SpeedInsights />
       </body>
