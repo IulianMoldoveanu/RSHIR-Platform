@@ -15,6 +15,17 @@ type Partner = {
   commission_this_month_cents: number;
 };
 
+type Commission = {
+  id: string;
+  partner_id: string;
+  period_start: string;
+  period_end: string;
+  amount_cents: number;
+  status: string;
+  paid_at: string | null;
+  paid_via: string | null;
+};
+
 function centsToRon(cents: number): string {
   return (cents / 100).toFixed(2) + ' RON';
 }
@@ -186,10 +197,135 @@ function AddReferralForm({ partners }: { partners: Partner[] }) {
 }
 
 // ────────────────────────────────────────────────────────────
+// MarkCommissionPaidForm
+// ────────────────────────────────────────────────────────────
+
+const PAID_VIA_OPTIONS = [
+  { value: 'bank_transfer', label: 'Transfer bancar' },
+  { value: 'invoice_offset', label: 'Compensare factură' },
+  { value: 'stripe', label: 'Stripe' },
+  { value: 'altul', label: 'Altul' },
+] as const;
+
+function MarkCommissionPaidForm({ commission }: { commission: Commission }) {
+  const [pending, startTransition] = useTransition();
+  const [showNotes, setShowNotes] = useState(false);
+  const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setToast(null);
+    const fd = new FormData(e.currentTarget);
+    const paid_via = fd.get('paid_via') as string;
+    const notes = (fd.get('notes') as string).trim() || undefined;
+
+    startTransition(async () => {
+      const res = await markCommissionPaid({
+        commission_id: commission.id,
+        paid_via,
+        notes,
+      });
+      if (res.ok) {
+        setToast({ ok: true, msg: 'Marcat ca plătit.' });
+      } else {
+        setToast({ ok: false, msg: res.error });
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          name="paid_via"
+          required
+          defaultValue="bank_transfer"
+          className="rounded border border-zinc-300 px-2 py-1 text-xs"
+        >
+          {PAID_VIA_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => setShowNotes((v) => !v)}
+          className="text-xs text-zinc-500 underline"
+        >
+          {showNotes ? 'Ascunde note' : 'Adaugă note'}
+        </button>
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {pending ? 'Se salvează...' : 'Marchează plătit'}
+        </button>
+      </div>
+      {showNotes && (
+        <textarea
+          name="notes"
+          rows={2}
+          placeholder="Note opționale..."
+          className="rounded border border-zinc-300 px-2 py-1 text-xs"
+        />
+      )}
+      {toast && (
+        <p className={`text-xs ${toast.ok ? 'text-emerald-600' : 'text-rose-600'}`}>{toast.msg}</p>
+      )}
+    </form>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// CommissionRow
+// ────────────────────────────────────────────────────────────
+
+function CommissionRow({ commission }: { commission: Commission }) {
+  const isPending = commission.status === 'PENDING';
+  return (
+    <tr className="hover:bg-zinc-50">
+      <td className="px-4 py-3 tabular-nums text-xs text-zinc-500">
+        {commission.period_start} – {commission.period_end}
+      </td>
+      <td className="px-4 py-3 text-right tabular-nums font-medium text-zinc-900">
+        {centsToRon(commission.amount_cents)}
+      </td>
+      <td className="px-4 py-3">
+        <span
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+            isPending
+              ? 'bg-amber-100 text-amber-800'
+              : commission.status === 'PAID'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-zinc-100 text-zinc-500'
+          }`}
+        >
+          {commission.status}
+        </span>
+        {commission.paid_at && (
+          <span className="ml-2 text-xs text-zinc-400">
+            {commission.paid_via} · {commission.paid_at.slice(0, 10)}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {isPending && <MarkCommissionPaidForm commission={commission} />}
+      </td>
+    </tr>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // PartnersClient
 // ────────────────────────────────────────────────────────────
 
-export function PartnersClient({ partners }: { partners: Partner[] }) {
+export function PartnersClient({
+  partners,
+  commissions,
+}: {
+  partners: Partner[];
+  commissions: Commission[];
+}) {
   return (
     <div className="flex flex-col gap-6">
       {/* Partner list */}
@@ -235,13 +371,33 @@ export function PartnersClient({ partners }: { partners: Partner[] }) {
         </div>
       )}
 
+      {/* Commission list with markCommissionPaid inline form */}
+      {commissions.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+          <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+            <span className="text-xs font-medium text-zinc-500">Comisioane</span>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
+                <th className="px-4 py-2 text-left font-medium">Perioadă</th>
+                <th className="px-4 py-2 text-right font-medium">Sumă</th>
+                <th className="px-4 py-2 text-left font-medium">Status</th>
+                <th className="px-4 py-2 text-left font-medium">Acțiune</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {commissions.map((c) => (
+                <CommissionRow key={c.id} commission={c} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Forms */}
       <CreatePartnerForm />
       <AddReferralForm partners={partners} />
-
-      {/* TODO: commission list + markCommissionPaid form — add once the
-          commission calculation job ships (Faza 2). The action is already
-          wired in actions.ts. */}
     </div>
   );
 }

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
-
-// TODO: persist to a `storefront_notify_signups` table (email, tenant_slug,
-// created_at) once a migration is in scope. For MVP we log and return ok so
-// the UI flow works without a schema change.
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
   const ip = clientIp(req);
@@ -35,8 +32,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_tenant' }, { status: 422 });
   }
 
-  // TODO: insert into storefront_notify_signups table when migration lands.
-  console.info('[notify-when-live] signup', { email, tenant_slug, ip });
+  const admin = getSupabaseAdmin();
+  const { error: dbError } = await (admin as unknown as {
+    from: (t: string) => {
+      insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+    };
+  })
+    .from('storefront_notify_signups')
+    .insert({ email, tenant_slug, ip: ip.startsWith('noip:') ? null : ip });
+
+  if (dbError) {
+    console.error('[notify-when-live] insert failed', dbError.message);
+    return NextResponse.json({ error: 'internal_error' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -44,7 +44,8 @@ export type AuditAction =
   | 'ai_ceo.suggestion_acted'
   | 'partner.created'
   | 'partner.referral_added'
-  | 'partner.commission_marked_paid';
+  | 'partner.commission_marked_paid'
+  | 'partner.profile_updated';
 
 export async function logAudit(args: {
   tenantId: string;

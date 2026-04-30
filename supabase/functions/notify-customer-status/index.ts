@@ -121,6 +121,11 @@ Deno.serve(async (req: Request) => {
     ? `Salut, ${customer.first_name}!`
     : 'Salut!';
 
+  // TODO(i18n): email copy is RO-only. When locale-aware emails ship, read the
+  // customer's preferred locale from the `customers` row (or the order's
+  // `locale` column if one is added) and swap in the EN strings from
+  // apps/restaurant-web/src/lib/i18n/dictionaries.ts. Tracked follow-up to
+  // the storefront EN locale work in feat/expansion-wave-4.
   const COPY: Record<string, { subjectSuffix: string; line: string }> = {
     CONFIRMED: {
       subjectSuffix: `confirmată de ${tenant.name}`,
