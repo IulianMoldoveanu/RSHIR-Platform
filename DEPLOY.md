@@ -158,11 +158,14 @@ If you see `vapid_not_configured`, the secrets above are missing.
 
 ## Edge Function deploy
 
-Three functions ship today:
+Functions:
 - `notify-new-order` — RSHIR-18, sends owner email when an order is paid.
 - `daily-digest` — RSHIR-35, daily revenue summary at 07:00 UTC.
 - `review-reminder` — RSHIR-43, hourly nudge to /track for unrated paid
   orders aged 24-30h.
+- `partner-commission-calc` — monthly partner commission rollup at
+  01:00 UTC on day 2. Deploy + secrets + manual triggers documented in
+  `supabase/functions/partner-commission-calc/README.md`.
 
 ```sh
 # 1. Deploy each function's code

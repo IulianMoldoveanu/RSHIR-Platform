@@ -97,6 +97,28 @@ Helpers under `scripts/` (release verification):
 - `smoke-prod.sh` — RSHIR-25 production smoke test (storefront index,
   `/bio`, `/m/<slug>` + `og:title`, checkout quote API, admin root,
   signup slug check).
+- `seed-demo-scenario.mjs` — populates a demo tenant with 30 days of
+  plausible activity (menu, customers, orders across all statuses,
+  reviews, reservations, one promo code) so sales prospects see real
+  numbers on the dashboard. Idempotent by category; pass `--reset` to
+  wipe + re-seed.
+
+  ```bash
+  # populate the demo tenant (skips categories that already have data)
+  SUPABASE_ACCESS_TOKEN=... pnpm seed-demo --tenant restaurant-demo
+
+  # wipe + re-seed (delete then insert; safe — only touches the target tenant)
+  SUPABASE_ACCESS_TOKEN=... pnpm seed-demo --tenant restaurant-demo --reset
+
+  # target by uuid instead of slug
+  SUPABASE_ACCESS_TOKEN=... pnpm seed-demo --tenant-id <uuid>
+  ```
+
+  Requires `SUPABASE_ACCESS_TOKEN` (Supabase Management API token).
+  `SUPABASE_PROJECT_REF` defaults to the prod project ref — running
+  against prod requires `--allow-prod` and an interactive `yes`
+  confirmation. Set `SEED_DEMO_DRY_RUN=1` to print the generated SQL
+  without applying it.
 
 ## Stack
 

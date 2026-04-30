@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { TriangleAlert } from 'lucide-react';
+import { ShoppingBag, TriangleAlert } from 'lucide-react';
+import { EmptyState } from '@/components/storefront/empty-state';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripeClient } from '@/lib/stripe/client';
 import { geocodeAddressRo } from '@/lib/zones/nominatim';
@@ -480,12 +481,12 @@ export function CheckoutClient(props: {
   }
   if (!cart || cart.items.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-6">
-        <p className="text-sm text-zinc-700">{t(locale, 'checkout.cart_empty')}</p>
-        <a href="/" className="mt-3 inline-block text-sm font-medium text-purple-700 underline">
-          {t(locale, 'checkout.back_to_menu')}
-        </a>
-      </div>
+      <EmptyState
+        icon={<ShoppingBag className="h-8 w-8 text-purple-400" />}
+        title={t(locale, 'storefront.empty_cart_title')}
+        description={t(locale, 'storefront.empty_cart_desc')}
+        action={{ label: t(locale, 'storefront.empty_cart_action'), href: '/' }}
+      />
     );
   }
 

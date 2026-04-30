@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ArrowRight, UtensilsCrossed } from 'lucide-react';
+import { ArrowRight, ChefHat, UtensilsCrossed } from 'lucide-react';
+import { EmptyState } from '@/components/storefront/empty-state';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getTopItems } from '@/lib/menu';
 import { buildItemSlug } from '@/lib/slug';
@@ -79,9 +80,14 @@ export default async function BioPage() {
 
       <section className="mx-auto mt-10 grid max-w-md grid-cols-2 gap-3 px-4">
         {items.length === 0 ? (
-          <p className="col-span-2 py-10 text-center text-sm text-zinc-500">
-            {t(locale, 'bio.menu_not_published')}
-          </p>
+          <div className="col-span-2">
+            <EmptyState
+              icon={<ChefHat className="h-8 w-8 text-purple-400" />}
+              title={t(locale, 'storefront.empty_menu_title')}
+              description={t(locale, 'storefront.empty_menu_desc')}
+              action={{ label: t(locale, 'bio.view_all_menu'), href: '/' }}
+            />
+          </div>
         ) : (
           items.map((it) => (
             <Link

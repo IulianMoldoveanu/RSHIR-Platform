@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X } from 'lucide-react';
+import { Search, SearchX, X } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
 import { t, type Locale } from '@/lib/i18n';
 import { easeOutSoft, motionDurations, useShouldReduceMotion } from '@/lib/motion';
 import { MenuItemCard } from './menu-item-card';
 import { CategoryTabs } from './category-tabs';
+import { EmptyState } from './empty-state';
 
 // RSHIR-44: client-side search across the loaded menu. We keep all the data
 // the server already shipped down (categories + items + modifiers) so the
@@ -80,9 +81,17 @@ export function MenuList({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="mt-6 px-4 text-center text-sm text-zinc-500">
-          {t(locale, 'menu.search_no_results')}
-        </p>
+        <div className="mt-6 px-4">
+          <EmptyState
+            icon={<SearchX className="h-8 w-8 text-purple-400" />}
+            title={t(locale, 'storefront.empty_search_title')}
+            description={t(locale, 'storefront.empty_search_desc')}
+            action={{
+              label: t(locale, 'storefront.empty_search_action'),
+              onClick: () => setQuery(''),
+            }}
+          />
+        </div>
       ) : (
         <>
           {/* Hide the sticky tabs while the user is searching — the categories

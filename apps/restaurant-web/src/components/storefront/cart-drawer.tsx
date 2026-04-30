@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { EmptyState } from './empty-state';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
@@ -142,22 +143,17 @@ export function CartPill({
                 initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: motionDurations.enter, ease: easeOutSoft }}
-                className="flex flex-col items-center gap-3 py-12 text-center text-zinc-500"
+                className="py-8"
               >
-                <motion.div
-                  animate={
-                    reduceMotion
-                      ? undefined
-                      : { y: [0, -4, 0], transition: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } }
-                  }
-                  className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100"
-                >
-                  <ShoppingBag className="h-8 w-8 text-zinc-400" />
-                </motion.div>
-                <p className="text-base font-semibold text-zinc-800">{t(locale, 'cart.empty')}</p>
-                <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
-                  {t(locale, 'cart.empty_hint')}
-                </p>
+                <EmptyState
+                  icon={<ShoppingBag className="h-8 w-8 text-purple-400" />}
+                  title={t(locale, 'storefront.empty_cart_title')}
+                  description={t(locale, 'storefront.empty_cart_desc')}
+                  action={{
+                    label: t(locale, 'storefront.empty_cart_action'),
+                    onClick: () => setOpen(false),
+                  }}
+                />
               </motion.div>
             ) : (
               <ul className="divide-y divide-zinc-100">
