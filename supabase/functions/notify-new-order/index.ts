@@ -204,11 +204,21 @@ Deno.serve(async (req: Request) => {
     '— HIR Restaurant Suite',
   ].join('\n');
 
+  const html = renderNewOrderHtml({
+    tenantName: tenant.name,
+    orderShortId: shortId(order.id),
+    customerLabel,
+    totalRon: fmtRon(order.total_ron),
+    items: order.items,
+    adminLink: ADMIN_BASE ? adminLink : undefined,
+    trackLink: WEB_BASE ? trackLink : undefined,
+  });
+
   const resend = new Resend(RESEND_API_KEY);
   const results: Array<{ to: string; ok: boolean; error?: string }> = [];
   for (const to of recipients) {
     try {
-      const r = await resend.emails.send({ from: FROM, to, subject, text });
+      const r = await resend.emails.send({ from: FROM, to, subject, text, html });
       if (r.error) {
         console.error('[notify-new-order] resend error', to, r.error);
         results.push({ to, ok: false, error: r.error.message });
@@ -224,3 +234,110 @@ Deno.serve(async (req: Request) => {
 
   return json(200, { ok: true, sent: results });
 });
+
+// HTML new-order alert sent to restaurant owners. Same email-client compat
+// approach as notify-customer-status: inline CSS, table layout, <5KB.
+function renderNewOrderHtml(opts: {
+  tenantName: string;
+  orderShortId: string;
+  customerLabel: string;
+  totalRon: string;
+  items: unknown;
+  adminLink?: string;
+  trackLink?: string;
+}): string {
+  const itemRows = (() => {
+    const arr = Array.isArray(opts.items) ? opts.items : [];
+    if (arr.length === 0) {
+      return '<tr><td style="padding:6px 0;color:#a1a1aa;font-size:13px">(fără detalii produs)</td></tr>';
+    }
+    return arr
+      .map((raw) => {
+        const it = (raw ?? {}) as { name?: unknown; quantity?: unknown; qty?: unknown };
+        const name = typeof it.name === 'string' ? it.name : '(produs)';
+        const qty = typeof it.quantity === 'number'
+          ? it.quantity
+          : typeof it.qty === 'number'
+            ? it.qty
+            : 1;
+        return `<tr>
+          <td style="padding:4px 0;font-size:13px;color:#3f3f46">${escapeHtmlNo(name)}</td>
+          <td align="right" style="padding:4px 0;font-size:13px;font-weight:600;color:#18181b;white-space:nowrap">×${qty}</td>
+        </tr>`;
+      })
+      .join('');
+  })();
+
+  const adminCta = opts.adminLink
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px">
+         <tr>
+           <td style="border-radius:9999px;background:#7c3aed">
+             <a href="${escapeHtmlNo(opts.adminLink)}"
+                style="display:inline-block;padding:10px 22px;font-family:Arial,sans-serif;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9999px">
+               Deschide în admin
+             </a>
+           </td>
+         </tr>
+       </table>`
+    : '';
+  const trackRow = opts.trackLink
+    ? `<p style="margin:8px 0 0;font-size:12px;color:#71717a">Tracking client: <a href="${escapeHtmlNo(opts.trackLink)}" style="color:#7c3aed;text-decoration:none">deschide</a></p>`
+    : '';
+
+  return `<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Comandă nouă — ${escapeHtmlNo(opts.tenantName)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5">
+      <tr>
+        <td align="center" style="padding:24px 12px">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
+            <tr>
+              <td style="padding:20px 24px;background:#10b981;color:#ffffff">
+                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.9">Comandă plătită · #${escapeHtmlNo(opts.orderShortId)}</p>
+                <p style="margin:4px 0 0;font-size:18px;font-weight:600">${escapeHtmlNo(opts.tenantName)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px">
+                <p style="margin:0 0 12px;font-size:15px;line-height:1.45;color:#3f3f46">
+                  Ai o comandă nouă de la <strong>${escapeHtmlNo(opts.customerLabel)}</strong>.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7;padding:8px 0;margin:8px 0">
+                  ${itemRows}
+                </table>
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:8px">
+                  <tr>
+                    <td style="font-size:13px;color:#71717a">Total comandă</td>
+                    <td align="right" style="font-size:16px;font-weight:700;color:#18181b">${escapeHtmlNo(opts.totalRon)}</td>
+                  </tr>
+                </table>
+                ${adminCta}
+                ${trackRow}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 24px;background:#fafafa;border-top:1px solid #e4e4e7;font-size:11px;color:#a1a1aa;text-align:center">
+                HIR Restaurant Suite — venitul rămâne la tine, fără comision agregator.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function escapeHtmlNo(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

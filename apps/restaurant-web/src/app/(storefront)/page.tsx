@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ChefHat } from 'lucide-react';
+import { EmptyState } from '@/components/storefront/empty-state';
+import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
 import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
@@ -220,15 +222,14 @@ export default async function StorefrontHomePage() {
       )}
 
       {menu.length === 0 ? (
-        <div className="mx-auto max-w-2xl px-4">
-          <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-10 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-100">
-              <ChefHat className="h-8 w-8 text-zinc-400" />
-            </div>
-            <p className="text-base font-semibold text-zinc-800">
-              {t(locale, 'home.menu_not_published')}
-            </p>
-          </div>
+        <div className="mx-auto mt-10 max-w-2xl px-4">
+          <EmptyState
+            icon={<ChefHat className="h-8 w-8 text-purple-400" />}
+            title={t(locale, 'storefront.empty_menu_title')}
+            description={t(locale, 'storefront.empty_menu_desc')}
+          >
+            <NotifyWhenLiveForm tenantSlug={tenant.slug} locale={locale} />
+          </EmptyState>
         </div>
       ) : (
         <MenuList categories={menu} locale={locale} />

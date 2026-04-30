@@ -4,20 +4,35 @@ import { MigrateClient } from './client';
 
 export const dynamic = 'force-dynamic';
 
+function daysUntilGloriaFoodClose(): number {
+  const closeDate = new Date('2027-04-30T00:00:00Z');
+  const now = new Date();
+  const diffMs = closeDate.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
 export default async function MigrateFromGloriaFoodPage() {
   const { tenant } = await getActiveTenant();
+  const daysLeft = daysUntilGloriaFoodClose();
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline justify-between">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Migrare din GloriaFood
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            Migrare din GloriaFood
+          </h1>
+          {daysLeft > 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+              {daysLeft} zile rămase
+            </span>
+          )}
+        </div>
         <Link
           href="/dashboard/menu"
           className="text-xs text-zinc-500 hover:text-zinc-900"
         >
-          ← inapoi la meniu
+          ← înapoi la meniu
         </Link>
       </div>
 

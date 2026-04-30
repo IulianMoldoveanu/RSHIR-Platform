@@ -159,9 +159,19 @@ Deno.serve(async (req: Request) => {
     .filter(Boolean)
     .join('\n');
 
+  const html = renderStatusHtml({
+    tenantName: tenant.name,
+    greeting,
+    line: copy.line,
+    orderShortId: shortId(order.id),
+    totalRon: fmtRon(order.total_ron),
+    trackLink: trackLink || undefined,
+    statusBadge: copy.subjectSuffix,
+  });
+
   const resend = new Resend(RESEND_API_KEY);
   try {
-    const r = await resend.emails.send({ from: FROM, to: customer.email, subject, text });
+    const r = await resend.emails.send({ from: FROM, to: customer.email, subject, text, html });
     if (r.error) {
       console.error('[notify-customer-status] resend error', r.error);
       return json(502, { error: 'resend_failed' });
@@ -230,3 +240,81 @@ Deno.serve(async (req: Request) => {
 
   return json(200, { ok: true, sent: customer.email, status: body.status });
 });
+
+// Email-client compatible HTML status email. Inline CSS only — Gmail/Outlook
+// strip <style>; mobile + dark-mode safe via media queries embedded in <head>.
+// Stays under 5 KB so Gmail doesn't clip it. The text/* fallback above is the
+// canonical version for clients that strip HTML.
+function renderStatusHtml(opts: {
+  tenantName: string;
+  greeting: string;
+  line: string;
+  orderShortId: string;
+  totalRon: string;
+  trackLink?: string;
+  statusBadge: string;
+}): string {
+  const cta = opts.trackLink
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0">
+         <tr>
+           <td style="border-radius:9999px;background:#7c3aed">
+             <a href="${escapeHtml(opts.trackLink)}"
+                style="display:inline-block;padding:12px 28px;font-family:Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:9999px">
+               Vezi statusul comenzii
+             </a>
+           </td>
+         </tr>
+       </table>`
+    : '';
+  return `<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>${escapeHtml(opts.tenantName)} — ${escapeHtml(opts.statusBadge)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,sans-serif;color:#18181b">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5">
+      <tr>
+        <td align="center" style="padding:24px 12px">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
+            <tr>
+              <td style="padding:20px 24px;background:#7c3aed;color:#ffffff">
+                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85">Comanda #${escapeHtml(opts.orderShortId)}</p>
+                <p style="margin:4px 0 0;font-size:18px;font-weight:600">${escapeHtml(opts.tenantName)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px">
+                <p style="margin:0 0 4px;font-size:16px;font-weight:600">${escapeHtml(opts.greeting)}</p>
+                <p style="margin:0;font-size:15px;line-height:1.5;color:#3f3f46">${escapeHtml(opts.line)}</p>
+                ${cta}
+                <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #e4e4e7;padding-top:12px;margin-top:8px">
+                  <tr>
+                    <td style="font-size:13px;color:#71717a">Total comandă</td>
+                    <td align="right" style="font-size:14px;font-weight:600;color:#18181b">${escapeHtml(opts.totalRon)}</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 24px;background:#fafafa;border-top:1px solid #e4e4e7;font-size:11px;color:#a1a1aa;text-align:center">
+                Trimis prin HIR Restaurant Suite — comandă direct, fără comision agregator.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
