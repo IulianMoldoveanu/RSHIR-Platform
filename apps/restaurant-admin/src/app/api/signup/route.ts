@@ -23,7 +23,7 @@ const signupSchema = z.object({
     .regex(SLUG_RE, 'Slug invalid'),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(10).max(72),
-  ref: z.string().trim().toLowerCase().min(3).max(30).optional(),
+  ref: z.string().trim().min(3).max(36).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
       const { data: partner, error: partnerLookupErr } = await db
         .from('partners')
         .select('id')
-        .eq('code', ref)
+        .eq('id', ref)
         .maybeSingle();
       if (partnerLookupErr) {
         console.warn('[signup] partner lookup error for ref=%s: %s', ref, partnerLookupErr.message);
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       } else {
         const { error: referralErr } = await db
           .from('partner_referrals')
-          .insert({ partner_id: partner.id, tenant_id: tenantId, source: 'self_serve' });
+          .insert({ partner_id: partner.id, tenant_id: tenantId });
         if (referralErr) {
           console.error('[signup] partner_referrals insert failed ref=%s: %s', ref, referralErr.message);
         } else {

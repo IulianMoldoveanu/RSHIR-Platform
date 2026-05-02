@@ -325,7 +325,7 @@ export default function MigrateFromGloriaFoodPage({
       {/* ── Lead forms ────────────────────────────────────────────────── */}
       <section id="forms" className="bg-zinc-50 px-4 py-16">
         <div className="mx-auto max-w-lg">
-          <LeadForms locale={locale} ref={refCode} />
+          <LeadForms locale={locale} refCode={refCode} />
         </div>
       </section>
 
