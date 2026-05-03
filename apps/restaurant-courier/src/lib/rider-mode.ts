@@ -16,13 +16,19 @@ const DEFAULT_CONTEXT: RiderModeContext = {
   tenantCount: 1,
 };
 
+// The platform-default fleet (created in 20260428_002) is backfilled
+// onto every courier_profile so courier_orders can FK fleet_id without
+// nulls. It is NOT a managed fleet in the Mode-C sense — riders linked
+// to it are still solo/multi-vendor depending on their tenant memberships.
+const DEFAULT_FLEET_SLUG = 'hir-default';
+
 // Resolves a rider's operating mode (A=solo / B=multi-vendor / C=fleet-managed)
 // from membership data — never via a manual toggle. See
 // decision_courier_three_modes.md for the locked rules.
 //
-//   if courier_profiles.fleet_id IS NOT NULL → C
-//   elif tenant_members count for user > 1   → B
-//   else                                      → A
+//   if courier_profiles.fleet_id points to a NON-default fleet → C
+//   elif tenant_members count for user > 1                      → B
+//   else                                                         → A
 //
 // Cheap, server-side, and tolerant of missing rows: a brand-new courier
 // with no profile + no memberships returns Mode A so the dashboard
@@ -52,15 +58,22 @@ export async function resolveRiderMode(userId: string): Promise<RiderModeContext
     if (fleetId) {
       const { data: fleet } = await admin
         .from('courier_fleets')
-        .select('name')
+        .select('slug, name')
         .eq('id', fleetId)
         .maybeSingle();
-      return {
-        mode: 'C',
-        fleetId,
-        fleetName: (fleet as { name: string | null } | null)?.name ?? null,
-        tenantCount,
-      };
+      const fleetRow = fleet as { slug: string | null; name: string | null } | null;
+      const isManagedFleet = fleetRow != null && fleetRow.slug !== DEFAULT_FLEET_SLUG;
+
+      if (isManagedFleet) {
+        return {
+          mode: 'C',
+          fleetId,
+          fleetName: fleetRow?.name ?? null,
+          tenantCount,
+        };
+      }
+      // fleet_id points to the platform-default fleet — fall through to
+      // tenant_count classification.
     }
 
     if (tenantCount > 1) {
