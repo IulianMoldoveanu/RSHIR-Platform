@@ -11,6 +11,7 @@ import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
+import { SosButton } from '@/components/sos-button';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
@@ -64,6 +65,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const isAvailable =
     order.assigned_courier_user_id === null &&
     (order.status === 'CREATED' || order.status === 'OFFERED');
+  const showSos = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
 
   const acceptBound = acceptOrderAction.bind(null, order.id);
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
@@ -190,6 +192,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         pickedUpAction={pickedUpBound}
         deliveredAction={deliveredBound}
       />
+
+      {showSos ? <SosButton /> : null}
     </div>
   );
 }
