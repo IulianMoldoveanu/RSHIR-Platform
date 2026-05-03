@@ -12,7 +12,8 @@ export type CourierAuditAction =
   | 'fleet.courier_invited'
   | 'fleet.api_key_created'
   | 'fleet.api_key_revoked'
-  | 'order.cash_collected';
+  | 'order.cash_collected'
+  | 'delivery.geofence_warning';
 
 export async function logAudit(args: {
   actorUserId: string;
