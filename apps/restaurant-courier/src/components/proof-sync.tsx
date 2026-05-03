@@ -64,7 +64,10 @@ export function ProofSync() {
     runSync();
 
     const onOnline = () => runSync();
-    const onProofEnqueued = () => refreshCount();
+    const onProofEnqueued = () => {
+      refreshCount();
+      runSync();
+    };
 
     window.addEventListener('online', onOnline);
     window.addEventListener('hir:proof-enqueued', onProofEnqueued);
