@@ -6,7 +6,15 @@ import { getBrowserSupabase } from '@/lib/supabase/browser';
 
 const REFRESH_THROTTLE_MS = 1500;
 
-export function OrdersRealtime() {
+type Props = {
+  courierUserId: string;
+};
+
+// Subscribes to changes on courier_orders rows assigned to this courier.
+// Unassigned-but-open orders still surface via the next router.refresh()
+// (push notification, manual reload, sibling-channel update) — narrowing
+// the filter here avoids waking every courier on unrelated INSERTs.
+export function OrdersRealtime({ courierUserId }: Props) {
   const router = useRouter();
   const lastRefreshRef = useRef(0);
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,16 +38,18 @@ export function OrdersRealtime() {
       }, REFRESH_THROTTLE_MS - elapsed);
     };
 
+    const filter = `assigned_courier_user_id=eq.${courierUserId}`;
+
     const channel = supabase
-      .channel('courier:orders:auto-refresh')
+      .channel(`courier:orders:auto-refresh:${courierUserId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'courier_orders' },
+        { event: 'INSERT', schema: 'public', table: 'courier_orders', filter },
         triggerRefresh,
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'courier_orders' },
+        { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter },
         triggerRefresh,
       )
       .subscribe();
@@ -51,7 +61,7 @@ export function OrdersRealtime() {
       }
       channel.unsubscribe();
     };
-  }, [router]);
+  }, [router, courierUserId]);
 
   return null;
 }

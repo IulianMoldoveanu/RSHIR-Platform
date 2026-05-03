@@ -52,7 +52,7 @@ export default async function OrdersPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <OrdersRealtime />
+      <OrdersRealtime courierUserId={user.id} />
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-zinc-100">Comenzi</h1>
         <form action={refreshOrdersAction}>
