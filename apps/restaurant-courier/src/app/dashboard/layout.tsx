@@ -5,6 +5,7 @@ import { Package, Clock, Wallet, Settings } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { logoutAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
+import { PushBootstrap } from '@/components/push-bootstrap';
 
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
@@ -45,6 +46,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </button>
         </form>
       </header>
+
+      <PushBootstrap />
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
