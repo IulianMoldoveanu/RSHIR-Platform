@@ -1,9 +1,66 @@
 /**
- * Service worker for Web Push notifications.
- * Handles incoming push events and notification clicks.
+ * Service worker for the courier PWA. Handles:
+ *   - Web Push notifications (incoming order pings, click → focus tab)
+ *   - Network-first cache fallback for /dashboard/orders/* navigation
+ *     requests so a rider with an active order can still see it after
+ *     a tab refresh while offline.
  *
  * Registered from src/lib/push/register-sw.ts.
  */
+
+const PAGE_CACHE = 'hir-courier-pages-v1';
+const CACHEABLE_PATH_PREFIX = '/dashboard/orders';
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      // Drop any older versioned caches.
+      const names = await caches.keys();
+      await Promise.all(
+        names.filter((name) => name.startsWith('hir-courier-pages-') && name !== PAGE_CACHE).map((n) => caches.delete(n)),
+      );
+      await self.clients.claim();
+    })(),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  // Only intercept navigations to active-order pages — full HTML
+  // documents the rider may want to re-open after a refresh while
+  // offline. We do NOT cache the orders list itself (data changes
+  // too fast) or any data fetches.
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (request.mode !== 'navigate') return;
+  if (!url.pathname.startsWith(CACHEABLE_PATH_PREFIX)) return;
+  if (url.pathname === CACHEABLE_PATH_PREFIX || url.pathname === `${CACHEABLE_PATH_PREFIX}/`) return;
+
+  event.respondWith(
+    (async () => {
+      try {
+        const fresh = await fetch(request);
+        if (fresh.ok) {
+          const cache = await caches.open(PAGE_CACHE);
+          // Clone before consumers read the body.
+          cache.put(request, fresh.clone()).catch(() => {});
+        }
+        return fresh;
+      } catch (err) {
+        const cache = await caches.open(PAGE_CACHE);
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        throw err;
+      }
+    })(),
+  );
+});
 
 self.addEventListener('push', (event) => {
   if (!event.data) return;
