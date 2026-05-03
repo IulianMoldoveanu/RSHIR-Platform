@@ -18,9 +18,10 @@ const ZoneMap = dynamic(() => import('./zone-map').then((m) => m.ZoneMap), {
 type Props = {
   initialZones: Zone[];
   initialTiers: Tier[];
+  tenantCenter: { lat: number; lng: number } | null;
 };
 
-export function ZonesClient({ initialZones, initialTiers }: Props) {
+export function ZonesClient({ initialZones, initialTiers, tenantCenter }: Props) {
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftPolygon, setDraftPolygon] = useState<Polygon | null>(null);
@@ -221,6 +222,7 @@ export function ZonesClient({ initialZones, initialTiers }: Props) {
             zones={zones}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            tenantCenter={tenantCenter}
             onPolygonDrawn={(polygon) => {
               setDraftPolygon(polygon);
               setSelectedId(null);
