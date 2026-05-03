@@ -68,7 +68,8 @@ export default async function ZonesPage() {
       .select('settings')
       .eq('id', tenant.id)
       .maybeSingle();
-    const settings = (tenantRes.data?.settings ?? {}) as TenantLocationSettings;
+    const row = tenantRes.data as { settings?: unknown } | null;
+    const settings = (row?.settings ?? {}) as TenantLocationSettings;
     if (
       typeof settings.location?.lat === 'number' &&
       typeof settings.location?.lng === 'number'
