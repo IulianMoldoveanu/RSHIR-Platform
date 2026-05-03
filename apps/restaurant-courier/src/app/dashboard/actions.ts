@@ -125,6 +125,33 @@ export async function refreshOrdersAction() {
   revalidatePath('/dashboard/orders');
 }
 
+/**
+ * Persists the courier's last-known geolocation onto their currently-ONLINE
+ * shift row (`courier_shifts.last_lat / last_lng / last_seen_at`). No-op if
+ * the courier has no ONLINE shift — we never write a fix without an active
+ * shift, both for privacy and for the obvious "they're not working" reason.
+ *
+ * Best-effort: silently ignores DB errors. The client-side watcher continues
+ * to stream fixes, so a single-failed write is recovered on the next interval.
+ */
+export async function updateCourierLocationAction(lat: number, lng: number): Promise<void> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+
+  const userId = await requireUserId();
+  const admin = createAdminClient();
+
+  await admin
+    .from('courier_shifts')
+    .update({
+      last_lat: lat,
+      last_lng: lng,
+      last_seen_at: new Date().toISOString(),
+    })
+    .eq('courier_user_id', userId)
+    .eq('status', 'ONLINE');
+}
+
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
