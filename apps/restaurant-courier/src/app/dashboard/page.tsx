@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
+import { RiderMap } from '@/components/rider-map';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,12 +16,9 @@ type ShiftRow = { id: string };
 
 type ActiveOrderRow = { id: string };
 
-/**
- * Quiet UI rule: one clear primary state at a time.
- *   Shift OFFLINE → big "Pornește tură" swipe CTA.
- *   Shift ONLINE + active order → redirect to that order's detail page.
- *   Shift ONLINE + no active order → "În așteptare comandă" + pulsing icon.
- */
+// Shift OFFLINE → swipe-to-start CTA.
+// Shift ONLINE + active order → redirect to /dashboard/orders/[id].
+// Shift ONLINE + no active order → full-screen RiderMap.
 export default async function DashboardHome() {
   const supabase = createServerClient();
   const {
@@ -74,7 +72,7 @@ export default async function DashboardHome() {
       </div>
 
       {shift ? (
-        <WaitingForOrder />
+        <RiderMap />
       ) : (
         <div className="flex flex-col gap-3 pt-4">
           <SwipeButton label="→ Glisează pentru a porni tura" onConfirm={startShiftAction} />
@@ -87,17 +85,3 @@ export default async function DashboardHome() {
   );
 }
 
-function WaitingForOrder() {
-  return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-12 text-center">
-      <span className="relative flex h-14 w-14 items-center justify-center">
-        <span className="absolute inset-0 animate-ping rounded-full bg-violet-500/30" aria-hidden />
-        <span className="relative h-3 w-3 rounded-full bg-violet-500" aria-hidden />
-      </span>
-      <div>
-        <p className="text-sm font-medium text-zinc-100">În așteptare comandă</p>
-        <p className="mt-1 text-xs text-zinc-500">Te anunțăm când apare o livrare.</p>
-      </div>
-    </div>
-  );
-}
