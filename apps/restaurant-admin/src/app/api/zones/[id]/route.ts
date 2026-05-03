@@ -51,7 +51,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .select('id, name, polygon, is_active, sort_order, created_at')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[zones] update failed', { tenantId: auth.tenantId, zoneId: params.id, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({ zone: data });
 }
@@ -71,6 +74,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     .eq('id', params.id)
     .eq('tenant_id', auth.tenantId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[zones] delete failed', { tenantId: auth.tenantId, zoneId: params.id, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }
