@@ -27,7 +27,10 @@ export async function GET() {
     .eq('tenant_id', auth.tenantId)
     .order('min_km', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[tiers] list failed', { tenantId: auth.tenantId, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   return NextResponse.json({ tiers: data ?? [] });
 }
 
@@ -51,7 +54,10 @@ export async function POST(req: NextRequest) {
     .from('delivery_pricing_tiers')
     .select('min_km, max_km')
     .eq('tenant_id', auth.tenantId);
-  if (listErr) return NextResponse.json({ error: listErr.message }, { status: 400 });
+  if (listErr) {
+    console.error('[tiers] overlap-check list failed', { tenantId: auth.tenantId, code: listErr.code, message: listErr.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
 
   const overlaps = (existing ?? []).some(
     (t: { min_km: number; max_km: number }) =>
@@ -75,6 +81,9 @@ export async function POST(req: NextRequest) {
     .select('id, min_km, max_km, price_ron, sort_order')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[tiers] insert failed', { tenantId: auth.tenantId, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   return NextResponse.json({ tier: data }, { status: 201 });
 }

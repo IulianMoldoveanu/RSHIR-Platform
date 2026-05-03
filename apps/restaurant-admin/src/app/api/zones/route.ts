@@ -30,7 +30,10 @@ export async function GET() {
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[zones] list failed', { tenantId: auth.tenantId, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   return NextResponse.json({ zones: data ?? [] });
 }
 
@@ -62,6 +65,9 @@ export async function POST(req: NextRequest) {
     .select('id, name, polygon, is_active, sort_order, created_at')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error) {
+    console.error('[zones] insert failed', { tenantId: auth.tenantId, code: error.code, message: error.message });
+    return NextResponse.json({ error: 'db_error' }, { status: 400 });
+  }
   return NextResponse.json({ zone: data }, { status: 201 });
 }
