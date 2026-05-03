@@ -8,6 +8,7 @@ import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 import { MobileSidebar } from './mobile-sidebar';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
+import { FeedbackFab } from '@/components/feedback-fab';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   let active: Awaited<ReturnType<typeof getActiveTenant>>;
@@ -120,6 +121,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             label: 'Parteneri',
             icon: 'users' as const,
           },
+          {
+            href: '/dashboard/feedback',
+            label: 'Feedback vendori',
+            icon: 'megaphone' as const,
+          },
         ]
       : []),
   ];
@@ -161,6 +167,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
       <PwaInstallPrompt />
+      <FeedbackFab tenantId={tenant.id} />
     </div>
   );
 }
