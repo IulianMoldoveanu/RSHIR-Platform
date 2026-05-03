@@ -178,12 +178,7 @@ async function dispatchToCourier(orderId: string, full: FullOrder): Promise<void
 
   try {
     const client = createHirDeliveryClient({ baseUrl, apiKey });
-    const result = await client.createOrder(payload);
-    console.log('[courier-dispatch] order accepted', {
-      orderId,
-      deliveryOrderId: result.id,
-      status: result.status,
-    });
+    await client.createOrder(payload);
   } catch (err) {
     // Best-effort: a failed handoff doesn't roll back the customer's payment.
     // The order stays CONFIRMED; the restaurant sees it in admin and can call
