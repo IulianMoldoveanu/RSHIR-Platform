@@ -101,7 +101,7 @@ export function CartPill({
             exit={reduceMotion ? undefined : { y: 80, opacity: 0 }}
             transition={{ duration: motionDurations.sheet, ease: easeOutSoft }}
             whileTap={reduceMotion ? undefined : tapPress}
-            className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 text-white shadow-xl"
+            className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand,#7c3aed)] px-5 text-white shadow-xl"
           >
             <span className="flex items-center gap-2.5">
               <motion.span
@@ -312,7 +312,7 @@ export function CartPill({
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100">
                           <motion.div
                             className={`h-full rounded-full ${
-                              reachedFree ? 'bg-emerald-500' : 'bg-[var(--hir-brand)]'
+                              reachedFree ? 'bg-emerald-500' : 'bg-[var(--hir-brand,#7c3aed)]'
                             }`}
                             initial={false}
                             animate={{ width: `${pct}%` }}
@@ -402,7 +402,7 @@ export function CartPill({
                           // route the user back here, which is recoverable.
                         }
                       }}
-                      className="group flex w-full items-center justify-between rounded-full bg-[var(--hir-brand)] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] hover:shadow-md active:scale-[0.99] motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
+                      className="group flex w-full items-center justify-between rounded-full bg-[var(--hir-brand,#7c3aed)] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.01] hover:shadow-md active:scale-[0.99] motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
                     >
                       <span>{t(locale, 'cart.continue_checkout')}</span>
                       <span className="ml-2 inline-flex items-center gap-1.5 tabular-nums">

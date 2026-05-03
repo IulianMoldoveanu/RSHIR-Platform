@@ -42,7 +42,7 @@ export function EmptyCartCta({ locale }: { locale: Locale }) {
           firstCat.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }}
-      className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-center gap-2 rounded-full bg-[var(--hir-brand)] px-5 text-sm font-semibold text-white shadow-xl md:hidden"
+      className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-center gap-2 rounded-full bg-[var(--hir-brand,#7c3aed)] px-5 text-sm font-semibold text-white shadow-xl md:hidden"
     >
       <UtensilsCrossed className="h-4 w-4" aria-hidden />
       <span>{t(locale, 'storefront_cta.view_menu')}</span>

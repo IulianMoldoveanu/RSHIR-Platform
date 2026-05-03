@@ -69,7 +69,7 @@ export function FreeDeliveryProgress({
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
           <div
             className={`h-full rounded-full transition-[width] duration-500 ${
-              reached ? 'bg-emerald-500' : 'bg-[var(--hir-brand)]'
+              reached ? 'bg-emerald-500' : 'bg-[var(--hir-brand,#7c3aed)]'
             }`}
             style={{ width: `${pct}%` }}
           />
