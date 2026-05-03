@@ -11,6 +11,12 @@ import { NextResponse, type NextRequest } from 'next/server';
  * not here, because the middleware runs on the Edge runtime and we want to keep
  * the Supabase server client on the Node runtime where cookies() works fully.
  */
+// Same shape as Supabase tenant slug column: lowercase alphanum + hyphens,
+// 2–64 chars, must start and end with alphanum. Validated before persisting
+// to selected_tenant so a typo like `?tenant=fooo` does not poison the cookie
+// for 7 days and trap the visitor in repeated 404s.
+const TENANT_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
 export function middleware(request: NextRequest) {
   const rawHost = request.headers.get('host') ?? '';
   const host = rawHost.split(':')[0];
@@ -27,23 +33,31 @@ export function middleware(request: NextRequest) {
   // production domain can't switch tenants by URL.
   // Cookie fallback persists the choice across in-app navigation that
   // drops the query string (e.g. /checkout, /rezervari links).
-  const tenantParam = request.nextUrl.searchParams.get('tenant');
-  const tenantCookie = request.cookies.get('selected_tenant')?.value;
-  const effectiveTenant =
-    tenantParam?.trim().toLowerCase() || tenantCookie?.trim().toLowerCase() || null;
+  const tenantParam = request.nextUrl.searchParams.get('tenant')?.trim().toLowerCase() || null;
+  const tenantCookie = request.cookies.get('selected_tenant')?.value?.trim().toLowerCase() || null;
+
+  const validParam = tenantParam && TENANT_SLUG_RE.test(tenantParam) ? tenantParam : null;
+  const validCookie = tenantCookie && TENANT_SLUG_RE.test(tenantCookie) ? tenantCookie : null;
+  const effectiveTenant = validParam || validCookie;
   if (effectiveTenant) {
     requestHeaders.set('x-hir-tenant-override', effectiveTenant);
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
-  if (tenantParam) {
-    response.cookies.set('selected_tenant', tenantParam.trim().toLowerCase(), {
+  if (validParam) {
+    response.cookies.set('selected_tenant', validParam, {
       path: '/',
       sameSite: 'lax',
       httpOnly: false,
       maxAge: 60 * 60 * 24 * 7,
     });
+  } else if (tenantParam && !validParam) {
+    // Explicit ?tenant= with garbage clears any stale cookie so the user
+    // does not stay routed to a dead tenant on subsequent navigation.
+    response.cookies.delete('selected_tenant');
+  } else if (tenantCookie && !validCookie) {
+    response.cookies.delete('selected_tenant');
   }
 
   return response;
