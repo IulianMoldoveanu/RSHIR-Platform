@@ -35,6 +35,10 @@ export function OperationsClient({
   const [etaMin, setEtaMin] = useState(String(initial.delivery_eta_min_minutes));
   const [etaMax, setEtaMax] = useState(String(initial.delivery_eta_max_minutes));
   const [hours, setHours] = useState(initial.opening_hours);
+  const [whatsappPhone, setWhatsappPhone] = useState(initial.whatsapp_phone ?? '');
+  const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '');
+  const [lat, setLat] = useState(initial.location_lat !== null ? String(initial.location_lat) : '');
+  const [lng, setLng] = useState(initial.location_lng !== null ? String(initial.location_lng) : '');
   const [feedback, setFeedback] = useState<OperationsActionResult | null>(null);
 
   function updateWindow(day: keyof OperationsSettings['opening_hours'], idx: number, field: 'open' | 'close', value: string) {
@@ -82,6 +86,21 @@ export function OperationsClient({
       setFeedback({ ok: false, error: 'invalid_input', detail: 'Estimarea maximă trebuie să fie ≥ minimă.' });
       return;
     }
+    // Lat/lng: blank = null (clears the pin); both must be set together.
+    let latNum: number | null = null;
+    let lngNum: number | null = null;
+    if (lat.trim() || lng.trim()) {
+      latNum = Number(lat);
+      lngNum = Number(lng);
+      if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
+        setFeedback({ ok: false, error: 'invalid_input', detail: 'Latitudinea trebuie să fie între -90 și 90.' });
+        return;
+      }
+      if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
+        setFeedback({ ok: false, error: 'invalid_input', detail: 'Longitudinea trebuie să fie între -180 și 180.' });
+        return;
+      }
+    }
     start(async () => {
       const result = await saveOperationsAction(
         {
@@ -96,6 +115,10 @@ export function OperationsClient({
           delivery_eta_max_minutes: etaMaxNum,
           cod_enabled: codEnabled,
           opening_hours: hours,
+          whatsapp_phone: whatsappPhone.trim() || null,
+          contact_phone: contactPhone.trim() || null,
+          location_lat: latNum,
+          location_lng: lngNum,
         },
         tenantId,
       );
@@ -189,6 +212,90 @@ export function OperationsClient({
           <p className="mt-1 text-xs text-zinc-500">
             Adresa pe care o vede clientul când alege ridicare personală.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">Contact &amp; locație</h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          Telefonul de WhatsApp apare ca buton verde pe storefront pentru
+          comenzi rapide. Coordonatele GPS centrează harta zonelor de livrare
+          și sunt punctul de pickup pentru curier.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-zinc-600">
+              WhatsApp (cu prefix)
+            </label>
+            <input
+              type="tel"
+              disabled={!canEdit}
+              maxLength={30}
+              value={whatsappPhone}
+              onChange={(e) => setWhatsappPhone(e.target.value)}
+              placeholder="+40732128199"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Format internațional. Lasă gol pentru a ascunde butonul.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-zinc-600">
+              Telefon contact (afișat pe pagină)
+            </label>
+            <input
+              type="tel"
+              disabled={!canEdit}
+              maxLength={30}
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              placeholder="0732 128 199"
+              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Vizibil în footer storefront pentru clienții care preferă apel.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-zinc-100 pt-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+            Coordonate GPS (pickup)
+          </h3>
+          <p className="mt-1 text-xs text-zinc-600">
+            Punct de pickup pentru livrări. Caută adresa pe Google Maps,
+            click dreapta pe locație → primul rând copiază lat, lng. Lasă
+            ambele goale pentru a folosi un default la nivel de oraș.
+          </p>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">Latitudine</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                disabled={!canEdit}
+                value={lat}
+                onChange={(e) => setLat(e.target.value)}
+                placeholder="45.6303406"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-600">Longitudine</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                disabled={!canEdit}
+                value={lng}
+                onChange={(e) => setLng(e.target.value)}
+                placeholder="25.6234782"
+                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+              />
+            </div>
+          </div>
         </div>
       </section>
 

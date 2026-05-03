@@ -24,6 +24,14 @@ export type OperationsSettings = {
   // payment option that skips Stripe entirely.
   cod_enabled: boolean;
   opening_hours: Record<DayKey, { open: string; close: string }[]>;
+  // Customer-facing contact + storefront map pin. WhatsApp drives the
+  // header "Order on WhatsApp" CTA (wa.me link). Location lat/lng centers
+  // the zones map and is the courier pickup origin. Empty string / null
+  // hides the corresponding storefront affordance.
+  whatsapp_phone: string | null;
+  contact_phone: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
 };
 
 export type OperationsActionResult =
@@ -127,6 +135,34 @@ export async function saveOperationsAction(
   // If both are set, max must be ≥ min — clamp to keep persisted state sane.
   const safeMax = etaMin > 0 && etaMax > 0 && etaMax < etaMin ? etaMin : etaMax;
 
+  // Phones: trim + bound length. Loose digits/punct check, the storefront
+  // strips non-digits before forming wa.me URLs anyway.
+  const phoneRe = /^[+\d][\d\s()-]{5,24}$/;
+  const cleanWhatsapp =
+    typeof input.whatsapp_phone === 'string' ? input.whatsapp_phone.trim().slice(0, 30) : '';
+  if (cleanWhatsapp && !phoneRe.test(cleanWhatsapp)) {
+    return { ok: false, error: 'invalid_input', detail: 'whatsapp_phone format' };
+  }
+  const cleanContact =
+    typeof input.contact_phone === 'string' ? input.contact_phone.trim().slice(0, 30) : '';
+  if (cleanContact && !phoneRe.test(cleanContact)) {
+    return { ok: false, error: 'invalid_input', detail: 'contact_phone format' };
+  }
+
+  // Location: store as numbers under settings.location.{lat,lng} so it
+  // matches the shape the storefront and zones map already read. null on
+  // either side means "not configured" — both storefront and zones map
+  // fall back to a city-level default.
+  const lat = input.location_lat;
+  const lng = input.location_lng;
+  const safeLat =
+    typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90 ? lat : null;
+  const safeLng =
+    typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180 ? lng : null;
+  if ((safeLat === null) !== (safeLng === null)) {
+    return { ok: false, error: 'invalid_input', detail: 'location_partial' };
+  }
+
   const payload = {
     is_accepting_orders: input.is_accepting_orders,
     pause_reason: cleanReason || null,
@@ -139,6 +175,9 @@ export async function saveOperationsAction(
     delivery_eta_max_minutes: Math.round(safeMax),
     cod_enabled: input.cod_enabled === true,
     opening_hours: sanitizeHours(input.opening_hours),
+    whatsapp_phone: cleanWhatsapp || null,
+    contact_phone: cleanContact || null,
+    location: safeLat !== null && safeLng !== null ? { lat: safeLat, lng: safeLng } : null,
   };
 
   const admin = createAdminClient();
