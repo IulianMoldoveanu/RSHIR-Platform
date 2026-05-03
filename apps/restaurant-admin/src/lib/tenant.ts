@@ -60,6 +60,30 @@ export async function assertTenantOwner(
   }
 }
 
+/**
+ * True when the user can mutate delivery zones / pricing tiers for this
+ * tenant. OWNER bypasses the flag; non-OWNER members need an explicit
+ * `can_manage_zones = true` row in tenant_members. Use this from API
+ * route guards and from the zones page UI.
+ */
+export async function canManageZones(
+  userId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('tenant_members')
+    .select('role, can_manage_zones')
+    .eq('user_id', userId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error) throw new Error(`Tenant capability lookup failed: ${error.message}`);
+  if (!data) return false;
+  const row = data as { role: string; can_manage_zones?: boolean };
+  if (row.role === 'OWNER') return true;
+  return row.can_manage_zones === true;
+}
+
 export async function assertTenantMember(userId: string, tenantId: string): Promise<void> {
   const admin = createAdminClient();
   const { data, error } = await admin

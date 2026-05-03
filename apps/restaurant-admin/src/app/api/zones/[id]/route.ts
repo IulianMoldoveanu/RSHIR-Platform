@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import type { Json } from '@hir/supabase-types';
-import { requireTenantAuth } from '@/lib/api-tenant';
+import { requireZoneManager } from '@/lib/api-tenant';
 import { assertSameOrigin } from '@/lib/origin-check';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
   }
 
-  const auth = await requireTenantAuth();
+  const auth = await requireZoneManager();
   if (!auth.ok) return auth.response;
 
   const body = await req.json().catch(() => null);
@@ -65,7 +65,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
   }
 
-  const auth = await requireTenantAuth();
+  const auth = await requireZoneManager();
   if (!auth.ok) return auth.response;
 
   const { error } = await auth.supabase

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from './supabase/server';
-import { getActiveTenant } from './tenant';
+import { canManageZones, getActiveTenant } from './tenant';
 
 export type ApiAuthSuccess = {
   ok: true;
@@ -32,4 +32,36 @@ export async function requireTenantAuth(): Promise<ApiAuthSuccess | ApiAuthFailu
       ),
     };
   }
+}
+
+/**
+ * Same as requireTenantAuth but additionally rejects callers who do not
+ * have `can_manage_zones` (OWNER bypasses). Use on every zone or pricing
+ * tier mutation route handler.
+ */
+export async function requireZoneManager(): Promise<ApiAuthSuccess | ApiAuthFailure> {
+  const auth = await requireTenantAuth();
+  if (!auth.ok) return auth;
+  let allowed = false;
+  try {
+    allowed = await canManageZones(auth.userId, auth.tenantId);
+  } catch (e) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: e instanceof Error ? e.message : 'capability_check_failed' },
+        { status: 500 },
+      ),
+    };
+  }
+  if (!allowed) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: 'forbidden_zone_manager_only' },
+        { status: 403 },
+      ),
+    };
+  }
+  return auth;
 }
