@@ -79,7 +79,7 @@ export function TenantHeader({
         style={{
           background: coverUrl
             ? '#e4e4e7'
-            : 'linear-gradient(135deg, color-mix(in srgb, var(--hir-brand) 22%, transparent) 0%, color-mix(in srgb, var(--hir-brand) 8%, transparent) 50%, color-mix(in srgb, var(--hir-brand) 0%, transparent) 100%)',
+            : 'linear-gradient(135deg, color-mix(in srgb, var(--hir-brand,#7c3aed) 22%, transparent) 0%, color-mix(in srgb, var(--hir-brand,#7c3aed) 8%, transparent) 50%, color-mix(in srgb, var(--hir-brand,#7c3aed) 0%, transparent) 100%)',
         }}
       >
         {coverUrl ? (
@@ -102,7 +102,7 @@ export function TenantHeader({
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(to bottom, color-mix(in srgb, var(--hir-brand) 8%, transparent) 0%, transparent 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%)',
+                'linear-gradient(to bottom, color-mix(in srgb, var(--hir-brand,#7c3aed) 8%, transparent) 0%, transparent 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%)',
             }}
           />
         )}
@@ -168,7 +168,7 @@ export function TenantHeader({
             <Link
               href="/rezervari"
               aria-label={t(locale, 'header.reservations_link')}
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand)] bg-white px-3 text-sm font-semibold text-[var(--hir-brand)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand)_8%,white)] sm:px-4"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand,#7c3aed)] bg-white px-3 text-sm font-semibold text-[var(--hir-brand,#7c3aed)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_8%,white)] sm:px-4"
             >
               <CalendarCheck className="h-4 w-4" />
               <span className="hidden sm:inline">{t(locale, 'header.reservations_link')}</span>
