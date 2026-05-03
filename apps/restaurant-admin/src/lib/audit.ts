@@ -46,7 +46,9 @@ export type AuditAction =
   | 'partner.referral_added'
   | 'partner.referral_attributed'
   | 'partner.commission_marked_paid'
-  | 'partner.profile_updated';
+  | 'partner.profile_updated'
+  | 'team.zone_capability_granted'
+  | 'team.zone_capability_revoked';
 
 export async function logAudit(args: {
   tenantId: string;

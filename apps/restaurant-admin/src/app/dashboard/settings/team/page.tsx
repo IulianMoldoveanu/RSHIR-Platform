@@ -16,10 +16,12 @@ export default async function TeamSettingsPage() {
   const role = await getTenantRole(user.id, tenant.id);
   const admin = createAdminClient();
 
-  const { data: rows, error } = await admin
-    .from('tenant_members')
-    // can_manage_zones may not be in generated types yet; select * keeps
-    // the column visible and the row cast below normalizes the shape.
+  // can_manage_zones is added in migration 20260603_001 and is not yet in
+  // the generated @hir/supabase-types union; the codegen runs after the
+  // migration applies. Cast through unknown so tsc treats the column as
+  // an opaque string the runtime simply forwards.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: rows, error } = await (admin.from('tenant_members') as any)
     .select('user_id, role, can_manage_zones')
     .eq('tenant_id', tenant.id);
 
@@ -29,12 +31,13 @@ export default async function TeamSettingsPage() {
     loadError = 'Nu am putut încărca lista membrilor.';
     console.error('[team] members list failed', {
       tenantId: tenant.id,
-      message: error.message,
+      message: (error as { message?: string }).message,
     });
   } else {
     type RawRow = { user_id: string; role: string; can_manage_zones?: boolean };
-    const userIds = (rows as RawRow[] | null)?.map((r) => r.user_id) ?? [];
-    let emailById = new Map<string, string | null>();
+    const rawRows = (rows ?? []) as unknown as RawRow[];
+    const userIds = rawRows.map((r) => r.user_id);
+    const emailById = new Map<string, string | null>();
     if (userIds.length > 0) {
       // auth.admin.listUsers returns the full user list; for small teams
       // (typical: 1–10 members per tenant) this is fine. Pagination kicks
@@ -48,7 +51,7 @@ export default async function TeamSettingsPage() {
         console.error('[team] email lookup failed', e);
       }
     }
-    members = ((rows as RawRow[] | null) ?? []).map((r) => ({
+    members = rawRows.map((r) => ({
       user_id: r.user_id,
       email: emailById.get(r.user_id) ?? null,
       role: r.role === 'OWNER' ? 'OWNER' : 'STAFF',

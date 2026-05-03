@@ -71,15 +71,21 @@ export async function canManageZones(
   tenantId: string,
 ): Promise<boolean> {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('tenant_members')
+  // can_manage_zones lands via migration 20260603_001 and is not yet in
+  // the generated @hir/supabase-types union; cast the query through any
+  // so tsc accepts the select. Runtime is a normal column lookup.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.from('tenant_members') as any)
     .select('role, can_manage_zones')
     .eq('user_id', userId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (error) throw new Error(`Tenant capability lookup failed: ${error.message}`);
+  if (error) {
+    const msg = (error as { message?: string }).message ?? 'unknown';
+    throw new Error(`Tenant capability lookup failed: ${msg}`);
+  }
   if (!data) return false;
-  const row = data as { role: string; can_manage_zones?: boolean };
+  const row = data as unknown as { role: string; can_manage_zones?: boolean };
   if (row.role === 'OWNER') return true;
   return row.can_manage_zones === true;
 }
