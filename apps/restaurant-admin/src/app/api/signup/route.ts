@@ -111,6 +111,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Seed a permissive default delivery pricing tier so the storefront has
+  // valid pricing the moment the OWNER draws their first zone. Without
+  // this row, /dashboard/zones requires the OWNER to add at least one
+  // tier before any order can be priced — every tenant onboarded so far
+  // had to do this manually. Best-effort: a failed insert does not roll
+  // back signup; the OWNER can always add tiers later from the zones UI.
+  const { error: tierErr } = await admin
+    .from('delivery_pricing_tiers')
+    .insert({
+      tenant_id: tenantId,
+      min_km: 0,
+      max_km: 15,
+      price_ron: 15,
+      sort_order: 0,
+    });
+  if (tierErr) {
+    console.warn('[signup] default tier insert failed (non-fatal)', tierErr.message);
+  }
+
   // Referral attribution — must never fail the signup.
   // partners + partner_referrals are not yet in the generated Supabase types
   // (migration 20260507_003_reseller_program.sql ships with this commit; types

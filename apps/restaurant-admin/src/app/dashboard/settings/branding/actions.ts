@@ -70,12 +70,35 @@ async function readBranding(tenantId: string): Promise<{
     .maybeSingle();
   const rawSettings = (data?.settings as Record<string, unknown> | null) ?? {};
   const branding = (rawSettings.branding as Record<string, unknown> | undefined) ?? {};
+  // Fallback to flat top-level fields when settings.branding.* is not set.
+  // External seed scripts (sales-led onboarding via service-role) historically
+  // wrote settings.{logo_url,cover_url,brand.primary_color} flat, while the
+  // admin write path uses nested settings.branding.*. Without this fallback
+  // every legacy/externally-seeded tenant shows "Niciun logo" in the
+  // Identitate vizuală page even though the storefront renders correctly
+  // (web/lib/tenant.ts already does the same fallback). Keep the fallback
+  // read-only — the next OWNER upload still writes to the canonical nested
+  // shape via uploadBrandingAsset.
+  const flatBrand = (rawSettings.brand as Record<string, unknown> | undefined) ?? {};
+  const flatPrimary = typeof flatBrand.primary_color === 'string' ? flatBrand.primary_color : null;
   const state: BrandingState = {
-    logo_url: typeof branding.logo_url === 'string' ? branding.logo_url : null,
-    cover_url: typeof branding.cover_url === 'string' ? branding.cover_url : null,
+    logo_url:
+      typeof branding.logo_url === 'string'
+        ? branding.logo_url
+        : typeof rawSettings.logo_url === 'string'
+        ? (rawSettings.logo_url as string)
+        : null,
+    cover_url:
+      typeof branding.cover_url === 'string'
+        ? branding.cover_url
+        : typeof rawSettings.cover_url === 'string'
+        ? (rawSettings.cover_url as string)
+        : null,
     brand_color:
       typeof branding.brand_color === 'string' && HEX_RE.test(branding.brand_color)
         ? branding.brand_color
+        : flatPrimary && HEX_RE.test(flatPrimary)
+        ? flatPrimary
         : DEFAULT_BRAND_COLOR,
   };
   return { state, rawSettings };

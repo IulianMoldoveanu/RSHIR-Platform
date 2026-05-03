@@ -25,6 +25,10 @@ const DEFAULTS: OperationsSettings = {
     sat: [{ open: '10:00', close: '23:00' }],
     sun: [{ open: '12:00', close: '22:00' }],
   },
+  whatsapp_phone: null,
+  contact_phone: null,
+  location_lat: null,
+  location_lng: null,
 };
 
 export default async function OperationsSettingsPage() {
@@ -80,6 +84,18 @@ export default async function OperationsSettingsPage() {
       settings.opening_hours && typeof settings.opening_hours === 'object'
         ? { ...DEFAULTS.opening_hours, ...(settings.opening_hours as OperationsSettings['opening_hours']) }
         : DEFAULTS.opening_hours,
+    whatsapp_phone:
+      typeof settings.whatsapp_phone === 'string' ? settings.whatsapp_phone : null,
+    contact_phone:
+      typeof settings.contact_phone === 'string' ? settings.contact_phone : null,
+    location_lat: (() => {
+      const loc = settings.location as { lat?: unknown } | null | undefined;
+      return loc && typeof loc.lat === 'number' && Number.isFinite(loc.lat) ? loc.lat : null;
+    })(),
+    location_lng: (() => {
+      const loc = settings.location as { lng?: unknown } | null | undefined;
+      return loc && typeof loc.lng === 'number' && Number.isFinite(loc.lng) ? loc.lng : null;
+    })(),
   };
 
   return (
