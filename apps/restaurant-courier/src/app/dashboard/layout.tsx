@@ -8,6 +8,7 @@ import { logoutAction, updateCourierLocationAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
 import { LocationTracker } from '@/components/location-tracker';
+import { ProofSync } from '@/components/proof-sync';
 
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
@@ -62,6 +63,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
       <PushBootstrap />
       <LocationTracker enabled={isOnline} onFix={updateCourierLocationAction} />
+      <ProofSync />
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 

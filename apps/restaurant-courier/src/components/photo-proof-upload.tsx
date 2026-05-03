@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
-import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
 
 type SlotState = { file: File | null; preview: string | null; url: string | null };
 
@@ -40,6 +40,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   const [rxSlot, setRxSlot] = useState<SlotState>(emptySlot());
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedFolders, setQueuedFolders] = useState<Set<ProofFolder>>(new Set());
 
   function pickFile(ref: React.RefObject<HTMLInputElement>) {
     ref.current?.click();
@@ -66,17 +67,21 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
     if (ref.current) ref.current.value = '';
   }
 
-  async function uploadSlot(slot: SlotState, folder: string): Promise<string | undefined> {
+  async function uploadSlot(slot: SlotState, folder: ProofFolder): Promise<string | undefined> {
     if (!slot.file) return undefined;
-    const supabase = getBrowserSupabase();
-    const ext = slot.file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const path = `${orderId}/${folder}/${Date.now()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage
-      .from('courier-proofs')
-      .upload(path, slot.file, { cacheControl: '3600', upsert: false, contentType: slot.file.type || 'image/jpeg' });
-    if (uploadErr) throw uploadErr;
-    const { data } = supabase.storage.from('courier-proofs').getPublicUrl(path);
-    return data.publicUrl;
+    const result = await uploadOrEnqueue(slot.file, orderId, folder);
+    if (result.ok) return result.url;
+    if (result.queued) {
+      setQueuedFolders((prev) => {
+        const next = new Set(prev);
+        next.add(folder);
+        return next;
+      });
+      // Notify ProofSync to re-poll the queue immediately.
+      window.dispatchEvent(new Event('hir:proof-enqueued'));
+      return undefined;
+    }
+    throw result.error;
   }
 
   async function handleUploadAll() {
@@ -126,6 +131,11 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         )}
         <input ref={deliveryRef} type="file" accept="image/*" capture="environment" onChange={(e) => { handleChange(e, setDelivery); }} className="hidden" />
         {error ? <p className="mt-2 text-[11px] text-rose-400">{error}</p> : null}
+        {queuedFolders.has('delivery') ? (
+          <p className="mt-2 text-[11px] text-amber-300">
+            Fotografia este salvată local — se va sincroniza automat când ești online.
+          </p>
+        ) : null}
         {delivery.file ? (
           <button
             type="button"
