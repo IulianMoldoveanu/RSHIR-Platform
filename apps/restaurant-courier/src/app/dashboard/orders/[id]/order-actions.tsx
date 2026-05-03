@@ -5,6 +5,7 @@ import { Banknote } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
+import { useRiderMode } from '@/components/rider-mode-provider';
 
 /**
  * Client-side action panel for the order detail page. Renders the right
@@ -50,6 +51,12 @@ export function OrderActions({
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
   const [cashConfirmed, setCashConfirmed] = useState(false);
 
+  const { mode } = useRiderMode();
+  const acceptLabel =
+    mode === 'C'
+      ? '→ Glisează pentru a confirma'
+      : '→ Glisează pentru a accepta';
+
   const isDeliveryPhase = isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT');
   const isCashOnDelivery = paymentMethod === 'COD';
   const cashAmountLabel = totalRon != null ? `${Number(totalRon).toFixed(2)} RON` : 'suma datorată';
@@ -71,7 +78,7 @@ export function OrderActions({
   return (
     <div className="flex flex-col gap-3">
       {isAvailable ? (
-        <SwipeButton label="→ Glisează pentru a accepta" onConfirm={acceptAction} />
+        <SwipeButton label={acceptLabel} onConfirm={acceptAction} />
       ) : null}
 
       {isMine && status === 'ACCEPTED' ? (
