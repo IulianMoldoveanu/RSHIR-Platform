@@ -168,9 +168,12 @@ export function TenantHeader({
             <Link
               href="/rezervari"
               aria-label={t(locale, 'header.reservations_link')}
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand,#7c3aed)] bg-white px-3 text-sm font-semibold text-[var(--hir-brand,#7c3aed)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_8%,white)] sm:px-4"
+              className="group inline-flex h-11 items-center gap-1.5 rounded-full bg-white px-3.5 text-sm font-semibold tracking-tight text-[var(--hir-brand,#7c3aed)] shadow-[0_1px_2px_rgba(0,0,0,0.04),inset_0_0_0_1.5px_var(--hir-brand,#7c3aed)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_6%,white)] hover:shadow-[0_4px_12px_-2px_color-mix(in_srgb,var(--hir-brand,#7c3aed)_30%,transparent),inset_0_0_0_1.5px_var(--hir-brand,#7c3aed)] active:translate-y-0 sm:px-4 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
-              <CalendarCheck className="h-4 w-4" />
+              <CalendarCheck
+                className="h-4 w-4 transition-transform duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+                aria-hidden
+              />
               <span className="hidden sm:inline">{t(locale, 'header.reservations_link')}</span>
             </Link>
           ) : null}
@@ -179,11 +182,18 @@ export function TenantHeader({
               href={whatsappOrderUrl(whatsappPhone, name, locale)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+              className="group relative inline-flex h-11 items-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] px-4 text-sm font-semibold tracking-tight text-white shadow-[0_2px_8px_-2px_rgba(22,163,74,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_-4px_rgba(22,163,74,0.65),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-0 active:shadow-[0_2px_6px_-2px_rgba(22,163,74,0.5)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
             >
-              <MessageCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
-              <span className="sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/12 to-transparent"
+              />
+              <MessageCircle
+                className="relative h-4 w-4 transition-transform duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+                aria-hidden
+              />
+              <span className="relative hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
+              <span className="relative sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
             </a>
           ) : null}
         </div>
