@@ -24,6 +24,11 @@ export function SosButton() {
   }, []);
 
   function startPress() {
+    // Hybrid devices fire touchstart + an emulated mousedown for the
+    // same gesture; without this guard, the second call would orphan
+    // the first interval and could keep ticking past endPress and dial
+    // 112 after the rider already released.
+    if (timerRef.current) clearInterval(timerRef.current);
     triggeredRef.current = false;
     setProgress(0);
     const startedAt = Date.now();
@@ -33,6 +38,7 @@ export function SosButton() {
       if (pct >= 100 && !triggeredRef.current) {
         triggeredRef.current = true;
         if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
         window.location.href = `tel:${EMERGENCY_NUMBER}`;
       }
     }, 40);
