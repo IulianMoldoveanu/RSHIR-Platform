@@ -110,6 +110,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/seo', label: 'SEO' },
         { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
+        { href: '/dashboard/settings/ai-trust', label: 'Calibrare AI' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
     },
