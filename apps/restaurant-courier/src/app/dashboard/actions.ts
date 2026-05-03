@@ -38,11 +38,13 @@ async function assertDeliveryGeofence(
         .select('dropoff_lat, dropoff_lng')
         .eq('id', orderId)
         .maybeSingle(),
+      // Don't filter by status=ONLINE — a courier may flip OFFLINE
+      // between the last GPS push and tapping "Livrat", and we still
+      // want geofence telemetry on the most recent fix on record.
       admin
         .from('courier_shifts')
         .select('last_lat, last_lng, last_seen_at')
         .eq('courier_user_id', userId)
-        .eq('status', 'ONLINE')
         .order('started_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
