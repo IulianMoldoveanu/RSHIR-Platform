@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { refreshOrdersAction } from '../actions';
 import { OrdersRealtime } from './orders-realtime';
+import { resolveRiderMode } from '@/lib/rider-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,7 @@ export default async function OrdersPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: assignedData }, { data: openData }] = await Promise.all([
+  const [{ data: assignedData }, { data: openData }, riderMode] = await Promise.all([
     admin
       .from('courier_orders')
       .select('id, status, vertical, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
@@ -45,10 +46,17 @@ export default async function OrdersPage() {
       .in('status', ['CREATED', 'OFFERED'])
       .order('created_at', { ascending: false })
       .limit(20),
+    resolveRiderMode(user.id),
   ]);
 
   const assigned = (assignedData ?? []) as OrderRow[];
   const open = (openData ?? []) as OrderRow[];
+
+  // Mode C riders are dispatched by their fleet manager — they don't
+  // browse open orders. Hiding the section both removes a useless UI
+  // affordance and matches the FM-authority model (rider acknowledges,
+  // never picks).
+  const showOpenOrders = riderMode.mode !== 'C';
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -79,17 +87,19 @@ export default async function OrdersPage() {
         )}
       </Section>
 
-      <Section title="Comenzi disponibile" count={open.length}>
-        {open.length === 0 ? (
-          <Empty>Nicio comandă disponibilă acum.</Empty>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {open.map((o) => (
-              <OrderListItem key={o.id} order={o} />
-            ))}
-          </ul>
-        )}
-      </Section>
+      {showOpenOrders ? (
+        <Section title="Comenzi disponibile" count={open.length}>
+          {open.length === 0 ? (
+            <Empty>Nicio comandă disponibilă acum.</Empty>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {open.map((o) => (
+                <OrderListItem key={o.id} order={o} />
+              ))}
+            </ul>
+          )}
+        </Section>
+      ) : null}
     </div>
   );
 }
