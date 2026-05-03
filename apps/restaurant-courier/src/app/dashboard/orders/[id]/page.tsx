@@ -10,6 +10,7 @@ import {
 import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
+import { EarningsPreview } from '@/components/earnings-preview';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
@@ -85,6 +86,18 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           {order.status}
         </span>
       </div>
+
+      {isAvailable ? (
+        <EarningsPreview
+          deliveryFeeRon={order.delivery_fee_ron}
+          paymentMethod={order.payment_method}
+          totalRon={order.total_ron}
+          pickupLat={order.pickup_lat}
+          pickupLng={order.pickup_lng}
+          dropoffLat={order.dropoff_lat}
+          dropoffLng={order.dropoff_lng}
+        />
+      ) : null}
 
       {/* Pickup card. */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
