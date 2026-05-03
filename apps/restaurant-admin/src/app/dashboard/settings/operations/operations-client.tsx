@@ -86,12 +86,25 @@ export function OperationsClient({
       setFeedback({ ok: false, error: 'invalid_input', detail: 'Estimarea maximă trebuie să fie ≥ minimă.' });
       return;
     }
-    // Lat/lng: blank = null (clears the pin); both must be set together.
+    // Lat/lng: both empty clears the pin; both filled saves the pair.
+    // Anything in between is rejected so we never coerce '' → 0 and silently
+    // store (0, lng) or (lat, 0) as the pickup origin.
+    const latRaw = lat.trim();
+    const lngRaw = lng.trim();
     let latNum: number | null = null;
     let lngNum: number | null = null;
-    if (lat.trim() || lng.trim()) {
-      latNum = Number(lat);
-      lngNum = Number(lng);
+    if (latRaw === '' && lngRaw === '') {
+      // Both blank → clear coordinates.
+    } else if (latRaw === '' || lngRaw === '') {
+      setFeedback({
+        ok: false,
+        error: 'invalid_input',
+        detail: 'Completează ambele coordonate (latitudine și longitudine) sau lasă-le pe ambele goale.',
+      });
+      return;
+    } else {
+      latNum = Number(latRaw);
+      lngNum = Number(lngRaw);
       if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
         setFeedback({ ok: false, error: 'invalid_input', detail: 'Latitudinea trebuie să fie între -90 și 90.' });
         return;
