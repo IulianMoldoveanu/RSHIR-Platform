@@ -7,6 +7,92 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWebhook } from '@/lib/webhook';
 import { logAudit } from '@/lib/audit';
 
+const GEOFENCE_WARN_METERS = 200;
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Soft-mode geofence assertion: best-effort warning when the rider's
+// last GPS fix is more than ~200m from the order dropoff. Logs an
+// audit row and otherwise lets delivery proceed. A hard-block mode
+// (rejecting `markDeliveredAction`) is intentionally NOT enabled
+// until we have telemetry on false-positive rates from Mode A
+// pilots — RO indoor GPS can drift 30–100m in dense buildings.
+async function assertDeliveryGeofence(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  orderId: string,
+): Promise<void> {
+  try {
+    const [orderRes, shiftRes] = await Promise.all([
+      admin
+        .from('courier_orders')
+        .select('dropoff_lat, dropoff_lng')
+        .eq('id', orderId)
+        .maybeSingle(),
+      // Don't filter by status=ONLINE — a courier may flip OFFLINE
+      // between the last GPS push and tapping "Livrat", and we still
+      // want geofence telemetry on the most recent fix on record.
+      admin
+        .from('courier_shifts')
+        .select('last_lat, last_lng, last_seen_at')
+        .eq('courier_user_id', userId)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const order = orderRes.data as { dropoff_lat: number | null; dropoff_lng: number | null } | null;
+    const shift = shiftRes.data as
+      | { last_lat: number | null; last_lng: number | null; last_seen_at: string | null }
+      | null;
+
+    if (
+      !order ||
+      !shift ||
+      order.dropoff_lat == null ||
+      order.dropoff_lng == null ||
+      shift.last_lat == null ||
+      shift.last_lng == null
+    ) {
+      return;
+    }
+
+    const distance = haversineMeters(
+      shift.last_lat,
+      shift.last_lng,
+      order.dropoff_lat,
+      order.dropoff_lng,
+    );
+
+    if (distance > GEOFENCE_WARN_METERS) {
+      await logAudit({
+        actorUserId: userId,
+        action: 'delivery.geofence_warning',
+        entityType: 'courier_order',
+        entityId: orderId,
+        metadata: {
+          distance_m: Math.round(distance),
+          threshold_m: GEOFENCE_WARN_METERS,
+          dropoff: [order.dropoff_lat, order.dropoff_lng],
+          rider: [shift.last_lat, shift.last_lng],
+          rider_seen_at: shift.last_seen_at,
+        },
+      });
+    }
+  } catch {
+    // Geofence is observability, never a hard dependency on delivery.
+  }
+}
+
 async function notifySubscriber(orderId: string, status: string): Promise<void> {
   const admin = createAdminClient();
   const { data } = await admin
@@ -138,6 +224,7 @@ export async function markDeliveredAction(
         },
       });
     }
+    await assertDeliveryGeofence(admin, userId, orderId);
     await notifySubscriber(orderId, 'DELIVERED');
   }
   revalidatePath(`/dashboard/orders/${orderId}`);
