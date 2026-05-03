@@ -18,8 +18,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title ?? 'HIR Courier';
   const options = {
     body: payload.body ?? 'Ai o nouă comandă disponibilă.',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     tag: payload.orderId ?? 'hir-courier',
     data: {
       url: payload.orderId ? `/dashboard/orders/${payload.orderId}` : '/dashboard/orders',
