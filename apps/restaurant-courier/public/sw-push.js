@@ -47,9 +47,15 @@ self.addEventListener('fetch', (event) => {
       try {
         const fresh = await fetch(request);
         if (fresh.ok) {
-          const cache = await caches.open(PAGE_CACHE);
-          // Clone before consumers read the body.
-          cache.put(request, fresh.clone()).catch(() => {});
+          // Keep the SW alive until the cache write completes; otherwise
+          // mobile/backgrounded tabs can terminate the worker right after
+          // respondWith resolves and silently drop the put.
+          event.waitUntil(
+            (async () => {
+              const cache = await caches.open(PAGE_CACHE);
+              await cache.put(request, fresh.clone()).catch(() => {});
+            })(),
+          );
         }
         return fresh;
       } catch (err) {
