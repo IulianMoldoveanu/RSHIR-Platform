@@ -3,7 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Polygon as LeafletPolygon, useMap } from 'react-leaflet';
 import type { Zone, Polygon } from './types';
@@ -40,6 +40,16 @@ type LeafletWithDraw = typeof L & {
 // which can race the window.L assignment in some bundles.
 function DrawPolygonControl({ onCreated }: { onCreated: (polygon: Polygon) => void }) {
   const map = useMap();
+  // Hold the latest callback in a ref so the setup effect can read it
+  // without re-running. zones-client passes onPolygonDrawn as an inline
+  // arrow that gets a new identity on every parent render; without this
+  // decoupling the draw control would tear down + re-init on every
+  // unrelated UI tick (typing a zone name, toggling active) and any
+  // in-progress polygon would be lost.
+  const onCreatedRef = useRef(onCreated);
+  useEffect(() => {
+    onCreatedRef.current = onCreated;
+  }, [onCreated]);
 
   useEffect(() => {
     let control: L.Control | null = null;
@@ -76,7 +86,7 @@ function DrawPolygonControl({ onCreated }: { onCreated: (polygon: Polygon) => vo
       created = (e: DrawCreatedEvent) => {
         const geo = e.layer.toGeoJSON() as { geometry?: { type: string; coordinates: number[][][] } };
         if (geo.geometry?.type === 'Polygon') {
-          onCreated({
+          onCreatedRef.current({
             type: 'Polygon',
             coordinates: geo.geometry.coordinates as [number, number][][],
           });
@@ -94,7 +104,7 @@ function DrawPolygonControl({ onCreated }: { onCreated: (polygon: Polygon) => vo
       if (control) map.removeControl(control);
       if (drawn) map.removeLayer(drawn);
     };
-  }, [map, onCreated]);
+  }, [map]);
 
   return null;
 }
