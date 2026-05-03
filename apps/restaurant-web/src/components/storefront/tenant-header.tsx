@@ -167,10 +167,11 @@ export function TenantHeader({
           {reservationsEnabled ? (
             <Link
               href="/rezervari"
-              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand)] bg-white px-4 text-sm font-semibold text-[var(--hir-brand)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand)_8%,white)]"
+              aria-label={t(locale, 'header.reservations_link')}
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand)] bg-white px-3 text-sm font-semibold text-[var(--hir-brand)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand)_8%,white)] sm:px-4"
             >
               <CalendarCheck className="h-4 w-4" />
-              <span>{t(locale, 'header.reservations_link')}</span>
+              <span className="hidden sm:inline">{t(locale, 'header.reservations_link')}</span>
             </Link>
           ) : null}
           {whatsappPhone ? (
