@@ -11,7 +11,8 @@ export type CourierAuditAction =
   | 'fleet.deactivated'
   | 'fleet.courier_invited'
   | 'fleet.api_key_created'
-  | 'fleet.api_key_revoked';
+  | 'fleet.api_key_revoked'
+  | 'order.cash_collected';
 
 export async function logAudit(args: {
   actorUserId: string;

@@ -171,6 +171,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         isAvailable={isAvailable}
         vertical={vertical}
         pharmaMetadata={order.pharma_metadata}
+        paymentMethod={order.payment_method}
+        totalRon={order.total_ron}
         acceptAction={acceptBound}
         pickedUpAction={pickedUpBound}
         deliveredAction={deliveredBound}
