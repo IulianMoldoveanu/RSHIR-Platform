@@ -25,12 +25,28 @@ export function middleware(request: NextRequest) {
   // dev, accept ?tenant=<slug> as the chosen tenant. resolveTenantFromHost
   // gates the override to non-canonical hosts so end-users on the real
   // production domain can't switch tenants by URL.
+  // Cookie fallback persists the choice across in-app navigation that
+  // drops the query string (e.g. /checkout, /rezervari links).
   const tenantParam = request.nextUrl.searchParams.get('tenant');
-  if (tenantParam) {
-    requestHeaders.set('x-hir-tenant-override', tenantParam.trim().toLowerCase());
+  const tenantCookie = request.cookies.get('selected_tenant')?.value;
+  const effectiveTenant =
+    tenantParam?.trim().toLowerCase() || tenantCookie?.trim().toLowerCase() || null;
+  if (effectiveTenant) {
+    requestHeaders.set('x-hir-tenant-override', effectiveTenant);
   }
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  if (tenantParam) {
+    response.cookies.set('selected_tenant', tenantParam.trim().toLowerCase(), {
+      path: '/',
+      sameSite: 'lax',
+      httpOnly: false,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
+  return response;
 }
 
 export const config = {
