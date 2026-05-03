@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { refreshOrdersAction } from '../actions';
+import { OrdersRealtime } from './orders-realtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export default async function OrdersPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
+      <OrdersRealtime />
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-zinc-100">Comenzi</h1>
         <form action={refreshOrdersAction}>
