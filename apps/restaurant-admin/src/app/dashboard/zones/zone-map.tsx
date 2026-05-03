@@ -3,46 +3,100 @@
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo } from 'react';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Polygon as LeafletPolygon, FeatureGroup } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon as LeafletPolygon, useMap } from 'react-leaflet';
 import type { Zone, Polygon } from './types';
 
-// leaflet-draw is a UMD plugin that augments window.L at import time. Under
-// `import L from 'leaflet'` in a Next.js client bundle, L is a local
-// binding and window.L is undefined, so a static `import 'leaflet-draw'`
-// crashes with `ReferenceError: L is not defined`. Set window.L before any
-// leaflet-draw code executes; the dynamic import below then resolves.
+// leaflet-draw is a UMD plugin that augments window.L. Set it before any
+// dynamic import below so the plugin's module body finds the global it
+// expects. Bare `import 'leaflet-draw'` at top-level breaks here because
+// some build pipelines evaluate it before this assignment runs.
 if (typeof window !== 'undefined') {
   (window as unknown as { L?: typeof L }).L = L;
 }
 
-// Brașov default center (per spec).
 const DEFAULT_CENTER: [number, number] = [45.6427, 25.5887];
 const DEFAULT_ZOOM = 12;
 
-type EditControlProps = {
-  position: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
-  draw?: Record<string, unknown>;
-  edit?: Record<string, unknown>;
-  onCreated?: (e: { layer: L.Layer }) => void;
-};
-
-// Convert GeoJSON polygon (lng, lat) to Leaflet positions (lat, lng).
 function toLatLngs(polygon: Polygon): [number, number][] {
   const ring = polygon.coordinates[0] ?? [];
   return ring.map(([lng, lat]) => [lat, lng]);
 }
 
-// Convert Leaflet layer (polygon) back to GeoJSON polygon.
-function layerToPolygon(layer: L.Layer): Polygon | null {
-  const geo = (layer as L.Polygon).toGeoJSON();
-  const geom = (geo as { geometry?: { type: string; coordinates: number[][][] } }).geometry;
-  if (!geom || geom.type !== 'Polygon') return null;
-  return {
-    type: 'Polygon',
-    coordinates: geom.coordinates as [number, number][][],
+type DrawCreatedEvent = { layer: L.Layer & { toGeoJSON: () => GeoJSON.Feature; remove?: () => void } };
+
+type LeafletWithDraw = typeof L & {
+  Control: typeof L.Control & {
+    Draw: new (options: Record<string, unknown>) => L.Control;
   };
+  Draw: { Event: { CREATED: string } };
+};
+
+// Inner control component: uses react-leaflet's useMap to grab the map
+// instance, then attaches a leaflet-draw L.Control.Draw to it. We bypass
+// react-leaflet-draw entirely because that package statically imports
+// leaflet-draw at module load and is chunked together with leaflet,
+// which can race the window.L assignment in some bundles.
+function DrawPolygonControl({ onCreated }: { onCreated: (polygon: Polygon) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    let control: L.Control | null = null;
+    let drawn: L.FeatureGroup | null = null;
+    let created: ((e: DrawCreatedEvent) => void) | null = null;
+    let cancelled = false;
+
+    void (async () => {
+      await import('leaflet-draw');
+      if (cancelled) return;
+      const Lx = L as LeafletWithDraw;
+
+      drawn = new Lx.FeatureGroup();
+      map.addLayer(drawn);
+
+      control = new Lx.Control.Draw({
+        position: 'topleft',
+        edit: { featureGroup: drawn, edit: false, remove: false },
+        draw: {
+          polygon: {
+            allowIntersection: false,
+            showArea: false,
+            shapeOptions: { color: '#7c3aed', weight: 2 },
+          },
+          rectangle: false,
+          polyline: false,
+          circle: false,
+          circlemarker: false,
+          marker: false,
+        },
+      });
+      map.addControl(control);
+
+      created = (e: DrawCreatedEvent) => {
+        const geo = e.layer.toGeoJSON() as { geometry?: { type: string; coordinates: number[][][] } };
+        if (geo.geometry?.type === 'Polygon') {
+          onCreated({
+            type: 'Polygon',
+            coordinates: geo.geometry.coordinates as [number, number][][],
+          });
+        }
+        e.layer.remove?.();
+      };
+      map.on(Lx.Draw.Event.CREATED, created as unknown as L.LeafletEventHandlerFn);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (created) {
+        map.off((L as LeafletWithDraw).Draw?.Event.CREATED, created as unknown as L.LeafletEventHandlerFn);
+      }
+      if (control) map.removeControl(control);
+      if (drawn) map.removeLayer(drawn);
+    };
+  }, [map, onCreated]);
+
+  return null;
 }
 
 type Props = {
@@ -60,26 +114,6 @@ export function ZoneMap({ zones, selectedId, onSelect, onPolygonDrawn, tenantCen
     }
     return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
   }, [tenantCenter]);
-
-  // Lazy-load leaflet-draw + EditControl after window.L is set above.
-  const [EditControl, setEditControl] = useState<ComponentType<EditControlProps> | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        await import('leaflet-draw');
-        const mod = await import('react-leaflet-draw');
-        if (!cancelled) {
-          setEditControl(() => mod.EditControl as unknown as ComponentType<EditControlProps>);
-        }
-      } catch (err) {
-        console.error('[zone-map] failed to load leaflet-draw', err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <MapContainer
@@ -108,31 +142,7 @@ export function ZoneMap({ zones, selectedId, onSelect, onPolygonDrawn, tenantCen
         />
       ))}
 
-      <FeatureGroup>
-        {EditControl ? (
-          <EditControl
-            position="topleft"
-            draw={{
-              polygon: {
-                allowIntersection: false,
-                showArea: false,
-                shapeOptions: { color: '#7c3aed', weight: 2 },
-              },
-              rectangle: false,
-              polyline: false,
-              circle: false,
-              circlemarker: false,
-              marker: false,
-            }}
-            edit={{ edit: false, remove: false }}
-            onCreated={(e) => {
-              const polygon = layerToPolygon(e.layer);
-              if (polygon) onPolygonDrawn(polygon);
-              (e.layer as L.Layer & { remove?: () => void }).remove?.();
-            }}
-          />
-        ) : null}
-      </FeatureGroup>
+      <DrawPolygonControl onCreated={onPolygonDrawn} />
     </MapContainer>
   );
 }
