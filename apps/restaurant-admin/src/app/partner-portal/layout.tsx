@@ -80,9 +80,6 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
 
   const navLinks = [
     { href: '/partner-portal', label: 'Tablou de bord' },
-    { href: '/partner-portal/referrals', label: 'Referrals' },
-    { href: '/partner-portal/commissions', label: 'Comisioane' },
-    { href: '/partner-portal/settings', label: 'Setări' },
   ];
 
   return (

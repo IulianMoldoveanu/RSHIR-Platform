@@ -9,7 +9,7 @@ type FormKind = 'restaurant' | 'reseller';
 type LeadFormsProps = {
   locale: Locale;
   defaultKind?: FormKind;
-  ref?: string;
+  refCode?: string;
 };
 
 type FieldProps = {
@@ -242,7 +242,7 @@ function ResellerForm({ locale, refCode }: { locale: Locale; refCode: string }) 
   );
 }
 
-export function LeadForms({ locale, defaultKind = 'restaurant', ref: refCode = '' }: LeadFormsProps) {
+export function LeadForms({ locale, defaultKind = 'restaurant', refCode = '' }: LeadFormsProps) {
   const [activeForm, setActiveForm] = useState<FormKind>(defaultKind);
 
   return (
