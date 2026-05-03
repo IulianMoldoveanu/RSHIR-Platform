@@ -22,6 +22,14 @@ export default function MenuImportPage() {
           cheia in <code>.env.local</code> si reporneste serverul.
         </div>
       )}
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+        Importul este înregistrat în jurnalul AI. Aveți 24h să anulați totul
+        cu un click din{' '}
+        <Link href="/dashboard/ai-activity" className="font-medium text-zinc-900 underline">
+          Activitate AI
+        </Link>
+        .
+      </div>
       <ImportClient />
     </div>
   );

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireTenantAuth } from '@/lib/api-tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { logAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
     if (c.sort_order > maxOrder) maxOrder = c.sort_order;
   }
 
+  // Track which categories WE create vs reuse, so the revert path knows
+  // which ones to clean up (leaving pre-existing categories untouched).
+  const createdCategoryIds: string[] = [];
+
   let categoriesCreated = 0;
   for (const row of parsed.data.rows) {
     const key = row.category.toLowerCase();
@@ -67,6 +72,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
       byName.set(key, created.id);
+      createdCategoryIds.push(created.id);
       categoriesCreated += 1;
     }
   }
@@ -81,16 +87,67 @@ export async function POST(req: NextRequest) {
     tags: [] as string[],
   }));
 
-  const { error: insErr, count } = await admin
+  // RSHIR-AI-orchestrator: capture the IDs of items we just created. The
+  // revert path on /dashboard/ai-activity uses these to delete only the
+  // rows this run produced (not pre-existing items in the same category).
+  const { data: insertedRows, error: insErr } = await admin
     .from('restaurant_menu_items')
-    .insert(inserts, { count: 'exact' });
+    .insert(inserts)
+    .select('id');
   if (insErr) {
     return NextResponse.json({ error: insErr.message }, { status: 500 });
   }
+  const createdItemIds = (insertedRows ?? []).map((r) => r.id as string);
+  const created = createdItemIds.length;
+
+  // Log the bulk_import as a copilot_agent_runs entry so it shows in
+  // /dashboard/ai-activity and is revertable for 24h. Best-effort —
+  // failure here doesn't roll back the import (better to have an
+  // unlogged-but-completed import than to crash on the success path).
+  try {
+    // copilot_agent_runs is not in generated types — same any-cast as
+    // the rest of the AI surface. The status defaults to EXECUTED via
+    // the DB column default; we set it explicitly for clarity.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = admin as any;
+    await sb.from('copilot_agent_runs').insert({
+      restaurant_id: tenantId,
+      agent_name: 'menu',
+      action_type: 'menu.bulk_import',
+      status: 'EXECUTED',
+      summary: `Import meniu: ${created} produse, ${categoriesCreated} categorii noi`,
+      payload: {
+        created_item_ids: createdItemIds,
+        created_category_ids: createdCategoryIds,
+        source: 'menu_import_ui',
+        items_count: created,
+      },
+      // The bot-repo schema also expects metadata for legacy compat;
+      // duplicate the summary there so older readers still work.
+      metadata: {
+        summary: `Import meniu: ${created} produse, ${categoriesCreated} categorii noi`,
+        kind: 'menu_bulk_import',
+      },
+      approved_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('[menu-import/commit] copilot_agent_runs log failed', (err as Error).message);
+  }
+
+  await logAudit({
+    tenantId,
+    actorUserId: auth.userId ?? null,
+    action: 'ai_ceo.menu_agent_executed',
+    entityType: 'menu_import',
+    metadata: {
+      items_created: created,
+      categories_created: categoriesCreated,
+    },
+  });
 
   return NextResponse.json({
-    created: count ?? inserts.length,
+    created,
     categoriesCreated,
-    skipped: parsed.data.rows.length - (count ?? inserts.length),
+    skipped: parsed.data.rows.length - created,
   });
 }

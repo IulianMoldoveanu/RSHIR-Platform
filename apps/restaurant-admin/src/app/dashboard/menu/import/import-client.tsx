@@ -102,7 +102,11 @@ export function ImportClient() {
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? 'Salvare eșuată');
-        toast.success(`${json.created} produse importate.`);
+        // Surface the revert affordance immediately — owner gains
+        // confidence knowing the import is reversible for 24h.
+        toast.success(
+          `${json.created} produse importate. Puteți anula din Activitate AI timp de 24h.`,
+        );
         router.push('/dashboard/menu');
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Eroare necunoscută');
