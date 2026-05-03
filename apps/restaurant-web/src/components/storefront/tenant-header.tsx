@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Banknote, Clock, Flame, Gift, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
+import { Banknote, CalendarCheck, Clock, Flame, Gift, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
@@ -151,14 +151,6 @@ export function TenantHeader({
             >
               {t(locale, 'header.bio_link')}
             </Link>
-            {reservationsEnabled ? (
-              <Link
-                href="/rezervari"
-                className="text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-800"
-              >
-                {t(locale, 'header.reservations_link')}
-              </Link>
-            ) : null}
             {showAccountLink ? (
               <Link
                 href="/account"
@@ -171,18 +163,29 @@ export function TenantHeader({
           </div>
         </div>
 
-        {whatsappPhone ? (
-          <a
-            href={whatsappOrderUrl(whatsappPhone, name, locale)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
-          >
-            <MessageCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
-            <span className="sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
-          </a>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {reservationsEnabled ? (
+            <Link
+              href="/rezervari"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border-2 border-[var(--hir-brand)] bg-white px-4 text-sm font-semibold text-[var(--hir-brand)] shadow-sm transition-colors hover:bg-[color-mix(in_srgb,var(--hir-brand)_8%,white)]"
+            >
+              <CalendarCheck className="h-4 w-4" />
+              <span>{t(locale, 'header.reservations_link')}</span>
+            </Link>
+          ) : null}
+          {whatsappPhone ? (
+            <a
+              href={whatsappOrderUrl(whatsappPhone, name, locale)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
+              <span className="sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
+            </a>
+          ) : null}
+        </div>
       </div>
 
       {/* Chip strip — ETA · min order · free delivery threshold. Renders
