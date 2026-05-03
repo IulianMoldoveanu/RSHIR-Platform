@@ -70,9 +70,21 @@ function classify(eventType: string, payload: any): { severity: Severity; summar
   }
 
   if (eventType === 'issue_comment' && payload?.action === 'created' && payload?.issue?.pull_request) {
-    const body = (payload?.comment?.body ?? '').slice(0, 200);
+    const rawBody: string = payload?.comment?.body ?? '';
     const isBot = (payload?.comment?.user?.type === 'Bot') || /bot/i.test(actor ?? '');
-    return { severity: isBot ? 'WARN' : 'INFO', summary: `Comment by ${actor}: ${body}`.slice(0, 300), prNumber, prTitle, prHeadSha, actor };
+    // Vercel bot prefixes every comment with an opaque marker like "[vc]: #<base64>:<base64>"
+    // — strip it so Telegram shows the real content. Keep only the first non-marker line.
+    const cleanLines = rawBody
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0 && !/^\[vc\]:\s*#/.test(l) && !/^\s*<!--/.test(l));
+    const firstReal = cleanLines.find(l => l.length > 4) ?? '(no content)';
+    // Vercel auto-comments are status updates ("Ready", "Inspect", deploy preview links) —
+    // not actionable for AI Chief. Demote to INFO so they don't ping Telegram.
+    if (actor === 'vercel[bot]' || /vercel/i.test(actor ?? '')) {
+      return { severity: 'INFO', summary: `Vercel: ${firstReal.slice(0, 160)}`.slice(0, 300), prNumber, prTitle, prHeadSha, actor };
+    }
+    return { severity: isBot ? 'WARN' : 'INFO', summary: `Comment by ${actor}: ${firstReal.slice(0, 200)}`.slice(0, 300), prNumber, prTitle, prHeadSha, actor };
   }
 
   if (eventType === 'pull_request') {
@@ -98,15 +110,24 @@ function classify(eventType: string, payload: any): { severity: Severity; summar
   return { severity: 'INFO', summary: `${eventType}: noop`, prNumber, prTitle, prHeadSha, actor };
 }
 
-async function dispatchTelegram(token: string, chatId: string, severity: Severity, repo: string, prNumber: number | null, summary: string): Promise<void> {
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function dispatchTelegram(token: string, chatId: string, severity: Severity, repo: string, prNumber: number | null, prTitle: string | null, summary: string): Promise<void> {
   const emoji = severity === 'CRITICAL' ? '🔴' : severity === 'WARN' ? '⚠️' : 'ℹ️';
-  const prRef = prNumber ? `PR #${prNumber}` : '';
+  const repoShort = repo.split('/')[1] || repo;
   const url = prNumber ? `https://github.com/${repo}/pull/${prNumber}` : `https://github.com/${repo}`;
-  const text = `${emoji} ${severity} — ${repo} ${prRef}\n${summary}\n${url}`;
+  const titleLine = prNumber
+    ? `${emoji} <b>${severity}</b> · ${escapeHtml(repoShort)} <a href="${url}">PR #${prNumber}</a>`
+    : `${emoji} <b>${severity}</b> · ${escapeHtml(repoShort)}`;
+  const ctxLine = prTitle ? `<i>${escapeHtml(prTitle.slice(0, 90))}</i>` : '';
+  const body = escapeHtml(summary.slice(0, 300));
+  const text = [titleLine, ctxLine, body].filter(Boolean).join('\n');
   const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true }),
   });
   if (!r.ok) console.warn('telegram dispatch failed', r.status, await r.text());
 }
@@ -173,7 +194,7 @@ Deno.serve(async (req: Request) => {
     const tgToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
     const chatId = Deno.env.get('TELEGRAM_IULIAN_CHAT_ID');
     if (tgToken && chatId) {
-      const dispatch = dispatchTelegram(tgToken, chatId, severity, repo, prNumber, summary)
+      const dispatch = dispatchTelegram(tgToken, chatId, severity, repo, prNumber, prTitle, summary)
         .then(async () => {
           await supabase.from('github_pr_events').update({ notified_telegram: true }).eq('id', data!.id);
         })
