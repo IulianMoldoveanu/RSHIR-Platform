@@ -3,8 +3,10 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Package, Clock, Wallet, Settings } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
-import { logoutAction } from './actions';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { logoutAction, updateCourierLocationAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
+import { LocationTracker } from '@/components/location-tracker';
 
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
@@ -19,6 +21,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  // Are we currently in a shift? Drives the location tracker on/off.
+  const admin = createAdminClient();
+  const { data: shiftData } = await admin
+    .from('courier_shifts')
+    .select('id')
+    .eq('courier_user_id', user.id)
+    .eq('status', 'ONLINE')
+    .limit(1)
+    .maybeSingle();
+  const isOnline = !!shiftData;
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
@@ -45,6 +58,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </button>
         </form>
       </header>
+
+      <LocationTracker enabled={isOnline} onFix={updateCourierLocationAction} />
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
