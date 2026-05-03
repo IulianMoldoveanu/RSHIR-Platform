@@ -5,26 +5,82 @@ import type { Zone, Tier } from './types';
 
 export const dynamic = 'force-dynamic';
 
+type TenantLocationSettings = {
+  location?: { lat?: number; lng?: number } | null;
+};
+
 export default async function ZonesPage() {
   const { tenant } = await getActiveTenant();
   const supabase = createServerClient();
 
-  const [zonesRes, tiersRes] = await Promise.all([
-    supabase
-      .from('delivery_zones')
-      .select('id, name, polygon, is_active, sort_order, created_at')
-      .eq('tenant_id', tenant.id)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true }),
-    supabase
-      .from('delivery_pricing_tiers')
-      .select('id, min_km, max_km, price_ron, sort_order')
-      .eq('tenant_id', tenant.id)
-      .order('min_km', { ascending: true }),
-  ]);
+  let zones: Zone[] = [];
+  let tiers: Tier[] = [];
+  let loadError: string | null = null;
 
-  const zones = (zonesRes.data ?? []) as unknown as Zone[];
-  const tiers = (tiersRes.data ?? []) as unknown as Tier[];
+  try {
+    const [zonesRes, tiersRes] = await Promise.all([
+      supabase
+        .from('delivery_zones')
+        .select('id, name, polygon, is_active, sort_order, created_at')
+        .eq('tenant_id', tenant.id)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('delivery_pricing_tiers')
+        .select('id, min_km, max_km, price_ron, sort_order')
+        .eq('tenant_id', tenant.id)
+        .order('min_km', { ascending: true }),
+    ]);
+
+    if (zonesRes.error) {
+      console.error('[zones] delivery_zones load failed', {
+        tenantId: tenant.id,
+        message: zonesRes.error.message,
+        code: zonesRes.error.code,
+      });
+      loadError = zonesRes.error.message;
+    }
+    if (tiersRes.error) {
+      console.error('[zones] delivery_pricing_tiers load failed', {
+        tenantId: tenant.id,
+        message: tiersRes.error.message,
+        code: tiersRes.error.code,
+      });
+      if (!loadError) loadError = tiersRes.error.message;
+    }
+
+    zones = ((zonesRes.data ?? []) as unknown as Zone[]).filter(
+      (z) => z.polygon && Array.isArray(z.polygon.coordinates),
+    );
+    tiers = (tiersRes.data ?? []) as unknown as Tier[];
+  } catch (err) {
+    console.error('[zones] unexpected load failure', {
+      tenantId: tenant.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    loadError = err instanceof Error ? err.message : 'Eroare necunoscută la încărcare.';
+  }
+
+  let tenantCenter: { lat: number; lng: number } | null = null;
+  try {
+    const tenantRes = await supabase
+      .from('tenants')
+      .select('settings')
+      .eq('id', tenant.id)
+      .maybeSingle();
+    const settings = (tenantRes.data?.settings ?? {}) as TenantLocationSettings;
+    if (
+      typeof settings.location?.lat === 'number' &&
+      typeof settings.location?.lng === 'number'
+    ) {
+      tenantCenter = { lat: settings.location.lat, lng: settings.location.lng };
+    }
+  } catch (err) {
+    console.error('[zones] tenant settings load failed', {
+      tenantId: tenant.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -36,7 +92,13 @@ export default async function ZonesPage() {
         </p>
       </div>
 
-      <ZonesClient initialZones={zones} initialTiers={tiers} />
+      {loadError ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Datele zonelor nu s-au putut încărca complet. Poți totuși desena zone noi pe hartă.
+        </div>
+      ) : null}
+
+      <ZonesClient initialZones={zones} initialTiers={tiers} tenantCenter={tenantCenter} />
     </div>
   );
 }

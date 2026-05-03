@@ -37,16 +37,17 @@ type Props = {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onPolygonDrawn: (polygon: Polygon) => void;
+  tenantCenter?: { lat: number; lng: number } | null;
 };
 
-export function ZoneMap({ zones, selectedId, onSelect, onPolygonDrawn }: Props) {
-  // Compute bounds from existing zones; fallback to Brașov center.
+export function ZoneMap({ zones, selectedId, onSelect, onPolygonDrawn, tenantCenter }: Props) {
+  // Center priority: tenant configured location > Brașov default.
   const initialView = useMemo(() => {
-    if (zones.length === 0) return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
-    const allPoints = zones.flatMap((z) => toLatLngs(z.polygon));
-    if (allPoints.length === 0) return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
+    if (tenantCenter) {
+      return { center: [tenantCenter.lat, tenantCenter.lng] as [number, number], zoom: 13 };
+    }
     return { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM };
-  }, [zones]);
+  }, [tenantCenter]);
 
   return (
     <MapContainer
