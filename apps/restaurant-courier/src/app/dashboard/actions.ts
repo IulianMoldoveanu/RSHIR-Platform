@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWebhook } from '@/lib/webhook';
+import { logAudit } from '@/lib/audit';
 
 async function notifySubscriber(orderId: string, status: string): Promise<void> {
   const admin = createAdminClient();
@@ -98,7 +99,11 @@ export async function markPickedUpAction(orderId: string) {
   revalidatePath('/dashboard/orders');
 }
 
-export async function markDeliveredAction(orderId: string, proofUrl?: string) {
+export async function markDeliveredAction(
+  orderId: string,
+  proofUrl?: string,
+  cashCollected?: boolean,
+) {
   const userId = await requireUserId();
   const admin = createAdminClient();
   const update: Record<string, unknown> = {
@@ -114,9 +119,27 @@ export async function markDeliveredAction(orderId: string, proofUrl?: string) {
     .update(update)
     .eq('id', orderId)
     .eq('assigned_courier_user_id', userId)
-    .select('id')
+    .select('id, payment_method, total_ron')
     .maybeSingle();
-  if (data) await notifySubscriber(orderId, 'DELIVERED');
+  if (data) {
+    // For cash-on-delivery orders, log the courier-confirmed cash collection
+    // as an audit event. Settlement reconciliation reads this trail to verify
+    // expected cash deposits per courier per shift.
+    const row = data as { id: string; payment_method: 'CARD' | 'COD' | null; total_ron: number | null };
+    if (row.payment_method === 'COD' && cashCollected) {
+      await logAudit({
+        actorUserId: userId,
+        action: 'order.cash_collected',
+        entityType: 'courier_order',
+        entityId: row.id,
+        metadata: {
+          total_ron: row.total_ron,
+          confirmed_at: new Date().toISOString(),
+        },
+      });
+    }
+    await notifySubscriber(orderId, 'DELIVERED');
+  }
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
