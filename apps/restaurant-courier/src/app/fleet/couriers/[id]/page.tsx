@@ -109,6 +109,7 @@ export default async function FleetCourierDetailPage({
   const [
     { data: profileData },
     { data: shiftsData },
+    { data: deliveredMetricsData },
     { data: deliveredData },
     { data: activeData },
   ] = await Promise.all([
@@ -124,6 +125,21 @@ export default async function FleetCourierDetailPage({
       .eq('courier_user_id', params.id)
       .order('started_at', { ascending: false })
       .limit(1),
+    // Metrics query: pulls only the columns needed for aggregation, no
+    // limit — Codex P1 #175 caught that a 60-row cap silently
+    // under-reported high-volume riders. Rows are tiny (3 numbers + 2
+    // ISO strings) so even 1500 deliveries/month stays cheap. Display
+    // list below uses a separate limited query for full row data.
+    admin
+      .from('courier_orders')
+      .select('total_ron, delivery_fee_ron, payment_method, created_at, updated_at')
+      .eq('fleet_id', fleet.fleetId)
+      .eq('assigned_courier_user_id', params.id)
+      .eq('status', 'DELIVERED')
+      .gte('updated_at', since30.toISOString()),
+    // Display list — only the last 12 rows show on screen, so we narrow
+    // the trip and skip the full text columns the metrics query above
+    // didn't need.
     admin
       .from('courier_orders')
       .select(
@@ -134,7 +150,7 @@ export default async function FleetCourierDetailPage({
       .eq('status', 'DELIVERED')
       .gte('updated_at', since30.toISOString())
       .order('updated_at', { ascending: false })
-      .limit(60),
+      .limit(12),
     admin
       .from('courier_orders')
       .select('id, status, customer_first_name, dropoff_line1, delivery_fee_ron')
@@ -148,13 +164,25 @@ export default async function FleetCourierDetailPage({
   if (!profile) notFound();
 
   const lastShift = ((shiftsData ?? []) as ShiftRow[])[0] ?? null;
+  const deliveredMetrics = (deliveredMetricsData ?? []) as Array<{
+    total_ron: number | null;
+    delivery_fee_ron: number | null;
+    payment_method: 'CARD' | 'COD' | null;
+    created_at: string;
+    updated_at: string;
+  }>;
   const delivered = (deliveredData ?? []) as DeliveredRow[];
   const active = (activeData ?? []) as ActiveRow[];
 
-  // Aggregate metrics over the 30-day window.
-  const count = delivered.length;
-  const revenue = delivered.reduce((sum, r) => sum + (Number(r.delivery_fee_ron) || 0), 0);
-  const cashCollected = delivered
+  // Aggregate metrics over the FULL 30-day window (not the 12-row display
+  // sample) — count, revenue, cashCollected, avgDuration all derive from
+  // deliveredMetrics so high-volume riders get accurate numbers.
+  const count = deliveredMetrics.length;
+  const revenue = deliveredMetrics.reduce(
+    (sum, r) => sum + (Number(r.delivery_fee_ron) || 0),
+    0,
+  );
+  const cashCollected = deliveredMetrics
     .filter((r) => r.payment_method === 'COD')
     .reduce((sum, r) => sum + (Number(r.total_ron) || 0), 0);
 
@@ -163,7 +191,7 @@ export default async function FleetCourierDetailPage({
   // dedicated picked_up_at column), but it's the best signal we have
   // without changing schema. Outliers >24h are dropped — typically
   // those are stale orders the rider forgot to mark delivered.
-  const validTimes = delivered
+  const validTimes = deliveredMetrics
     .map((r) => new Date(r.updated_at).getTime() - new Date(r.created_at).getTime())
     .filter((d) => Number.isFinite(d) && d > 0 && d < 24 * 60 * 60 * 1000);
   const avgDurationMs =
