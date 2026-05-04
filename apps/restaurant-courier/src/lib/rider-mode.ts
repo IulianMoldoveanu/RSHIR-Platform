@@ -6,6 +6,7 @@ export type RiderModeContext = {
   mode: RiderMode;
   fleetId: string | null;
   fleetName: string | null;
+  fleetContactPhone: string | null;
   tenantCount: number;
 };
 
@@ -13,6 +14,7 @@ const DEFAULT_CONTEXT: RiderModeContext = {
   mode: 'A',
   fleetId: null,
   fleetName: null,
+  fleetContactPhone: null,
   tenantCount: 1,
 };
 
@@ -58,10 +60,12 @@ export async function resolveRiderMode(userId: string): Promise<RiderModeContext
     if (fleetId) {
       const { data: fleet } = await admin
         .from('courier_fleets')
-        .select('slug, name')
+        .select('slug, name, contact_phone')
         .eq('id', fleetId)
         .maybeSingle();
-      const fleetRow = fleet as { slug: string | null; name: string | null } | null;
+      const fleetRow = fleet as
+        | { slug: string | null; name: string | null; contact_phone: string | null }
+        | null;
       const isManagedFleet = fleetRow != null && fleetRow.slug !== DEFAULT_FLEET_SLUG;
 
       if (isManagedFleet) {
@@ -69,6 +73,7 @@ export async function resolveRiderMode(userId: string): Promise<RiderModeContext
           mode: 'C',
           fleetId,
           fleetName: fleetRow?.name ?? null,
+          fleetContactPhone: fleetRow?.contact_phone ?? null,
           tenantCount,
         };
       }
@@ -77,10 +82,16 @@ export async function resolveRiderMode(userId: string): Promise<RiderModeContext
     }
 
     if (tenantCount > 1) {
-      return { mode: 'B', fleetId: null, fleetName: null, tenantCount };
+      return { mode: 'B', fleetId: null, fleetName: null, fleetContactPhone: null, tenantCount };
     }
 
-    return { mode: 'A', fleetId: null, fleetName: null, tenantCount: tenantCount || 1 };
+    return {
+      mode: 'A',
+      fleetId: null,
+      fleetName: null,
+      fleetContactPhone: null,
+      tenantCount: tenantCount || 1,
+    };
   } catch {
     return DEFAULT_CONTEXT;
   }
