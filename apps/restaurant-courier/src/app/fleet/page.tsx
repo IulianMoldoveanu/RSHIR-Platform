@@ -308,7 +308,7 @@ function OrderRow({
   return (
     <li>
       <Link
-        href="/fleet/orders"
+        href={`/fleet/orders/${order.id}`}
         className="block rounded-xl border border-zinc-800 bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-zinc-900"
       >
         <div className="flex items-start justify-between gap-3">
