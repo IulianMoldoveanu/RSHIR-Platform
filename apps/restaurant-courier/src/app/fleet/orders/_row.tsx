@@ -13,6 +13,13 @@ import {
 // the GloriaFood prep-time soft SLA Iulian uses for the Brașov pilot.
 const SLA_BREACH_MINUTES = 6;
 
+// Order in ACCEPTED state for ≥10 minutes without progressing to PICKED_UP
+// suggests the rider is stuck — phone died, got distracted, restaurant
+// took too long. The pill nudges the manager to follow up before the
+// customer calls. ACCEPTED's `updated_at` is the timestamp the rider
+// hit Accept, so age-since-update is the right signal here.
+const STALL_PICKUP_MINUTES = 10;
+
 export type DispatchOrder = {
   id: string;
   status: string;
@@ -88,6 +95,16 @@ export function OrderRow({
   const ageMin = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60_000);
   const slaBreached = !isAssigned && ageMin >= SLA_BREACH_MINUTES;
 
+  // Stalled-pickup signal: assigned + ACCEPTED for too long without the
+  // rider tapping "Picked up". Use updated_at because that's when the
+  // rider accepted (the most recent status transition timestamp we
+  // have in this column).
+  const stallMin =
+    order.status === 'ACCEPTED' && order.updated_at
+      ? Math.floor((Date.now() - new Date(order.updated_at).getTime()) / 60_000)
+      : 0;
+  const stalled = isAssigned && order.status === 'ACCEPTED' && stallMin >= STALL_PICKUP_MINUTES;
+
   function handleAssign(courierUserId: string) {
     setError(null);
     start(async () => {
@@ -136,7 +153,9 @@ export function OrderRow({
       className={`rounded-xl border p-3 ${
         slaBreached
           ? 'border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20'
-          : 'border-zinc-800 bg-zinc-950'
+          : stalled
+            ? 'border-amber-600/40 bg-amber-500/5 ring-1 ring-amber-500/20'
+            : 'border-zinc-800 bg-zinc-950'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -146,6 +165,12 @@ export function OrderRow({
               <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
                 SLA {ageMin}m
+              </span>
+            ) : null}
+            {stalled ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                Curier blocat {stallMin}m
               </span>
             ) : null}
             <span

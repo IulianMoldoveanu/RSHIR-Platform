@@ -13,6 +13,7 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { FleetLiveMap, type FleetRiderPin } from './fleet-live-map';
+import { FleetOverviewRefresh } from './fleet-overview-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -202,6 +203,7 @@ export default async function FleetOverviewPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
+      <FleetOverviewRefresh />
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Privire de ansamblu</h1>
         <p className="mt-1 text-sm text-zinc-500">
