@@ -305,12 +305,29 @@ function combineDecision(
   verdict: SupervisorVerdict,
   trust: TrustLevel,
   triageScope: string | null,
+  codexGreen: boolean,
 ): SupervisorVerdict['decision'] {
   const major = ['2', '3', '4', '5', '9', '10'];
   const blocking = verdict.guardrails_failed.some((g) => major.some((m) => g.startsWith(m)));
+  // Blocking guardrails are NEVER overridden — Codex is a peer reviewer, not
+  // a security overrider. Same path as before regardless of codexGreen.
   if (blocking) return verdict.score < 60 ? 'REJECT' : 'PROPOSE';
 
   if (verdict.decision === 'REJECT' || verdict.score < 60) return 'REJECT';
+
+  // RSHIR-A11: Codex green review promotes PROPOSE → AUTO_MERGE when
+  // Supervisor score is high enough (>=70) AND no failed guardrails AND
+  // the trust level isn't OFF. Bypasses the conservative trust ladder
+  // (PROPOSE_ONLY → AUTO_REVERSIBLE → AUTO_FULL) because we have an
+  // independent reviewer signing off.
+  if (
+    codexGreen &&
+    trust !== 'OFF' &&
+    verdict.score >= 70 &&
+    verdict.guardrails_failed.length === 0
+  ) {
+    return 'AUTO_MERGE';
+  }
 
   if (trust === 'OFF' || trust === 'PROPOSE_ONLY') return 'PROPOSE';
 
@@ -334,6 +351,9 @@ async function handle(req: Request): Promise<Response> {
   if (req.method !== 'POST') return json(405, { error: 'method' });
   const body = await req.json().catch(() => ({}));
   const fixAttemptId = body?.fix_attempt_id;
+  // RSHIR-A11: codex-review-poll passes codex_green=true after parsing
+  // Codex bot review comments and finding no P1/P2/blocker keywords.
+  const codexGreen = body?.codex_green === true;
   if (!fixAttemptId) return json(400, { error: 'fix_attempt_id required' });
 
   const supa: SupabaseClient = createClient(SUPABASE_URL, SERVICE_ROLE, {
@@ -390,7 +410,7 @@ async function handle(req: Request): Promise<Response> {
     .single();
   const trust: TrustLevel = (trustRow?.trust_level ?? 'PROPOSE_ONLY') as TrustLevel;
 
-  const finalDecision = combineDecision(verdict, trust, feedback.triage_category);
+  const finalDecision = combineDecision(verdict, trust, feedback.triage_category, codexGreen);
 
   let merged = false;
   let mergeDetail: unknown = null;
