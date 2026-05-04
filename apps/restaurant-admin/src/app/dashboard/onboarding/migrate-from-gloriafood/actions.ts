@@ -356,3 +356,123 @@ export async function commitGloriaFoodImport(
   revalidatePath('/dashboard/menu');
   return { ok: true, categoriesCreated, itemsCreated };
 }
+
+// ────────────────────────────────────────────────────────────
+// parseGloriaFoodMasterKey — fetches menu via Master Key API and returns
+// the same ParseResult shape as parseGloriaFoodCsv. The user then proceeds
+// with the existing commitGloriaFoodImport flow (no API rewrite needed).
+//
+// API: https://www.beta.gloriafood.com/v2/master/<MASTER_KEY>/menus
+// We don't store the raw key — the operator pastes it again on commit if
+// they want to re-fetch.
+// ────────────────────────────────────────────────────────────
+
+const GLORIAFOOD_MASTER_BASE = 'https://www.beta.gloriafood.com/v2/master';
+
+type GfCategory = { id?: number | string; name?: string };
+type GfItem = {
+  id?: number | string;
+  name?: string;
+  description?: string;
+  price?: number | string;
+  category_id?: number | string;
+};
+
+export async function parseGloriaFoodMasterKey(
+  expectedTenantId: string,
+  masterKey: string,
+): Promise<ParseResult> {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Trebuie să fiți autentificat.' };
+  const { tenant } = await getActiveTenant();
+  if (tenant.id !== expectedTenantId) return { ok: false, error: 'Tenant mismatch.' };
+  await assertTenantMember(user.id, tenant.id);
+
+  if (!masterKey || masterKey.trim().length < 20 || masterKey.length > 200) {
+    return { ok: false, error: 'Master Key invalid (lungime suspectă).' };
+  }
+
+  let gfData: unknown;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    const r = await fetch(
+      `${GLORIAFOOD_MASTER_BASE}/${encodeURIComponent(masterKey.trim())}/menus`,
+      {
+        headers: { 'User-Agent': 'HIR-importer/1.0', Accept: 'application/json' },
+        signal: ctrl.signal,
+      },
+    );
+    clearTimeout(timer);
+    if (r.status === 401 || r.status === 403) {
+      return {
+        ok: false,
+        error: 'GloriaFood respinge cheia. Verifică în GloriaFood Admin → Master Key.',
+      };
+    }
+    if (r.status === 404) {
+      return { ok: false, error: 'Cheia există dar contul nu are meniu activ.' };
+    }
+    if (!r.ok) {
+      return { ok: false, error: `GloriaFood API a returnat ${r.status}.` };
+    }
+    gfData = await r.json();
+  } catch (e) {
+    return {
+      ok: false,
+      error:
+        'Nu am putut contacta GloriaFood: ' +
+        (e instanceof Error ? e.message.substring(0, 200) : 'eroare necunoscută'),
+    };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const root: any = gfData;
+  const menus: Array<{ categories?: GfCategory[]; items?: GfItem[] }> = Array.isArray(root)
+    ? root
+    : Array.isArray(root?.menus)
+      ? root.menus
+      : [{ categories: root?.categories ?? [], items: root?.items ?? [] }];
+
+  const gfCatById = new Map<string, string>(); // gfCatId -> name
+  const gfItems: GfItem[] = [];
+  for (const m of menus) {
+    for (const c of m.categories ?? []) {
+      const id = String(c.id ?? c.name ?? '');
+      const name = (c.name ?? 'Categorie').toString().trim() || 'Necategorisit';
+      if (id) gfCatById.set(id, name);
+    }
+    for (const it of m.items ?? []) gfItems.push(it);
+  }
+
+  const items: ParsedItem[] = [];
+  for (const it of gfItems) {
+    const name = (it.name ?? '').toString().trim().slice(0, 200);
+    if (!name) continue;
+    const priceRaw = typeof it.price === 'number' ? it.price : Number(it.price ?? 0);
+    const price = Number.isFinite(priceRaw) && priceRaw >= 0 ? Math.round(priceRaw * 100) / 100 : 0;
+    let flagged: string | null = null;
+    if (price === 0) flagged = 'Preț 0 — verifică manual';
+    if (name.length === 200) flagged = 'Numele atinge limita 200 caractere';
+
+    const catName = gfCatById.get(String(it.category_id ?? '')) ?? 'Necategorisit';
+    items.push({
+      category: catName,
+      name,
+      description: (it.description ?? '').toString().trim().slice(0, 1000),
+      price_ron: price,
+      flagged,
+    });
+  }
+
+  if (items.length === 0) {
+    return { ok: false, error: 'GloriaFood a răspuns dar fără produse importabile.' };
+  }
+
+  const categoryCount = new Set(items.map((i) => i.category)).size;
+  return { ok: true, itemCount: items.length, categoryCount, items };
+}
+

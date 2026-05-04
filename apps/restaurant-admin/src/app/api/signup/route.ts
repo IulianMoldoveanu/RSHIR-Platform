@@ -137,29 +137,30 @@ export async function POST(req: NextRequest) {
   // does for audit_log.
   if (ref) {
     try {
-      type AnyTable = {
-        from: (t: string) => {
-          select: (cols: string) => {
-            eq: (col: string, val: string) => {
-              maybeSingle: () => Promise<{ data: { id: string } | null; error: { message: string } | null }>;
-            };
-          };
-          insert: (row: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-        };
-      };
-      const db = admin as unknown as AnyTable;
-
-      const { data: partner, error: partnerLookupErr } = await db
-        .from('partners')
-        .select('id')
-        .eq('id', ref)
-        .maybeSingle();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dbAny = admin as any;
+      const cols = 'id, tier, bounty_one_shot_ron';
+      // UUID-shaped ref -> lookup by id; otherwise lookup by partners.code
+      // (white-label codes use [A-Z2-9], no lowercase). Both legacy partner
+      // UUIDs and the new short codes work.
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
+      let partner: { id: string; tier?: string; bounty_one_shot_ron?: number | null } | null = null;
+      let partnerLookupErr: { message: string } | null = null;
+      if (isUuid) {
+        const r = await dbAny.from('partners').select(cols).eq('id', ref).maybeSingle();
+        partner = r.data;
+        partnerLookupErr = r.error;
+      } else {
+        const r = await dbAny.from('partners').select(cols).eq('code', ref.toUpperCase()).maybeSingle();
+        partner = r.data;
+        partnerLookupErr = r.error;
+      }
       if (partnerLookupErr) {
         console.warn('[signup] partner lookup error for ref=%s: %s', ref, partnerLookupErr.message);
       } else if (!partner) {
         console.warn('[signup] unknown partner code ref=%s — skipping referral', ref);
       } else {
-        const { error: referralErr } = await db
+        const { error: referralErr } = await dbAny
           .from('partner_referrals')
           .insert({ partner_id: partner.id, tenant_id: tenantId });
         if (referralErr) {
@@ -173,6 +174,24 @@ export async function POST(req: NextRequest) {
             entityId: String(partner.id),
             metadata: { tenant_id: tenantId, partner_id: partner.id, code: ref },
           });
+        }
+
+        // Affiliate bounty — when the partner is tier=AFFILIATE, also create
+        // a PENDING bounty row (becomes PAYABLE after 30 days; this window
+        // lets us cancel for fraud / immediate-churn). Reseller partners
+        // (tier=PARTNER/PREMIER) get the recurring partner_commissions
+        // monthly cron — not the bounty.
+        if (partner.tier === 'AFFILIATE' && partner.bounty_one_shot_ron && partner.bounty_one_shot_ron > 0) {
+          const { error: bountyErr } = await dbAny
+            .from('affiliate_bounties')
+            .insert({
+              partner_id: partner.id,
+              tenant_id: tenantId,
+              amount_ron: partner.bounty_one_shot_ron,
+            });
+          if (bountyErr && !/duplicate|unique/i.test(bountyErr.message ?? '')) {
+            console.error('[signup] affiliate_bounty insert failed', bountyErr.message);
+          }
         }
       }
     } catch (e) {
