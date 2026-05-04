@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { Navigation, RefreshCw } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
@@ -15,13 +15,31 @@ type OrderRow = {
   vertical: 'restaurant' | 'pharma';
   customer_first_name: string | null;
   pickup_line1: string | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
   dropoff_line1: string | null;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
   total_ron: number | null;
   delivery_fee_ron: number | null;
   created_at: string;
 };
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+
+const ORDER_COLUMNS =
+  'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at';
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export default async function OrdersPage() {
   const supabase = createServerClient();
@@ -35,13 +53,13 @@ export default async function OrdersPage() {
   const [{ data: assignedData }, { data: openData }, riderMode] = await Promise.all([
     admin
       .from('courier_orders')
-      .select('id, status, vertical, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
+      .select(ORDER_COLUMNS)
       .eq('assigned_courier_user_id', user.id)
       .in('status', ACTIVE_STATUSES)
       .order('created_at', { ascending: false }),
     admin
       .from('courier_orders')
-      .select('id, status, vertical, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, created_at')
+      .select(ORDER_COLUMNS)
       .is('assigned_courier_user_id', null)
       .in('status', ['CREATED', 'OFFERED'])
       .order('created_at', { ascending: false })
@@ -130,6 +148,20 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 function OrderListItem({ order }: { order: OrderRow }) {
+  const hasRoute =
+    order.pickup_lat != null &&
+    order.pickup_lng != null &&
+    order.dropoff_lat != null &&
+    order.dropoff_lng != null;
+  const distanceKm = hasRoute
+    ? haversineKm(
+        order.pickup_lat as number,
+        order.pickup_lng as number,
+        order.dropoff_lat as number,
+        order.dropoff_lng as number,
+      )
+    : null;
+
   return (
     <li>
       <Link
@@ -152,6 +184,12 @@ function OrderListItem({ order }: { order: OrderRow }) {
             <p className="mt-0.5 truncate text-xs text-zinc-500">
               {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
             </p>
+            {distanceKm != null ? (
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-zinc-400">
+                <Navigation className="h-3 w-3 text-violet-300" aria-hidden />
+                {distanceKm.toFixed(1)} km
+              </p>
+            ) : null}
           </div>
           <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
             {order.status}
