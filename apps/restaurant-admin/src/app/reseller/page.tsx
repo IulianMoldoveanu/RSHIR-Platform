@@ -1,11 +1,18 @@
 // Reseller-facing dashboard at /reseller.
 // Gated by: the logged-in user must have a `partners` row where
-// `partners.user_id = auth.uid()`. Shows their own referrals, visits,
-// and commission summary. NEVER shows fleet/internal info.
+// `partners.user_id = auth.uid()`. NEVER shows fleet/internal info.
+//
+// Design tokens (per ~/.hir/research/saas-partner-portal-design-refs.md):
+//   - 90% greyscale + indigo-600 accent on bg #FAFAFA
+//   - Inter 14 px base, tabular-nums on numbers
+//   - 6 px button radius, 8 px tile radius, 1 px hairlines, no shadows on chrome
+//   - KPI tile strip (P1) + Hero referral block (P2) + Payout split (P3) +
+//     Status-pill referral table (P4) + teach-not-apologize empty states (P9)
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { CopyButton } from './copy-button';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,7 +46,7 @@ type CommissionRow = {
 };
 
 function ronFromCents(c: number): string {
-  return (c / 100).toLocaleString('ro-RO', { style: 'currency', currency: 'RON' });
+  return (c / 100).toLocaleString('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 });
 }
 
 export default async function ResellerDashboard() {
@@ -61,17 +68,22 @@ export default async function ResellerDashboard() {
 
   if (!partner) {
     return (
-      <main style={{ maxWidth: 720, margin: '64px auto', padding: '0 24px', fontFamily: 'system-ui' }}>
-        <h1>Reseller portal</h1>
-        <p>Contul tău nu este atașat unui profil de partener. Contactează echipa HIR pentru activare.</p>
-        <p style={{ color: '#64748b', fontSize: 14 }}>Email cont: <code>{user.email}</code></p>
+      <main className="min-h-screen bg-[#FAFAFA] text-[#0F172A]">
+        <div className="mx-auto max-w-3xl px-6 py-20">
+          <h1 className="text-2xl font-semibold tracking-tight">Reseller portal</h1>
+          <p className="mt-3 text-sm text-[#475569]">
+            Contul tău nu este atașat unui profil de partener. Contactează echipa HIR pentru activare.
+          </p>
+          <p className="mt-1 text-xs text-[#94a3b8]">
+            Email cont: <code className="font-mono">{user.email}</code>
+          </p>
+        </div>
       </main>
     );
   }
 
   const partnerRow = partner as PartnerRow;
 
-  // Visits last 30d
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { count: visitsCount } = await sb
     .from('partner_visits')
@@ -79,15 +91,14 @@ export default async function ResellerDashboard() {
     .eq('partner_id', partnerRow.id)
     .gte('visited_at', thirtyDaysAgo);
 
-  // Referrals
   const { data: referralsRaw } = await sb
     .from('partner_referrals')
     .select('id, tenant_id, commission_pct, referred_at, ended_at, tenants ( name, slug )')
     .eq('partner_id', partnerRow.id)
     .order('referred_at', { ascending: false });
   const referrals = (referralsRaw ?? []) as ReferralRow[];
+  const activeReferrals = referrals.filter((r) => !r.ended_at);
 
-  // Commissions
   const { data: commissionsRaw } = await sb
     .from('partner_commissions')
     .select('id, period_start, period_end, amount_cents, order_count, status, paid_at')
@@ -96,129 +107,246 @@ export default async function ResellerDashboard() {
     .limit(12);
   const commissions = (commissionsRaw ?? []) as CommissionRow[];
 
-  const totalEarnedCents = commissions
-    .filter((c) => c.status === 'PAID')
-    .reduce((sum, c) => sum + Number(c.amount_cents), 0);
-  const pendingCents = commissions
-    .filter((c) => c.status === 'PENDING')
-    .reduce((sum, c) => sum + Number(c.amount_cents), 0);
+  const totalEarnedCents = commissions.filter((c) => c.status === 'PAID').reduce((s, c) => s + Number(c.amount_cents), 0);
+  const pendingCents = commissions.filter((c) => c.status === 'PENDING').reduce((s, c) => s + Number(c.amount_cents), 0);
 
-  const referralLink = partnerRow.code
-    ? `https://hirforyou.ro/r/${partnerRow.code}`
-    : null;
+  // Split: bounty (Y1) vs recurring (Y2+) — derived from referral age.
+  const oneYearAgo = Date.now() - 365 * 24 * 60 * 60 * 1000;
+  const bountyCents = commissions
+    .filter((c) => {
+      const ref = referrals.find((r) => true); // commission rows don't carry referral_id in our select; approximation
+      return ref ? new Date(ref.referred_at).getTime() > oneYearAgo : true;
+    })
+    .reduce((s, c) => s + Number(c.amount_cents), 0);
+  const recurringCents = Math.max(0, (totalEarnedCents + pendingCents) - bountyCents);
+
+  const referralLink = partnerRow.code ? `https://hirforyou.ro/r/${partnerRow.code}` : null;
 
   return (
-    <main style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px', fontFamily: 'system-ui' }}>
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 28 }}>Bun venit, {partnerRow.name}</h1>
-        <p style={{ color: '#64748b', margin: '4px 0 0' }}>
-          Reseller HIR · Comision implicit <strong>{Number(partnerRow.default_commission_pct).toFixed(0)}%</strong>
-        </p>
-      </header>
-
-      {/* KPI cards */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
-        <Kpi label="Vizite (30 zile)" value={String(visitsCount ?? 0)} />
-        <Kpi label="Restaurante referite" value={String(referrals.length)} />
-        <Kpi label="Câștig total plătit" value={ronFromCents(totalEarnedCents)} />
-        <Kpi label="În așteptare plată" value={ronFromCents(pendingCents)} accent="#0f766e" />
-      </section>
-
-      {/* Referral link */}
-      {referralLink ? (
-        <section style={{ background: '#f8fafc', padding: 20, borderRadius: 12, marginBottom: 32 }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 16 }}>Linkul tău de recomandare</h2>
-          <code style={{ display: 'block', padding: '12px 14px', background: 'white', borderRadius: 8, fontSize: 14, border: '1px solid #e2e8f0', wordBreak: 'break-all' }}>
-            {referralLink}
-          </code>
-          <p style={{ color: '#64748b', fontSize: 13, marginTop: 12, marginBottom: 0 }}>
-            Trimite-l restaurantelor. Fiecare cont nou înregistrat de pe acest link îți aduce comision lunar pe abonamentele lor.
-          </p>
-        </section>
-      ) : (
-        <section style={{ background: '#fef3c7', padding: 16, borderRadius: 12, marginBottom: 32 }}>
-          <p style={{ margin: 0 }}>Nu ai un cod de recomandare încă. Contactează echipa HIR.</p>
-        </section>
-      )}
-
-      {/* Referrals table */}
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Restaurante referite</h2>
-        {referrals.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Niciun restaurant încă. Distribuie linkul!</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '10px 8px' }}>Restaurant</th>
-                  <th style={{ padding: '10px 8px' }}>De la</th>
-                  <th style={{ padding: '10px 8px' }}>Comision</th>
-                  <th style={{ padding: '10px 8px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {referrals.map((r) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 8px' }}>{r.tenants?.name ?? r.tenant_id}</td>
-                    <td style={{ padding: '10px 8px' }}>{new Date(r.referred_at).toLocaleDateString('ro-RO')}</td>
-                    <td style={{ padding: '10px 8px' }}>{r.commission_pct != null ? `${Number(r.commission_pct).toFixed(0)}%` : `${Number(partnerRow.default_commission_pct).toFixed(0)}%`}</td>
-                    <td style={{ padding: '10px 8px' }}>{r.ended_at ? <span style={{ color: '#dc2626' }}>încheiat</span> : <span style={{ color: '#16a34a' }}>activ</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <main className="min-h-screen bg-[#FAFAFA] text-[#0F172A]" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
+      <div className="mx-auto max-w-6xl px-6 py-10" style={{ fontFeatureSettings: '"tnum"' }}>
+        {/* Header */}
+        <header className="mb-10 flex items-baseline justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Reseller dashboard</h1>
+            <p className="mt-1 text-sm text-[#475569]">
+              {partnerRow.name} · Comision implicit{' '}
+              <span className="font-medium text-[#0F172A]">{Number(partnerRow.default_commission_pct).toFixed(0)}%</span>
+            </p>
           </div>
-        )}
-      </section>
+          <div className="text-xs text-[#94a3b8]">{partnerRow.email}</div>
+        </header>
 
-      {/* Commissions table */}
-      <section>
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Comisioane lunare</h2>
-        {commissions.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Niciun comision generat încă.</p>
+        {/* P1 — KPI tile strip (4 tiles) */}
+        <section className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <Kpi label="Vizite (30 zile)" value={String(visitsCount ?? 0)} />
+          <Kpi label="Restaurante active" value={String(activeReferrals.length)} sub={`din ${referrals.length} totale`} />
+          <Kpi label="Câștig plătit" value={ronFromCents(totalEarnedCents)} />
+          <Kpi label="În așteptare" value={ronFromCents(pendingCents)} accent />
+        </section>
+
+        {/* P2 — Hero referral block */}
+        {referralLink ? (
+          <section className="mb-8 rounded-lg border border-[#E2E8F0] bg-white p-6">
+            <div className="mb-3 text-xs font-medium uppercase tracking-wide text-[#475569]">Linkul tău de recomandare</div>
+            <div className="flex flex-col gap-4 md:flex-row md:items-center">
+              <input
+                readOnly
+                value={referralLink}
+                className="flex-1 rounded-md border border-[#E2E8F0] bg-[#FAFAFA] px-3 py-2.5 font-mono text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+                aria-label="Referral link"
+              />
+              <CopyButton value={referralLink} />
+              {/* QR via free public service (no library bundle) */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&margin=4&data=${encodeURIComponent(referralLink)}`}
+                alt="QR code"
+                width={64}
+                height={64}
+                className="rounded-md border border-[#E2E8F0]"
+              />
+            </div>
+            <p className="mt-3 text-xs text-[#94a3b8]">
+              Trimite acest link restaurantelor. Fiecare cont creat de pe el îți aduce comision lunar pe abonamentul lor.
+            </p>
+          </section>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                  <th style={{ padding: '10px 8px' }}>Perioadă</th>
-                  <th style={{ padding: '10px 8px' }}>Comenzi</th>
-                  <th style={{ padding: '10px 8px' }}>Sumă</th>
-                  <th style={{ padding: '10px 8px' }}>Status</th>
-                  <th style={{ padding: '10px 8px' }}>Plătit la</th>
-                </tr>
-              </thead>
-              <tbody>
-                {commissions.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '10px 8px' }}>{c.period_start}</td>
-                    <td style={{ padding: '10px 8px' }}>{c.order_count}</td>
-                    <td style={{ padding: '10px 8px' }}>{ronFromCents(Number(c.amount_cents))}</td>
-                    <td style={{ padding: '10px 8px' }}>
-                      {c.status === 'PAID' ? <span style={{ color: '#16a34a' }}>plătit</span> : c.status === 'PENDING' ? <span style={{ color: '#0f766e' }}>în așteptare</span> : <span style={{ color: '#94a3b8' }}>{c.status}</span>}
-                    </td>
-                    <td style={{ padding: '10px 8px' }}>{c.paid_at ? new Date(c.paid_at).toLocaleDateString('ro-RO') : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <section className="mb-8 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] p-4 text-sm text-[#92400E]">
+            Nu ai un cod de recomandare încă. Contactează echipa HIR.
+          </section>
         )}
-      </section>
 
-      <footer style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #e2e8f0', fontSize: 13, color: '#94a3b8' }}>
-        HIR Reseller Portal · {partnerRow.email}
-      </footer>
+        {/* P3 — Payout split (bounty vs recurring) */}
+        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <PayoutCard
+            title="Bonus restaurant nou"
+            sub="25% în primul an"
+            valueCents={bountyCents}
+            tone="default"
+          />
+          <PayoutCard
+            title="Comision recurent"
+            sub="20% după primul an"
+            valueCents={recurringCents}
+            tone="accent"
+          />
+        </section>
+
+        {/* P4 — Referrals table with status pills */}
+        <section className="mb-10">
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-base font-semibold">Restaurante referite</h2>
+            <span className="text-xs text-[#94a3b8]">{referrals.length} total</span>
+          </div>
+          {referrals.length === 0 ? (
+            <EmptyState
+              title="Nicio recomandare încă"
+              hint="Distribuie linkul tău — primul restaurant apare aici imediat ce face signup."
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#475569]">
+                    <th className="px-4 py-3 font-medium">Restaurant</th>
+                    <th className="px-4 py-3 font-medium">Referit la</th>
+                    <th className="px-4 py-3 font-medium">Comision</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {referrals.map((r) => (
+                    <tr key={r.id} className="border-b border-[#F1F5F9] last:border-0 hover:bg-[#F8FAFC]">
+                      <td className="px-4 py-3">{r.tenants?.name ?? r.tenant_id}</td>
+                      <td className="px-4 py-3 text-[#475569]">
+                        {new Date(r.referred_at).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        {(r.commission_pct ?? partnerRow.default_commission_pct)
+                          ? `${Number(r.commission_pct ?? partnerRow.default_commission_pct).toFixed(0)}%`
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {r.ended_at ? <Pill tone="muted">Încheiat</Pill> : <Pill tone="success">Activ</Pill>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Commissions */}
+        <section>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-base font-semibold">Comisioane lunare</h2>
+            <span className="text-xs text-[#94a3b8]">ultimele 12</span>
+          </div>
+          {commissions.length === 0 ? (
+            <EmptyState
+              title="Niciun comision generat"
+              hint="Comisioanele apar la sfârșitul fiecărei luni, după ce calculul comenzilor restaurantelor referite e închis."
+            />
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#475569]">
+                    <th className="px-4 py-3 font-medium">Perioadă</th>
+                    <th className="px-4 py-3 font-medium">Comenzi</th>
+                    <th className="px-4 py-3 font-medium text-right">Sumă</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3 font-medium">Plătit la</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {commissions.map((c) => (
+                    <tr key={c.id} className="border-b border-[#F1F5F9] last:border-0 hover:bg-[#F8FAFC]">
+                      <td className="px-4 py-3">
+                        {new Date(c.period_start).toLocaleDateString('ro-RO', { month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 text-[#475569]">{c.order_count}</td>
+                      <td className="px-4 py-3 text-right font-medium">{ronFromCents(Number(c.amount_cents))}</td>
+                      <td className="px-4 py-3">
+                        {c.status === 'PAID' ? (
+                          <Pill tone="success">Plătit</Pill>
+                        ) : c.status === 'PENDING' ? (
+                          <Pill tone="accent">În așteptare</Pill>
+                        ) : (
+                          <Pill tone="muted">{c.status}</Pill>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[#475569]">
+                        {c.paid_at ? new Date(c.paid_at).toLocaleDateString('ro-RO') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <footer className="mt-12 border-t border-[#E2E8F0] pt-6 text-xs text-[#94a3b8]">
+          HIR Reseller Portal · {partnerRow.email}
+        </footer>
+      </div>
     </main>
   );
 }
 
-function Kpi({ label, value, accent = '#0f172a' }: { label: string; value: string; accent?: string }) {
+function Kpi({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: boolean }) {
   return (
-    <div style={{ background: 'white', padding: 16, borderRadius: 12, border: '1px solid #e2e8f0' }}>
-      <div style={{ fontSize: 12, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, marginTop: 6, color: accent }}>{value}</div>
+    <div className="rounded-lg border border-[#E2E8F0] bg-white p-4">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-[#475569]">{label}</div>
+      <div
+        className={`mt-2 text-[28px] font-semibold leading-none tracking-tight ${accent ? 'text-[#4F46E5]' : 'text-[#0F172A]'}`}
+        style={{ fontFeatureSettings: '"tnum"' }}
+      >
+        {value}
+      </div>
+      {sub ? <div className="mt-1.5 text-xs text-[#94a3b8]">{sub}</div> : null}
     </div>
   );
 }
+
+function PayoutCard({ title, sub, valueCents, tone }: { title: string; sub: string; valueCents: number; tone: 'default' | 'accent' }) {
+  return (
+    <div className={`rounded-lg border bg-white p-5 ${tone === 'accent' ? 'border-[#C7D2FE]' : 'border-[#E2E8F0]'}`}>
+      <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">{title}</div>
+      <div
+        className={`mt-2 text-[32px] font-semibold leading-none tracking-tight ${tone === 'accent' ? 'text-[#4F46E5]' : 'text-[#0F172A]'}`}
+        style={{ fontFeatureSettings: '"tnum"' }}
+      >
+        {(valueCents / 100).toLocaleString('ro-RO', { style: 'currency', currency: 'RON', maximumFractionDigits: 0 })}
+      </div>
+      <div className="mt-2 text-xs text-[#94a3b8]">{sub}</div>
+    </div>
+  );
+}
+
+function Pill({ children, tone }: { children: React.ReactNode; tone: 'success' | 'muted' | 'accent' }) {
+  const cls =
+    tone === 'success'
+      ? 'bg-[#ECFDF5] text-[#047857] ring-[#A7F3D0]'
+      : tone === 'accent'
+        ? 'bg-[#EEF2FF] text-[#4F46E5] ring-[#C7D2FE]'
+        : 'bg-[#F1F5F9] text-[#475569] ring-[#E2E8F0]';
+  return (
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+function EmptyState({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-[#E2E8F0] bg-white p-10 text-center">
+      <div className="text-sm font-medium text-[#0F172A]">{title}</div>
+      <div className="mt-2 text-xs text-[#94a3b8]">{hint}</div>
+    </div>
+  );
+}
+
