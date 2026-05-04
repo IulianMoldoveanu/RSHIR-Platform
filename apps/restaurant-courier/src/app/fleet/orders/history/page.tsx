@@ -38,9 +38,18 @@ const RANGE_OPTIONS = [
   { days: 90, label: '90 zile' },
 ] as const;
 
-function startOfDay(daysAgo: number): Date {
+// "24 ore" should mean "the last 24 hours from now," not "from local
+// midnight" — Codex P2 #178 caught that startOfDay(0) excluded orders
+// updated yesterday evening once the clock crossed midnight. For
+// multi-day ranges we keep day-aligned boundaries (so a "7 zile" lookup
+// is reproducible across page loads regardless of when in the day the
+// manager opens it).
+function rangeStart(days: number): Date {
+  if (days <= 1) {
+    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  }
   const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
+  d.setDate(d.getDate() - (days - 1));
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -55,9 +64,20 @@ export default async function FleetOrdersHistoryPage({
 
   const requested = Number(searchParams.days ?? '7');
   const days = RANGE_OPTIONS.some((o) => o.days === requested) ? requested : 7;
-  const since = startOfDay(days - 1);
+  const since = rangeStart(days);
 
-  const [{ data: ordersData }, { data: couriersData }] = await Promise.all([
+  // Separate aggregate query for the period totals — Codex P2 #178
+  // caught that deriving counts/revenue from the 200-row truncated list
+  // under-reports for fleets with high volume. Tiny payload (only fee +
+  // status), so even a 90-day window stays cheap.
+  const summaryReq = admin
+    .from('courier_orders')
+    .select('status, delivery_fee_ron')
+    .eq('fleet_id', fleet.fleetId)
+    .in('status', ['DELIVERED', 'CANCELLED'])
+    .gte('updated_at', since.toISOString());
+
+  const [{ data: ordersData }, { data: couriersData }, { data: summaryData }] = await Promise.all([
     admin
       .from('courier_orders')
       .select(
@@ -72,17 +92,25 @@ export default async function FleetOrdersHistoryPage({
       .from('courier_profiles')
       .select('user_id, full_name')
       .eq('fleet_id', fleet.fleetId),
+    summaryReq,
   ]);
 
   const orders = (ordersData ?? []) as HistoryRow[];
   const couriers = (couriersData ?? []) as CourierRow[];
+  const summary = (summaryData ?? []) as Array<{
+    status: string;
+    delivery_fee_ron: number | null;
+  }>;
   const courierName = new Map(couriers.map((c) => [c.user_id, c.full_name ?? '—']));
 
-  const delivered = orders.filter((o) => o.status === 'DELIVERED');
-  const totalRevenue = delivered.reduce(
-    (sum, o) => sum + (Number(o.delivery_fee_ron) || 0),
-    0,
-  );
+  // Period totals from the un-truncated summary query — orders[] is
+  // capped at 200 for display purposes but the header reflects the full
+  // count/revenue for the range.
+  const totalCount = summary.length;
+  const deliveredCount = summary.filter((s) => s.status === 'DELIVERED').length;
+  const totalRevenue = summary
+    .filter((s) => s.status === 'DELIVERED')
+    .reduce((sum, s) => sum + (Number(s.delivery_fee_ron) || 0), 0);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
@@ -99,8 +127,8 @@ export default async function FleetOrdersHistoryPage({
           Istoric comenzi
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {orders.length} {orders.length === 1 ? 'comandă' : 'comenzi'} ·{' '}
-          {delivered.length} livrate · {totalRevenue.toFixed(2)} RON
+          {totalCount} {totalCount === 1 ? 'comandă' : 'comenzi'} ·{' '}
+          {deliveredCount} livrate · {totalRevenue.toFixed(2)} RON
         </p>
       </div>
 
