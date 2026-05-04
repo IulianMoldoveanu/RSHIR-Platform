@@ -16,7 +16,14 @@ export function BulkAutoAssignButton({ openCount }: { openCount: number }) {
   const [toast, setToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const disabled = pending || openCount === 0;
+  // Codex P1 #182: do NOT disable based on `openCount`. The dispatch
+  // board list is paginated (limit 60) and a hidden tail of unassigned
+  // orders beyond the cap would leave this button greyed out even
+  // when bulk assign would still have work to do. The server's
+  // `bulkAutoAssignAction` selects its own 50-row window of fresh open
+  // orders and reports `0/0` when there's truly nothing to do; that's
+  // the authoritative gate.
+  const disabled = pending;
 
   function handleClick() {
     setError(null);

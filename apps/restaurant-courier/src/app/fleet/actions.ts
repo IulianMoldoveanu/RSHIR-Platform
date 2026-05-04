@@ -410,7 +410,10 @@ export async function bulkAutoAssignAction(): Promise<
   if (!ctx) return { ok: false, error: 'Acces interzis.' };
 
   const admin = createAdminClient();
-  const { data: openData } = await (
+  // Codex P1 #182: surface DB/RLS/network failures explicitly. Previously
+  // any error was swallowed into `data === null` and the action returned
+  // success-with-zero, making a real outage look like an empty queue.
+  const { data: openData, error: openErr } = await (
     admin as unknown as {
       from: (t: string) => {
         select: (cols: string) => {
@@ -420,6 +423,7 @@ export async function bulkAutoAssignAction(): Promise<
                 order: (col: string, opts: Record<string, unknown>) => {
                   limit: (n: number) => Promise<{
                     data: Array<{ id: string }> | null;
+                    error: { message: string } | null;
                   }>;
                 };
               };
@@ -436,6 +440,10 @@ export async function bulkAutoAssignAction(): Promise<
     .in('status', ['CREATED', 'OFFERED'])
     .order('created_at', { ascending: true })
     .limit(50);
+
+  if (openErr) {
+    return { ok: false, error: `Listă comenzi: ${openErr.message}` };
+  }
 
   const orders = openData ?? [];
   if (orders.length === 0) {
