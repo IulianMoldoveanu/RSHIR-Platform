@@ -29,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Are we currently in a shift? Drives the location tracker on/off.
   const admin = createAdminClient();
-  const [{ data: shiftData }, riderMode] = await Promise.all([
+  const [{ data: shiftData }, riderMode, { count: openOrdersCount }] = await Promise.all([
     admin
       .from('courier_shifts')
       .select('id')
@@ -38,8 +38,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       .limit(1)
       .maybeSingle(),
     resolveRiderMode(user.id),
+    admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .is('assigned_courier_user_id', null)
+      .in('status', ['CREATED', 'OFFERED']),
   ]);
   const isOnline = !!shiftData;
+  // Mode C riders never browse — don't show a count nudge for them.
+  const navOrdersBadge = riderMode.mode === 'C' ? 0 : (openOrdersCount ?? 0);
 
   // Mode A only: pull the rider's single tenant brand for the header.
   // Per decision_courier_three_modes.md, white-label propagation is
@@ -100,13 +107,25 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <ul className="mx-auto flex max-w-xl items-stretch justify-around">
             {NAV.map((item) => {
               const Icon = item.icon;
+              const badgeCount =
+                item.href === '/dashboard/orders' && navOrdersBadge > 0 ? navOrdersBadge : 0;
               return (
                 <li key={item.href} className="flex-1">
                   <Link
                     href={item.href}
-                    className="flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-zinc-400 hover:text-violet-400"
+                    className="relative flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-zinc-400 hover:text-violet-400"
                   >
-                    <Icon className="h-5 w-5" aria-hidden />
+                    <span className="relative">
+                      <Icon className="h-5 w-5" aria-hidden />
+                      {badgeCount > 0 ? (
+                        <span
+                          className="absolute -right-2 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[9px] font-bold text-white"
+                          aria-label={`${badgeCount} comenzi disponibile`}
+                        >
+                          {badgeCount > 9 ? '9+' : badgeCount}
+                        </span>
+                      ) : null}
+                    </span>
                     <span>{item.label}</span>
                   </Link>
                 </li>
