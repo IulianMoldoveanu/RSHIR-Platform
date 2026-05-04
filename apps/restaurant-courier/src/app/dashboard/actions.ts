@@ -262,6 +262,28 @@ export async function updateCourierLocationAction(lat: number, lng: number): Pro
     .eq('status', 'ONLINE');
 }
 
+// Allowed vehicle types for the rider. Mirrors the CHECK constraint in
+// courier_profiles. Adding a new vehicle requires a migration; keep this
+// list in sync.
+const VEHICLE_TYPES = ['BIKE', 'SCOOTER', 'CAR'] as const;
+type VehicleType = (typeof VEHICLE_TYPES)[number];
+
+function isVehicleType(value: unknown): value is VehicleType {
+  return typeof value === 'string' && (VEHICLE_TYPES as readonly string[]).includes(value);
+}
+
+export async function updateVehicleAction(formData: FormData): Promise<void> {
+  const userId = await requireUserId();
+  const raw = formData.get('vehicle_type');
+  if (!isVehicleType(raw)) return;
+  const admin = createAdminClient();
+  await admin
+    .from('courier_profiles')
+    .update({ vehicle_type: raw })
+    .eq('user_id', userId);
+  revalidatePath('/dashboard/settings');
+}
+
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
