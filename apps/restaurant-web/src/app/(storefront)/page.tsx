@@ -56,6 +56,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StorefrontHomePage() {
   const { tenant } = await resolveTenantFromHost();
+  // TODO(demo-2026-05-05): on canonical Vercel hosts (hir-restaurant-web.
+  // vercel.app, preview deployments, *.lvh.me) with no ?tenant= override
+  // and no cookie, this 404s the visitor. Intended for prod/custom-domain
+  // hardening but blocks support staff from quick-loading a tenant by URL.
+  // Consider rendering a small "Choose tenant" picker when env !== 'production'
+  // OR when host matches a known non-canonical pattern. Found during
+  // 2026-05-04 E2E walkthrough — Iulian opening hir-restaurant-web.vercel.app
+  // directly returns 404 with no hint.
   if (!tenant) notFound();
 
   const locale = getLocale();
