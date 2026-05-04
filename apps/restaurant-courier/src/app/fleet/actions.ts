@@ -7,6 +7,78 @@ import { logAudit } from '@/lib/audit';
 
 export type FleetActionResult = { ok: true } | { ok: false; error: string };
 
+const MAX_MANAGER_NOTE_LENGTH = 500;
+
+/**
+ * Update the manager-only note on a courier profile. Notes are free text
+ * (max 500 chars) and never shown to the rider — purely for the manager's
+ * own context ("speaks German", "vehicle repaired 2026-04-30", etc.).
+ *
+ * Filtered by both `user_id` and `fleet_id` so a manager can't write
+ * notes on riders that don't belong to their fleet. `.select()` checks
+ * the returned row to surface zero-row updates as explicit errors
+ * (consistent with the rest of fleet/actions.ts).
+ */
+export async function updateCourierNoteAction(
+  courierUserId: string,
+  rawNote: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const trimmed = rawNote.trim();
+  if (trimmed.length > MAX_MANAGER_NOTE_LENGTH) {
+    return {
+      ok: false,
+      error: `Nota poate avea maxim ${MAX_MANAGER_NOTE_LENGTH} caractere.`,
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    // Empty note → store NULL so the UI can distinguish "never set" from
+    // "explicitly cleared" — both render the same empty placeholder, so
+    // the column stays clean.
+    .update({ manager_note: trimmed === '' ? null : trimmed })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_note_updated',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      length: trimmed.length,
+    },
+  });
+
+  revalidatePath(`/fleet/couriers/${courierUserId}`);
+  return { ok: true };
+}
+
 // E.164 sanity: must start with +, then 8–15 digits. We don't try to parse
 // further — the column is treated as a free-form display string everywhere
 // (Mode-C tap-to-call rendering, manager roster). Riders + customers will
@@ -174,6 +246,624 @@ export async function assignOrderToCourierAction(
   revalidatePath('/fleet/orders');
   revalidatePath(`/fleet/orders/${orderId}`);
   return { ok: true };
+}
+
+/**
+ * Suspend a courier in the manager's fleet. Sets `courier_profiles.status`
+ * to SUSPENDED and ends any active shift so the rider stops counting
+ * toward the "online" KPI. The rider can still log in but cannot start a
+ * new shift while suspended.
+ *
+ * Filtered by both `user_id` and `fleet_id` so a manager can't suspend
+ * riders that don't belong to their fleet.
+ */
+export async function suspendCourierAction(
+  courierUserId: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  // `.select().maybeSingle()` so a zero-row update (e.g. a stale or
+  // tampered courierUserId not in this fleet) returns an explicit error
+  // instead of silently logging a misleading audit entry.
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .update({ status: 'SUSPENDED' })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
+
+  // End any open shift — failures here are swallowed (the suspension
+  // itself is what matters for the audit trail; the shift end is just
+  // hygiene so the manager doesn't see a phantom "online" rider).
+  await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_shifts')
+    .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+    .eq('courier_user_id', courierUserId)
+    .eq('status', 'ONLINE');
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_suspended',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: { fleet_id: ctx.fleetId },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true };
+}
+
+/** Inverse of suspend — pushes status back to INACTIVE so the rider can go online again. */
+export async function reactivateCourierAction(
+  courierUserId: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  // Same zero-row guard as the suspend path so a stale/tampered userId
+  // outside this fleet doesn't write a misleading reactivation audit row.
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .update({ status: 'INACTIVE' })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_reactivated',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: { fleet_id: ctx.fleetId },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true };
+}
+
+/**
+ * Heuristic auto-assignment: pick the "best" online rider in the fleet
+ * for a given order and assign them. Selection priority:
+ *   1. Online riders with zero in-progress orders, sorted by haversine
+ *      distance from the order pickup (closest first).
+ *   2. If everyone is busy, fall back to the rider with the fewest
+ *      in-progress orders, ties broken by distance.
+ *   3. Riders with no GPS fix are pushed to the end — we still pick them
+ *      if nobody else is online, but they're a worse signal.
+ *
+ * The actual UPDATE goes through the same gate as `assignOrderToCourier
+ * Action` — only orders in CREATED/OFFERED + unassigned get reassigned —
+ * so a stale auto-assign click can't resurrect completed work.
+ */
+/**
+ * Bulk auto-assign — loops over every unassigned CREATED/OFFERED order
+ * in the manager's fleet and dispatches the same heuristic each receives
+ * via the per-row Auto-assign button. Useful when a dispatcher returns
+ * to the desk to a stack of orders and wants to clear the queue with a
+ * single tap.
+ *
+ * Hard cap of 50 orders per invocation so a misclick can't kick off a
+ * cascade across hundreds of rows. Manager retries the action if the
+ * queue is still long (rare in practice — the cap is well above the
+ * Brașov pilot's worst peak).
+ *
+ * Each iteration goes through the standard autoAssignOrderAction gate
+ * (status + null assignment + zero-row check + per-order audit), so a
+ * race against another dispatcher tab is safe — losers just return an
+ * "already assigned" error which we count and surface in the summary.
+ */
+export async function bulkAutoAssignAction(): Promise<
+  FleetActionResult & { assigned?: number; skipped?: number }
+> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  // Codex P1 #182: surface DB/RLS/network failures explicitly. Previously
+  // any error was swallowed into `data === null` and the action returned
+  // success-with-zero, making a real outage look like an empty queue.
+  const { data: openData, error: openErr } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          eq: (c: string, v: string) => {
+            is: (c: string, v: null) => {
+              in: (c: string, v: string[]) => {
+                order: (col: string, opts: Record<string, unknown>) => {
+                  limit: (n: number) => Promise<{
+                    data: Array<{ id: string }> | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    }
+  )
+    .from('courier_orders')
+    .select('id')
+    .eq('fleet_id', ctx.fleetId)
+    .is('assigned_courier_user_id', null)
+    .in('status', ['CREATED', 'OFFERED'])
+    .order('created_at', { ascending: true })
+    .limit(50);
+
+  if (openErr) {
+    return { ok: false, error: `Listă comenzi: ${openErr.message}` };
+  }
+
+  const orders = openData ?? [];
+  if (orders.length === 0) {
+    return { ok: true, assigned: 0, skipped: 0 };
+  }
+
+  let assigned = 0;
+  let skipped = 0;
+  for (const o of orders) {
+    const r = await autoAssignOrderAction(o.id);
+    if (r.ok) assigned += 1;
+    else skipped += 1;
+  }
+
+  // One audit row for the whole batch (each individual assign already
+  // logs its own fleet.order_auto_assigned). This row helps reconciliation
+  // when a manager wonders why N orders all flipped to ACCEPTED at once.
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.bulk_auto_assigned',
+    entityType: 'courier_fleet',
+    entityId: ctx.fleetId,
+    metadata: { batch_size: orders.length, assigned, skipped },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/orders');
+  return { ok: true, assigned, skipped };
+}
+
+export async function autoAssignOrderAction(
+  orderId: string,
+): Promise<FleetActionResult & { courierUserId?: string; distanceM?: number }> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+
+  // Resolve the fleet's couriers + the order's pickup coords first, so
+  // we can scope the shifts query by `courier_user_id IN (...)` instead
+  // of a global `.limit(200)` that could starve fleets in noisy
+  // platforms (Codex P1 #169).
+  const [{ data: orderData }, { data: couriersData }] = await Promise.all([
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => {
+              eq: (c: string, v: string) => {
+                maybeSingle: () => Promise<{
+                  data: {
+                    id: string;
+                    pickup_lat: number | null;
+                    pickup_lng: number | null;
+                    status: string;
+                    assigned_courier_user_id: string | null;
+                  } | null;
+                }>;
+              };
+            };
+          };
+        };
+      }
+    )
+      .from('courier_orders')
+      .select('id, pickup_lat, pickup_lng, status, assigned_courier_user_id')
+      .eq('id', orderId)
+      .eq('fleet_id', ctx.fleetId)
+      .maybeSingle(),
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (
+              c: string,
+              v: string,
+            ) => Promise<{
+              data: Array<{ user_id: string; full_name: string | null; status: string }>;
+            }>;
+          };
+        };
+      }
+    )
+      .from('courier_profiles')
+      .select('user_id, full_name, status')
+      .eq('fleet_id', ctx.fleetId),
+  ]);
+
+  if (!orderData) return { ok: false, error: 'Comanda nu există în această flotă.' };
+  const couriers = couriersData ?? [];
+  const fleetIds = couriers.map((c) => c.user_id);
+
+  // No riders in the fleet at all → exit before the second batch of
+  // queries (which would otherwise short-circuit on empty .in() filters).
+  if (fleetIds.length === 0) {
+    return { ok: false, error: 'Niciun curier în flotă.' };
+  }
+
+  const [{ data: shiftsData }, { data: activeOrdersData }] = await Promise.all([
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            in: (c: string, v: string[]) => {
+              eq: (c: string, v: string) => {
+                order: (col: string, opts: Record<string, unknown>) => Promise<{
+                  data: Array<{
+                    courier_user_id: string;
+                    last_lat: number | null;
+                    last_lng: number | null;
+                    started_at: string;
+                  }>;
+                }>;
+              };
+            };
+          };
+        };
+      }
+    )
+      .from('courier_shifts')
+      .select('courier_user_id, last_lat, last_lng, started_at')
+      .in('courier_user_id', fleetIds)
+      .eq('status', 'ONLINE')
+      .order('started_at', { ascending: false }),
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => {
+              in: (c: string, v: string[]) => Promise<{
+                data: Array<{ assigned_courier_user_id: string }>;
+              }>;
+            };
+          };
+        };
+      }
+    )
+      .from('courier_orders')
+      .select('assigned_courier_user_id')
+      .eq('fleet_id', ctx.fleetId)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
+  ]);
+
+  if (orderData.assigned_courier_user_id) {
+    return { ok: false, error: 'Comanda este deja asignată.' };
+  }
+  if (!['CREATED', 'OFFERED'].includes(orderData.status)) {
+    return { ok: false, error: 'Comanda nu mai poate fi asignată automat.' };
+  }
+
+  const shifts = shiftsData ?? [];
+  const activeRows = activeOrdersData ?? [];
+
+  // Active-orders count per rider (used for tie-breaking).
+  const inProgress = new Map<string, number>();
+  for (const r of activeRows) {
+    inProgress.set(r.assigned_courier_user_id, (inProgress.get(r.assigned_courier_user_id) ?? 0) + 1);
+  }
+
+  // Latest shift row per online rider.
+  const latestShift = new Map<string, { lat: number | null; lng: number | null }>();
+  for (const s of shifts) {
+    if (latestShift.has(s.courier_user_id)) continue;
+    latestShift.set(s.courier_user_id, { lat: s.last_lat, lng: s.last_lng });
+  }
+
+  // Build candidate list: online riders that belong to this fleet and
+  // are not SUSPENDED. (INACTIVE is fine — they just haven't started a
+  // shift yet, but if they're in latestShift they've started one.)
+  type Candidate = { userId: string; load: number; distanceM: number };
+  const candidates: Candidate[] = [];
+  const NO_GPS = Number.POSITIVE_INFINITY;
+  for (const c of couriers) {
+    if (c.status === 'SUSPENDED') continue;
+    if (!latestShift.has(c.user_id)) continue;
+    const fix = latestShift.get(c.user_id)!;
+    const distance =
+      orderData.pickup_lat != null &&
+      orderData.pickup_lng != null &&
+      fix.lat != null &&
+      fix.lng != null
+        ? haversineMeters(orderData.pickup_lat, orderData.pickup_lng, fix.lat, fix.lng)
+        : NO_GPS;
+    candidates.push({
+      userId: c.user_id,
+      load: inProgress.get(c.user_id) ?? 0,
+      distanceM: distance,
+    });
+  }
+
+  if (candidates.length === 0) {
+    return { ok: false, error: 'Niciun curier online pentru asignare automată.' };
+  }
+
+  // Idle riders first; among same-load, closest wins. NO_GPS riders sort last.
+  candidates.sort((a, b) => {
+    if (a.load !== b.load) return a.load - b.load;
+    return a.distanceM - b.distanceM;
+  });
+  const winner = candidates[0];
+
+  // Same gated UPDATE as the manual assign path.
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            in: (c: string, v: string[]) => {
+              is: (c: string, v: null) => {
+                select: (cols: string) => {
+                  maybeSingle: () => Promise<{
+                    data: { id: string } | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_orders')
+    .update({
+      assigned_courier_user_id: winner.userId,
+      status: 'ACCEPTED',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('fleet_id', ctx.fleetId)
+    .in('status', ['CREATED', 'OFFERED'])
+    .is('assigned_courier_user_id', null)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error: 'Comanda a fost asignată între timp de un alt dispecer.',
+    };
+  }
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.order_auto_assigned',
+    entityType: 'courier_order',
+    entityId: orderId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      courier_user_id: winner.userId,
+      distance_m: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : null,
+      load: winner.load,
+      candidates_considered: candidates.length,
+    },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/orders');
+  revalidatePath(`/fleet/orders/${orderId}`);
+  return {
+    ok: true,
+    courierUserId: winner.userId,
+    distanceM: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : undefined,
+  };
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Self-serve courier invite — fleet manager creates / invites a Supabase
+ * auth user and bonds them to this fleet via `courier_profiles.fleet_id`.
+ *
+ * Behavior:
+ *   - If a user with `email` already exists, just upsert/insert their
+ *     courier_profiles row pointing at THIS fleet.
+ *   - Otherwise inviteUserByEmail mints the user and sends the magic-link
+ *     email; we still upsert the courier_profiles row so the fleet
+ *     binding is in place when the rider first signs in.
+ *
+ * Filtered tightly: vehicle_type defaults to BIKE, status INACTIVE, and
+ * the upsert is keyed by `user_id` to make re-inviting a rider safe.
+ *
+ * Mirrors the platform-admin `inviteCourier` in admin/fleets/actions.ts
+ * but is gated on `getFleetManagerContext` instead of platform_admins,
+ * and forces fleet_id to the manager's own fleet (a fleet manager can't
+ * invite a rider into a competitor's fleet).
+ */
+export async function inviteCourierToFleetAction(
+  formData: FormData,
+): Promise<FleetActionResult & { userId?: string }> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const email = (formData.get('email') as string | null)?.trim() ?? '';
+  const fullName = (formData.get('full_name') as string | null)?.trim() ?? '';
+  const phoneRaw = (formData.get('phone') as string | null)?.trim() ?? '';
+  const vehicleType = (formData.get('vehicle_type') as string | null)?.trim() ?? 'BIKE';
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: 'Email invalid.' };
+  }
+  if (!fullName) {
+    return { ok: false, error: 'Numele este obligatoriu.' };
+  }
+  if (!['BIKE', 'SCOOTER', 'CAR'].includes(vehicleType)) {
+    return { ok: false, error: 'Tip vehicul invalid.' };
+  }
+  // Phone is optional but if present must be E.164-ish.
+  if (phoneRaw && !/^\+\d{8,15}$/.test(phoneRaw)) {
+    return { ok: false, error: 'Telefonul trebuie în format E.164 (+40…).' };
+  }
+
+  const admin = createAdminClient();
+
+  // Resolve the user id: try inviteUserByEmail first (idempotent for new
+  // users; existing users get an "already registered" path we handle by
+  // paginating listUsers). Codex P1 #172: a single listUsers() call only
+  // returns page 1, so projects with >1 page would silently fail to find
+  // existing couriers. Walk the pages until we hit the user or empty.
+  let userId: string | null = null;
+  try {
+    const sb = admin as unknown as {
+      auth: {
+        admin: {
+          inviteUserByEmail: (
+            email: string,
+          ) => Promise<{
+            data: { user: { id: string } | null } | null;
+            error: { message: string } | null;
+          }>;
+          listUsers: (params?: { page?: number; perPage?: number }) => Promise<{
+            data: { users: Array<{ id: string; email: string }> } | null;
+          }>;
+        };
+      };
+    };
+    const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email);
+    if (!inviteErr && invited?.user?.id) {
+      userId = invited.user.id;
+    } else {
+      // Already registered → walk listUsers pages until we hit the user.
+      // Hard cap at 50 pages × 200 = 10 000 users to bound the worst case
+      // — well above any realistic fleet's reach but enough for projects
+      // with shared auth pools.
+      const PER_PAGE = 200;
+      const MAX_PAGES = 50;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data: pageResp } = await sb.auth.admin.listUsers({ page, perPage: PER_PAGE });
+        const users = pageResp?.users ?? [];
+        if (users.length === 0) break;
+        const hit = users.find((u) => u.email === email);
+        if (hit) {
+          userId = hit.id;
+          break;
+        }
+        if (users.length < PER_PAGE) break;
+      }
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Invitare eșuată.',
+    };
+  }
+
+  if (!userId) {
+    return { ok: false, error: 'Nu am putut crea contul curier.' };
+  }
+
+  // Upsert the courier_profiles row keyed by user_id so re-inviting a
+  // rider just rebinds them to this fleet without duplicating data.
+  const profilePayload = {
+    user_id: userId,
+    fleet_id: ctx.fleetId,
+    full_name: fullName,
+    phone: phoneRaw || null,
+    vehicle_type: vehicleType,
+    status: 'INACTIVE',
+  } as const;
+
+  const { error: upsertErr } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        upsert: (
+          row: Record<string, unknown>,
+          opts: Record<string, unknown>,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
+    }
+  )
+    .from('courier_profiles')
+    .upsert(profilePayload, { onConflict: 'user_id' });
+
+  if (upsertErr) return { ok: false, error: upsertErr.message };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_self_invited',
+    entityType: 'courier_profile',
+    entityId: userId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      email,
+      vehicle_type: vehicleType,
+    },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true, userId };
 }
 
 /** Unassign — order falls back to OFFERED so another rider can pick it up. */

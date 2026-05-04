@@ -3,13 +3,17 @@ import {
   ArrowRight,
   Banknote,
   CheckCircle2,
+  Lightbulb,
   Package,
   TrendingUp,
   UserCheck,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { FleetLiveMap, type FleetRiderPin } from './fleet-live-map';
+import { FleetOverviewRefresh } from './fleet-overview-refresh';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +23,14 @@ type CourierRow = {
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
 };
 
-type ShiftRow = { courier_user_id: string };
+type ShiftRow = {
+  courier_user_id: string;
+  status: 'ONLINE' | 'OFFLINE';
+  last_lat: number | null;
+  last_lng: number | null;
+  last_seen_at: string | null;
+  started_at: string;
+};
 
 type OrderSnapshot = {
   id: string;
@@ -69,23 +80,32 @@ export default async function FleetOverviewPage() {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
+  // Couriers come first because the shift query needs their IDs to scope.
+  // A naive global `.limit(200)` would let busy fleets push this fleet's
+  // riders out of the result window, breaking online counts + map pins.
+  const { data: couriersData } = await admin
+    .from('courier_profiles')
+    .select('user_id, full_name, status')
+    .eq('fleet_id', fleet.fleetId);
+  const fleetCourierIds = ((couriersData ?? []) as Array<{ user_id: string }>).map((c) => c.user_id);
+
   const [
-    { data: couriersData },
     { data: shiftsData },
     { data: openOrdersData },
     { data: activeOrdersData },
     { data: deliveredTodayData },
   ] = await Promise.all([
-    // All couriers in the fleet (used for total + active count).
-    admin
-      .from('courier_profiles')
-      .select('user_id, full_name, status')
-      .eq('fleet_id', fleet.fleetId),
-    // Currently online shifts (= riders ready to take work right now).
-    admin
-      .from('courier_shifts')
-      .select('courier_user_id')
-      .eq('status', 'ONLINE'),
+    // Shifts scoped to the fleet's riders. ONLINE rows always surface; we
+    // also include the most recent OFFLINE shift per rider so the map can
+    // show last-known positions for riders who closed their shift recently.
+    fleetCourierIds.length > 0
+      ? admin
+          .from('courier_shifts')
+          .select('courier_user_id, status, last_lat, last_lng, last_seen_at, started_at')
+          .in('courier_user_id', fleetCourierIds)
+          .order('started_at', { ascending: false })
+          .limit(Math.max(200, fleetCourierIds.length * 3))
+      : Promise.resolve({ data: [] }),
     // Unassigned orders for this fleet — manager attention list.
     admin
       .from('courier_orders')
@@ -125,7 +145,9 @@ export default async function FleetOverviewPage() {
 
   // A rider is "online" if they have an ONLINE shift AND belong to this fleet.
   const fleetUserIds = new Set(couriers.map((c) => c.user_id));
-  const onlineCouriers = shifts.filter((s) => fleetUserIds.has(s.courier_user_id)).length;
+  const onlineCouriers = shifts.filter(
+    (s) => s.status === 'ONLINE' && fleetUserIds.has(s.courier_user_id),
+  ).length;
   const totalCouriers = couriers.length;
   const activeCouriers = couriers.filter((c) => c.status === 'ACTIVE').length;
 
@@ -137,14 +159,112 @@ export default async function FleetOverviewPage() {
 
   const courierName = new Map(couriers.map((c) => [c.user_id, c.full_name ?? '—']));
 
+  // Build pins for the live map: take the most recent shift row per rider
+  // (the SELECT was ordered by started_at desc) that has GPS coords. Most
+  // recent row wins; older shifts for the same rider are skipped.
+  const seenRiders = new Set<string>();
+  const inProgressByRider = new Map<string, number>();
+  for (const o of activeOrders) {
+    if (!o.assigned_courier_user_id) continue;
+    inProgressByRider.set(
+      o.assigned_courier_user_id,
+      (inProgressByRider.get(o.assigned_courier_user_id) ?? 0) + 1,
+    );
+  }
+  const ridersWithFleet = new Set(couriers.map((c) => c.user_id));
+  const livePins: FleetRiderPin[] = [];
+  for (const s of shifts) {
+    if (seenRiders.has(s.courier_user_id)) continue;
+    if (!ridersWithFleet.has(s.courier_user_id)) continue;
+    seenRiders.add(s.courier_user_id);
+    if (s.last_lat == null || s.last_lng == null) continue;
+    livePins.push({
+      userId: s.courier_user_id,
+      name: courierName.get(s.courier_user_id) ?? 'Curier',
+      lat: s.last_lat,
+      lng: s.last_lng,
+      online: s.status === 'ONLINE',
+      inProgressCount: inProgressByRider.get(s.courier_user_id) ?? 0,
+    });
+  }
+
+  // Onboarding state: empty fleet → big "first courier" CTA above all
+  // the empty KPIs. Once at least one rider is invited, the normal grid
+  // takes over. Inactive fleet → red banner replaces the onboarding card.
+  const isEmptyFleet = totalCouriers === 0;
+  const onboardingHints: Array<{ done: boolean; label: string }> = [
+    { done: !!fleet.contactPhone, label: 'Setează telefon dispecer' },
+    { done: totalCouriers > 0, label: 'Invită primul curier' },
+    { done: onlineCouriers > 0, label: 'Curier online' },
+    { done: todayCount > 0 || activeOrders.length > 0, label: 'Prima comandă procesată' },
+  ];
+  const completedHints = onboardingHints.filter((h) => h.done).length;
+  const surfaceOnboarding = completedHints < onboardingHints.length;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
+      <FleetOverviewRefresh />
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Privire de ansamblu</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Stare flotă în timp real — comenzi, curieri, încasări azi.
         </p>
       </div>
+
+      {/* Inactive fleet banner — manager can still browse but actions are
+          gated server-side by `is_active` once we wire that gate. */}
+      {!fleet.isActive ? (
+        <div className="rounded-2xl border border-amber-700/40 bg-amber-500/5 p-4">
+          <p className="text-sm font-semibold text-amber-200">Flotă inactivă</p>
+          <p className="mt-1 text-xs text-amber-200/80">
+            Contactează echipa HIR pentru reactivare. Dispecerul nu poate
+            primi comenzi noi cât timp flota este dezactivată.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Onboarding checklist — visible until all four steps complete. */}
+      {fleet.isActive && surfaceOnboarding ? (
+        <section className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-violet-300" aria-hidden />
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Pași pentru a deveni operațional
+              </h2>
+            </div>
+            <span className="text-[11px] font-semibold text-violet-300">
+              {completedHints}/{onboardingHints.length}
+            </span>
+          </div>
+          <ul className="space-y-1.5 text-xs">
+            {onboardingHints.map((h) => (
+              <li key={h.label} className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                    h.done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  {h.done ? '✓' : '·'}
+                </span>
+                <span className={h.done ? 'text-zinc-300 line-through' : 'text-zinc-200'}>
+                  {h.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {isEmptyFleet ? (
+            <Link
+              href="/fleet/couriers/invite"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+              Invită primul curier
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -174,6 +294,28 @@ export default async function FleetOverviewPage() {
           }
         />
       </div>
+
+      {/* Live map — riders' last-known GPS; emerald = online idle, violet = carrying. */}
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-100">Locații curieri</h2>
+          <p className="text-[11px] text-zinc-500">
+            <span className="mr-2 inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+              Liber
+            </span>
+            <span className="mr-2 inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" aria-hidden />
+              În curs
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" aria-hidden />
+              Offline
+            </span>
+          </p>
+        </div>
+        <FleetLiveMap pins={livePins} />
+      </section>
 
       {/* Open orders — red/amber attention bar */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
@@ -308,7 +450,7 @@ function OrderRow({
   return (
     <li>
       <Link
-        href="/fleet/orders"
+        href={`/fleet/orders/${order.id}`}
         className="block rounded-xl border border-zinc-800 bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-zinc-900"
       >
         <div className="flex items-start justify-between gap-3">

@@ -2,6 +2,7 @@ import { Bike, Car, Phone, Truck, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { CourierStatusActions } from './_actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -186,9 +187,12 @@ export default async function FleetCouriersPage() {
                       }`}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-zinc-100">
+                      <Link
+                        href={`/fleet/couriers/${c.user_id}`}
+                        className="truncate text-sm font-semibold text-zinc-100 hover:text-violet-300"
+                      >
                         {c.full_name ?? 'Curier'}
-                      </p>
+                      </Link>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
                         <span className="inline-flex items-center gap-1">
                           {VEHICLE_ICON[c.vehicle_type]}
@@ -225,6 +229,10 @@ export default async function FleetCouriersPage() {
                   <Mini label="În curs" value={String(inProgress)} />
                   <Mini label="Livrate azi" value={String(todayN)} />
                   <Mini label="Câștig azi" value={`${todayR.toFixed(2)} RON`} />
+                </div>
+
+                <div className="mt-3 flex justify-end border-t border-zinc-800 pt-3">
+                  <CourierStatusActions userId={c.user_id} status={c.status} />
                 </div>
               </li>
             );

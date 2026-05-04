@@ -1,8 +1,24 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Loader2, RotateCcw, UserCheck } from 'lucide-react';
-import { assignOrderToCourierAction, unassignOrderAction } from '../actions';
+import { AlertTriangle, Loader2, RotateCcw, UserCheck, Wand2 } from 'lucide-react';
+import {
+  assignOrderToCourierAction,
+  autoAssignOrderAction,
+  unassignOrderAction,
+} from '../actions';
+
+// Order is "stale" once it's been unassigned for ≥6 minutes. Tunable from
+// here when we get telemetry on real SLA pressure — for now this matches
+// the GloriaFood prep-time soft SLA Iulian uses for the Brașov pilot.
+const SLA_BREACH_MINUTES = 6;
+
+// Order in ACCEPTED state for ≥10 minutes without progressing to PICKED_UP
+// suggests the rider is stuck — phone died, got distracted, restaurant
+// took too long. The pill nudges the manager to follow up before the
+// customer calls. ACCEPTED's `updated_at` is the timestamp the rider
+// hit Accept, so age-since-update is the right signal here.
+const STALL_PICKUP_MINUTES = 10;
 
 export type DispatchOrder = {
   id: string;
@@ -74,6 +90,21 @@ export function OrderRow({
   const isAssigned = order.assigned_courier_user_id !== null;
   const canUnassign = order.status === 'ACCEPTED';
 
+  // SLA breach signal: red badge if order has been waiting unassigned
+  // for ≥SLA_BREACH_MINUTES. Renders only on the unassigned-rows path.
+  const ageMin = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60_000);
+  const slaBreached = !isAssigned && ageMin >= SLA_BREACH_MINUTES;
+
+  // Stalled-pickup signal: assigned + ACCEPTED for too long without the
+  // rider tapping "Picked up". Use updated_at because that's when the
+  // rider accepted (the most recent status transition timestamp we
+  // have in this column).
+  const stallMin =
+    order.status === 'ACCEPTED' && order.updated_at
+      ? Math.floor((Date.now() - new Date(order.updated_at).getTime()) / 60_000)
+      : 0;
+  const stalled = isAssigned && order.status === 'ACCEPTED' && stallMin >= STALL_PICKUP_MINUTES;
+
   function handleAssign(courierUserId: string) {
     setError(null);
     start(async () => {
@@ -86,6 +117,14 @@ export function OrderRow({
     });
   }
 
+  function handleAutoAssign() {
+    setError(null);
+    start(async () => {
+      const result = await autoAssignOrderAction(order.id);
+      if (!result.ok) setError(result.error);
+    });
+  }
+
   function handleUnassign() {
     setError(null);
     start(async () => {
@@ -94,11 +133,46 @@ export function OrderRow({
     });
   }
 
+  // `data-search-blob` is consumed by FleetOrdersSearch on /fleet/orders.
+  // The blob concatenates fields the dispatcher most likely searches on:
+  // order id prefix, customer name, pickup + dropoff. Component-local
+  // (not pushed up the prop chain) because /fleet/orders/[id] doesn't
+  // need it and we'd rather not bloat that surface.
+  const searchBlob = [
+    order.id.slice(0, 8),
+    order.customer_first_name ?? '',
+    order.pickup_line1 ?? '',
+    order.dropoff_line1 ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <li className="rounded-xl border border-zinc-800 bg-zinc-950 p-3">
+    <li
+      data-search-blob={searchBlob}
+      className={`rounded-xl border p-3 ${
+        slaBreached
+          ? 'border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20'
+          : stalled
+            ? 'border-amber-600/40 bg-amber-500/5 ring-1 ring-amber-500/20'
+            : 'border-zinc-800 bg-zinc-950'
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            {slaBreached ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                SLA {ageMin}m
+              </span>
+            ) : null}
+            {stalled ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                Curier blocat {stallMin}m
+              </span>
+            ) : null}
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[order.status] ?? 'bg-zinc-800 text-zinc-300'}`}
             >
@@ -134,19 +208,30 @@ export function OrderRow({
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-3">
         {!isAssigned ? (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => setPicker((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
-          >
-            {pending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
+          <>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={handleAutoAssign}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Wand2 className="h-3.5 w-3.5" aria-hidden />
+              )}
+              Auto-asignează
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setPicker((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+            >
               <UserCheck className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {picker ? 'Anulează' : 'Asignează curier'}
-          </button>
+              {picker ? 'Anulează' : 'Manual'}
+            </button>
+          </>
         ) : null}
 
         {isAssigned && canUnassign ? (

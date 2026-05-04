@@ -1,4 +1,4 @@
-import { Banknote, Calendar, TrendingUp } from 'lucide-react';
+import { Banknote, Calendar, Download, TrendingUp } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 
@@ -108,11 +108,21 @@ export default async function FleetEarningsPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Decontări</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Sumar pentru ultimele 7 zile · {delivered.length} livrări totale.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Decontări</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Sumar pentru ultimele 7 zile · {delivered.length} livrări totale.
+          </p>
+        </div>
+        <a
+          href="/fleet/earnings/export?days=30"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+          download
+        >
+          <Download className="h-3.5 w-3.5" aria-hidden />
+          Export CSV (30 zile)
+        </a>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

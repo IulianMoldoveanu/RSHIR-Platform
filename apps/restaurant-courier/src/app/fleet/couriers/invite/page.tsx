@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { ChevronLeft, MailQuestion } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { InviteCourierForm } from './_form';
 
 export const dynamic = 'force-dynamic';
 
-// Placeholder until self-serve invite is wired (next iteration). Today,
-// rider invitations go through the platform-admin path which mints the
-// auth user + courier_profile row. We surface contact info so the manager
-// can request an invite without leaving the dashboard.
+// Self-serve invite: manager fills the form → server action either
+// reuses the existing Supabase auth user or sends a magic-link invite,
+// then upserts a courier_profiles row pointing at THIS fleet.
 export default async function FleetInvitePage() {
   await requireFleetManager();
 
@@ -26,40 +26,20 @@ export default async function FleetInvitePage() {
           Invită curier
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Self-serve apare în zilele următoare. Până atunci, trimite emailul +
-          numele curierului echipei HIR și îl activăm pentru flota ta.
+          Curierul primește un email cu link-ul de conectare și va apărea în
+          flotă cu status <span className="text-zinc-300">Inactiv</span> până
+          pornește prima tură.
         </p>
       </div>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-        <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10">
-            <MailQuestion className="h-5 w-5 text-violet-300" aria-hidden />
-          </span>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-zinc-100">
-              Trimite cererea pe email
-            </p>
-            <p className="mt-1 text-xs text-zinc-500">
-              <a
-                href="mailto:contact@hir.ro?subject=Invitație%20curier%20flotă"
-                className="text-violet-300 hover:text-violet-200"
-              >
-                contact@hir.ro
-              </a>{' '}
-              · răspundem în câteva ore.
-            </p>
-          </div>
-        </div>
-      </section>
+      <InviteCourierForm />
 
       <section className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-xs text-zinc-500">
-        <p className="font-semibold text-zinc-400">Ce să trimiți:</p>
+        <p className="font-semibold text-zinc-400">Note rapide</p>
         <ul className="mt-2 list-inside list-disc space-y-0.5">
-          <li>Numele complet al curierului</li>
-          <li>Email folosit la conectare</li>
-          <li>Tip vehicul (bicicletă / scuter / mașină)</li>
-          <li>Telefon (opțional, pentru tap-to-call)</li>
+          <li>Re-invitarea unui curier existent îl rebondează la flota ta.</li>
+          <li>Telefonul este opțional; activează tap-to-call pe roster.</li>
+          <li>Pentru reactivarea unui curier suspendat folosește butonul din pagina Curieri.</li>
         </ul>
       </section>
     </div>
