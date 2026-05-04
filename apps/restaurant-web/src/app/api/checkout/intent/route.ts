@@ -76,7 +76,9 @@ export async function POST(req: NextRequest) {
     if (idem.kind === 'CACHED' || idem.kind === 'MISMATCH' || idem.kind === 'INVALID') {
       return idem.response;
     }
-    idempotencyContext = { key: idem.key, requestHash: idem.requestHash };
+    if (idem.kind === 'NEW') {
+      idempotencyContext = { key: idem.key, requestHash: idem.requestHash };
+    }
   }
 
   let body: unknown;
