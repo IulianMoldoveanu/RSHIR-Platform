@@ -72,7 +72,8 @@ function loadLeaflet(): Promise<LeafletGlobal> {
     script.async = true;
     script.dataset.riderMap = 'leaflet-js';
     script.onload = () => {
-      if (window.L) resolve(window.L);
+      const lib = (window as WindowWithLeaflet).L as LeafletGlobal | undefined;
+      if (lib) resolve(lib);
       else reject(new Error('Leaflet loaded but window.L missing'));
     };
     script.onerror = () => reject(new Error('Leaflet script load failed'));
