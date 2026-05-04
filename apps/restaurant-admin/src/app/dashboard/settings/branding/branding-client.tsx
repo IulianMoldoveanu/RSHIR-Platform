@@ -120,6 +120,8 @@ export function BrandingClient({
               <img
                 src={state.logo_url}
                 alt="Logo curent"
+                width={112}
+                height={112}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -179,6 +181,8 @@ export function BrandingClient({
               <img
                 src={state.cover_url}
                 alt="Copertă curentă"
+                width={800}
+                height={176}
                 className="h-full w-full object-cover"
               />
             ) : (
