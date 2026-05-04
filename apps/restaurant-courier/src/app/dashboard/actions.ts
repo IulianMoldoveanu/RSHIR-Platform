@@ -303,7 +303,24 @@ export async function updateVehicleAction(formData: FormData): Promise<void> {
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
-  // Only accept if currently CREATED or OFFERED and unassigned.
+
+  // Defense-in-depth fleet match: SELECT-side RLS already filters orders to
+  // the courier's own fleet on the read path, but `admin` is service-role
+  // and bypasses RLS. Without an explicit fleet check here, a courier who
+  // somehow learns an orderId in a different fleet (UUIDv4 makes this
+  // infeasible to brute-force, but defense-in-depth is cheap) could
+  // hijack the assignment. Resolve the courier's fleet first and gate
+  // the UPDATE on `fleet_id` matching.
+  const { data: profile } = await admin
+    .from('courier_profiles')
+    .select('fleet_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!profile) return; // not a courier — silent no-op preserves prior contract
+  const fleetId = (profile as { fleet_id: string }).fleet_id;
+
+  // Only accept if currently CREATED or OFFERED, unassigned, AND the order
+  // belongs to the courier's fleet.
   const { data } = await admin
     .from('courier_orders')
     .update({
@@ -312,6 +329,7 @@ export async function acceptOrderAction(orderId: string) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', orderId)
+    .eq('fleet_id', fleetId)
     .in('status', ['CREATED', 'OFFERED'])
     .is('assigned_courier_user_id', null)
     .select('id')
