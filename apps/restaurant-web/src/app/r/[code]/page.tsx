@@ -88,13 +88,45 @@ export default async function ResellerLandingPage({
   trackVisit(partner.id);
 
   const merged = { ...DEFAULT_LANDING, ...(partner.landing_settings ?? {}) };
-  const ctaHref = (merged.cta_url ?? DEFAULT_LANDING.cta_url) + `?ref=${encodeURIComponent(code)}`;
+
+  // Defense-in-depth: never render a cta_url that isn't https:// or relative.
+  // updatePartnerLanding already validates on write, but a row inserted via
+  // raw SQL could bypass.
+  const rawCta = merged.cta_url ?? DEFAULT_LANDING.cta_url;
+  let safeCta = DEFAULT_LANDING.cta_url;
+  if (typeof rawCta === 'string') {
+    if (rawCta.startsWith('/')) {
+      safeCta = rawCta;
+    } else {
+      try {
+        const u = new URL(rawCta);
+        if (u.protocol === 'https:') safeCta = rawCta;
+      } catch { /* keep default */ }
+    }
+  }
+  const ctaHref = safeCta + (safeCta.includes('?') ? '&' : '?') + `ref=${encodeURIComponent(code)}`;
+
+  // Same defense for hero_image_url.
+  const rawHero = merged.hero_image_url;
+  let safeHero: string | null = null;
+  if (typeof rawHero === 'string' && rawHero.length > 0) {
+    try {
+      const u = new URL(rawHero);
+      if (u.protocol === 'https:') safeHero = rawHero;
+    } catch { /* skip */ }
+  }
+
+  // accent_color: only allow #RGB or #RRGGBB. Default if invalid.
+  const rawAccent = merged.accent_color ?? DEFAULT_LANDING.accent_color;
+  const safeAccent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(rawAccent ?? ''))
+    ? String(rawAccent)
+    : DEFAULT_LANDING.accent_color;
 
   return (
     <main
       style={{
         minHeight: '100vh',
-        background: `linear-gradient(135deg, ${merged.accent_color}10 0%, #ffffff 60%)`,
+        background: `linear-gradient(135deg, ${safeAccent}10 0%, #ffffff 60%)`,
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         color: '#1e293b',
       }}
@@ -124,7 +156,7 @@ export default async function ResellerLandingPage({
             display: 'inline-block',
             padding: '14px 28px',
             borderRadius: 10,
-            background: merged.accent_color,
+            background: safeAccent,
             color: 'white',
             fontWeight: 600,
             fontSize: 16,
@@ -135,11 +167,11 @@ export default async function ResellerLandingPage({
           Începe acum cu HIR
         </a>
 
-        {merged.hero_image_url ? (
+        {safeHero ? (
           <div style={{ marginTop: 48 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={merged.hero_image_url}
+              src={safeHero}
               alt={merged.headline ?? 'HIR'}
               style={{ width: '100%', maxWidth: 920, borderRadius: 12, boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}
             />

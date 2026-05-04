@@ -59,7 +59,14 @@ export async function GET() {
   if (!user || !tenant) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-  await assertTenantMember(user.id, tenant.id);
+  // assertTenantMember throws if the user isn't a member -> would surface as a
+  // 500 from Next runtime. Catch and return 403 explicitly so the caller gets
+  // a clean status code.
+  try {
+    await assertTenantMember(user.id, tenant.id);
+  } catch {
+    return NextResponse.json({ error: 'forbidden_not_member' }, { status: 403 });
+  }
 
   const admin = createAdminClient();
   const now = new Date();
