@@ -12,7 +12,10 @@
 // spam every 5 min while incident is open.
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
-const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID') ?? '';
+// Use the same env-var name as the rest of the platform (supervise-fix /
+// fix-attempt / triage-feedback all read TELEGRAM_IULIAN_CHAT_ID from the
+// Supabase secrets vault). Fall back to TELEGRAM_CHAT_ID for portability.
+const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_IULIAN_CHAT_ID') ?? Deno.env.get('TELEGRAM_CHAT_ID') ?? '';
 const HEALTH_MONITOR_TOKEN = Deno.env.get('HEALTH_MONITOR_TOKEN') ?? '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
