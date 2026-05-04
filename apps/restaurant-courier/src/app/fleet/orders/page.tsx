@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
 import { FleetOrdersRealtime } from './fleet-orders-realtime';
+import { FleetOrdersSearch } from './fleet-orders-search';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,17 @@ export default async function FleetOrdersPage() {
           {annotatedCouriers.filter((c) => c.online).length} curieri online
         </p>
       </div>
+
+      <FleetOrdersSearch />
+
+      {/* Hidden by default; FleetOrdersSearch toggles display when query
+          matches no rows. id is consumed by the script in that component. */}
+      <p
+        id="fleet-orders-search-empty"
+        className="hidden rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-3 text-center text-xs text-zinc-500"
+      >
+        Nicio comandă nu se potrivește cu căutarea.
+      </p>
 
       <Section title="Neasignate" count={open.length} accent="amber">
         {open.length === 0 ? (
