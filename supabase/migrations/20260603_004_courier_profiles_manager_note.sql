@@ -16,3 +16,11 @@ alter table public.courier_profiles
 
 comment on column public.courier_profiles.manager_note is
   'Fleet-manager-only free-text note. Never displayed to the rider.';
+
+-- Column-level GRANT lockdown: the existing `courier_profiles_self_read`
+-- RLS policy lets a rider SELECT co-fleet rows, which would expose
+-- manager_note via direct Supabase queries even though the rider UI
+-- never renders the field. Strip SELECT on the column for non-service
+-- roles so the only path to read it is the service_role-backed admin
+-- client used by the manager dashboard. Codex P1 #180.
+revoke select (manager_note) on public.courier_profiles from authenticated, anon;
