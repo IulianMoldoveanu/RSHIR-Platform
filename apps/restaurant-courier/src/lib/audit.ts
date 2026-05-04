@@ -17,6 +17,7 @@ export type CourierAuditAction =
   | 'fleet.order_unassigned'
   | 'fleet.courier_suspended'
   | 'fleet.courier_reactivated'
+  | 'fleet.order_auto_assigned'
   | 'order.cash_collected'
   | 'delivery.geofence_warning';
 

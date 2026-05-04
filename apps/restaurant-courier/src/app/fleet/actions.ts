@@ -300,6 +300,244 @@ export async function reactivateCourierAction(
   return { ok: true };
 }
 
+/**
+ * Heuristic auto-assignment: pick the "best" online rider in the fleet
+ * for a given order and assign them. Selection priority:
+ *   1. Online riders with zero in-progress orders, sorted by haversine
+ *      distance from the order pickup (closest first).
+ *   2. If everyone is busy, fall back to the rider with the fewest
+ *      in-progress orders, ties broken by distance.
+ *   3. Riders with no GPS fix are pushed to the end — we still pick them
+ *      if nobody else is online, but they're a worse signal.
+ *
+ * The actual UPDATE goes through the same gate as `assignOrderToCourier
+ * Action` — only orders in CREATED/OFFERED + unassigned get reassigned —
+ * so a stale auto-assign click can't resurrect completed work.
+ */
+export async function autoAssignOrderAction(
+  orderId: string,
+): Promise<FleetActionResult & { courierUserId?: string; distanceM?: number }> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+
+  // Pull the order's pickup coords, the fleet's couriers, online shifts,
+  // and current in-progress counts in parallel.
+  const [
+    { data: orderData },
+    { data: couriersData },
+    { data: shiftsData },
+    { data: activeOrdersData },
+  ] = await Promise.all([
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => {
+              eq: (c: string, v: string) => {
+                maybeSingle: () => Promise<{
+                  data: { id: string; pickup_lat: number | null; pickup_lng: number | null; status: string; assigned_courier_user_id: string | null } | null;
+                }>;
+              };
+            };
+          };
+        };
+      }
+    )
+      .from('courier_orders')
+      .select('id, pickup_lat, pickup_lng, status, assigned_courier_user_id')
+      .eq('id', orderId)
+      .eq('fleet_id', ctx.fleetId)
+      .maybeSingle(),
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => Promise<{ data: Array<{ user_id: string; full_name: string | null; status: string }> }>;
+          };
+        };
+      }
+    )
+      .from('courier_profiles')
+      .select('user_id, full_name, status')
+      .eq('fleet_id', ctx.fleetId),
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => {
+              order: (col: string, opts: Record<string, unknown>) => {
+                limit: (n: number) => Promise<{
+                  data: Array<{ courier_user_id: string; last_lat: number | null; last_lng: number | null; started_at: string }>;
+                }>;
+              };
+            };
+          };
+        };
+      }
+    )
+      .from('courier_shifts')
+      .select('courier_user_id, last_lat, last_lng, started_at')
+      .eq('status', 'ONLINE')
+      .order('started_at', { ascending: false })
+      .limit(200),
+    (
+      admin as unknown as {
+        from: (t: string) => {
+          select: (cols: string) => {
+            eq: (c: string, v: string) => {
+              in: (c: string, v: string[]) => Promise<{
+                data: Array<{ assigned_courier_user_id: string }>;
+              }>;
+            };
+          };
+        };
+      }
+    )
+      .from('courier_orders')
+      .select('assigned_courier_user_id')
+      .eq('fleet_id', ctx.fleetId)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
+  ]);
+
+  if (!orderData) return { ok: false, error: 'Comanda nu există în această flotă.' };
+  if (orderData.assigned_courier_user_id) {
+    return { ok: false, error: 'Comanda este deja asignată.' };
+  }
+  if (!['CREATED', 'OFFERED'].includes(orderData.status)) {
+    return { ok: false, error: 'Comanda nu mai poate fi asignată automat.' };
+  }
+
+  const couriers = couriersData ?? [];
+  const shifts = shiftsData ?? [];
+  const activeRows = activeOrdersData ?? [];
+
+  // Active-orders count per rider (used for tie-breaking).
+  const inProgress = new Map<string, number>();
+  for (const r of activeRows) {
+    inProgress.set(r.assigned_courier_user_id, (inProgress.get(r.assigned_courier_user_id) ?? 0) + 1);
+  }
+
+  // Latest shift row per online rider.
+  const latestShift = new Map<string, { lat: number | null; lng: number | null }>();
+  for (const s of shifts) {
+    if (latestShift.has(s.courier_user_id)) continue;
+    latestShift.set(s.courier_user_id, { lat: s.last_lat, lng: s.last_lng });
+  }
+
+  // Build candidate list: online riders that belong to this fleet and
+  // are not SUSPENDED. (INACTIVE is fine — they just haven't started a
+  // shift yet, but if they're in latestShift they've started one.)
+  type Candidate = { userId: string; load: number; distanceM: number };
+  const candidates: Candidate[] = [];
+  const NO_GPS = Number.POSITIVE_INFINITY;
+  for (const c of couriers) {
+    if (c.status === 'SUSPENDED') continue;
+    if (!latestShift.has(c.user_id)) continue;
+    const fix = latestShift.get(c.user_id)!;
+    const distance =
+      orderData.pickup_lat != null &&
+      orderData.pickup_lng != null &&
+      fix.lat != null &&
+      fix.lng != null
+        ? haversineMeters(orderData.pickup_lat, orderData.pickup_lng, fix.lat, fix.lng)
+        : NO_GPS;
+    candidates.push({
+      userId: c.user_id,
+      load: inProgress.get(c.user_id) ?? 0,
+      distanceM: distance,
+    });
+  }
+
+  if (candidates.length === 0) {
+    return { ok: false, error: 'Niciun curier online pentru asignare automată.' };
+  }
+
+  // Idle riders first; among same-load, closest wins. NO_GPS riders sort last.
+  candidates.sort((a, b) => {
+    if (a.load !== b.load) return a.load - b.load;
+    return a.distanceM - b.distanceM;
+  });
+  const winner = candidates[0];
+
+  // Same gated UPDATE as the manual assign path.
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            in: (c: string, v: string[]) => {
+              is: (c: string, v: null) => {
+                select: (cols: string) => {
+                  maybeSingle: () => Promise<{
+                    data: { id: string } | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_orders')
+    .update({
+      assigned_courier_user_id: winner.userId,
+      status: 'ACCEPTED',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('fleet_id', ctx.fleetId)
+    .in('status', ['CREATED', 'OFFERED'])
+    .is('assigned_courier_user_id', null)
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error: 'Comanda a fost asignată între timp de un alt dispecer.',
+    };
+  }
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.order_auto_assigned',
+    entityType: 'courier_order',
+    entityId: orderId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      courier_user_id: winner.userId,
+      distance_m: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : null,
+      load: winner.load,
+      candidates_considered: candidates.length,
+    },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/orders');
+  revalidatePath(`/fleet/orders/${orderId}`);
+  return {
+    ok: true,
+    courierUserId: winner.userId,
+    distanceM: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : undefined,
+  };
+}
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /** Unassign — order falls back to OFFERED so another rider can pick it up. */
 export async function unassignOrderAction(orderId: string): Promise<FleetActionResult> {
   const ctx = await getFleetManagerContext();
