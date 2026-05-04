@@ -17,6 +17,7 @@ type AppRow = {
   reviewed_at: string | null;
   reviewer_notes: string | null;
   partner_id: string | null;
+  referrer: string | null;
 };
 
 const AUDIENCE_LABELS: Record<string, string> = {
@@ -89,6 +90,14 @@ function ApplicationCard({ app }: { app: AppRow }) {
           </div>
           <div className="mt-1 truncate text-xs text-[#94a3b8]">
             {app.email} · {new Date(app.created_at).toLocaleDateString('ro-RO')} · {app.channels.length} canale
+            {app.referrer ? (
+              <>
+                {' · '}
+                <span className="rounded bg-[#FEF3C7] px-1.5 py-0.5 font-medium text-[#92400E]">
+                  ref: {app.referrer}
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
         <span className="text-xs text-[#94a3b8]">{open ? '▲' : '▼'}</span>

@@ -23,6 +23,7 @@ type AppRow = {
   reviewed_at: string | null;
   reviewer_notes: string | null;
   partner_id: string | null;
+  referrer: string | null;
 };
 
 export default async function AffiliatesPage({
@@ -52,7 +53,7 @@ export default async function AffiliatesPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: rowsRaw } = await (admin as any)
     .from('affiliate_applications')
-    .select('id, full_name, email, phone, audience_type, audience_size, channels, pitch, status, created_at, reviewed_at, reviewer_notes, partner_id')
+    .select('id, full_name, email, phone, audience_type, audience_size, channels, pitch, status, created_at, reviewed_at, reviewer_notes, partner_id, referrer')
     .eq('status', status)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -71,13 +72,20 @@ export default async function AffiliatesPage({
   return (
     <main className="min-h-screen bg-[#FAFAFA] text-[#0F172A]" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <header className="mb-8">
-          <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Admin · Affiliate program</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Aplicații afiliați</h1>
-          <p className="mt-2 text-sm text-[#475569]">
-            Aprobă, respinge sau marchează spam. Aprobarea creează un <code>partners</code> row cu tier=AFFILIATE și
-            bounty 300 RON (600 RON pentru tenanți existenți).
-          </p>
+        <header className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Admin · Affiliate program</div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Aplicații afiliați</h1>
+            <p className="mt-2 text-sm text-[#475569]">
+              Aprobă, respinge sau marchează spam. La aprobare se generează automat <code>partners.code</code> și se trimite email cu codul + link dashboard.
+            </p>
+          </div>
+          <a
+            href="/dashboard/admin/affiliates/stats"
+            className="inline-flex items-center rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-xs font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+          >
+            Funnel stats →
+          </a>
         </header>
 
         {/* Status tabs */}

@@ -18,7 +18,26 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function AffiliatePage() {
+// Sanitize a `?ref=` value to a safe slug. Cap 64 chars; only [A-Za-z0-9._-].
+// Anything else falls back to null (we don't want random URL-injected
+// payloads landing in the audit log or the admin UI).
+function sanitizeRef(raw: string | string[] | undefined): string | null {
+  if (!raw) return null;
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== 'string') return null;
+  const cleaned = v.trim().slice(0, 64);
+  if (!cleaned) return null;
+  if (!/^[A-Za-z0-9._-]+$/.test(cleaned)) return null;
+  return cleaned.toLowerCase();
+}
+
+export default function AffiliatePage({
+  searchParams,
+}: {
+  searchParams?: { ref?: string | string[] };
+}) {
+  const referrer = sanitizeRef(searchParams?.ref);
+
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
@@ -130,8 +149,13 @@ export default function AffiliatePage() {
         <p className="mb-8 text-sm text-[#475569]">
           Aprobăm aplicațiile manual. Răspuns în 3-5 zile lucrătoare.
         </p>
+        {referrer ? (
+          <p className="mb-4 inline-flex items-center gap-2 rounded-md bg-[#EEF2FF] px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE]">
+            Recomandat de <strong>{referrer}</strong>
+          </p>
+        ) : null}
         <div className="rounded-lg border border-[#E2E8F0] bg-white p-6">
-          <ApplyForm />
+          <ApplyForm referrer={referrer} />
         </div>
       </section>
 

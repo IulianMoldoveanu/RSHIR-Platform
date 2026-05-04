@@ -20,7 +20,7 @@ const CHANNELS = [
   { v: 'other', l: 'Alt canal' },
 ];
 
-export function ApplyForm() {
+export function ApplyForm({ referrer }: { referrer?: string | null }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +42,7 @@ export function ApplyForm() {
       channels,
       pitch: String(fd.get('pitch') ?? '').trim(),
       honeypot: String(fd.get('website') ?? ''),
+      referrer: referrer ?? null,
     };
 
     try {
@@ -68,7 +69,11 @@ export function ApplyForm() {
       <div className="rounded-md border border-[#A7F3D0] bg-[#ECFDF5] p-5">
         <div className="text-sm font-semibold text-[#047857]">Aplicație trimisă ✓</div>
         <p className="mt-2 text-sm text-[#047857]">
-          Mulțumim! Echipa HIR revine în 3-5 zile lucrătoare cu un răspuns pe email.
+          Mulțumim! Te contactăm în 48 de ore pe email cu răspunsul + codul tău
+          de afiliat (dacă aprobăm).
+        </p>
+        <p className="mt-2 text-xs text-[#047857]">
+          Verifică și folderul Spam dacă nu vezi nimic în 2 zile lucrătoare.
         </p>
       </div>
     );
@@ -156,7 +161,7 @@ export function ApplyForm() {
           minLength={20}
           maxLength={1000}
           rows={4}
-          placeholder="O frază sau două: cui ai recomanda, de ce, cum."
+          placeholder="Spune-ne unde vei recomanda HIR: TikTok / Instagram / blog / clienți restaurant existenți / lista ta de manageri flotă. Cu cât e mai concret, cu atât aprobăm mai repede."
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         />
       </Field>
