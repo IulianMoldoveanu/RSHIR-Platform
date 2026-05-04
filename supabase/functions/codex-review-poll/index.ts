@@ -59,8 +59,23 @@ async function dbUpdate(table: string, idEq: string, patch: Record<string, unkno
   });
 }
 
-async function fetchPrReviewComments(prNumber: number): Promise<{ user: string; body: string; createdAt: string }[]> {
-  const out: { user: string; body: string; createdAt: string }[] = [];
+type Comment = { user: string; userType: string; body: string; createdAt: string };
+
+// HARD ALLOWLIST of bot logins we trust as auto-merge reviewers. We never
+// fuzzy-match on substring (e.g., earlier /codex|copilot/ matched any user
+// containing those substrings — an attacker could register a GitHub
+// account named "fake-codex-helper", post a "looks good" comment on a PR,
+// and trigger auto-merge). Only `type: "Bot"` users with one of these
+// exact logins are accepted.
+const TRUSTED_BOT_LOGINS = new Set([
+  'github-copilot[bot]',
+  'copilot-pull-request-reviewer[bot]',
+  'chatgpt-codex-connector[bot]',
+  'codex-review-bot[bot]',
+]);
+
+async function fetchPrReviewComments(prNumber: number): Promise<Comment[]> {
+  const out: Comment[] = [];
   const endpoints = [
     `https://api.github.com/repos/${GITHUB_REPO}/pulls/${prNumber}/comments`,
     `https://api.github.com/repos/${GITHUB_REPO}/issues/${prNumber}/comments`,
@@ -75,26 +90,30 @@ async function fetchPrReviewComments(prNumber: number): Promise<{ user: string; 
     if (!Array.isArray(arr)) continue;
     for (const c of arr) {
       const user = (c.user?.login ?? '').toLowerCase();
+      const userType = (c.user?.type ?? '').toString();
       const body = (c.body ?? '').toString();
-      out.push({ user, body, createdAt: c.created_at ?? c.submitted_at ?? '' });
+      out.push({ user, userType, body, createdAt: c.created_at ?? c.submitted_at ?? '' });
     }
   }
   return out;
 }
 
-function classifyCodexVerdict(comments: { user: string; body: string }[]): {
+function classifyCodexVerdict(comments: Comment[]): {
   hasReview: boolean;
   flagged: boolean;
   flaggedReason?: string;
   reviewerLogins: string[];
 } {
-  const codexComments = comments.filter((c) =>
-    /codex|copilot|chatgpt-codex/.test(c.user)
+  // Trust only verified bots (type === "Bot") AND with a login on the
+  // hard allowlist. A human comment, even from a maintainer, doesn't
+  // trigger auto-merge — that's Iulian's manual /merge path.
+  const trusted = comments.filter(
+    (c) => c.userType === 'Bot' && TRUSTED_BOT_LOGINS.has(c.user),
   );
-  const reviewerLogins = [...new Set(codexComments.map((c) => c.user))];
-  if (codexComments.length === 0) return { hasReview: false, flagged: false, reviewerLogins };
+  const reviewerLogins = [...new Set(trusted.map((c) => c.user))];
+  if (trusted.length === 0) return { hasReview: false, flagged: false, reviewerLogins };
 
-  const flagged = codexComments.find((c) => {
+  const flagged = trusted.find((c) => {
     const lower = c.body.toLowerCase();
     return FLAG_KEYWORDS.some((kw) => lower.includes(kw));
   });
@@ -106,12 +125,15 @@ function classifyCodexVerdict(comments: { user: string; body: string }[]): {
   };
 }
 
-async function callSupervise(fixAttemptId: string, codexGreen: boolean): Promise<void> {
+async function callSupervise(fixAttemptId: string, codexGreen: boolean): Promise<{ ok: boolean; reason?: string }> {
   if (!INTERNAL_JWT) {
-    console.error('[codex-review-poll] INTERNAL_FN_AUTH_JWT missing — cannot call supervise-fix');
-    return;
+    const msg = '[codex-review-poll] INTERNAL_FN_AUTH_JWT missing — cannot call supervise-fix';
+    console.error(msg);
+    // Don't silently no-op: tell Iulian so the loop bug is visible.
+    await tg('🛑 <b>Codex-loop config gap</b>\nINTERNAL_FN_AUTH_JWT lipsește din Supabase secrets — supervise-fix nu poate fi apelată din codex-review-poll. Adaugă secret-ul.');
+    return { ok: false, reason: 'no_jwt' };
   }
-  await fetch(`${SUPABASE_URL}/functions/v1/supervise-fix`, {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/supervise-fix`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -119,6 +141,13 @@ async function callSupervise(fixAttemptId: string, codexGreen: boolean): Promise
     },
     body: JSON.stringify({ fix_attempt_id: fixAttemptId, codex_green: codexGreen }),
   });
+  if (!r.ok) {
+    const detail = (await r.text()).substring(0, 200);
+    console.error('[codex-review-poll] supervise-fix returned', r.status, detail);
+    await tg(`⚠️ supervise-fix returned ${r.status} for fix_attempt ${fixAttemptId}\n${detail}`);
+    return { ok: false, reason: `status_${r.status}` };
+  }
+  return { ok: true };
 }
 
 async function tg(text: string): Promise<void> {
@@ -190,10 +219,15 @@ Deno.serve(async (req) => {
 
     // GREEN — call Supervisor with codex_green flag
     await dbUpdate('codex_review_tracking', row.id, { status: 'CODEX_GREEN', final_action: 'TRIGGER_SUPERVISE' });
-    await callSupervise(row.fix_attempt_id, true);
-    await dbUpdate('codex_review_tracking', row.id, { status: 'DONE' });
-    await tg(`🟢 <b>Codex verde pe PR #${row.pr_number}</b> → Supervisor decide auto-merge.\nReviewers: ${verdict.reviewerLogins.join(', ')}`);
-    processed.push({ pr: row.pr_number, result: 'codex_green_to_supervise' });
+    const supRes = await callSupervise(row.fix_attempt_id, true);
+    await dbUpdate('codex_review_tracking', row.id, {
+      status: supRes.ok ? 'DONE' : 'FAILED',
+      final_action: supRes.ok ? 'TRIGGER_SUPERVISE' : `SUPERVISE_FAILED:${supRes.reason ?? ''}`,
+    });
+    if (supRes.ok) {
+      await tg(`🟢 <b>Codex verde pe PR #${row.pr_number}</b> → Supervisor decide auto-merge.\nReviewers: ${verdict.reviewerLogins.join(', ')}`);
+    }
+    processed.push({ pr: row.pr_number, result: supRes.ok ? 'codex_green_to_supervise' : `supervise_failed:${supRes.reason}` });
   }
 
   return Response.json({ processed: processed.length, details: processed, ts: new Date().toISOString() });
