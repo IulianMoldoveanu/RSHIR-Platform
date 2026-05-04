@@ -562,6 +562,137 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * Self-serve courier invite — fleet manager creates / invites a Supabase
+ * auth user and bonds them to this fleet via `courier_profiles.fleet_id`.
+ *
+ * Behavior:
+ *   - If a user with `email` already exists, just upsert/insert their
+ *     courier_profiles row pointing at THIS fleet.
+ *   - Otherwise inviteUserByEmail mints the user and sends the magic-link
+ *     email; we still upsert the courier_profiles row so the fleet
+ *     binding is in place when the rider first signs in.
+ *
+ * Filtered tightly: vehicle_type defaults to BIKE, status INACTIVE, and
+ * the upsert is keyed by `user_id` to make re-inviting a rider safe.
+ *
+ * Mirrors the platform-admin `inviteCourier` in admin/fleets/actions.ts
+ * but is gated on `getFleetManagerContext` instead of platform_admins,
+ * and forces fleet_id to the manager's own fleet (a fleet manager can't
+ * invite a rider into a competitor's fleet).
+ */
+export async function inviteCourierToFleetAction(
+  formData: FormData,
+): Promise<FleetActionResult & { userId?: string }> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const email = (formData.get('email') as string | null)?.trim() ?? '';
+  const fullName = (formData.get('full_name') as string | null)?.trim() ?? '';
+  const phoneRaw = (formData.get('phone') as string | null)?.trim() ?? '';
+  const vehicleType = (formData.get('vehicle_type') as string | null)?.trim() ?? 'BIKE';
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: 'Email invalid.' };
+  }
+  if (!fullName) {
+    return { ok: false, error: 'Numele este obligatoriu.' };
+  }
+  if (!['BIKE', 'SCOOTER', 'CAR'].includes(vehicleType)) {
+    return { ok: false, error: 'Tip vehicul invalid.' };
+  }
+  // Phone is optional but if present must be E.164-ish.
+  if (phoneRaw && !/^\+\d{8,15}$/.test(phoneRaw)) {
+    return { ok: false, error: 'Telefonul trebuie în format E.164 (+40…).' };
+  }
+
+  const admin = createAdminClient();
+
+  // Resolve the user id: try inviteUserByEmail first (idempotent for new
+  // users; existing users get an "already registered" path we handle by
+  // falling back to listUsers).
+  let userId: string | null = null;
+  try {
+    const sb = admin as unknown as {
+      auth: {
+        admin: {
+          inviteUserByEmail: (
+            email: string,
+          ) => Promise<{
+            data: { user: { id: string } | null } | null;
+            error: { message: string } | null;
+          }>;
+          listUsers: () => Promise<{
+            data: { users: Array<{ id: string; email: string }> } | null;
+          }>;
+        };
+      };
+    };
+    const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email);
+    if (!inviteErr && invited?.user?.id) {
+      userId = invited.user.id;
+    } else {
+      // Already registered → look up via listUsers. Not ideal at scale
+      // but courier rosters are small; we'll switch to a paginated
+      // lookup once a fleet has hundreds of riders.
+      const { data: usersResp } = await sb.auth.admin.listUsers();
+      const existing = usersResp?.users?.find((u) => u.email === email);
+      if (existing) userId = existing.id;
+    }
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Invitare eșuată.',
+    };
+  }
+
+  if (!userId) {
+    return { ok: false, error: 'Nu am putut crea contul curier.' };
+  }
+
+  // Upsert the courier_profiles row keyed by user_id so re-inviting a
+  // rider just rebinds them to this fleet without duplicating data.
+  const profilePayload = {
+    user_id: userId,
+    fleet_id: ctx.fleetId,
+    full_name: fullName,
+    phone: phoneRaw || null,
+    vehicle_type: vehicleType,
+    status: 'INACTIVE',
+  } as const;
+
+  const { error: upsertErr } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        upsert: (
+          row: Record<string, unknown>,
+          opts: Record<string, unknown>,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
+    }
+  )
+    .from('courier_profiles')
+    .upsert(profilePayload, { onConflict: 'user_id' });
+
+  if (upsertErr) return { ok: false, error: upsertErr.message };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_self_invited',
+    entityType: 'courier_profile',
+    entityId: userId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      email,
+      vehicle_type: vehicleType,
+    },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true, userId };
+}
+
 /** Unassign — order falls back to OFFERED so another rider can pick it up. */
 export async function unassignOrderAction(orderId: string): Promise<FleetActionResult> {
   const ctx = await getFleetManagerContext();
