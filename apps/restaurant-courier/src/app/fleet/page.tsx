@@ -3,9 +3,11 @@ import {
   ArrowRight,
   Banknote,
   CheckCircle2,
+  Lightbulb,
   Package,
   TrendingUp,
   UserCheck,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -185,6 +187,19 @@ export default async function FleetOverviewPage() {
     });
   }
 
+  // Onboarding state: empty fleet → big "first courier" CTA above all
+  // the empty KPIs. Once at least one rider is invited, the normal grid
+  // takes over. Inactive fleet → red banner replaces the onboarding card.
+  const isEmptyFleet = totalCouriers === 0;
+  const onboardingHints: Array<{ done: boolean; label: string }> = [
+    { done: !!fleet.contactPhone, label: 'Setează telefon dispecer' },
+    { done: totalCouriers > 0, label: 'Invită primul curier' },
+    { done: onlineCouriers > 0, label: 'Curier online' },
+    { done: todayCount > 0 || activeOrders.length > 0, label: 'Prima comandă procesată' },
+  ];
+  const completedHints = onboardingHints.filter((h) => h.done).length;
+  const surfaceOnboarding = completedHints < onboardingHints.length;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <div>
@@ -193,6 +208,61 @@ export default async function FleetOverviewPage() {
           Stare flotă în timp real — comenzi, curieri, încasări azi.
         </p>
       </div>
+
+      {/* Inactive fleet banner — manager can still browse but actions are
+          gated server-side by `is_active` once we wire that gate. */}
+      {!fleet.isActive ? (
+        <div className="rounded-2xl border border-amber-700/40 bg-amber-500/5 p-4">
+          <p className="text-sm font-semibold text-amber-200">Flotă inactivă</p>
+          <p className="mt-1 text-xs text-amber-200/80">
+            Contactează echipa HIR pentru reactivare. Dispecerul nu poate
+            primi comenzi noi cât timp flota este dezactivată.
+          </p>
+        </div>
+      ) : null}
+
+      {/* Onboarding checklist — visible until all four steps complete. */}
+      {fleet.isActive && surfaceOnboarding ? (
+        <section className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-violet-300" aria-hidden />
+              <h2 className="text-sm font-semibold text-zinc-100">
+                Pași pentru a deveni operațional
+              </h2>
+            </div>
+            <span className="text-[11px] font-semibold text-violet-300">
+              {completedHints}/{onboardingHints.length}
+            </span>
+          </div>
+          <ul className="space-y-1.5 text-xs">
+            {onboardingHints.map((h) => (
+              <li key={h.label} className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                    h.done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  {h.done ? '✓' : '·'}
+                </span>
+                <span className={h.done ? 'text-zinc-300 line-through' : 'text-zinc-200'}>
+                  {h.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {isEmptyFleet ? (
+            <Link
+              href="/fleet/couriers/invite"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+              Invită primul curier
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
