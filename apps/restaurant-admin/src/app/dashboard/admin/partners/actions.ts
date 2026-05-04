@@ -202,7 +202,66 @@ export async function generatePartnerCode(input: {
 
 // ────────────────────────────────────────────────────────────
 // updatePartnerLanding — updates the white-label landing JSON.
+//
+// Security:
+//   - cta_url: must be https:// OR start with '/' (relative). Length <= 500.
+//     Blocks javascript:, data:, file:, ftp: schemes that could redirect
+//     visitors to phishing or trigger XSS via inline navigation.
+//   - hero_image_url: must be https:// AND host-allowlisted (Vercel blob,
+//     Supabase storage, Cloudinary, Imgur, our own domains). Length <= 500.
+//     Prevents reseller hosting CSAM / tracking pixels / mixed content.
+//   - accent_color: must be a 4/7-char hex (#RGB or #RRGGBB) — React's
+//     style prop sanitizes raw CSS but we double-validate to keep audit
+//     logs clean.
+//   - headline / blurb: length cap (200 / 1000 chars).
 // ────────────────────────────────────────────────────────────
+
+const HERO_HOST_ALLOWLIST = [
+  'public.blob.vercel-storage.com',
+  'images.unsplash.com',
+  'res.cloudinary.com',
+  'i.imgur.com',
+  'qfmeojeipncuxeltnvab.supabase.co',
+  'hirforyou.ro',
+];
+
+function validateCtaUrl(s: string): { ok: true } | { ok: false; error: string } {
+  if (s.length > 500) return { ok: false, error: 'cta_url > 500 chars' };
+  if (s.length === 0) return { ok: true }; // empty allowed -> use default
+  if (s.startsWith('/')) return { ok: true }; // relative path
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return { ok: false, error: 'cta_url not a valid URL' };
+  }
+  if (u.protocol !== 'https:') return { ok: false, error: 'cta_url must be https://' };
+  return { ok: true };
+}
+
+function validateHeroImageUrl(s: string): { ok: true } | { ok: false; error: string } {
+  if (s.length > 500) return { ok: false, error: 'hero_image_url > 500 chars' };
+  if (s.length === 0) return { ok: true };
+  let u: URL;
+  try {
+    u = new URL(s);
+  } catch {
+    return { ok: false, error: 'hero_image_url not a valid URL' };
+  }
+  if (u.protocol !== 'https:') return { ok: false, error: 'hero_image_url must be https://' };
+  if (!HERO_HOST_ALLOWLIST.includes(u.hostname)) {
+    return { ok: false, error: `hero_image_url host not allow-listed (use one of: ${HERO_HOST_ALLOWLIST.join(', ')})` };
+  }
+  return { ok: true };
+}
+
+function validateAccentColor(s: string): { ok: true } | { ok: false; error: string } {
+  if (s.length === 0) return { ok: true };
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)) {
+    return { ok: false, error: 'accent_color must be #RGB or #RRGGBB hex' };
+  }
+  return { ok: true };
+}
 
 export async function updatePartnerLanding(input: {
   partner_id: string;
@@ -215,18 +274,37 @@ export async function updatePartnerLanding(input: {
   const guard = await requirePlatformAdmin();
   if ('error' in guard) return { ok: false, error: guard.error };
 
-  const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = admin as any;
-
   // Build the patch by stripping undefined keys so missing fields keep their
   // existing value via Postgres jsonb merge.
   const patch: Record<string, unknown> = {};
-  for (const k of ['headline', 'blurb', 'cta_url', 'accent_color', 'hero_image_url'] as const) {
-    const v = input[k];
-    if (typeof v === 'string') patch[k] = v;
+  if (typeof input.headline === 'string') {
+    if (input.headline.length > 200) return { ok: false, error: 'headline > 200 chars' };
+    patch.headline = input.headline;
+  }
+  if (typeof input.blurb === 'string') {
+    if (input.blurb.length > 1000) return { ok: false, error: 'blurb > 1000 chars' };
+    patch.blurb = input.blurb;
+  }
+  if (typeof input.cta_url === 'string') {
+    const v = validateCtaUrl(input.cta_url);
+    if (!v.ok) return { ok: false, error: v.error };
+    patch.cta_url = input.cta_url;
+  }
+  if (typeof input.accent_color === 'string') {
+    const v = validateAccentColor(input.accent_color);
+    if (!v.ok) return { ok: false, error: v.error };
+    patch.accent_color = input.accent_color;
+  }
+  if (typeof input.hero_image_url === 'string') {
+    const v = validateHeroImageUrl(input.hero_image_url);
+    if (!v.ok) return { ok: false, error: v.error };
+    patch.hero_image_url = input.hero_image_url;
   }
   if (Object.keys(patch).length === 0) return { ok: false, error: 'Nimic de actualizat.' };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
 
   const { error } = await sb.rpc('partner_landing_merge', {
     p_partner_id: input.partner_id,
