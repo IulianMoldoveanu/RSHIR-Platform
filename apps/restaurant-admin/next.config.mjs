@@ -11,7 +11,11 @@ const nextConfig = {
     // 52+ files import from lucide-react across web + admin. Without this
     // flag Next bundles the full barrel; with it Next emits per-icon
     // imports and shaves measurable JS from cold loads.
-    optimizePackageImports: ['lucide-react'],
+    //
+    // Lane M (perf pass 2026-05-04): added recharts + @hir/ui. recharts
+    // is the heaviest single dep in admin (charts/dashboards); the
+    // rewrite drops unused chart types from initial bundle.
+    optimizePackageImports: ['lucide-react', 'recharts', '@hir/ui'],
   },
 };
 
