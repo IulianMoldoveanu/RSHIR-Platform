@@ -67,7 +67,7 @@ export function ManagerNoteEditor({
           <p className="whitespace-pre-wrap text-sm text-zinc-200">{saved}</p>
         ) : (
           <p className="text-xs italic text-zinc-500">
-            Nicio notă salvată. Folosește "Adaugă notă" pentru a reține context
+            Nicio notă salvată. Folosește &quot;Adaugă notă&quot; pentru a reține context
             despre acest curier (vehicul, preferințe, incidente).
           </p>
         )
