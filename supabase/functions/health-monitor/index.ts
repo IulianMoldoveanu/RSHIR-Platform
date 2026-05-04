@@ -115,8 +115,17 @@ Deno.serve(async (req) => {
   const transitions: { app: string; transition: 'down' | 'up'; result: ProbeResult; downSince: string | null }[] = [];
   for (const r of results) {
     const prev = state[r.app];
-    if (!prev || prev.last_ok !== r.ok) {
-      const downSince = !r.ok ? (prev?.failed_since ?? now) : null;
+    // Cold-start case: no prior row for this app. Persist the current state
+    // silently — we have nothing to compare against, so emitting a "down" or
+    // "RECOVERED" alert would be misleading (and on a fresh deploy spammed
+    // Iulian with three 🟢 messages for apps that were never down).
+    if (!prev) {
+      const downSince = !r.ok ? now : null;
+      await upsertState(r.app, r.ok, downSince);
+      continue;
+    }
+    if (prev.last_ok !== r.ok) {
+      const downSince = !r.ok ? (prev.failed_since ?? now) : null;
       const transition = !r.ok ? 'down' : 'up';
       transitions.push({ app: r.app, transition, result: r, downSince });
       await upsertState(r.app, r.ok, downSince);
