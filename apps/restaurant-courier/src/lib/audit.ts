@@ -12,6 +12,9 @@ export type CourierAuditAction =
   | 'fleet.courier_invited'
   | 'fleet.api_key_created'
   | 'fleet.api_key_revoked'
+  | 'fleet.settings_updated'
+  | 'fleet.order_assigned'
+  | 'fleet.order_unassigned'
   | 'order.cash_collected'
   | 'delivery.geofence_warning';
 
