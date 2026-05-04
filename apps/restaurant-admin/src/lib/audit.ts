@@ -47,6 +47,8 @@ export type AuditAction =
   | 'partner.referral_attributed'
   | 'partner.commission_marked_paid'
   | 'partner.profile_updated'
+  | 'partner.code_generated'
+  | 'partner.landing_updated'
   | 'team.zone_capability_granted'
   | 'team.zone_capability_revoked';
 
