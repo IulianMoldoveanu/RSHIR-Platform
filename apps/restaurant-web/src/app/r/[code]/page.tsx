@@ -117,7 +117,7 @@ export default async function ResellerLandingPage({
   }
 
   // accent_color: only allow #RGB or #RRGGBB. Default if invalid.
-  const rawAccent = safeAccent ?? DEFAULT_LANDING.accent_color;
+  const rawAccent = merged.accent_color ?? DEFAULT_LANDING.accent_color;
   const safeAccent = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(rawAccent ?? ''))
     ? String(rawAccent)
     : DEFAULT_LANDING.accent_color;
