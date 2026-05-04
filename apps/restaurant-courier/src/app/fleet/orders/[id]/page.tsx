@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   PICKED_UP: 'Ridicată',
   IN_TRANSIT: 'În livrare',
   DELIVERED: 'Livrată',
-  CANCELED: 'Anulată',
+  CANCELLED: 'Anulată',
 };
 
 const TIMELINE_STEPS = ['CREATED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED'] as const;
@@ -88,7 +88,7 @@ export default async function FleetOrderDetailPage({
 
   // Compute the timeline progress index — stop at the first step we haven't
   // reached. Cancelled orders are special-cased below.
-  const reachedIdx = order.status === 'CANCELED'
+  const reachedIdx = order.status === 'CANCELLED'
     ? -1
     : Math.max(
         0,
