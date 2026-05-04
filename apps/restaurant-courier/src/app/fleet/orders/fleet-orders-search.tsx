@@ -52,8 +52,14 @@ export function FleetOrdersSearch() {
     }
 
     // Toggle a tiny "no results" pill if everything is hidden.
+    // The banner ships with Tailwind's `hidden` class (display:none);
+    // setting inline display to '' doesn't override that class, so we
+    // toggle the class itself. Codex P2 #176.
     const banner = document.getElementById('fleet-orders-search-empty');
-    if (banner) banner.style.display = norm !== '' && visible === 0 ? '' : 'none';
+    if (banner) {
+      const showBanner = norm !== '' && visible === 0;
+      banner.classList.toggle('hidden', !showBanner);
+    }
   }, [query]);
 
   return (
