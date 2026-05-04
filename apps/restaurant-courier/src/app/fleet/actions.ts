@@ -7,6 +7,78 @@ import { logAudit } from '@/lib/audit';
 
 export type FleetActionResult = { ok: true } | { ok: false; error: string };
 
+const MAX_MANAGER_NOTE_LENGTH = 500;
+
+/**
+ * Update the manager-only note on a courier profile. Notes are free text
+ * (max 500 chars) and never shown to the rider — purely for the manager's
+ * own context ("speaks German", "vehicle repaired 2026-04-30", etc.).
+ *
+ * Filtered by both `user_id` and `fleet_id` so a manager can't write
+ * notes on riders that don't belong to their fleet. `.select()` checks
+ * the returned row to surface zero-row updates as explicit errors
+ * (consistent with the rest of fleet/actions.ts).
+ */
+export async function updateCourierNoteAction(
+  courierUserId: string,
+  rawNote: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const trimmed = rawNote.trim();
+  if (trimmed.length > MAX_MANAGER_NOTE_LENGTH) {
+    return {
+      ok: false,
+      error: `Nota poate avea maxim ${MAX_MANAGER_NOTE_LENGTH} caractere.`,
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    // Empty note → store NULL so the UI can distinguish "never set" from
+    // "explicitly cleared" — both render the same empty placeholder, so
+    // the column stays clean.
+    .update({ manager_note: trimmed === '' ? null : trimmed })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_note_updated',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      length: trimmed.length,
+    },
+  });
+
+  revalidatePath(`/fleet/couriers/${courierUserId}`);
+  return { ok: true };
+}
+
 // E.164 sanity: must start with +, then 8–15 digits. We don't try to parse
 // further — the column is treated as a free-form display string everywhere
 // (Mode-C tap-to-call rendering, manager roster). Riders + customers will

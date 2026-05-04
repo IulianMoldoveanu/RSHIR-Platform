@@ -19,6 +19,7 @@ export type CourierAuditAction =
   | 'fleet.courier_reactivated'
   | 'fleet.order_auto_assigned'
   | 'fleet.courier_self_invited'
+  | 'fleet.courier_note_updated'
   | 'order.cash_collected'
   | 'delivery.geofence_warning';
 

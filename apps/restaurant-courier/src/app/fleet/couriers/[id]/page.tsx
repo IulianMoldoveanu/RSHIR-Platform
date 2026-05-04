@@ -15,6 +15,7 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { CourierStatusActions } from '../_actions';
+import { ManagerNoteEditor } from './_note';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,7 @@ type ProfileRow = {
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
   fleet_id: string;
   created_at: string;
+  manager_note: string | null;
 };
 
 type ShiftRow = {
@@ -115,7 +117,7 @@ export default async function FleetCourierDetailPage({
   ] = await Promise.all([
     admin
       .from('courier_profiles')
-      .select('user_id, full_name, phone, vehicle_type, status, fleet_id, created_at')
+      .select('user_id, full_name, phone, vehicle_type, status, fleet_id, created_at, manager_note')
       .eq('user_id', params.id)
       .eq('fleet_id', fleet.fleetId)
       .maybeSingle(),
@@ -254,6 +256,8 @@ export default async function FleetCourierDetailPage({
           <CourierStatusActions userId={profile.user_id} status={profile.status} />
         </div>
       </div>
+
+      <ManagerNoteEditor userId={profile.user_id} initial={profile.manager_note} />
 
       {/* Current shift card */}
       {lastShift ? (
