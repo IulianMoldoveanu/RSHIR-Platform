@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Navigation, RefreshCw } from 'lucide-react';
+import { Inbox, MapPinned, Navigation, RefreshCw } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
@@ -93,7 +93,11 @@ export default async function OrdersPage() {
 
       <Section title="Comenzile mele" count={assigned.length}>
         {assigned.length === 0 ? (
-          <Empty>Nicio comandă activă.</Empty>
+          <Empty
+            icon={<Inbox className="h-5 w-5" aria-hidden />}
+            title="Nicio comandă activă"
+            hint="Te anunțăm imediat ce apare o comandă pentru tine."
+          />
         ) : (
           <ul className="flex flex-col gap-2">
             {assigned.map((o) => (
@@ -106,7 +110,11 @@ export default async function OrdersPage() {
       {showOpenOrders ? (
         <Section title="Comenzi disponibile" count={open.length}>
           {open.length === 0 ? (
-            <Empty>Nicio comandă disponibilă acum.</Empty>
+            <Empty
+              icon={<MapPinned className="h-5 w-5" aria-hidden />}
+              title="Nicio comandă liberă în zonă"
+              hint="Verifică din nou peste câteva minute sau privește harta din pagina principală."
+            />
           ) : (
             <ul className="flex flex-col gap-2">
               {open.map((o) => (
@@ -139,10 +147,22 @@ function Section({
   );
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
+function Empty({
+  icon,
+  title,
+  hint,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  hint: string;
+}) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-8 text-center text-sm text-zinc-500">
-      {children}
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400">
+        {icon}
+      </span>
+      <p className="text-sm font-medium text-zinc-200">{title}</p>
+      <p className="text-xs text-zinc-500">{hint}</p>
     </div>
   );
 }
