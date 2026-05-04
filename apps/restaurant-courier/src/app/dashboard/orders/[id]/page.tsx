@@ -13,6 +13,7 @@ import { VerticalBadge } from '@/components/vertical-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
 import { ActiveOrderTimer } from '@/components/active-order-timer';
+import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
@@ -113,12 +114,13 @@ export default async function OrderDetailPage({ params }: { params: { id: string
         <p className="mt-1 text-sm font-medium text-zinc-100">
           {order.pickup_line1 ?? '—'}
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           <MapLink
             address={order.pickup_line1}
             lat={order.pickup_lat}
             lng={order.pickup_lng}
           />
+          <CopyAddressButton address={order.pickup_line1} />
         </div>
       </section>
 
@@ -145,6 +147,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
             lng={order.dropoff_lng}
           />
           <PhoneLink phone={order.customer_phone} />
+          <CopyAddressButton address={order.dropoff_line1} />
         </div>
       </section>
 
