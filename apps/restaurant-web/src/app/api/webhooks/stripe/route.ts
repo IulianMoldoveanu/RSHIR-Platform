@@ -25,10 +25,11 @@ export async function POST(req: Request) {
   try {
     event = getStripe().webhooks.constructEvent(raw, sig, secret);
   } catch (err) {
-    return NextResponse.json(
-      { error: 'invalid_signature', detail: (err as Error).message },
-      { status: 400 },
-    );
+    // Don't echo the verifier's diagnostic to the caller — even though Stripe's
+    // own messages are crafted to be safe, an attacker probing signatures gets
+    // free debugging hints. Log server-side, return generic 400.
+    console.error('[webhooks/stripe] signature verification failed', (err as Error).message);
+    return NextResponse.json({ error: 'invalid_signature' }, { status: 400 });
   }
 
   switch (event.type) {
