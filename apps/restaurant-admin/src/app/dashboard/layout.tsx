@@ -118,6 +118,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     ...(isPlatformAdmin
       ? [
           {
+            href: '/dashboard/admin/onboard',
+            label: '+ Tenant nou',
+            icon: 'rocket' as const,
+          },
+          {
             href: '/dashboard/admin/partners',
             label: 'Parteneri',
             icon: 'users' as const,
