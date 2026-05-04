@@ -1,3 +1,9 @@
+// TODO(demo-2026-05-05): no generateMetadata() here — checkout renders with
+// the layout default title "HIR Restaurant" instead of the per-tenant
+// "<Name> — finalizează comanda". Storefront page.tsx already has the
+// pattern; copy/adapt it. Found during 2026-05-04 E2E walkthrough on
+// FOISORUL A: storefront title was correct, checkout page reverted to
+// generic. Minor merchant-trust hit on the highest-stakes page.
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
