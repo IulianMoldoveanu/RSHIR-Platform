@@ -116,12 +116,27 @@ export async function assignOrderToCourierAction(
 
   if (!courierRow) return { ok: false, error: 'Curierul nu aparține flotei.' };
 
-  // Update + filter by fleet_id so a manager can't reassign someone else's order.
-  const { error } = await (admin as unknown as {
+  // Update + gate on assignable pre-state. Without the status + assignment
+  // filters, a stale tab could reassign an in-flight or already-DELIVERED
+  // order back to ACCEPTED, breaking the state machine and the audit trail.
+  // We also `.select()` and check the returned row so a zero-row update
+  // surfaces as an explicit error instead of a silent success.
+  const { data, error } = await (admin as unknown as {
     from: (t: string) => {
       update: (row: Record<string, unknown>) => {
         eq: (c: string, v: string) => {
-          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+          eq: (c: string, v: string) => {
+            in: (c: string, v: string[]) => {
+              is: (c: string, v: null) => {
+                select: (cols: string) => {
+                  maybeSingle: () => Promise<{
+                    data: { id: string } | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
         };
       };
     };
@@ -133,9 +148,19 @@ export async function assignOrderToCourierAction(
       updated_at: new Date().toISOString(),
     })
     .eq('id', orderId)
-    .eq('fleet_id', ctx.fleetId);
+    .eq('fleet_id', ctx.fleetId)
+    .in('status', ['CREATED', 'OFFERED'])
+    .is('assigned_courier_user_id', null)
+    .select('id')
+    .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error: 'Comanda nu mai este disponibilă pentru asignare.',
+    };
+  }
 
   await logAudit({
     actorUserId: ctx.userId,
@@ -157,12 +182,22 @@ export async function unassignOrderAction(orderId: string): Promise<FleetActionR
   if (!ctx) return { ok: false, error: 'Acces interzis.' };
 
   const admin = createAdminClient();
-  const { error } = await (admin as unknown as {
+  // `.select().maybeSingle()` so a zero-row update (order moved past
+  // ACCEPTED between render and click) returns an explicit error instead
+  // of a silent success that would still write a misleading audit entry.
+  const { data, error } = await (admin as unknown as {
     from: (t: string) => {
       update: (row: Record<string, unknown>) => {
         eq: (c: string, v: string) => {
           eq: (c: string, v: string) => {
-            in: (c: string, v: string[]) => Promise<{ error: { message: string } | null }>;
+            in: (c: string, v: string[]) => {
+              select: (cols: string) => {
+                maybeSingle: () => Promise<{
+                  data: { id: string } | null;
+                  error: { message: string } | null;
+                }>;
+              };
+            };
           };
         };
       };
@@ -179,9 +214,17 @@ export async function unassignOrderAction(orderId: string): Promise<FleetActionR
     // Only allow unassign while the order is still in pre-pickup. Once the
     // rider has the parcel in hand, mid-flight reassignment needs a heavier
     // workflow (rider hand-off + parcel transfer audit) we don't have yet.
-    .in('status', ['ACCEPTED']);
+    .in('status', ['ACCEPTED'])
+    .select('id')
+    .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error: 'Comanda nu mai poate fi reasignată — curierul a ridicat-o deja.',
+    };
+  }
 
   await logAudit({
     actorUserId: ctx.userId,

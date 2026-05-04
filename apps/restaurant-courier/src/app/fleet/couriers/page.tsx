@@ -84,15 +84,22 @@ export default async function FleetCouriersPage() {
             .select('courier_user_id, started_at, last_seen_at')
             .in('courier_user_id', ids)
             .eq('status', 'ONLINE'),
+          // fleet_id filter keeps stats isolated. A courier could have
+          // historical orders attached to another fleet_id (rider moved
+          // between fleets, or rare cross-fleet legacy rows); without this
+          // filter the dashboard would inflate today's delivery + active
+          // counts with rows that don't belong to this manager.
           admin
             .from('courier_orders')
             .select('assigned_courier_user_id, delivery_fee_ron')
+            .eq('fleet_id', fleet.fleetId)
             .in('assigned_courier_user_id', ids)
             .eq('status', 'DELIVERED')
             .gte('updated_at', startOfDay.toISOString()),
           admin
             .from('courier_orders')
             .select('assigned_courier_user_id, status')
+            .eq('fleet_id', fleet.fleetId)
             .in('assigned_courier_user_id', ids)
             .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
         ])
