@@ -35,21 +35,28 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Are we currently in a shift? Drives the location tracker on/off.
   const admin = createAdminClient();
-  const [{ data: shiftData }, riderMode, { count: openOrdersCount }] = await Promise.all([
-    admin
-      .from('courier_shifts')
-      .select('id')
-      .eq('courier_user_id', user.id)
-      .eq('status', 'ONLINE')
-      .limit(1)
-      .maybeSingle(),
-    resolveRiderMode(user.id),
-    admin
-      .from('courier_orders')
-      .select('id', { count: 'exact', head: true })
-      .is('assigned_courier_user_id', null)
-      .in('status', ['CREATED', 'OFFERED']),
-  ]);
+  const [{ data: shiftData }, riderMode, { count: openOrdersCount }, { data: profileData }] =
+    await Promise.all([
+      admin
+        .from('courier_shifts')
+        .select('id')
+        .eq('courier_user_id', user.id)
+        .eq('status', 'ONLINE')
+        .limit(1)
+        .maybeSingle(),
+      resolveRiderMode(user.id),
+      admin
+        .from('courier_orders')
+        .select('id', { count: 'exact', head: true })
+        .is('assigned_courier_user_id', null)
+        .in('status', ['CREATED', 'OFFERED']),
+      admin
+        .from('courier_profiles')
+        .select('avatar_url, full_name')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ]);
+  const profile = profileData as { avatar_url: string | null; full_name: string | null } | null;
   const isOnline = !!shiftData;
   // Mode C riders never browse — don't show a count nudge for them.
   const navOrdersBadge = riderMode.mode === 'C' ? 0 : (openOrdersCount ?? 0);
@@ -91,6 +98,33 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           {/* Earnings pill — always visible. */}
           <EarningsBar />
+
+          {/* Avatar shortcut to settings — always visible top-right next to
+              logout. Clicking deep-links to /dashboard/settings#profile.
+              Falls back to initials if no avatar was uploaded yet. */}
+          <Link
+            href="/dashboard/settings"
+            aria-label="Profil"
+            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 hover:border-violet-500/60"
+          >
+            {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatar_url}
+                alt="Profil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-[10px] font-bold uppercase text-zinc-400">
+                {(profile?.full_name ?? '?')
+                  .split(' ')
+                  .map((p) => p[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join('')}
+              </span>
+            )}
+          </Link>
 
           <form action={logoutAction}>
             <button

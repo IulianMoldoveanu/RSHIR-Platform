@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 type ProfileRow = {
   full_name: string | null;
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
+  vehicle_type: 'BIKE' | 'SCOOTER' | 'CAR';
 };
 
 type ShiftRow = { id: string };
@@ -51,7 +52,7 @@ export default async function DashboardHome() {
     await Promise.all([
       admin
         .from('courier_profiles')
-        .select('full_name, status')
+        .select('full_name, status, vehicle_type')
         .eq('user_id', user.id)
         .maybeSingle(),
       admin
@@ -91,7 +92,11 @@ export default async function DashboardHome() {
   // it some mobile browsers paint the Leaflet container above the nav.
   return (
     <div className="relative z-0 -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
-      <RiderMap fillParent activePins={activePins} />
+      <RiderMap
+        fillParent
+        activePins={activePins}
+        vehicleType={profile?.vehicle_type ?? 'BIKE'}
+      />
 
       {/* Greeting + status pill, top-left over the map. */}
       <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[60%] rounded-2xl border border-zinc-800 bg-zinc-950/85 px-3 py-2 backdrop-blur">
