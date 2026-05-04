@@ -149,11 +149,27 @@ export async function POST(req: NextRequest) {
       };
       const db = admin as unknown as AnyTable;
 
-      const { data: partner, error: partnerLookupErr } = await db
-        .from('partners')
-        .select('id')
-        .eq('id', ref)
-        .maybeSingle();
+      // Two lookup paths so both legacy UUID ids and the new white-label
+      // codes (introduced in 20260504_013) work:
+      //   - UUID-shaped ref -> lookup by partners.id (case-insensitive ok).
+      //   - Otherwise       -> lookup by partners.code with toUpperCase()
+      //                        (codes use alphabet [A-Z2-9], no lowercase).
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
+      let partner: { id: string } | null = null;
+      let partnerLookupErr: { message: string } | null = null;
+      if (isUuid) {
+        const r = await db.from('partners').select('id').eq('id', ref).maybeSingle();
+        partner = r.data;
+        partnerLookupErr = r.error;
+      } else {
+        const r = await db
+          .from('partners')
+          .select('id')
+          .eq('code', ref.toUpperCase())
+          .maybeSingle();
+        partner = r.data;
+        partnerLookupErr = r.error;
+      }
       if (partnerLookupErr) {
         console.warn('[signup] partner lookup error for ref=%s: %s', ref, partnerLookupErr.message);
       } else if (!partner) {
