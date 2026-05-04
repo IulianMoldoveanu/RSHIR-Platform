@@ -120,6 +120,7 @@ export type ParsedItem = {
   description: string;
   price_ron: number;
   flagged: string | null; // null = clean; string = warning reason
+  external_id?: string; // GloriaFood item id for idempotent re-import (Master Key path only)
 };
 
 export type ParseResult =
@@ -213,6 +214,7 @@ const commitSchema = z.object({
         description: z.string().max(1000),
         price_ron: z.number().min(0).max(9999),
         flagged: z.string().nullable(),
+        external_id: z.string().max(120).optional(),
       }),
     )
     .min(1)
@@ -313,31 +315,74 @@ export async function commitGloriaFoodImport(
     categoriesCreated += 1;
   }
 
-  // Bulk insert items per category.
+  // Bulk insert/upsert items per category. When items carry an external_id
+  // (Master Key import path), upsert on (tenant_id, external_source, external_id)
+  // so re-importing the same key updates rather than duplicates. CSV path has
+  // no external_id and falls back to plain insert.
   let itemsCreated = 0;
   for (const cat of categoryOrder) {
     const catId = categoryIdByName.get(cat)!;
     const itemsInCat = items.filter((i) => i.category === cat);
 
-    const rows = itemsInCat.map((it, idx) => ({
-      tenant_id: tenantId,
-      category_id: catId,
-      name: it.name,
-      description: it.description || null,
-      price_ron: it.price_ron,
-      is_available: it.flagged ? false : true, // flagged items shipped offline
-      sort_order: idx,
-      tags: [] as string[],
-    }));
+    const withExternal = itemsInCat.filter((i) => i.external_id);
+    const withoutExternal = itemsInCat.filter((i) => !i.external_id);
 
-    const { error } = await admin.from('restaurant_menu_items').insert(rows);
-    if (error) {
-      return {
-        ok: false,
-        error: `Eroare la inserare produse în "${cat}": ${error.message}`,
-      };
+    if (withoutExternal.length > 0) {
+      const rows = withoutExternal.map((it, idx) => ({
+        tenant_id: tenantId,
+        category_id: catId,
+        name: it.name,
+        description: it.description || null,
+        price_ron: it.price_ron,
+        is_available: it.flagged ? false : true,
+        sort_order: idx,
+        tags: [] as string[],
+      }));
+      const { error } = await admin.from('restaurant_menu_items').insert(rows);
+      if (error) {
+        return {
+          ok: false,
+          error: `Eroare la inserare produse în "${cat}": ${error.message}`,
+        };
+      }
+      itemsCreated += rows.length;
     }
-    itemsCreated += rows.length;
+
+    if (withExternal.length > 0) {
+      const offset = withoutExternal.length;
+      const rows = withExternal.map((it, idx) => ({
+        tenant_id: tenantId,
+        category_id: catId,
+        name: it.name,
+        description: it.description || null,
+        price_ron: it.price_ron,
+        is_available: it.flagged ? false : true,
+        sort_order: offset + idx,
+        tags: [] as string[],
+        external_source: 'gloriafood',
+        external_id: it.external_id!,
+      }));
+      // upsert needs casting through unknown — supabase types not regenerated yet
+      // for the new external_source/external_id columns added in 20260505_002.
+      const sb = admin as unknown as {
+        from: (t: string) => {
+          upsert: (
+            rows: Record<string, unknown>[],
+            opts: { onConflict: string },
+          ) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+      const { error } = await sb
+        .from('restaurant_menu_items')
+        .upsert(rows, { onConflict: 'tenant_id,external_source,external_id' });
+      if (error) {
+        return {
+          ok: false,
+          error: `Eroare la upsert produse în "${cat}": ${error.message}`,
+        };
+      }
+      itemsCreated += rows.length;
+    }
   }
 
   await logAudit({
@@ -459,12 +504,14 @@ export async function parseGloriaFoodMasterKey(
     if (name.length === 200) flagged = 'Numele atinge limita 200 caractere';
 
     const catName = gfCatById.get(String(it.category_id ?? '')) ?? 'Necategorisit';
+    const externalId = it.id !== undefined && it.id !== null ? String(it.id) : undefined;
     items.push({
       category: catName,
       name,
       description: (it.description ?? '').toString().trim().slice(0, 1000),
       price_ron: price,
       flagged,
+      external_id: externalId,
     });
   }
 

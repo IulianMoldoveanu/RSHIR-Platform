@@ -50,7 +50,10 @@ export type AuditAction =
   | 'partner.code_generated'
   | 'partner.landing_updated'
   | 'team.zone_capability_granted'
-  | 'team.zone_capability_revoked';
+  | 'team.zone_capability_revoked'
+  | 'affiliate.application_approved'
+  | 'affiliate.application_rejected'
+  | 'affiliate.marked_spam';
 
 export async function logAudit(args: {
   tenantId: string;
