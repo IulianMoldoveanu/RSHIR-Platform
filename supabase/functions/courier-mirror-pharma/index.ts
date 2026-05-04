@@ -54,6 +54,11 @@ type WebhookBody = {
     requires_id_verification: boolean;
     requires_prescription: boolean;
     total_value_ron: number;
+    // Lane F additions — all optional so old payloads keep working.
+    payment_method?: 'CARD' | 'COD';
+    cod_amount_ron?: number;
+    pharma_callback_url?: string;
+    pharma_callback_secret?: string;
   };
   fleet_slug?: string;
 };
@@ -217,34 +222,42 @@ Deno.serve(async (req: Request) => {
       items_summary: order.items_summary,
     };
 
+    // Lane F: optional pharma extras. Each is persisted only when supplied
+    // so existing payload contracts remain valid (no NOT NULL changes).
+    const insertRow: Record<string, unknown> = {
+      fleet_id: fleetId,
+      vertical: 'pharma',
+      external_ref: order.pharma_order_id,
+      source_type: 'EXTERNAL_API',
+      status: mappedStatus,
+      // Pickup
+      pickup_line1: order.pickup.address,
+      pickup_lat: order.pickup.lat,
+      pickup_lng: order.pickup.lng,
+      // Dropoff
+      dropoff_line1: order.dropoff.address,
+      dropoff_lat: order.dropoff.lat,
+      dropoff_lng: order.dropoff.lng,
+      // Customer
+      customer_first_name: order.dropoff.customer_name,
+      customer_phone: order.dropoff.customer_phone,
+      // Pharma-specific
+      pharma_metadata: pharmaMetadata,
+      // Required by schema
+      public_track_token: crypto.randomUUID(),
+      items: [],
+      created_at: at,
+      updated_at: at,
+    };
+    if (order.payment_method) insertRow.payment_method = order.payment_method;
+    if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
+    if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
+    if (order.pharma_callback_secret) insertRow.pharma_callback_secret = order.pharma_callback_secret;
+
     const { data: inserted, error: insertErr } = await supabase
       .from('courier_orders')
-      .insert({
-        fleet_id: fleetId,
-        vertical: 'pharma',
-        external_ref: order.pharma_order_id,
-        source_type: 'EXTERNAL_API',
-        status: mappedStatus,
-        // Pickup
-        pickup_line1: order.pickup.address,
-        pickup_lat: order.pickup.lat,
-        pickup_lng: order.pickup.lng,
-        // Dropoff
-        dropoff_line1: order.dropoff.address,
-        dropoff_lat: order.dropoff.lat,
-        dropoff_lng: order.dropoff.lng,
-        // Customer
-        customer_first_name: order.dropoff.customer_name,
-        customer_phone: order.dropoff.customer_phone,
-        // Pharma-specific
-        pharma_metadata: pharmaMetadata,
-        // Required by schema
-        public_track_token: crypto.randomUUID(),
-        items: [],
-        created_at: at,
-        updated_at: at,
-      })
-      .select('id')
+      .insert(insertRow)
+      .select('id, payment_method, cod_amount_ron, pharma_callback_url')
       .single();
 
     if (insertErr) {
@@ -263,7 +276,15 @@ Deno.serve(async (req: Request) => {
       body: 'Ai o nouă livrare farma disponibilă.',
     });
 
-    return json(200, { ok: true, courier_order_id: inserted.id });
+    // Echo back the persisted Lane F fields so pharma side can confirm
+    // receipt without a follow-up GET. Secret intentionally omitted.
+    return json(200, {
+      ok: true,
+      courier_order_id: inserted.id,
+      payment_method: (inserted as { payment_method: string | null }).payment_method ?? null,
+      cod_amount_ron: (inserted as { cod_amount_ron: number | null }).cod_amount_ron ?? null,
+      pharma_callback_url: (inserted as { pharma_callback_url: string | null }).pharma_callback_url ?? null,
+    });
   }
 
   if (event === 'order.status_changed' || event === 'order.cancelled') {
@@ -297,9 +318,15 @@ Deno.serve(async (req: Request) => {
       return json(200, { ok: true, courier_order_id: existing.id, skipped: 'stale_event' });
     }
 
+    // Allow pharma to rotate callback url/secret on a subsequent event
+    // (e.g. they rolled their HMAC keypair). All fields stay optional.
+    const updateRow: Record<string, unknown> = { status: targetStatus, updated_at: at };
+    if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
+    if (order.pharma_callback_secret) updateRow.pharma_callback_secret = order.pharma_callback_secret;
+
     const { error: updateErr } = await supabase
       .from('courier_orders')
-      .update({ status: targetStatus, updated_at: at })
+      .update(updateRow)
       .eq('id', existing.id);
 
     if (updateErr) {

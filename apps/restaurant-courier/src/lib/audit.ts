@@ -22,7 +22,8 @@ export type CourierAuditAction =
   | 'fleet.courier_note_updated'
   | 'fleet.bulk_auto_assigned'
   | 'order.cash_collected'
-  | 'delivery.geofence_warning';
+  | 'delivery.geofence_warning'
+  | 'pharma.callback_sent';
 
 export async function logAudit(args: {
   actorUserId: string;

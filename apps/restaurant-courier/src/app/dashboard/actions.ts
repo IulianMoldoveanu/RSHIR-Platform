@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendWebhook } from '@/lib/webhook';
+import { sendWebhook, notifyPharmaCallback } from '@/lib/webhook';
 import { logAudit } from '@/lib/audit';
 
 const GEOFENCE_WARN_METERS = 200;
@@ -93,20 +93,37 @@ async function assertDeliveryGeofence(
   }
 }
 
-async function notifySubscriber(orderId: string, status: string): Promise<void> {
+async function notifySubscriber(
+  orderId: string,
+  status: string,
+  actorUserId?: string,
+): Promise<void> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('courier_orders')
-    .select('source_order_id, updated_at')
+    .select('source_order_id, updated_at, vertical')
     .eq('id', orderId)
     .maybeSingle();
   if (!data) return;
+  const row = data as {
+    source_order_id: string | null;
+    updated_at: string;
+    vertical: 'restaurant' | 'pharma' | null;
+  };
+
+  // Pharma orders fan out to the pharma callback URL stored on the order.
+  // Restaurant orders fan out to the third-party API webhook subscriber.
+  // Both helpers are best-effort and idempotent on the receiver side.
+  if (row.vertical === 'pharma') {
+    void notifyPharmaCallback(orderId, status, actorUserId);
+    return;
+  }
   void sendWebhook(orderId, {
     event: 'order.status_changed',
     orderId,
-    externalOrderId: (data as { source_order_id: string | null }).source_order_id ?? null,
+    externalOrderId: row.source_order_id ?? null,
     status,
-    occurredAt: (data as { updated_at: string }).updated_at,
+    occurredAt: row.updated_at,
   });
 }
 
@@ -196,7 +213,7 @@ export async function markPickedUpAction(orderId: string) {
     .eq('assigned_courier_user_id', userId)
     .select('id')
     .maybeSingle();
-  if (data) await notifySubscriber(orderId, 'PICKED_UP');
+  if (data) await notifySubscriber(orderId, 'PICKED_UP', userId);
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
@@ -241,7 +258,7 @@ export async function markDeliveredAction(
       });
     }
     await assertDeliveryGeofence(admin, userId, orderId);
-    await notifySubscriber(orderId, 'DELIVERED');
+    await notifySubscriber(orderId, 'DELIVERED', userId);
   }
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
@@ -334,7 +351,7 @@ export async function acceptOrderAction(orderId: string) {
     .is('assigned_courier_user_id', null)
     .select('id')
     .maybeSingle();
-  if (data) await notifySubscriber(orderId, 'ACCEPTED');
+  if (data) await notifySubscriber(orderId, 'ACCEPTED', userId);
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
 }
