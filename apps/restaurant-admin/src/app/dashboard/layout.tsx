@@ -9,6 +9,7 @@ import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 import { MobileSidebar } from './mobile-sidebar';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { FeedbackFab } from '@/components/feedback-fab';
+import { CmdKPalette } from '@/components/cmd-k';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   let active: Awaited<ReturnType<typeof getActiveTenant>>;
@@ -168,6 +169,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </div>
       <PwaInstallPrompt />
       <FeedbackFab tenantId={tenant.id} />
+      <CmdKPalette />
     </div>
   );
 }
