@@ -1,0 +1,19 @@
+name: Health Monitor
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger health-monitor Edge Function
+        run: |
+          curl -X POST 'https://qfmeojeipncuxeltnvab.supabase.co/functions/v1/health-monitor' \
+            -H "X-Health-Token: $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --fail --silent --show-error --max-time 30
+        env:
+          TOKEN: ${{ secrets.HEALTH_MONITOR_TOKEN }}
