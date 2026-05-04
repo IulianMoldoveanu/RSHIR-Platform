@@ -1,3 +1,5 @@
+import Link from 'next/link';
+import { HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@hir/ui';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -59,6 +61,18 @@ export default async function SettingsPage() {
           dacă vrei să schimbi ceva.
         </CardContent>
       </Card>
+
+      <Link
+        href="/dashboard/help"
+        className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm hover:bg-zinc-50"
+      >
+        <HelpCircle className="h-5 w-5 text-violet-500" aria-hidden />
+        <div className="flex-1">
+          <p className="font-medium text-zinc-900">Ajutor & FAQ</p>
+          <p className="text-xs text-zinc-500">Cum funcționează plata, fotografiile, urgențele</p>
+        </div>
+        <span className="text-zinc-400">›</span>
+      </Link>
     </div>
   );
 }
