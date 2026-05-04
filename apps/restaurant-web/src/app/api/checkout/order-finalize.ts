@@ -198,3 +198,20 @@ export async function markOrderPaymentFailed(orderId: string): Promise<void> {
     .update({ payment_status: 'FAILED' })
     .eq('id', orderId);
 }
+
+/**
+ * Lane G: charge.refunded webhook. Looks up the order by Stripe PaymentIntent
+ * id (set when the intent was created in /api/checkout/intent) and flips
+ * payment_status to REFUNDED. Does NOT auto-cancel the order — the
+ * restaurant admin reviews refunded orders manually before deciding whether
+ * to cancel courier dispatch (the food may already be in transit).
+ *
+ * Idempotent: REFUNDED → REFUNDED is a no-op update.
+ */
+export async function markOrderRefunded(stripePaymentIntentId: string): Promise<void> {
+  const admin = getSupabaseAdmin();
+  await admin
+    .from('restaurant_orders')
+    .update({ payment_status: 'REFUNDED' })
+    .eq('stripe_payment_intent_id', stripePaymentIntentId);
+}
