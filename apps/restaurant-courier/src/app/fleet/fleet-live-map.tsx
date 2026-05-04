@@ -168,10 +168,14 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
         mapRef.current = null;
       }
     };
-    // pins deliberately not in deps — when pins change, the parent route
-    // re-renders the whole component, which unmounts + remounts the map.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // The map is rebuilt when pins change. router.refresh() inside the
+    // realtime subscription only re-renders the parent server component
+    // and re-passes new props — the client component itself is NOT
+    // unmounted, so without `pins` in the deps the map would keep stale
+    // markers indefinitely. Tearing down + re-creating the Leaflet
+    // instance is cheap (CDN cached after first load) and avoids the
+    // complexity of incrementally diffing markers.
+  }, [pins]);
 
   return (
     <div className="relative">

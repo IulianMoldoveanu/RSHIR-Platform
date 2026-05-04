@@ -77,27 +77,32 @@ export default async function FleetOverviewPage() {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
+  // Couriers come first because the shift query needs their IDs to scope.
+  // A naive global `.limit(200)` would let busy fleets push this fleet's
+  // riders out of the result window, breaking online counts + map pins.
+  const { data: couriersData } = await admin
+    .from('courier_profiles')
+    .select('user_id, full_name, status')
+    .eq('fleet_id', fleet.fleetId);
+  const fleetCourierIds = ((couriersData ?? []) as Array<{ user_id: string }>).map((c) => c.user_id);
+
   const [
-    { data: couriersData },
     { data: shiftsData },
     { data: openOrdersData },
     { data: activeOrdersData },
     { data: deliveredTodayData },
   ] = await Promise.all([
-    // All couriers in the fleet (used for total + active count).
-    admin
-      .from('courier_profiles')
-      .select('user_id, full_name, status')
-      .eq('fleet_id', fleet.fleetId),
-    // Currently online shifts + last GPS fix — drives the live map and the
-    // "online" KPI. We pull the most recent shift per rider, online or not,
-    // because the map can usefully show the last-known position of a rider
-    // who just went offline 5 minutes ago.
-    admin
-      .from('courier_shifts')
-      .select('courier_user_id, status, last_lat, last_lng, last_seen_at, started_at')
-      .order('started_at', { ascending: false })
-      .limit(200),
+    // Shifts scoped to the fleet's riders. ONLINE rows always surface; we
+    // also include the most recent OFFLINE shift per rider so the map can
+    // show last-known positions for riders who closed their shift recently.
+    fleetCourierIds.length > 0
+      ? admin
+          .from('courier_shifts')
+          .select('courier_user_id, status, last_lat, last_lng, last_seen_at, started_at')
+          .in('courier_user_id', fleetCourierIds)
+          .order('started_at', { ascending: false })
+          .limit(Math.max(200, fleetCourierIds.length * 3))
+      : Promise.resolve({ data: [] }),
     // Unassigned orders for this fleet — manager attention list.
     admin
       .from('courier_orders')
