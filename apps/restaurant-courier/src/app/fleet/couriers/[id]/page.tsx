@@ -119,12 +119,15 @@ export default async function FleetCourierDetailPage({
       .eq('user_id', params.id)
       .eq('fleet_id', fleet.fleetId)
       .maybeSingle(),
+    // Pull the last 15 shifts: shifts[0] is "current / most recent" (already
+    // used by the existing card), shifts[1..] feed the "Toate turele" history
+    // table further down.
     admin
       .from('courier_shifts')
       .select('id, started_at, ended_at, status, last_lat, last_lng, last_seen_at')
       .eq('courier_user_id', params.id)
       .order('started_at', { ascending: false })
-      .limit(1),
+      .limit(15),
     // Metrics query: pulls only the columns needed for aggregation, no
     // limit — Codex P1 #175 caught that a 60-row cap silently
     // under-reported high-volume riders. Rows are tiny (3 numbers + 2
@@ -163,7 +166,15 @@ export default async function FleetCourierDetailPage({
   const profile = profileData as ProfileRow | null;
   if (!profile) notFound();
 
-  const lastShift = ((shiftsData ?? []) as ShiftRow[])[0] ?? null;
+  const allShifts = (shiftsData ?? []) as ShiftRow[];
+  const lastShift = allShifts[0] ?? null;
+  // pastShifts excludes lastShift to avoid duplicating the card above.
+  // We also drop any zero-duration rows (defensive — rare DB hiccup
+  // where started_at == ended_at — would just clutter the table).
+  const pastShifts = allShifts.slice(1).filter((s) => {
+    if (!s.ended_at) return true;
+    return new Date(s.ended_at).getTime() > new Date(s.started_at).getTime();
+  });
   const deliveredMetrics = (deliveredMetricsData ?? []) as Array<{
     total_ron: number | null;
     delivery_fee_ron: number | null;
@@ -293,6 +304,60 @@ export default async function FleetCourierDetailPage({
           Curierul nu a pornit încă o tură.
         </section>
       )}
+
+      {/* Past shifts table — last 14 entries (the "current/last" card above
+          consumed the 15th most-recent row). */}
+      {pastShifts.length > 0 ? (
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Ture anterioare ({pastShifts.length})
+          </p>
+          <ul className="divide-y divide-zinc-800 text-xs">
+            {pastShifts.map((s) => {
+              const start = new Date(s.started_at);
+              const end = s.ended_at ? new Date(s.ended_at) : null;
+              const dur = end ? end.getTime() - start.getTime() : null;
+              return (
+                <li
+                  key={s.id}
+                  className="flex items-center justify-between gap-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-zinc-100">
+                      {start.toLocaleString('ro-RO', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        weekday: 'short',
+                      })}
+                    </p>
+                    <p className="truncate text-[11px] text-zinc-500">
+                      {start.toLocaleTimeString('ro-RO', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}{' '}
+                      →{' '}
+                      {end
+                        ? end.toLocaleTimeString('ro-RO', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-medium text-zinc-100">
+                      {dur != null ? formatDuration(dur) : '—'}
+                    </p>
+                    <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                      durată
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {/* 30-day metrics */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
