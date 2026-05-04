@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { History, Inbox } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { resolveTenantNames } from '@/lib/tenant-names';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
 import { FleetOrdersRealtime } from './fleet-orders-realtime';
 import { FleetOrdersSearch } from './fleet-orders-search';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
 
 const ORDER_COLS =
-  'id, status, customer_first_name, customer_phone, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, created_at, updated_at';
+  'id, status, customer_first_name, customer_phone, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_tenant_id, created_at, updated_at';
 
 export default async function FleetOrdersPage() {
   const fleet = await requireFleetManager();
@@ -44,6 +45,14 @@ export default async function FleetOrdersPage() {
   const couriers = (couriersData ?? []) as DispatchCourier[];
   const onlineSet = new Set(((shiftsData ?? []) as Array<{ courier_user_id: string }>).map((s) => s.courier_user_id));
 
+  // Resolve tenant names for the rows we just fetched. Multi-restaurant
+  // fleets need this to disambiguate pickups; single-restaurant fleets
+  // get a one-entry map and the row UI hides the chip when the tenant
+  // count is 1.
+  const tenantNames = await resolveTenantNames(orders.map((o) => o.source_tenant_id));
+  const distinctTenantCount = tenantNames.size;
+  const showTenantChip = distinctTenantCount > 1;
+
   // Annotate couriers with online state — UI surfaces online riders first.
   const annotatedCouriers = couriers
     .map((c) => ({ ...c, online: onlineSet.has(c.user_id) }))
@@ -65,6 +74,14 @@ export default async function FleetOrdersPage() {
           <p className="mt-1 text-sm text-zinc-500">
             {open.length} neasignate · {active.length} în curs ·{' '}
             {annotatedCouriers.filter((c) => c.online).length} curieri online
+            {distinctTenantCount > 1 ? (
+              <>
+                {' · '}
+                <span className="text-zinc-300">
+                  {distinctTenantCount} restaurante
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -104,6 +121,11 @@ export default async function FleetOrdersPage() {
                 order={o}
                 couriers={annotatedCouriers}
                 courierName={null}
+                tenantName={
+                  showTenantChip && o.source_tenant_id
+                    ? (tenantNames.get(o.source_tenant_id) ?? null)
+                    : null
+                }
               />
             ))}
           </ul>
@@ -126,6 +148,11 @@ export default async function FleetOrdersPage() {
                 courierName={
                   o.assigned_courier_user_id
                     ? (courierName.get(o.assigned_courier_user_id) ?? null)
+                    : null
+                }
+                tenantName={
+                  showTenantChip && o.source_tenant_id
+                    ? (tenantNames.get(o.source_tenant_id) ?? null)
                     : null
                 }
               />

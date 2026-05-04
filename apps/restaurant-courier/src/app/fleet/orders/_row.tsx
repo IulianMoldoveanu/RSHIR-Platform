@@ -31,6 +31,7 @@ export type DispatchOrder = {
   delivery_fee_ron: number | null;
   payment_method: 'CARD' | 'COD' | null;
   assigned_courier_user_id: string | null;
+  source_tenant_id: string | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -78,10 +79,15 @@ export function OrderRow({
   order,
   couriers,
   courierName,
+  tenantName,
 }: {
   order: DispatchOrder;
   couriers: DispatchCourierWithStatus[];
   courierName: string | null;
+  // When the fleet handles >1 restaurant, surface the source restaurant
+  // on every row so the dispatcher can pair pickup address with venue.
+  // Null = same-restaurant fleets (mode A) where the chip would be noise.
+  tenantName?: string | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +149,7 @@ export function OrderRow({
     order.customer_first_name ?? '',
     order.pickup_line1 ?? '',
     order.dropoff_line1 ?? '',
+    tenantName ?? '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -178,6 +185,14 @@ export function OrderRow({
             >
               {STATUS_LABEL[order.status] ?? order.status}
             </span>
+            {tenantName ? (
+              <span
+                className="max-w-[140px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-200"
+                title={tenantName}
+              >
+                {tenantName}
+              </span>
+            ) : null}
             <p className="truncate text-sm font-medium text-zinc-100">
               {order.customer_first_name ?? 'Client'}
             </p>
