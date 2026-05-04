@@ -120,13 +120,34 @@ async function dispatchToCourier(orderId: string, full: FullOrder): Promise<void
   // settings. Skip dispatch when location isn't set; the restaurant
   // hasn't configured pickup coords and the courier wouldn't know where
   // to fetch from.
+  // Read pickup coords + address from BOTH shapes that ship in production:
+  // flat keys (admin Operations save) and nested object (onboarding wizard).
+  // See tenantLocationFromSettings for the same dual-shape rationale.
   const tenantSettings = (full.tenants?.settings ?? {}) as Record<string, unknown>;
+  const nestedLoc =
+    tenantSettings.location && typeof tenantSettings.location === 'object'
+      ? (tenantSettings.location as Record<string, unknown>)
+      : {};
   const pickupLat =
-    typeof tenantSettings.location_lat === 'number' ? tenantSettings.location_lat : null;
+    typeof tenantSettings.location_lat === 'number'
+      ? tenantSettings.location_lat
+      : typeof nestedLoc.lat === 'number'
+        ? nestedLoc.lat
+        : null;
   const pickupLng =
-    typeof tenantSettings.location_lng === 'number' ? tenantSettings.location_lng : null;
+    typeof tenantSettings.location_lng === 'number'
+      ? tenantSettings.location_lng
+      : typeof nestedLoc.lng === 'number'
+        ? nestedLoc.lng
+        : null;
   const pickupAddr =
-    typeof tenantSettings.pickup_address === 'string' ? tenantSettings.pickup_address : null;
+    typeof tenantSettings.pickup_address === 'string' && tenantSettings.pickup_address.length > 0
+      ? tenantSettings.pickup_address
+      : typeof nestedLoc.formatted === 'string' && nestedLoc.formatted.length > 0
+        ? (nestedLoc.formatted as string)
+        : typeof tenantSettings.physical_address === 'string'
+          ? (tenantSettings.physical_address as string)
+          : null;
   const pickupCity =
     typeof tenantSettings.location_city === 'string' ? tenantSettings.location_city : '';
   if (pickupLat === null || pickupLng === null || !pickupAddr) {
