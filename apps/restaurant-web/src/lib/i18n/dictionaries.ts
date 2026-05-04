@@ -91,6 +91,16 @@ export const dictionaries = {
       group_optional: 'Opțional',
       group_optional_max_template: 'Opțional · Până la {max}',
     },
+    social: {
+      share_label: 'Distribuie',
+      share_whatsapp: 'WhatsApp',
+      share_facebook: 'Facebook',
+      share_twitter: 'X (Twitter)',
+      share_telegram: 'Telegram',
+      copy_link: 'Copiază link',
+      link_copied: 'Link copiat',
+      home_share_message_template: 'Comandă online de la {name} →',
+    },
     reorder: {
       rail_title: 'Comandă din nou',
     },
@@ -535,6 +545,16 @@ export const dictionaries = {
       group_optional_single: 'Optional · Choose 1',
       group_optional: 'Optional',
       group_optional_max_template: 'Optional · Up to {max}',
+    },
+    social: {
+      share_label: 'Share',
+      share_whatsapp: 'WhatsApp',
+      share_facebook: 'Facebook',
+      share_twitter: 'X (Twitter)',
+      share_telegram: 'Telegram',
+      copy_link: 'Copy link',
+      link_copied: 'Link copied',
+      home_share_message_template: 'Order online from {name} →',
     },
     reorder: {
       rail_title: 'Order again',

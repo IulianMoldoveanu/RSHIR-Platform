@@ -24,6 +24,16 @@ export type TenantSettings = {
   // and Cash skips the Stripe payment intent entirely. Default false to
   // keep existing tenants on the card-only flow.
   cod_enabled?: boolean;
+  // Lane I (2026-05-04) social-commerce settings. All optional; safely
+  // ignored when missing. JSONB payload — no schema migration required.
+  /** Free-text tagline shown in OG cards / hero. ≤80 chars in UI. */
+  tagline?: string | null;
+  /** 1-2 line "about us" string for OG description fallback. ≤200 chars. */
+  about_short?: string | null;
+  /** Facebook Pixel ID (e.g. "1234567890123456"). Sanitised at render. */
+  fb_pixel_id?: string | null;
+  /** GA4 Measurement ID (e.g. "G-XXXXXXXX"). Sanitised at render. */
+  ga4_measurement_id?: string | null;
 };
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';

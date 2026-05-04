@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { ChefHat } from 'lucide-react';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
-import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost, tenantBaseUrl, type TenantSettings } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
@@ -25,6 +25,9 @@ import {
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { metaDescriptionFor } from '@/lib/seo';
+import { buildRestaurantJsonLd, buildMenuJsonLd } from '@/lib/seo/jsonld-helpers';
+import { SocialShare } from '@/components/storefront/social-share';
+import { PixelScripts } from '@/components/analytics/pixel-scripts';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
@@ -47,9 +50,16 @@ export async function generateMetadata(): Promise<Metadata> {
       title: tenant.name,
       description,
       url,
-      images: coverUrl ? [{ url: coverUrl }] : undefined,
+      siteName: tenant.name,
+      images: coverUrl ? [{ url: coverUrl, width: 1200, height: 630, alt: tenant.name }] : undefined,
       type: 'website',
       locale: locale === 'en' ? 'en_GB' : 'ro_RO',
+    },
+    twitter: {
+      card: coverUrl ? 'summary_large_image' : 'summary',
+      title: tenant.name,
+      description,
+      images: coverUrl ? [coverUrl] : undefined,
     },
   };
 }
@@ -101,30 +111,26 @@ export default async function StorefrontHomePage() {
       ? Number(tenant.settings.free_delivery_threshold_ron)
       : 0;
 
-  const restaurantJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Restaurant',
+  const restaurantJsonLd = buildRestaurantJsonLd({
     name: tenant.name,
-    image: coverUrl ?? undefined,
     url: `${baseUrl}/`,
-    telephone: phone ?? undefined,
-    servesCuisine: cuisine ?? undefined,
-    priceRange: '$$',
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: pickupAddress ?? undefined,
-      addressCountry: 'RO',
-    },
-    aggregateRating: rating
-      ? {
-          '@type': 'AggregateRating',
-          ratingValue: rating.average.toFixed(1),
-          reviewCount: rating.count,
-          bestRating: 5,
-          worstRating: 1,
-        }
-      : undefined,
+    imageUrl: coverUrl,
+    telephone: phone,
+    cuisine,
+    pickupAddress,
+    rating,
+    hasMenuUrl: `${baseUrl}/`,
+  });
+  const menuJsonLd = buildMenuJsonLd(baseUrl, menu);
+
+  // Lane I (2026-05-04) — social settings (JSONB, all optional).
+  const socialSettings = tenant.settings as TenantSettings & {
+    fb_pixel_id?: string | null;
+    ga4_measurement_id?: string | null;
   };
+  const homeShareMessage = t(locale, 'social.home_share_message_template', {
+    name: tenant.name,
+  });
 
   let banner: { title: string; detail?: string } | null = null;
   if (!accepting) {
@@ -149,6 +155,16 @@ export default async function StorefrontHomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(restaurantJsonLd) }}
+      />
+      {menu.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(menuJsonLd) }}
+        />
+      )}
+      <PixelScripts
+        fbPixelId={socialSettings.fb_pixel_id ?? null}
+        ga4MeasurementId={socialSettings.ga4_measurement_id ?? null}
       />
       <NewsletterBanner />
       <TenantHeader
@@ -241,6 +257,28 @@ export default async function StorefrontHomePage() {
         </div>
       ) : (
         <MenuList categories={menu} locale={locale} />
+      )}
+
+      {menu.length > 0 && (
+        <section className="mx-auto mt-8 max-w-2xl px-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
+            {t(locale, 'social.share_label')}
+          </p>
+          <SocialShare
+            url={`${baseUrl}/`}
+            text={homeShareMessage}
+            tenantSlug={tenant.slug}
+            labels={{
+              share: t(locale, 'social.share_label'),
+              whatsapp: t(locale, 'social.share_whatsapp'),
+              facebook: t(locale, 'social.share_facebook'),
+              twitter: t(locale, 'social.share_twitter'),
+              telegram: t(locale, 'social.share_telegram'),
+              copy: t(locale, 'social.copy_link'),
+              copied: t(locale, 'social.link_copied'),
+            }}
+          />
+        </section>
       )}
 
       <NewsletterPopup brandColor={brandColor} locale={locale} />
