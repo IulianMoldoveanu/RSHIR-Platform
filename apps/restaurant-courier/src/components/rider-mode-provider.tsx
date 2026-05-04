@@ -18,7 +18,13 @@ export function RiderModeProvider({
 export function useRiderMode(): RiderModeContext {
   const ctx = useContext(Ctx);
   if (!ctx) {
-    return { mode: 'A', fleetId: null, fleetName: null, tenantCount: 1 };
+    return {
+      mode: 'A',
+      fleetId: null,
+      fleetName: null,
+      fleetContactPhone: null,
+      tenantCount: 1,
+    };
   }
   return ctx;
 }
