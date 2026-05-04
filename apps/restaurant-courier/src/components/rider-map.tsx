@@ -78,7 +78,23 @@ function loadLeaflet(): Promise<LeafletGlobal> {
 
 type Permission = 'pending' | 'granted' | 'denied' | 'unsupported' | 'error';
 
-export function RiderMap() {
+type ActivePin = {
+  orderId: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
+  dropoffLat: number | null;
+  dropoffLng: number | null;
+};
+
+export function RiderMap({
+  fillParent = false,
+  activePins = [],
+}: {
+  /** When true, the map fills its parent's height instead of `calc(100vh-14rem)`. */
+  fillParent?: boolean;
+  /** Optional pickup/dropoff markers for the rider's active orders. */
+  activePins?: ActivePin[];
+} = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
@@ -108,6 +124,34 @@ export function RiderMap() {
         }).addTo(map);
 
         mapRef.current = map;
+
+        // Drop pickup / dropoff markers for the rider's active orders.
+        // Pickup = violet pin, dropoff = emerald pin. We only paint coords
+        // present (some pharma orders ship without dropoff geocoding).
+        for (const pin of activePins) {
+          if (pin.pickupLat != null && pin.pickupLng != null) {
+            L.marker([pin.pickupLat, pin.pickupLng], {
+              icon: L.divIcon({
+                className: 'rider-pickup-pin',
+                html:
+                  '<span style="display:block;width:14px;height:14px;border-radius:9999px;background:#7c3aed;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></span>',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+              }),
+            }).addTo(map);
+          }
+          if (pin.dropoffLat != null && pin.dropoffLng != null) {
+            L.marker([pin.dropoffLat, pin.dropoffLng], {
+              icon: L.divIcon({
+                className: 'rider-dropoff-pin',
+                html:
+                  '<span style="display:block;width:14px;height:14px;border-radius:9999px;background:#10b981;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></span>',
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+              }),
+            }).addTo(map);
+          }
+        }
 
         // Some layouts mount the map inside a flex parent that resizes
         // after first paint; force a resize so tiles fill correctly.
@@ -171,12 +215,17 @@ export function RiderMap() {
     };
   }, []);
 
+  // Fill-parent mode: caller controls height (used by the home dashboard
+  // where the map should bleed under the bottom-nav). Default keeps the
+  // legacy "card on a page" rounded look for any other call sites.
+  const containerClass = fillParent
+    ? 'h-full w-full overflow-hidden bg-zinc-900'
+    : 'h-[calc(100vh-14rem)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900';
+  const wrapperClass = fillParent ? 'relative h-full w-full' : 'relative';
+
   return (
-    <div className="relative">
-      <div
-        ref={containerRef}
-        className="h-[calc(100vh-14rem)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
-      />
+    <div className={wrapperClass}>
+      <div ref={containerRef} className={containerClass} />
 
       <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 backdrop-blur">
         <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400 align-middle" />

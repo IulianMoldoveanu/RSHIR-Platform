@@ -1,8 +1,8 @@
-import { Button, Card, CardContent, CardHeader, CardTitle } from '@hir/ui';
 import { Banknote, Clock, TrendingUp } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction } from '../actions';
+import { SwipeButton } from '@/components/swipe-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,66 +53,78 @@ export default async function ShiftPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Tură</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {active ? (
-            <>
-              <p className="text-sm text-emerald-700">
-                Ești <strong>online</strong> de la{' '}
+    <div className="mx-auto flex max-w-xl flex-col gap-4">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h1 className="text-base font-semibold text-zinc-100">Tură</h1>
+          <span
+            className={
+              active
+                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300'
+                : 'inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-zinc-400'
+            }
+          >
+            <span
+              aria-hidden
+              className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+            />
+            {active ? 'Online' : 'Offline'}
+          </span>
+        </div>
+
+        {active ? (
+          <>
+            <p className="mb-3 text-sm text-zinc-300">
+              Online de la{' '}
+              <strong className="text-zinc-100">
                 {new Date(active.started_at).toLocaleTimeString('ro-RO', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
-                .
-              </p>
-              <form action={endShiftAction}>
-                <Button type="submit" className="w-full" variant="outline">
-                  Închide tura
-                </Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-zinc-600">
-                Pornește tura pentru a primi comenzi.
-              </p>
-              <form action={startShiftAction}>
-                <Button type="submit" className="w-full">
-                  Pornește tura
-                </Button>
-              </form>
-            </>
-          )}
-        </CardContent>
-      </Card>
+              </strong>
+              .
+            </p>
+            <SwipeButton
+              label="→ Glisează pentru a închide tura"
+              onConfirm={endShiftAction}
+            />
+          </>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-zinc-400">
+              Pornește tura pentru a primi comenzi.
+            </p>
+            <SwipeButton
+              label="→ Glisează pentru a porni tura"
+              onConfirm={startShiftAction}
+            />
+          </>
+        )}
+      </section>
 
       {stats ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold text-zinc-600">Tură curentă</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-3 text-center">
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Tură curentă
+          </p>
+          <div className="grid grid-cols-3 gap-3 text-center">
             <Stat
-              icon={<Banknote className="h-4 w-4 text-emerald-600" aria-hidden />}
+              icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
               label="Câștig"
               value={`${stats.earnings.toFixed(2)} RON`}
             />
             <Stat
-              icon={<TrendingUp className="h-4 w-4 text-violet-600" aria-hidden />}
+              icon={<TrendingUp className="h-4 w-4 text-violet-400" aria-hidden />}
               label="RON/oră"
               value={stats.perHour > 0 ? stats.perHour.toFixed(2) : '—'}
             />
             <Stat
-              icon={<Clock className="h-4 w-4 text-zinc-500" aria-hidden />}
+              icon={<Clock className="h-4 w-4 text-zinc-400" aria-hidden />}
               label="Livrări"
               value={String(stats.count)}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       ) : null}
     </div>
   );
@@ -130,7 +142,7 @@ function Stat({
   return (
     <div className="flex flex-col items-center gap-1">
       <span aria-hidden>{icon}</span>
-      <span className="text-base font-semibold text-zinc-900">{value}</span>
+      <span className="text-base font-semibold text-zinc-100">{value}</span>
       <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>
     </div>
   );
