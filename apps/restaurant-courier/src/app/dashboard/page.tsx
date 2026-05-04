@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { RiderMap } from '@/components/rider-map';
+import { VerticalBadge } from '@/components/vertical-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ type ShiftRow = { id: string };
 type ActiveOrderRow = {
   id: string;
   status: string;
+  vertical: 'restaurant' | 'pharma' | null;
   pickup_lat: number | null;
   pickup_lng: number | null;
   dropoff_lat: number | null;
@@ -64,7 +66,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -120,6 +122,7 @@ export default async function DashboardHome() {
               <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
                 {STATUS_LABEL[o.status] ?? o.status}
               </span>
+              {o.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
               <span className="min-w-0 flex-1 truncate">
                 {o.customer_first_name ?? o.dropoff_line1 ?? 'Comandă'}
               </span>
