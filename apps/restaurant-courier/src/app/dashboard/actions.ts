@@ -129,6 +129,22 @@ export async function startShiftAction() {
   const userId = await requireUserId();
   const admin = createAdminClient();
 
+  // SUSPENDED riders cannot start a shift. The fleet manager's
+  // suspendCourierAction sets profile.status='SUSPENDED' and ends the
+  // current shift; without this guard a suspended rider could just tap
+  // "Pornește tura" and reset themselves to ACTIVE, defeating the lockout.
+  const { data: profileRow } = await admin
+    .from('courier_profiles')
+    .select('status')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (profileRow && (profileRow as { status: string }).status === 'SUSPENDED') {
+    // Silent no-op — surfacing an error toast here would require client
+    // changes for every caller. The dashboard already renders a
+    // "Suspendat" badge from the same column, which is the visible signal.
+    return;
+  }
+
   // End any other ONLINE shift first (defensive — should be unique by index).
   await admin
     .from('courier_shifts')

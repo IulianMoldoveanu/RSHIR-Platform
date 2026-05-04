@@ -192,11 +192,21 @@ export async function suspendCourierAction(
   if (!ctx) return { ok: false, error: 'Acces interzis.' };
 
   const admin = createAdminClient();
-  const { error } = await (admin as unknown as {
+  // `.select().maybeSingle()` so a zero-row update (e.g. a stale or
+  // tampered courierUserId not in this fleet) returns an explicit error
+  // instead of silently logging a misleading audit entry.
+  const { data, error } = await (admin as unknown as {
     from: (t: string) => {
       update: (row: Record<string, unknown>) => {
         eq: (c: string, v: string) => {
-          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
         };
       };
     };
@@ -204,9 +214,12 @@ export async function suspendCourierAction(
     .from('courier_profiles')
     .update({ status: 'SUSPENDED' })
     .eq('user_id', courierUserId)
-    .eq('fleet_id', ctx.fleetId);
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
 
   // End any open shift — failures here are swallowed (the suspension
   // itself is what matters for the audit trail; the shift end is just
@@ -246,11 +259,20 @@ export async function reactivateCourierAction(
   if (!ctx) return { ok: false, error: 'Acces interzis.' };
 
   const admin = createAdminClient();
-  const { error } = await (admin as unknown as {
+  // Same zero-row guard as the suspend path so a stale/tampered userId
+  // outside this fleet doesn't write a misleading reactivation audit row.
+  const { data, error } = await (admin as unknown as {
     from: (t: string) => {
       update: (row: Record<string, unknown>) => {
         eq: (c: string, v: string) => {
-          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+          eq: (c: string, v: string) => {
+            select: (cols: string) => {
+              maybeSingle: () => Promise<{
+                data: { user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
         };
       };
     };
@@ -258,9 +280,12 @@ export async function reactivateCourierAction(
     .from('courier_profiles')
     .update({ status: 'INACTIVE' })
     .eq('user_id', courierUserId)
-    .eq('fleet_id', ctx.fleetId);
+    .eq('fleet_id', ctx.fleetId)
+    .select('user_id')
+    .maybeSingle();
 
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu aparține flotei.' };
 
   await logAudit({
     actorUserId: ctx.userId,
