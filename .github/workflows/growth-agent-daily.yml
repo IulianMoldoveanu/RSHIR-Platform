@@ -1,0 +1,63 @@
+# HIR AI CEO — Phase 5 Growth Agent (daily cron)
+#
+# Calls the growth-agent-daily Edge Function every day at 06:00 UTC
+# (08:00 Bucuresti winter / 09:00 vara). The MV that backs the agent
+# is refreshed by pg_cron at 05:55 UTC, 5 min before this runs.
+#
+# Token lives in repo secret GROWTH_CRON_TOKEN; matches Supabase secret
+# of the same name. Rotate together.
+
+name: growth-agent-daily
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: 'Optional tenant_id for single-tenant smoke run'
+        required: false
+        default: ''
+
+concurrency:
+  group: growth-agent-daily
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    name: invoke growth-agent-daily
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST to Edge Function
+        env:
+          SUPABASE_URL: https://qfmeojeipncuxeltnvab.supabase.co
+          GROWTH_CRON_TOKEN: ${{ secrets.GROWTH_CRON_TOKEN }}
+          TENANT_ID: ${{ github.event.inputs.tenant_id }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GROWTH_CRON_TOKEN}" ]]; then
+            echo "::error::GROWTH_CRON_TOKEN repo secret is not set"
+            exit 1
+          fi
+          if [[ -n "${TENANT_ID}" ]]; then
+            BODY="{\"tenant_id\":\"${TENANT_ID}\"}"
+          else
+            BODY="{}"
+          fi
+          echo "POST ${SUPABASE_URL}/functions/v1/growth-agent-daily"
+          HTTP=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "${SUPABASE_URL}/functions/v1/growth-agent-daily" \
+            -H "X-Cron-Token: ${GROWTH_CRON_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${BODY}")
+          echo "status=${HTTP}"
+          cat response.json | head -c 4000
+          echo
+          if [[ "${HTTP}" != "200" ]]; then
+            echo "::error::growth-agent-daily returned ${HTTP}"
+            exit 1
+          fi
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '"tenants_processed=\(.tenants_processed) recommendations_total=\(.recommendations_total) cost_usd_total=\(.cost_usd_total) errors=\(.errors)"' response.json
+          fi
