@@ -150,6 +150,117 @@ export async function addReferral(input: {
 }
 
 // ────────────────────────────────────────────────────────────
+// generatePartnerCode — assigns a fresh public code to a partner.
+// Code is 8 chars [A-Z2-9] (no 0/O/1/I/L for legibility).
+// Retries on collision up to 5 times.
+// ────────────────────────────────────────────────────────────
+
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function randomPartnerCode(len = 8): string {
+  let s = '';
+  for (let i = 0; i < len; i++) {
+    s += CODE_ALPHABET.charAt(Math.floor(Math.random() * CODE_ALPHABET.length));
+  }
+  return s;
+}
+
+export async function generatePartnerCode(input: {
+  partner_id: string;
+}): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  const guard = await requirePlatformAdmin();
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = randomPartnerCode();
+    const { error } = await sb
+      .from('partners')
+      .update({ code, updated_at: new Date().toISOString() })
+      .eq('id', input.partner_id);
+    if (!error) {
+      await logAudit({
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        actorUserId: guard.userId,
+        action: 'partner.code_generated',
+        entityType: 'partner',
+        entityId: input.partner_id,
+        metadata: { code },
+      });
+      revalidatePath(REVALIDATE);
+      return { ok: true, code };
+    }
+    // Unique-violation on partners_code_unique -> retry; anything else -> bail.
+    if (!/duplicate|unique|partners_code_unique/i.test(error.message ?? '')) {
+      return { ok: false, error: error.message };
+    }
+  }
+  return { ok: false, error: 'Failed to generate unique code after 5 attempts.' };
+}
+
+// ────────────────────────────────────────────────────────────
+// updatePartnerLanding — updates the white-label landing JSON.
+// ────────────────────────────────────────────────────────────
+
+export async function updatePartnerLanding(input: {
+  partner_id: string;
+  headline?: string;
+  blurb?: string;
+  cta_url?: string;
+  accent_color?: string;
+  hero_image_url?: string;
+}): Promise<PartnerActionResult> {
+  const guard = await requirePlatformAdmin();
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // Build the patch by stripping undefined keys so missing fields keep their
+  // existing value via Postgres jsonb merge.
+  const patch: Record<string, unknown> = {};
+  for (const k of ['headline', 'blurb', 'cta_url', 'accent_color', 'hero_image_url'] as const) {
+    const v = input[k];
+    if (typeof v === 'string') patch[k] = v;
+  }
+  if (Object.keys(patch).length === 0) return { ok: false, error: 'Nimic de actualizat.' };
+
+  const { error } = await sb.rpc('partner_landing_merge', {
+    p_partner_id: input.partner_id,
+    p_patch: patch,
+  });
+  if (error) {
+    // Fallback: read-modify-write if RPC missing
+    const { data, error: readErr } = await sb
+      .from('partners')
+      .select('landing_settings')
+      .eq('id', input.partner_id)
+      .single();
+    if (readErr || !data) return { ok: false, error: readErr?.message ?? 'partner_not_found' };
+    const merged = { ...(data.landing_settings ?? {}), ...patch };
+    const { error: updErr } = await sb
+      .from('partners')
+      .update({ landing_settings: merged, updated_at: new Date().toISOString() })
+      .eq('id', input.partner_id);
+    if (updErr) return { ok: false, error: updErr.message };
+  }
+
+  await logAudit({
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    actorUserId: guard.userId,
+    action: 'partner.landing_updated',
+    entityType: 'partner',
+    entityId: input.partner_id,
+    metadata: patch,
+  });
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
+
+// ────────────────────────────────────────────────────────────
 // markCommissionPaid
 // ────────────────────────────────────────────────────────────
 
