@@ -1,0 +1,19 @@
+name: Daily Digest
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily-digest Edge Function
+        run: |
+          curl -X POST 'https://qfmeojeipncuxeltnvab.supabase.co/functions/v1/daily-digest' \
+            -H "X-Digest-Token: $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --fail --silent --show-error
+        env:
+          TOKEN: ${{ secrets.DIGEST_CRON_TOKEN }}
