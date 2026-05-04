@@ -87,11 +87,13 @@ export default async function DashboardHome() {
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
-  // viewport minus the 56px header (h-14). Explicit z-0 keeps the map's
-  // stacking context below the bottom-nav (z-50) and header (z-50) — without
-  // it some mobile browsers paint the Leaflet container above the nav.
+  // viewport minus the 56px header (h-14). NOTE: we deliberately do not set
+  // z-0 here — that creates a stacking context that traps the fixed shift
+  // overlay below the bottom-nav. Instead, header / nav / overlay each carry
+  // a z-index higher than Leaflet's internal max (~1000) and live in the
+  // body's root stacking context.
   return (
-    <div className="relative z-0 -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
+    <div className="relative -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
       <RiderMap
         fillParent
         activePins={activePins}
@@ -142,13 +144,13 @@ export default async function DashboardHome() {
         </div>
       ) : null}
 
-      {/* Shift-control overlay. Always rendered above the bottom-nav (z-50
-          on the nav, so this needs z-[60]). Different copy + variant per
-          state: offline → start (violet); online → stop (rose, surfaced
-          only when no active orders so the courier doesn't accidentally
-          go offline mid-delivery). */}
+      {/* Shift-control overlay. z-[1200] — above the bottom-nav (z-[1100])
+          and above any Leaflet internal pane / control. Different copy +
+          variant per state: offline → start (violet); online → stop
+          (success green, surfaced only when no active orders so the courier
+          doesn't accidentally go offline mid-delivery). */}
       {!isOnline ? (
-        <div className="fixed inset-x-0 bottom-16 z-[60] px-4 pb-3">
+        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-3">
           <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
             <SwipeButton
               label="→ Glisează pentru a porni tura"
@@ -160,7 +162,7 @@ export default async function DashboardHome() {
           </div>
         </div>
       ) : activeOrders.length === 0 ? (
-        <div className="fixed inset-x-0 bottom-16 z-[60] px-4 pb-3">
+        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-3">
           <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
             <SwipeButton
               label="→ Glisează pentru a încheia tura"

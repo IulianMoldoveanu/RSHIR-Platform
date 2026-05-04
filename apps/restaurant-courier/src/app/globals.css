@@ -40,6 +40,18 @@ html, body {
   }
 }
 
+/*
+ * Clamp Leaflet's internal stacking context to z-0 so its panes (which can
+ * legitimately use z-700 for popups and ~z-1000 for controls) cannot escape
+ * and cover the app chrome. The dashboard header / bottom-nav / shift
+ * overlays each use z-[1100]+ values that live in the body's root stacking
+ * context, so they will always paint above the map.
+ */
+.leaflet-container {
+  z-index: 0;
+  position: relative;
+}
+
 @layer utilities {
   /* Pulsing dot for the "current stage" timeline marker. */
   .dot-pulse {
