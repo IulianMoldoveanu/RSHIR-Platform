@@ -87,11 +87,14 @@ export default async function SettingsPage() {
         </p>
         <form action={updateVehicleAction} className="flex flex-col gap-3">
           <div className="grid grid-cols-3 gap-2">
+            {/* When the profile row is missing, default to BIKE so the form
+                always submits a valid value. updateVehicleAction otherwise
+                bails on isVehicleType(raw) and the Save button looks broken. */}
             <VehicleOption
               value="BIKE"
               icon={<Bike className="h-5 w-5" aria-hidden />}
               label="Bicicletă"
-              checked={profile?.vehicle_type === 'BIKE'}
+              checked={(profile?.vehicle_type ?? 'BIKE') === 'BIKE'}
             />
             <VehicleOption
               value="SCOOTER"
