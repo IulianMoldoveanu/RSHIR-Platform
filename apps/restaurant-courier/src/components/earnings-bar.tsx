@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ShiftTimer } from './shift-timer';
 
 /**
  * Always-visible header pill. Shows today's net earnings, today's delivery
@@ -30,7 +31,7 @@ export async function EarningsBar() {
       .gte('updated_at', startOfDay.toISOString()),
     admin
       .from('courier_shifts')
-      .select('id')
+      .select('id, started_at')
       .eq('courier_user_id', user.id)
       .eq('status', 'ONLINE')
       .limit(1)
@@ -40,7 +41,8 @@ export async function EarningsBar() {
   const orders = (ordersData ?? []) as Array<{ delivery_fee_ron: number | null }>;
   const count = orders.length;
   const earnings = orders.reduce((sum, row) => sum + (Number(row.delivery_fee_ron) || 0), 0);
-  const isOnline = !!shiftData;
+  const shift = shiftData as { id: string; started_at: string | null } | null;
+  const isOnline = !!shift;
 
   return (
     <div
@@ -63,6 +65,7 @@ export async function EarningsBar() {
       <span className="h-3 w-px bg-zinc-800" aria-hidden />
       <span className="font-semibold text-zinc-100">{earnings.toFixed(2)} RON</span>
       <span className="text-zinc-500">· {count} {count === 1 ? 'livrare' : 'livrări'}</span>
+      {isOnline && shift?.started_at ? <ShiftTimer startedAt={shift.started_at} /> : null}
     </div>
   );
 }
