@@ -12,6 +12,12 @@ import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { validateRedemption } from '@/lib/loyalty';
 import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from '@/lib/i18n';
+import {
+  checkIdempotency,
+  hashRequestBody,
+  readIdempotencyKey,
+  storeIdempotency,
+} from '@/lib/idempotency';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,7 +63,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json().catch(() => null);
+  // RSHIR-A3: Idempotency-Key support. Read raw body once so we can hash it
+  // for replay protection. Optional header — when absent we behave exactly as
+  // before. When present + cache hit, we short-circuit before any DB writes.
+  const rawBody = await req.text();
+  const idempotencyKey = readIdempotencyKey(req);
+  let idempotencyContext: { key: string; requestHash: string } | null = null;
+  if (idempotencyKey) {
+    const adminEarly = getSupabaseAdmin();
+    const requestHash = hashRequestBody(rawBody);
+    const idem = await checkIdempotency(adminEarly, tenant.id, idempotencyKey, requestHash);
+    if (idem.kind === 'CACHED' || idem.kind === 'MISMATCH' || idem.kind === 'INVALID') {
+      return idem.response;
+    }
+    idempotencyContext = { key: idem.key, requestHash: idem.requestHash };
+  }
+
+  let body: unknown;
+  try {
+    body = rawBody.length > 0 ? JSON.parse(rawBody) : null;
+  } catch {
+    body = null;
+  }
   const parsed = intentRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_request', issues: parsed.error.flatten() }, { status: 400 });
@@ -325,12 +352,16 @@ export async function POST(req: NextRequest) {
   // post-delivery (manually or via the courier app's complete-order flow).
   // The customer skips the payment step on the client and lands on /track.
   if (parsed.data.paymentMethod === 'COD') {
-    const res = NextResponse.json({
+    const responsePayload = {
       orderId: order.id,
       publicTrackToken: order.public_track_token,
-      paymentMethod: 'COD',
+      paymentMethod: 'COD' as const,
       quote: responseQuote,
-    });
+    };
+    if (idempotencyContext) {
+      await storeIdempotency(admin, tenant.id, idempotencyContext.key, idempotencyContext.requestHash, responsePayload, 200);
+    }
+    const res = NextResponse.json(responsePayload);
     maybeSetCustomerCookie(res, tenant.id, customer.id);
     return res;
   }
@@ -355,13 +386,17 @@ export async function POST(req: NextRequest) {
     .update({ stripe_payment_intent_id: intent.id })
     .eq('id', order.id);
 
-  const res = NextResponse.json({
+  const responsePayload = {
     orderId: order.id,
     publicTrackToken: order.public_track_token,
-    paymentMethod: 'CARD',
+    paymentMethod: 'CARD' as const,
     clientSecret: intent.client_secret,
     quote: responseQuote,
-  });
+  };
+  if (idempotencyContext) {
+    await storeIdempotency(admin, tenant.id, idempotencyContext.key, idempotencyContext.requestHash, responsePayload, 200);
+  }
+  const res = NextResponse.json(responsePayload);
   // RSHIR-34: per-tenant "known device" hint pointing at customer.id.
   // Not authentication — just lets /account show this device's past orders.
   maybeSetCustomerCookie(res, tenant.id, customer.id);
