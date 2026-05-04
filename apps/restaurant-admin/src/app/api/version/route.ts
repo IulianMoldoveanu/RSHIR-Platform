@@ -10,7 +10,7 @@ export async function GET() {
     branch: process.env.VERCEL_GIT_COMMIT_REF ?? 'unknown',
     env: process.env.VERCEL_ENV ?? 'local',
     region: process.env.VERCEL_REGION ?? 'unknown',
-    deployedAt: process.env.VERCEL_GIT_COMMIT_AUTHOR_DATE ?? null,
+    deployedAt: process.env.BUILD_TIME ?? null,
     ts: new Date().toISOString(),
   });
 }
