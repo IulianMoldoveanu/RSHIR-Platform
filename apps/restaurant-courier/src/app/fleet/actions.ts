@@ -610,7 +610,9 @@ export async function inviteCourierToFleetAction(
 
   // Resolve the user id: try inviteUserByEmail first (idempotent for new
   // users; existing users get an "already registered" path we handle by
-  // falling back to listUsers).
+  // paginating listUsers). Codex P1 #172: a single listUsers() call only
+  // returns page 1, so projects with >1 page would silently fail to find
+  // existing couriers. Walk the pages until we hit the user or empty.
   let userId: string | null = null;
   try {
     const sb = admin as unknown as {
@@ -622,7 +624,7 @@ export async function inviteCourierToFleetAction(
             data: { user: { id: string } | null } | null;
             error: { message: string } | null;
           }>;
-          listUsers: () => Promise<{
+          listUsers: (params?: { page?: number; perPage?: number }) => Promise<{
             data: { users: Array<{ id: string; email: string }> } | null;
           }>;
         };
@@ -632,12 +634,23 @@ export async function inviteCourierToFleetAction(
     if (!inviteErr && invited?.user?.id) {
       userId = invited.user.id;
     } else {
-      // Already registered → look up via listUsers. Not ideal at scale
-      // but courier rosters are small; we'll switch to a paginated
-      // lookup once a fleet has hundreds of riders.
-      const { data: usersResp } = await sb.auth.admin.listUsers();
-      const existing = usersResp?.users?.find((u) => u.email === email);
-      if (existing) userId = existing.id;
+      // Already registered → walk listUsers pages until we hit the user.
+      // Hard cap at 50 pages × 200 = 10 000 users to bound the worst case
+      // — well above any realistic fleet's reach but enough for projects
+      // with shared auth pools.
+      const PER_PAGE = 200;
+      const MAX_PAGES = 50;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const { data: pageResp } = await sb.auth.admin.listUsers({ page, perPage: PER_PAGE });
+        const users = pageResp?.users ?? [];
+        if (users.length === 0) break;
+        const hit = users.find((u) => u.email === email);
+        if (hit) {
+          userId = hit.id;
+          break;
+        }
+        if (users.length < PER_PAGE) break;
+      }
     }
   } catch (e) {
     return {
