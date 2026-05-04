@@ -34,15 +34,17 @@ type LeafletMarker = {
 };
 type LeafletBounds = { extend: (latlng: [number, number]) => LeafletBounds };
 
-declare global {
-  interface Window {
-    L?: LeafletGlobal;
-  }
-}
+// `Window.L` is declared by `rider-map.tsx` already; declaring it again
+// here triggers TS2717 ("Subsequent property declarations must have the
+// same type") because the two LeafletGlobal types — though structurally
+// identical — are distinct named types. Cast through `unknown` at the
+// access site instead so this file stays self-contained type-wise.
+type WindowWithLeaflet = Window & { L?: unknown };
 
 function loadLeaflet(): Promise<LeafletGlobal> {
   if (typeof window === 'undefined') return Promise.reject(new Error('SSR'));
-  if (window.L) return Promise.resolve(window.L);
+  const cached = (window as WindowWithLeaflet).L as LeafletGlobal | undefined;
+  if (cached) return Promise.resolve(cached);
 
   if (!document.querySelector(`link[data-rider-map="leaflet-css"]`)) {
     const link = document.createElement('link');
@@ -58,7 +60,8 @@ function loadLeaflet(): Promise<LeafletGlobal> {
     );
     if (existing) {
       existing.addEventListener('load', () => {
-        if (window.L) resolve(window.L);
+        const lib = (window as WindowWithLeaflet).L as LeafletGlobal | undefined;
+        if (lib) resolve(lib);
         else reject(new Error('Leaflet loaded but window.L missing'));
       });
       existing.addEventListener('error', () => reject(new Error('Leaflet script load failed')));

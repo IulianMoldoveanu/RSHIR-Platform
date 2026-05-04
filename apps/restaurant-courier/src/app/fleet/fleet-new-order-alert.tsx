@@ -87,11 +87,14 @@ export function FleetNewOrderAlert({ fleetId }: { fleetId: string }) {
 
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
+          // `renotify` is part of the Notification API but missing from
+          // lib.dom NotificationOptions — cast widens it past TS so the
+          // browser still receives it on chromium-based desktops.
           new Notification('Comandă nouă', {
             body: 'Asignează un curier din pagina Comenzi.',
             tag: `fleet-${fleetId}-new-order`,
             renotify: true,
-          });
+          } as NotificationOptions & { renotify?: boolean });
         } catch {
           /* Some browsers throw when the page is hidden; ignore. */
         }
