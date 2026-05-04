@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Inbox } from 'lucide-react';
+import { History, Inbox } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
@@ -58,12 +58,21 @@ export default async function FleetOrdersPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <FleetOrdersRealtime fleetId={fleet.fleetId} />
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Comenzi flotă</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {open.length} neasignate · {active.length} în curs ·{' '}
-          {annotatedCouriers.filter((c) => c.online).length} curieri online
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Comenzi flotă</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            {open.length} neasignate · {active.length} în curs ·{' '}
+            {annotatedCouriers.filter((c) => c.online).length} curieri online
+          </p>
+        </div>
+        <Link
+          href="/fleet/orders/history"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+        >
+          <History className="h-3.5 w-3.5" aria-hidden />
+          Istoric
+        </Link>
       </div>
 
       <FleetOrdersSearch />
