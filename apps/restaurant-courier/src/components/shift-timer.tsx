@@ -21,6 +21,10 @@ export function ShiftTimer({ startedAt }: { startedAt: string }) {
   const [elapsed, setElapsed] = useState(() => formatElapsed(startedAt));
 
   useEffect(() => {
+    // Reset immediately when startedAt changes — otherwise a courier who
+    // ends and restarts a shift without a full reload would see the
+    // previous shift's elapsed value until the next 30s tick.
+    setElapsed(formatElapsed(startedAt));
     const id = window.setInterval(() => setElapsed(formatElapsed(startedAt)), TICK_MS);
     return () => window.clearInterval(id);
   }, [startedAt]);
