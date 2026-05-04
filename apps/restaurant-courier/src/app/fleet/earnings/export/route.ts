@@ -25,9 +25,20 @@ type CourierRow = {
 
 // CSV-escape a single field: doubles internal quotes, wraps in quotes
 // when content contains delimiters / newlines / quotes. Excel-friendly.
+//
+// CSV-injection guard: cells that begin with `=`, `+`, `-`, or `@` are
+// interpreted as formulas in Excel/Sheets/LibreOffice and can be used to
+// exfiltrate data via WEBSERVICE() / IMPORTDATA() etc. Customer-supplied
+// fields (customer_first_name, pickup_line1, dropoff_line1, …) are
+// untrusted on this code path, so we prefix them with a literal apostrophe
+// when they start with a sigil — the apostrophe is consumed by the
+// spreadsheet but blocks formula evaluation. Codex P1 #173.
 function csvField(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
-  const s = String(value);
+  let s = String(value);
+  if (/^[=+\-@\t\r]/.test(s)) {
+    s = `'${s}`;
+  }
   if (/[",\n\r;]/.test(s)) {
     return `"${s.replace(/"/g, '""')}"`;
   }
