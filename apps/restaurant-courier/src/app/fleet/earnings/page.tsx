@@ -1,6 +1,7 @@
 import { Banknote, Calendar, Download, TrendingUp } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { resolveTenantNames } from '@/lib/tenant-names';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ type DeliveredRow = {
   total_ron: number | null;
   payment_method: 'CARD' | 'COD' | null;
   assigned_courier_user_id: string | null;
+  source_tenant_id: string | null;
   updated_at: string;
 };
 
@@ -33,7 +35,9 @@ export default async function FleetEarningsPage() {
   const [{ data: deliveredData }, { data: couriersData }] = await Promise.all([
     admin
       .from('courier_orders')
-      .select('delivery_fee_ron, total_ron, payment_method, assigned_courier_user_id, updated_at')
+      .select(
+        'delivery_fee_ron, total_ron, payment_method, assigned_courier_user_id, source_tenant_id, updated_at',
+      )
       .eq('fleet_id', fleet.fleetId)
       .eq('status', 'DELIVERED')
       .gte('updated_at', last7.toISOString())
@@ -56,6 +60,10 @@ export default async function FleetEarningsPage() {
   let cashToday = 0;
   let cashWeek = 0;
   const perCourier = new Map<string, { count: number; revenue: number; cash: number }>();
+  // Per-tenant rollup parallel to perCourier — only surfaced when the
+  // fleet handled >1 restaurant in the period. Single-restaurant fleets
+  // skip the section entirely so the page stays focused.
+  const perTenant = new Map<string, { count: number; revenue: number; cash: number }>();
   const dailyBuckets: Array<{ label: string; date: Date; count: number; revenue: number }> = [];
   for (let i = 6; i >= 0; i--) {
     const d = startOfDay(i);
@@ -90,6 +98,13 @@ export default async function FleetEarningsPage() {
       if (isCash) cur.cash += Number(row.total_ron) || 0;
       perCourier.set(row.assigned_courier_user_id, cur);
     }
+    if (row.source_tenant_id) {
+      const cur = perTenant.get(row.source_tenant_id) ?? { count: 0, revenue: 0, cash: 0 };
+      cur.count += 1;
+      cur.revenue += fee;
+      if (isCash) cur.cash += Number(row.total_ron) || 0;
+      perTenant.set(row.source_tenant_id, cur);
+    }
     // Slot into the right daily bucket — find bucket whose date <= ts < next bucket.
     for (let i = dailyBuckets.length - 1; i >= 0; i--) {
       if (ts >= dailyBuckets[i].date.getTime()) {
@@ -102,6 +117,13 @@ export default async function FleetEarningsPage() {
 
   const sortedCouriers = [...perCourier.entries()]
     .map(([userId, stats]) => ({ userId, name: courierName.get(userId) ?? '—', ...stats }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  // Resolve restaurant names for the per-tenant breakdown. Cheap — at
+  // most one row per distinct tenant the fleet served in 7 days.
+  const tenantNames = await resolveTenantNames([...perTenant.keys()]);
+  const sortedTenants = [...perTenant.entries()]
+    .map(([id, stats]) => ({ id, name: tenantNames.get(id) ?? '—', ...stats }))
     .sort((a, b) => b.revenue - a.revenue);
 
   const maxDailyRevenue = Math.max(1, ...dailyBuckets.map((b) => b.revenue));
@@ -173,6 +195,38 @@ export default async function FleetEarningsPage() {
           })}
         </ul>
       </section>
+
+      {/* Per-restaurant breakdown — only when the fleet handled orders
+          from >1 restaurant in the last 7 days. Mirrors the per-courier
+          layout below for consistency. */}
+      {sortedTenants.length > 1 ? (
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <h2 className="mb-3 text-sm font-semibold text-zinc-100">
+            Per restaurant ({sortedTenants.length})
+          </h2>
+          <ul className="divide-y divide-zinc-800">
+            {sortedTenants.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 py-2.5"
+              >
+                <span className="truncate text-sm text-zinc-100">{t.name}</span>
+                <div className="flex shrink-0 items-center gap-3 text-xs">
+                  <span className="text-zinc-500">{t.count} livrări</span>
+                  {t.cash > 0 ? (
+                    <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+                      Cash {t.cash.toFixed(2)}
+                    </span>
+                  ) : null}
+                  <span className="font-semibold text-emerald-300">
+                    {t.revenue.toFixed(2)} RON
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold text-zinc-100">
