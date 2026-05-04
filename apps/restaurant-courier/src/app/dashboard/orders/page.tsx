@@ -67,12 +67,15 @@ export default async function OrdersPage() {
       .eq('assigned_courier_user_id', user.id)
       .in('status', ACTIVE_STATUSES)
       .order('created_at', { ascending: false }),
+    // Available orders are sorted OLDEST first so couriers naturally pick
+    // the order closest to its SLA breach. Assigned orders above stay
+    // newest-first because the rider already chose them.
     admin
       .from('courier_orders')
       .select(ORDER_COLUMNS)
       .is('assigned_courier_user_id', null)
       .in('status', ['CREATED', 'OFFERED'])
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(20),
     resolveRiderMode(user.id),
   ]);
