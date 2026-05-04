@@ -87,6 +87,12 @@ self.addEventListener('push', (event) => {
     data: {
       url: payload.orderId ? `/dashboard/orders/${payload.orderId}` : '/dashboard/orders',
     },
+    // Riders work hands-busy on a bike or scooter; the visual notification
+    // alone is too easy to miss. Vibration buzzes on Android (iOS Web Push
+    // ignores it gracefully). renotify makes a same-tag follow-up still
+    // alert the rider — important when a status changes mid-delivery.
+    vibrate: [200, 80, 200, 80, 400],
+    renotify: true,
     requireInteraction: true,
   };
 
