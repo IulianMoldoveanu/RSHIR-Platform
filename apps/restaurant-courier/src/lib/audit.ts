@@ -20,6 +20,7 @@ export type CourierAuditAction =
   | 'fleet.order_auto_assigned'
   | 'fleet.courier_self_invited'
   | 'fleet.courier_note_updated'
+  | 'fleet.bulk_auto_assigned'
   | 'order.cash_collected'
   | 'delivery.geofence_warning';
 

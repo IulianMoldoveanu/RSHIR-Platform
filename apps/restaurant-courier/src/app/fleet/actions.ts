@@ -386,6 +386,86 @@ export async function reactivateCourierAction(
  * Action` — only orders in CREATED/OFFERED + unassigned get reassigned —
  * so a stale auto-assign click can't resurrect completed work.
  */
+/**
+ * Bulk auto-assign — loops over every unassigned CREATED/OFFERED order
+ * in the manager's fleet and dispatches the same heuristic each receives
+ * via the per-row Auto-assign button. Useful when a dispatcher returns
+ * to the desk to a stack of orders and wants to clear the queue with a
+ * single tap.
+ *
+ * Hard cap of 50 orders per invocation so a misclick can't kick off a
+ * cascade across hundreds of rows. Manager retries the action if the
+ * queue is still long (rare in practice — the cap is well above the
+ * Brașov pilot's worst peak).
+ *
+ * Each iteration goes through the standard autoAssignOrderAction gate
+ * (status + null assignment + zero-row check + per-order audit), so a
+ * race against another dispatcher tab is safe — losers just return an
+ * "already assigned" error which we count and surface in the summary.
+ */
+export async function bulkAutoAssignAction(): Promise<
+  FleetActionResult & { assigned?: number; skipped?: number }
+> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  const { data: openData } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          eq: (c: string, v: string) => {
+            is: (c: string, v: null) => {
+              in: (c: string, v: string[]) => {
+                order: (col: string, opts: Record<string, unknown>) => {
+                  limit: (n: number) => Promise<{
+                    data: Array<{ id: string }> | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    }
+  )
+    .from('courier_orders')
+    .select('id')
+    .eq('fleet_id', ctx.fleetId)
+    .is('assigned_courier_user_id', null)
+    .in('status', ['CREATED', 'OFFERED'])
+    .order('created_at', { ascending: true })
+    .limit(50);
+
+  const orders = openData ?? [];
+  if (orders.length === 0) {
+    return { ok: true, assigned: 0, skipped: 0 };
+  }
+
+  let assigned = 0;
+  let skipped = 0;
+  for (const o of orders) {
+    const r = await autoAssignOrderAction(o.id);
+    if (r.ok) assigned += 1;
+    else skipped += 1;
+  }
+
+  // One audit row for the whole batch (each individual assign already
+  // logs its own fleet.order_auto_assigned). This row helps reconciliation
+  // when a manager wonders why N orders all flipped to ACCEPTED at once.
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.bulk_auto_assigned',
+    entityType: 'courier_fleet',
+    entityId: ctx.fleetId,
+    metadata: { batch_size: orders.length, assigned, skipped },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/orders');
+  return { ok: true, assigned, skipped };
+}
+
 export async function autoAssignOrderAction(
   orderId: string,
 ): Promise<FleetActionResult & { courierUserId?: string; distanceM?: number }> {

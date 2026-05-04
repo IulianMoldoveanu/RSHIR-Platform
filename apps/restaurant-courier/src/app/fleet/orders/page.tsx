@@ -5,6 +5,7 @@ import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
 import { FleetOrdersRealtime } from './fleet-orders-realtime';
 import { FleetOrdersSearch } from './fleet-orders-search';
+import { BulkAutoAssignButton } from './bulk-auto-assign-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,13 +67,16 @@ export default async function FleetOrdersPage() {
             {annotatedCouriers.filter((c) => c.online).length} curieri online
           </p>
         </div>
-        <Link
-          href="/fleet/orders/history"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
-        >
-          <History className="h-3.5 w-3.5" aria-hidden />
-          Istoric
-        </Link>
+        <div className="flex flex-wrap items-start gap-2">
+          <BulkAutoAssignButton openCount={open.length} />
+          <Link
+            href="/fleet/orders/history"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+          >
+            <History className="h-3.5 w-3.5" aria-hidden />
+            Istoric
+          </Link>
+        </div>
       </div>
 
       <FleetOrdersSearch />
