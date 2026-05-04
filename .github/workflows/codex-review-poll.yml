@@ -1,0 +1,19 @@
+name: Codex Review Poll
+on:
+  schedule:
+    - cron: '*/2 * * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger codex-review-poll Edge Function
+        run: |
+          curl -X POST 'https://qfmeojeipncuxeltnvab.supabase.co/functions/v1/codex-review-poll' \
+            -H "X-Poll-Token: $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --fail --silent --show-error --max-time 60
+        env:
+          TOKEN: ${{ secrets.CODEX_POLL_TOKEN }}
