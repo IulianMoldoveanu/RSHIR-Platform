@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { Bike, Car, ChevronRight, HelpCircle, Mail, Phone, Truck, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { updateVehicleAction } from '../actions';
+import { updateAvatarUrlAction, updateVehicleAction } from '../actions';
+import { AvatarUpload } from '@/components/avatar-upload';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ type ProfileRow = {
   phone: string | null;
   vehicle_type: 'BIKE' | 'SCOOTER' | 'CAR';
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
+  avatar_url: string | null;
 };
 
 const VEHICLE_LABEL: Record<ProfileRow['vehicle_type'], string> = {
@@ -35,7 +37,7 @@ export default async function SettingsPage() {
   const admin = createAdminClient();
   const { data } = await admin
     .from('courier_profiles')
-    .select('full_name, phone, vehicle_type, status')
+    .select('full_name, phone, vehicle_type, status, avatar_url')
     .eq('user_id', user.id)
     .maybeSingle();
   const profile = data as ProfileRow | null;
@@ -54,6 +56,14 @@ export default async function SettingsPage() {
           >
             {statusBadge.label}
           </span>
+        </div>
+        <div className="mb-4">
+          <AvatarUpload
+            userId={user.id}
+            initialUrl={profile?.avatar_url ?? null}
+            fullName={profile?.full_name ?? null}
+            saveAvatarUrl={updateAvatarUrlAction}
+          />
         </div>
         <ul className="divide-y divide-zinc-800">
           <ProfileRowItem

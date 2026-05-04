@@ -35,21 +35,28 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Are we currently in a shift? Drives the location tracker on/off.
   const admin = createAdminClient();
-  const [{ data: shiftData }, riderMode, { count: openOrdersCount }] = await Promise.all([
-    admin
-      .from('courier_shifts')
-      .select('id')
-      .eq('courier_user_id', user.id)
-      .eq('status', 'ONLINE')
-      .limit(1)
-      .maybeSingle(),
-    resolveRiderMode(user.id),
-    admin
-      .from('courier_orders')
-      .select('id', { count: 'exact', head: true })
-      .is('assigned_courier_user_id', null)
-      .in('status', ['CREATED', 'OFFERED']),
-  ]);
+  const [{ data: shiftData }, riderMode, { count: openOrdersCount }, { data: profileData }] =
+    await Promise.all([
+      admin
+        .from('courier_shifts')
+        .select('id')
+        .eq('courier_user_id', user.id)
+        .eq('status', 'ONLINE')
+        .limit(1)
+        .maybeSingle(),
+      resolveRiderMode(user.id),
+      admin
+        .from('courier_orders')
+        .select('id', { count: 'exact', head: true })
+        .is('assigned_courier_user_id', null)
+        .in('status', ['CREATED', 'OFFERED']),
+      admin
+        .from('courier_profiles')
+        .select('avatar_url, full_name')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ]);
+  const profile = profileData as { avatar_url: string | null; full_name: string | null } | null;
   const isOnline = !!shiftData;
   // Mode C riders never browse — don't show a count nudge for them.
   const navOrdersBadge = riderMode.mode === 'C' ? 0 : (openOrdersCount ?? 0);
@@ -63,7 +70,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
-        <header className="sticky top-0 z-50 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
+        {/* Header z-[1100] so it always sits above the Leaflet map (whose
+            internal panes can climb to z-700 and whose controls can reach
+            z-1000 in some plugin builds). Same value on the bottom-nav. */}
+        <header className="sticky top-0 z-[1100] flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
           <div className="flex items-center gap-2">
             <Link href="/dashboard" className="flex items-center gap-2">
               {tenantBrand?.logoUrl ? (
@@ -92,6 +102,33 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           {/* Earnings pill — always visible. */}
           <EarningsBar />
 
+          {/* Avatar shortcut to settings — always visible top-right next to
+              logout. Clicking deep-links to /dashboard/settings#profile.
+              Falls back to initials if no avatar was uploaded yet. */}
+          <Link
+            href="/dashboard/settings"
+            aria-label="Profil"
+            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 hover:border-violet-500/60"
+          >
+            {profile?.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatar_url}
+                alt="Profil"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-[10px] font-bold uppercase text-zinc-400">
+                {(profile?.full_name ?? '?')
+                  .split(' ')
+                  .map((p) => p[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join('')}
+              </span>
+            )}
+          </Link>
+
           <form action={logoutAction}>
             <button
               type="submit"
@@ -108,11 +145,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
         <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
-        {/* Bottom nav — primary navigation on mobile (PWA target). z-50 so it
-            cannot be covered by the home-tab Leaflet map (which paints inside
-            its own stacking context but used to bleed visually on some mobile
-            browsers when its wrapper had z-auto). */}
-        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        {/* Bottom nav — primary navigation on mobile (PWA target). z-[1100]
+            because Leaflet internal stacking can reach z-700 (popup pane)
+            plus leaflet-rotate's control overlay tops out near z-1000.
+            Anything below 1100 was visibly losing on iOS Safari. */}
+        <nav className="fixed inset-x-0 bottom-0 z-[1100] border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
           <ul className="mx-auto flex max-w-xl items-stretch justify-around">
             {NAV.map((item) => {
               const Icon = item.icon;

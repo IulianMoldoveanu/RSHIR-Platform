@@ -317,6 +317,38 @@ export async function updateVehicleAction(formData: FormData): Promise<void> {
   revalidatePath('/dashboard/settings');
 }
 
+// Validates the URL points at the courier-avatars bucket on our Supabase
+// project. Storage RLS pins INSERT/UPDATE to the courier's own folder by uid,
+// so the only way an attacker reaches this action with a forged URL is if
+// they bypass auth — but we still reject anything that isn't our own bucket
+// so the column never holds an arbitrary external URL the platform later
+// trusts (mirrors the partner.hero_image_url host-allowlist pattern).
+function isAllowedAvatarUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    if (!supaUrl) return false;
+    const expectedHost = new URL(supaUrl).host;
+    if (u.host !== expectedHost) return false;
+    return u.pathname.includes('/storage/v1/object/public/courier-avatars/');
+  } catch {
+    return false;
+  }
+}
+
+export async function updateAvatarUrlAction(url: string | null): Promise<void> {
+  const userId = await requireUserId();
+  if (url !== null && !isAllowedAvatarUrl(url)) return;
+  const admin = createAdminClient();
+  await admin
+    .from('courier_profiles')
+    .update({ avatar_url: url })
+    .eq('user_id', userId);
+  revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard');
+}
+
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
