@@ -45,16 +45,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500 text-xs font-bold text-white"
-            >
-              H
-            </span>
-            <span className="text-sm font-semibold tracking-tight text-zinc-100">HIR Curier</span>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500 text-xs font-bold text-white"
+              >
+                H
+              </span>
+              <span className="text-sm font-semibold tracking-tight text-zinc-100">HIR Curier</span>
+            </Link>
+            {/* Sibling, not child of Link, so Mode-C tap-to-call <a> is not nested inside another <a>. */}
             <RiderModeBadge />
-          </Link>
+          </div>
 
           {/* Earnings pill — always visible. */}
           <EarningsBar />
