@@ -12,6 +12,7 @@ import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
+import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
@@ -40,6 +41,7 @@ type OrderDetail = {
   delivery_fee_ron: number | null;
   payment_method: 'CARD' | 'COD' | null;
   assigned_courier_user_id: string | null;
+  updated_at: string | null;
 };
 
 export default async function OrderDetailPage({ params }: { params: { id: string } }) {
@@ -53,7 +55,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const { data } = await admin
     .from('courier_orders')
     .select(
-      'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id',
+      'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at',
     )
     .eq('id', params.id)
     .maybeSingle();
@@ -88,6 +90,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           {order.status}
         </span>
       </div>
+
+      {isMine ? <ActiveOrderTimer status={order.status} since={order.updated_at} /> : null}
 
       {isAvailable ? (
         <EarningsPreview
