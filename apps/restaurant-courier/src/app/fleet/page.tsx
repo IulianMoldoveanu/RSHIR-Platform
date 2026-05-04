@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { FleetLiveMap, type FleetRiderPin } from './fleet-live-map';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,14 @@ type CourierRow = {
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
 };
 
-type ShiftRow = { courier_user_id: string };
+type ShiftRow = {
+  courier_user_id: string;
+  status: 'ONLINE' | 'OFFLINE';
+  last_lat: number | null;
+  last_lng: number | null;
+  last_seen_at: string | null;
+  started_at: string;
+};
 
 type OrderSnapshot = {
   id: string;
@@ -81,11 +89,15 @@ export default async function FleetOverviewPage() {
       .from('courier_profiles')
       .select('user_id, full_name, status')
       .eq('fleet_id', fleet.fleetId),
-    // Currently online shifts (= riders ready to take work right now).
+    // Currently online shifts + last GPS fix — drives the live map and the
+    // "online" KPI. We pull the most recent shift per rider, online or not,
+    // because the map can usefully show the last-known position of a rider
+    // who just went offline 5 minutes ago.
     admin
       .from('courier_shifts')
-      .select('courier_user_id')
-      .eq('status', 'ONLINE'),
+      .select('courier_user_id, status, last_lat, last_lng, last_seen_at, started_at')
+      .order('started_at', { ascending: false })
+      .limit(200),
     // Unassigned orders for this fleet — manager attention list.
     admin
       .from('courier_orders')
@@ -125,7 +137,9 @@ export default async function FleetOverviewPage() {
 
   // A rider is "online" if they have an ONLINE shift AND belong to this fleet.
   const fleetUserIds = new Set(couriers.map((c) => c.user_id));
-  const onlineCouriers = shifts.filter((s) => fleetUserIds.has(s.courier_user_id)).length;
+  const onlineCouriers = shifts.filter(
+    (s) => s.status === 'ONLINE' && fleetUserIds.has(s.courier_user_id),
+  ).length;
   const totalCouriers = couriers.length;
   const activeCouriers = couriers.filter((c) => c.status === 'ACTIVE').length;
 
@@ -136,6 +150,35 @@ export default async function FleetOverviewPage() {
   const todayCount = deliveredToday.length;
 
   const courierName = new Map(couriers.map((c) => [c.user_id, c.full_name ?? '—']));
+
+  // Build pins for the live map: take the most recent shift row per rider
+  // (the SELECT was ordered by started_at desc) that has GPS coords. Most
+  // recent row wins; older shifts for the same rider are skipped.
+  const seenRiders = new Set<string>();
+  const inProgressByRider = new Map<string, number>();
+  for (const o of activeOrders) {
+    if (!o.assigned_courier_user_id) continue;
+    inProgressByRider.set(
+      o.assigned_courier_user_id,
+      (inProgressByRider.get(o.assigned_courier_user_id) ?? 0) + 1,
+    );
+  }
+  const ridersWithFleet = new Set(couriers.map((c) => c.user_id));
+  const livePins: FleetRiderPin[] = [];
+  for (const s of shifts) {
+    if (seenRiders.has(s.courier_user_id)) continue;
+    if (!ridersWithFleet.has(s.courier_user_id)) continue;
+    seenRiders.add(s.courier_user_id);
+    if (s.last_lat == null || s.last_lng == null) continue;
+    livePins.push({
+      userId: s.courier_user_id,
+      name: courierName.get(s.courier_user_id) ?? 'Curier',
+      lat: s.last_lat,
+      lng: s.last_lng,
+      online: s.status === 'ONLINE',
+      inProgressCount: inProgressByRider.get(s.courier_user_id) ?? 0,
+    });
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
@@ -174,6 +217,28 @@ export default async function FleetOverviewPage() {
           }
         />
       </div>
+
+      {/* Live map — riders' last-known GPS; emerald = online idle, violet = carrying. */}
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-100">Locații curieri</h2>
+          <p className="text-[11px] text-zinc-500">
+            <span className="mr-2 inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+              Liber
+            </span>
+            <span className="mr-2 inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-500" aria-hidden />
+              În curs
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" aria-hidden />
+              Offline
+            </span>
+          </p>
+        </div>
+        <FleetLiveMap pins={livePins} />
+      </section>
 
       {/* Open orders — red/amber attention bar */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
