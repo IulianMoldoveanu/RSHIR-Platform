@@ -73,7 +73,12 @@ export async function POST(req: NextRequest) {
     const adminEarly = getSupabaseAdmin();
     const requestHash = hashRequestBody(rawBody);
     const idem = await checkIdempotency(adminEarly, tenant.id, idempotencyKey, requestHash);
-    if (idem.kind === 'CACHED' || idem.kind === 'MISMATCH' || idem.kind === 'INVALID') {
+    if (
+      idem.kind === 'CACHED' ||
+      idem.kind === 'MISMATCH' ||
+      idem.kind === 'INVALID' ||
+      idem.kind === 'IN_FLIGHT'
+    ) {
       return idem.response;
     }
     if (idem.kind === 'NEW') {
