@@ -176,6 +176,105 @@ export async function assignOrderToCourierAction(
   return { ok: true };
 }
 
+/**
+ * Suspend a courier in the manager's fleet. Sets `courier_profiles.status`
+ * to SUSPENDED and ends any active shift so the rider stops counting
+ * toward the "online" KPI. The rider can still log in but cannot start a
+ * new shift while suspended.
+ *
+ * Filtered by both `user_id` and `fleet_id` so a manager can't suspend
+ * riders that don't belong to their fleet.
+ */
+export async function suspendCourierAction(
+  courierUserId: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  const { error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .update({ status: 'SUSPENDED' })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId);
+
+  if (error) return { ok: false, error: error.message };
+
+  // End any open shift — failures here are swallowed (the suspension
+  // itself is what matters for the audit trail; the shift end is just
+  // hygiene so the manager doesn't see a phantom "online" rider).
+  await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_shifts')
+    .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+    .eq('courier_user_id', courierUserId)
+    .eq('status', 'ONLINE');
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_suspended',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: { fleet_id: ctx.fleetId },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true };
+}
+
+/** Inverse of suspend — pushes status back to INACTIVE so the rider can go online again. */
+export async function reactivateCourierAction(
+  courierUserId: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  const { error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .update({ status: 'INACTIVE' })
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.courier_reactivated',
+    entityType: 'courier_profile',
+    entityId: courierUserId,
+    metadata: { fleet_id: ctx.fleetId },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/couriers');
+  return { ok: true };
+}
+
 /** Unassign — order falls back to OFFERED so another rider can pick it up. */
 export async function unassignOrderAction(orderId: string): Promise<FleetActionResult> {
   const ctx = await getFleetManagerContext();

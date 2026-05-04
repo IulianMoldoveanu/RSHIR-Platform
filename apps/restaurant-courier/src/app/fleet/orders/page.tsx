@@ -3,6 +3,7 @@ import { Inbox } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
+import { FleetOrdersRealtime } from './fleet-orders-realtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +56,7 @@ export default async function FleetOrdersPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
+      <FleetOrdersRealtime fleetId={fleet.fleetId} />
       <div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Comenzi flotă</h1>
         <p className="mt-1 text-sm text-zinc-500">
