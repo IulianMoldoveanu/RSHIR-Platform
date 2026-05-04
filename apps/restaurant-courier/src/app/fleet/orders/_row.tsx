@@ -116,8 +116,23 @@ export function OrderRow({
     });
   }
 
+  // `data-search-blob` is consumed by FleetOrdersSearch on /fleet/orders.
+  // The blob concatenates fields the dispatcher most likely searches on:
+  // order id prefix, customer name, pickup + dropoff. Component-local
+  // (not pushed up the prop chain) because /fleet/orders/[id] doesn't
+  // need it and we'd rather not bloat that surface.
+  const searchBlob = [
+    order.id.slice(0, 8),
+    order.customer_first_name ?? '',
+    order.pickup_line1 ?? '',
+    order.dropoff_line1 ?? '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <li
+      data-search-blob={searchBlob}
       className={`rounded-xl border p-3 ${
         slaBreached
           ? 'border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20'
