@@ -1,5 +1,7 @@
 import { createHmac } from 'node:crypto';
+import { lookup as dnsLookup } from 'node:dns/promises';
 import { createAdminClient } from './supabase/admin';
+import { isPrivateIpv4, isPrivateIpv6, validateWebhookUrl } from './url-safety';
 
 export type WebhookPayload = {
   event: 'order.status_changed' | 'order.cancelled';
@@ -33,12 +35,46 @@ export async function sendWebhook(orderId: string, payload: WebhookPayload): Pro
     return; // no subscriber, nothing to do
   }
 
+  // SSRF guard #1: scheme + hostname shape. An older order row could carry a
+  // URL stored before the create-time guard shipped, so we re-validate every
+  // dispatch. Failed URLs are logged + skipped; we do NOT bump the failure
+  // counter (it's a misconfiguration, not a transport failure).
+  const urlCheck = validateWebhookUrl(order.webhook_callback_url);
+  if (!urlCheck.ok) {
+    console.warn('[courier-webhook] blocked unsafe url', orderId, urlCheck.error);
+    return;
+  }
+
+  // SSRF guard #2: DNS rebinding. The host might be a public name that
+  // resolves to a private/loopback/metadata IP. Resolve once and abort if
+  // the result is internal. We cannot pin the resolved IP for fetch() in
+  // pure Node fetch, so this is best-effort — a TOCTOU window remains
+  // (host could re-resolve between our check and fetch's resolution).
+  // To close it fully we'd need a custom Agent that resolves once and
+  // pins the IP; out of scope for this surgical fix.
+  try {
+    const resolved = await dnsLookup(urlCheck.url.hostname, { all: true });
+    for (const r of resolved) {
+      if (r.family === 4 && isPrivateIpv4(r.address)) {
+        console.warn('[courier-webhook] blocked private-ip resolution', orderId, r.address);
+        return;
+      }
+      if (r.family === 6 && isPrivateIpv6(r.address)) {
+        console.warn('[courier-webhook] blocked private-ip resolution', orderId, r.address);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[courier-webhook] dns lookup failed', orderId, (e as Error).message);
+    return;
+  }
+
   const body = JSON.stringify(payload);
   const signature = createHmac('sha256', order.webhook_secret).update(body).digest('hex');
 
   let success = false;
   try {
-    const res = await fetch(order.webhook_callback_url, {
+    const res = await fetch(urlCheck.url.toString(), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

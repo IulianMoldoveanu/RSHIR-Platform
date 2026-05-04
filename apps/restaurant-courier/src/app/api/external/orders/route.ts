@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { authenticateApiKey } from '@/lib/api-key';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dispatchCourierPushForNewOrder } from '@/lib/push/dispatch';
+import { validateWebhookUrl } from '@/lib/url-safety';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,20 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // SSRF guard at create time: any caller-supplied webhook URL must be a
+  // public https:// DNS name. We re-check at dispatch time too (against
+  // private-IP resolution) but rejecting here gives the caller a clear
+  // 400 instead of silently storing an unreachable URL.
+  if (input.webhookCallbackUrl) {
+    const urlCheck = validateWebhookUrl(input.webhookCallbackUrl);
+    if (!urlCheck.ok) {
+      return NextResponse.json(
+        { error: 'invalid_webhook_url', detail: urlCheck.error },
+        { status: 400 },
+      );
+    }
+  }
 
   const sourceType = auth.ctx.hirTenantId ? 'HIR_TENANT' : 'EXTERNAL_API';
   const admin = createAdminClient();
