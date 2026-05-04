@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { startShiftAction } from './actions';
+import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { RiderMap } from '@/components/rider-map';
 
@@ -86,9 +86,11 @@ export default async function DashboardHome() {
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
-  // viewport minus the 56px header (h-14).
+  // viewport minus the 56px header (h-14). Explicit z-0 keeps the map's
+  // stacking context below the bottom-nav (z-50) and header (z-50) — without
+  // it some mobile browsers paint the Leaflet container above the nav.
   return (
-    <div className="relative -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
+    <div className="relative z-0 -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
       <RiderMap fillParent activePins={activePins} />
 
       {/* Greeting + status pill, top-left over the map. */}
@@ -135,17 +137,33 @@ export default async function DashboardHome() {
         </div>
       ) : null}
 
-      {/* Swipe-to-start overlay — only when offline. Sits above the bottom-nav
-          (which is fixed at bottom z-30) so this needs z-40 to clear it. */}
+      {/* Shift-control overlay. Always rendered above the bottom-nav (z-50
+          on the nav, so this needs z-[60]). Different copy + variant per
+          state: offline → start (violet); online → stop (rose, surfaced
+          only when no active orders so the courier doesn't accidentally
+          go offline mid-delivery). */}
       {!isOnline ? (
-        <div className="fixed inset-x-0 bottom-16 z-40 px-4 pb-3">
+        <div className="fixed inset-x-0 bottom-16 z-[60] px-4 pb-3">
           <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
             <SwipeButton
               label="→ Glisează pentru a porni tura"
               onConfirm={startShiftAction}
             />
             <p className="mt-2 text-center text-[11px] text-zinc-500">
-              Vei primi comenzi imediat ce tura este activă.
+              Vei primi comenzi imediat ce tura este activă. Sau ține apăsat ~1 secundă.
+            </p>
+          </div>
+        </div>
+      ) : activeOrders.length === 0 ? (
+        <div className="fixed inset-x-0 bottom-16 z-[60] px-4 pb-3">
+          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
+            <SwipeButton
+              label="→ Glisează pentru a încheia tura"
+              onConfirm={endShiftAction}
+              variant="success"
+            />
+            <p className="mt-2 text-center text-[11px] text-zinc-500">
+              Online · gata pentru comenzi. Glisează pentru a opri.
             </p>
           </div>
         </div>

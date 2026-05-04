@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
 
@@ -8,12 +8,16 @@ import { ChevronRight, Check, Loader2 } from 'lucide-react';
  * Swipe-to-confirm slider. Wolt Drive / Glovo Drive pattern: prevents
  * accidental taps when the phone is jostling in a bike mount or a pocket.
  *
- * The handle is dragged along a horizontal track; releasing past 70% of the
- * track width triggers `onConfirm`. Anything short snaps back. Vibrates 50ms
- * on confirm if the device supports it.
+ * Two activation paths so the courier is never stuck:
+ *   1. Drag the handle past 70% of the track (primary, anti-misclick).
+ *   2. Press-and-hold the handle for ~900ms (fallback for users who tap; also
+ *      keyboard-friendly when long-press is mapped to a keypress).
  *
- * Server actions are awaited in the parent's onConfirm; while pending, the
- * track shows a spinner and the user can't interact.
+ * Both paths funnel through the same async `onConfirm`. A single tap (under
+ * the hold threshold) does nothing, preserving the misclick-resistant intent.
+ *
+ * Vibrates 50ms on confirm if supported. While pending the track shows a
+ * spinner and is not interactive.
  */
 export function SwipeButton({
   label,
@@ -27,8 +31,10 @@ export function SwipeButton({
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(false);
 
   // Track fill animates from transparent → solid as the handle moves.
   const fillOpacity = useTransform(x, [0, 200], [0.0, 0.85]);
@@ -38,6 +44,29 @@ export function SwipeButton({
     background: 'rgb(39, 39, 42)', // zinc-800
   };
 
+  async function runConfirm() {
+    if (pending || done) return;
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try {
+        navigator.vibrate(50);
+      } catch {
+        /* some browsers throw on vibrate without a user gesture; ignore. */
+      }
+    }
+    setPending(true);
+    try {
+      await onConfirm();
+      setDone(true);
+    } catch (err) {
+      animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
+      setPending(false);
+      setHoldProgress(false);
+      // Surfaced to the dashboard error boundary if it bubbles past;
+      // log defensively so the courier sees something in dev tools.
+      console.error('[swipe-button] action failed', err);
+    }
+  }
+
   async function handleDragEnd() {
     if (!trackRef.current || pending || done) return;
     const trackWidth = trackRef.current.offsetWidth;
@@ -46,30 +75,30 @@ export function SwipeButton({
     const threshold = maxTravel * 0.7;
 
     if (x.get() >= threshold) {
-      // Snap to fully confirmed, then run the action.
       animate(x, maxTravel, { type: 'spring', stiffness: 380, damping: 32 });
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try {
-          navigator.vibrate(50);
-        } catch {
-          /* some browsers throw on vibrate without a user gesture; ignore. */
-        }
-      }
-      setPending(true);
-      try {
-        await onConfirm();
-        setDone(true);
-      } catch (err) {
-        // Reset on error so the user can retry.
-        animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
-        setPending(false);
-        // Re-throw so global error boundary / toast can pick it up if wired.
-        throw err;
-      }
+      await runConfirm();
     } else {
-      // Below threshold — snap back.
       animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
     }
+  }
+
+  // Tap-and-hold fallback. Without this, users who tap (instead of swipe)
+  // see no feedback and conclude the button is broken — exactly the
+  // "online button not functional" complaint reported on the home tab.
+  function handlePointerDown(e: PointerEvent<HTMLButtonElement>) {
+    if (pending || done) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setHoldProgress(true);
+    holdTimer.current = setTimeout(() => {
+      void runConfirm();
+    }, 900);
+  }
+  function cancelHold() {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    if (!pending && !done) setHoldProgress(false);
   }
 
   return (
@@ -87,10 +116,18 @@ export function SwipeButton({
 
       {/* Label centered on the track. */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-medium tracking-wide text-zinc-100">
-        {done ? 'Confirmat' : pending ? 'Se procesează…' : label}
+        {done
+          ? 'Confirmat'
+          : pending
+            ? 'Se procesează…'
+            : holdProgress
+              ? 'Ține apăsat…'
+              : label}
       </div>
 
-      {/* Draggable handle. Only rendered when interactive. */}
+      {/* Draggable handle. Also accepts press-and-hold (~900ms) as a tap
+          fallback so the action is reachable even if drag gestures fail
+          on the user's browser. Only rendered when interactive. */}
       {!done && !pending ? (
         <motion.button
           type="button"
@@ -99,7 +136,12 @@ export function SwipeButton({
           dragElastic={0}
           dragMomentum={false}
           style={{ x, background: accent }}
+          onDragStart={cancelHold}
           onDragEnd={handleDragEnd}
+          onPointerDown={handlePointerDown}
+          onPointerUp={cancelHold}
+          onPointerCancel={cancelHold}
+          onPointerLeave={cancelHold}
           whileTap={{ scale: 0.98 }}
           className="absolute left-1 top-1 flex h-12 w-14 cursor-grab items-center justify-center rounded-full text-white shadow-lg active:cursor-grabbing"
           aria-label={label}

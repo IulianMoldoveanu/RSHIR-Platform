@@ -13,6 +13,12 @@ import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
 
+// Force layout to re-fetch shift state on every navigation. Without this,
+// Next.js may serve a cached layout (with stale isOnline) under a freshly
+// rendered page (with new shift data), producing the "I'm online but the
+// page says offline" desync the user sees.
+export const dynamic = 'force-dynamic';
+
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
   { href: '/dashboard/shift', label: 'Tură', icon: Clock },
@@ -57,7 +63,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
+        <header className="sticky top-0 z-50 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
           <div className="flex items-center gap-2">
             <Link href="/dashboard" className="flex items-center gap-2">
               {tenantBrand?.logoUrl ? (
@@ -102,8 +108,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
         <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
-        {/* Bottom nav — primary navigation on mobile (PWA target). */}
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        {/* Bottom nav — primary navigation on mobile (PWA target). z-50 so it
+            cannot be covered by the home-tab Leaflet map (which paints inside
+            its own stacking context but used to bleed visually on some mobile
+            browsers when its wrapper had z-auto). */}
+        <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
           <ul className="mx-auto flex max-w-xl items-stretch justify-around">
             {NAV.map((item) => {
               const Icon = item.icon;
