@@ -3,6 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@hir/ui';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { updateVehicleAction } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,11 +55,30 @@ export default async function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Editare</CardTitle>
+          <CardTitle>Vehicul</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-zinc-500">
-          Vine în următorul update — pentru moment, contactează suportul HIR
-          dacă vrei să schimbi ceva.
+        <CardContent>
+          <form action={updateVehicleAction} className="flex items-center gap-2">
+            <select
+              name="vehicle_type"
+              defaultValue={profile?.vehicle_type ?? 'BIKE'}
+              className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900"
+            >
+              <option value="BIKE">Bicicletă</option>
+              <option value="SCOOTER">Scuter / Motocicletă</option>
+              <option value="CAR">Mașină</option>
+            </select>
+            <button
+              type="submit"
+              className="rounded-md bg-violet-500 px-3 py-2 text-sm font-medium text-white hover:bg-violet-400"
+            >
+              Salvează
+            </button>
+          </form>
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Schimbă vehiculul când treci de la livrarea pe bicicletă la scuter sau invers.
+            Pentru rest (nume, telefon), contactează suportul.
+          </p>
         </CardContent>
       </Card>
 
