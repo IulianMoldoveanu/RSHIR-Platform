@@ -4,6 +4,7 @@ import { LayoutDashboard, Package, Users, Wallet, Settings as SettingsIcon } fro
 import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { FleetNewOrderAlert } from './fleet-new-order-alert';
+import { FleetShortcuts } from './fleet-shortcuts';
 
 const NAV = [
   { href: '/fleet', label: 'Privire', icon: LayoutDashboard },
@@ -18,6 +19,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+      <FleetShortcuts />
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <Link href="/fleet" className="flex items-center gap-2">
