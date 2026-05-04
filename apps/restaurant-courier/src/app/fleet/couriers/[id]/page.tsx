@@ -427,9 +427,19 @@ export default async function FleetCourierDetailPage({
 
       {/* Recent deliveries */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          Livrări recente ({delivered.length})
-        </p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Livrări recente ({delivered.length})
+          </p>
+          {delivered.length > 0 ? (
+            <Link
+              href={`/fleet/orders/history?courier=${profile.user_id}&days=30`}
+              className="text-[11px] font-medium text-violet-300 hover:text-violet-200"
+            >
+              Toate livrările →
+            </Link>
+          ) : null}
+        </div>
         {delivered.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-center text-xs text-zinc-500">
             Nicio livrare în ultimele 30 zile.

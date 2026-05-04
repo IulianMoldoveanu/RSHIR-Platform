@@ -57,7 +57,7 @@ function rangeStart(days: number): Date {
 export default async function FleetOrdersHistoryPage({
   searchParams,
 }: {
-  searchParams: { days?: string };
+  searchParams: { days?: string; courier?: string };
 }) {
   const fleet = await requireFleetManager();
   const admin = createAdminClient();
@@ -65,33 +65,47 @@ export default async function FleetOrdersHistoryPage({
   const requested = Number(searchParams.days ?? '7');
   const days = RANGE_OPTIONS.some((o) => o.days === requested) ? requested : 7;
   const since = rangeStart(days);
+  const courierFilter = searchParams.courier?.trim() || null;
+
+  // Build the order list + summary queries; both share the optional
+  // courier filter so the totals stay consistent with the displayed
+  // rows when the filter is set.
+  const baseOrders = admin
+    .from('courier_orders')
+    .select(
+      'id, status, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, created_at, updated_at',
+    )
+    .eq('fleet_id', fleet.fleetId)
+    .in('status', ['DELIVERED', 'CANCELLED'])
+    .gte('updated_at', since.toISOString());
+  const ordersReq = courierFilter
+    ? baseOrders
+        .eq('assigned_courier_user_id', courierFilter)
+        .order('updated_at', { ascending: false })
+        .limit(200)
+    : baseOrders.order('updated_at', { ascending: false }).limit(200);
 
   // Separate aggregate query for the period totals — Codex P2 #178
   // caught that deriving counts/revenue from the 200-row truncated list
   // under-reports for fleets with high volume. Tiny payload (only fee +
   // status), so even a 90-day window stays cheap.
-  const summaryReq = admin
+  const baseSummary = admin
     .from('courier_orders')
     .select('status, delivery_fee_ron')
     .eq('fleet_id', fleet.fleetId)
     .in('status', ['DELIVERED', 'CANCELLED'])
     .gte('updated_at', since.toISOString());
+  const summaryReq = courierFilter
+    ? baseSummary.eq('assigned_courier_user_id', courierFilter)
+    : baseSummary;
 
   const [{ data: ordersData }, { data: couriersData }, { data: summaryData }] = await Promise.all([
-    admin
-      .from('courier_orders')
-      .select(
-        'id, status, customer_first_name, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, created_at, updated_at',
-      )
-      .eq('fleet_id', fleet.fleetId)
-      .in('status', ['DELIVERED', 'CANCELLED'])
-      .gte('updated_at', since.toISOString())
-      .order('updated_at', { ascending: false })
-      .limit(200),
+    ordersReq,
     admin
       .from('courier_profiles')
       .select('user_id, full_name')
-      .eq('fleet_id', fleet.fleetId),
+      .eq('fleet_id', fleet.fleetId)
+      .order('full_name', { ascending: true }),
     summaryReq,
   ]);
 
@@ -127,20 +141,26 @@ export default async function FleetOrdersHistoryPage({
           Istoric comenzi
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
+          {courierFilter
+            ? `${courierName.get(courierFilter) ?? 'Curier'} · `
+            : ''}
           {totalCount} {totalCount === 1 ? 'comandă' : 'comenzi'} ·{' '}
           {deliveredCount} livrate · {totalRevenue.toFixed(2)} RON
         </p>
       </div>
 
       {/* Range picker — server-rendered links, not client state, so refresh
-          + share URL behave correctly. */}
+          + share URL behave correctly. The courier filter (if set) is
+          preserved across range switches. */}
       <div className="flex flex-wrap gap-2">
         {RANGE_OPTIONS.map((opt) => {
           const active = opt.days === days;
+          const params = new URLSearchParams({ days: String(opt.days) });
+          if (courierFilter) params.set('courier', courierFilter);
           return (
             <Link
               key={opt.days}
-              href={`/fleet/orders/history?days=${opt.days}`}
+              href={`/fleet/orders/history?${params.toString()}`}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 active
                   ? 'border-violet-500 bg-violet-500/10 text-violet-200'
@@ -158,6 +178,47 @@ export default async function FleetOrdersHistoryPage({
           Export CSV
         </Link>
       </div>
+
+      {/* Courier filter — native form GET keeps the URL shareable and the
+          range param sticky across submissions. Selecting "Toți" clears
+          the filter via an empty value. */}
+      <form
+        method="get"
+        action="/fleet/orders/history"
+        className="flex flex-wrap items-center gap-2"
+      >
+        <input type="hidden" name="days" value={String(days)} />
+        <label htmlFor="courier-filter" className="text-xs text-zinc-500">
+          Filtrează după curier:
+        </label>
+        <select
+          id="courier-filter"
+          name="courier"
+          defaultValue={courierFilter ?? ''}
+          className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-violet-500 focus:outline-none"
+        >
+          <option value="">Toți curierii</option>
+          {couriers.map((c) => (
+            <option key={c.user_id} value={c.user_id}>
+              {c.full_name ?? c.user_id.slice(0, 8)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+        >
+          Aplică
+        </button>
+        {courierFilter ? (
+          <Link
+            href={`/fleet/orders/history?days=${days}`}
+            className="text-xs text-zinc-500 hover:text-zinc-300"
+          >
+            Resetează
+          </Link>
+        ) : null}
+      </form>
 
       {orders.length === 0 ? (
         <div className="flex items-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 px-4 py-10 text-center text-sm text-zinc-500">
