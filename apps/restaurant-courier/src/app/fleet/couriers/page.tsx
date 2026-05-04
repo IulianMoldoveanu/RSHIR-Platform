@@ -187,9 +187,12 @@ export default async function FleetCouriersPage() {
                       }`}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-zinc-100">
+                      <Link
+                        href={`/fleet/couriers/${c.user_id}`}
+                        className="truncate text-sm font-semibold text-zinc-100 hover:text-violet-300"
+                      >
                         {c.full_name ?? 'Curier'}
-                      </p>
+                      </Link>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
                         <span className="inline-flex items-center gap-1">
                           {VEHICLE_ICON[c.vehicle_type]}
