@@ -42,6 +42,11 @@ export async function GET() {
       env: process.env.VERCEL_ENV ?? 'local',
       ts: new Date().toISOString(),
     },
-    { status: ok ? 200 : 503 },
+    {
+      status: ok ? 200 : 503,
+      // Lane M: see restaurant-web/healthz — every probe MUST run the DB
+      // round-trip so a cached 200 cannot mask a real outage.
+      headers: { 'Cache-Control': 'no-store, max-age=0, must-revalidate' },
+    },
   );
 }
