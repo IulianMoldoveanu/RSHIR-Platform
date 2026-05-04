@@ -322,14 +322,11 @@ export async function autoAssignOrderAction(
 
   const admin = createAdminClient();
 
-  // Pull the order's pickup coords, the fleet's couriers, online shifts,
-  // and current in-progress counts in parallel.
-  const [
-    { data: orderData },
-    { data: couriersData },
-    { data: shiftsData },
-    { data: activeOrdersData },
-  ] = await Promise.all([
+  // Resolve the fleet's couriers + the order's pickup coords first, so
+  // we can scope the shifts query by `courier_user_id IN (...)` instead
+  // of a global `.limit(200)` that could starve fleets in noisy
+  // platforms (Codex P1 #169).
+  const [{ data: orderData }, { data: couriersData }] = await Promise.all([
     (
       admin as unknown as {
         from: (t: string) => {
@@ -337,7 +334,13 @@ export async function autoAssignOrderAction(
             eq: (c: string, v: string) => {
               eq: (c: string, v: string) => {
                 maybeSingle: () => Promise<{
-                  data: { id: string; pickup_lat: number | null; pickup_lng: number | null; status: string; assigned_courier_user_id: string | null } | null;
+                  data: {
+                    id: string;
+                    pickup_lat: number | null;
+                    pickup_lng: number | null;
+                    status: string;
+                    assigned_courier_user_id: string | null;
+                  } | null;
                 }>;
               };
             };
@@ -354,7 +357,12 @@ export async function autoAssignOrderAction(
       admin as unknown as {
         from: (t: string) => {
           select: (cols: string) => {
-            eq: (c: string, v: string) => Promise<{ data: Array<{ user_id: string; full_name: string | null; status: string }> }>;
+            eq: (
+              c: string,
+              v: string,
+            ) => Promise<{
+              data: Array<{ user_id: string; full_name: string | null; status: string }>;
+            }>;
           };
         };
       }
@@ -362,14 +370,32 @@ export async function autoAssignOrderAction(
       .from('courier_profiles')
       .select('user_id, full_name, status')
       .eq('fleet_id', ctx.fleetId),
+  ]);
+
+  if (!orderData) return { ok: false, error: 'Comanda nu există în această flotă.' };
+  const couriers = couriersData ?? [];
+  const fleetIds = couriers.map((c) => c.user_id);
+
+  // No riders in the fleet at all → exit before the second batch of
+  // queries (which would otherwise short-circuit on empty .in() filters).
+  if (fleetIds.length === 0) {
+    return { ok: false, error: 'Niciun curier în flotă.' };
+  }
+
+  const [{ data: shiftsData }, { data: activeOrdersData }] = await Promise.all([
     (
       admin as unknown as {
         from: (t: string) => {
           select: (cols: string) => {
-            eq: (c: string, v: string) => {
-              order: (col: string, opts: Record<string, unknown>) => {
-                limit: (n: number) => Promise<{
-                  data: Array<{ courier_user_id: string; last_lat: number | null; last_lng: number | null; started_at: string }>;
+            in: (c: string, v: string[]) => {
+              eq: (c: string, v: string) => {
+                order: (col: string, opts: Record<string, unknown>) => Promise<{
+                  data: Array<{
+                    courier_user_id: string;
+                    last_lat: number | null;
+                    last_lng: number | null;
+                    started_at: string;
+                  }>;
                 }>;
               };
             };
@@ -379,9 +405,9 @@ export async function autoAssignOrderAction(
     )
       .from('courier_shifts')
       .select('courier_user_id, last_lat, last_lng, started_at')
+      .in('courier_user_id', fleetIds)
       .eq('status', 'ONLINE')
-      .order('started_at', { ascending: false })
-      .limit(200),
+      .order('started_at', { ascending: false }),
     (
       admin as unknown as {
         from: (t: string) => {
@@ -401,7 +427,6 @@ export async function autoAssignOrderAction(
       .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
   ]);
 
-  if (!orderData) return { ok: false, error: 'Comanda nu există în această flotă.' };
   if (orderData.assigned_courier_user_id) {
     return { ok: false, error: 'Comanda este deja asignată.' };
   }
@@ -409,7 +434,6 @@ export async function autoAssignOrderAction(
     return { ok: false, error: 'Comanda nu mai poate fi asignată automat.' };
   }
 
-  const couriers = couriersData ?? [];
   const shifts = shiftsData ?? [];
   const activeRows = activeOrdersData ?? [];
 
