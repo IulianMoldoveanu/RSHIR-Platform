@@ -41,6 +41,16 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatAge(createdAt: string): string {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) return '';
+  const diffMin = Math.floor((Date.now() - created) / 60_000);
+  if (diffMin < 1) return 'acum';
+  if (diffMin < 60) return `acum ${diffMin}m`;
+  const diffH = Math.floor(diffMin / 60);
+  return `acum ${diffH}h`;
+}
+
 export default async function OrdersPage() {
   const supabase = createServerClient();
   const {
@@ -211,9 +221,12 @@ function OrderListItem({ order }: { order: OrderRow }) {
               </p>
             ) : null}
           </div>
-          <span className="shrink-0 rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
-            {order.status}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
+              {order.status}
+            </span>
+            <span className="text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
+          </div>
         </div>
       </Link>
     </li>
