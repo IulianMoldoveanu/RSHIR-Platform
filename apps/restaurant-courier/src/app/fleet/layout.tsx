@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { LayoutDashboard, Package, Users, Wallet, Settings as SettingsIcon } from 'lucide-react';
 import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { FleetNewOrderAlert } from './fleet-new-order-alert';
 
 const NAV = [
   { href: '/fleet', label: 'Privire', icon: LayoutDashboard },
@@ -44,14 +45,18 @@ export default async function FleetLayout({ children }: { children: ReactNode })
           </span>
         ) : null}
 
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
-          >
-            Ieșire
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <FleetNewOrderAlert fleetId={fleet.fleetId} />
+
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+            >
+              Ieșire
+            </button>
+          </form>
+        </div>
       </header>
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
