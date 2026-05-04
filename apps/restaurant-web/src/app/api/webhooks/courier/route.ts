@@ -121,7 +121,10 @@ export async function POST(req: Request) {
     .update(updates)
     .eq('id', order.id);
   if (updErr) {
-    return NextResponse.json({ error: 'update_failed', detail: updErr.message }, { status: 500 });
+    // Don't echo Supabase error.message — leaks column/constraint names. Log
+    // server-side, return generic 500.
+    console.error('[webhooks/courier] order update failed', updErr.message);
+    return NextResponse.json({ error: 'update_failed' }, { status: 500 });
   }
 
   // Cascade onto the integration bus so any POS adapter sees the change.

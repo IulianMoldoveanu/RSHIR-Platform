@@ -101,7 +101,10 @@ export async function GET(req: NextRequest) {
   }
 
   if (error) {
-    return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 });
+    // Don't echo Supabase error.message — leaks column/constraint names. Log
+    // server-side, return generic 500.
+    console.error('[dashboard/orders/export] db_error', error.message);
+    return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
 
   const headers = [
