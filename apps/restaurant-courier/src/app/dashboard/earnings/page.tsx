@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Wallet } from 'lucide-react';
+import { Trophy, Wallet } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -82,6 +82,37 @@ export default async function EarningsPage() {
 
   const recent = all.slice(0, 5);
 
+  // Best day of the current month — small motivator. Bucket by YYYY-MM-DD
+  // so a single 23:55 → 00:05 spillover doesn't double-count.
+  const byDay = new Map<string, { earnings: number; count: number }>();
+  for (const row of all) {
+    const d = new Date(row.updated_at);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const acc = byDay.get(key) ?? { earnings: 0, count: 0 };
+    acc.earnings += Number(row.delivery_fee_ron) || 0;
+    acc.count += 1;
+    byDay.set(key, acc);
+  }
+  let bestKey: string | null = null;
+  let bestEarnings = 0;
+  for (const [k, v] of byDay) {
+    if (v.earnings > bestEarnings) {
+      bestKey = k;
+      bestEarnings = v.earnings;
+    }
+  }
+  const bestDay = bestKey
+    ? {
+        label: new Date(bestKey).toLocaleDateString('ro-RO', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+        }),
+        earnings: bestEarnings,
+        count: byDay.get(bestKey)?.count ?? 0,
+      }
+    : null;
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <div>
@@ -99,6 +130,19 @@ export default async function EarningsPage() {
         <StatCard label="Săptămâna aceasta" earnings={week.earnings} count={week.count} accent="zinc" />
         <StatCard label="Luna aceasta" earnings={month.earnings} count={month.count} accent="zinc" />
       </section>
+
+      {bestDay && bestDay.count >= 2 ? (
+        <section className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+          <Trophy className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+          <div className="flex-1 text-sm">
+            <p className="font-medium text-zinc-100">Cea mai bună zi din lună</p>
+            <p className="mt-0.5 text-xs text-zinc-400">
+              <span className="capitalize">{bestDay.label}</span>: {bestDay.earnings.toFixed(2)} RON din{' '}
+              {bestDay.count} {bestDay.count === 1 ? 'livrare' : 'livrări'}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
