@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { TeamClient } from './team-client';
+import { FleetManagerInviteSection } from './fm-invite-section';
+import { listFmMembers, listPendingFmInvites } from './fm-invite-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +90,15 @@ export default async function TeamSettingsPage() {
       )}
 
       <TeamClient members={members} canEdit={role === 'OWNER'} tenantId={tenant.id} />
+
+      {role === 'OWNER' && (
+        <FleetManagerInviteSection
+          tenantId={tenant.id}
+          tenantName={tenant.name}
+          fleetManagers={await listFmMembers(tenant.id)}
+          pendingInvites={await listPendingFmInvites(tenant.id)}
+        />
+      )}
     </div>
   );
 }
