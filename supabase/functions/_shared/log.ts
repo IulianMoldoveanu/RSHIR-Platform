@@ -130,7 +130,24 @@ export async function withRunLog<T>(
 
   try {
     const result = await fn({ setMetadata, runId });
-    await finish('SUCCESS', null);
+    // If the wrapped function returns a Response with status >= 500, treat
+    // the run as ERROR even though it didn't throw. Without this, handlers
+    // that use `return json(500, { error: ... })` for env-missing /
+    // upstream-API-failed would log as SUCCESS and silently hide the very
+    // cron-failure pattern this telemetry is meant to surface.
+    if (result instanceof Response && result.status >= 500) {
+      const errorText = `http_${result.status}`;
+      setMetadata({ http_status: result.status });
+      await finish('ERROR', errorText);
+    } else {
+      if (result instanceof Response) {
+        // Record the status even on success — useful for 4xx (auth/validation)
+        // which we still classify as SUCCESS (the function ran correctly,
+        // the caller was just wrong).
+        setMetadata({ http_status: result.status });
+      }
+      await finish('SUCCESS', null);
+    }
     return result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
