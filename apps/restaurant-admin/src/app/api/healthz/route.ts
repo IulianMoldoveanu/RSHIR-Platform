@@ -84,7 +84,8 @@ export async function GET() {
   const supabase_storage =
     storageRes.status === 'fulfilled' ? storageRes.value : { ok: false, latency_ms: 0, error: 'rejected' };
 
-  const ok = db.ok && auth.ok;
+  // Critical = db only. See restaurant-web/healthz for rationale.
+  const ok = db.ok;
   const total_ms = Date.now() - startedAt;
 
   return NextResponse.json(
