@@ -235,7 +235,88 @@ function TrackInner({
           {t(locale, 'track.save_account_nudge')}
         </Link>
       )}
+
+      {/* Lane L PR 2: cross-device "save my info" magic-link request.
+          Renders for any PAID order so a customer who ordered on desktop
+          can have the same recognition on their phone (and vice-versa). */}
+      {order.paymentStatus === 'PAID' && order.status !== 'CANCELLED' && (
+        <SaveMyInfoCard locale={locale} />
+      )}
     </div>
+  );
+}
+
+function SaveMyInfoCard({ locale }: { locale: Locale }) {
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (state === 'sending') return;
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setState('sending');
+    try {
+      const res = await fetch('/api/account/magic-link/request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      // Endpoint always returns 200 unless rate-limited / invalid input;
+      // we surface a generic "sent" so we don't leak whether the email
+      // matched a customer record.
+      setState(res.ok ? 'sent' : 'error');
+    } catch {
+      setState('error');
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <section
+        role="status"
+        className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+      >
+        {t(locale, 'track.save_info_sent')}
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-purple-200 bg-purple-50/60 p-4">
+      <p className="text-base font-semibold text-purple-900">
+        {t(locale, 'track.save_info_title')}
+      </p>
+      <p className="mt-1 text-xs text-purple-800/80">{t(locale, 'track.save_info_body')}</p>
+      <form onSubmit={submit} className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <label className="sr-only" htmlFor="save-info-email">
+          {t(locale, 'track.save_info_email_label')}
+        </label>
+        <input
+          id="save-info-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t(locale, 'track.save_info_email_placeholder')}
+          required
+          className="h-11 flex-1 rounded-md border border-purple-300 bg-white px-3 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+        />
+        <button
+          type="submit"
+          disabled={state === 'sending' || !email.trim()}
+          className="h-11 rounded-md bg-purple-700 px-4 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {state === 'sending'
+            ? t(locale, 'track.save_info_sending')
+            : t(locale, 'track.save_info_send')}
+        </button>
+      </form>
+      {state === 'error' && (
+        <p className="mt-2 text-xs text-rose-700" role="alert">
+          {t(locale, 'track.save_info_error')}
+        </p>
+      )}
+    </section>
   );
 }
 
