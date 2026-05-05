@@ -46,6 +46,7 @@ type LeafletLayer = {
 type LeafletMarker = {
   addTo: (map: LeafletMap) => LeafletMarker;
   setLatLng: (latlng: [number, number]) => LeafletMarker;
+  getLatLng: () => { lat: number; lng: number };
   setIcon?: (icon: unknown) => LeafletMarker;
 };
 
@@ -428,24 +429,25 @@ export function RiderMap({
             }
             if (nextHeading != null) lastHeadingDeg = nextHeading;
 
-            // Capture previous coords BEFORE overwriting `lastLat`/`lastLng`
-            // so the interpolation has a real start point to ease from.
-            const prevLat = lastLat;
-            const prevLng = lastLng;
             lastLat = lat;
             lastLng = lng;
 
             // First fix → just place the marker; subsequent fixes →
-            // animate from the previous lat/lng to the new one over
-            // INTERPOLATE_MS so the icon glides instead of snapping.
+            // animate from the marker's CURRENT displayed position to
+            // the new one over INTERPOLATE_MS so the icon glides
+            // instead of snapping. Reading from `marker.getLatLng()`
+            // (rather than the raw last-fix coordinate) is what avoids
+            // the snap-to-old-target bug when fixes arrive faster than
+            // INTERPOLATE_MS — Codex review on PR #275.
             if (!markerRef.current) {
               const icon = makeRiderIcon(L, vehicleType);
               markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
               if (polyBounds.length < 2) map.setView([lat, lng], RIDER_ZOOM);
             } else {
               cancelInterpolation();
-              const startLat = prevLat ?? lat;
-              const startLng = prevLng ?? lng;
+              const cur = markerRef.current.getLatLng();
+              const startLat = cur.lat;
+              const startLng = cur.lng;
               if (startLat === lat && startLng === lng) {
                 markerRef.current.setLatLng([lat, lng]);
               } else {
