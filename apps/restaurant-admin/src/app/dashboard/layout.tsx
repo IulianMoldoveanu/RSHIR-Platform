@@ -131,6 +131,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             icon: 'users' as const,
           },
           {
+            href: '/dashboard/admin/fleet-managers',
+            label: 'Fleet managers',
+            icon: 'users' as const,
+          },
+          {
             href: '/dashboard/feedback',
             label: 'Feedback vendori',
             icon: 'megaphone' as const,

@@ -55,7 +55,10 @@ export type AuditAction =
   | 'team.zone_capability_revoked'
   | 'affiliate.application_approved'
   | 'affiliate.application_rejected'
-  | 'affiliate.marked_spam';
+  | 'affiliate.marked_spam'
+  | 'fleet_manager.membership_added'
+  | 'fleet_manager.membership_removed'
+  | 'tenant.external_dispatch_configured';
 
 export async function logAudit(args: {
   tenantId: string;
