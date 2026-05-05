@@ -499,6 +499,25 @@ export function CheckoutClient(props: {
     <div className="space-y-6">
       <ProgressIndicator step={step} locale={locale} />
 
+      {/* Lane L PR 3: returning customer welcome badge. Renders only when
+          the customer is cookie-recognized AND we have a first-name on
+          file (the prefill returns null when there's no prior order, so
+          the existence of prefill.firstName is the gate). The customer
+          can still override any field — we never block on identity
+          mismatch. */}
+      {prefill && prefill.firstName && step === 'form' && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50/60 px-4 py-3 text-sm">
+          <p className="text-base font-semibold text-purple-900">
+            {t(locale, 'checkout.welcome_back_template', {
+              firstName: prefill.firstName,
+            })}
+          </p>
+          <p className="mt-0.5 text-xs text-purple-800/80">
+            {t(locale, 'checkout.welcome_back_hint')}
+          </p>
+        </div>
+      )}
+
       <CartSummaryBox cart={cart} fallbackTotal={cartTotal} quote={quote} locale={locale} />
 
       {error && (
