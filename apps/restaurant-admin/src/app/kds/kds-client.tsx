@@ -43,6 +43,19 @@ const STATUS_LABEL_RO: Record<OrderStatus, string> = {
 
 const STALE_MS = 10 * 60 * 1000;
 const CHIME_COOLDOWN_MS = 3000;
+const AUTO_PRINT_IFRAME_TTL_MS = 5000;
+const AUTO_PRINT_LS_KEY_PREFIX = 'kds-auto-print-enabled';
+const AUTO_PRINT_PRINTED_SS_KEY_PREFIX = 'kds-auto-print-printed';
+// Cap the persisted printed-IDs set so an always-on KDS tab doesn't grow unbounded.
+const AUTO_PRINT_PRINTED_MAX = 500;
+
+function autoPrintLsKey(tenantId: string): string {
+  return `${AUTO_PRINT_LS_KEY_PREFIX}:${tenantId}`;
+}
+
+function autoPrintPrintedKey(tenantId: string): string {
+  return `${AUTO_PRINT_PRINTED_SS_KEY_PREFIX}:${tenantId}`;
+}
 
 function shortId(id: string): string {
   return id.slice(0, 8);
@@ -117,6 +130,50 @@ export function KdsClient({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastChimeRef = useRef<number>(0);
 
+  // Auto-print state (additive, opt-in, persisted in localStorage per tenant).
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState<boolean>(false);
+  const [autoPrintCount, setAutoPrintCount] = useState<number>(0);
+  const autoPrintEnabledRef = useRef<boolean>(false);
+  // In-memory dedupe set for the current tab session, hydrated from sessionStorage
+  // so a tab reload doesn't reprint orders that were already printed in this tab.
+  const printedIdsRef = useRef<Set<string>>(new Set());
+
+  // Hydrate the toggle from localStorage and the printed-IDs from sessionStorage
+  // on mount; keep refs in sync so the (stable) Realtime handler reads the latest
+  // values without resubscribing.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const v = window.localStorage.getItem(autoPrintLsKey(tenantId));
+      const enabled = v === '1';
+      setAutoPrintEnabled(enabled);
+      autoPrintEnabledRef.current = enabled;
+    } catch {
+      /* localStorage may be unavailable (SSR / privacy mode) */
+    }
+    try {
+      const raw = window.sessionStorage.getItem(autoPrintPrintedKey(tenantId));
+      if (raw) {
+        const arr: unknown = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          printedIdsRef.current = new Set(arr.filter((x): x is string => typeof x === 'string'));
+        }
+      }
+    } catch {
+      /* sessionStorage may be unavailable */
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    autoPrintEnabledRef.current = autoPrintEnabled;
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(autoPrintLsKey(tenantId), autoPrintEnabled ? '1' : '0');
+    } catch {
+      /* best-effort */
+    }
+  }, [autoPrintEnabled, tenantId]);
+
   useEffect(() => {
     if (!tenantId) return;
     const supabase = getBrowserSupabase();
@@ -130,8 +187,12 @@ export function KdsClient({
           table: 'restaurant_orders',
           filter: `tenant_id=eq.${tenantId}`,
         },
-        () => {
+        (payload) => {
           maybePlayChime();
+          // Edge case: an order can be inserted directly in CONFIRMED state
+          // (e.g. integration imports). Treat that as an auto-print trigger too.
+          // No `old` for INSERT — pass null to skip the transition gate.
+          maybeAutoPrintFromPayload(payload.new, null);
           router.refresh();
         },
       )
@@ -143,7 +204,8 @@ export function KdsClient({
           table: 'restaurant_orders',
           filter: `tenant_id=eq.${tenantId}`,
         },
-        () => {
+        (payload) => {
+          maybeAutoPrintFromPayload(payload.new, payload.old);
           router.refresh();
         },
       )
@@ -154,6 +216,33 @@ export function KdsClient({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
+
+  function maybeAutoPrintFromPayload(row: unknown, oldRow: unknown): void {
+    if (!autoPrintEnabledRef.current) return;
+    if (!row || typeof row !== 'object') return;
+    const r = row as { id?: unknown; status?: unknown };
+    const id = typeof r.id === 'string' ? r.id : null;
+    const status = typeof r.status === 'string' ? r.status : null;
+    if (!id || status !== 'CONFIRMED') return;
+
+    // Transition gate: only fire on actual entry into CONFIRMED. If `oldRow` is
+    // present and includes a `status` field (Supabase Realtime ships old fields
+    // when REPLICA IDENTITY FULL is set on the table) and that prior status was
+    // already CONFIRMED, this is a non-status update (e.g. payment_status flip
+    // via markCodOrderPaid) and we must not reprint. When `oldRow` is null (INSERT)
+    // or its `status` is missing (default REPLICA IDENTITY), fall through to the
+    // dedupe set — that prevents reprints on tab reloads + repeat updates.
+    if (oldRow && typeof oldRow === 'object') {
+      const o = oldRow as { status?: unknown };
+      if (typeof o.status === 'string' && o.status === 'CONFIRMED') return;
+    }
+
+    if (printedIdsRef.current.has(id)) return;
+    printedIdsRef.current.add(id);
+    persistPrintedIds(tenantId, printedIdsRef.current);
+    spawnPrintIframe(id);
+    setAutoPrintCount((c) => c + 1);
+  }
 
   function maybePlayChime() {
     const t = Date.now();
@@ -181,6 +270,11 @@ export function KdsClient({
         </div>
         <div className="flex items-center gap-3">
           <FilterPills value={filter} onChange={setFilter} />
+          <AutoPrintToggle
+            enabled={autoPrintEnabled}
+            count={autoPrintCount}
+            onToggle={() => setAutoPrintEnabled((v) => !v)}
+          />
           <Link
             href="/dashboard/orders"
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
@@ -231,6 +325,67 @@ function FilterPills({
         );
       })}
     </nav>
+  );
+}
+
+function AutoPrintToggle({
+  enabled,
+  count,
+  onToggle,
+}: {
+  enabled: boolean;
+  count: number;
+  onToggle: () => void;
+}) {
+  const tooltip = enabled
+    ? 'Imprimarea automată este activă. La fiecare comandă confirmată, se deschide automat dialogul de tipărire pe acest dispozitiv.'
+    : 'Activați imprimarea automată pentru a tipări bonul de bucătărie automat la fiecare comandă confirmată, fără clic suplimentar.';
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={tooltip}
+      aria-pressed={enabled}
+      aria-label={tooltip}
+      className={
+        'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium ring-1 transition-colors ' +
+        (enabled
+          ? 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/40 hover:bg-emerald-500/20'
+          : 'bg-zinc-900 text-zinc-300 ring-zinc-800 hover:bg-zinc-800')
+      }
+    >
+      <PrinterIcon active={enabled} />
+      <span>Imprimare automată</span>
+      {enabled && (
+        <span
+          className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-500/25 px-1.5 text-[10px] font-semibold tabular-nums text-emerald-100"
+          aria-label={`${count} bonuri tipărite în această sesiune`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function PrinterIcon({ active }: { active: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={active ? '' : 'opacity-70'}
+    >
+      <path d="M6 9V2h12v7" />
+      <rect x="6" y="14" width="12" height="8" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+    </svg>
   );
 }
 
@@ -377,6 +532,54 @@ function OrderCard({
       </footer>
     </li>
   );
+}
+
+function persistPrintedIds(tenantId: string, ids: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // Cap to the most recent N entries to avoid unbounded growth in long sessions.
+    let arr = Array.from(ids);
+    if (arr.length > AUTO_PRINT_PRINTED_MAX) {
+      arr = arr.slice(arr.length - AUTO_PRINT_PRINTED_MAX);
+      // Sync the in-memory set with the trimmed array so subsequent reads agree.
+      ids.clear();
+      for (const id of arr) ids.add(id);
+    }
+    window.sessionStorage.setItem(autoPrintPrintedKey(tenantId), JSON.stringify(arr));
+  } catch {
+    /* sessionStorage may be unavailable / quota exceeded — best effort */
+  }
+}
+
+function spawnPrintIframe(orderId: string): void {
+  if (typeof document === 'undefined') return;
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.src = `/kds/print/${orderId}`;
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('tabindex', '-1');
+    // sandbox: same-origin so the embedded route loads, scripts so AutoPrint runs,
+    // modals so window.print() can present the system print dialog.
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-modals');
+    iframe.style.position = 'fixed';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    document.body.appendChild(iframe);
+    window.setTimeout(() => {
+      try {
+        iframe.remove();
+      } catch {
+        /* best-effort */
+      }
+    }, AUTO_PRINT_IFRAME_TTL_MS);
+  } catch {
+    /* best-effort — auto-print is a convenience, never block the KDS */
+  }
 }
 
 function playChime(audioCtxRef: { current: AudioContext | null }) {
