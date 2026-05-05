@@ -7,7 +7,8 @@ import { getBrowserSupabase } from './supabase-browser';
 export type TrackBroadcastPayload = {
   order_id: string;
   status: string;
-  updated_at: string;
+  /** ISO timestamp set by the Edge Function at broadcast time. */
+  broadcast_at: string;
 };
 
 export type TrackSubscriptionStatus =

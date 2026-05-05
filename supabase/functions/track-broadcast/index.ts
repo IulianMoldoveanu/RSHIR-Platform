@@ -80,9 +80,15 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false },
   });
 
+  // We only need the public_track_token. We deliberately DO NOT re-read the
+  // status from the DB: net.http_post is asynchronous, so two rapid
+  // transitions can land in reverse order; reading `order.status` here would
+  // emit the latest state for both webhooks and silently drop the intermediate
+  // transition. Using `body.status` from the trigger payload preserves the
+  // exact transition the trigger fired on (Codex P2, 2026-05-05).
   const { data: order, error: orderErr } = await supabase
     .from('restaurant_orders')
-    .select('id, public_track_token, updated_at, status')
+    .select('id, public_track_token')
     .eq('id', body.order_id)
     .eq('tenant_id', body.tenant_id)
     .maybeSingle();
@@ -100,13 +106,14 @@ Deno.serve(async (req: Request) => {
   // name. No DB SELECT is required on the consumer side — clients
   // subscribe by channel name and receive whatever we send here.
   //
-  // We send a minimal payload: the new status + the server timestamp.
-  // Clients use this purely as an "invalidate the React Query cache now"
-  // signal and re-fetch /api/track/:token for the authoritative record.
+  // We send a minimal payload: the triggered status + the broadcast
+  // timestamp (server clock). Clients use this purely as an "invalidate
+  // the React Query cache now" signal and re-fetch /api/track/:token for
+  // the authoritative record.
   const payload = {
     order_id: order.id,
-    status: order.status,
-    updated_at: order.updated_at,
+    status: body.status,
+    broadcast_at: new Date().toISOString(),
   };
 
   const broadcastUrl = `${SUPABASE_URL.replace(/\/$/, '')}/realtime/v1/api/broadcast`;
