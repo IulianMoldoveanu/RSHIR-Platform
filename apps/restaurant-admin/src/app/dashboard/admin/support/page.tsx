@@ -23,7 +23,7 @@ type SupportRow = {
   resolved_at: string | null;
 };
 
-const STATUSES = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'SPAM'] as const;
+const STATUSES = ['NEW', 'IN_PROGRESS', 'RESPONDED', 'RESOLVED', 'SPAM'] as const;
 type Status = (typeof STATUSES)[number];
 
 function isStatus(v: string | undefined): v is Status {
@@ -85,7 +85,13 @@ export default async function SupportInboxPage({
   const rows = (rowsRaw ?? []) as SupportRow[];
 
   // Counts per status, for the tab badges
-  const counts: Record<Status, number> = { NEW: 0, IN_PROGRESS: 0, RESOLVED: 0, SPAM: 0 };
+  const counts: Record<Status, number> = {
+    NEW: 0,
+    IN_PROGRESS: 0,
+    RESPONDED: 0,
+    RESOLVED: 0,
+    SPAM: 0,
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: countRows } = await (admin as any)
     .from('support_messages')
