@@ -261,6 +261,12 @@ export function RiderMap({
   const markerRef = useRef<LeafletMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
+  // rAF id of the in-flight GPS interpolation. Lives on a ref so the
+  // useEffect cleanup can cancel it across re-runs — without this, a
+  // running `step()` closure from the previous effect would resume after
+  // the fresh effect resets `cancelledRef` and shove the new marker
+  // toward stale coordinates for up to ~600 ms (Codex review on #275).
+  const animationFrameIdRef.currentRef = useRef<number | null>(null);
   const [permission, setPermission] = useState<Permission>('pending');
 
   useEffect(() => {
@@ -381,13 +387,13 @@ export function RiderMap({
         // fix, it eases between the previous and the new coordinate over
         // ~600 ms. We drive the easing with rAF, cancel any in-flight
         // animation when a new fix arrives, and fall back to setLatLng
-        // jumps for identical points.
+        // jumps for identical points. The rAF id lives on `animationFrameIdRef.currentRef`
+        // so the useEffect cleanup can cancel it across re-runs.
         const INTERPOLATE_MS = 600;
-        let animationFrameId: number | null = null;
         const cancelInterpolation = () => {
-          if (animationFrameId != null) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
+          if (animationFrameIdRef.currentRef.current != null) {
+            cancelAnimationFrame(animationFrameIdRef.currentRef.current);
+            animationFrameIdRef.currentRef.current = null;
           }
         };
 
@@ -454,7 +460,7 @@ export function RiderMap({
                 const startTs = performance.now();
                 const step = () => {
                   if (cancelledRef.current || !markerRef.current) {
-                    animationFrameId = null;
+                    animationFrameIdRef.current = null;
                     return;
                   }
                   const elapsed = performance.now() - startTs;
@@ -464,12 +470,12 @@ export function RiderMap({
                   const curLng = startLng + (lng - startLng) * easedT;
                   markerRef.current.setLatLng([curLat, curLng]);
                   if (t < 1) {
-                    animationFrameId = requestAnimationFrame(step);
+                    animationFrameIdRef.current = requestAnimationFrame(step);
                   } else {
-                    animationFrameId = null;
+                    animationFrameIdRef.current = null;
                   }
                 };
-                animationFrameId = requestAnimationFrame(step);
+                animationFrameIdRef.current = requestAnimationFrame(step);
               }
             }
 
@@ -514,6 +520,10 @@ export function RiderMap({
 
     return () => {
       cancelledRef.current = true;
+      if (animationFrameIdRef.current != null) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+        animationFrameIdRef.current = null;
+      }
       if (watchIdRef.current != null && typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
