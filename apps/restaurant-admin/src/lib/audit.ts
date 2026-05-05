@@ -41,6 +41,7 @@ export type AuditAction =
   | 'reservation.noshow'
   | 'reservation.completed'
   | 'reservation.settings_updated'
+  | 'reservation.table_plan_updated'
   | 'ai_ceo.brief_schedule_updated'
   | 'ai_ceo.suggestion_acted'
   | 'partner.created'

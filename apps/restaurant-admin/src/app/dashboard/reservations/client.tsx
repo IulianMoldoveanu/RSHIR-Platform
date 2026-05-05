@@ -28,6 +28,8 @@ type Reservation = {
   notes: string | null;
   rejection_reason: string | null;
   created_at: string;
+  table_id?: string | null;
+  table_label?: string | null;
 };
 
 type Settings = {
@@ -574,6 +576,11 @@ function AgendaView({
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-600">
                     <span>📞 {r.customer_phone}</span>
                     {r.customer_email && <span>✉ {r.customer_email}</span>}
+                    {r.table_label && (
+                      <span className="rounded bg-purple-50 px-1.5 py-0.5 text-purple-900">
+                        🪑 {r.table_label}
+                      </span>
+                    )}
                   </div>
                   {r.notes && (
                     <div className="mt-1 text-xs italic text-zinc-500">&ldquo;{r.notes}&rdquo;</div>
@@ -667,6 +674,11 @@ function ResvList({
             <span>👥 {r.party_size}</span>
             <span>📞 {r.customer_phone}</span>
             {r.customer_email && <span>✉ {r.customer_email}</span>}
+            {r.table_label && (
+              <span className="rounded bg-purple-50 px-1.5 py-0.5 text-purple-900">
+                🪑 {r.table_label}
+              </span>
+            )}
           </div>
           {r.notes && (
             <div className="mt-1 text-xs italic text-zinc-500">&ldquo;{r.notes}&rdquo;</div>
