@@ -4,11 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, TriangleAlert } from 'lucide-react';
 import { EmptyState } from '@/components/storefront/empty-state';
-import { Elements } from '@stripe/react-stripe-js';
-import { getStripeClient } from '@/lib/stripe/client';
 import { geocodeAddressRo } from '@/lib/zones/nominatim';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
-import { PaymentForm } from './PaymentForm';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
@@ -40,8 +37,12 @@ type IntentResponse = {
   orderId: string;
   publicTrackToken: string;
   paymentMethod: 'CARD' | 'COD';
-  /** Only set when paymentMethod === 'CARD'. */
-  clientSecret?: string;
+  /**
+   * Stripe Checkout Session URL — present only when paymentMethod === 'CARD'.
+   * Client window.location-redirects to this URL; Stripe hosts the payment
+   * form and bounces back to /checkout/success or /checkout/cancel.
+   */
+  url?: string;
   quote: Quote;
 };
 
@@ -63,7 +64,9 @@ type QuoteFailureReason =
   | { kind: 'PROMO_INVALID'; reason: PromoFailureReason }
   | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' };
 
-type Step = 'form' | 'review' | 'payment' | 'submitting';
+// Lane J — drop the in-app 'payment' step. CARD path redirects directly to
+// the Stripe-hosted Checkout URL after the intent call succeeds.
+type Step = 'form' | 'review' | 'submitting';
 
 // Normalize whatever the user typed into a 9-digit local RO mobile number.
 // Accepts +40, 0040, 40, leading 0, or bare digits. Caps at 9 — extra digits
@@ -175,9 +178,10 @@ export function CheckoutClient(props: {
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoWorking, setPromoWorking] = useState(false);
 
-  // Quote / intent state
+  // Quote / intent state. Lane J: we no longer keep an `intent` in component
+  // state — the response is consumed once and the customer is either
+  // window.location-redirected (CARD) or router-pushed to /track (COD).
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [intent, setIntent] = useState<IntentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const errorRef = useRef<HTMLDivElement | null>(null);
@@ -207,8 +211,6 @@ export function CheckoutClient(props: {
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [error]);
-
-  const stripePromise = useMemo(() => getStripeClient(), []);
 
   useEffect(() => {
     const stored = readStoredPromo();
@@ -394,17 +396,27 @@ export function CheckoutClient(props: {
         return;
       }
       const response = data as IntentResponse;
-      setIntent(response);
-      // COD orders skip the Stripe step entirely. Order is already PENDING
-      // in the DB; the customer goes straight to /track and the restaurant
-      // confirms via the admin UI.
+      // Clear the cart immediately for both branches — once the order is
+      // persisted in restaurant_orders the cart no longer represents
+      // pending intent. If the customer abandons Stripe checkout, the
+      // /checkout/cancel landing offers a return-to-menu link.
+      sessionStorage.removeItem(CART_STORAGE_KEY);
+      writeStoredPromo(null);
+
       if (response.paymentMethod === 'COD') {
-        sessionStorage.removeItem(CART_STORAGE_KEY);
-        writeStoredPromo(null);
+        // COD orders skip Stripe entirely. Order is already PENDING in the
+        // DB; the customer goes straight to /track and the restaurant
+        // confirms via the admin UI.
         router.push(`/track/${response.publicTrackToken}`);
         return;
       }
-      setStep('payment');
+      // Lane J — CARD path. Redirect to the Stripe-hosted checkout URL.
+      // No publishable key, no Elements, no on-page payment form.
+      if (!response.url) {
+        setError(t(locale, 'checkout.err_create_order'));
+        return;
+      }
+      window.location.href = response.url;
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -463,13 +475,6 @@ export function CheckoutClient(props: {
     setPromoError(null);
     setQuote(null);
     setStep('form');
-  }
-
-  function handlePaymentSuccess() {
-    if (!intent) return;
-    sessionStorage.removeItem(CART_STORAGE_KEY);
-    writeStoredPromo(null);
-    router.push(`/track/${intent.publicTrackToken}`);
   }
 
   // ────────────────────────────────────────────────
@@ -775,21 +780,10 @@ export function CheckoutClient(props: {
         </Section>
       )}
 
-      {/* STEP 3: payment (CARD only — COD short-circuits to /track from
-          handleProceedToPayment, never lands on this step). */}
-      {step === 'payment' && intent && intent.clientSecret && (
-        <Section title={t(locale, 'checkout.section_payment')}>
-          <Elements stripe={stripePromise} options={{ clientSecret: intent.clientSecret, locale }}>
-            <PaymentForm
-              orderId={intent.orderId}
-              amountRon={intent.quote.totalRon}
-              locale={locale}
-              onSuccess={handlePaymentSuccess}
-              onError={(msg) => setError(msg)}
-            />
-          </Elements>
-        </Section>
-      )}
+      {/* Lane J — STEP 3 (in-app Stripe Elements payment) removed. The CARD
+          branch in handleProceedToPayment now redirects via
+          window.location.href to a Stripe-hosted Checkout Session URL.
+          Stripe bounces back to /checkout/success or /checkout/cancel. */}
     </div>
   );
 }
