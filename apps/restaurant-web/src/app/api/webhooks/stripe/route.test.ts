@@ -14,6 +14,7 @@ vi.mock('../../checkout/order-finalize', () => ({
   markOrderPaidAndDispatch: vi.fn(),
   markOrderPaymentFailed: vi.fn(),
   markOrderRefunded: vi.fn(),
+  recordDisputeEvent: vi.fn(),
 }));
 
 vi.mock('@/lib/stripe/server', () => ({
@@ -27,6 +28,7 @@ import {
   markOrderPaidAndDispatch,
   markOrderPaymentFailed,
   markOrderRefunded,
+  recordDisputeEvent,
 } from '../../checkout/order-finalize';
 
 function makeReq(init: { body?: string; signature?: string | null }) {
@@ -156,17 +158,55 @@ describe('POST /api/webhooks/stripe', () => {
     expect(markOrderPaidAndDispatch).not.toHaveBeenCalled();
   });
 
-  it('processes charge.refunded by passing payment_intent id to markOrderRefunded', async () => {
+  it('processes charge.refunded by passing payment_intent id + amount/reason to markOrderRefunded', async () => {
     process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
     stubStripeWithEvent({
       id: 'evt_refund_1',
       type: 'charge.refunded',
-      data: { object: { payment_intent: 'pi_abc123' } },
+      data: {
+        object: {
+          payment_intent: 'pi_abc123',
+          amount_refunded: 4500,
+          refunds: { data: [{ reason: 'requested_by_customer' }] },
+        },
+      },
     });
     stubAdminInsertOk();
     const res = await POST(makeReq({ body: '{}', signature: 't=1' }));
     expect(res.status).toBe(200);
-    expect(markOrderRefunded).toHaveBeenCalledWith('pi_abc123');
+    expect(markOrderRefunded).toHaveBeenCalledWith('pi_abc123', {
+      amountBani: 4500,
+      reason: 'requested_by_customer',
+    });
+  });
+
+  it.each([
+    'charge.dispute.created',
+    'charge.dispute.updated',
+    'charge.dispute.closed',
+    'charge.dispute.funds_withdrawn',
+    'charge.dispute.funds_reinstated',
+  ] as const)('routes %s through recordDisputeEvent', async (type) => {
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test';
+    const dispute = {
+      id: 'dp_test_1',
+      amount: 5000,
+      reason: 'fraudulent',
+      status: 'needs_response',
+      payment_intent: 'pi_abc123',
+    };
+    stubStripeWithEvent({
+      id: `evt_${type.replace(/\./g, '_')}`,
+      type,
+      data: { object: dispute },
+    });
+    stubAdminInsertOk();
+    const res = await POST(makeReq({ body: '{}', signature: 't=1' }));
+    expect(res.status).toBe(200);
+    expect(recordDisputeEvent).toHaveBeenCalledWith(type, dispute);
+    // Sanity: dispute events must NOT trigger refund/payment helpers.
+    expect(markOrderRefunded).not.toHaveBeenCalled();
+    expect(markOrderPaidAndDispatch).not.toHaveBeenCalled();
   });
 
   it('processes payment_intent.payment_failed without auto-cancelling', async () => {
