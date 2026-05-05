@@ -99,7 +99,7 @@ export async function makeSqlRunner(secrets, { dryRun = false } = {}) {
       }
       // courier_profiles user_id lookup (cleanup script)
       if (/from public\.courier_profiles/.test(query) && /user_id/.test(query)) {
-        return [{ user_id: '00000000-d3a1-4ec0-aa00-00000000000c01' }];
+        return [{ user_id: '00000000-d3a1-4ec0-aa00-000000000c01' }];
       }
       return [{}];
     };
