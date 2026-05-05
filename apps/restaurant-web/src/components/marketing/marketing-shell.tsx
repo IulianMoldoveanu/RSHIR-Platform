@@ -119,6 +119,7 @@ export function MarketingFooter() {
               { href: '/affiliate', label: 'Program Afiliați' },
               { href: '/reseller', label: 'Program Reseleri' },
               { href: '/contact', label: 'Contact comercial' },
+              { href: '/press', label: 'Press kit' },
             ]}
           />
           <FooterCol
