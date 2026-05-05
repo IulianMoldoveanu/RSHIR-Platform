@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { updateSupportMessage } from './actions';
 
 type SupportRow = {
@@ -15,6 +15,14 @@ type SupportRow = {
   user_agent: string | null;
   created_at: string;
   resolved_at: string | null;
+};
+
+type ReplyRow = {
+  id: string;
+  reply_text: string;
+  sent_at: string;
+  delivery_status: string;
+  delivery_error: string | null;
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -50,6 +58,40 @@ function SupportCard({ row }: { row: SupportRow }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
 
+  // Reply thread state
+  const [replies, setReplies] = useState<ReplyRow[]>([]);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesLoaded, setRepliesLoaded] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replyPending, setReplyPending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replySuccess, setReplySuccess] = useState<string | null>(null);
+
+  const loadReplies = useCallback(async () => {
+    setRepliesLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/support/reply?messageId=${encodeURIComponent(row.id)}`,
+        { cache: 'no-store' },
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { replies: ReplyRow[] };
+        setReplies(data.replies ?? []);
+      }
+    } catch {
+      // Non-fatal — thread just won't render.
+    } finally {
+      setRepliesLoading(false);
+      setRepliesLoaded(true);
+    }
+  }, [row.id]);
+
+  useEffect(() => {
+    if (open && !repliesLoaded && !repliesLoading) {
+      void loadReplies();
+    }
+  }, [open, repliesLoaded, repliesLoading, loadReplies]);
+
   function applyStatus(status: 'IN_PROGRESS' | 'RESOLVED' | 'SPAM' | 'NEW') {
     setError(null);
     startTransition(async () => {
@@ -63,11 +105,56 @@ function SupportCard({ row }: { row: SupportRow }) {
     });
   }
 
-  const mailto = row.email
-    ? `mailto:${encodeURIComponent(row.email)}?subject=${encodeURIComponent(
-        `Re: Suport HIR — ${CATEGORY_LABELS[row.category ?? 'OTHER'] ?? 'Suport'}`,
-      )}&body=${encodeURIComponent(`Bună ziua,\n\n--- Mesajul dumneavoastră ---\n${row.message}\n\n--- Răspunsul nostru ---\n`)}`
-    : null;
+  async function sendReply() {
+    if (replyPending) return;
+    const text = replyText.trim();
+    if (text.length < 2) {
+      setReplyError('Răspunsul este prea scurt.');
+      return;
+    }
+    if (!row.email) {
+      setReplyError('Mesajul nu are adresă de email — nu se poate răspunde.');
+      return;
+    }
+
+    setReplyError(null);
+    setReplySuccess(null);
+    setReplyPending(true);
+    try {
+      const res = await fetch('/api/admin/support/reply', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messageId: row.id, replyText: text }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        deliveryStatus?: string;
+        deliveryError?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.ok) {
+        setReplyError(
+          data.deliveryError || data.error || `Eroare ${res.status} la trimitere.`,
+        );
+      } else {
+        const sentAt = new Date().toLocaleString('ro-RO');
+        if (data.deliveryStatus === 'SKIPPED') {
+          setReplySuccess(
+            `Răspuns salvat la ${sentAt}, dar email-ul nu a fost trimis (Resend neconfigurat).`,
+          );
+        } else {
+          setReplySuccess(`Răspuns trimis la ${sentAt}.`);
+        }
+        setReplyText('');
+        // Reload thread to show the new entry.
+        await loadReplies();
+      }
+    } catch (e) {
+      setReplyError(e instanceof Error ? e.message : 'Eroare la trimitere.');
+    } finally {
+      setReplyPending(false);
+    }
+  }
 
   return (
     <article
@@ -121,6 +208,101 @@ function SupportCard({ row }: { row: SupportRow }) {
               <span className="font-mono text-[#94a3b8]">{row.user_agent ?? '—'}</span>
             </div>
           </div>
+
+          {/* Reply thread */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-[#0F172A]">
+              Fir conversație ({replies.length})
+            </p>
+            {repliesLoading && (
+              <p className="mt-1 text-xs text-[#94a3b8]">Se încarcă…</p>
+            )}
+            {!repliesLoading && replies.length === 0 && repliesLoaded && (
+              <p className="mt-1 text-xs text-[#94a3b8]">Niciun răspuns trimis încă.</p>
+            )}
+            {replies.length > 0 && (
+              <ul className="mt-2 space-y-2">
+                {replies.map((r) => (
+                  <li
+                    key={r.id}
+                    className="rounded-md border border-[#E2E8F0] bg-white p-3 text-sm text-[#0F172A]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-[#94a3b8]">
+                      <span>{new Date(r.sent_at).toLocaleString('ro-RO')}</span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          r.delivery_status === 'SENT'
+                            ? 'bg-[#DCFCE7] text-[#15803D]'
+                            : r.delivery_status === 'FAILED'
+                              ? 'bg-[#FEE2E2] text-[#B91C1C]'
+                              : r.delivery_status === 'SKIPPED'
+                                ? 'bg-[#FEF3C7] text-[#92400E]'
+                                : 'bg-[#F1F5F9] text-[#475569]'
+                        }`}
+                      >
+                        {r.delivery_status}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap">{r.reply_text}</p>
+                    {r.delivery_error && (
+                      <p className="mt-1 text-xs text-[#B91C1C]">{r.delivery_error}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Reply composer */}
+          {row.email ? (
+            <div className="mb-4 rounded-md border border-[#E2E8F0] bg-white p-3">
+              <label
+                htmlFor={`reply-${row.id}`}
+                className="block text-xs font-medium text-[#0F172A]"
+              >
+                Răspuns către {row.email}
+              </label>
+              <textarea
+                id={`reply-${row.id}`}
+                rows={4}
+                maxLength={8000}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Scrieți răspunsul către client… Mesajul original va fi citat automat."
+                className="mt-1 w-full resize-y rounded-md border border-[#E2E8F0] bg-white px-3 py-2 text-sm focus:border-[#7c3aed] focus:outline-none focus:ring-1 focus:ring-[#7c3aed]"
+              />
+              {replyError && (
+                <p
+                  role="alert"
+                  className="mt-2 rounded-md bg-[#FEF2F2] px-3 py-2 text-xs text-[#B91C1C]"
+                >
+                  {replyError}
+                </p>
+              )}
+              {replySuccess && (
+                <p className="mt-2 rounded-md bg-[#DCFCE7] px-3 py-2 text-xs text-[#15803D]">
+                  {replySuccess}
+                </p>
+              )}
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-[11px] text-[#94a3b8]">
+                  Subiect: „Răspuns la mesajul dumneavoastră către HIR Support”
+                </span>
+                <button
+                  type="button"
+                  disabled={replyPending || replyText.trim().length < 2}
+                  onClick={sendReply}
+                  className="rounded-md bg-[#7c3aed] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#6d28d9] disabled:opacity-60"
+                >
+                  {replyPending ? 'Se trimite…' : 'Trimite răspuns'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mb-4 rounded-md bg-[#FEF3C7] px-3 py-2 text-xs text-[#92400E]">
+              Mesajul nu are adresă de email — nu se poate răspunde prin platformă.
+            </p>
+          )}
 
           <label htmlFor={`note-${row.id}`} className="block text-xs font-medium text-[#0F172A]">
             Notă internă
@@ -184,14 +366,6 @@ function SupportCard({ row }: { row: SupportRow }) {
               >
                 Repune ca NEW
               </button>
-            )}
-            {mailto && (
-              <a
-                href={mailto}
-                className="ml-auto rounded-md border border-[#7c3aed] bg-white px-3 py-1.5 text-xs font-medium text-[#7c3aed] hover:bg-[#F5F3FF]"
-              >
-                Răspunde prin email
-              </a>
             )}
           </div>
         </div>

@@ -23,7 +23,7 @@ async function requirePlatformAdmin(): Promise<{ userId: string; email: string }
 
 const updateSchema = z.object({
   id: z.string().uuid(),
-  status: z.enum(['NEW', 'IN_PROGRESS', 'RESOLVED', 'SPAM']),
+  status: z.enum(['NEW', 'IN_PROGRESS', 'RESPONDED', 'RESOLVED', 'SPAM']),
   admin_note: z.string().max(2000).optional(),
 });
 
