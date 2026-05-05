@@ -93,6 +93,30 @@ async function upsertState(app: string, ok: boolean, failed_since: string | null
   });
 }
 
+// Lane STATUS (2026-05-05): append-only probe history that powers the public
+// /status page (90-day uptime bars). One row per app per 5-min probe →
+// ~77k rows / 90 days, well within Postgres + Supabase free tier budget.
+async function recordPing(r: ProbeResult): Promise<void> {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/health_check_pings`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        app: r.app,
+        ok: r.ok,
+        status_code: r.status,
+        latency_ms: r.latencyMs,
+      }),
+    });
+  } catch {
+    // Ping history is best-effort — never let a write failure crash the monitor.
+  }
+}
+
 async function tg(text: string): Promise<void> {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -111,6 +135,9 @@ Deno.serve(async (req) => {
   const results = await Promise.all(ENDPOINTS.map((e) => probe(e.app, e.url)));
   const state = await loadState();
   const now = new Date().toISOString();
+
+  // Record append-only probe history for the public /status page (Lane STATUS).
+  await Promise.all(results.map(recordPing));
 
   const transitions: { app: string; transition: 'down' | 'up'; result: ProbeResult; downSince: string | null }[] = [];
   for (const r of results) {

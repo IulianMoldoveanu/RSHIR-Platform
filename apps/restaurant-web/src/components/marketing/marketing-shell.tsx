@@ -110,6 +110,7 @@ export function MarketingFooter() {
               { href: '/pricing', label: 'Tarife' },
               { href: '/migrate-from-gloriafood', label: 'Migrare GloriaFood' },
               { href: '/case-studies/foisorul-a', label: 'Studiu de caz' },
+              { href: '/status', label: 'Status platformă' },
             ]}
           />
           <FooterCol
