@@ -3,75 +3,103 @@ import { headers } from 'next/headers';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabase } from '@/lib/supabase';
 import { buildItemSlug } from '@/lib/slug';
+import {
+  MARKETING_ROUTES,
+  canonicalBaseUrl,
+  isCanonicalHost,
+  tenantCanonicalUrl,
+} from '@/lib/seo-marketing';
 
 export const dynamic = 'force-dynamic';
 
 type ItemRow = { id: string; name: string; updated_at: string | null };
+type ActiveTenantRow = {
+  slug: string;
+  custom_domain: string | null;
+  updated_at: string | null;
+};
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { tenant } = await resolveTenantFromHost();
+  const supabase = getSupabase();
+  const now = new Date();
 
-  // Lane H 2026-05-04: when no tenant resolves, the host serves the brand
-  // marketing site. Emit a canonical sitemap for the marketing surface so
-  // search engines can crawl /, /features, /pricing, /case-studies/*, etc.
-  if (!tenant) {
-    const h = headers();
-    const hostWithPort =
-      h.get('x-hir-host-with-port') ?? h.get('host') ?? h.get('x-hir-host') ?? '';
-    const hostNoPort = hostWithPort.split(':')[0];
-    const proto =
-      hostNoPort === 'localhost' || hostNoPort.endsWith('.lvh.me') ? 'http' : 'https';
-    const base = `${proto}://${hostWithPort}`;
-    const now = new Date();
+  // CASE 1 — request hit a tenant host. Emit the existing tenant sitemap
+  // (homepage + bio + privacy + every available menu item).
+  if (tenant) {
+    const baseUrl = tenantBaseUrl();
+    const { data } = await supabase
+      .from('restaurant_menu_items')
+      .select('id, name, updated_at')
+      .eq('tenant_id', tenant.id)
+      .eq('is_available', true);
+
+    const items = (data ?? []) as ItemRow[];
+    const itemEntries: MetadataRoute.Sitemap = items.map((it) => ({
+      url: `${baseUrl}/m/${buildItemSlug(it)}`,
+      lastModified: it.updated_at ? new Date(it.updated_at) : now,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    }));
+
     return [
-      { url: `${base}/`, lastModified: now, changeFrequency: 'weekly', priority: 1.0 },
-      { url: `${base}/features`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
-      { url: `${base}/pricing`, lastModified: now, changeFrequency: 'monthly', priority: 0.9 },
-      { url: `${base}/migrate-from-gloriafood`, lastModified: now, changeFrequency: 'weekly', priority: 0.95 },
-      { url: `${base}/case-studies/foisorul-a`, lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
-      { url: `${base}/contact`, lastModified: now, changeFrequency: 'yearly', priority: 0.6 },
-      { url: `${base}/affiliate`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-      { url: `${base}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+      {
+        url: `${baseUrl}/`,
+        lastModified: now,
+        changeFrequency: 'daily',
+        priority: 1.0,
+      },
+      {
+        url: `${baseUrl}/bio`,
+        lastModified: now,
+        changeFrequency: 'weekly',
+        priority: 0.8,
+      },
+      {
+        url: `${baseUrl}/privacy`,
+        lastModified: now,
+        changeFrequency: 'yearly',
+        priority: 0.3,
+      },
+      ...itemEntries,
     ];
   }
 
-  const baseUrl = tenantBaseUrl();
-  const supabase = getSupabase();
-  const { data } = await supabase
-    .from('restaurant_menu_items')
-    .select('id, name, updated_at')
-    .eq('tenant_id', tenant.id)
-    .eq('is_available', true);
+  // CASE 2 — request hit the canonical/marketing host (no tenant resolved).
+  // Emit marketing pages + 1 entry per ACTIVE tenant landing so search
+  // engines crawl every live restaurant from a single sitemap submission.
+  const host =
+    headers().get('x-hir-host') ??
+    headers().get('host')?.split(':')[0] ??
+    '';
+  if (!isCanonicalHost(host)) {
+    // Unknown host (e.g. raw IP, preview branch URL) — return empty rather
+    // than guess. Lane H's marketing pages still render on canonical hosts.
+    return [];
+  }
 
-  const items = (data ?? []) as ItemRow[];
-  const now = new Date();
-
-  const itemEntries: MetadataRoute.Sitemap = items.map((it) => ({
-    url: `${baseUrl}/m/${buildItemSlug(it)}`,
-    lastModified: it.updated_at ? new Date(it.updated_at) : now,
-    changeFrequency: 'weekly',
-    priority: 0.7,
+  const baseUrl = canonicalBaseUrl(host);
+  const marketingEntries: MetadataRoute.Sitemap = MARKETING_ROUTES.map((r) => ({
+    url: `${baseUrl}${r.path}`,
+    lastModified: now,
+    changeFrequency: 'monthly',
+    priority: r.priority,
   }));
 
-  return [
-    {
-      url: `${baseUrl}/`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/bio`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: now,
-      changeFrequency: 'yearly',
-      priority: 0.3,
-    },
-    ...itemEntries,
-  ];
+  // Per-active-tenant landing entry. Crawl daily-ish (changefreq weekly)
+  // because menu + hours + prices change frequently. lastMod from
+  // tenants.updated_at — bumped on any settings/menu mutation.
+  const { data: tenants } = await supabase
+    .from('tenants')
+    .select('slug, custom_domain, updated_at')
+    .eq('status', 'ACTIVE');
+
+  const tenantEntries: MetadataRoute.Sitemap = ((tenants ?? []) as ActiveTenantRow[]).map((t) => ({
+    url: tenantCanonicalUrl(t),
+    lastModified: t.updated_at ? new Date(t.updated_at) : now,
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }));
+
+  return [...marketingEntries, ...tenantEntries];
 }
