@@ -18,6 +18,8 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -364,10 +366,12 @@ async function postTelegramDigest(
 
 Deno.serve(async (req) => {
   if (req.method === 'GET') {
+    // Health probe — don't pollute function_runs with these.
     return json(200, { ok: true, service: 'growth-agent-daily', model: DEFAULT_MODEL });
   }
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('growth-agent-daily', async ({ setMetadata }) => {
   const expected = Deno.env.get('GROWTH_CRON_TOKEN');
   if (!expected) return json(500, { error: 'cron_secret_missing' });
   const got = req.headers.get('x-cron-token') ?? '';
@@ -482,6 +486,14 @@ Deno.serve(async (req) => {
     telegramMessageId = tg.messageId;
   }
 
+  setMetadata({
+    tenants_processed: tenants.length,
+    recommendations_total: totalRecs,
+    errors: errorCount,
+    cost_usd_total: Number(totalCost.toFixed(6)),
+    model,
+  });
+
   return json(200, {
     ok: true,
     tenants_processed: tenants.length,
@@ -491,5 +503,6 @@ Deno.serve(async (req) => {
     telegram_message_id: telegramMessageId,
     per_tenant: perTenant,
     model,
+  });
   });
 });

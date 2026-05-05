@@ -150,6 +150,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             label: 'Vizualizări materializate',
             icon: 'settings' as const,
           },
+          {
+            href: '/dashboard/admin/observability/function-runs',
+            label: 'Edge Functions',
+            icon: 'settings' as const,
+          },
         ]
       : []),
   ];

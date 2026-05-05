@@ -20,6 +20,8 @@
 // Auto-injected by Edge runtime: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void };
 
@@ -269,6 +271,7 @@ async function dispatchSeverityTelegram(opts: {
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('triage-feedback', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) return json(500, { error: 'secret_not_configured' });
   const got = req.headers.get('x-hir-notify-secret') ?? '';
@@ -418,6 +421,16 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  setMetadata({
+    feedback_id: row.id,
+    tenant_id: row.tenant_id ?? null,
+    severity: triage.severity,
+    category: triage.category,
+    auto_fix_eligible: eligibilityOk,
+    confidence: triage.confidence,
+    cost_usd: Number(costUsd.toFixed(6)),
+  });
+
   return json(200, {
     ok: true,
     id: row.id,
@@ -429,5 +442,6 @@ Deno.serve(async (req: Request) => {
     confidence: triage.confidence,
     cost_usd: costUsd,
     usage,
+  });
   });
 });
