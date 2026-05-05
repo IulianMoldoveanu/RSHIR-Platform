@@ -97,10 +97,12 @@ export async function GET() {
   // verify signatures. Cheap config-presence check, no network call.
   const stripe_webhook_secret_configured = Boolean(process.env.STRIPE_WEBHOOK_SECRET);
 
-  // Critical = anything that breaks the customer → tenant → courier flow at
-  // the platform level. Storage outage degrades proof-of-delivery uploads
-  // but does not block order placement, so it stays non-critical.
-  const ok = db.ok && auth.ok;
+  // Critical = db reachability only. Auth + storage + stripe-webhook are
+  // surfaced as degradation signals but don't flip the page red — uptime
+  // monitor would otherwise alert on transient `auth.admin.listUsers`
+  // rate-limit / MFA-policy responses that don't affect customer signup
+  // or login (which use the public auth endpoint, not admin).
+  const ok = db.ok;
 
   const total_ms = Date.now() - startedAt;
 
