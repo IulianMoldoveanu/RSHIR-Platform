@@ -780,6 +780,7 @@ export async function inviteCourierToFleetAction(
         admin: {
           inviteUserByEmail: (
             email: string,
+            opts?: { redirectTo?: string },
           ) => Promise<{
             data: { user: { id: string } | null } | null;
             error: { message: string } | null;
@@ -790,7 +791,23 @@ export async function inviteCourierToFleetAction(
         };
       };
     };
-    const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email);
+    // After accepting the invite Supabase redirects the user to the
+    // configured site URL. Pin it to the courier dashboard so the
+    // first-time experience lands them on the live map instead of a
+    // generic auth confirmation page. Falls back to NEXT_PUBLIC_SITE_URL,
+    // then to a relative path the auth backend will resolve against the
+    // project's site URL setting.
+    const baseUrl =
+      process.env.NEXT_PUBLIC_COURIER_URL ??
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      '';
+    const redirectTo = baseUrl
+      ? `${baseUrl.replace(/\/$/, '')}/dashboard`
+      : '/dashboard';
+    const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(
+      email,
+      { redirectTo },
+    );
     if (!inviteErr && invited?.user?.id) {
       userId = invited.user.id;
     } else {
