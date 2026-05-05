@@ -10,6 +10,11 @@ import { maybeSetCustomerCookie } from '@/lib/customer-recognition';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { readCustomerCookie } from '@/lib/customer-recognition';
+import {
+  ensurePerEmailWelcomeCode,
+  recordCheckoutSignup,
+  sendCheckoutWelcomeEmail,
+} from '@/lib/newsletter/checkout-optin';
 import { validateRedemption } from '@/lib/loyalty';
 import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from '@/lib/i18n';
 import {
@@ -302,6 +307,40 @@ export async function POST(req: NextRequest) {
         { error: 'loyalty_invalid', reason: 'insufficient_balance' },
         { status: 422 },
       );
+    }
+  }
+
+  // Lane L PR 1: newsletter opt-in at checkout — capture signup + issue a
+  // one-time WELCOME-<random> 10% code, send by email. Best-effort: any
+  // failure here is logged but doesn't fail the order (the customer has
+  // already committed to paying / placing COD). Gated on:
+  //   * explicit opt-in (server default = false; UI default = true)
+  //   * a parseable email on the customer
+  const newsletterOptin = parsed.data.newsletterOptin === true;
+  const customerEmail = (parsed.data.customer.email || '').trim();
+  if (newsletterOptin && customerEmail.length > 0) {
+    const ip = clientIp(req);
+    // Fire all three serially but inside try/catch — never let this break
+    // the order response.
+    try {
+      await recordCheckoutSignup(admin, {
+        tenantSlug: tenant.slug,
+        email: customerEmail,
+        ip,
+      });
+      const ensured = await ensurePerEmailWelcomeCode(admin, tenant.id, customerEmail);
+      if (ensured.ok) {
+        // Note: restaurant_orders has no metadata column today, so we don't
+        // tag the order here. Attribution lives in storefront_notify_signups
+        // (source='checkout', created_at) joined to orders by email.
+        await sendCheckoutWelcomeEmail({
+          email: customerEmail,
+          tenant: { name: tenant.name, settings: tenant.settings },
+          promoCode: ensured.code,
+        });
+      }
+    } catch (e) {
+      console.error('[checkout/intent] newsletter opt-in failed', e);
     }
   }
 
