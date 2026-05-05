@@ -172,6 +172,11 @@ export function CheckoutClient(props: {
 
   const [notes, setNotes] = useState('');
 
+  // Lane L PR 1: newsletter opt-in checkbox. Default ON — Iulian's call:
+  // converts ~30% of one-shot guests into a warm email list, the welcome
+  // code keeps them coming back. Customer can untick before submitting.
+  const [newsletterOptin, setNewsletterOptin] = useState(true);
+
   // Promo
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
@@ -341,6 +346,11 @@ export function CheckoutClient(props: {
         paymentMethod,
         ...(appliedPromo ? { promoCode: appliedPromo.code } : {}),
         ...(redeemActive && loyaltyRedeem ? { redeemPoints: loyaltyRedeem.points } : {}),
+        // Server gates again on email presence; we send the flag only when
+        // we actually have something to do with it.
+        ...(newsletterOptin && email.trim().length > 0
+          ? { newsletterOptin: true }
+          : {}),
       };
       if (fulfillment === 'DELIVERY') {
         intentBody.address = {
@@ -573,6 +583,29 @@ export function CheckoutClient(props: {
           <Field label={t(locale, 'checkout.field_email_optional')}>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
           </Field>
+          {/* Lane L PR 1: newsletter discount opt-in. Always rendered
+              (not conditional on email) so the customer sees the value
+              prop and is nudged to enter their email if blank. The
+              hint copy switches when email is missing. */}
+          <label className="sm:col-span-2 mt-1 flex items-start gap-2.5 rounded-md border border-purple-200 bg-purple-50/60 p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={newsletterOptin}
+              onChange={(e) => setNewsletterOptin(e.target.checked)}
+              className="mt-0.5 h-4 w-4 flex-none cursor-pointer accent-purple-600"
+              aria-describedby="newsletter-optin-hint"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="font-medium text-purple-900">
+                {t(locale, 'checkout.newsletter_optin_label')}
+              </span>
+              <span id="newsletter-optin-hint" className="text-[12px] leading-snug text-purple-800/80">
+                {email.trim().length === 0
+                  ? t(locale, 'checkout.newsletter_optin_needs_email')
+                  : t(locale, 'checkout.newsletter_optin_hint')}
+              </span>
+            </span>
+          </label>
         </Section>
 
         {fulfillment === 'DELIVERY' ? (

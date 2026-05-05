@@ -60,6 +60,10 @@ export const intentRequestSchema = z
     // threshold, and the max_redemption_pct cap. Cap at 1M to keep the
     // schema sane; real caps come from settings.
     redeemPoints: z.number().int().nonnegative().max(1_000_000).optional(),
+    // Lane L PR 1: when true AND customer.email is set, the server records
+    // a checkout signup + issues a one-time WELCOME-<8 char> 10% code via
+    // email. UI default is true; explicit opt-out clears the box.
+    newsletterOptin: z.boolean().optional(),
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',
