@@ -131,6 +131,38 @@ export default async function EarningsPage() {
         <StatCard label="Luna aceasta" earnings={month.earnings} count={month.count} accent="zinc" />
       </section>
 
+      {/* Audit P1 #8 — earnings transparency. Formula is exposed even when
+          commission is 0 today, so the courier trusts the number rather than
+          wondering what's deducted. When per-courier commission lands later,
+          the row populates without UI changes. */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          Cum calculăm câștigul de azi
+        </p>
+        <div className="space-y-1.5 text-sm tabular-nums">
+          <div className="flex items-center justify-between text-zinc-300">
+            <span>Brut (taxe livrare)</span>
+            <span className="font-medium text-zinc-100">
+              {today.earnings.toFixed(2)} RON
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-zinc-500">
+            <span>− Comision HIR</span>
+            <span className="font-medium">0,00 RON</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-zinc-800 pt-1.5 text-zinc-100">
+            <span className="font-semibold">= Net</span>
+            <span className="font-semibold text-emerald-300">
+              {today.earnings.toFixed(2)} RON
+            </span>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-zinc-500">
+          Astăzi tot brutul e net. Pe viitor un mic comision platformă va fi
+          dedus aici, mereu vizibil înainte de plată.
+        </p>
+      </section>
+
       {bestDay && bestDay.count >= 2 ? (
         <section className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
           <Trophy className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />

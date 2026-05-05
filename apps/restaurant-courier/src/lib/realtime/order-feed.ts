@@ -39,6 +39,9 @@ export function useOrderFeed(fleetId: string): UseOrderFeedResult {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const backoffRef = useRef(1000);
   const unmountedRef = useRef(false);
+  // Tracks any pending reconnect timeout so we can cancel it on unmount or
+  // before scheduling a new one (audit BUG P1 #6 — channel leak fix).
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const upsertOrder = useCallback((incoming: FeedOrder) => {
     if (!ACTIVE_STATUSES.includes(incoming.status)) {
@@ -106,10 +109,20 @@ export function useOrderFeed(fleetId: string): UseOrderFeedResult {
         }
         if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           if (!unmountedRef.current) {
-            // Reconnect with exponential backoff (cap at 30s).
+            // Audit BUG P1 #6 fix: clear the dead channel + cancel any
+            // pending reconnect before scheduling a new one. Without this,
+            // long sessions accumulated dead channels and duplicate
+            // subscriptions on every reconnect.
+            if (channelRef.current) {
+              channelRef.current.unsubscribe();
+              channelRef.current = null;
+            }
+            if (reconnectTimerRef.current) {
+              clearTimeout(reconnectTimerRef.current);
+            }
             const delay = backoffRef.current;
             backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
-            setTimeout(subscribe, delay);
+            reconnectTimerRef.current = setTimeout(subscribe, delay);
           }
         }
       });
@@ -123,6 +136,10 @@ export function useOrderFeed(fleetId: string): UseOrderFeedResult {
 
     return () => {
       unmountedRef.current = true;
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       if (channelRef.current) {
         channelRef.current.unsubscribe();
         channelRef.current = null;

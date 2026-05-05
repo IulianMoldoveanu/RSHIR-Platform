@@ -86,11 +86,14 @@ function LoginInner() {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Se autentifică...' : 'Conectare'}
             </Button>
-            <p className="text-center text-xs text-zinc-500">
-              <a href="/register" className="underline">
-                Înregistrează-te ca curier
+            <div className="flex flex-col items-center gap-1.5 text-xs text-zinc-500">
+              <a href="/login/forgot" className="underline-offset-2 hover:text-violet-600 hover:underline">
+                Am uitat parola
               </a>
-            </p>
+              <a href="/register" className="underline-offset-2 hover:text-violet-600 hover:underline">
+                Cum devin curier HIR?
+              </a>
+            </div>
           </Form>
         </CardContent>
       </Card>
