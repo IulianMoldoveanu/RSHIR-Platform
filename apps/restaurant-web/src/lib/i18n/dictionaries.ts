@@ -469,6 +469,195 @@ export const dictionaries = {
         footer_gdpr: 'Politica GDPR',
         footer_contact: 'Contact',
       },
+      // Lane EN-I18N (2026-05-05) — chrome (header + footer) shared across
+      // every marketing page (/, /features, /pricing, /contact, /press,
+      // /status, /case-studies/*, /embed-docs, /migrate-from-gloriafood).
+      // Locale switcher pill is rendered unconditionally inside the header.
+      shell: {
+        brand_name: 'HIR Restaurant Suite',
+        nav_home: 'Acasă',
+        nav_features: 'Funcționalități',
+        nav_pricing: 'Tarife',
+        nav_migrate: 'Migrare GloriaFood',
+        nav_case_studies: 'Studiu de caz',
+        nav_contact: 'Contact',
+        cta_become_partner: 'Devino partener',
+        cta_signup_restaurant: 'Înscrie restaurantul',
+        locale_switcher_label: 'Schimbă limba',
+        footer_tagline:
+          'Platformă completă pentru restaurante: comenzi online, livrare proprie, CRM, loyalty și migrare GloriaFood. Construit în România.',
+        footer_col_product: 'Produs',
+        footer_col_partners: 'Parteneri',
+        footer_col_legal: 'Legal',
+        footer_link_features: 'Funcționalități',
+        footer_link_pricing: 'Tarife',
+        footer_link_migrate: 'Migrare GloriaFood',
+        footer_link_case_studies: 'Studiu de caz',
+        footer_link_status: 'Status platformă',
+        footer_link_affiliate: 'Program Afiliați',
+        footer_link_reseller: 'Program Reseleri',
+        footer_link_contact: 'Contact comercial',
+        footer_link_press: 'Press kit',
+        footer_link_privacy: 'Confidențialitate',
+        footer_link_terms: 'Termeni',
+        footer_link_cookies: 'Cookies',
+        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+      },
+      // Homepage body (rendered at `/` on the canonical host when no tenant
+      // is resolved). High-funnel — full bilingual coverage.
+      home: {
+        page_title: 'HIR Restaurant Suite — Software complet la 3 RON / livrare',
+        page_description:
+          'Comenzi online cu storefront white-label, livrare proprie HIR la 3 RON / livrare flat, importer GloriaFood și CRM. Construit în România pentru restaurante.',
+        hero_badge:
+          'GloriaFood se închide 30 aprilie 2027 — pregătiți migrarea acum',
+        hero_title_pre: 'Software de restaurant complet, livrat la',
+        hero_title_price: '3 RON / livrare',
+        hero_title_post: '.',
+        hero_body:
+          'Comenzi online cu pagina dumneavoastră white-label, livrare proprie cu rețeaua HIR de curieri, CRM cu datele clienților, importer GloriaFood și AI dedicat. Fără abonament, fără procent — doar 3 RON la fiecare comandă livrată.',
+        cta_signup: 'Înscrie restaurantul',
+        cta_partner: 'Devino partener (300 RON / restaurant)',
+        cta_case_study: 'Vezi studiul de caz →',
+        stat_pricing_label: 'Tarif comandă livrată',
+        stat_pricing_value: '3 RON',
+        stat_pricing_sub: 'vs ~25-30% la marketplace-uri',
+        stat_importer_label: 'Importer GloriaFood',
+        stat_importer_value: '<5 min',
+        stat_importer_sub: 'meniu, comenzi, clienți migrate',
+        stat_pilot_label: 'Restaurant pilot',
+        stat_pilot_value: '158 produse',
+        stat_pilot_sub: 'FOISORUL A · live din 03.05.2026',
+        value_section_title:
+          'Tot ce vă trebuie pentru a vinde mâncare online — într-o singură platformă.',
+        value_section_intro:
+          'Nu mai cumpărați POS de la unul, livrare de la altul, CRM de la al treilea.',
+        value_storefront_title: 'Storefront white-label',
+        value_storefront_body:
+          'Pagina dumneavoastră de comenzi cu logo + culoare proprie, domeniu propriu opțional. Fără concurenți alături, fără ghost-restaurants.',
+        value_courier_title: 'Livrare proprie HIR',
+        value_courier_body:
+          'Curier HIR la 3 RON / livrare flat. Sau folosiți curierul propriu existent. Dumneavoastră alegeți modul, costul rămâne predictibil.',
+        value_importer_title: 'Importer GloriaFood',
+        value_importer_body:
+          'Conectați cheia GloriaFood și în <5 minute meniul + comenzile + clienții sunt migrate complet în HIR.',
+        value_data_title: 'Datele rămân ale dumneavoastră',
+        value_data_body:
+          'CRM, loyalty, reviews, newsletter — toate stau la restaurant. Niciun marketplace nu mai stă între dumneavoastră și client.',
+        value_more_link: 'Vedeți toate funcționalitățile',
+        pricing_title: 'Tarife transparente. Fără surprize.',
+        pricing_intro:
+          'Plătiți doar pentru comenzile livrate. Fără setup, fără abonament, fără procent din valoare.',
+        pricing_card1_tag: 'POPULAR',
+        pricing_card1_title: 'HIR Direct',
+        pricing_card1_price: '3 RON',
+        pricing_card1_price_sub: '/ comandă livrată',
+        pricing_card1_p1: 'Curier HIR — propriu sau prin rețeaua de flotă',
+        pricing_card1_p2: 'Storefront white-label inclus',
+        pricing_card1_p3: 'Importer GloriaFood inclus',
+        pricing_card1_p4: 'CRM + loyalty + reviews inclus',
+        pricing_card1_p5: 'Fără abonament, fără setup fee',
+        pricing_card1_cta: 'Începeți migrarea',
+        pricing_card2_tag: 'ENTERPRISE / FLOTĂ',
+        pricing_card2_title: 'Passthrough + 3 RON',
+        pricing_card2_price: 'cost real + 3 RON',
+        pricing_card2_price_sub: '/ comandă livrată',
+        pricing_card2_p1: 'Pentru lanțuri sau flote cu volum mare',
+        pricing_card2_p2: 'Cost transport real al curierului propriu',
+        pricing_card2_p3: '+ 3 RON fee platformă HIR',
+        pricing_card2_p4: 'Dashboard fleet manager dedicat',
+        pricing_card2_p5: 'Negociere directă',
+        pricing_card2_cta: 'Discutați cu echipa',
+        pricing_disclaimer:
+          'Toate tarifele exclud TVA. Plata se face lunar pe factură SRL.',
+        case_study_eyebrow: 'Studiu de caz · Brașov',
+        case_study_title: 'Foișorul A — primul restaurant HIR live',
+        case_study_body:
+          'Restaurant tradițional românesc din Brașov. Migrat din GloriaFood pe 03.05.2026. 158 produse în meniu, comenzi online live cu storefront white-label, livrare proprie HIR.',
+        case_study_tag1: 'Importer GloriaFood',
+        case_study_tag2: 'White-label storefront',
+        case_study_tag3: 'Curier HIR',
+        case_study_tag4: '158 produse migrate',
+        case_study_link: 'Citiți studiul complet',
+        case_study_results_title: 'Rezultate primele zile',
+        case_study_result1_label: 'Timp migrare meniu',
+        case_study_result1_value: '< 5 minute',
+        case_study_result2_label: 'Produse migrate',
+        case_study_result2_value: '158 / 158',
+        case_study_result3_label: 'Cost per livrare',
+        case_study_result3_value: '3 RON flat',
+        case_study_result4_label: 'Date client',
+        case_study_result4_value: '100% restaurant',
+        final_cta_title: 'Gata să luați controlul comenzilor?',
+        final_cta_body:
+          'Înscrieți restaurantul în 5 minute. Importăm meniul GloriaFood automat și sunteți live azi.',
+        final_cta_signup: 'Înscrie restaurantul',
+        final_cta_consultant: 'Vorbiți cu un consultant',
+      },
+      // /features page body — full bilingual coverage.
+      features: {
+        page_title: 'Funcționalități — HIR Restaurant Suite',
+        page_description:
+          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări, dashboard fleet manager — toate într-o singură platformă.',
+        og_title: 'Funcționalități — totul într-o singură platformă',
+        og_subtitle:
+          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări.',
+        og_description:
+          'Tot ce are nevoie un restaurant pentru a vinde online, livra cu curier propriu și păstra datele clienților.',
+        eyebrow: 'Funcționalități',
+        hero_title: 'Tot ce-i trebuie unui restaurant. Într-o singură platformă.',
+        hero_body:
+          'Construit pe Next.js + Supabase, găzduit pe Vercel. Stack modern, audituri de securitate periodice, RGPD-ready. Fără mărci albe revândute.',
+        group1_title: 'Pentru restaurante',
+        group1_intro: 'Ce primește patronul în primele 5 minute după onboarding.',
+        item_storefront_title: 'Storefront white-label',
+        item_storefront_body:
+          'Pagina dumneavoastră de comenzi cu logo, culoare, cover, descriere proprie. Domeniu propriu opțional. Fără concurenți afișați alături, fără suggested-restaurants.',
+        item_importer_title: 'Importer GloriaFood',
+        item_importer_body:
+          'Conectați cheia GloriaFood și în <5 minute meniul + categoriile + opțiunile + comenzile istorice + clienții sunt importate complet în HIR.',
+        item_responsive_title: 'Dashboard responsive',
+        item_responsive_body:
+          'Comenzi, stocuri, comenzi în curs, livrări — totul de pe telefon. PWA instalabilă pe iOS / Android, fără App Store.',
+        item_analytics_title: 'Analytics + AI',
+        item_analytics_body:
+          'AI dedicat tenantului analizează zilnic vânzările și sugerează acțiuni: ce produs să promovați, ce ore au cerere, ce clienți să recâștigați.',
+        item_push_title: 'Notificări push + sunet',
+        item_push_body:
+          'Comandă nouă → ping pe dashboard + push pe telefon + sunet configurabil. Nu mai ratați niciodată o comandă.',
+        item_payments_title: 'Plăți card + cash',
+        item_payments_body:
+          'Stripe inclus pentru card. Cash la livrare opțional. Fără rate de procesare ascunse, fără markup.',
+        group2_title: 'Pentru curieri',
+        group2_intro:
+          'Aplicația de curier inclusă: dispatch, hartă, GPS, dovadă livrare.',
+        item_courier_pricing_title: 'Curier HIR la 3 RON / livrare',
+        item_courier_pricing_body:
+          'Tarif flat indiferent de valoarea comenzii. Fără procent, fără peak fees. Susțineți direct rețeaua HIR (curier propriu sau prin flotă parteneră).',
+        item_courier_map_title: 'Hartă + GPS în timp real',
+        item_courier_map_body:
+          'Curierul vede comenzile pe hartă, navighează cu Google Maps în-app, status sync în timp real cu restaurantul și clientul.',
+        item_courier_multifleet_title: 'Multi-fleet, multi-restaurant',
+        item_courier_multifleet_body:
+          'Un curier poate prelua comenzi de la mai multe restaurante simultan. Manager de flotă vede agregat KPI + venituri pe rider.',
+        group3_title: 'Pentru clienți',
+        group3_intro:
+          'Experiența finală pe care o vede cumpărătorul când deschide pagina dumneavoastră.',
+        item_loyalty_title: 'Loyalty + reviews built-in',
+        item_loyalty_body:
+          'Puncte de fidelitate la fiecare comandă. Reviews moderate, afișate pe pagină, importate din Google opțional.',
+        item_messaging_title: 'WhatsApp + SMS',
+        item_messaging_body:
+          'Confirmare comandă pe WhatsApp + SMS. Tracking link automat. Update livrare push la client.',
+        item_data_title: 'Datele rămân la restaurant',
+        item_data_body:
+          'CRM-ul cu telefonul, emailul, istoricul comenzilor — toate stau la restaurant. Niciun marketplace nu mai stă între dumneavoastră.',
+        demo_title: 'Vreți să vedeți platforma în acțiune?',
+        demo_body:
+          'Programați un demo de 20 minute cu echipa HIR. Vă arătăm dashboard-ul, aplicația de curier și fluxul de migrare GloriaFood pe contul real.',
+        demo_cta: 'Programați demo',
+        demo_alt_cta: 'Începeți migrarea',
+      },
     },
     privacy: {
       title: 'Politica de confidențialitate',
@@ -955,6 +1144,191 @@ export const dictionaries = {
         footer_legal: 'HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293 · Sânpetru, Brașov',
         footer_gdpr: 'GDPR policy',
         footer_contact: 'Contact',
+      },
+      // Lane EN-I18N (2026-05-05) — chrome shared across every marketing page.
+      shell: {
+        brand_name: 'HIR Restaurant Suite',
+        nav_home: 'Home',
+        nav_features: 'Features',
+        nav_pricing: 'Pricing',
+        nav_migrate: 'GloriaFood migration',
+        nav_case_studies: 'Case study',
+        nav_contact: 'Contact',
+        cta_become_partner: 'Become a partner',
+        cta_signup_restaurant: 'Sign up your restaurant',
+        locale_switcher_label: 'Switch language',
+        footer_tagline:
+          'Complete platform for restaurants: online orders, in-house delivery, CRM, loyalty and GloriaFood migration. Built in Romania.',
+        footer_col_product: 'Product',
+        footer_col_partners: 'Partners',
+        footer_col_legal: 'Legal',
+        footer_link_features: 'Features',
+        footer_link_pricing: 'Pricing',
+        footer_link_migrate: 'GloriaFood migration',
+        footer_link_case_studies: 'Case study',
+        footer_link_status: 'Platform status',
+        footer_link_affiliate: 'Affiliate programme',
+        footer_link_reseller: 'Reseller programme',
+        footer_link_contact: 'Sales contact',
+        footer_link_press: 'Press kit',
+        footer_link_privacy: 'Privacy',
+        footer_link_terms: 'Terms',
+        footer_link_cookies: 'Cookies',
+        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+      },
+      // Homepage body — full bilingual coverage.
+      home: {
+        page_title: 'HIR Restaurant Suite — Complete software at 3 RON / delivery',
+        page_description:
+          'Online orders with a white-label storefront, in-house HIR delivery at a flat 3 RON / order, GloriaFood importer and CRM. Built in Romania for restaurants.',
+        hero_badge:
+          'GloriaFood shuts down 30 April 2027 — start the migration now',
+        hero_title_pre: 'Complete restaurant software, delivered at',
+        hero_title_price: '3 RON / delivery',
+        hero_title_post: '.',
+        hero_body:
+          'Online ordering with your own white-label page, in-house delivery via the HIR courier network, CRM that keeps your customer data, GloriaFood importer and a dedicated AI. No subscription, no percentage — just 3 RON per delivered order.',
+        cta_signup: 'Sign up your restaurant',
+        cta_partner: 'Become a partner (300 RON / restaurant)',
+        cta_case_study: 'Read the case study →',
+        stat_pricing_label: 'Per-delivery cost',
+        stat_pricing_value: '3 RON',
+        stat_pricing_sub: 'vs. ~25-30% on marketplaces',
+        stat_importer_label: 'GloriaFood importer',
+        stat_importer_value: '<5 min',
+        stat_importer_sub: 'menu, orders, customers migrated',
+        stat_pilot_label: 'Pilot restaurant',
+        stat_pilot_value: '158 items',
+        stat_pilot_sub: 'FOISORUL A · live since 03.05.2026',
+        value_section_title:
+          'Everything you need to sell food online — in one platform.',
+        value_section_intro:
+          'Stop buying POS from one vendor, delivery from another, CRM from a third.',
+        value_storefront_title: 'White-label storefront',
+        value_storefront_body:
+          'Your ordering page with your own logo and brand colour, optional custom domain. No competitors shown next to you, no ghost-restaurants.',
+        value_courier_title: 'In-house HIR delivery',
+        value_courier_body:
+          'HIR courier at a flat 3 RON / delivery. Or use your own courier. You pick the mode, the cost stays predictable.',
+        value_importer_title: 'GloriaFood importer',
+        value_importer_body:
+          'Connect your GloriaFood key and in <5 minutes the menu + orders + customers are fully migrated into HIR.',
+        value_data_title: 'Your data stays yours',
+        value_data_body:
+          'CRM, loyalty, reviews, newsletter — all live with the restaurant. No marketplace stands between you and the customer anymore.',
+        value_more_link: 'See all features',
+        pricing_title: 'Transparent pricing. No surprises.',
+        pricing_intro:
+          'You pay only for delivered orders. No setup, no subscription, no percentage of order value.',
+        pricing_card1_tag: 'POPULAR',
+        pricing_card1_title: 'HIR Direct',
+        pricing_card1_price: '3 RON',
+        pricing_card1_price_sub: '/ delivered order',
+        pricing_card1_p1: 'HIR courier — your own or via the fleet network',
+        pricing_card1_p2: 'White-label storefront included',
+        pricing_card1_p3: 'GloriaFood importer included',
+        pricing_card1_p4: 'CRM + loyalty + reviews included',
+        pricing_card1_p5: 'No subscription, no setup fee',
+        pricing_card1_cta: 'Start the migration',
+        pricing_card2_tag: 'ENTERPRISE / FLEET',
+        pricing_card2_title: 'Passthrough + 3 RON',
+        pricing_card2_price: 'real cost + 3 RON',
+        pricing_card2_price_sub: '/ delivered order',
+        pricing_card2_p1: 'For chains or fleets with high volume',
+        pricing_card2_p2: 'Real transport cost of your courier',
+        pricing_card2_p3: '+ 3 RON HIR platform fee',
+        pricing_card2_p4: 'Dedicated fleet manager dashboard',
+        pricing_card2_p5: 'Direct contract negotiation',
+        pricing_card2_cta: 'Talk to the team',
+        pricing_disclaimer:
+          'All prices exclude VAT. Billed monthly to a Romanian SRL invoice.',
+        case_study_eyebrow: 'Case study · Brașov',
+        case_study_title: 'Foișorul A — first HIR restaurant live',
+        case_study_body:
+          'Traditional Romanian restaurant in Brașov. Migrated from GloriaFood on 03.05.2026. 158 menu items, online orders live with a white-label storefront, in-house HIR delivery.',
+        case_study_tag1: 'GloriaFood importer',
+        case_study_tag2: 'White-label storefront',
+        case_study_tag3: 'HIR courier',
+        case_study_tag4: '158 items migrated',
+        case_study_link: 'Read the full case study',
+        case_study_results_title: 'First-week results',
+        case_study_result1_label: 'Menu migration time',
+        case_study_result1_value: '< 5 minutes',
+        case_study_result2_label: 'Items migrated',
+        case_study_result2_value: '158 / 158',
+        case_study_result3_label: 'Cost per delivery',
+        case_study_result3_value: '3 RON flat',
+        case_study_result4_label: 'Customer data',
+        case_study_result4_value: '100% with restaurant',
+        final_cta_title: 'Ready to take control of your orders?',
+        final_cta_body:
+          'Sign up your restaurant in 5 minutes. We import your GloriaFood menu automatically and you go live today.',
+        final_cta_signup: 'Sign up your restaurant',
+        final_cta_consultant: 'Talk to a consultant',
+      },
+      // /features page body — full bilingual coverage.
+      features: {
+        page_title: 'Features — HIR Restaurant Suite',
+        page_description:
+          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations, fleet manager dashboard — all in one platform.',
+        og_title: 'Features — everything in one platform',
+        og_subtitle:
+          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations.',
+        og_description:
+          'Everything a restaurant needs to sell online, deliver with its own courier and keep its customer data.',
+        eyebrow: 'Features',
+        hero_title: 'Everything a restaurant needs. In one platform.',
+        hero_body:
+          'Built on Next.js + Supabase, hosted on Vercel. Modern stack, periodic security audits, GDPR-ready. No resold white labels.',
+        group1_title: 'For restaurants',
+        group1_intro: 'What the owner gets in the first 5 minutes after onboarding.',
+        item_storefront_title: 'White-label storefront',
+        item_storefront_body:
+          'Your ordering page with your own logo, colour, cover and description. Optional custom domain. No competitors shown alongside, no suggested-restaurants.',
+        item_importer_title: 'GloriaFood importer',
+        item_importer_body:
+          'Connect your GloriaFood key and in <5 minutes the menu + categories + options + historical orders + customers are fully imported into HIR.',
+        item_responsive_title: 'Responsive dashboard',
+        item_responsive_body:
+          'Orders, stock, in-progress orders, deliveries — everything from your phone. PWA installable on iOS / Android, no App Store.',
+        item_analytics_title: 'Analytics + AI',
+        item_analytics_body:
+          'A tenant-dedicated AI analyses your sales daily and suggests actions: which item to promote, which hours have demand, which customers to win back.',
+        item_push_title: 'Push notifications + sound',
+        item_push_body:
+          'New order → ping on the dashboard + phone push + configurable sound. Never miss an order again.',
+        item_payments_title: 'Card + cash payments',
+        item_payments_body:
+          'Stripe included for cards. Cash on delivery optional. No hidden processing rates, no markup.',
+        group2_title: 'For couriers',
+        group2_intro:
+          'The included courier app: dispatch, map, GPS, proof of delivery.',
+        item_courier_pricing_title: 'HIR courier at 3 RON / delivery',
+        item_courier_pricing_body:
+          'Flat fare regardless of order value. No percentage, no peak fees. You back the HIR network directly (own courier or via partner fleet).',
+        item_courier_map_title: 'Map + real-time GPS',
+        item_courier_map_body:
+          'The courier sees orders on a map, navigates in-app with Google Maps, status syncs in real time with the restaurant and customer.',
+        item_courier_multifleet_title: 'Multi-fleet, multi-restaurant',
+        item_courier_multifleet_body:
+          'A courier can pick up orders from several restaurants at once. Fleet managers see aggregated KPIs and revenue per rider.',
+        group3_title: 'For customers',
+        group3_intro:
+          'The end experience the buyer sees when they open your page.',
+        item_loyalty_title: 'Loyalty + reviews built in',
+        item_loyalty_body:
+          'Loyalty points on every order. Moderated reviews, displayed on the page, optionally imported from Google.',
+        item_messaging_title: 'WhatsApp + SMS',
+        item_messaging_body:
+          'Order confirmation on WhatsApp + SMS. Automatic tracking link. Delivery updates pushed to the customer.',
+        item_data_title: 'Data stays with the restaurant',
+        item_data_body:
+          'CRM with phone, email, order history — everything stays at the restaurant. No marketplace stands between you anymore.',
+        demo_title: 'Want to see the platform in action?',
+        demo_body:
+          'Schedule a 20-minute demo with the HIR team. We show you the dashboard, the courier app and the GloriaFood migration flow on your real account.',
+        demo_cta: 'Schedule a demo',
+        demo_alt_cta: 'Start the migration',
       },
     },
     privacy: {
