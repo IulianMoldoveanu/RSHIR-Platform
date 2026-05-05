@@ -43,6 +43,20 @@ export function middleware(request: NextRequest) {
     requestHeaders.set('x-hir-tenant-override', effectiveTenant);
   }
 
+  // Lane Y5 (2026-05-05) — embeddable storefront widget. Iframe URL is
+  // /?tenant=<slug>&embed=1; the param can drop on in-app navigation
+  // (e.g. /checkout, /track/<token>), so we persist `hir_embed=1` for the
+  // session so all downstream pages know they're rendering inside an
+  // embed iframe and can hide chrome + emit `parent.postMessage` on
+  // checkout success. 1-hour TTL keeps it from polluting later visits
+  // when the user opens the same browser to the canonical site.
+  const embedParam = request.nextUrl.searchParams.get('embed')?.trim() === '1';
+  const embedCookie = request.cookies.get('hir_embed')?.value === '1';
+  const isEmbed = embedParam || embedCookie;
+  if (isEmbed) {
+    requestHeaders.set('x-hir-embed', '1');
+  }
+
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   if (validParam) {
@@ -58,6 +72,18 @@ export function middleware(request: NextRequest) {
     response.cookies.delete('selected_tenant');
   } else if (tenantCookie && !validCookie) {
     response.cookies.delete('selected_tenant');
+  }
+
+  if (embedParam) {
+    // SameSite=None+Secure required because the cookie is read inside a
+    // cross-origin iframe (host page is the merchant's own domain).
+    response.cookies.set('hir_embed', '1', {
+      path: '/',
+      sameSite: 'none',
+      secure: true,
+      httpOnly: false,
+      maxAge: 60 * 60,
+    });
   }
 
   return response;
