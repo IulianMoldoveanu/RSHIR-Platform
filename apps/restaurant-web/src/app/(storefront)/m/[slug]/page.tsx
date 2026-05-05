@@ -7,7 +7,7 @@ import { getItemByShortId } from '@/lib/menu';
 import { shortIdFromSlug, buildItemSlug } from '@/lib/slug';
 import { formatRon } from '@/lib/format';
 import { ItemDetailActions } from '@/components/storefront/item-detail-actions';
-import { WhatsAppShareButton } from '@/components/storefront/share-button';
+import { SocialShare } from '@/components/storefront/social-share';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { safeJsonLd } from '@/lib/jsonld';
@@ -153,10 +153,19 @@ export default async function ItemPage({ params }: { params: { slug: string } })
         ) : null}
 
         <div className="mt-4">
-          <WhatsAppShareButton
-            text={t(locale, 'item.share_message_template', { item: item.name, tenant: tenant.name })}
+          <SocialShare
             url={url}
-            label={t(locale, 'item.share_on_whatsapp')}
+            text={t(locale, 'item.share_message_template', { item: item.name, tenant: tenant.name })}
+            tenantSlug={tenant.slug}
+            labels={{
+              share: t(locale, 'social.share_label'),
+              whatsapp: t(locale, 'social.share_whatsapp'),
+              facebook: t(locale, 'social.share_facebook'),
+              twitter: t(locale, 'social.share_twitter'),
+              telegram: t(locale, 'social.share_telegram'),
+              copy: t(locale, 'social.copy_link'),
+              copied: t(locale, 'social.link_copied'),
+            }}
           />
         </div>
 
