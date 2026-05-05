@@ -50,6 +50,12 @@ export async function GET() {
       env: process.env.VERCEL_ENV ?? 'local',
       ts: new Date().toISOString(),
     },
-    { status: ok ? 200 : 503 },
+    {
+      status: ok ? 200 : 503,
+      // Lane M: ensure neither Vercel's edge nor the uptime monitor's CDN
+      // serves a cached probe. We need every hit to actually run the DB
+      // round-trip — otherwise a cached 200 hides a real outage.
+      headers: { 'Cache-Control': 'no-store, max-age=0, must-revalidate' },
+    },
   );
 }
