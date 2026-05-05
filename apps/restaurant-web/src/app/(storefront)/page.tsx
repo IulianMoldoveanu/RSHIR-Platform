@@ -95,7 +95,11 @@ export default async function StorefrontHomePage() {
   // marketing landing. Replaces the previous notFound() (TODO-demo-2026-05-05).
   // Tenant subdomains and custom domains continue to render the storefront
   // menu unchanged.
-  if (!tenant) return <MarketingHome />;
+  if (!tenant) {
+    // Lane EN-I18N (2026-05-05) — pass the resolved locale into the
+    // marketing landing so its chrome + body renders RO/EN per cookie.
+    return <MarketingHome currentLocale={getLocale()} />;
+  }
 
   const locale = getLocale();
   const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);

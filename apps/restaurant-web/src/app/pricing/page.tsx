@@ -5,6 +5,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
@@ -98,12 +99,13 @@ const COMPARE: CompareRow[] = [
 ];
 
 export default function PricingPage() {
+  const currentLocale = getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader active="/pricing" />
+      <MarketingHeader active="/pricing" currentLocale={currentLocale} />
 
       {/* Hero */}
       <section className="border-b border-[#E2E8F0] bg-white">
@@ -278,7 +280,7 @@ export default function PricingPage() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </main>
   );
 }

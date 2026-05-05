@@ -4,6 +4,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { ContactForm } from './contact-form';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
@@ -36,12 +37,13 @@ export const metadata: Metadata = {
 };
 
 export default function ContactPage() {
+  const currentLocale = getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader active="/contact" />
+      <MarketingHeader active="/contact" currentLocale={currentLocale} />
 
       <section className="border-b border-[#E2E8F0] bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 md:py-20">
@@ -116,7 +118,7 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </main>
   );
 }

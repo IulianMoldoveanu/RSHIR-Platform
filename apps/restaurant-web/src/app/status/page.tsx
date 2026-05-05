@@ -17,6 +17,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { StatusBadge } from '@/components/status/status-badge';
 import { ServiceTile } from '@/components/status/service-tile';
 import { UptimeBars } from '@/components/status/uptime-bars';
@@ -59,6 +60,7 @@ function fmtDateTime(iso: string): string {
 }
 
 export default async function StatusPage() {
+  const currentLocale = getLocale();
   let snapshot;
   let loadError: string | null = null;
   try {
@@ -70,7 +72,7 @@ export default async function StatusPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
-      <MarketingHeader />
+      <MarketingHeader currentLocale={currentLocale} />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 sm:py-14">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-[#0F172A] sm:text-3xl">
@@ -162,7 +164,7 @@ export default async function StatusPage() {
           </div>
         )}
       </main>
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </div>
   );
 }

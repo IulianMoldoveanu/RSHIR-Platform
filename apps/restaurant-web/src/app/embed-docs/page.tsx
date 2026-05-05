@@ -3,6 +3,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { EmbedSnippetCopy } from './EmbedSnippetCopy';
 
 export const runtime = 'nodejs';
@@ -23,9 +24,10 @@ export const metadata: Metadata = {
 };
 
 export default function EmbedDocsPage() {
+  const currentLocale = getLocale();
   return (
     <div className="min-h-screen bg-white">
-      <MarketingHeader />
+      <MarketingHeader currentLocale={currentLocale} />
 
       <main className="mx-auto max-w-3xl px-4 pb-20 pt-10 sm:pt-14">
         <p className="text-xs font-medium uppercase tracking-widest text-purple-700">
@@ -179,7 +181,7 @@ export default function EmbedDocsPage() {
         </section>
       </main>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </div>
   );
 }

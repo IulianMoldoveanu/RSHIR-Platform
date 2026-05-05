@@ -12,15 +12,16 @@ import {
   Sparkles,
   ArrowRight,
 } from 'lucide-react';
+import type { Locale } from '@/lib/i18n';
 import { MarketingHeader, MarketingFooter } from './marketing-shell';
 
-export function MarketingHome() {
+export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader active="/" />
+      <MarketingHeader active="/" currentLocale={currentLocale} />
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section className="border-b border-[#E2E8F0] bg-white">
@@ -232,7 +233,7 @@ export function MarketingHome() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </main>
   );
 }
