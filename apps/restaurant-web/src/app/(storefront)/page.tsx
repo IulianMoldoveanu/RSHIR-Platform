@@ -28,6 +28,7 @@ import { metaDescriptionFor } from '@/lib/seo';
 import { buildRestaurantJsonLd, buildMenuJsonLd } from '@/lib/seo/jsonld-helpers';
 import { SocialShare } from '@/components/storefront/social-share';
 import { PixelScripts } from '@/components/analytics/pixel-scripts';
+import { hasAnalyticsConsent, hasMarketingConsent } from '@/lib/consent.server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
@@ -180,9 +181,14 @@ export default async function StorefrontHomePage() {
           dangerouslySetInnerHTML={{ __html: safeJsonLd(menuJsonLd) }}
         />
       )}
+      {/* GDPR / Legea 506/2004 — pixels only fire after explicit opt-in.
+          GA4 is gated by analytics consent, Facebook Pixel by marketing
+          consent. The cookie is set by /api/consent so a fresh navigation
+          after the user picks "Accept all" or saves custom prefs picks the
+          correct flags up server-side. */}
       <PixelScripts
-        fbPixelId={socialSettings.fb_pixel_id ?? null}
-        ga4MeasurementId={socialSettings.ga4_measurement_id ?? null}
+        fbPixelId={hasMarketingConsent() ? socialSettings.fb_pixel_id ?? null : null}
+        ga4MeasurementId={hasAnalyticsConsent() ? socialSettings.ga4_measurement_id ?? null : null}
       />
       <NewsletterBanner />
       <TenantHeader

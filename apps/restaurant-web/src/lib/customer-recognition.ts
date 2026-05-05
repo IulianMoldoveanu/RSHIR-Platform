@@ -37,7 +37,13 @@ export function maybeSetCustomerCookie(
   tenantId: string,
   customerId: string,
 ): void {
-  if (getConsent() === 'essential') return;
+  // Skip the recognition cookie only when the user has *explicitly* declined
+  // analytics. Undecided (null) is treated as functional, mirroring the
+  // pre-RSHIR-27 behaviour: recognition makes "Bun-revenit, {nume}" work and
+  // is core UX, but we still respect a hard "no" once the user opts into
+  // essential-only via the consent banner.
+  const consent = getConsent();
+  if (consent && consent.analytics === false) return;
   res.cookies.set({
     name: customerCookieName(tenantId),
     value: customerId,
