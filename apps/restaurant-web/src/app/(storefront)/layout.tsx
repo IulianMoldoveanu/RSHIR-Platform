@@ -6,6 +6,7 @@ import { HirFooter } from '@/components/storefront/hir-footer';
 import { CookieConsent } from '@/components/legal/cookie-consent';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { getTopPopularItems } from '@/lib/menu';
+import { isEmbedMode } from '@/lib/embed';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 
@@ -57,11 +58,22 @@ export default async function StorefrontLayout({ children }: { children: React.R
       : t(locale, 'layout.closed_now');
   }
 
+  // Lane Y5 (2026-05-05) — embed mode: hide HIR-branded footer + cookie
+  // consent + PWA-install prompt when the storefront renders inside a
+  // merchant-embedded iframe. Cart pill stays (it's commerce chrome,
+  // not HIR chrome). The `hir-embed` class on the wrapper is also a
+  // hook for future merchant CSS overrides if we ever expose them.
+  const embed = isEmbedMode();
+
   return (
-    <div style={{ ['--hir-brand' as never]: brandColor }}>
+    <div
+      data-hir-embed={embed ? '1' : undefined}
+      className={embed ? 'hir-embed' : undefined}
+      style={{ ['--hir-brand' as never]: brandColor }}
+    >
       <StorefrontShell tenantId={tenant.id}>
         {children}
-        <HirFooter />
+        {!embed && <HirFooter />}
         <CartPill
           closedReason={closedReason}
           locale={locale}
@@ -70,7 +82,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
           upsellItems={upsellItems}
         />
         <EmptyCartCta locale={locale} />
-        <CookieConsent locale={locale} />
+        {!embed && <CookieConsent locale={locale} />}
       </StorefrontShell>
     </div>
   );

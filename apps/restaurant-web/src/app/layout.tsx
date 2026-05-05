@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import { SupportPanel } from '@/components/support/support-panel';
 import './globals.css';
@@ -54,6 +55,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = getLocale();
   const supaHost = supabaseHost();
+  // Lane Y5 — suppress the "install HIR" PWA prompt when rendered inside
+  // an embed iframe; merchants don't want HIR install prompts on their
+  // own site.
+  const embed = isEmbedMode();
   return (
     <html lang={locale} className={inter.variable}>
       <head>
@@ -62,8 +67,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased">
         {children}
-        <PwaInstallPrompt />
-        <SupportPanel />
+        {!embed && <PwaInstallPrompt />}
+        {!embed && <SupportPanel />}
         <Analytics />
         <SpeedInsights />
       </body>

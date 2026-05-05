@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CheckCircle2, ChevronLeft } from 'lucide-react';
 import { resolveTenantFromHost } from '@/lib/tenant';
+import { isEmbedMode } from '@/lib/embed';
+import { EmbedOrderPlaced } from '@/components/storefront/embed-order-placed';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 
@@ -24,9 +26,11 @@ export default async function CheckoutSuccessPage({
   const orderId = searchParams.order_id ?? '';
   const token = searchParams.token ?? '';
   const shortId = orderId.slice(0, 8);
+  const embed = isEmbedMode();
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-10 text-center">
+      {embed && <EmbedOrderPlaced orderId={orderId || null} total={null} />}
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
         <CheckCircle2 className="h-8 w-8" aria-hidden />
       </div>

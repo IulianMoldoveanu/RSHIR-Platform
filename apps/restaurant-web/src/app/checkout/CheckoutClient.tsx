@@ -417,6 +417,24 @@ export function CheckoutClient(props: {
         // COD orders skip Stripe entirely. Order is already PENDING in the
         // DB; the customer goes straight to /track and the restaurant
         // confirms via the admin UI.
+        // Lane Y5 — when running inside an embed iframe, notify the host
+        // page so its analytics can record a conversion. CARD path fires
+        // the same event from /checkout/success after Stripe completes.
+        if (window.parent !== window) {
+          try {
+            window.parent.postMessage(
+              {
+                type: 'hir:order_placed',
+                orderId: response.orderId,
+                total: Number(response.quote.totalRon),
+                ts: Date.now(),
+              },
+              '*',
+            );
+          } catch {
+            /* host listener missing or cross-origin denied — non-fatal */
+          }
+        }
         router.push(`/track/${response.publicTrackToken}`);
         return;
       }
