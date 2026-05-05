@@ -94,7 +94,22 @@ export default async function OrdersPage() {
     resolveRiderMode(user.id),
   ]);
 
-  const assigned = (assignedData ?? []) as OrderRow[];
+  // Sort assigned orders by status priority so the prefix number always
+  // reflects what the rider should do next: PICKED_UP first (in transit),
+  // then ACCEPTED (needs pickup), then anything else. Tie-break on
+  // created_at desc (already the SQL order).
+  const STATUS_SORT_PRIORITY: Record<string, number> = {
+    PICKED_UP: 0,
+    IN_TRANSIT: 0,
+    ACCEPTED: 1,
+    CREATED: 2,
+    OFFERED: 3,
+  };
+  const assigned = ((assignedData ?? []) as OrderRow[]).slice().sort((a, b) => {
+    const pa = STATUS_SORT_PRIORITY[a.status] ?? 99;
+    const pb = STATUS_SORT_PRIORITY[b.status] ?? 99;
+    return pa - pb;
+  });
   const open = (openData ?? []) as OrderRow[];
 
   // Mode C riders are dispatched by their fleet manager — they don't
@@ -127,8 +142,8 @@ export default async function OrdersPage() {
           />
         ) : (
           <ul className="flex flex-col gap-3">
-            {assigned.map((o) => (
-              <OrderListItem key={o.id} order={o} />
+            {assigned.map((o, idx) => (
+              <OrderListItem key={o.id} order={o} seqNumber={idx + 1} />
             ))}
           </ul>
         )}
@@ -199,7 +214,7 @@ function Empty({
   );
 }
 
-function OrderListItem({ order }: { order: OrderRow }) {
+function OrderListItem({ order, seqNumber }: { order: OrderRow; seqNumber?: number }) {
   const hasRoute =
     order.pickup_lat != null &&
     order.pickup_lng != null &&
@@ -225,6 +240,14 @@ function OrderListItem({ order }: { order: OrderRow }) {
         {/* Top row: customer + vertical badge + status chip */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
+            {seqNumber != null ? (
+              <span
+                aria-label={`Comanda ${seqNumber}`}
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-[10px] font-bold text-white"
+              >
+                {seqNumber}
+              </span>
+            ) : null}
             <p className="truncate text-sm font-semibold text-zinc-100">
               {order.customer_first_name ?? 'Client'}
             </p>
