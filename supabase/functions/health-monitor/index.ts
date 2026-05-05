@@ -96,8 +96,21 @@ async function upsertState(app: string, ok: boolean, failed_since: string | null
 // Lane STATUS (2026-05-05): append-only probe history that powers the public
 // /status page (90-day uptime bars). One row per app per 5-min probe →
 // ~77k rows / 90 days, well within Postgres + Supabase free tier budget.
+//
+// Lane HEALTHZ (2026-05-05): also forwards the per-service breakdown
+// (db / auth / storage / stripe_webhook) into the new `payload` jsonb
+// column so the status page can show "auth OK / DB slow" instead of a
+// single green/red dot.
 async function recordPing(r: ProbeResult): Promise<void> {
   try {
+    // Trim payload to the parts the status page actually renders so we
+    // don't bloat the table with version strings + timestamps already
+    // captured elsewhere.
+    const body = r.body as { checks?: unknown; service?: string; version?: string } | null;
+    const payload = body?.checks
+      ? { checks: body.checks, service: body.service ?? r.app, version: body.version ?? null }
+      : null;
+
     await fetch(`${SUPABASE_URL}/rest/v1/health_check_pings`, {
       method: 'POST',
       headers: {
@@ -110,6 +123,7 @@ async function recordPing(r: ProbeResult): Promise<void> {
         ok: r.ok,
         status_code: r.status,
         latency_ms: r.latencyMs,
+        payload,
       }),
     });
   } catch {

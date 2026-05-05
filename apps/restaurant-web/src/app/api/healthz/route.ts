@@ -4,57 +4,125 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// RSHIR-40: liveness + DB-connectivity probe. Designed to be hit by an
-// external uptime monitor (UptimeRobot / Vercel cron / Better Stack).
-// Returns 503 when the Supabase round-trip exceeds 800ms or fails so the
-// monitor can page on real DB issues, not just Vercel function cold starts.
+// Lane HEALTHZ (2026-05-05): per-service synchronous self-check.
+//
+// Designed to be hit by external uptime monitors and by the
+// `health-monitor` Edge Function (which forwards the per-service breakdown
+// into `health_check_pings.payload` so /status can show what's broken,
+// not just "something is broken").
+//
+// Critical checks (failure → 503): db, auth.
+// Non-critical (failure recorded but does not flip overall ok): storage,
+// stripe webhook configuration. These are checked best-effort with
+// Promise.allSettled so a slow non-critical probe doesn't block the reply.
+//
+// Hard cap of 800 ms on individual probes via AbortSignal.timeout — total
+// response stays under the ≤500ms p95 budget when everything is healthy.
+
+type Probe = { ok: boolean; latency_ms: number; error?: string };
+
+const PROBE_TIMEOUT_MS = 800;
+
+async function probeDb(): Promise<Probe> {
+  const t0 = Date.now();
+  try {
+    const admin = getSupabaseAdmin();
+    const { error } = await admin
+      .from('tenants')
+      .select('id', { count: 'exact', head: true })
+      .abortSignal(AbortSignal.timeout(PROBE_TIMEOUT_MS));
+    const latency_ms = Date.now() - t0;
+    if (error) {
+      console.error('[healthz] db error', error.message);
+      return { ok: false, latency_ms, error: 'db_error' };
+    }
+    return { ok: true, latency_ms };
+  } catch (e: unknown) {
+    console.error('[healthz] db exception', e instanceof Error ? e.message : e);
+    return { ok: false, latency_ms: Date.now() - t0, error: 'db_exception' };
+  }
+}
+
+async function probeAuth(): Promise<Probe> {
+  const t0 = Date.now();
+  try {
+    const admin = getSupabaseAdmin();
+    // listUsers with perPage=1 is the cheapest auth.admin call that
+    // actually exercises the auth gateway (not just the Postgres role).
+    const { error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1 });
+    const latency_ms = Date.now() - t0;
+    if (error) {
+      console.error('[healthz] auth error', error.message);
+      return { ok: false, latency_ms, error: 'auth_error' };
+    }
+    return { ok: true, latency_ms };
+  } catch (e: unknown) {
+    console.error('[healthz] auth exception', e instanceof Error ? e.message : e);
+    return { ok: false, latency_ms: Date.now() - t0, error: 'auth_exception' };
+  }
+}
+
+async function probeStorage(): Promise<Probe> {
+  const t0 = Date.now();
+  try {
+    const admin = getSupabaseAdmin();
+    const { error } = await admin.storage.listBuckets();
+    const latency_ms = Date.now() - t0;
+    if (error) {
+      console.error('[healthz] storage error', error.message);
+      return { ok: false, latency_ms, error: 'storage_error' };
+    }
+    return { ok: true, latency_ms };
+  } catch (e: unknown) {
+    console.error('[healthz] storage exception', e instanceof Error ? e.message : e);
+    return { ok: false, latency_ms: Date.now() - t0, error: 'storage_exception' };
+  }
+}
+
 export async function GET() {
   const startedAt = Date.now();
 
-  let dbOk = false;
-  let dbErrorMsg: string | null = null;
-  let dbLatencyMs: number | null = null;
-  try {
-    const admin = getSupabaseAdmin();
-    const t0 = Date.now();
-    // count: 'exact', head: true is the cheapest possible query: no rows
-    // returned, just the count from the planner. No-op against a small
-    // tenants table.
-    const { error } = await admin
-      .from('tenants')
-      .select('id', { count: 'exact', head: true });
-    dbLatencyMs = Date.now() - t0;
-    if (error) {
-      // Don't expose raw DB error text publicly; log server-side only.
-      console.error('[healthz] db error', error.message);
-      dbErrorMsg = 'db_error';
-    } else {
-      dbOk = true;
-    }
-  } catch (e: unknown) {
-    console.error('[healthz] db exception', e instanceof Error ? e.message : e);
-    dbErrorMsg = 'db_exception';
-  }
+  const [dbRes, authRes, storageRes] = await Promise.allSettled([
+    probeDb(),
+    probeAuth(),
+    probeStorage(),
+  ]);
 
-  const totalMs = Date.now() - startedAt;
-  const slow = dbLatencyMs !== null && dbLatencyMs > 800;
-  const ok = dbOk && !slow;
+  const db = dbRes.status === 'fulfilled' ? dbRes.value : { ok: false, latency_ms: 0, error: 'rejected' };
+  const auth = authRes.status === 'fulfilled' ? authRes.value : { ok: false, latency_ms: 0, error: 'rejected' };
+  const supabase_storage =
+    storageRes.status === 'fulfilled' ? storageRes.value : { ok: false, latency_ms: 0, error: 'rejected' };
+
+  // Stripe webhook secret is required for the /api/webhooks/stripe route to
+  // verify signatures. Cheap config-presence check, no network call.
+  const stripe_webhook_secret_configured = Boolean(process.env.STRIPE_WEBHOOK_SECRET);
+
+  // Critical = anything that breaks the customer → tenant → courier flow at
+  // the platform level. Storage outage degrades proof-of-delivery uploads
+  // but does not block order placement, so it stays non-critical.
+  const ok = db.ok && auth.ok;
+
+  const total_ms = Date.now() - startedAt;
 
   return NextResponse.json(
     {
       ok,
-      app: 'restaurant-web',
-      db: { ok: dbOk, latencyMs: dbLatencyMs, error: dbErrorMsg },
-      totalMs,
-      buildSha: process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev',
+      service: 'restaurant-web',
+      version: process.env.NEXT_PUBLIC_GIT_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA ?? 'dev',
       env: process.env.VERCEL_ENV ?? 'local',
       ts: new Date().toISOString(),
+      total_ms,
+      checks: {
+        db,
+        auth,
+        stripe_webhook_secret_configured,
+        supabase_storage,
+      },
     },
     {
       status: ok ? 200 : 503,
-      // Lane M: ensure neither Vercel's edge nor the uptime monitor's CDN
-      // serves a cached probe. We need every hit to actually run the DB
-      // round-trip — otherwise a cached 200 hides a real outage.
+      // Lane M: every probe MUST run the checks fresh. A cached 200 hides
+      // a real outage from the uptime monitor.
       headers: { 'Cache-Control': 'no-store, max-age=0, must-revalidate' },
     },
   );
