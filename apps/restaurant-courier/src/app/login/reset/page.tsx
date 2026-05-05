@@ -86,17 +86,17 @@ function ResetInner() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-10 text-zinc-100">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 py-10 text-zinc-100">
       <div className="w-full max-w-sm space-y-4">
         <Link
           href="/login"
-          className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300"
         >
-          <ArrowLeft className="h-3 w-3" aria-hidden />
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
           Conectare
         </Link>
 
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
           <h1 className="flex items-center gap-2 text-base font-semibold text-zinc-100">
             <KeyRound className="h-4 w-4 text-violet-400" aria-hidden />
             Setează o parolă nouă
@@ -154,7 +154,7 @@ function ResetInner() {
               <button
                 type="submit"
                 disabled={submitting || hasToken !== true}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 Schimbă parola
