@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { Skeleton } from '@hir/ui';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
+import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { PolishChecklist } from './polish-checklist';
 import { KpiCards } from './kpi-cards';
 import { ActiveOrdersPanel } from './active-orders-panel';
@@ -60,8 +61,7 @@ export default async function DashboardOverviewPage({
     if (!state.went_live) redirect('/dashboard/onboarding');
   }
 
-  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
-  const storefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
+  const storefrontUrl = tenantStorefrontUrl(tenant.slug);
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">

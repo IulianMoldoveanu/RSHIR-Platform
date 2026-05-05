@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
+import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { MenuTabs } from './menu-tabs';
 
 export const dynamic = 'force-dynamic';
@@ -131,8 +132,7 @@ export default async function MenuPage() {
     }),
   );
 
-  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
-  const storefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
+  const storefrontUrl = tenantStorefrontUrl(tenant.slug);
 
   return (
     <div className="flex flex-col gap-4">
