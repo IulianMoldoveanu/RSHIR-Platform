@@ -185,20 +185,34 @@ async function callSonnet(
   model: string,
   userMessage: string,
 ): Promise<{ recommendations: Recommendation[]; cost_usd: number; raw_usage: unknown }> {
-  const res = await fetch(ANTHROPIC_API, {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': ANTHROPIC_VERSION,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1500,
-      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  });
+  // Single retry on Anthropic 429 (rate limit) honoring `retry-after`. Without
+  // this any tenant that hits a burst limit gets dropped from the daily digest;
+  // with this we self-heal as soon as the bucket refills (max one retry to
+  // stay well within Supabase Edge 150s wall-clock budget).
+  let res!: Response;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    res = await fetch(ANTHROPIC_API, {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': ANTHROPIC_VERSION,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4000,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: userMessage }],
+      }),
+    });
+    if (res.status !== 429 || attempt === 1) break;
+    const retryAfterRaw = res.headers.get('retry-after') ?? '';
+    const retryAfterSec = Number(retryAfterRaw);
+    const waitMs = Number.isFinite(retryAfterSec) && retryAfterSec > 0
+      ? Math.min(retryAfterSec, 30) * 1000
+      : 5_000;
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
   if (!res.ok) {
     const errText = await res.text();
     throw new Error(`anthropic_${res.status}: ${errText.slice(0, 300)}`);
@@ -405,7 +419,13 @@ Deno.serve(async (req) => {
     error?: string;
   }> = [];
 
-  for (const t of tenants) {
+  // Process tenants in bounded-concurrency batches. Serial loop hit Supabase
+  // Edge 150s wall-clock cap once we passed ~5 tenants (HTTP 503 since
+  // 2026-05-04). Unbounded fan-out would exceed Anthropic Tier-1 RPM (~50)
+  // as we onboard reseller tenants. Batch size of 4 keeps total wall-clock
+  // ~= ceil(N/4) * single-call latency (~30s) and stays under burst limits.
+  const CONCURRENCY = 4;
+  const processTenant = async (t: TenantMetrics): Promise<void> => {
     try {
       const userPrompt = buildUserPrompt(t, benchmarks);
       const { recommendations, cost_usd } = await callSonnet(apiKey, model, userPrompt);
@@ -442,6 +462,10 @@ Deno.serve(async (req) => {
         error: detail,
       });
     }
+  };
+  for (let i = 0; i < tenants.length; i += CONCURRENCY) {
+    const batch = tenants.slice(i, i + CONCURRENCY);
+    await Promise.allSettled(batch.map(processTenant));
   }
 
   const tgToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
