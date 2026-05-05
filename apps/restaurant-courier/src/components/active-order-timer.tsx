@@ -14,15 +14,19 @@ function formatElapsed(sinceIso: string): string {
   if (!Number.isFinite(since)) return '';
   const elapsedMs = Math.max(0, Date.now() - since);
   const totalSec = Math.floor(elapsedMs / 1000);
-  if (totalSec < 60) return `${totalSec}s`;
   const totalMin = Math.floor(totalSec / 60);
-  if (totalMin < 60) return `${totalMin}m`;
+  const secs = totalSec % 60;
+  if (totalMin < 60) {
+    // e.g. "4:07" or "59:59"
+    return `${totalMin}:${secs.toString().padStart(2, '0')}`;
+  }
+  // e.g. "1h 23m 17s" — hours never wrap/reset no matter how long the shift
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
-  return `${hours}h ${mins.toString().padStart(2, '0')}m`;
+  return `${hours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
 }
 
-const TICK_MS = 15_000;
+const TICK_MS = 1_000;
 
 // Small inline timer at the top of the order detail page that shows
 // how long the rider has spent in the current stage. Helps a courier
