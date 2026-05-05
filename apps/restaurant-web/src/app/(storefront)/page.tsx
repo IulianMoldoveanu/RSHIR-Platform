@@ -1,6 +1,6 @@
-import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ChefHat } from 'lucide-react';
+import { MarketingHome } from '@/components/marketing/marketing-home';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
 import { brandingFor, resolveTenantFromHost, tenantBaseUrl, type TenantSettings } from '@/lib/tenant';
@@ -32,7 +32,28 @@ import { PixelScripts } from '@/components/analytics/pixel-scripts';
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
   const locale = getLocale();
-  if (!tenant) return { title: t(locale, 'meta.default_title') };
+  if (!tenant) {
+    // Lane H marketing landing — only on canonical hosts with no tenant.
+    const title = 'HIR Restaurant Suite — Software complet la 3 RON / livrare';
+    const description =
+      'Comenzi online cu storefront white-label, livrare proprie HIR la 3 RON / livrare flat, importer GloriaFood și CRM. Construit în România pentru restaurante.';
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: 'website',
+        locale: locale === 'en' ? 'en_GB' : 'ro_RO',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+      },
+      robots: { index: true, follow: true },
+    };
+  }
   const description = metaDescriptionFor(
     tenant.settings,
     t(locale, 'meta.home_description_template', { name: tenant.name }),
@@ -66,15 +87,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function StorefrontHomePage() {
   const { tenant } = await resolveTenantFromHost();
-  // TODO(demo-2026-05-05): on canonical Vercel hosts (hir-restaurant-web.
-  // vercel.app, preview deployments, *.lvh.me) with no ?tenant= override
-  // and no cookie, this 404s the visitor. Intended for prod/custom-domain
-  // hardening but blocks support staff from quick-loading a tenant by URL.
-  // Consider rendering a small "Choose tenant" picker when env !== 'production'
-  // OR when host matches a known non-canonical pattern. Found during
-  // 2026-05-04 E2E walkthrough — Iulian opening hir-restaurant-web.vercel.app
-  // directly returns 404 with no hint.
-  if (!tenant) notFound();
+  // Lane H 2026-05-04: when no tenant resolves on the canonical Vercel host
+  // (no ?tenant= override, no custom domain match) we render the HIR brand
+  // marketing landing. Replaces the previous notFound() (TODO-demo-2026-05-05).
+  // Tenant subdomains and custom domains continue to render the storefront
+  // menu unchanged.
+  if (!tenant) return <MarketingHome />;
 
   const locale = getLocale();
   const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
