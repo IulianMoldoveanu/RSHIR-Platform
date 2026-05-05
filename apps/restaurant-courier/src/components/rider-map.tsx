@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { vehicleIconHtml, type VehicleType as VehicleIconType } from './vehicle-icon';
 
 const LEAFLET_VERSION = '1.9.4';
 const LEAFLET_ROTATE_VERSION = '0.2.8';
@@ -52,6 +53,38 @@ declare global {
   interface Window {
     L?: LeafletGlobal;
   }
+}
+
+// Local copies — duplicated rather than imported because rider-map.tsx is a
+// 'use client' module and we want to avoid pulling a shared lib that could
+// drag server-only code into the client bundle.
+function haversineMetersLocal(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Initial bearing in degrees from p1 to p2 (clockwise from true north).
+function bearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  const brng = Math.atan2(y, x);
+  return (toDeg(brng) + 360) % 360;
 }
 
 function loadLeaflet(): Promise<LeafletGlobal> {
@@ -115,7 +148,9 @@ function loadLeafletRotate(): Promise<void> {
 
 type Permission = 'pending' | 'granted' | 'denied' | 'unsupported' | 'error';
 
-export type VehicleType = 'BIKE' | 'SCOOTER' | 'CAR';
+// Re-export the shared type so existing call sites typed against
+// `RiderMap`'s VehicleType keep working without code changes.
+export type VehicleType = VehicleIconType;
 
 type ActivePin = {
   orderId: string;
@@ -125,48 +160,31 @@ type ActivePin = {
   dropoffLng: number | null;
 };
 
-// Inline SVGs for the rider's own marker. Sized at 36×36 so they read on
-// mobile without overpowering the map. Strokes are bright violet on a white
-// fill so they remain legible against tile colors. The `transform-origin`
-// keeps the icon centered when the map is rotated.
-function riderIconSvg(type: VehicleType): string {
-  const base = 'width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
-  // Bike: two wheels + frame triangle.
-  const bike = `<svg xmlns="http://www.w3.org/2000/svg" ${base}>
-    <circle cx="5.5" cy="17.5" r="3.5" fill="#ffffff"/>
-    <circle cx="18.5" cy="17.5" r="3.5" fill="#ffffff"/>
-    <path d="M5.5 17.5L8 7l5 0 4 10.5"/>
-    <path d="M13 7h3"/>
-  </svg>`;
-  // Scooter: small wheel + body + handlebar.
-  const scooter = `<svg xmlns="http://www.w3.org/2000/svg" ${base}>
-    <circle cx="6" cy="18" r="3" fill="#ffffff"/>
-    <circle cx="18" cy="18" r="3" fill="#ffffff"/>
-    <path d="M6 18l3-9h6l3 9"/>
-    <path d="M9 9V6h3" />
-  </svg>`;
-  // Car: top-down silhouette so the icon makes sense even when map is
-  // rotated. Front of the car points up by default; rotation aligns with
-  // the rider's bearing when we have one.
-  const car = `<svg xmlns="http://www.w3.org/2000/svg" ${base}>
-    <rect x="6" y="3" width="12" height="18" rx="3" fill="#ffffff"/>
-    <path d="M9 3v4h6V3"/>
-    <path d="M9 17v4h6v-4"/>
-    <circle cx="6" cy="9" r="0.8" fill="#7c3aed"/>
-    <circle cx="18" cy="9" r="0.8" fill="#7c3aed"/>
-  </svg>`;
-  if (type === 'BIKE') return bike;
-  if (type === 'SCOOTER') return scooter;
-  return car;
-}
-
+// Builds the divIcon HTML wrapping the 3D miniature SVG. The wrapper has
+// data-rider-marker="1" so we can grab it back from the DOM later to
+// rotate it according to the live GPS heading without touching Leaflet's
+// marker internals (which would force a full re-render every fix). The
+// rotation is applied via CSS transform on the inner element which gives
+// us a smooth ~120ms tween on every heading update.
 function makeRiderIcon(L: LeafletGlobal, type: VehicleType): unknown {
+  const inner = vehicleIconHtml(type);
   return L.divIcon({
     className: 'rider-vehicle-pin',
-    html: `<div style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:9999px;background:rgba(124,58,237,0.18);box-shadow:0 0 0 4px rgba(124,58,237,0.28);">${riderIconSvg(type)}</div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    html: `<div data-rider-marker="1" style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:9999px;background:radial-gradient(circle at 30% 25%, rgba(167,139,250,0.32), rgba(124,58,237,0.10) 70%);box-shadow:0 0 0 3px rgba(124,58,237,0.34), 0 6px 14px rgba(0,0,0,0.45);transition:transform 120ms linear;transform-origin:center;will-change:transform;"><div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">${inner}</div></div>`,
+    iconSize: [56, 56],
+    iconAnchor: [28, 28],
   });
+}
+
+// Helper: find the inner rotation target inside a Leaflet marker DOM node.
+// We can't trust a static class name because Leaflet may inject its own
+// transform (translate3d) on the immediate marker icon — the inner div we
+// added is the safe place to land our rotation transform.
+function getMarkerInnerEl(marker: LeafletMarker): HTMLElement | null {
+  const m = marker as unknown as { getElement?: () => HTMLElement | null };
+  const el = m.getElement?.();
+  if (!el) return null;
+  return el.querySelector<HTMLElement>('[data-rider-marker="1"]');
 }
 
 export function RiderMap({
@@ -291,6 +309,12 @@ export function RiderMap({
         // after first paint; force a resize so tiles fill correctly.
         setTimeout(() => map.invalidateSize(), 0);
 
+        // Track last-known heading so the icon stays oriented even when the
+        // device is briefly stationary (heading goes null at speed 0).
+        let lastHeadingDeg: number | null = null;
+        let lastLat: number | null = null;
+        let lastLng: number | null = null;
+
         const id = navigator.geolocation.watchPosition(
           (pos) => {
             if (cancelledRef.current) return;
@@ -298,12 +322,38 @@ export function RiderMap({
             const lng = pos.coords.longitude;
             setPermission('granted');
 
+            // Heading: prefer the device-reported value when present
+            // (mobile GPS at speed). Fall back to a derived bearing from
+            // consecutive points so the icon still turns when only
+            // crowdsourced wifi/cell positioning is available.
+            let nextHeading: number | null = null;
+            if (typeof pos.coords.heading === 'number' && Number.isFinite(pos.coords.heading)) {
+              nextHeading = pos.coords.heading;
+            } else if (lastLat != null && lastLng != null) {
+              const moved = haversineMetersLocal(lastLat, lastLng, lat, lng);
+              if (moved > 5) {
+                nextHeading = bearingDeg(lastLat, lastLng, lat, lng);
+              }
+            }
+            if (nextHeading != null) lastHeadingDeg = nextHeading;
+            lastLat = lat;
+            lastLng = lng;
+
             if (markerRef.current) {
               markerRef.current.setLatLng([lat, lng]);
             } else {
               const icon = makeRiderIcon(L, vehicleType);
               markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
               if (polyBounds.length < 2) map.setView([lat, lng], RIDER_ZOOM);
+            }
+
+            // Apply rotation on the inner div. Wait for the next frame so
+            // Leaflet has had time to attach the marker DOM after addTo.
+            if (lastHeadingDeg != null) {
+              requestAnimationFrame(() => {
+                const inner = markerRef.current ? getMarkerInnerEl(markerRef.current) : null;
+                if (inner) inner.style.transform = `rotate(${lastHeadingDeg}deg)`;
+              });
             }
           },
           (err) => {

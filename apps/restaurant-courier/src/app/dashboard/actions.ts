@@ -315,6 +315,23 @@ export async function updateVehicleAction(formData: FormData): Promise<void> {
     .update({ vehicle_type: raw })
     .eq('user_id', userId);
   revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard');
+}
+
+// Typed variant called from the client-side <VehicleSelector/> so it can
+// commit on tap (instant visual feedback) without going through a form.
+// The map's marker re-resolves on the next dashboard render — we revalidate
+// /dashboard so the courier sees the new icon as soon as they navigate home.
+export async function updateVehicleTypeAction(type: string): Promise<void> {
+  const userId = await requireUserId();
+  if (!isVehicleType(type)) return;
+  const admin = createAdminClient();
+  await admin
+    .from('courier_profiles')
+    .update({ vehicle_type: type })
+    .eq('user_id', userId);
+  revalidatePath('/dashboard/settings');
+  revalidatePath('/dashboard');
 }
 
 // Validates the URL points at the courier-avatars bucket on our Supabase
