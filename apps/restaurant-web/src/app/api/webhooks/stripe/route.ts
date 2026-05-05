@@ -6,18 +6,28 @@ import {
   markOrderPaidAndDispatch,
   markOrderPaymentFailed,
   markOrderRefunded,
+  recordDisputeEvent,
 } from '../../checkout/order-finalize';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// Lane G — events we act on. Anything else is silently ignored (return 200
-// so Stripe stops retrying). Listing them up-front lets ops grep for
-// "what events does the webhook handle?" without reading the switch.
+// Lane G + payment-lifecycle — events we act on. Anything else is silently
+// ignored (return 200 so Stripe stops retrying). Listing them up-front lets
+// ops grep for "what events does the webhook handle?" without reading the
+// switch.
 const HANDLED_EVENTS = [
   'payment_intent.succeeded',
   'payment_intent.payment_failed',
   'charge.refunded',
+  // payment-lifecycle PR 2: dispute INTAKE only (no money movement).
+  // Stripe drives the chargeback state machine; we mirror it into
+  // payment_disputes for visibility and flag the order as disputed=true.
+  'charge.dispute.created',
+  'charge.dispute.updated',
+  'charge.dispute.closed',
+  'charge.dispute.funds_withdrawn',
+  'charge.dispute.funds_reinstated',
 ] as const;
 type HandledEvent = (typeof HANDLED_EVENTS)[number];
 
@@ -49,9 +59,9 @@ export async function POST(req: Request) {
   }
 
   // Skip idempotency + side-effects for events we don't act on. Stripe
-  // delivers ~50 event types per integration; we only care about 3. Logging
-  // every payment_intent.created/processing/etc. into stripe_events_processed
-  // would balloon the table without buying anything.
+  // delivers ~50 event types per integration; we only care about a handful.
+  // Logging every payment_intent.created/processing/etc. into
+  // stripe_events_processed would balloon the table without buying anything.
   if (!isHandled(event.type)) {
     return NextResponse.json({ received: true, handled: false });
   }
@@ -106,12 +116,35 @@ export async function POST(req: Request) {
         // The charge.refunded event arrives after a refund completes (full
         // or partial). PaymentIntent id is on the charge object; we pull
         // the matching order via the existing stripe_payment_intent_id link.
+        // Observation-only — the refund has already been executed by Stripe
+        // (either via PR 3 admin action once that lands, or via Stripe
+        // dashboard / dispute resolution). We mirror state, do not initiate.
         const charge = event.data.object as Stripe.Charge;
         const intentId =
           typeof charge.payment_intent === 'string'
             ? charge.payment_intent
             : charge.payment_intent?.id ?? null;
-        if (intentId) await markOrderRefunded(intentId);
+        if (intentId) {
+          await markOrderRefunded(intentId, {
+            amountBani:
+              typeof charge.amount_refunded === 'number' ? charge.amount_refunded : null,
+            reason: charge.refunds?.data?.[0]?.reason ?? null,
+          });
+        }
+        break;
+      }
+      // payment-lifecycle PR 2: dispute INTAKE only. We never call
+      // stripe.disputes.update / .submit from here — that's the merchant's
+      // responsibility via Stripe dashboard until we build evidence-submission
+      // UI in a later PR. All five events funnel through recordDisputeEvent
+      // which upserts payment_disputes + flips orders.disputed when needed.
+      case 'charge.dispute.created':
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed':
+      case 'charge.dispute.funds_withdrawn':
+      case 'charge.dispute.funds_reinstated': {
+        const dispute = event.data.object as Stripe.Dispute;
+        await recordDisputeEvent(event.type, dispute);
         break;
       }
     }
