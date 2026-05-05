@@ -45,7 +45,10 @@ begin
     from vault.decrypted_secrets where name = 'notify_new_order_secret' limit 1;
   select decrypted_secret into v_jwt
     from vault.decrypted_secrets where name = 'notify_function_anon_jwt' limit 1;
-  if v_url is null or v_secret is null then
+  -- Guard `v_jwt` too: without it, pg_net would build `Authorization:
+  -- Bearer ` and the gateway would 401 noisily rather than no-op cleanly
+  -- (Codex P2, 2026-05-05).
+  if v_url is null or v_secret is null or v_jwt is null then
     return new;
   end if;
 
@@ -53,7 +56,7 @@ begin
     url     := v_url,
     headers := jsonb_build_object(
       'Content-Type',        'application/json',
-      'Authorization',       'Bearer ' || coalesce(v_jwt, ''),
+      'Authorization',       'Bearer ' || v_jwt,
       'x-hir-notify-secret', v_secret
     ),
     body    := jsonb_build_object(
