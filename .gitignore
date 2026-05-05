@@ -40,3 +40,8 @@ next-env.d.ts
 coverage/
 .nyc_output/
 .cache/
+
+# Playwright
+playwright-report/
+test-results/
+.last-run.json

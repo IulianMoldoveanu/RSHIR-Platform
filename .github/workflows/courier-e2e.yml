@@ -1,0 +1,71 @@
+# Playwright e2e gate for the courier app.
+#
+# Runs only when courier app code or this workflow itself changes — keeps
+# CI cheap on PRs that don't touch the courier surface.
+#
+# Strategy:
+#   - Boot `next dev` on :3002 inside the runner.
+#   - Seed a deterministic test courier + fleet via service-role.
+#   - Run the smoke specs (specs marked `test.fixme` are skipped — they are
+#     scaffolded for local follow-up).
+#
+# Secrets required (Settings → Secrets → Actions):
+#   NEXT_PUBLIC_SUPABASE_URL          (test project URL)
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY     (test project anon key)
+#   SUPABASE_SERVICE_ROLE_KEY         (test project service role; fixture seed only)
+
+name: Courier E2E
+
+on:
+  pull_request:
+    paths:
+      - 'apps/restaurant-courier/**'
+      - 'packages/**'
+      - '.github/workflows/courier-e2e.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: courier-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_COURIER_EMAIL: courier-e2e@hir.test
+      E2E_COURIER_PASSWORD: Courier-E2E-Pass-2026
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: apps/restaurant-courier
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run e2e
+        working-directory: apps/restaurant-courier
+        run: pnpm e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/restaurant-courier/playwright-report/
+          retention-days: 7
