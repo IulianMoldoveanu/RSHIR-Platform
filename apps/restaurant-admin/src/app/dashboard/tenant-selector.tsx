@@ -15,11 +15,13 @@ export function TenantSelector({
 
   return (
     <form ref={formRef} action={selectTenantAction} className="flex items-center gap-2">
-      {/* Mobile-fix 2026-05-05: hide the "Restaurant:" affordance on
-          phones — the topbar is busy on 360px (hamburger + selector +
-          storefront link + logout) and the select itself communicates
-          intent via its option label. */}
-      <label htmlFor="tenant-select" className="hidden text-xs text-zinc-500 sm:inline">
+      {/* Mobile-fix 2026-05-05: visually hide the "Restaurant:"
+          affordance on phones (topbar is busy with hamburger + selector
+          + storefront link + logout) but keep it in the accessibility
+          tree via `sr-only` so screen readers still announce the
+          accessible name of the <select>. Codex P2 flagged the
+          original `hidden` here as an a11y regression. */}
+      <label htmlFor="tenant-select" className="sr-only text-xs text-zinc-500 sm:not-sr-only sm:inline">
         Restaurant:
       </label>
       <select
