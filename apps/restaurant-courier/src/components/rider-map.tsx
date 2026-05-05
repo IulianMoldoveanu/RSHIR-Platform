@@ -266,7 +266,7 @@ export function RiderMap({
   // running `step()` closure from the previous effect would resume after
   // the fresh effect resets `cancelledRef` and shove the new marker
   // toward stale coordinates for up to ~600 ms (Codex review on #275).
-  const animationFrameIdRef.currentRef = useRef<number | null>(null);
+  const animationFrameIdRef = useRef<number | null>(null);
   const [permission, setPermission] = useState<Permission>('pending');
 
   useEffect(() => {
@@ -387,13 +387,13 @@ export function RiderMap({
         // fix, it eases between the previous and the new coordinate over
         // ~600 ms. We drive the easing with rAF, cancel any in-flight
         // animation when a new fix arrives, and fall back to setLatLng
-        // jumps for identical points. The rAF id lives on `animationFrameIdRef.currentRef`
+        // jumps for identical points. The rAF id lives on `animationFrameIdRef`
         // so the useEffect cleanup can cancel it across re-runs.
         const INTERPOLATE_MS = 600;
         const cancelInterpolation = () => {
-          if (animationFrameIdRef.currentRef.current != null) {
-            cancelAnimationFrame(animationFrameIdRef.currentRef.current);
-            animationFrameIdRef.currentRef.current = null;
+          if (animationFrameIdRef.current != null) {
+            cancelAnimationFrame(animationFrameIdRef.current);
+            animationFrameIdRef.current = null;
           }
         };
 
