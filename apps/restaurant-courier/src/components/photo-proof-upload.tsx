@@ -87,13 +87,50 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   async function handleUploadAll() {
     setUploading(true);
     setError(null);
+    // Audit BUG P1 #7 fix: previously a partial-failure (id ok, rx throws)
+    // would push the user to retry, which re-uploaded id to a fresh path
+    // and lost the first url. Now we skip slots that already have a URL
+    // and only retry the failures. Same SlotState.url field carries the
+    // success URL forward so retries are idempotent.
     try {
-      const [deliveryUrl, idUrl, rxUrl] = await Promise.all([
-        uploadSlot(delivery, 'delivery'),
-        uploadSlot(idSlot, 'id'),
-        uploadSlot(rxSlot, 'prescription'),
-      ]);
-      onComplete({ delivery: deliveryUrl, id: idUrl, prescription: rxUrl });
+      const tasks: Array<Promise<{ folder: 'delivery' | 'id' | 'prescription'; url?: string }>> = [];
+      const cached = {
+        delivery: delivery.url ?? undefined,
+        id: idSlot.url ?? undefined,
+        prescription: rxSlot.url ?? undefined,
+      };
+      if (delivery.file && !cached.delivery) {
+        tasks.push(uploadSlot(delivery, 'delivery').then((url) => ({ folder: 'delivery', url })));
+      }
+      if (idSlot.file && !cached.id) {
+        tasks.push(uploadSlot(idSlot, 'id').then((url) => ({ folder: 'id', url })));
+      }
+      if (rxSlot.file && !cached.prescription) {
+        tasks.push(uploadSlot(rxSlot, 'prescription').then((url) => ({ folder: 'prescription', url })));
+      }
+      const results = await Promise.allSettled(tasks);
+      const next = { ...cached };
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.url) {
+          next[r.value.folder] = r.value.url;
+        }
+      }
+      // Persist successes back to slot state so a retry skips them.
+      if (next.delivery && !cached.delivery)
+        setDelivery((prev) => ({ ...prev, url: next.delivery! }));
+      if (next.id && !cached.id) setIdSlot((prev) => ({ ...prev, url: next.id! }));
+      if (next.prescription && !cached.prescription)
+        setRxSlot((prev) => ({ ...prev, url: next.prescription! }));
+
+      // Surface any remaining failures for retry.
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        const first = failed[0] as PromiseRejectedResult;
+        const reason = first.reason;
+        setError(reason instanceof Error ? reason.message : 'Eroare la încărcare. Încearcă din nou.');
+        return;
+      }
+      onComplete({ delivery: next.delivery, id: next.id, prescription: next.prescription });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la încărcare. Încearcă din nou.');
     } finally {

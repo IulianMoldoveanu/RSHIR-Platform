@@ -18,6 +18,19 @@ import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
 
+// Romanian labels for the status chip on the order detail header. Mirrors
+// the lookup in /dashboard/orders/page.tsx (audit P1: previously the chip
+// rendered the raw enum here while the list page used Romanian labels).
+const ORDER_STATUS_RO: Record<string, string> = {
+  CREATED: 'Liberă',
+  OFFERED: 'Oferită',
+  ACCEPTED: 'Acceptată',
+  PICKED_UP: 'Ridicată',
+  IN_TRANSIT: 'În livrare',
+  DELIVERED: 'Livrată',
+  CANCELLED: 'Anulată',
+};
+
 type PharmaMetadata = {
   requires_id_verification?: boolean;
   requires_prescription?: boolean;
@@ -88,7 +101,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
           <VerticalBadge vertical={vertical} />
         </div>
         <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
-          {order.status}
+          {ORDER_STATUS_RO[order.status] ?? order.status}
         </span>
       </div>
 

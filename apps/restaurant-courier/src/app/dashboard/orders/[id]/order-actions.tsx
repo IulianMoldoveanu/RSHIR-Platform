@@ -27,10 +27,15 @@ type Props = {
   acceptAction: () => Promise<void>;
   pickedUpAction: () => Promise<void>;
   /**
-   * Server action that accepts an optional proof URL and an optional
-   * cash_collected flag (only meaningful when payment_method=COD).
+   * Server action that accepts an optional proof URL, an optional
+   * cash_collected flag (only meaningful when payment_method=COD), and
+   * optional pharma proofs (id + prescription) for pharma orders.
    */
-  deliveredAction: (proofUrl?: string, cashCollected?: boolean) => Promise<void>;
+  deliveredAction: (
+    proofUrl?: string,
+    cashCollected?: boolean,
+    pharmaProofs?: { idUrl?: string; prescriptionUrl?: string },
+  ) => Promise<void>;
 };
 
 export function OrderActions({
@@ -48,6 +53,8 @@ export function OrderActions({
 }: Props) {
   const [pharmaOk, setPharmaOk] = useState(false);
   const [pharmaProofUrl, setPharmaProofUrl] = useState<string | undefined>(undefined);
+  const [pharmaIdUrl, setPharmaIdUrl] = useState<string | undefined>(undefined);
+  const [pharmaRxUrl, setPharmaRxUrl] = useState<string | undefined>(undefined);
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
   const [cashConfirmed, setCashConfirmed] = useState(false);
 
@@ -64,6 +71,11 @@ export function OrderActions({
   function handlePharmaComplete(urls: { delivery?: string; id?: string; prescription?: string }) {
     setPharmaOk(true);
     if (urls.delivery) setPharmaProofUrl(urls.delivery);
+    // Capture id + prescription URLs so they reach the server action.
+    // Migration 010 added the persisting columns; without these lines the
+    // photos are uploaded but never linked to the order — confirmed bug.
+    if (urls.id) setPharmaIdUrl(urls.id);
+    if (urls.prescription) setPharmaRxUrl(urls.prescription);
   }
 
   function handleRestaurantPhotoComplete(urls: { delivery?: string }) {
@@ -72,7 +84,15 @@ export function OrderActions({
 
   async function handleDeliverConfirm() {
     const proofUrl = vertical === 'pharma' ? pharmaProofUrl : restaurantProofUrl;
-    await deliveredAction(proofUrl, isCashOnDelivery ? cashConfirmed : undefined);
+    const pharmaProofs =
+      vertical === 'pharma' && (pharmaIdUrl || pharmaRxUrl)
+        ? { idUrl: pharmaIdUrl, prescriptionUrl: pharmaRxUrl }
+        : undefined;
+    await deliveredAction(
+      proofUrl,
+      isCashOnDelivery ? cashConfirmed : undefined,
+      pharmaProofs,
+    );
   }
 
   return (

@@ -76,8 +76,27 @@ export default async function DashboardHome() {
 
   const profile = profileData as ProfileRow | null;
   const shift = shiftData as ShiftRow | null;
-  const activeOrders = (activeOrdersData ?? []) as ActiveOrderRow[];
   const isOnline = !!shift;
+  // Sort active orders by next-action urgency so the rider sees what to
+  // do FIRST at the top: in-progress (IN_TRANSIT > PICKED_UP) before
+  // not-yet-picked (ACCEPTED). Tie-break on updated_at desc (already the
+  // SQL order). Audit P1 #4 — previous "newest first" left a 12-min-old
+  // PICKED_UP behind a fresh ACCEPTED.
+  const STATUS_PRIORITY: Record<string, number> = {
+    IN_TRANSIT: 0,
+    PICKED_UP: 1,
+    ACCEPTED: 2,
+  };
+  const activeOrders = ((activeOrdersData ?? []) as ActiveOrderRow[])
+    .slice()
+    .sort((a, b) => {
+      const pa = STATUS_PRIORITY[a.status] ?? 99;
+      const pb = STATUS_PRIORITY[b.status] ?? 99;
+      if (pa !== pb) return pa - pb;
+      const ua = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const ub = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return ub - ua;
+    });
 
   const activePins = activeOrders.map((o) => ({
     orderId: o.id,
@@ -116,16 +135,29 @@ export default async function DashboardHome() {
         </p>
       </div>
 
-      {/* Active-order quick-jump cards. Stacked at the top-right so the rider
-          can tap straight to the next stage without losing the map. */}
+      {/* Active-order quick-jump cards. Sorted by next-action urgency
+          (IN_TRANSIT/PICKED_UP first), prefixed with sequence numbers so
+          the rider always knows which order to handle next. */}
       {activeOrders.length > 0 ? (
         <div className="absolute right-3 top-3 z-10 flex max-w-[55%] flex-col gap-2">
-          {activeOrders.slice(0, 3).map((o) => (
+          {activeOrders.slice(0, 3).map((o, idx) => (
             <Link
               key={o.id}
               href={`/dashboard/orders/${o.id}`}
-              className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur hover:border-violet-400 hover:bg-zinc-900"
+              className={`flex items-center gap-2 rounded-xl border bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur hover:bg-zinc-900 ${
+                idx === 0
+                  ? 'border-violet-400 ring-1 ring-violet-500/30 hover:border-violet-300'
+                  : 'border-violet-500/40 hover:border-violet-400'
+              }`}
             >
+              <span
+                aria-hidden
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                  idx === 0 ? 'bg-violet-500 text-white' : 'bg-zinc-800 text-zinc-300'
+                }`}
+              >
+                {idx + 1}
+              </span>
               <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
                 {STATUS_LABEL[o.status] ?? o.status}
               </span>

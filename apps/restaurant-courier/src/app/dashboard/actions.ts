@@ -241,6 +241,9 @@ export async function forceEndShiftAction(
       .update({
         status: 'CANCELLED',
         updated_at: new Date().toISOString(),
+        // Persist the courier-cited reason inline (migration 010) so admin
+        // surfaces show it without opening the audit trail.
+        cancellation_reason: `courier_force_end_shift: ${trimmed}`.slice(0, 500),
       })
       .eq('id', row.id)
       .eq('assigned_courier_user_id', userId)
@@ -321,6 +324,7 @@ export async function markDeliveredAction(
   orderId: string,
   proofUrl?: string,
   cashCollected?: boolean,
+  pharmaProofs?: { idUrl?: string; prescriptionUrl?: string },
 ) {
   const userId = await requireUserId();
   const admin = createAdminClient();
@@ -331,6 +335,16 @@ export async function markDeliveredAction(
   if (proofUrl && isAllowedProofUrl(proofUrl)) {
     update.delivered_proof_url = proofUrl;
     update.delivered_proof_taken_at = new Date().toISOString();
+  }
+  // Pharma orders: persist id + prescription proofs (migration 010) when
+  // present and host-allowlisted. Previously these uploads landed in
+  // storage but the URLs were lost, so post-delivery dispute resolution
+  // had no record. Now they're forward-only on the order row.
+  if (pharmaProofs?.idUrl && isAllowedProofUrl(pharmaProofs.idUrl)) {
+    update.delivered_proof_id_url = pharmaProofs.idUrl;
+  }
+  if (pharmaProofs?.prescriptionUrl && isAllowedProofUrl(pharmaProofs.prescriptionUrl)) {
+    update.delivered_proof_prescription_url = pharmaProofs.prescriptionUrl;
   }
   // State-machine guard (audit P0): only orders currently in PICKED_UP or
   // IN_TRANSIT may transition to DELIVERED. Without this, a courier with an
