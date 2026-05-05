@@ -101,6 +101,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
         { href: '/dashboard/settings/notifications', label: 'Notificări' },
         { href: '/dashboard/reservations', label: 'Rezervări' },
+        { href: '/kds', label: 'Ecran bucătărie (KDS)' },
       ],
     },
     {
