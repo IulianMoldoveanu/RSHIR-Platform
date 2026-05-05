@@ -59,19 +59,32 @@ export async function sendWebhook(orderId: string, payload: WebhookPayload): Pro
   const admin = createAdminClient();
   const { data: order } = await admin
     .from('courier_orders')
-    .select('webhook_callback_url, webhook_secret')
+    .select('webhook_callback_url')
     .eq('id', orderId)
     .maybeSingle();
 
-  if (!order || !order.webhook_callback_url || !order.webhook_secret) {
+  if (!order || !order.webhook_callback_url) {
     return; // no subscriber, nothing to do
   }
+
+  // Secret lives in courier_order_secrets — RLS-protected sibling table.
+  // Migration 20260605_004 moved it out of courier_orders because table-level
+  // SELECT grants override column-level REVOKE, so any fleet rider could
+  // otherwise harvest the secret. service_role bypasses RLS here.
+  const { data: secretRow } = await admin
+    .from('courier_order_secrets')
+    .select('webhook_secret')
+    .eq('courier_order_id', orderId)
+    .maybeSingle();
+
+  const webhookSecret = (secretRow as { webhook_secret: string | null } | null)?.webhook_secret;
+  if (!webhookSecret) return;
 
   const safeUrl = await assertSafeOutboundUrl(order.webhook_callback_url, `courier-webhook ${orderId}`);
   if (!safeUrl) return;
 
   const body = JSON.stringify(payload);
-  const signature = createHmac('sha256', order.webhook_secret).update(body).digest('hex');
+  const signature = createHmac('sha256', webhookSecret).update(body).digest('hex');
 
   let success = false;
   try {
@@ -153,7 +166,7 @@ export async function notifyPharmaCallback(
   const admin = createAdminClient();
   const { data: order } = await admin
     .from('courier_orders')
-    .select('vertical, pharma_callback_url, pharma_callback_secret')
+    .select('vertical, pharma_callback_url')
     .eq('id', orderId)
     .maybeSingle();
 
@@ -161,14 +174,25 @@ export async function notifyPharmaCallback(
   const row = order as {
     vertical: 'restaurant' | 'pharma' | null;
     pharma_callback_url: string | null;
-    pharma_callback_secret: string | null;
   };
 
   // Restaurant orders never trigger pharma callbacks. Hard guard so a
   // future caller that forgets to check `vertical` can't accidentally
   // POST restaurant-order events to a pharma subscriber.
   if (row.vertical !== 'pharma') return;
-  if (!row.pharma_callback_url || !row.pharma_callback_secret) return;
+  if (!row.pharma_callback_url) return;
+
+  // Secret lives in courier_order_secrets (RLS-locked sibling). See
+  // migration 20260605_004 for rationale.
+  const { data: secretRow } = await admin
+    .from('courier_order_secrets')
+    .select('pharma_callback_secret')
+    .eq('courier_order_id', orderId)
+    .maybeSingle();
+
+  const pharmaCallbackSecret =
+    (secretRow as { pharma_callback_secret: string | null } | null)?.pharma_callback_secret;
+  if (!pharmaCallbackSecret) return;
 
   const safeUrl = await assertSafeOutboundUrl(
     row.pharma_callback_url,
@@ -184,7 +208,7 @@ export async function notifyPharmaCallback(
     at: new Date().toISOString(),
   };
   const body = JSON.stringify(payload);
-  const signature = createHmac('sha256', row.pharma_callback_secret).update(body).digest('hex');
+  const signature = createHmac('sha256', pharmaCallbackSecret).update(body).digest('hex');
 
   let success = false;
   let httpStatus: number | null = null;

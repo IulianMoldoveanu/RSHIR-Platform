@@ -142,7 +142,6 @@ export async function POST(req: NextRequest) {
       status: 'CREATED',
       public_track_token: makeTrackToken(),
       webhook_callback_url: input.webhookCallbackUrl ?? null,
-      webhook_secret: input.webhookSecret ?? null,
     })
     .select('id, source_order_id, status, public_track_token, created_at, updated_at')
     .single();
@@ -150,6 +149,28 @@ export async function POST(req: NextRequest) {
   if (error || !data) {
     console.error('[api/external/orders] insert failed:', error?.message);
     return NextResponse.json({ error: 'create_failed' }, { status: 500 });
+  }
+
+  // Persist the per-order webhook secret to the RLS-locked sibling table.
+  // Migration 20260605_004 moved secrets out of courier_orders so any
+  // authenticated rider in the fleet can no longer SELECT them. If the
+  // secret write fails after the order insert succeeded, we roll the
+  // order back — a half-created order that promised webhooks but can't
+  // sign them is worse than no order. (Caller will retry by externalOrderId
+  // and idempotency will return the existing row on the next attempt;
+  // since we just deleted the row, the retry creates fresh.)
+  if (input.webhookSecret) {
+    const { error: secretErr } = await admin
+      .from('courier_order_secrets')
+      .insert({
+        courier_order_id: data.id,
+        webhook_secret: input.webhookSecret,
+      });
+    if (secretErr) {
+      console.error('[api/external/orders] secret insert failed:', secretErr.message);
+      await admin.from('courier_orders').delete().eq('id', data.id);
+      return NextResponse.json({ error: 'create_failed' }, { status: 500 });
+    }
   }
 
   // Fire-and-forget Web Push to all active couriers in the fleet. The
