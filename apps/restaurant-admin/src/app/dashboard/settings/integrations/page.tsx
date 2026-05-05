@@ -63,6 +63,11 @@ export default async function IntegrationsPage() {
     .order('created_at', { ascending: false })
     .limit(50);
 
+  // Storefront base URL — same env var used elsewhere in admin (e.g. reservations).
+  const storefrontBase =
+    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hiraisolutions.ro';
+  const gloriaFoodImportUrl = `${storefrontBase.replace(/\/$/, '')}/migrate-from-gloriafood`;
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -71,6 +76,29 @@ export default async function IntegrationsPage() {
           Conectează sisteme POS externe și generează chei API pentru {tenant.name}.
         </p>
       </header>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Import din GloriaFood</h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Importați meniul, clienții și comenzile din GloriaFood cu un fișier CSV.
+              Procesul durează sub 5 minute.
+            </p>
+          </div>
+          <a
+            href={gloriaFoodImportUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            Importă acum
+          </a>
+        </div>
+      </div>
 
       {role !== 'OWNER' && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
