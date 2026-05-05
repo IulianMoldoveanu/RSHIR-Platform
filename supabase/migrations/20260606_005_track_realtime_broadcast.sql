@@ -22,6 +22,12 @@
 -- silently no-ops, so the migration is safe to apply before the function is
 -- deployed.
 
+-- Note: pg_net calls to *.functions.supabase.co are rejected with
+-- UNAUTHORIZED_NO_AUTH_HEADER unless an Authorization Bearer header is
+-- present, regardless of the function's verify_jwt setting (see
+-- 20260501_006_notify_jwt_gateway_fix.sql). The shared anon JWT lives in
+-- vault as `notify_function_anon_jwt`; the real auth check is the
+-- `x-hir-notify-secret` header validated inside the Edge Function.
 create or replace function public.notify_track_broadcast()
 returns trigger
 language plpgsql
@@ -31,11 +37,14 @@ as $$
 declare
   v_url    text;
   v_secret text;
+  v_jwt    text;
 begin
   select decrypted_secret into v_url
     from vault.decrypted_secrets where name = 'track_broadcast_url' limit 1;
   select decrypted_secret into v_secret
     from vault.decrypted_secrets where name = 'notify_new_order_secret' limit 1;
+  select decrypted_secret into v_jwt
+    from vault.decrypted_secrets where name = 'notify_function_anon_jwt' limit 1;
   if v_url is null or v_secret is null then
     return new;
   end if;
@@ -44,6 +53,7 @@ begin
     url     := v_url,
     headers := jsonb_build_object(
       'Content-Type',        'application/json',
+      'Authorization',       'Bearer ' || coalesce(v_jwt, ''),
       'x-hir-notify-secret', v_secret
     ),
     body    := jsonb_build_object(
