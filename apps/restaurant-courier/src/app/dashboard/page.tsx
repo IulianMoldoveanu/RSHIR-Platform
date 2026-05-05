@@ -159,9 +159,16 @@ export default async function DashboardHome() {
               label="→ Glisează pentru a porni tura"
               onConfirm={startShiftAction}
             />
-            <p className="mt-2 text-center text-[11px] text-zinc-500">
-              Vei primi comenzi imediat ce tura este activă. Sau ține apăsat ~1 secundă.
-            </p>
+            <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
+              <span>Glisează sau ține apăsat ~1 secundă.</span>
+              <span aria-hidden className="text-zinc-700">·</span>
+              <Link
+                href="/dashboard/help"
+                className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+              >
+                Ghid rapid
+              </Link>
+            </div>
           </div>
         </div>
       ) : activeOrders.length === 0 ? (
