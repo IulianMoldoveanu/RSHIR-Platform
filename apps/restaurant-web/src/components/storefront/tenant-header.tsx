@@ -92,6 +92,7 @@ export function TenantHeader({
             className="h-full w-full object-cover"
             loading="eager"
             fetchPriority="high"
+            decoding="async"
           />
         ) : null}
         {/* Brand-tinted scrim. Visible on cover images, invisible when
@@ -122,6 +123,9 @@ export function TenantHeader({
               width={112}
               height={112}
               className="h-full w-full object-cover"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
           ) : (
             <span className="text-2xl font-semibold tracking-tight text-zinc-900">

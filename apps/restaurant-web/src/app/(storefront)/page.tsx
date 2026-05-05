@@ -1,4 +1,6 @@
+/// <reference types="react-dom/canary" />
 import type { Metadata } from 'next';
+import ReactDOM from 'react-dom';
 import { ChefHat } from 'lucide-react';
 import { MarketingHome } from '@/components/marketing/marketing-home';
 import { EmptyState } from '@/components/storefront/empty-state';
@@ -97,6 +99,15 @@ export default async function StorefrontHomePage() {
 
   const locale = getLocale();
   const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
+  // Lane PERF (2026-05-05) — preload the LCP cover image so the browser
+  // starts the fetch before parsing <body>. ReactDOM.preload emits a
+  // <link rel="preload" as="image"> hoisted into <head> and is deduped by
+  // React. Skips when no cover is configured. Logo is much smaller and
+  // already eager+priority on the <img>; preloading it would compete with
+  // the cover for early-bandwidth slots.
+  if (coverUrl) {
+    ReactDOM.preload(coverUrl, { as: 'image', fetchPriority: 'high' });
+  }
   const [menu, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
     getMenuByTenant(tenant.id),
     getReviewSummary(tenant.id),

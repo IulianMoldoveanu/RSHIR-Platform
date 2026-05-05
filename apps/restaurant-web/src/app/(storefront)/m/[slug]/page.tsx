@@ -1,5 +1,7 @@
+/// <reference types="react-dom/canary" />
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import ReactDOM from 'react-dom';
 import type { Metadata } from 'next';
 import { ChevronLeft, UtensilsCrossed } from 'lucide-react';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
@@ -79,6 +81,14 @@ export default async function ItemPage({ params }: { params: { slug: string } })
   const loaded = await loadItem(params.slug);
   if (!loaded) notFound();
   const { tenant, item } = loaded;
+
+  // Lane PERF (2026-05-05) — preload the LCP item hero so the browser
+  // starts the fetch before parsing <body>. The hero <img> below is
+  // already loading="eager" + fetchPriority="high"; the preload hint
+  // simply moves discovery earlier in the load timeline.
+  if (item.image_url) {
+    ReactDOM.preload(item.image_url, { as: 'image', fetchPriority: 'high' });
+  }
 
   const baseUrl = tenantBaseUrl();
   const canonicalSlug = buildItemSlug(item);
