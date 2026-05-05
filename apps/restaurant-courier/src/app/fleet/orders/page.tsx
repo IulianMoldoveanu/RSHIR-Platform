@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { resolveTenantNames } from '@/lib/tenant-names';
 import { OrderRow, type DispatchOrder, type DispatchCourier } from './_row';
+import { FleetOrdersVirtualList } from './fleet-orders-virtual-list';
 import { FleetOrdersRealtime } from './fleet-orders-realtime';
 import { FleetOrdersSearch } from './fleet-orders-search';
 import { BulkAutoAssignButton } from './bulk-auto-assign-button';
@@ -139,25 +140,13 @@ export default async function FleetOrdersPage() {
             hint="Nicio comandă activă în acest moment."
           />
         ) : (
-          <ul className="flex flex-col gap-2">
-            {active.map((o) => (
-              <OrderRow
-                key={o.id}
-                order={o}
-                couriers={annotatedCouriers}
-                courierName={
-                  o.assigned_courier_user_id
-                    ? (courierName.get(o.assigned_courier_user_id) ?? null)
-                    : null
-                }
-                tenantName={
-                  showTenantChip && o.source_tenant_id
-                    ? (tenantNames.get(o.source_tenant_id) ?? null)
-                    : null
-                }
-              />
-            ))}
-          </ul>
+          <FleetOrdersVirtualList
+            orders={active}
+            couriers={annotatedCouriers}
+            courierNameEntries={[...courierName.entries()]}
+            tenantNameEntries={[...tenantNames.entries()]}
+            showTenantChip={showTenantChip}
+          />
         )}
       </Section>
 
