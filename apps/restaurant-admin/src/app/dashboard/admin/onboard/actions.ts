@@ -18,6 +18,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import { tenantStorefrontUrl } from '@/lib/storefront-url';
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -198,8 +199,7 @@ export async function createTenantWithOwner(
     },
   });
 
-  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
-  const storefrontUrl = `https://${slug}.${primaryDomain}`;
+  const storefrontUrl = tenantStorefrontUrl(slug);
 
   return {
     ok: true,

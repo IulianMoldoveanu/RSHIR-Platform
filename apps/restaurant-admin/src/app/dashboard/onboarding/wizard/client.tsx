@@ -26,6 +26,7 @@ import {
   type WizardDraft,
 } from './actions';
 import { uploadBrandingAsset, setBrandColor } from '../../settings/branding/actions';
+import { tenantStorefrontUrl } from '@/lib/storefront-url';
 
 type SourceState = {
   menu_added: boolean;
@@ -962,12 +963,12 @@ function Step6({
         <p className="text-sm font-medium text-emerald-900">
           Storefront public:{' '}
           <a
-            href={`https://${tenantSlug}.hiraisolutions.ro`}
+            href={tenantStorefrontUrl(tenantSlug)}
             target="_blank"
             rel="noreferrer"
             className="font-mono underline"
           >
-            {tenantSlug}.hiraisolutions.ro
+            {tenantStorefrontUrl(tenantSlug).replace(/^https?:\/\//, '')}
           </a>
         </p>
         <p className="text-xs text-emerald-800">

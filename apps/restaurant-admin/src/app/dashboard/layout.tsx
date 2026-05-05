@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
+import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
@@ -59,8 +60,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     console.error('[dashboard/layout] onboarding probe failed:', (err as Error).message);
     onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: false, completed_at: null };
   }
-  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
-  const tenantStorefrontUrl = `https://${tenant.slug}.${primaryDomain}`;
+  const storefrontUrl = tenantStorefrontUrl(tenant.slug);
 
   const isPlatformAdmin = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
     .split(',')
@@ -165,7 +165,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-500">
             <a
-              href={tenantStorefrontUrl}
+              href={storefrontUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
