@@ -17,13 +17,23 @@
 // own cover image (see (storefront)/page.tsx generateMetadata).
 //
 // Lane FIX-P1 (2026-05-05) — initial deploy returned `200 image/png` with
-// `Content-Length: 0` because the default next/og font does NOT cover
-// Romanian Latin Extended-A glyphs (ă/â/î/ș/ț) or Unicode punctuation
-// (`…`, `·`); Satori swallows the missing-glyph error and emits zero bytes.
-// Fix: (1) fetch Inter TTF (covers RO diacritics + general Latin) at
-// request time, cache via SWR-style edge cache; (2) replace Unicode
-// punctuation with ASCII fallbacks; (3) wrap render in try/catch with a
-// minimal SVG fallback so we never serve empty PNG again.
+// `Content-Length: 0` because the variant pill used `display: 'inline-flex'`
+// which Satori does NOT support (only `flex` and `none`). The throw
+// happens INSIDE the streamed body of `new ImageResponse(...)` so the
+// 200 status + image/png header are already on the wire when the body
+// errors out — net result: empty PNG, no exception caught at the route
+// level. Fix:
+//   (1) primary: switch the pill to `display: 'flex'` (the parent column
+//       flex already controls layout via `alignSelf`).
+//   (2) defense in depth: load Inter latin-ext TTF so RO diacritics
+//       (ă/â/î/ș/ț) and any future Unicode punctuation render with real
+//       glyphs instead of falling back to tofu rectangles.
+//   (3) wrap render in try/catch with an SVG fallback for any future
+//       Satori issue we don't catch in code review (non-fatal — the
+//       async stream errors still bypass this catch, but synchronous
+//       construction errors are now handled).
+//   (4) replace `…` truncation with `...` and footer `·` with `-` so
+//       the no-fonts fallback path also renders cleanly.
 
 import { ImageResponse } from 'next/og';
 import type { NextRequest } from 'next/server';
@@ -40,13 +50,13 @@ function clamp(raw: string | null, max: number): string {
   return trimmed.length > max ? `${trimmed.slice(0, max - 3)}...` : trimmed;
 }
 
-// Inter Regular + Bold from a stable Google Fonts mirror (jsdelivr serves
-// the upstream npm @fontsource package over a CDN that's edge-friendly and
-// doesn't 404 on us like the gstatic versioned URLs do).
+// Inter Regular + Bold OTF (Satori only supports TTF / OTF — NOT WOFF or
+// WOFF2). Sourced from the rsms/inter GitHub release tag via jsdelivr's
+// gh mirror so the URLs are immutable and edge-cached worldwide.
 const FONT_REGULAR_URL =
-  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.16/files/inter-latin-ext-400-normal.woff';
+  'https://cdn.jsdelivr.net/gh/rsms/inter@v3.19/docs/font-files/Inter-Regular.otf';
 const FONT_BOLD_URL =
-  'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.16/files/inter-latin-ext-700-normal.woff';
+  'https://cdn.jsdelivr.net/gh/rsms/inter@v3.19/docs/font-files/Inter-Bold.otf';
 
 // Module-level cache so repeated cold starts on the same edge instance
 // reuse the font binary instead of re-downloading.
@@ -181,7 +191,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignSelf: 'flex-start',
               padding: '6px 14px',
               borderRadius: '8px',
