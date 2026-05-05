@@ -45,7 +45,14 @@ function LoginInner() {
         setError(error.message);
         return;
       }
-      router.push('/dashboard');
+      // Honor `?next=<path>` only when it's a same-origin pathname so we
+      // can't be turned into an open redirector.
+      const rawNext = searchParams.get('next');
+      const safeNext =
+        rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//')
+          ? rawNext
+          : '/dashboard';
+      router.push(safeNext);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unexpected error');

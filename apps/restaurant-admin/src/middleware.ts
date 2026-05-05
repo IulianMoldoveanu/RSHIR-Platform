@@ -65,12 +65,26 @@ export async function middleware(request: NextRequest) {
   if (!user && !isPublic) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = '/login';
+    // Preserve the original path so the login page can deep-link back
+    // (e.g. /invite/fm/<token>). Skip for /dashboard and / because they
+    // are already the default post-login target.
+    redirect.search = '';
+    if (pathname !== '/dashboard' && pathname !== '/') {
+      redirect.searchParams.set('next', pathname + (request.nextUrl.search || ''));
+    }
     return NextResponse.redirect(redirect);
   }
 
   if (user && pathname === '/login') {
     const redirect = request.nextUrl.clone();
-    redirect.pathname = '/dashboard';
+    // Forward `?next=<path>` so client-side login can route there.
+    const next = request.nextUrl.searchParams.get('next');
+    redirect.search = '';
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+      redirect.pathname = next;
+    } else {
+      redirect.pathname = '/dashboard';
+    }
     return NextResponse.redirect(redirect);
   }
 

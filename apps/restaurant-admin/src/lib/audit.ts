@@ -58,6 +58,9 @@ export type AuditAction =
   | 'affiliate.marked_spam'
   | 'fleet_manager.membership_added'
   | 'fleet_manager.membership_removed'
+  | 'fleet_manager.invite_created'
+  | 'fleet_manager.invite_revoked'
+  | 'fleet_manager.invite_accepted'
   | 'tenant.external_dispatch_configured';
 
 export async function logAudit(args: {
