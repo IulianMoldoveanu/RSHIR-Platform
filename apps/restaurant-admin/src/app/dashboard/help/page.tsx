@@ -3,9 +3,6 @@ import { ChevronRight, HelpCircle, LifeBuoy, Mail, Phone } from 'lucide-react';
 import { HELP_CATEGORIES, getAllTopics } from './content';
 import { HelpSearch, type SearchTopic } from './help-search';
 
-export const dynamic = 'force-static';
-export const revalidate = 3600;
-
 export const metadata = {
   title: 'Centru de ajutor · HIR',
   description:

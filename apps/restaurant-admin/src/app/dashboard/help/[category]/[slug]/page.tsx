@@ -2,21 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, Calendar, ChevronRight } from 'lucide-react';
 import {
-  HELP_CATEGORIES,
   findTopic,
   type HelpCategory,
   type HelpStep,
   type HelpTopic,
 } from '../../content';
 
-export const dynamic = 'force-static';
-export const revalidate = 3600;
-
-export function generateStaticParams() {
-  return HELP_CATEGORIES.flatMap((c) =>
-    c.topics.map((t) => ({ category: c.slug, slug: t.slug })),
-  );
-}
+export const dynamic = 'force-dynamic';
 
 export function generateMetadata({
   params,
