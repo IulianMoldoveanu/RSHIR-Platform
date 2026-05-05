@@ -64,6 +64,16 @@ export default async function FleetOrderDetailPage({
   const order = orderData as OrderDetail | null;
   if (!order) notFound();
 
+  // Mint a 1h signed URL for the delivered-proof photo at render time so
+  // the page works regardless of whether the courier-proofs bucket is
+  // public (legacy, deprecated post-§3.1) or private (signed-URL only).
+  // The admin client is service-role and bypasses storage RLS, so this
+  // always succeeds for any object the column references.
+  const deliveredProofSignedUrl = await mintProofSignedUrl(
+    admin,
+    order.delivered_proof_url,
+  );
+
   const couriers = (couriersData ?? []) as DispatchCourier[];
   const onlineSet = new Set(
     ((shiftsData ?? []) as Array<{ courier_user_id: string }>).map((s) => s.courier_user_id),
@@ -294,20 +304,20 @@ export default async function FleetOrderDetailPage({
         </ul>
       </section>
 
-      {order.delivered_proof_url ? (
+      {deliveredProofSignedUrl ? (
         <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
             Dovadă livrare
           </p>
           <a
-            href={order.delivered_proof_url}
+            href={deliveredProofSignedUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="block overflow-hidden rounded-lg border border-zinc-800"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={order.delivered_proof_url}
+              src={deliveredProofSignedUrl}
               alt="Dovadă livrare"
               className="max-h-72 w-full object-cover"
             />
@@ -316,4 +326,34 @@ export default async function FleetOrderDetailPage({
       ) : null}
     </div>
   );
+}
+
+// Resolves a `delivered_proof_url` value into a freshly-signed URL. Accepts
+// either a full URL (legacy public-bucket format with .../object/public/...)
+// or a bare path (post-§3.1 storage path). Returns the signed URL, or null
+// if input is null / unparseable.
+async function mintProofSignedUrl(
+  admin: ReturnType<typeof createAdminClient>,
+  raw: string | null,
+): Promise<string | null> {
+  if (!raw) return null;
+  let path: string | null = null;
+  try {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      const u = new URL(raw);
+      // Public-format pathname is /storage/v1/object/public/courier-proofs/<path>
+      // Signed-format pathname is /storage/v1/object/sign/courier-proofs/<path>
+      const m = u.pathname.match(/\/courier-proofs\/(.+)$/);
+      if (m) path = decodeURIComponent(m[1]);
+    } else {
+      path = raw;
+    }
+  } catch {
+    return null;
+  }
+  if (!path) return null;
+  const { data } = await admin.storage
+    .from('courier-proofs')
+    .createSignedUrl(path, 3600);
+  return data?.signedUrl ?? null;
 }
