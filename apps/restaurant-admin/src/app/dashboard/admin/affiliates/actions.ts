@@ -11,6 +11,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { sendEmail } from '@/lib/email/resend';
+import { affiliateApprovedEmail } from '@/lib/email/templates';
 
 const REVALIDATE = '/dashboard/admin/affiliates';
 const DEFAULT_BOUNTY_RON = 300;
@@ -174,58 +175,14 @@ async function sendApprovalEmail(args: {
     ? `${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL}/reseller`
     : 'https://hir-restaurant-admin.vercel.app/reseller';
 
-  const subject = 'HIR Affiliate — bun venit, codul tău e aici';
-
-  const text = `Salut ${args.fullName},
-
-Te-am aprobat în HIR Affiliate Program.
-
-Codul tău de afiliat: ${args.code}
-Linkul tău public: ${referralLink}
-Dashboard-ul tău: ${dashboardLink}
-
-Bounty: ${args.bounty} RON pentru fiecare restaurant onboarded prin linkul tău.
-Plată trimestrial pe factură PFA / SRL.
-
-Distribuie linkul în lista ta — pe TikTok, Instagram, blog, sau direct pe WhatsApp către restaurantele pe care le cunoști. Fiecare restaurant care se înscrie + activează contul îți aduce bounty-ul.
-
-Pentru întrebări, răspunde la acest email.
-
-— Echipa HIR
-https://hirforyou.ro`;
-
-  const html = `<!DOCTYPE html>
-<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#0F172A;line-height:1.6;max-width:560px;margin:0 auto;padding:24px;">
-<h2 style="margin:0 0 16px;font-size:22px;font-weight:600;">Bun venit în HIR Affiliate ✓</h2>
-<p style="margin:0 0 12px;">Salut <strong>${escapeHtml(args.fullName)}</strong>,</p>
-<p style="margin:0 0 16px;">Te-am aprobat în HIR Affiliate Program. Iată ce ai mai departe:</p>
-
-<div style="margin:20px 0;padding:16px;border:1px solid #E2E8F0;border-radius:8px;background:#FAFAFA;">
-  <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#475569;letter-spacing:0.04em;">Codul tău de afiliat</div>
-  <div style="margin-top:6px;font-family:ui-monospace,Menlo,monospace;font-size:24px;font-weight:600;color:#4F46E5;letter-spacing:0.04em;">${escapeHtml(args.code)}</div>
-</div>
-
-<div style="margin:16px 0;padding:14px;border:1px solid #E2E8F0;border-radius:8px;">
-  <div style="font-size:11px;font-weight:600;text-transform:uppercase;color:#475569;letter-spacing:0.04em;">Linkul tău public</div>
-  <div style="margin-top:4px;font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all;"><a href="${referralLink}" style="color:#4F46E5;text-decoration:none;">${escapeHtml(referralLink)}</a></div>
-</div>
-
-<p style="margin:20px 0 8px;"><strong>Bounty:</strong> ${args.bounty} RON pentru fiecare restaurant onboarded prin linkul tău. Plată trimestrial pe factură PFA / SRL.</p>
-
-<p style="margin:24px 0 16px;">
-  <a href="${dashboardLink}" style="display:inline-block;padding:11px 20px;background:#4F46E5;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;font-size:14px;">Deschide dashboard-ul</a>
-</p>
-
-<p style="margin:24px 0 0;color:#94a3b8;font-size:12px;">Răspunde la acest email pentru întrebări. — Echipa HIR · <a href="https://hirforyou.ro" style="color:#4F46E5;">hirforyou.ro</a></p>
-</body></html>`;
-
-  return sendEmail({ to: args.to, subject, html, text });
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]!));
+  const tpl = affiliateApprovedEmail({
+    fullName: args.fullName,
+    code: args.code,
+    bountyRon: args.bounty,
+    referralUrl: referralLink,
+    dashboardUrl: dashboardLink,
+  });
+  return sendEmail({ to: args.to, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }
 
 const rejectSchema = z.object({
