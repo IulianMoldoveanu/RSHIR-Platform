@@ -2,17 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  BarChart,
-  Bar,
-} from 'recharts';
 import type { AnalyticsData, DailyRow, TopItemRow, PeakRow, ReviewsBlock } from './types';
 
 const HeatmapMap = dynamic(() => import('./heatmap-map').then((m) => m.HeatmapMap), {
@@ -23,6 +12,25 @@ const HeatmapMap = dynamic(() => import('./heatmap-map').then((m) => m.HeatmapMa
     </div>
   ),
 });
+
+// recharts is heavy and only used in two below-the-fold chart blocks. Defer
+// the entire recharts module + the chart components into a separate chunk
+// that loads after the KPI grid renders. ssr:false because recharts uses
+// `ResponsiveContainer`'s ResizeObserver path which already runs on the
+// client only — no SEO/critical-render impact.
+const ChartLoading = () => (
+  <div className="flex h-[260px] items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-sm text-zinc-500">
+    Se încarcă graficul…
+  </div>
+);
+const RevenueLineChart = dynamic(
+  () => import('./analytics-charts').then((m) => m.RevenueLineChart),
+  { ssr: false, loading: ChartLoading },
+);
+const TopItemsBarChart = dynamic(
+  () => import('./analytics-charts').then((m) => m.TopItemsBarChart),
+  { ssr: false, loading: ChartLoading },
+);
 
 const RON = (v: number) => `${v.toFixed(2)} RON`;
 
@@ -241,18 +249,7 @@ export function AnalyticsClient({ data, hasOrders }: Props) {
             description="Graficul va apărea după prima comandă plătită."
           />
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={daily} margin={{ top: 5, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-              <XAxis dataKey="day" stroke="#71717a" fontSize={12} />
-              <YAxis stroke="#71717a" fontSize={12} />
-              <Tooltip
-                formatter={(v) => RON(Number(v))}
-                contentStyle={{ borderRadius: 6, border: '1px solid #e4e4e7' }}
-              />
-              <Line type="monotone" dataKey="revenue" stroke="#7c3aed" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <RevenueLineChart daily={daily} />
         )}
       </ChartCard>
 
@@ -279,26 +276,7 @@ export function AnalyticsClient({ data, hasOrders }: Props) {
               description="Topul va apărea după ce produsele tale apar în comenzi."
             />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={topItems} margin={{ top: 5, right: 16, left: 0, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                <XAxis
-                  dataKey="item_name"
-                  stroke="#71717a"
-                  fontSize={11}
-                  angle={-25}
-                  textAnchor="end"
-                  height={60}
-                  interval={0}
-                />
-                <YAxis stroke="#71717a" fontSize={12} />
-                <Tooltip
-                  formatter={(v) => RON(Number(v))}
-                  contentStyle={{ borderRadius: 6, border: '1px solid #e4e4e7' }}
-                />
-                <Bar dataKey="revenue" fill="#7c3aed" />
-              </BarChart>
-            </ResponsiveContainer>
+            <TopItemsBarChart topItems={topItems} />
           )}
         </ChartCard>
 

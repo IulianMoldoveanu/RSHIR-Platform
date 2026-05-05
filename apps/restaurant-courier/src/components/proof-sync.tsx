@@ -78,6 +78,11 @@ export function ProofSync() {
       window.removeEventListener('hir:proof-enqueued', onProofEnqueued);
       window.clearInterval(interval);
     };
+    // runSync is intentionally a stable closure for mount-once setup. It
+    // guards against concurrent calls via runningRef and reads its inputs
+    // from IDB on each tick, so adding it to deps would re-bind listeners
+    // and intervals on every render without changing behaviour.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (pending === 0) return null;
