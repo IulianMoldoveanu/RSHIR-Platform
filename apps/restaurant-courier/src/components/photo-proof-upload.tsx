@@ -187,14 +187,27 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
           </p>
         ) : null}
         {delivery.file ? (
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={handleUploadAll}
-            className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
-          >
-            {uploading ? 'Se încarcă…' : 'Încarcă fotografia'}
-          </button>
+          delivery.url ? (
+            // Successful upload — show a confirmation strip instead of the
+            // upload button. Gives the dispatcher visual feedback AND gives
+            // e2e tests a real upload-complete signal (data-testid below)
+            // that the upload-button-stays-rendered approach lacked.
+            <p
+              data-testid="delivery-proof-uploaded"
+              className="mt-2 w-full rounded-lg bg-emerald-900/40 py-2 text-center text-xs font-medium text-emerald-300"
+            >
+              ✓ Fotografie încărcată
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={handleUploadAll}
+              className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+            >
+              {uploading ? 'Se încarcă…' : 'Încarcă fotografia'}
+            </button>
+          )
         ) : (
           // No photo yet — let parent call onComplete with empty urls for optional skip.
           <button
