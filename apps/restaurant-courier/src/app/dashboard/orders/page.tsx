@@ -110,7 +110,7 @@ export default async function OrdersPage() {
           <button
             type="submit"
             aria-label="Reîmprospătează"
-            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 active:scale-95"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             Actualizează
@@ -126,7 +126,7 @@ export default async function OrdersPage() {
             hint="Te anunțăm imediat ce apare o comandă pentru tine."
           />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {assigned.map((o) => (
               <OrderListItem key={o.id} order={o} />
             ))}
@@ -143,7 +143,7 @@ export default async function OrdersPage() {
               hint="Verifică din nou peste câteva minute sau privește harta din pagina principală."
             />
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {open.map((o) => (
                 <OrderListItem key={o.id} order={o} />
               ))}
@@ -166,8 +166,13 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {title} ({count})
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {title}
+        {count > 0 ? (
+          <span className="rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">
+            {count}
+          </span>
+        ) : null}
       </h2>
       {children}
     </section>
@@ -208,42 +213,62 @@ function OrderListItem({ order }: { order: OrderRow }) {
         order.dropoff_lng as number,
       )
     : null;
+  // Rough ETA: assume 25 km/h average for mixed urban traffic.
+  const etaMin = distanceKm != null ? Math.ceil((distanceKm / 25) * 60) : null;
 
   return (
     <li>
       <Link
         href={`/dashboard/orders/${order.id}`}
-        className="block rounded-xl border border-zinc-800 bg-zinc-900 p-3 hover:border-violet-500/50 hover:bg-zinc-900/70"
+        className="block rounded-2xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-violet-500/50 hover:bg-zinc-800/60 active:scale-[0.99]"
       >
+        {/* Top row: customer + vertical badge + status chip */}
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-medium text-zinc-100">
-                {order.customer_first_name ?? 'Client'}
-                {order.delivery_fee_ron != null ? (
-                  <span className="ml-2 text-xs font-normal text-violet-300">
-                    +{Number(order.delivery_fee_ron).toFixed(2)} RON
-                  </span>
-                ) : null}
-              </p>
-              <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
-            </div>
-            <p className="mt-0.5 truncate text-xs text-zinc-500">
-              {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <p className="truncate text-sm font-semibold text-zinc-100">
+              {order.customer_first_name ?? 'Client'}
             </p>
-            {distanceKm != null ? (
-              <p className="mt-1 flex items-center gap-1 text-[11px] text-zinc-400">
-                <Navigation className="h-3 w-3 text-violet-300" aria-hidden />
-                {distanceKm.toFixed(1)} km
-              </p>
-            ) : null}
+            <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className="rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
-              {STATUS_LABEL_RO[order.status] ?? order.status}
+          <span
+            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              order.status === 'IN_TRANSIT' || order.status === 'PICKED_UP'
+                ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
+                : order.status === 'ACCEPTED'
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                  : 'border-zinc-700 bg-zinc-950 text-zinc-400'
+            }`}
+          >
+            {STATUS_LABEL_RO[order.status] ?? order.status}
+          </span>
+        </div>
+
+        {/* Route line */}
+        <p className="mt-1.5 truncate text-xs text-zinc-500">
+          {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
+        </p>
+
+        {/* Distance + ETA + fee row */}
+        <div className="mt-2.5 flex items-center gap-3">
+          {distanceKm != null ? (
+            <span className="flex items-center gap-1 rounded-lg bg-zinc-800 px-2 py-1 text-[11px] font-medium text-zinc-200">
+              <Navigation className="h-3 w-3 text-violet-300" aria-hidden />
+              {distanceKm.toFixed(1)} km
             </span>
+          ) : null}
+          {etaMin != null ? (
+            <span className="text-[11px] text-zinc-500">~{etaMin} min</span>
+          ) : null}
+          {order.delivery_fee_ron != null ? (
+            <span className="ml-auto text-xs font-semibold text-emerald-300">
+              +{Number(order.delivery_fee_ron).toFixed(2)} RON
+            </span>
+          ) : null}
+          {order.delivery_fee_ron == null ? (
+            <span className="ml-auto text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
+          ) : (
             <span className="text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
-          </div>
+          )}
         </div>
       </Link>
     </li>
