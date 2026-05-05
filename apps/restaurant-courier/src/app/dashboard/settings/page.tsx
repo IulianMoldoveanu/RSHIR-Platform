@@ -43,16 +43,16 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       {/* Profile card */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-semibold text-zinc-100">Profil</h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusBadge.tone}`}
+            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadge.tone}`}
           >
             {statusBadge.label}
           </span>
         </div>
-        <div className="mb-4">
+        <div className="mb-5">
           <AvatarUpload
             userId={user.id}
             initialUrl={profile?.avatar_url ?? null}
@@ -60,7 +60,7 @@ export default async function SettingsPage() {
             saveAvatarUrl={updateAvatarUrlAction}
           />
         </div>
-        <ul className="divide-y divide-zinc-800">
+        <ul className="divide-y divide-zinc-800/60">
           <ProfileRowItem
             icon={<User className="h-4 w-4 text-zinc-400" aria-hidden />}
             label="Nume"
@@ -85,8 +85,11 @@ export default async function SettingsPage() {
       {/* Vehicle picker — segmented control with the same 3D miniature
           icons used on the live map. Tapping commits immediately
           (optimistic update + rollback on error); no Save button needed. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-base font-semibold text-zinc-100">Vehicul</h2>
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <h2 className="mb-1 text-base font-semibold text-zinc-100">Vehicul</h2>
+        <p className="mb-4 text-[11px] text-zinc-500">
+          Selectează vehiculul cu care livrezi astăzi.
+        </p>
         <VehicleSelector
           initial={profile?.vehicle_type ?? 'BIKE'}
           onSave={updateVehicleTypeAction}
@@ -96,14 +99,14 @@ export default async function SettingsPage() {
       {/* Help link */}
       <Link
         href="/dashboard/help"
-        className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 hover:border-violet-500/40 hover:bg-zinc-900/70"
+        className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4 hover:border-violet-500/40 hover:bg-zinc-800/60 active:scale-[0.99]"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
           <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-100">Ajutor & FAQ</p>
-          <p className="text-xs text-zinc-500">Plată, fotografii, urgențe</p>
+          <p className="text-sm font-semibold text-zinc-100">Ajutor & FAQ</p>
+          <p className="mt-0.5 text-xs text-zinc-500">Plată, fotografii, urgențe</p>
         </div>
         <ChevronRight className="h-4 w-4 text-zinc-500" aria-hidden />
       </Link>
@@ -121,10 +124,10 @@ function ProfileRowItem({
   value: string;
 }) {
   return (
-    <li className="flex items-center gap-3 py-2.5">
-      <span aria-hidden>{icon}</span>
-      <span className="flex-1 text-xs text-zinc-500">{label}</span>
-      <span className="text-sm font-medium text-zinc-100">{value}</span>
+    <li className="flex items-center gap-3 py-3">
+      <span aria-hidden className="shrink-0">{icon}</span>
+      <span className="w-16 shrink-0 text-xs text-zinc-500">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-zinc-100">{value}</span>
     </li>
   );
 }
