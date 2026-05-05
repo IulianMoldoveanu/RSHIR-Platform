@@ -45,7 +45,10 @@ export default function AffiliatePage({
     >
       {/* Hero */}
       <section className="border-b border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-20 md:py-24">
+        {/* Mobile-fix 2026-05-05: drop the section gutters from `px-6` (24px)
+            to `px-4` (16px) on <sm so the hero claims back ~16px of body
+            width on 360px screens — was visibly cramped. */}
+        <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 md:py-24">
           <div className="mb-3 inline-flex items-center rounded-md bg-[#EEF2FF] px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE]">
             HIR Affiliate Program
           </div>
@@ -87,7 +90,7 @@ export default function AffiliatePage({
       </section>
 
       {/* Why HIR */}
-      <section id="cum-functioneaza" className="mx-auto max-w-5xl px-6 py-16">
+      <section id="cum-functioneaza" className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <h2 className="mb-2 text-2xl font-semibold tracking-tight">De ce restaurantele aleg HIR</h2>
         <p className="mb-10 max-w-2xl text-sm text-[#475569]">
           Argumentele pe care le folosești când recomanzi:
@@ -122,7 +125,7 @@ export default function AffiliatePage({
 
       {/* Comission structure */}
       <section className="border-t border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-5xl px-6 py-16">
+        <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
           <h2 className="mb-2 text-2xl font-semibold tracking-tight">Cum se calculează comisionul</h2>
           <p className="mb-8 max-w-2xl text-sm text-[#475569]">
             Două scenarii, în funcție de profilul tău:
@@ -156,7 +159,7 @@ export default function AffiliatePage({
       </section>
 
       {/* Apply form */}
-      <section id="aplica" className="mx-auto max-w-3xl px-6 py-16">
+      <section id="aplica" className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <h2 className="mb-2 text-2xl font-semibold tracking-tight">Aplică pentru program</h2>
         <p className="mb-8 text-sm text-[#475569]">
           Aprobăm aplicațiile manual. Răspuns în 3-5 zile lucrătoare.

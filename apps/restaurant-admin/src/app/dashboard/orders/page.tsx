@@ -188,12 +188,16 @@ export default async function OrdersPage({
     <div className="flex flex-col gap-6">
       <OrdersRealtime tenantId={tenant.id} />
 
-      <header className="flex items-end justify-between gap-4">
-        <div>
+      {/* Mobile-fix 2026-05-05: title + Export + 4 filter pills overflowed
+          a 360px viewport. Allow the whole header and the right-hand
+          actions to wrap so the filter pills get their own row on phones
+          while keeping the row layout intact on tablet+. */}
+      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Comenzi</h1>
           <p className="text-sm text-zinc-600">Ultimele 50 comenzi pentru {tenant.name}.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <a
             href="/api/dashboard/orders/export"
             className="inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
@@ -235,9 +239,13 @@ export default async function OrdersPage({
                       <li key={o.id} className="text-sm">
                         <Link
                           href={`/dashboard/orders/${o.id}`}
-                          className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-zinc-50"
+                          className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 sm:gap-4"
                         >
-                          <div className="flex min-w-0 items-center gap-3">
+                          {/* Mobile-fix 2026-05-05: allow the badge cluster
+                              to wrap onto a second flex row so it doesn't
+                              push the price/age column off-screen on a
+                              360px phone. */}
+                          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
                             {stalePending && (
                               <span
                                 aria-label="În așteptare de >5 minute"
@@ -245,7 +253,7 @@ export default async function OrdersPage({
                               />
                             )}
                             <span className="font-mono text-xs text-zinc-500">#{shortId(o.id)}</span>
-                            <span className="truncate font-medium text-zinc-900">
+                            <span className="min-w-0 max-w-full truncate font-medium text-zinc-900">
                               {(o.customers?.first_name ?? 'Anonim').trim()}{' '}
                               {lastInitial(o.customers?.last_name ?? null)}
                             </span>
@@ -272,7 +280,7 @@ export default async function OrdersPage({
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-4 text-zinc-600">
+                          <div className="flex flex-none items-center gap-3 text-zinc-600 sm:gap-4">
                             {count > 0 && (
                               <span className="hidden text-xs text-zinc-500 sm:inline">
                                 {count} {count === 1 ? 'produs' : 'produse'}
@@ -282,7 +290,7 @@ export default async function OrdersPage({
                               {formatRon(Number(o.total_ron))}
                             </span>
                             <span
-                              className={`w-12 text-right text-xs tabular-nums ${
+                              className={`w-10 text-right text-xs tabular-nums sm:w-12 ${
                                 stalePending ? 'font-semibold text-rose-600' : 'text-zinc-400'
                               }`}
                             >

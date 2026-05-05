@@ -124,17 +124,20 @@ export default async function ResellerDashboard() {
 
   return (
     <main className="min-h-screen bg-[#FAFAFA] text-[#0F172A]" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
-      <div className="mx-auto max-w-6xl px-6 py-10" style={{ fontFeatureSettings: '"tnum"' }}>
+      {/* Mobile-fix 2026-05-05: section gutter trimmed to 16px on <sm
+          (was 24px), and header now wraps so a long partner email no
+          longer collides with the title on 360px. */}
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6" style={{ fontFeatureSettings: '"tnum"' }}>
         {/* Header */}
-        <header className="mb-10 flex items-baseline justify-between">
-          <div>
+        <header className="mb-10 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">Reseller dashboard</h1>
             <p className="mt-1 text-sm text-[#475569]">
               {partnerRow.name} · Comision implicit{' '}
               <span className="font-medium text-[#0F172A]">{Number(partnerRow.default_commission_pct).toFixed(0)}%</span>
             </p>
           </div>
-          <div className="text-xs text-[#94a3b8]">{partnerRow.email}</div>
+          <div className="break-all text-xs text-[#94a3b8]">{partnerRow.email}</div>
         </header>
 
         {/* P1 — KPI tile strip (4 tiles) */}
@@ -205,8 +208,11 @@ export default async function ResellerDashboard() {
               hint="Distribuie linkul tău — primul restaurant apare aici imediat ce face signup."
             />
           ) : (
-            <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white">
-              <table className="w-full text-sm">
+            // Mobile-fix 2026-05-05: 4-col table at `text-sm` overflows
+            // 360px viewports — `overflow-x-auto` on the wrapper keeps the
+            // card chrome intact while the table scrolls horizontally.
+            <div className="overflow-x-auto rounded-lg border border-[#E2E8F0] bg-white">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#475569]">
                     <th className="px-4 py-3 font-medium">Restaurant</th>
@@ -250,8 +256,11 @@ export default async function ResellerDashboard() {
               hint="Comisioanele apar la sfârșitul fiecărei luni, după ce calculul comenzilor restaurantelor referite e închis."
             />
           ) : (
-            <div className="overflow-hidden rounded-lg border border-[#E2E8F0] bg-white">
-              <table className="w-full text-sm">
+            // Mobile-fix 2026-05-05: 5-col table — same pattern as the
+            // referrals table above, scroll horizontally when the
+            // viewport can't fit the full row.
+            <div className="overflow-x-auto rounded-lg border border-[#E2E8F0] bg-white">
+              <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="border-b border-[#E2E8F0] text-left text-xs uppercase tracking-wide text-[#475569]">
                     <th className="px-4 py-3 font-medium">Perioadă</th>
