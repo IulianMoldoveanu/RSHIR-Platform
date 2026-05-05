@@ -194,7 +194,7 @@ async function callSonnet(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userMessage }],
     }),
@@ -405,44 +405,51 @@ Deno.serve(async (req) => {
     error?: string;
   }> = [];
 
-  for (const t of tenants) {
-    try {
-      const userPrompt = buildUserPrompt(t, benchmarks);
-      const { recommendations, cost_usd } = await callSonnet(apiKey, model, userPrompt);
-      const cleaned = recommendations.map(sanitize).filter((r): r is Recommendation => r !== null);
-      let crits = 0;
-      const final = cleaned.map((r) => {
-        if (r.priority === 'critical') {
-          crits += 1;
-          if (crits > 1) return { ...r, priority: 'high' as const };
+  // Process tenants in parallel — each Sonnet call is ~30s, serial across N
+  // tenants would exceed Supabase Edge Function 150s wall-clock cap once we
+  // pass ~5 tenants (root cause of HTTP 503 in failed runs since 2026-05-04).
+  // Promise.allSettled keeps total wall-clock ~= max single-call latency, and
+  // 6 parallel Anthropic calls fit comfortably under default tier-1 RPM.
+  await Promise.allSettled(
+    tenants.map(async (t) => {
+      try {
+        const userPrompt = buildUserPrompt(t, benchmarks);
+        const { recommendations, cost_usd } = await callSonnet(apiKey, model, userPrompt);
+        const cleaned = recommendations.map(sanitize).filter((r): r is Recommendation => r !== null);
+        let crits = 0;
+        const final = cleaned.map((r) => {
+          if (r.priority === 'critical') {
+            crits += 1;
+            if (crits > 1) return { ...r, priority: 'high' as const };
+          }
+          return r;
+        });
+        const { inserted } = await persistRecommendations(supabase, t.tenant_id, final, cost_usd, model);
+        totalRecs += inserted;
+        totalCost += cost_usd;
+        perTenant.push({
+          tenant_id: t.tenant_id,
+          tenant_slug: t.tenant_slug,
+          recommendations: final,
+          cost_usd,
+        });
+        for (const r of final.slice(0, 1)) {
+          sample.push({ tenant_name: t.tenant_name, priority: r.priority, title_ro: r.title_ro });
         }
-        return r;
-      });
-      const { inserted } = await persistRecommendations(supabase, t.tenant_id, final, cost_usd, model);
-      totalRecs += inserted;
-      totalCost += cost_usd;
-      perTenant.push({
-        tenant_id: t.tenant_id,
-        tenant_slug: t.tenant_slug,
-        recommendations: final,
-        cost_usd,
-      });
-      for (const r of final.slice(0, 1)) {
-        sample.push({ tenant_name: t.tenant_name, priority: r.priority, title_ro: r.title_ro });
+      } catch (e) {
+        errorCount += 1;
+        const detail = (e as Error).message;
+        console.error(`[growth-agent] tenant ${t.tenant_slug} failed:`, detail);
+        perTenant.push({
+          tenant_id: t.tenant_id,
+          tenant_slug: t.tenant_slug,
+          recommendations: [],
+          cost_usd: 0,
+          error: detail,
+        });
       }
-    } catch (e) {
-      errorCount += 1;
-      const detail = (e as Error).message;
-      console.error(`[growth-agent] tenant ${t.tenant_slug} failed:`, detail);
-      perTenant.push({
-        tenant_id: t.tenant_id,
-        tenant_slug: t.tenant_slug,
-        recommendations: [],
-        cost_usd: 0,
-        error: detail,
-      });
-    }
-  }
+    }),
+  );
 
   const tgToken = Deno.env.get('TELEGRAM_BOT_TOKEN');
   const tgChat = Deno.env.get('TELEGRAM_IULIAN_CHAT_ID');
