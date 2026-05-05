@@ -90,7 +90,7 @@ print("  ✓ response echo OK")
 '
 
 echo "→ verifying courier_orders row..."
-ROW=$(sql "select payment_method, cod_amount_ron, pharma_callback_url, pharma_callback_secret \
+ROW=$(sql "select payment_method, cod_amount_ron, pharma_callback_url \
            from public.courier_orders \
            where vertical='pharma' and external_ref='${PHARMA_ORDER_ID}'")
 echo "  db row: $ROW"
@@ -102,11 +102,28 @@ r = rows[0]
 assert r["payment_method"] == "COD"
 assert float(r["cod_amount_ron"]) == 47.50
 assert r["pharma_callback_url"] == "https://example.invalid/pharma/callback"
+print("  ✓ courier_orders fields persisted")
+'
+
+echo "→ verifying courier_order_secrets sibling row..."
+# Migration 20260605_004 moved pharma_callback_secret to a sibling RLS-locked
+# table. service_role (the SUPABASE_PAT path used by sql()) can SELECT it.
+SECRET_ROW=$(sql "select s.pharma_callback_secret \
+                  from public.courier_order_secrets s \
+                  join public.courier_orders o on o.id = s.courier_order_id \
+                  where o.vertical='pharma' and o.external_ref='${PHARMA_ORDER_ID}'")
+echo "  secret row: $SECRET_ROW"
+echo "$SECRET_ROW" | python3 -c '
+import json, sys
+rows = json.loads(sys.stdin.read())
+assert isinstance(rows, list) and len(rows) == 1, f"expected 1 secret row, got: {rows}"
+r = rows[0]
 assert r["pharma_callback_secret"] == "smoke-callback-secret-v1"
-print("  ✓ all 4 fields persisted")
+print("  ✓ pharma_callback_secret persisted in sibling table")
 '
 
 echo "→ tearing down synthetic row..."
+# courier_order_secrets cascades on courier_orders.id delete.
 sql "delete from public.courier_orders \
      where vertical='pharma' and external_ref='${PHARMA_ORDER_ID}'" > /dev/null
 echo "  ✓ teardown complete"

@@ -252,7 +252,8 @@ Deno.serve(async (req: Request) => {
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
     if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
-    if (order.pharma_callback_secret) insertRow.pharma_callback_secret = order.pharma_callback_secret;
+    // pharma_callback_secret is no longer stored on courier_orders — see
+    // migration 20260605_004. Persisted to courier_order_secrets below.
 
     const { data: inserted, error: insertErr } = await supabase
       .from('courier_orders')
@@ -263,6 +264,27 @@ Deno.serve(async (req: Request) => {
     if (insertErr) {
       console.error('[courier-mirror-pharma] insert failed', insertErr.message);
       return json(500, { error: 'insert_failed', detail: insertErr.message });
+    }
+
+    // Persist the per-order pharma callback secret to the RLS-locked
+    // sibling table. service_role bypasses RLS. If the secret write
+    // fails after the order insert, roll the order back so we don't
+    // leave a half-mirrored order that promised callbacks but can't
+    // sign them. Pharma side will retry the same `order.created` event
+    // and idempotency on (vertical, external_ref) returns the existing
+    // row — but since we just deleted the row, retry creates fresh.
+    if (order.pharma_callback_secret) {
+      const { error: secretErr } = await supabase
+        .from('courier_order_secrets')
+        .insert({
+          courier_order_id: inserted.id,
+          pharma_callback_secret: order.pharma_callback_secret,
+        });
+      if (secretErr) {
+        console.error('[courier-mirror-pharma] secret insert failed', secretErr.message);
+        await supabase.from('courier_orders').delete().eq('id', inserted.id);
+        return json(500, { error: 'secret_insert_failed', detail: secretErr.message });
+      }
     }
 
     await auditLog(supabase, 'courier_mirror.order_created', order.pharma_order_id, inserted.id);
@@ -320,9 +342,27 @@ Deno.serve(async (req: Request) => {
 
     // Allow pharma to rotate callback url/secret on a subsequent event
     // (e.g. they rolled their HMAC keypair). All fields stay optional.
+    // The secret rotation is upserted into courier_order_secrets — see
+    // migration 20260605_004 — instead of stored on courier_orders.
     const updateRow: Record<string, unknown> = { status: targetStatus, updated_at: at };
     if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
-    if (order.pharma_callback_secret) updateRow.pharma_callback_secret = order.pharma_callback_secret;
+
+    if (order.pharma_callback_secret) {
+      const { error: secretErr } = await supabase
+        .from('courier_order_secrets')
+        .upsert(
+          {
+            courier_order_id: existing.id,
+            pharma_callback_secret: order.pharma_callback_secret,
+            updated_at: at,
+          },
+          { onConflict: 'courier_order_id' },
+        );
+      if (secretErr) {
+        console.error('[courier-mirror-pharma] secret rotate failed', secretErr.message);
+        return json(500, { error: 'secret_update_failed', detail: secretErr.message });
+      }
+    }
 
     const { error: updateErr } = await supabase
       .from('courier_orders')
