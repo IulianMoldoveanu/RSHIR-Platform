@@ -160,31 +160,87 @@ type ActivePin = {
   dropoffLng: number | null;
 };
 
+// CSS keyframes for the pulse halo. Injected once per page the first time
+// `makeRiderIcon` is called. Wolt / Glovo / Uber Eats markers are stacked:
+//   1. Animated outer pulse (continuous "I'm live" pulse),
+//   2. Accuracy ring (semi-transparent — sized loosely by GPS accuracy),
+//   3. White halo (separates the vehicle silhouette from the map tile),
+//   4. The 3D vehicle SVG, rotated by the live heading.
+const RIDER_PIN_STYLE_ID = 'rider-vehicle-pin-styles';
+function ensureRiderPinStyles(): void {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(RIDER_PIN_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = RIDER_PIN_STYLE_ID;
+  style.textContent = `
+    @keyframes rider-pin-pulse {
+      0%   { transform: scale(0.55); opacity: 0.55; }
+      80%  { transform: scale(2.1); opacity: 0; }
+      100% { transform: scale(2.1); opacity: 0; }
+    }
+    .rider-vehicle-pin .rider-pulse {
+      animation: rider-pin-pulse 1.6s ease-out infinite;
+      transform-origin: center;
+    }
+    .rider-vehicle-pin .rider-rotor {
+      transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
+      will-change: transform;
+    }
+    .rider-vehicle-pin .rider-accuracy {
+      transition: inset 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 // Builds the divIcon HTML wrapping the 3D miniature SVG. The wrapper has
-// data-rider-marker="1" so we can grab it back from the DOM later to
-// rotate it according to the live GPS heading without touching Leaflet's
-// marker internals (which would force a full re-render every fix). The
-// rotation is applied via CSS transform on the inner element which gives
-// us a smooth ~120ms tween on every heading update.
+// stacked layers: pulse → accuracy ring → halo → vehicle (rotor). We
+// query the rotor + accuracy elements back from the DOM to rotate the
+// vehicle and resize the accuracy ring without forcing Leaflet to
+// re-render the whole marker on every fix.
 function makeRiderIcon(L: LeafletGlobal, type: VehicleType): unknown {
+  ensureRiderPinStyles();
   const inner = vehicleIconHtml(type);
   return L.divIcon({
     className: 'rider-vehicle-pin',
-    html: `<div data-rider-marker="1" style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:9999px;background:radial-gradient(circle at 30% 25%, rgba(167,139,250,0.32), rgba(124,58,237,0.10) 70%);box-shadow:0 0 0 3px rgba(124,58,237,0.34), 0 6px 14px rgba(0,0,0,0.45);transition:transform 120ms linear;transform-origin:center;will-change:transform;"><div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">${inner}</div></div>`,
+    html: `<div style="position:relative;width:56px;height:56px;">
+      <div class="rider-pulse" style="position:absolute;inset:0;border-radius:9999px;background:rgba(124,58,237,0.45);pointer-events:none;"></div>
+      <div class="rider-accuracy" data-rider-accuracy="1" style="position:absolute;inset:2px;border-radius:9999px;background:rgba(124,58,237,0.18);border:1px solid rgba(124,58,237,0.45);pointer-events:none;"></div>
+      <div style="position:absolute;inset:6px;border-radius:9999px;background:#ffffff;box-shadow:0 0 0 2px rgba(124,58,237,0.55), 0 6px 14px rgba(0,0,0,0.40);"></div>
+      <div class="rider-rotor" data-rider-rotor="1" style="position:absolute;inset:8px;display:flex;align-items:center;justify-content:center;border-radius:9999px;overflow:hidden;background:radial-gradient(circle at 30% 25%, rgba(167,139,250,0.20), rgba(124,58,237,0.05) 70%);">${inner}</div>
+    </div>`,
     iconSize: [56, 56],
     iconAnchor: [28, 28],
   });
 }
 
-// Helper: find the inner rotation target inside a Leaflet marker DOM node.
-// We can't trust a static class name because Leaflet may inject its own
-// transform (translate3d) on the immediate marker icon — the inner div we
-// added is the safe place to land our rotation transform.
-function getMarkerInnerEl(marker: LeafletMarker): HTMLElement | null {
+// Helpers: find the rotor + accuracy ring inside a Leaflet marker DOM
+// node. We use data attributes rather than class names because Leaflet
+// may inject its own classes/transforms on the outer marker icon.
+function getMarkerRotorEl(marker: LeafletMarker): HTMLElement | null {
   const m = marker as unknown as { getElement?: () => HTMLElement | null };
   const el = m.getElement?.();
   if (!el) return null;
-  return el.querySelector<HTMLElement>('[data-rider-marker="1"]');
+  return el.querySelector<HTMLElement>('[data-rider-rotor="1"]');
+}
+function getMarkerAccuracyEl(marker: LeafletMarker): HTMLElement | null {
+  const m = marker as unknown as { getElement?: () => HTMLElement | null };
+  const el = m.getElement?.();
+  if (!el) return null;
+  return el.querySelector<HTMLElement>('[data-rider-accuracy="1"]');
+}
+
+// Map raw GPS accuracy (meters) to a CSS inset for the accuracy ring.
+// The wrapper is 56 px so the ring shrinks/expands over a small range —
+// it's a visual hint, not a metrically scaled radius. Wolt uses the
+// same pattern: tighter ring when GPS is sharp, wider when it's fuzzy.
+function accuracyInsetPx(accuracyMeters: number | null | undefined): number {
+  if (accuracyMeters == null || !Number.isFinite(accuracyMeters)) return 4;
+  if (accuracyMeters <= 15) return 6;
+  if (accuracyMeters <= 50) return 4;
+  if (accuracyMeters <= 150) return 2;
+  return 0;
 }
 
 export function RiderMap({
@@ -239,11 +295,18 @@ export function RiderMap({
 
         mapRef.current = map;
 
-        // Active-order layer: for each pin we paint the pickup (violet),
-        // the dropoff (emerald), and a dashed polyline connecting them so
-        // the rider sees the route at a glance. We use straight lines for
-        // MVP — switching to OSRM-fetched paths is a follow-up that needs
-        // the routing service plumbed in (per maps-geo-dev tickets).
+        // Active-order layer: pickup + dropoff rendered as Wolt-style
+        // stylized "drop" pins (coloured circle with a glyph + a small
+        // tail pointing at the actual coordinate), connected by a
+        // dashed polyline so the rider sees the route at a glance.
+        // Straight lines for MVP — switching to OSRM-fetched paths is
+        // a follow-up (per maps-geo-dev tickets).
+        const dropPinHtml = (color: string, glyph: string): string => `
+          <div style="position:relative;width:32px;height:40px;">
+            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:32px;height:32px;border-radius:9999px;background:${color};border:2.5px solid #ffffff;box-shadow:0 4px 10px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">${glyph}</div>
+            <div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:14px solid ${color};filter:drop-shadow(0 2px 2px rgba(0,0,0,0.35));"></div>
+          </div>
+        `;
         const polyBounds: Array<[number, number]> = [];
         for (const pin of activePins) {
           if (pin.pickupLat != null && pin.pickupLng != null) {
@@ -251,10 +314,9 @@ export function RiderMap({
             L.marker([pin.pickupLat, pin.pickupLng], {
               icon: L.divIcon({
                 className: 'rider-pickup-pin',
-                html:
-                  '<span style="display:block;width:14px;height:14px;border-radius:9999px;background:#7c3aed;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></span>',
-                iconSize: [14, 14],
-                iconAnchor: [7, 7],
+                html: dropPinHtml('#7c3aed', '📦'),
+                iconSize: [32, 40],
+                iconAnchor: [16, 40],
               }),
             }).addTo(map);
           }
@@ -263,10 +325,9 @@ export function RiderMap({
             L.marker([pin.dropoffLat, pin.dropoffLng], {
               icon: L.divIcon({
                 className: 'rider-dropoff-pin',
-                html:
-                  '<span style="display:block;width:14px;height:14px;border-radius:9999px;background:#10b981;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.5)"></span>',
-                iconSize: [14, 14],
-                iconAnchor: [7, 7],
+                html: dropPinHtml('#10b981', '🏠'),
+                iconSize: [32, 40],
+                iconAnchor: [16, 40],
               }),
             }).addTo(map);
           }
@@ -315,11 +376,26 @@ export function RiderMap({
         let lastLat: number | null = null;
         let lastLng: number | null = null;
 
+        // GPS interpolation state — Wolt's marker doesn't snap on each
+        // fix, it eases between the previous and the new coordinate over
+        // ~600 ms. We drive the easing with rAF, cancel any in-flight
+        // animation when a new fix arrives, and fall back to setLatLng
+        // jumps for identical points.
+        const INTERPOLATE_MS = 600;
+        let animationFrameId: number | null = null;
+        const cancelInterpolation = () => {
+          if (animationFrameId != null) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+          }
+        };
+
         const id = navigator.geolocation.watchPosition(
           (pos) => {
             if (cancelledRef.current) return;
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
+            const accuracyMeters = pos.coords.accuracy;
             setPermission('granted');
 
             // Heading: prefer the device-reported value when present
@@ -351,25 +427,65 @@ export function RiderMap({
               }
             }
             if (nextHeading != null) lastHeadingDeg = nextHeading;
+
+            // Capture previous coords BEFORE overwriting `lastLat`/`lastLng`
+            // so the interpolation has a real start point to ease from.
+            const prevLat = lastLat;
+            const prevLng = lastLng;
             lastLat = lat;
             lastLng = lng;
 
-            if (markerRef.current) {
-              markerRef.current.setLatLng([lat, lng]);
-            } else {
+            // First fix → just place the marker; subsequent fixes →
+            // animate from the previous lat/lng to the new one over
+            // INTERPOLATE_MS so the icon glides instead of snapping.
+            if (!markerRef.current) {
               const icon = makeRiderIcon(L, vehicleType);
               markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
               if (polyBounds.length < 2) map.setView([lat, lng], RIDER_ZOOM);
+            } else {
+              cancelInterpolation();
+              const startLat = prevLat ?? lat;
+              const startLng = prevLng ?? lng;
+              if (startLat === lat && startLng === lng) {
+                markerRef.current.setLatLng([lat, lng]);
+              } else {
+                const startTs = performance.now();
+                const step = () => {
+                  if (cancelledRef.current || !markerRef.current) {
+                    animationFrameId = null;
+                    return;
+                  }
+                  const elapsed = performance.now() - startTs;
+                  const t = Math.min(1, elapsed / INTERPOLATE_MS);
+                  const easedT = 1 - (1 - t) * (1 - t); // ease-out quad
+                  const curLat = startLat + (lat - startLat) * easedT;
+                  const curLng = startLng + (lng - startLng) * easedT;
+                  markerRef.current.setLatLng([curLat, curLng]);
+                  if (t < 1) {
+                    animationFrameId = requestAnimationFrame(step);
+                  } else {
+                    animationFrameId = null;
+                  }
+                };
+                animationFrameId = requestAnimationFrame(step);
+              }
             }
 
-            // Apply rotation on the inner div. Wait for the next frame so
-            // Leaflet has had time to attach the marker DOM after addTo.
-            if (lastHeadingDeg != null) {
-              requestAnimationFrame(() => {
-                const inner = markerRef.current ? getMarkerInnerEl(markerRef.current) : null;
-                if (inner) inner.style.transform = `rotate(${lastHeadingDeg}deg)`;
-              });
-            }
+            // Apply rotation on the rotor div + accuracy ring inset on
+            // the accuracy div. Wait for the next frame so Leaflet has
+            // attached the marker DOM after addTo.
+            requestAnimationFrame(() => {
+              if (!markerRef.current) return;
+              if (lastHeadingDeg != null) {
+                const rotor = getMarkerRotorEl(markerRef.current);
+                if (rotor) rotor.style.transform = `rotate(${lastHeadingDeg}deg)`;
+              }
+              const accuracy = getMarkerAccuracyEl(markerRef.current);
+              if (accuracy) {
+                const inset = accuracyInsetPx(accuracyMeters);
+                accuracy.style.inset = `${inset}px`;
+              }
+            });
           },
           (err) => {
             if (err.code === err.PERMISSION_DENIED) {
