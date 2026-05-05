@@ -27,6 +27,20 @@ type OrderRow = {
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
 
+// Romanian labels for every status the rider can see on the orders list.
+// Centralized so any future status (CANCELLED_BY_VENDOR, etc.) has one place
+// to land. Falls back to the raw enum when an unknown value sneaks in so
+// the UI never silently swallows it.
+const STATUS_LABEL_RO: Record<string, string> = {
+  CREATED: 'Liberă',
+  OFFERED: 'Oferită',
+  ACCEPTED: 'Acceptată',
+  PICKED_UP: 'Ridicată',
+  IN_TRANSIT: 'În livrare',
+  DELIVERED: 'Livrată',
+  CANCELLED: 'Anulată',
+};
+
 const ORDER_COLUMNS =
   'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at';
 
@@ -226,7 +240,7 @@ function OrderListItem({ order }: { order: OrderRow }) {
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <span className="rounded-full border border-zinc-800 bg-zinc-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
-              {order.status}
+              {STATUS_LABEL_RO[order.status] ?? order.status}
             </span>
             <span className="text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
           </div>

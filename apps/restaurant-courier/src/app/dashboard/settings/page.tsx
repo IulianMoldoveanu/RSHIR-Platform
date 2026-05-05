@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Bike, Car, ChevronRight, HelpCircle, Mail, Phone, Truck, User } from 'lucide-react';
+import { ChevronRight, HelpCircle, Mail, Phone, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { updateAvatarUrlAction, updateVehicleAction } from '../actions';
+import { updateAvatarUrlAction, updateVehicleTypeAction } from '../actions';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { VehicleSelector } from '@/components/vehicle-selector';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,12 +14,6 @@ type ProfileRow = {
   vehicle_type: 'BIKE' | 'SCOOTER' | 'CAR';
   status: 'INACTIVE' | 'ACTIVE' | 'SUSPENDED';
   avatar_url: string | null;
-};
-
-const VEHICLE_LABEL: Record<ProfileRow['vehicle_type'], string> = {
-  BIKE: 'Bicicletă',
-  SCOOTER: 'Scuter / Motocicletă',
-  CAR: 'Mașină',
 };
 
 const STATUS_LABEL: Record<ProfileRow['status'], { label: string; tone: string }> = {
@@ -87,45 +82,15 @@ export default async function SettingsPage() {
         </p>
       </section>
 
-      {/* Vehicle picker — segmented dark control. */}
+      {/* Vehicle picker — segmented control with the same 3D miniature
+          icons used on the live map. Tapping commits immediately
+          (optimistic update + rollback on error); no Save button needed. */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-base font-semibold text-zinc-100">Vehicul</h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          {profile
-            ? `În prezent: ${VEHICLE_LABEL[profile.vehicle_type]}`
-            : 'Alege vehiculul cu care livrezi.'}
-        </p>
-        <form action={updateVehicleAction} className="flex flex-col gap-3">
-          <div className="grid grid-cols-3 gap-2">
-            {/* When the profile row is missing, default to BIKE so the form
-                always submits a valid value. updateVehicleAction otherwise
-                bails on isVehicleType(raw) and the Save button looks broken. */}
-            <VehicleOption
-              value="BIKE"
-              icon={<Bike className="h-5 w-5" aria-hidden />}
-              label="Bicicletă"
-              checked={(profile?.vehicle_type ?? 'BIKE') === 'BIKE'}
-            />
-            <VehicleOption
-              value="SCOOTER"
-              icon={<Truck className="h-5 w-5" aria-hidden />}
-              label="Scuter"
-              checked={profile?.vehicle_type === 'SCOOTER'}
-            />
-            <VehicleOption
-              value="CAR"
-              icon={<Car className="h-5 w-5" aria-hidden />}
-              label="Mașină"
-              checked={profile?.vehicle_type === 'CAR'}
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600"
-          >
-            Salvează
-          </button>
-        </form>
+        <VehicleSelector
+          initial={profile?.vehicle_type ?? 'BIKE'}
+          onSave={updateVehicleTypeAction}
+        />
       </section>
 
       {/* Help link */}
@@ -164,37 +129,3 @@ function ProfileRowItem({
   );
 }
 
-// Radio-styled segmented vehicle picker. The hidden input keeps it form-native
-// (POSTs `vehicle_type` with the chosen value) while the label provides the
-// visible touch target — fine for mobile thumbs.
-function VehicleOption({
-  value,
-  icon,
-  label,
-  checked,
-}: {
-  value: 'BIKE' | 'SCOOTER' | 'CAR';
-  icon: React.ReactNode;
-  label: string;
-  checked: boolean;
-}) {
-  return (
-    <label
-      className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-xs font-medium transition ${
-        checked
-          ? 'border-violet-500 bg-violet-500/10 text-violet-200'
-          : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
-      }`}
-    >
-      <input
-        type="radio"
-        name="vehicle_type"
-        value={value}
-        defaultChecked={checked}
-        className="sr-only"
-      />
-      <span aria-hidden>{icon}</span>
-      <span>{label}</span>
-    </label>
-  );
-}
