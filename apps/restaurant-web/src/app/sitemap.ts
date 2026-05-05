@@ -79,12 +79,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   const baseUrl = canonicalBaseUrl(host);
-  const marketingEntries: MetadataRoute.Sitemap = MARKETING_ROUTES.map((r) => ({
-    url: `${baseUrl}${r.path}`,
-    lastModified: now,
-    changeFrequency: 'monthly',
-    priority: r.priority,
-  }));
+  // Lane EN-I18N PR D — emit `<xhtml:link>` alternates for every marketing
+  // route. Cookie-based locale means the same URL serves RO + EN, so all
+  // alternates self-reference. Helps GSC understand we serve a bilingual
+  // page from a single canonical without duplicate-content penalties.
+  const marketingEntries: MetadataRoute.Sitemap = MARKETING_ROUTES.map((r) => {
+    const url = `${baseUrl}${r.path}`;
+    return {
+      url,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: r.priority,
+      alternates: {
+        languages: { 'ro-RO': url, en: url, 'x-default': url },
+      },
+    };
+  });
 
   // Per-active-tenant landing entry. Crawl daily-ish (changefreq weekly)
   // because menu + hours + prices change frequently. lastMod from

@@ -27,6 +27,8 @@ import {
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { metaDescriptionFor } from '@/lib/seo';
+import { canonicalBaseUrl } from '@/lib/seo-marketing';
+import { headers } from 'next/headers';
 import { buildRestaurantJsonLd, buildMenuJsonLd } from '@/lib/seo/jsonld-helpers';
 import { SocialShare } from '@/components/storefront/social-share';
 import { PixelScripts } from '@/components/analytics/pixel-scripts';
@@ -42,12 +44,24 @@ export async function generateMetadata(): Promise<Metadata> {
     // visitor's locale cookie / Accept-Language preference.
     const title = t(locale, 'marketing.home.page_title');
     const description = t(locale, 'marketing.home.page_description');
+    // Lane EN-I18N PR D — language alternates. Same URL serves both
+    // locales (cookie-based locale, no /en or /ro prefix), so emit
+    // self-referencing alternates so search engines index a single URL
+    // and pick the right rendering via `Vary: Cookie`.
+    const host =
+      headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+    const url = `${canonicalBaseUrl(host)}/`;
     return {
       title,
       description,
+      alternates: {
+        canonical: url,
+        languages: { 'ro-RO': url, en: url, 'x-default': url },
+      },
       openGraph: {
         title,
         description,
+        url,
         type: 'website',
         locale: locale === 'en' ? 'en_GB' : 'ro_RO',
       },

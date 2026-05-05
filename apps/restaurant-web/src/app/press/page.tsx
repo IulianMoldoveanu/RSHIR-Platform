@@ -57,7 +57,11 @@ export const metadata: Metadata = {
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
-  alternates: { canonical: PRESS_URL },
+  // Lane EN-I18N PR D — same URL serves both locales (cookie-based).
+  alternates: {
+    canonical: PRESS_URL,
+    languages: { 'ro-RO': PRESS_URL, en: PRESS_URL, 'x-default': PRESS_URL },
+  },
 };
 
 const BRAND_COLORS = [
