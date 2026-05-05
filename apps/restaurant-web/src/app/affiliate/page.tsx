@@ -70,6 +70,18 @@ export default function AffiliatePage({
             >
               Cum funcționează
             </a>
+            {/* Lane W: 1-page auto-generated sales sheet for partner pitch.
+                Default audience = fleet-manager (Iulian's Bucuresti list) but
+                the route accepts ?audience=restaurant-owner|reseller for
+                the alternate variants. */}
+            <a
+              href="/api/sales-sheet?audience=fleet-manager"
+              className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Descarcă fișa de prezentare (PDF)
+            </a>
           </div>
         </div>
       </section>
