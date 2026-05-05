@@ -107,12 +107,16 @@ export async function POST(req: NextRequest) {
   const sb = admin as any;
 
   // ─── 1. Create auth user ────────────────────────────────────────────
-  // We deliberately omit email_confirm:true. Supabase sends the default
-  // confirmation email; the partner cannot log in until they click the
-  // link. This blocks email squatting (same posture as /api/signup).
+  // Set email_confirm:true so the partner can log in immediately and start
+  // sharing their referral link — that's the entire point of Lane T (no
+  // friction at the București meet-and-share moment). Email-squatting
+  // exposure is constrained because the user must also know the password,
+  // and admin approval still gates payout activation. The tenant /signup
+  // flow keeps the stricter unconfirmed-default posture (separate path).
   const { data: created, error: authErr } = await admin.auth.admin.createUser({
     email: data.email,
     password: data.password,
+    email_confirm: true,
   });
   if (authErr || !created.user) {
     // Generic message — don't leak "email already registered".
@@ -206,6 +210,8 @@ export async function POST(req: NextRequest) {
     ok: true,
     partner_id: partnerId,
     code: assignedCode,
-    requiresEmailConfirmation: true,
+    // email is auto-confirmed (see above) — caller can redirect straight
+    // to /login with the email prefilled.
+    requiresEmailConfirmation: false,
   });
 }

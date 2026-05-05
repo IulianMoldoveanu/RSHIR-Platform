@@ -74,8 +74,8 @@ export default function PartnerSignupPage() {
       <section id="aplica" className="mx-auto max-w-2xl px-6 pb-16">
         <h2 className="mb-2 text-xl font-semibold tracking-tight">Înscrie-te</h2>
         <p className="mb-6 text-sm text-[#475569]">
-          Toate câmpurile marcate cu * sunt obligatorii. După trimitere, vei primi un email
-          de confirmare. Confirmă-l, apoi te poți loga în portal.
+          Toate câmpurile marcate cu * sunt obligatorii. După trimitere te poți loga imediat
+          în portal — comisionul devine activ după aprobarea echipei HIR (24h).
         </p>
         <div className="rounded-lg border border-[#E2E8F0] bg-white p-6">
           <SignupForm adminUrl={ADMIN_URL} />

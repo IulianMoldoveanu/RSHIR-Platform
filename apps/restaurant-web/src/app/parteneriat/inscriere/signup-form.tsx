@@ -21,7 +21,7 @@ const CHANNELS = [
   { v: 'other', l: 'Alt canal' },
 ];
 
-type Done = { partner_id: string; code: string };
+type Done = { partner_id: string; code: string; email: string };
 
 export function SignupForm({ adminUrl }: { adminUrl: string }) {
   const [submitting, setSubmitting] = useState(false);
@@ -49,9 +49,10 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
       return;
     }
 
+    const submittedEmail = String(fd.get('email') ?? '').trim();
     const body = {
       full_name: String(fd.get('full_name') ?? '').trim(),
-      email: String(fd.get('email') ?? '').trim(),
+      email: submittedEmail,
       password,
       phone: String(fd.get('phone') ?? '').trim() || null,
       audience_type: String(fd.get('audience_type') ?? 'OTHER'),
@@ -68,8 +69,8 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
         body: JSON.stringify(body),
       });
       if (r.ok) {
-        const j = (await r.json()) as Done;
-        setDone(j);
+        const j = (await r.json()) as { partner_id: string; code: string };
+        setDone({ ...j, email: submittedEmail });
       } else {
         const j = await r.json().catch(() => null);
         setError(j?.detail ?? j?.error ?? `Eroare ${r.status}`);
@@ -93,15 +94,12 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
             </code>
           </p>
           <p className="mt-2 text-sm text-[#047857]">
-            Ți-am trimis un email de confirmare. Confirmă adresa, apoi loghează-te în portal
-            pentru a vedea linkul tău și a începe să-l distribui.
-          </p>
-          <p className="mt-1 text-xs text-[#047857]">
-            Verifică și folderul Spam dacă nu vezi emailul în 2-3 minute.
+            Te poți loga imediat în portalul de partener pentru a vedea linkul tău și a
+            începe să-l distribui. Cererea de aprobare e deja trimisă echipei HIR (24h SLA).
           </p>
         </div>
         <a
-          href={`${adminUrl}/login?email=${encodeURIComponent('')}&checkEmail=1`}
+          href={`${adminUrl}/login?email=${encodeURIComponent(done.email)}&signedUp=1`}
           className="inline-flex w-full items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
         >
           Mergi la login
