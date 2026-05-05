@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { RefCookieSetter } from './ref-cookie-setter';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -81,7 +82,10 @@ export default async function ResellerLandingPage({
 
   if (error || !data) notFound();
   const partner = data as PartnerRow;
-  if (partner.status !== 'ACTIVE') notFound();
+  // Lane T: PENDING partners (self-signed-up, awaiting admin approval) can
+  // already share their /r/<code> link. Visit tracking + attribution still
+  // accrues; commission is gated downstream by partner_referrals + status.
+  if (partner.status !== 'ACTIVE' && partner.status !== 'PENDING') notFound();
 
   // Track the visit. Fire-and-forget — don't await in a way that delays
   // hydration.
@@ -131,6 +135,10 @@ export default async function ResellerLandingPage({
         color: '#1e293b',
       }}
     >
+      {/* Lane T: persist the partner code in a 90-day cookie for indirect
+          attribution (user visits /r/<code>, leaves, comes back via direct
+          URL). The CTA URL already carries ?ref=<code> for primary attribution. */}
+      <RefCookieSetter code={partner.code} />
       <section style={{ maxWidth: 920, margin: '0 auto', padding: '64px 24px' }}>
         <div style={{ marginBottom: 16, fontSize: 14, color: '#64748b' }}>
           Recomandat de <strong>{partner.name}</strong>

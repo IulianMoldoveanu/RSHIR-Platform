@@ -176,6 +176,17 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        // Lane T: also denormalize the code on the tenants row for ad-hoc
+        // reporting + a stable audit field independent of partners.code
+        // mutations. Best-effort — never fail the signup.
+        const { error: refCodeErr } = await dbAny
+          .from('tenants')
+          .update({ referral_code: ref.toUpperCase() })
+          .eq('id', tenantId);
+        if (refCodeErr) {
+          console.warn('[signup] tenants.referral_code update failed (non-fatal)', refCodeErr.message);
+        }
+
         // Affiliate bounty — when the partner is tier=AFFILIATE, also create
         // a PENDING bounty row (becomes PAYABLE after 30 days; this window
         // lets us cancel for fraud / immediate-churn). Reseller partners

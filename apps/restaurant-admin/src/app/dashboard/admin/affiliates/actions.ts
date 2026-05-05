@@ -67,53 +67,92 @@ export async function approveAffiliateApplication(
 
   const { data: app, error: readErr } = await sb
     .from('affiliate_applications')
-    .select('id, full_name, email, phone, audience_type, status')
+    .select('id, full_name, email, phone, audience_type, status, partner_id')
     .eq('id', application_id)
     .maybeSingle();
   if (readErr || !app) return { ok: false, error: 'application_not_found' };
-  const a = app as { full_name: string; email: string; phone: string | null; audience_type: string; status: string };
+  const a = app as {
+    full_name: string;
+    email: string;
+    phone: string | null;
+    audience_type: string;
+    status: string;
+    partner_id: string | null;
+  };
   if (a.status !== 'PENDING') return { ok: false, error: `bad_status_${a.status}` };
 
   // Existing-tenant flag drives the bounty doubling.
   const isExistingTenant = a.audience_type === 'EXISTING_TENANT';
   const bounty = isExistingTenant ? EXISTING_TENANT_BOUNTY_RON : DEFAULT_BOUNTY_RON;
 
-  // Create a partners row for this affiliate. Reuses partners schema across
-  // both reseller and affiliate for uniform payouts ledger. We generate the
-  // public referral code in the same insert: the code becomes the affiliate's
-  // /r/<code> public landing identifier and is included in the approval email.
-  // Retry on rare unique-violation collisions.
+  // Two paths converge here:
+  //   A) Self-service signup (Lane T): application has partner_id set + the
+  //      partners row exists with status=PENDING + a generated code. We just
+  //      flip status to ACTIVE and re-confirm the bounty amount.
+  //   B) Manual /affiliate intake (legacy): no partner_id yet — create the
+  //      partners row from scratch with a fresh code, status=ACTIVE.
   let partnerId: string | null = null;
   let assignedCode: string | null = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = randomCode();
-    const { data: partner, error: partnerErr } = await sb
+
+  if (a.partner_id) {
+    // Path A — flip existing PENDING partner to ACTIVE.
+    const { data: existing, error: readPartnerErr } = await sb
       .from('partners')
-      .insert({
-        name: a.full_name,
-        email: a.email.toLowerCase(),
-        phone: a.phone,
+      .select('id, code, status')
+      .eq('id', a.partner_id)
+      .maybeSingle();
+    if (readPartnerErr || !existing) {
+      return { ok: false, error: 'pending_partner_not_found' };
+    }
+    if (!existing.code) {
+      return { ok: false, error: 'pending_partner_missing_code' };
+    }
+    if (existing.status === 'ACTIVE') {
+      // Idempotent: already approved, just return the existing identifiers.
+      return { ok: true, partner_id: String(existing.id) };
+    }
+    const { error: flipErr } = await sb
+      .from('partners')
+      .update({
         status: 'ACTIVE',
-        tier: 'AFFILIATE',
-        default_commission_pct: 0,
         bounty_one_shot_ron: bounty,
-        code,
       })
-      .select('id')
-      .single();
-    if (!partnerErr && partner) {
-      partnerId = String(partner.id);
-      assignedCode = code;
-      break;
+      .eq('id', a.partner_id);
+    if (flipErr) return { ok: false, error: flipErr.message };
+    partnerId = String(existing.id);
+    assignedCode = String(existing.code);
+  } else {
+    // Path B — legacy: create partners row + code from scratch.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = randomCode();
+      const { data: partner, error: partnerErr } = await sb
+        .from('partners')
+        .insert({
+          name: a.full_name,
+          email: a.email.toLowerCase(),
+          phone: a.phone,
+          status: 'ACTIVE',
+          tier: 'AFFILIATE',
+          default_commission_pct: 0,
+          bounty_one_shot_ron: bounty,
+          code,
+        })
+        .select('id')
+        .single();
+      if (!partnerErr && partner) {
+        partnerId = String(partner.id);
+        assignedCode = code;
+        break;
+      }
+      // Retry only on code uniqueness collision; bail on anything else.
+      const msg = partnerErr?.message ?? '';
+      if (!/duplicate|unique|partners_code_unique/i.test(msg)) {
+        return { ok: false, error: msg || 'partner_insert_failed' };
+      }
     }
-    // Retry only on code uniqueness collision; bail on anything else.
-    const msg = partnerErr?.message ?? '';
-    if (!/duplicate|unique|partners_code_unique/i.test(msg)) {
-      return { ok: false, error: msg || 'partner_insert_failed' };
+    if (!partnerId || !assignedCode) {
+      return { ok: false, error: 'code_generation_exhausted' };
     }
-  }
-  if (!partnerId || !assignedCode) {
-    return { ok: false, error: 'code_generation_exhausted' };
   }
 
   // Mark application APPROVED

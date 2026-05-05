@@ -20,6 +20,8 @@ type Partner = {
   email: string;
   phone: string | null;
   default_commission_pct: number;
+  status: string;
+  code: string | null;
 };
 
 type Referral = {
@@ -45,6 +47,9 @@ type AdminClient = {
   from: (table: string) => {
     select: (cols: string) => {
       eq: (col: string, val: string) => {
+        in: (col: string, vals: string[]) => {
+          maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
+        };
         eq: (col: string, val: string) => {
           maybeSingle: () => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
         };
@@ -86,11 +91,13 @@ export default async function PartnerPortalPage() {
   const admin = createAdminClient() as unknown as AdminClient;
 
   // 1. Partner row
+  // Lane T: include PENDING partners — they need access to the dashboard
+  // immediately to share their /r/<code> link, even before admin approval.
   const { data: rawPartner } = await admin
     .from('partners')
-    .select('id, name, email, phone, default_commission_pct')
+    .select('id, name, email, phone, default_commission_pct, status, code')
     .eq('user_id', user.id)
-    .eq('status', 'ACTIVE')
+    .in('status', ['PENDING', 'ACTIVE'])
     .maybeSingle();
 
   if (!rawPartner) redirect('/login');
@@ -101,7 +108,11 @@ export default async function PartnerPortalPage() {
     email: rawPartner.email as string,
     phone: (rawPartner.phone as string | null) ?? null,
     default_commission_pct: Number(rawPartner.default_commission_pct),
+    status: String(rawPartner.status ?? 'PENDING'),
+    code: (rawPartner.code as string | null) ?? null,
   };
+
+  const isPending = partner.status === 'PENDING';
 
   // 2. Referrals (up to 50 rows, newest first)
   //    We join tenants to get the name. The cast works because we call .select()
@@ -181,10 +192,16 @@ export default async function PartnerPortalPage() {
     .filter((c) => c.status === 'PAID')
     .reduce((sum, c) => sum + c.amount_cents, 0);
 
-  // 5. Referral URL — use partner.id as the opaque referral code (no extra column needed).
+  // 5. Referral URL — prefer the public /r/<code> landing on the storefront
+  // host (white-label friendly, has visit tracking + cookie attribution).
+  // Fall back to the admin signup path for legacy partners without a code.
+  const webUrl =
+    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hir-restaurant-web.vercel.app';
   const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN ?? 'hiraisolutions.ro';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? `https://app.${primaryDomain}`;
-  const referralUrl = `${appUrl}/signup?ref=${partner.id}`;
+  const referralUrl = partner.code
+    ? `${webUrl}/r/${partner.code}`
+    : `${appUrl}/signup?ref=${partner.id}`;
 
   return (
     <div className="flex flex-col gap-8">
@@ -200,6 +217,33 @@ export default async function PartnerPortalPage() {
           </span>
         </p>
       </header>
+
+      {/* Lane T: status banner — only shown when partner is PENDING */}
+      {isPending ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="rounded-lg border border-amber-300 bg-amber-50 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900"
+            >
+              !
+            </span>
+            <div>
+              <h2 className="text-sm font-semibold text-amber-900">
+                Cerere în curs de aprobare
+              </h2>
+              <p className="mt-1 text-sm text-amber-800">
+                Vei putea încasa comision după aprobarea echipei HIR. Estimat 24h. Între timp,
+                poți deja distribui linkul tău — atribuirea referralurilor se păstrează retroactiv.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* KPI tiles */}
       <section aria-label="Indicatori cheie" className="grid gap-4 sm:grid-cols-3">
@@ -227,7 +271,7 @@ export default async function PartnerPortalPage() {
       <section aria-label="Restaurante referite">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">Restaurante referite</h2>
         {referrals.length === 0 ? (
-          <EmptyState text="Nu ai referat niciun restaurant încă. Partajează linkul tău de invitație pentru a începe." />
+          <EmptyState text="0 RON câștigați · 0 restaurante referite — începe prin a distribui linkul tău mai sus." />
         ) : (
           <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
             <table className="w-full text-sm">

@@ -23,6 +23,11 @@ export function InvitePanel({ referralUrl }: { referralUrl: string }) {
   const tgText = encodeURIComponent(
     `Înregistrează-ți restaurantul pe HIR: ${referralUrl}`,
   );
+  // Pre-built email body. `mailto:` ignores HTML; plain text is fine.
+  const emailSubject = encodeURIComponent('Soluție de comenzi online pentru restaurantul tău');
+  const emailBody = encodeURIComponent(
+    `Salut,\n\nÎți recomand HIR pentru comenzi online la restaurant. Plătești 3 RON / livrare flat — fără abonament, fără procent.\n\nLink direct (cu pre-completare): ${referralUrl}\n\nDacă ai întrebări, sună-mă.`,
+  );
 
   return (
     <section
@@ -70,6 +75,13 @@ export function InvitePanel({ referralUrl }: { referralUrl: string }) {
             className="rounded-md bg-sky-500 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-sky-600"
           >
             Telegram
+          </a>
+          <a
+            href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
+            aria-label="Distribuie prin email"
+            className="rounded-md border border-purple-300 bg-white px-3 py-2 text-xs font-medium text-purple-700 transition-colors hover:bg-purple-100"
+          >
+            Email
           </a>
         </div>
       </div>
