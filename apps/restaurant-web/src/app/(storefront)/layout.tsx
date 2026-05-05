@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
@@ -14,7 +13,15 @@ export const dynamic = 'force-dynamic';
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const { tenant } = await resolveTenantFromHost();
-  if (!tenant) notFound();
+  // Lane H 2026-05-04: when no tenant resolves (canonical Vercel host with
+  // no ?tenant= override and no custom-domain match) we pass `children`
+  // through bare. The page itself decides whether to 404 (sub-routes that
+  // require a tenant: account/bio/m/rezervari) or render the brand
+  // marketing landing (root `page.tsx`). Storefront chrome (CartPill,
+  // newsletter, cookie consent) is tenant-scoped so it stays gated below.
+  if (!tenant) {
+    return <>{children}</>;
+  }
 
   const locale = getLocale();
   const { brandColor } = brandingFor(tenant.settings);
