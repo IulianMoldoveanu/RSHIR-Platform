@@ -206,16 +206,41 @@ export async function endShiftAction() {
 export async function markPickedUpAction(orderId: string) {
   const userId = await requireUserId();
   const admin = createAdminClient();
+  // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`, a
+  // courier could revert a DELIVERED or CANCELLED order back to PICKED_UP
+  // and re-fire the webhook to subscribers. The atomic UPDATE filters the
+  // row out cleanly when the status doesn't match — `maybeSingle()` returns
+  // null and the notify call is skipped.
   const { data } = await admin
     .from('courier_orders')
     .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
     .eq('id', orderId)
     .eq('assigned_courier_user_id', userId)
+    .in('status', ['ACCEPTED'])
     .select('id')
     .maybeSingle();
   if (data) await notifySubscriber(orderId, 'PICKED_UP', userId);
   revalidatePath(`/dashboard/orders/${orderId}`);
   revalidatePath('/dashboard/orders');
+}
+
+// Validates the proof URL points at our own courier-proofs storage bucket.
+// Without this, a malicious client could pass any URL into delivered_proof_url
+// — that string is later rendered in admin / customer-tracking UIs and
+// emitted in webhook payloads as the canonical "proof" value, so untrusted
+// URLs become an XSS / phishing vector in trusted surfaces.
+function isAllowedProofUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') return false;
+    const supaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+    if (!supaUrl) return false;
+    const expectedHost = new URL(supaUrl).host;
+    if (u.host !== expectedHost) return false;
+    return u.pathname.includes('/storage/v1/object/public/courier-proofs/');
+  } catch {
+    return false;
+  }
 }
 
 export async function markDeliveredAction(
@@ -229,15 +254,19 @@ export async function markDeliveredAction(
     status: 'DELIVERED',
     updated_at: new Date().toISOString(),
   };
-  if (proofUrl) {
+  if (proofUrl && isAllowedProofUrl(proofUrl)) {
     update.delivered_proof_url = proofUrl;
     update.delivered_proof_taken_at = new Date().toISOString();
   }
+  // State-machine guard (audit P0): only orders currently in PICKED_UP or
+  // IN_TRANSIT may transition to DELIVERED. Without this, a courier with an
+  // ACCEPTED order could swipe to deliver and skip the pickup leg entirely.
   const { data } = await admin
     .from('courier_orders')
     .update(update)
     .eq('id', orderId)
     .eq('assigned_courier_user_id', userId)
+    .in('status', ['PICKED_UP', 'IN_TRANSIT'])
     .select('id, payment_method, total_ron')
     .maybeSingle();
   if (data) {
@@ -280,6 +309,10 @@ export async function refreshOrdersAction() {
 export async function updateCourierLocationAction(lat: number, lng: number): Promise<void> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+  // Reject Null Island. (0,0) passes the finite + bounds checks but is
+  // virtually always a fallback artefact from a failed GPS fix — writing it
+  // into the shift would corrupt the geofence audit's last_lat/last_lng.
+  if (lat === 0 && lng === 0) return;
 
   const userId = await requireUserId();
   const admin = createAdminClient();

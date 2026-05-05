@@ -326,9 +326,24 @@ export function RiderMap({
             // (mobile GPS at speed). Fall back to a derived bearing from
             // consecutive points so the icon still turns when only
             // crowdsourced wifi/cell positioning is available.
+            //
+            // iOS Safari quirk: returns heading = -1 when stationary.
+            // We guard against that explicitly so the icon doesn't snap
+            // to "south" while the rider is at a light. Also require
+            // speed > 0 so a noisy stationary fix doesn't update heading.
             let nextHeading: number | null = null;
-            if (typeof pos.coords.heading === 'number' && Number.isFinite(pos.coords.heading)) {
-              nextHeading = pos.coords.heading;
+            const reportedHeading = pos.coords.heading;
+            const reportedSpeed = pos.coords.speed;
+            const speedTrustworthy =
+              typeof reportedSpeed === 'number' && Number.isFinite(reportedSpeed) && reportedSpeed > 0;
+            if (
+              typeof reportedHeading === 'number' &&
+              Number.isFinite(reportedHeading) &&
+              reportedHeading >= 0 &&
+              reportedHeading <= 360 &&
+              (speedTrustworthy || reportedSpeed === null)
+            ) {
+              nextHeading = reportedHeading;
             } else if (lastLat != null && lastLng != null) {
               const moved = haversineMetersLocal(lastLat, lastLng, lat, lng);
               if (moved > 5) {
