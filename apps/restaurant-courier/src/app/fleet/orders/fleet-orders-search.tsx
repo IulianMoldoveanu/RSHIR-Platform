@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 
 const STORAGE_KEY = 'hir.fleet.orders-search';
+export const SEARCH_EVENT = 'hir.fleet.orders-search-changed';
+export const SEARCH_STORAGE_KEY = STORAGE_KEY;
 
 /**
  * Client-side search box that filters the dispatch board's order rows
@@ -39,6 +41,18 @@ export function FleetOrdersSearch() {
       window.sessionStorage.setItem(STORAGE_KEY, query);
     } catch {
       /* ignore */
+    }
+
+    // Broadcast the new query so the virtualized list (which only mounts
+    // visible rows in the DOM) can filter its backing array. Without this
+    // a search for an off-screen active order would return zero matches
+    // when the list is in virtualized mode (Codex P2 on #279).
+    try {
+      window.dispatchEvent(
+        new CustomEvent(SEARCH_EVENT, { detail: { query } }),
+      );
+    } catch {
+      /* ignore — happens in test environments without CustomEvent */
     }
 
     const lis = document.querySelectorAll<HTMLLIElement>('[data-search-blob]');
