@@ -172,6 +172,11 @@ export async function POST(req: NextRequest) {
   }
 
   // ─── 3. Insert affiliate_applications row (linked to partner_id) ───
+  // The admin review queue (/dashboard/admin/affiliates) reads exclusively
+  // from affiliate_applications, so without this row the partner cannot be
+  // approved through the normal flow. Treat insert failure as fatal and
+  // roll back the partner + auth user so the user sees the error and can
+  // retry instead of being silently stuck in PENDING (Codex P1).
   const ua = req.headers.get('user-agent') ?? '';
   const { error: appErr } = await sb.from('affiliate_applications').insert({
     full_name: data.full_name,
@@ -188,10 +193,13 @@ export async function POST(req: NextRequest) {
     partner_id: partnerId,
   });
   if (appErr) {
-    // Don't roll back partner / auth user — the audit row is non-critical.
-    // Admin can still see the partners row and approve; the application row
-    // is just a convenience for the review UI.
-    console.warn('[parteneriat/signup] affiliate_applications insert failed (non-fatal)', appErr.message);
+    console.error('[parteneriat/signup] affiliate_applications insert failed', appErr.message);
+    await sb.from('partners').delete().eq('id', partnerId).then(() => null, () => null);
+    await admin.auth.admin.deleteUser(userId).catch(() => {});
+    return NextResponse.json(
+      { error: 'application_insert_failed', detail: appErr.message },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({

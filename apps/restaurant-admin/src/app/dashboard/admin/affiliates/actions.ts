@@ -107,20 +107,22 @@ export async function approveAffiliateApplication(
     if (!existing.code) {
       return { ok: false, error: 'pending_partner_missing_code' };
     }
-    if (existing.status === 'ACTIVE') {
-      // Idempotent: already approved, just return the existing identifiers.
-      return { ok: true, partner_id: String(existing.id) };
-    }
-    const { error: flipErr } = await sb
-      .from('partners')
-      .update({
-        status: 'ACTIVE',
-        bounty_one_shot_ron: bounty,
-      })
-      .eq('id', a.partner_id);
-    if (flipErr) return { ok: false, error: flipErr.message };
+    // Set the ids before the conditional flip so the application-update
+    // path below runs on both first approval AND retry-after-partner-already-
+    // flipped (Codex P1: don't early-return; the application row is the
+    // queue's source of truth and must reach status=APPROVED + email + audit).
     partnerId = String(existing.id);
     assignedCode = String(existing.code);
+    if (existing.status !== 'ACTIVE') {
+      const { error: flipErr } = await sb
+        .from('partners')
+        .update({
+          status: 'ACTIVE',
+          bounty_one_shot_ron: bounty,
+        })
+        .eq('id', a.partner_id);
+      if (flipErr) return { ok: false, error: flipErr.message };
+    }
   } else {
     // Path B — legacy: create partners row + code from scratch.
     for (let attempt = 0; attempt < 5; attempt++) {

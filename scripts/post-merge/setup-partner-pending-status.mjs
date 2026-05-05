@@ -7,18 +7,43 @@
 //
 //   node "C:/Users/Office HIR CEO/Desktop/AI Projects/RSHIR-claude-wt-laneT/scripts/post-merge/setup-partner-pending-status.mjs"
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
 
-const v = JSON.parse(readFileSync('C:/Users/Office HIR CEO/.hir/secrets.json', 'utf8'));
-const REF = v.supabase.project_ref;
-const PAT = v.supabase.management_pat;
-const SUPABASE_URL = v.supabase.url;
-const SERVICE = v.supabase.service_role_key;
+// Load credentials from (in order of precedence):
+//   1. Environment variables — preferred for CI / non-Windows runners.
+//   2. HIR_SECRETS_PATH env var pointing to a JSON file in the vault format.
+//   3. The default Windows operator vault path.
+function loadCredentials() {
+  const envRef = process.env.SUPABASE_PROJECT_REF;
+  const envPat = process.env.SUPABASE_MANAGEMENT_PAT;
+  const envUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const envService = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (envRef && envPat && envUrl && envService) {
+    return { REF: envRef, PAT: envPat, SUPABASE_URL: envUrl, SERVICE: envService };
+  }
+  const candidate =
+    process.env.HIR_SECRETS_PATH ?? 'C:/Users/Office HIR CEO/.hir/secrets.json';
+  if (!existsSync(candidate)) {
+    console.error(
+      '[fatal] secrets unavailable. Set SUPABASE_PROJECT_REF / SUPABASE_MANAGEMENT_PAT / SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY env vars OR provide HIR_SECRETS_PATH pointing to the vault JSON.',
+    );
+    process.exit(1);
+  }
+  const v = JSON.parse(readFileSync(candidate, 'utf8'));
+  return {
+    REF: v.supabase.project_ref,
+    PAT: v.supabase.management_pat,
+    SUPABASE_URL: v.supabase.url,
+    SERVICE: v.supabase.service_role_key,
+  };
+}
+
+const { REF, PAT, SUPABASE_URL, SERVICE } = loadCredentials();
 
 const MIGRATION = resolve(
   REPO_ROOT,
