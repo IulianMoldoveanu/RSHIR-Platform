@@ -122,11 +122,15 @@ export default async function DashboardHome() {
       />
 
       {/* Greeting + status pill, top-left over the map. */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[60%] rounded-2xl border border-zinc-800 bg-zinc-950/85 px-3 py-2 backdrop-blur">
+      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] rounded-2xl border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 backdrop-blur">
         <p className="text-sm font-semibold text-zinc-100">
           Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
         </p>
-        <p className="mt-0.5 text-[11px] text-zinc-400">
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-300">
+          <span
+            aria-hidden
+            className={`inline-block h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-500'}`}
+          />
           {isOnline
             ? activeOrders.length > 0
               ? `${activeOrders.length} ${activeOrders.length === 1 ? 'comandă activă' : 'comenzi active'}`
@@ -185,13 +189,16 @@ export default async function DashboardHome() {
           (success green, surfaced only when no active orders so the courier
           doesn't accidentally go offline mid-delivery). */}
       {!isOnline ? (
-        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-3">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
+        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
+          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
+            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              Ești offline
+            </p>
             <SwipeButton
               label="→ Glisează pentru a porni tura"
               onConfirm={startShiftAction}
             />
-            <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
+            <div className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
               <span>Glisează sau ține apăsat ~1 secundă.</span>
               <span aria-hidden className="text-zinc-700">·</span>
               <Link
@@ -204,16 +211,17 @@ export default async function DashboardHome() {
           </div>
         </div>
       ) : activeOrders.length === 0 ? (
-        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-3">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 shadow-2xl backdrop-blur">
+        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
+          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
+            <p className="mb-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+              <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+              Online · gata pentru comenzi
+            </p>
             <SwipeButton
               label="→ Glisează pentru a încheia tura"
               onConfirm={endShiftAction}
               variant="success"
             />
-            <p className="mt-2 text-center text-[11px] text-zinc-500">
-              Online · gata pentru comenzi. Glisează pentru a opri.
-            </p>
           </div>
         </div>
       ) : null}
