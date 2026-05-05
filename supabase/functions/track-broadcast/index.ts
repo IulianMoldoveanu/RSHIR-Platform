@@ -116,6 +116,18 @@ Deno.serve(async (req: Request) => {
     broadcast_at: new Date().toISOString(),
   };
 
+  // SECURITY NOTE (Codex P1, 2026-05-05): this broadcast uses a public
+  // (non-private) channel. A third party with the track token could ALSO
+  // send `status_change` events on the same topic. The track page
+  // mitigates this by treating broadcasts as a pure "invalidate the React
+  // Query cache now" signal — the displayed state and the fired
+  // notification both come from the authoritative /api/track/:token
+  // refetch, NOT from the broadcast payload. The worst a spoofer can do
+  // is force an extra server fetch.
+  //
+  // To eliminate even that, migrate to Realtime Authorization (private
+  // channels + RLS on realtime.messages) — out of scope for this lane;
+  // tracked separately.
   const broadcastUrl = `${SUPABASE_URL.replace(/\/$/, '')}/realtime/v1/api/broadcast`;
   const r = await fetch(broadcastUrl, {
     method: 'POST',

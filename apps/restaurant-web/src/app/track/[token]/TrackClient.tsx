@@ -17,7 +17,7 @@ import {
 } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
-import { useTrackBroadcast, type TrackBroadcastPayload } from '@/lib/realtime/track-subscription';
+import { useTrackBroadcast } from '@/lib/realtime/track-subscription';
 
 const TrackMap = dynamic(() => import('./TrackMap').then((m) => m.TrackMap), {
   ssr: false,
@@ -93,20 +93,36 @@ function TrackInner({
   // Lane RT-PUSH — real-time status nudge.
   // The Edge Function `track-broadcast` (see supabase/functions/) publishes
   // a `status_change` event to channel `track:<token>` whenever the AFTER
-  // UPDATE trigger fires on `restaurant_orders.status`. We invalidate the
-  // React Query so the next render uses fresh authoritative data from
-  // /api/track/:token, and (if the user has previously granted Notification
-  // permission via PushOptInTile) also fire a localized in-page Notification
-  // when the tab is hidden. The 30s poll above remains as a fallback.
-  const lastBroadcastStatusRef = useRef<string | null>(null);
-  useTrackBroadcast(token, (payload: TrackBroadcastPayload) => {
+  // UPDATE trigger fires on `restaurant_orders.status`. We use the broadcast
+  // ONLY as an "invalidate the React Query cache now" signal — the refetch
+  // hits /api/track/:token (the authoritative server-side source) and any
+  // browser Notification is fired off the resulting authoritative state, not
+  // off the broadcast payload. This means a third party who somehow knew the
+  // token could not inject fake notifications: the worst they could do is
+  // cause an extra server fetch. The 30s poll above remains as a fallback.
+  useTrackBroadcast(token, () => {
     queryClient.invalidateQueries({ queryKey: ['track', token] });
-    // De-dupe: same status arriving twice should not fire two notifications
-    // (e.g. quick reconnect on flaky mobile networks).
-    if (lastBroadcastStatusRef.current === payload.status) return;
-    lastBroadcastStatusRef.current = payload.status;
-    maybeShowBrowserNotification(locale, payload);
   });
+
+  // Notification side-effect bound to the authoritative server-side status.
+  // We fire when the order's status changes between two consecutive query
+  // results AND the user has granted Notification permission AND the tab is
+  // hidden (a visible page already shows the change in the timeline).
+  const lastNotifiedStatusRef = useRef<string | null>(null);
+  const orderStatus = data?.order?.status ?? null;
+  const orderId = data?.order?.id ?? null;
+  useEffect(() => {
+    if (!orderStatus || !orderId) return;
+    if (lastNotifiedStatusRef.current === null) {
+      // First render: prime the ref but do not fire — we only notify on
+      // transitions, not on initial page load.
+      lastNotifiedStatusRef.current = orderStatus;
+      return;
+    }
+    if (lastNotifiedStatusRef.current === orderStatus) return;
+    lastNotifiedStatusRef.current = orderStatus;
+    maybeShowBrowserNotification(locale, { order_id: orderId, status: orderStatus });
+  }, [orderStatus, orderId, locale]);
 
   const fallbackPickup = useMemo(
     () => ({ lat: 45.6427, lng: 25.5887 }), // Brașov center fallback
@@ -888,18 +904,18 @@ const NOTIF_STATUS_KEYS: Record<string, TKey> = {
 
 function maybeShowBrowserNotification(
   locale: Locale,
-  payload: TrackBroadcastPayload,
+  args: { order_id: string; status: string },
 ): void {
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
   // If the tab is visible, the on-screen UI update is enough.
   if (typeof document !== 'undefined' && document.visibilityState === 'visible') return;
 
-  const bodyKey = NOTIF_BODY_KEYS[payload.status];
-  const statusKey = NOTIF_STATUS_KEYS[payload.status];
+  const bodyKey = NOTIF_BODY_KEYS[args.status];
+  const statusKey = NOTIF_STATUS_KEYS[args.status];
   if (!bodyKey || !statusKey) return;
 
-  const short = (payload.order_id ?? '').slice(0, 8);
+  const short = args.order_id.slice(0, 8);
   const status = t(locale, statusKey);
   const title = t(locale, 'track.notif_title_template', { short, status });
   const body = t(locale, bodyKey);
@@ -909,7 +925,7 @@ function maybeShowBrowserNotification(
     // the same-tag re-show behaviour on Chrome/Edge.
     new Notification(title, {
       body,
-      tag: `hir-track-${payload.order_id}`,
+      tag: `hir-track-${args.order_id}`,
       renotify: true,
     } as NotificationOptions & { renotify?: boolean });
   } catch {

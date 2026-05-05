@@ -86,7 +86,12 @@ console.log('----------------------------------------------------------');
 
 console.log('\n[A] Deploy the track-broadcast Edge Function:');
 console.log('--------------------------------------------------------------');
-console.log('SUPABASE_ACCESS_TOKEN=$(cat ~/.hir/secrets.json | jq -r .supabase.management_pat) \\');
+// Pin both env vars so the deploy lands in the SAME project the migration
+// just touched. Without `SUPABASE_PROJECT_REF` the helper falls back to its
+// hardcoded ref, which would deploy to the wrong project on staging /
+// preview / a non-default tenant (Codex P2, 2026-05-05).
+console.log(`SUPABASE_PROJECT_REF=${PROJECT_REF} \\`);
+console.log('SUPABASE_ACCESS_TOKEN="$(jq -r .supabase.management_pat ~/.hir/secrets.json)" \\');
 console.log('  node supabase/deploy-function.mjs track-broadcast');
 
 console.log('\n[B] Register the function URL in Supabase Vault (so the trigger can find it):');
