@@ -15,7 +15,11 @@ export function TenantSelector({
 
   return (
     <form ref={formRef} action={selectTenantAction} className="flex items-center gap-2">
-      <label htmlFor="tenant-select" className="text-xs text-zinc-500">
+      {/* Mobile-fix 2026-05-05: hide the "Restaurant:" affordance on
+          phones — the topbar is busy on 360px (hamburger + selector +
+          storefront link + logout) and the select itself communicates
+          intent via its option label. */}
+      <label htmlFor="tenant-select" className="hidden text-xs text-zinc-500 sm:inline">
         Restaurant:
       </label>
       <select

@@ -21,13 +21,16 @@ export function MobileSidebar({ entries }: { entries: SidebarEntry[] }) {
 
   return (
     <>
+      {/* Mobile-fix 2026-05-05: bump the trigger from 36×36 to 44×44 so it
+          clears the WCAG 2.5.5 / Apple HIG 44 px minimum tap target.
+          Same icon size to keep the visual weight in the topbar. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Deschide meniul"
-        className="lg:hidden inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50"
+        className="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50"
       >
-        <Menu className="h-4 w-4" />
+        <Menu className="h-5 w-5" />
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent

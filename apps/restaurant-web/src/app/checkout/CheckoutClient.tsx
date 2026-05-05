@@ -635,7 +635,11 @@ export function CheckoutClient(props: {
               <span className="text-xs font-medium text-zinc-700">
                 {t(locale, 'checkout.field_apt_group')}
               </span>
-              <div className="grid grid-cols-4 gap-2">
+              {/* Mobile-fix 2026-05-05: 4 inputs side-by-side at 360px
+                  shrunk each to ~70px and clipped the placeholder text
+                  (Apartament/Etaj). Stack 2×2 on phones; restore 4-up on
+                  sm+. Same fields, just legible on Romanian phones. */}
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <input
                   className={inputCls}
                   value={aptBlock}
