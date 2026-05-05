@@ -262,46 +262,71 @@ function SuccessCard({
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-zinc-900">Pașii rămași</h3>
-        <NextStep
-          n={1}
-          title="Import meniu din GloriaFood (Master Key)"
-          description="Pune cheia și apasă Importă. ~2 min."
-          onClick={() =>
-            switchAndGo('/dashboard/onboarding/migrate-from-gloriafood/master-key')
-          }
+      <div className="flex flex-col gap-3 rounded-lg border border-indigo-300 bg-white p-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-semibold text-zinc-900">
+            Continuă în asistent (recomandat)
+          </h3>
+          <p className="text-xs text-zinc-600">
+            Asistentul de onboarding te ghidează pas cu pas (detalii → brand →
+            meniu → livrare → plăți → activare). Salvează automat — poți închide
+            tabul oricând.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => switchAndGo('/dashboard/onboarding/wizard')}
           disabled={switching}
-        />
-        <NextStep
-          n={2}
-          title="Identitate vizuală"
-          description="Logo, copertă, culoare brand."
-          onClick={() => switchAndGo('/dashboard/settings/branding')}
-          disabled={switching}
-        />
-        <NextStep
-          n={3}
-          title="Zone de livrare"
-          description="Trasează zona pe hartă."
-          onClick={() => switchAndGo('/dashboard/zones')}
-          disabled={switching}
-        />
-        <NextStep
-          n={4}
-          title="Program de funcționare"
-          description="Orele restaurantului."
-          onClick={() => switchAndGo('/dashboard/settings/operations')}
-          disabled={switching}
-        />
-        <NextStep
-          n={5}
-          title="Activează comenzi (Go Live)"
-          description="Pornește primirea comenzilor de pe storefront."
-          onClick={() => switchAndGo('/dashboard/onboarding')}
-          disabled={switching}
-        />
+          className="inline-flex w-fit items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60"
+        >
+          {switching ? 'Se comută…' : 'Deschide asistentul →'}
+        </button>
       </div>
+
+      <details className="flex flex-col gap-2">
+        <summary className="cursor-pointer text-xs font-medium text-zinc-600">
+          Pași individuali (pentru utilizatorii avansați)
+        </summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <NextStep
+            n={1}
+            title="Import meniu din GloriaFood (Master Key)"
+            description="Pune cheia și apasă Importă. ~2 min."
+            onClick={() =>
+              switchAndGo('/dashboard/onboarding/migrate-from-gloriafood/master-key')
+            }
+            disabled={switching}
+          />
+          <NextStep
+            n={2}
+            title="Identitate vizuală"
+            description="Logo, copertă, culoare brand."
+            onClick={() => switchAndGo('/dashboard/settings/branding')}
+            disabled={switching}
+          />
+          <NextStep
+            n={3}
+            title="Zone de livrare"
+            description="Trasează zona pe hartă."
+            onClick={() => switchAndGo('/dashboard/zones')}
+            disabled={switching}
+          />
+          <NextStep
+            n={4}
+            title="Program de funcționare"
+            description="Orele restaurantului."
+            onClick={() => switchAndGo('/dashboard/settings/operations')}
+            disabled={switching}
+          />
+          <NextStep
+            n={5}
+            title="Activează comenzi (Go Live)"
+            description="Pornește primirea comenzilor de pe storefront."
+            onClick={() => switchAndGo('/dashboard/onboarding')}
+            disabled={switching}
+          />
+        </div>
+      </details>
 
       <div className="flex items-center justify-between border-t border-emerald-300 pt-4">
         <button
