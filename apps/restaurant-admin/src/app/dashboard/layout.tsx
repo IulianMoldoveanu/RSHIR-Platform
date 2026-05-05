@@ -137,6 +137,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             label: 'Sentry · sistem',
             icon: 'settings' as const,
           },
+          {
+            href: '/dashboard/admin/observability/materialized-views',
+            label: 'Vizualizări materializate',
+            icon: 'settings' as const,
+          },
         ]
       : []),
   ];
