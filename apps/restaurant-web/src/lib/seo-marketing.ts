@@ -23,6 +23,7 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/case-studies/foisorul-a', priority: 0.6 },
   { path: '/affiliate', priority: 0.7 },
   { path: '/contact', priority: 0.4 },
+  { path: '/press', priority: 0.4 },
   { path: '/privacy', priority: 0.3 },
 ];
 
