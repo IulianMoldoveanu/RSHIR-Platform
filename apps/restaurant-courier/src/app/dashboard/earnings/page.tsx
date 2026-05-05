@@ -125,10 +125,10 @@ export default async function EarningsPage() {
         </p>
       </div>
 
-      <section className="grid grid-cols-3 gap-2">
+      <section className="grid grid-cols-3 gap-2 min-[360px]:gap-3">
         <StatCard label="Astăzi" earnings={today.earnings} count={today.count} accent="violet" />
-        <StatCard label="Săptămâna aceasta" earnings={week.earnings} count={week.count} accent="zinc" />
-        <StatCard label="Luna aceasta" earnings={month.earnings} count={month.count} accent="zinc" />
+        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} accent="zinc" />
+        <StatCard label="Luna" earnings={month.earnings} count={month.count} accent="zinc" />
       </section>
 
       {/* Audit P1 #8 — earnings transparency. Formula is exposed even when
@@ -190,7 +190,7 @@ export default async function EarningsPage() {
               <li key={r.id}>
                 <Link
                   href={`/dashboard/orders/${r.id}`}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3 hover:border-violet-500/40"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 hover:border-violet-500/40 active:scale-[0.99]"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-zinc-100">
@@ -242,13 +242,13 @@ function StatCard({
   const earningsColor = accent === 'violet' ? 'text-violet-300' : 'text-zinc-100';
   return (
     <div className={`rounded-2xl border ${border} bg-zinc-900 p-3 text-center`}>
-      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-1 text-base font-semibold ${earningsColor}`}>
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className={`mt-1.5 text-sm font-bold leading-none ${earningsColor} min-[400px]:text-base`}>
         {earnings.toFixed(2)}
-        <span className="ml-1 text-[10px] font-normal text-zinc-500">RON</span>
       </p>
-      <p className="mt-0.5 text-[10px] text-zinc-500">
-        {count} {count === 1 ? 'livrare' : 'livrări'}
+      <p className="mt-0.5 text-[10px] font-normal text-zinc-500">RON</p>
+      <p className="mt-1 text-[10px] text-zinc-600">
+        {count} {count === 1 ? 'liv.' : 'liv.'}
       </p>
     </div>
   );

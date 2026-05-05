@@ -95,12 +95,12 @@ export default async function OrderDetailPage({ params }: { params: { id: string
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
           <VerticalBadge vertical={vertical} />
         </div>
-        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-300">
+        <span className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
           {ORDER_STATUS_RO[order.status] ?? order.status}
         </span>
       </div>
@@ -120,11 +120,16 @@ export default async function OrderDetailPage({ params }: { params: { id: string
       ) : null}
 
       {/* Pickup card. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
-          Ridicare
-        </p>
-        <p className="mt-1 text-sm font-medium text-zinc-100">
+      <section className="rounded-2xl border border-violet-500/20 bg-zinc-900 p-5">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300">
+            1
+          </span>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
+            Ridicare
+          </p>
+        </div>
+        <p className="mt-2 text-base font-semibold text-zinc-100">
           {order.pickup_line1 ?? '—'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -138,19 +143,24 @@ export default async function OrderDetailPage({ params }: { params: { id: string
       </section>
 
       {/* Timeline. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4">
         <OrderTimeline status={order.status} />
       </section>
 
       {/* Dropoff card. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
-          Livrare
-        </p>
-        <p className="mt-1 text-sm font-medium text-zinc-100">
+      <section className="rounded-2xl border border-emerald-500/20 bg-zinc-900 p-5">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-300">
+            2
+          </span>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+            Livrare
+          </p>
+        </div>
+        <p className="mt-2 text-base font-semibold text-zinc-100">
           {order.dropoff_line1 ?? '—'}
         </p>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-sm text-zinc-400">
           {order.customer_first_name ?? 'Client'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">

@@ -157,21 +157,29 @@ export default async function FleetOrderDetailPage({
       </div>
 
       {/* Timeline */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          Progres comandă
+        </p>
         <ul className="grid grid-cols-4 gap-1 text-[10px] text-zinc-400">
           {TIMELINE_STEPS.map((step, idx) => {
             const reached = idx <= lastReached;
+            const isCurrent = idx === lastReached;
             return (
-              <li key={step} className="flex flex-col items-center gap-1.5">
+              <li key={step} className="flex flex-col items-center gap-2">
                 <span
-                  className={`h-2 w-full rounded-full ${
+                  className={`h-2.5 w-full rounded-full transition-colors ${
                     reached ? 'bg-violet-500' : 'bg-zinc-800'
-                  }`}
+                  } ${isCurrent ? 'shadow-[0_0_6px_rgba(139,92,246,0.5)]' : ''}`}
                 />
                 <span
-                  className={
-                    reached ? 'font-semibold text-zinc-100' : 'text-zinc-500'
-                  }
+                  className={`text-center leading-tight ${
+                    isCurrent
+                      ? 'font-bold text-violet-300'
+                      : reached
+                        ? 'font-semibold text-zinc-200'
+                        : 'text-zinc-600'
+                  }`}
                 >
                   {STATUS_LABEL[step]}
                 </span>
@@ -182,11 +190,11 @@ export default async function FleetOrderDetailPage({
       </section>
 
       {/* Pickup */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-violet-500/20 bg-zinc-900 p-5">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
           Ridicare
         </p>
-        <p className="mt-1 text-sm font-medium text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-zinc-100">
           {order.pickup_line1 ?? '—'}
         </p>
         {pickupOsm ? (
@@ -194,41 +202,41 @@ export default async function FleetOrderDetailPage({
             href={pickupOsm}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-xs text-violet-300 hover:text-violet-200"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
           >
-            <MapPin className="h-3 w-3" aria-hidden />
+            <MapPin className="h-3.5 w-3.5" aria-hidden />
             Vezi pe hartă
           </a>
         ) : null}
       </section>
 
       {/* Dropoff */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-emerald-500/20 bg-zinc-900 p-5">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
           Livrare
         </p>
-        <p className="mt-1 text-sm font-medium text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-zinc-100">
           {order.dropoff_line1 ?? '—'}
         </p>
-        <p className="mt-1 text-xs text-zinc-400">{order.customer_first_name ?? 'Client'}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+        <p className="mt-1 text-sm text-zinc-400">{order.customer_first_name ?? 'Client'}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           {dropoffOsm ? (
             <a
               href={dropoffOsm}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
             >
-              <MapPin className="h-3 w-3" aria-hidden />
+              <MapPin className="h-3.5 w-3.5" aria-hidden />
               Hartă
             </a>
           ) : null}
           {order.customer_phone ? (
             <a
               href={`tel:${order.customer_phone}`}
-              className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
             >
-              <Phone className="h-3 w-3" aria-hidden />
+              <Phone className="h-3.5 w-3.5" aria-hidden />
               Sună client
             </a>
           ) : null}
@@ -305,23 +313,27 @@ export default async function FleetOrderDetailPage({
       </section>
 
       {deliveredProofSignedUrl ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        <section className="rounded-2xl border border-emerald-700/30 bg-zinc-900 p-5">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
             Dovadă livrare
           </p>
           <a
             href={deliveredProofSignedUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="block overflow-hidden rounded-lg border border-zinc-800"
+            aria-label="Deschide dovada livrare în tab nou"
+            className="block overflow-hidden rounded-xl border border-zinc-700 transition hover:border-emerald-600/50"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={deliveredProofSignedUrl}
               alt="Dovadă livrare"
-              className="max-h-72 w-full object-cover"
+              className="max-h-80 w-full object-cover"
             />
           </a>
+          <p className="mt-2 text-[11px] text-zinc-500">
+            Apasă imaginea pentru a o deschide complet.
+          </p>
         </section>
       ) : null}
     </div>
