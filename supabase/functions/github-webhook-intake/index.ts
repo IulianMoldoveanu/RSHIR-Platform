@@ -9,6 +9,8 @@
 // Call shape (live): POST / from GitHub. verify_jwt MUST be false.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,6 +138,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405, headers: corsHeaders });
 
+  return withRunLog('github-webhook-intake', async ({ setMetadata }) => {
   const secret = Deno.env.get('GITHUB_WEBHOOK_SECRET');
   if (!secret) {
     console.error('GITHUB_WEBHOOK_SECRET missing');
@@ -187,6 +190,7 @@ Deno.serve(async (req: Request) => {
     return new Response('db error', { status: 500, headers: corsHeaders });
   }
   if (error?.code === '23505') {
+    setMetadata({ deduped: true, delivery_id: deliveryId });
     return new Response(JSON.stringify({ ok: true, deduped: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
@@ -205,8 +209,17 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  setMetadata({
+    event_type: eventType,
+    severity,
+    pr_number: prNumber ?? null,
+    actor: actor ?? null,
+    delivery_id: deliveryId,
+  });
+
   return new Response(JSON.stringify({ ok: true, id: data!.id, severity }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
   });
 });
