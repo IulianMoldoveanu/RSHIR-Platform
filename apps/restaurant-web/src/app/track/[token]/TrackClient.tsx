@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Banknote, Bell, MessageCircle, Star, TriangleAlert } from 'lucide-react';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
+import { useTrackBroadcast } from '@/lib/realtime/track-subscription';
 
 const TrackMap = dynamic(() => import('./TrackMap').then((m) => m.TrackMap), {
   ssr: false,
@@ -78,6 +79,7 @@ function TrackInner({
   locale: Locale;
   showAccountNudge: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery<{ order: TrackOrder }>({
     queryKey: ['track', token],
     queryFn: async () => {
@@ -87,6 +89,40 @@ function TrackInner({
     },
     refetchInterval: 30_000,
   });
+
+  // Lane RT-PUSH — real-time status nudge.
+  // The Edge Function `track-broadcast` (see supabase/functions/) publishes
+  // a `status_change` event to channel `track:<token>` whenever the AFTER
+  // UPDATE trigger fires on `restaurant_orders.status`. We use the broadcast
+  // ONLY as an "invalidate the React Query cache now" signal — the refetch
+  // hits /api/track/:token (the authoritative server-side source) and any
+  // browser Notification is fired off the resulting authoritative state, not
+  // off the broadcast payload. This means a third party who somehow knew the
+  // token could not inject fake notifications: the worst they could do is
+  // cause an extra server fetch. The 30s poll above remains as a fallback.
+  useTrackBroadcast(token, () => {
+    queryClient.invalidateQueries({ queryKey: ['track', token] });
+  });
+
+  // Notification side-effect bound to the authoritative server-side status.
+  // We fire when the order's status changes between two consecutive query
+  // results AND the user has granted Notification permission AND the tab is
+  // hidden (a visible page already shows the change in the timeline).
+  const lastNotifiedStatusRef = useRef<string | null>(null);
+  const orderStatus = data?.order?.status ?? null;
+  const orderId = data?.order?.id ?? null;
+  useEffect(() => {
+    if (!orderStatus || !orderId) return;
+    if (lastNotifiedStatusRef.current === null) {
+      // First render: prime the ref but do not fire — we only notify on
+      // transitions, not on initial page load.
+      lastNotifiedStatusRef.current = orderStatus;
+      return;
+    }
+    if (lastNotifiedStatusRef.current === orderStatus) return;
+    lastNotifiedStatusRef.current = orderStatus;
+    maybeShowBrowserNotification(locale, { order_id: orderId, status: orderStatus });
+  }, [orderStatus, orderId, locale]);
 
   const fallbackPickup = useMemo(
     () => ({ lat: 45.6427, lng: 25.5887 }), // Brașov center fallback
@@ -838,4 +874,63 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span className="font-mono">{value}</span>
     </div>
   );
+}
+
+// Lane RT-PUSH — fire an in-page browser Notification when the realtime
+// channel reports a status change AND the customer previously granted
+// permission via PushOptInTile. We only show it when the tab is hidden
+// (otherwise the on-screen timeline already conveys the change). No
+// payload contains the courier identity beyond the fixed customer-facing
+// label "curier HIR" — fleet/subcontractor naming is internal-only.
+const NOTIF_BODY_KEYS: Record<string, TKey> = {
+  CONFIRMED: 'track.notif_body_CONFIRMED',
+  PREPARING: 'track.notif_body_PREPARING',
+  READY: 'track.notif_body_READY',
+  DISPATCHED: 'track.notif_body_DISPATCHED',
+  IN_DELIVERY: 'track.notif_body_IN_DELIVERY',
+  DELIVERED: 'track.notif_body_DELIVERED',
+  CANCELLED: 'track.notif_body_CANCELLED',
+};
+
+const NOTIF_STATUS_KEYS: Record<string, TKey> = {
+  CONFIRMED: 'track.status_CONFIRMED',
+  PREPARING: 'track.status_PREPARING',
+  READY: 'track.status_READY',
+  DISPATCHED: 'track.status_DISPATCHED',
+  IN_DELIVERY: 'track.status_IN_DELIVERY',
+  DELIVERED: 'track.status_DELIVERED',
+  CANCELLED: 'track.status_CANCELLED',
+};
+
+function maybeShowBrowserNotification(
+  locale: Locale,
+  args: { order_id: string; status: string },
+): void {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  // If the tab is visible, the on-screen UI update is enough.
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') return;
+
+  const bodyKey = NOTIF_BODY_KEYS[args.status];
+  const statusKey = NOTIF_STATUS_KEYS[args.status];
+  if (!bodyKey || !statusKey) return;
+
+  const short = args.order_id.slice(0, 8);
+  const status = t(locale, statusKey);
+  const title = t(locale, 'track.notif_title_template', { short, status });
+  const body = t(locale, bodyKey);
+  try {
+    // `renotify` is part of the Notification API but missing from the
+    // ambient TS DOM lib; cast keeps strict mode happy while preserving
+    // the same-tag re-show behaviour on Chrome/Edge.
+    new Notification(title, {
+      body,
+      tag: `hir-track-${args.order_id}`,
+      renotify: true,
+    } as NotificationOptions & { renotify?: boolean });
+  } catch {
+    // Some browsers throw on direct `new Notification` from a page (require
+    // a SW notification instead). Silent fallback — VAPID server-push handles
+    // those clients via the existing notify-customer-status pipeline.
+  }
 }
