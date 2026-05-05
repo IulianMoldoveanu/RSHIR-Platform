@@ -115,6 +115,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
     },
+    { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
     ...(isPlatformAdmin
       ? [
           {

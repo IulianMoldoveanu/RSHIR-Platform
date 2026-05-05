@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   BookOpen,
   ChevronDown,
+  HelpCircle,
   LayoutDashboard,
   type LucideIcon,
   Megaphone,
@@ -33,6 +34,7 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings,
   sparkles: Sparkles,
   users: Users,
+  helpCircle: HelpCircle,
 };
 
 export type IconName = keyof typeof ICONS;
