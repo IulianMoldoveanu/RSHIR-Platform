@@ -55,7 +55,16 @@ const STATUS_PILL: Record<OrderStatus, string> = {
 
 type Filter = 'active' | 'today' | 'all' | 'cash';
 
-type OrderSource = 'INTERNAL_STOREFRONT' | 'EXTERNAL_API' | 'POS_PUSH' | 'MANUAL_ADMIN';
+type OrderSource =
+  | 'INTERNAL_STOREFRONT'
+  | 'EXTERNAL_API'
+  | 'POS_PUSH'
+  | 'MANUAL_ADMIN'
+  | 'GLOVO'
+  | 'WOLT'
+  | 'TAZZ'
+  | 'FOODPANDA'
+  | 'BOLT_FOOD';
 
 type OrderRow = {
   id: string;
@@ -69,10 +78,35 @@ type OrderRow = {
   customers: { first_name: string | null; last_name: string | null } | null;
 };
 
+// Visible badge for non-storefront orders. INTERNAL_STOREFRONT renders no
+// badge at all (the default — no need to call out "this came from the
+// regular storefront"). Per-aggregator brand colors keep the operator's
+// scan time low when the orders feed mixes Glovo + Wolt + storefront on
+// the same day. Phase 1 only — until Phase 2 wires per-platform webhooks
+// the aggregator values are reachable only via direct DB writes.
 const SOURCE_LABEL: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, string> = {
   EXTERNAL_API: 'API',
   POS_PUSH: 'POS',
   MANUAL_ADMIN: 'Manual',
+  GLOVO: 'Glovo',
+  WOLT: 'Wolt',
+  TAZZ: 'Tazz',
+  FOODPANDA: 'foodpanda',
+  BOLT_FOOD: 'Bolt Food',
+};
+
+const SOURCE_BADGE_CLASS: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, string> = {
+  // Generic / internal-ish sources keep the original neutral sky chip.
+  EXTERNAL_API: 'bg-sky-50 text-sky-800 ring-sky-200',
+  POS_PUSH: 'bg-sky-50 text-sky-800 ring-sky-200',
+  MANUAL_ADMIN: 'bg-sky-50 text-sky-800 ring-sky-200',
+  // Aggregator brand-tinted chips. Tailwind palette only (no random hex)
+  // and ring-1 ring-inset already applied at the wrapping span.
+  GLOVO: 'bg-yellow-50 text-yellow-900 ring-yellow-300',
+  WOLT: 'bg-cyan-50 text-cyan-900 ring-cyan-300',
+  TAZZ: 'bg-orange-50 text-orange-900 ring-orange-300',
+  FOODPANDA: 'bg-pink-50 text-pink-900 ring-pink-300',
+  BOLT_FOOD: 'bg-emerald-50 text-emerald-900 ring-emerald-300',
 };
 
 const PENDING_DANGER_MS = 5 * 60_000;
@@ -270,7 +304,9 @@ export default async function OrdersPage({
                               </span>
                             )}
                             {o.source && o.source !== 'INTERNAL_STOREFRONT' && (
-                              <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800 ring-1 ring-inset ring-sky-200">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${SOURCE_BADGE_CLASS[o.source]}`}
+                              >
                                 {SOURCE_LABEL[o.source]}
                               </span>
                             )}

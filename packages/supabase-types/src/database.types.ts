@@ -991,6 +991,11 @@ export type Database = {
         | "EXTERNAL_API"
         | "POS_PUSH"
         | "MANUAL_ADMIN"
+        | "GLOVO"
+        | "WOLT"
+        | "TAZZ"
+        | "FOODPANDA"
+        | "BOLT_FOOD"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1124,6 +1129,11 @@ export const Constants = {
         "EXTERNAL_API",
         "POS_PUSH",
         "MANUAL_ADMIN",
+        "GLOVO",
+        "WOLT",
+        "TAZZ",
+        "FOODPANDA",
+        "BOLT_FOOD",
       ],
     },
   },
