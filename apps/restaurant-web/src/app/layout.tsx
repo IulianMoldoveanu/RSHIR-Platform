@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
+import { SupportPanel } from '@/components/support/support-panel';
 import './globals.css';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         {children}
         <PwaInstallPrompt />
+        <SupportPanel />
         <Analytics />
         <SpeedInsights />
       </body>
