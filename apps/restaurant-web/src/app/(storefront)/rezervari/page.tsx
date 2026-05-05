@@ -16,11 +16,24 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+type PlanTable = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  seats: number;
+  label: string;
+  shape?: 'rect' | 'round';
+};
+
 type Settings = {
   is_enabled: boolean;
   advance_max_days: number;
   advance_min_minutes: number;
   party_size_max: number;
+  show_table_plan_to_customers: boolean;
+  table_plan: { tables: PlanTable[] } | null;
 };
 
 export default async function ReservationsPage() {
@@ -32,7 +45,9 @@ export default async function ReservationsPage() {
   const sb = admin as any;
   const { data: settingsRow } = await sb
     .from('reservation_settings')
-    .select('is_enabled, advance_max_days, advance_min_minutes, party_size_max')
+    .select(
+      'is_enabled, advance_max_days, advance_min_minutes, party_size_max, show_table_plan_to_customers, table_plan',
+    )
     .eq('tenant_id', tenant.id)
     .maybeSingle();
 
@@ -55,8 +70,16 @@ export default async function ReservationsPage() {
     );
   }
 
+  // Only render the picker if the operator opted in AND defined at least one
+  // table — empty plan + toggle on = falls back to the request form so the
+  // tenant doesn't get a broken UX during plan setup.
+  const planTables = Array.isArray(settings.table_plan?.tables)
+    ? settings.table_plan!.tables
+    : [];
+  const showPlan = settings.show_table_plan_to_customers && planTables.length > 0;
+
   return (
-    <main className="mx-auto max-w-md px-4 py-8">
+    <main className={showPlan ? 'mx-auto max-w-3xl px-4 py-8' : 'mx-auto max-w-md px-4 py-8'}>
       <div className="mb-6">
         <Link
           href="/"
@@ -76,6 +99,8 @@ export default async function ReservationsPage() {
         advanceMinMinutes={settings.advance_min_minutes}
         advanceMaxDays={settings.advance_max_days}
         partySizeMax={settings.party_size_max}
+        tenantId={tenant.id}
+        plan={showPlan ? planTables : null}
       />
 
       <p className="mt-6 text-center text-xs text-zinc-400">

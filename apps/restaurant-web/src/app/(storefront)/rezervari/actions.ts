@@ -16,6 +16,10 @@ const requestSchema = z.object({
   // ISO 8601 timestamp e.g. "2026-05-01T19:00:00+03:00"
   requested_at: z.string().datetime({ offset: true }),
   notes: z.string().max(500).optional(),
+  // Optional — only present when the operator has the table-plan picker on
+  // and the customer chose a specific table. Strings, not UUIDs: the IDs
+  // come from the jsonb plan and are picker-specific.
+  table_id: z.string().min(1).max(40).optional(),
 });
 
 export type ReservationRequestResult =
@@ -53,6 +57,7 @@ export async function requestReservation(
     p_party_size: data.party_size,
     p_requested_at: data.requested_at,
     p_notes: data.notes && data.notes.length > 0 ? data.notes : null,
+    p_table_id: data.table_id ?? null,
   });
 
   if (error) {
@@ -148,4 +153,54 @@ async function fireReservationEmails(
 
   // tenantSlug is reserved for future per-tenant deep links.
   void tenantSlug;
+}
+
+const reservedQuerySchema = z.object({
+  // ISO 8601 with offset; same shape as the request payload.
+  requested_at: z.string().datetime({ offset: true }),
+});
+
+export type ReservedTablesResult =
+  | { ok: true; tableIds: string[] }
+  | { ok: false; error: string };
+
+/**
+ * Returns the set of table IDs already booked for a slot overlapping
+ * `requested_at`, scoped to the host-resolved tenant. Used by the storefront
+ * picker to grey out unavailable tables before the customer submits.
+ */
+export async function getReservedTableIds(
+  raw: unknown,
+): Promise<ReservedTablesResult> {
+  const parsed = reservedQuerySchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: 'Date invalide.' };
+  }
+
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) {
+    return { ok: false, error: 'Restaurant negăsit.' };
+  }
+
+  const admin = getSupabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  const { data, error } = await sb.rpc('fn_reserved_table_ids', {
+    p_tenant_id: tenant.id,
+    p_requested_at: parsed.data.requested_at,
+  });
+
+  if (error) {
+    console.error('[storefront/rezervari] reserved lookup failed', error.message);
+    // Fail open — empty list, the RPC re-checks on submit anyway.
+    return { ok: true, tableIds: [] };
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  const tableIds = rows
+    .map((r: { table_id?: string | null }) => r.table_id)
+    .filter((id: string | null | undefined): id is string => Boolean(id));
+
+  return { ok: true, tableIds };
 }

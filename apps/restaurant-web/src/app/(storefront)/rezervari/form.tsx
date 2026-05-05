@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { requestReservation } from './actions';
+import { getReservedTableIds, requestReservation } from './actions';
+import { TablePicker, type PickerTable } from './table-picker';
 
 function pad(n: number): string {
   return String(n).padStart(2, '0');
@@ -26,14 +27,25 @@ function maxDate(advanceMaxDays: number): string {
   return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
 }
 
+function buildIsoLocal(date: string, time: string): string | null {
+  if (!date || !time) return null;
+  const d = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export function ReservationForm({
   advanceMinMinutes,
   advanceMaxDays,
   partySizeMax,
+  tenantId,
+  plan,
 }: {
   advanceMinMinutes: number;
   advanceMaxDays: number;
   partySizeMax: number;
+  tenantId: string;
+  plan: PickerTable[] | null;
 }) {
   const [submitting, start] = useTransition();
   const [success, setSuccess] = useState<{ message: string; trackToken: string } | null>(null);
@@ -46,16 +58,59 @@ export function ReservationForm({
   const [date, setDate] = useState(defaultDate(advanceMinMinutes));
   const [time, setTime] = useState(defaultTime(advanceMinMinutes));
   const [notes, setNotes] = useState('');
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
+
+  // Tables already booked for the current slot; refreshed when date/time
+  // change so the picker can grey them out.
+  const [reservedIds, setReservedIds] = useState<Set<string>>(new Set());
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
+
+  // Fetch availability on slot change. Debounced lightly via the effect's
+  // closure — React batches rapid input edits anyway.
+  useEffect(() => {
+    if (!plan) return;
+    const iso = buildIsoLocal(date, time);
+    if (!iso) return;
+
+    let cancelled = false;
+    setLoadingAvailability(true);
+    void (async () => {
+      const r = await getReservedTableIds({ requested_at: iso });
+      if (cancelled) return;
+      if (r.ok) {
+        const next = new Set(r.tableIds);
+        setReservedIds(next);
+        // If the user had picked a table that's now reserved, deselect it.
+        if (selectedTableId && next.has(selectedTableId)) {
+          setSelectedTableId(null);
+        }
+      }
+      setLoadingAvailability(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // selectedTableId intentionally excluded — we read its current value but
+    // only re-fetch on slot changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, date, time]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
-    // Combine date + time into ISO with the user's local timezone offset
-    // (the server stores it as timestamptz and the RPC compares against now()).
-    const local = new Date(`${date}T${time}:00`);
-    const isoLocal = local.toISOString();
+    const isoLocal = buildIsoLocal(date, time);
+    if (!isoLocal) {
+      setError('Data sau ora invalidă.');
+      return;
+    }
+
+    if (plan && plan.length > 0 && !selectedTableId) {
+      setError('Vă rugăm selectați o masă din plan.');
+      return;
+    }
 
     start(async () => {
       const result = await requestReservation({
@@ -65,6 +120,7 @@ export function ReservationForm({
         party_size: partySize,
         requested_at: isoLocal,
         notes,
+        table_id: selectedTableId ?? undefined,
       });
       if (!result.ok) {
         setError(result.error);
@@ -96,6 +152,9 @@ export function ReservationForm({
     );
   }
 
+  // Look up the selected table from the plan for the summary line.
+  const selectedTable = plan?.find((t) => t.id === selectedTableId) ?? null;
+
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       {error && (
@@ -105,43 +164,7 @@ export function ReservationForm({
         </div>
       )}
 
-      <label className="flex flex-col gap-1 text-xs">
-        <span className="font-medium text-zinc-700">Numele tău *</span>
-        <input
-          type="text"
-          required
-          maxLength={100}
-          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          placeholder="Andrei"
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-xs">
-        <span className="font-medium text-zinc-700">Telefon *</span>
-        <input
-          type="tel"
-          required
-          maxLength={40}
-          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+40 7XX XXX XXX"
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-xs">
-        <span className="font-medium text-zinc-700">Email (opțional)</span>
-        <input
-          type="email"
-          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="andrei@email.ro"
-        />
-      </label>
-
+      {/* Slot first — date/time/party drive picker availability */}
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-zinc-700">Persoane *</span>
@@ -186,6 +209,67 @@ export function ReservationForm({
         />
       </label>
 
+      {plan && plan.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-xs font-medium text-zinc-700">
+              Alegeți masa *
+            </span>
+            <span className="text-[11px] text-zinc-500">
+              {loadingAvailability
+                ? 'Verificăm disponibilitatea…'
+                : selectedTable
+                  ? `Selectată: ${selectedTable.label} (${selectedTable.seats} loc.)`
+                  : 'Apăsați pe o masă pe plan'}
+            </span>
+          </div>
+          <TablePicker
+            tables={plan}
+            selectedId={selectedTableId}
+            unavailableIds={reservedIds}
+            partySize={partySize}
+            onSelect={(id) => setSelectedTableId(id)}
+          />
+        </div>
+      )}
+
+      <label className="flex flex-col gap-1 text-xs">
+        <span className="font-medium text-zinc-700">Numele tău *</span>
+        <input
+          type="text"
+          required
+          maxLength={100}
+          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="Andrei"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs">
+        <span className="font-medium text-zinc-700">Telefon *</span>
+        <input
+          type="tel"
+          required
+          maxLength={40}
+          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+40 7XX XXX XXX"
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-xs">
+        <span className="font-medium text-zinc-700">Email (opțional)</span>
+        <input
+          type="email"
+          className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="andrei@email.ro"
+        />
+      </label>
+
       <label className="flex flex-col gap-1 text-xs">
         <span className="font-medium text-zinc-700">Mențiuni (opțional)</span>
         <textarea
@@ -205,6 +289,10 @@ export function ReservationForm({
       >
         {submitting ? 'Se trimite…' : 'Trimite rezervarea'}
       </button>
+
+      {/* tenantId is currently unused at the form layer (resolved server-side
+          via host) but accepted for future per-tenant tracking hooks. */}
+      <input type="hidden" value={tenantId} readOnly aria-hidden />
     </form>
   );
 }
