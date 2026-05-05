@@ -21,11 +21,14 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
 
   // Look up the partner row for this auth user via service-role (RLS is off
   // for partners; anon key would return nothing).
+  // Lane T: include PENDING partners so self-signed-up partners can access
+  // the portal immediately, see their referral link and start sharing it
+  // before admin approval. Page-level UI surfaces a PENDING banner.
   const admin = createAdminClient() as unknown as {
     from: (t: string) => {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
-          eq: (col: string, val: string) => {
+          in: (col: string, vals: string[]) => {
             maybeSingle: () => Promise<{
               data: Record<string, unknown> | null;
               error: { message: string } | null;
@@ -38,9 +41,9 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
 
   const { data: partner, error } = await admin
     .from('partners')
-    .select('id, name')
+    .select('id, name, status')
     .eq('user_id', user.id)
-    .eq('status', 'ACTIVE')
+    .in('status', ['PENDING', 'ACTIVE'])
     .maybeSingle();
 
   if (error) {

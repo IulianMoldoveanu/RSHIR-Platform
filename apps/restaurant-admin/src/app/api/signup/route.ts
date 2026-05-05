@@ -139,12 +139,12 @@ export async function POST(req: NextRequest) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dbAny = admin as any;
-      const cols = 'id, tier, bounty_one_shot_ron';
+      const cols = 'id, code, tier, bounty_one_shot_ron';
       // UUID-shaped ref -> lookup by id; otherwise lookup by partners.code
       // (white-label codes use [A-Z2-9], no lowercase). Both legacy partner
       // UUIDs and the new short codes work.
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref);
-      let partner: { id: string; tier?: string; bounty_one_shot_ron?: number | null } | null = null;
+      let partner: { id: string; code?: string | null; tier?: string; bounty_one_shot_ron?: number | null } | null = null;
       let partnerLookupErr: { message: string } | null = null;
       if (isUuid) {
         const r = await dbAny.from('partners').select(cols).eq('id', ref).maybeSingle();
@@ -174,6 +174,20 @@ export async function POST(req: NextRequest) {
             entityId: String(partner.id),
             metadata: { tenant_id: tenantId, partner_id: partner.id, code: ref },
           });
+        }
+
+        // Lane T: denormalize the canonical partner code on the tenants row
+        // for ad-hoc reporting. Always store partners.code (uppercase short
+        // identifier), never the raw ref input — when the ref is a legacy
+        // UUID the column would otherwise hold mixed formats.
+        if (partner.code) {
+          const { error: refCodeErr } = await dbAny
+            .from('tenants')
+            .update({ referral_code: String(partner.code).toUpperCase() })
+            .eq('id', tenantId);
+          if (refCodeErr) {
+            console.warn('[signup] tenants.referral_code update failed (non-fatal)', refCodeErr.message);
+          }
         }
 
         // Affiliate bounty — when the partner is tier=AFFILIATE, also create

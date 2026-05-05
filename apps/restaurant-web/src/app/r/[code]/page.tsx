@@ -81,7 +81,10 @@ export default async function ResellerLandingPage({
 
   if (error || !data) notFound();
   const partner = data as PartnerRow;
-  if (partner.status !== 'ACTIVE') notFound();
+  // Lane T: PENDING partners (self-signed-up, awaiting admin approval) can
+  // already share their /r/<code> link. Visit tracking + attribution still
+  // accrues; commission is gated downstream by partner_referrals + status.
+  if (partner.status !== 'ACTIVE' && partner.status !== 'PENDING') notFound();
 
   // Track the visit. Fire-and-forget — don't await in a way that delays
   // hydration.
