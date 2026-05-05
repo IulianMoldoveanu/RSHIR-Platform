@@ -1,68 +1,24 @@
 'use server';
 
-import { z } from 'zod';
-import { createAdminClient } from '@/lib/supabase/admin';
-
-const schema = z.object({
-  fullName: z.string().trim().min(2).max(120),
-  phone: z.string().trim().min(7).max(30),
-  email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(10).max(72),
-  vehicleType: z.enum(['BIKE', 'SCOOTER', 'CAR']),
-});
+// Audit §3.2: self-register retired (2026-05-05).
+//
+// The previous unauthenticated `registerCourierAction` allowed anyone on
+// the internet to spam-create real auth.users + auto-bind them to the
+// hir-default fleet. No CAPTCHA, no rate limit, no email verification.
+// Per the bot-strategy review the canonical onboarding path is
+// fleet-manager invite, so the self-register door is now closed.
+//
+// This module is kept (not deleted) so any legacy cached PWA form post
+// hits a loud rejection instead of silently creating accounts.
 
 export type RegisterCourierResult =
   | { ok: true }
   | { ok: false; error: string };
 
-export async function registerCourierAction(
-  input: z.infer<typeof schema>,
-): Promise<RegisterCourierResult> {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Date invalide. Verifică toate câmpurile.' };
-  }
-  const { fullName, phone, email, password, vehicleType } = parsed.data;
-
-  const admin = createAdminClient();
-
-  const { data: created, error: authErr } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-  if (authErr || !created.user) {
-    console.error('[courier register] createUser failed:', authErr?.message);
-    return { ok: false, error: 'Nu am putut crea contul. Verifică datele și încearcă din nou.' };
-  }
-
-  // Look up the default HIR fleet — every new self-registered courier lands
-  // here unless they're invited via a fleet-owner-issued link (future PR).
-  const { data: defaultFleet } = await admin
-    .from('courier_fleets')
-    .select('id')
-    .eq('slug', 'hir-default')
-    .maybeSingle();
-  if (!defaultFleet) {
-    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
-    console.error('[courier register] default fleet missing — apply migration 002');
-    return { ok: false, error: 'Configurarea platformei e incompletă. Contactează suportul.' };
-  }
-
-  const { error: profileErr } = await admin.from('courier_profiles').insert({
-    user_id: created.user.id,
-    full_name: fullName,
-    phone,
-    vehicle_type: vehicleType,
-    status: 'INACTIVE',
-    fleet_id: (defaultFleet as { id: string }).id,
-  });
-  if (profileErr) {
-    // Roll back the auth user so the email is reusable.
-    await admin.auth.admin.deleteUser(created.user.id).catch(() => undefined);
-    console.error('[courier register] profile insert failed:', profileErr.message);
-    return { ok: false, error: 'Nu am putut salva profilul. Încearcă din nou.' };
-  }
-
-  return { ok: true };
+export async function registerCourierAction(): Promise<RegisterCourierResult> {
+  return {
+    ok: false,
+    error:
+      'Înrolarea curierilor se face prin invitație de la dispecerul tău. Contactează-l direct, sau scrie-ne la hello@hirforyou.ro.',
+  };
 }
