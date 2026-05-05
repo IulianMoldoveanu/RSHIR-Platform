@@ -4,6 +4,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { IntegrationsClient } from './client';
+import { ExternalPlatformsCard } from './external-platforms-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,6 +137,8 @@ export default async function IntegrationsPage() {
           created_at: string;
         }>}
       />
+
+      <ExternalPlatformsCard />
     </div>
   );
 }
