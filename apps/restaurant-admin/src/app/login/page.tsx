@@ -96,6 +96,16 @@ function LoginInner() {
           </Form>
         </CardContent>
       </Card>
+      <p className="mt-4 text-center text-xs text-zinc-400">
+        <a
+          href="https://hir-restaurant-web.vercel.app/status"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-zinc-600"
+        >
+          Status platformă
+        </a>
+      </p>
     </main>
   );
 }
