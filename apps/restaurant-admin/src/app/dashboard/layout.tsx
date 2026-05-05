@@ -111,6 +111,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/domain', label: 'Domeniu' },
         { href: '/dashboard/settings/seo', label: 'SEO' },
         { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
+        { href: '/dashboard/settings/payments', label: 'Plăți & facturare' },
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
