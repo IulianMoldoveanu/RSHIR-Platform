@@ -63,19 +63,19 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-semibold text-zinc-100">Tură</h1>
           <span
             className={
               active
-                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300'
-                : 'inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold text-zinc-400'
+                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300'
+                : 'inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-400'
             }
           >
             <span
               aria-hidden
-              className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+              className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-400' : 'bg-zinc-600'}`}
             />
             {active ? 'Online' : 'Offline'}
           </span>
@@ -83,22 +83,21 @@ export default async function ShiftPage() {
 
         {active ? (
           <>
-            <p className="mb-3 text-sm text-zinc-300">
+            <p className="mb-4 text-sm text-zinc-400">
               Online de la{' '}
-              <strong className="text-zinc-100">
+              <strong className="font-semibold text-zinc-100">
                 {new Date(active.started_at).toLocaleTimeString('ro-RO', {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}
               </strong>
-              .
             </p>
             <SwipeButton
               label="→ Glisează pentru a închide tura"
               onConfirm={endShiftAction}
             />
             {activeOrderCount > 0 ? (
-              <div className="mt-3">
+              <div className="mt-6 border-t border-zinc-800 pt-4">
                 <ForceEndShift
                   activeOrderCount={activeOrderCount}
                   onForceEnd={forceEndShiftAction}
@@ -108,7 +107,7 @@ export default async function ShiftPage() {
           </>
         ) : (
           <>
-            <p className="mb-3 text-sm text-zinc-400">
+            <p className="mb-4 text-sm text-zinc-400">
               Pornește tura pentru a primi comenzi.
             </p>
             <SwipeButton
@@ -120,23 +119,23 @@ export default async function ShiftPage() {
       </section>
 
       {stats ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-            Tură curentă
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+            Statistici tură curentă
           </p>
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-3 gap-4 text-center">
             <Stat
-              icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
+              icon={<Banknote className="h-5 w-5 text-emerald-400" aria-hidden />}
               label="Câștig"
               value={`${stats.earnings.toFixed(2)} RON`}
             />
             <Stat
-              icon={<TrendingUp className="h-4 w-4 text-violet-400" aria-hidden />}
+              icon={<TrendingUp className="h-5 w-5 text-violet-400" aria-hidden />}
               label="RON/oră"
               value={stats.perHour > 0 ? stats.perHour.toFixed(2) : '—'}
             />
             <Stat
-              icon={<Clock className="h-4 w-4 text-zinc-400" aria-hidden />}
+              icon={<Clock className="h-5 w-5 text-zinc-400" aria-hidden />}
               label="Livrări"
               value={String(stats.count)}
             />
@@ -157,9 +156,9 @@ function Stat({
   value: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="flex flex-col items-center gap-1.5">
       <span aria-hidden>{icon}</span>
-      <span className="text-base font-semibold text-zinc-100">{value}</span>
+      <span className="text-base font-bold text-zinc-100">{value}</span>
       <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>
     </div>
   );
