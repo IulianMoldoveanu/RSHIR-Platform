@@ -45,9 +45,16 @@ const STALE_MS = 10 * 60 * 1000;
 const CHIME_COOLDOWN_MS = 3000;
 const AUTO_PRINT_IFRAME_TTL_MS = 5000;
 const AUTO_PRINT_LS_KEY_PREFIX = 'kds-auto-print-enabled';
+const AUTO_PRINT_PRINTED_SS_KEY_PREFIX = 'kds-auto-print-printed';
+// Cap the persisted printed-IDs set so an always-on KDS tab doesn't grow unbounded.
+const AUTO_PRINT_PRINTED_MAX = 500;
 
 function autoPrintLsKey(tenantId: string): string {
   return `${AUTO_PRINT_LS_KEY_PREFIX}:${tenantId}`;
+}
+
+function autoPrintPrintedKey(tenantId: string): string {
+  return `${AUTO_PRINT_PRINTED_SS_KEY_PREFIX}:${tenantId}`;
 }
 
 function shortId(id: string): string {
@@ -127,10 +134,13 @@ export function KdsClient({
   const [autoPrintEnabled, setAutoPrintEnabled] = useState<boolean>(false);
   const [autoPrintCount, setAutoPrintCount] = useState<number>(0);
   const autoPrintEnabledRef = useRef<boolean>(false);
+  // In-memory dedupe set for the current tab session, hydrated from sessionStorage
+  // so a tab reload doesn't reprint orders that were already printed in this tab.
   const printedIdsRef = useRef<Set<string>>(new Set());
 
-  // Hydrate the toggle from localStorage on mount; keep ref in sync so the
-  // (stable) Realtime handler reads the latest value without resubscribing.
+  // Hydrate the toggle from localStorage and the printed-IDs from sessionStorage
+  // on mount; keep refs in sync so the (stable) Realtime handler reads the latest
+  // values without resubscribing.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -140,6 +150,17 @@ export function KdsClient({
       autoPrintEnabledRef.current = enabled;
     } catch {
       /* localStorage may be unavailable (SSR / privacy mode) */
+    }
+    try {
+      const raw = window.sessionStorage.getItem(autoPrintPrintedKey(tenantId));
+      if (raw) {
+        const arr: unknown = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          printedIdsRef.current = new Set(arr.filter((x): x is string => typeof x === 'string'));
+        }
+      }
+    } catch {
+      /* sessionStorage may be unavailable */
     }
   }, [tenantId]);
 
@@ -170,7 +191,8 @@ export function KdsClient({
           maybePlayChime();
           // Edge case: an order can be inserted directly in CONFIRMED state
           // (e.g. integration imports). Treat that as an auto-print trigger too.
-          maybeAutoPrintFromPayload(payload.new);
+          // No `old` for INSERT — pass null to skip the transition gate.
+          maybeAutoPrintFromPayload(payload.new, null);
           router.refresh();
         },
       )
@@ -183,7 +205,7 @@ export function KdsClient({
           filter: `tenant_id=eq.${tenantId}`,
         },
         (payload) => {
-          maybeAutoPrintFromPayload(payload.new);
+          maybeAutoPrintFromPayload(payload.new, payload.old);
           router.refresh();
         },
       )
@@ -195,15 +217,29 @@ export function KdsClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
-  function maybeAutoPrintFromPayload(row: unknown): void {
+  function maybeAutoPrintFromPayload(row: unknown, oldRow: unknown): void {
     if (!autoPrintEnabledRef.current) return;
     if (!row || typeof row !== 'object') return;
     const r = row as { id?: unknown; status?: unknown };
     const id = typeof r.id === 'string' ? r.id : null;
     const status = typeof r.status === 'string' ? r.status : null;
     if (!id || status !== 'CONFIRMED') return;
+
+    // Transition gate: only fire on actual entry into CONFIRMED. If `oldRow` is
+    // present and includes a `status` field (Supabase Realtime ships old fields
+    // when REPLICA IDENTITY FULL is set on the table) and that prior status was
+    // already CONFIRMED, this is a non-status update (e.g. payment_status flip
+    // via markCodOrderPaid) and we must not reprint. When `oldRow` is null (INSERT)
+    // or its `status` is missing (default REPLICA IDENTITY), fall through to the
+    // dedupe set — that prevents reprints on tab reloads + repeat updates.
+    if (oldRow && typeof oldRow === 'object') {
+      const o = oldRow as { status?: unknown };
+      if (typeof o.status === 'string' && o.status === 'CONFIRMED') return;
+    }
+
     if (printedIdsRef.current.has(id)) return;
     printedIdsRef.current.add(id);
+    persistPrintedIds(tenantId, printedIdsRef.current);
     spawnPrintIframe(id);
     setAutoPrintCount((c) => c + 1);
   }
@@ -496,6 +532,23 @@ function OrderCard({
       </footer>
     </li>
   );
+}
+
+function persistPrintedIds(tenantId: string, ids: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // Cap to the most recent N entries to avoid unbounded growth in long sessions.
+    let arr = Array.from(ids);
+    if (arr.length > AUTO_PRINT_PRINTED_MAX) {
+      arr = arr.slice(arr.length - AUTO_PRINT_PRINTED_MAX);
+      // Sync the in-memory set with the trimmed array so subsequent reads agree.
+      ids.clear();
+      for (const id of arr) ids.add(id);
+    }
+    window.sessionStorage.setItem(autoPrintPrintedKey(tenantId), JSON.stringify(arr));
+  } catch {
+    /* sessionStorage may be unavailable / quota exceeded — best effort */
+  }
 }
 
 function spawnPrintIframe(orderId: string): void {
