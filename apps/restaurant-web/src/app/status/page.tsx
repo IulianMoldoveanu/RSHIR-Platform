@@ -29,10 +29,20 @@ export const runtime = 'nodejs';
 // would only burn CPU without surfacing new data.
 export const revalidate = 60;
 
+// Lane EN-I18N PR D — language alternates (cookie-based locale, same URL).
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const STATUS_URL = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}/status`
+  : 'https://hir-restaurant-web.vercel.app/status';
+
 export const metadata: Metadata = {
   title: 'Status platformă — HIR Restaurant Suite',
   description:
     'Status în timp real al platformei HIR: storefront, admin, aplicație curier. Uptime 90 zile + incidente recente.',
+  alternates: {
+    canonical: STATUS_URL,
+    languages: { 'ro-RO': STATUS_URL, en: STATUS_URL, 'x-default': STATUS_URL },
+  },
   openGraph: {
     title: 'Status HIR Restaurant Suite',
     description: 'Disponibilitate platformă în timp real + incidente.',

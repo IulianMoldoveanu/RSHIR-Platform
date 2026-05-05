@@ -11,6 +11,14 @@ import { marketingOgImageUrl } from '@/lib/seo-marketing';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Lane EN-I18N PR D — canonical URL kept on the apex of the configured
+// primary domain; alternates self-reference because the same URL serves
+// RO + EN via cookie-based locale.
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const PRICING_URL = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}/pricing`
+  : 'https://hir-restaurant-web.vercel.app/pricing';
+
 const OG_IMAGE = marketingOgImageUrl({
   title: 'Tarife — 3 RON / livrare flat',
   subtitle: 'Fără abonament. Fără procent. Plată lunară pe factură SRL.',
@@ -21,6 +29,10 @@ export const metadata: Metadata = {
   title: 'Tarife — HIR Restaurant Suite',
   description:
     'Tier 1: 3 RON / livrare flat. Tier 2: cost real curier + 3 RON pentru flote. Fără abonament, fără procent. Plată lunară pe factură SRL.',
+  alternates: {
+    canonical: PRICING_URL,
+    languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
+  },
   openGraph: {
     title: 'Tarife — HIR Restaurant Suite',
     description:

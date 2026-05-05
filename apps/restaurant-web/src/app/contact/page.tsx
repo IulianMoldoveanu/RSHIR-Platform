@@ -11,6 +11,12 @@ import { marketingOgImageUrl } from '@/lib/seo-marketing';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Lane EN-I18N PR D — language alternates (cookie-based locale, same URL).
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const CONTACT_URL = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}/contact`
+  : 'https://hir-restaurant-web.vercel.app/contact';
+
 const OG_IMAGE = marketingOgImageUrl({
   title: 'Contact HIR',
   subtitle: 'Răspuns în 24 de ore lucrătoare. Pentru restaurante, flote și parteneri.',
@@ -20,6 +26,10 @@ export const metadata: Metadata = {
   title: 'Contact — HIR Restaurant Suite',
   description:
     'Vorbește cu echipa HIR. Pentru restaurante, flote și parteneri. Email, telefon, formular direct.',
+  alternates: {
+    canonical: CONTACT_URL,
+    languages: { 'ro-RO': CONTACT_URL, en: CONTACT_URL, 'x-default': CONTACT_URL },
+  },
   openGraph: {
     title: 'Contact — HIR Restaurant Suite',
     description: 'Vorbește cu echipa HIR. Răspuns în 24 de ore lucrătoare.',

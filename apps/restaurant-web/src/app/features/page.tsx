@@ -17,9 +17,10 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { headers } from 'next/headers';
 import { t, type TKey } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
-import { marketingOgImageUrl } from '@/lib/seo-marketing';
+import { canonicalBaseUrl, marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,12 +36,20 @@ export async function generateMetadata(): Promise<Metadata> {
     title: t(locale, 'marketing.features.og_title'),
     subtitle: t(locale, 'marketing.features.og_subtitle'),
   });
+  const host =
+    headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+  const url = `${canonicalBaseUrl(host)}/features`;
   return {
     title,
     description,
+    alternates: {
+      canonical: url,
+      languages: { 'ro-RO': url, en: url, 'x-default': url },
+    },
     openGraph: {
       title,
       description: t(locale, 'marketing.features.og_description'),
+      url,
       type: 'website',
       locale: locale === 'en' ? 'en_GB' : 'ro_RO',
       images: [{ url: ogImage, width: 1200, height: 630, alt: title }],

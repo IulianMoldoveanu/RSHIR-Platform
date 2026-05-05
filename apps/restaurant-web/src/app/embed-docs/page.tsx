@@ -9,10 +9,20 @@ import { EmbedSnippetCopy } from './EmbedSnippetCopy';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Lane EN-I18N PR D — language alternates (cookie-based locale, same URL).
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const EMBED_DOCS_URL = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}/embed-docs`
+  : 'https://hir-restaurant-web.vercel.app/embed-docs';
+
 export const metadata: Metadata = {
   title: 'Widget de comenzi pentru site-ul dumneavoastră — HIR',
   description:
     'Adăugați butonul de comenzi HIR pe orice site cu o singură linie de cod. Personalizat cu culorile dumneavoastră, fără dezvoltatori.',
+  alternates: {
+    canonical: EMBED_DOCS_URL,
+    languages: { 'ro-RO': EMBED_DOCS_URL, en: EMBED_DOCS_URL, 'x-default': EMBED_DOCS_URL },
+  },
   openGraph: {
     title: 'Widget de comenzi HIR',
     description:

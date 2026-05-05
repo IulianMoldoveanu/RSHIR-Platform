@@ -37,7 +37,11 @@ export const metadata: Metadata = {
   title: 'Foișorul A — primul restaurant HIR live | Studiu de caz',
   description:
     'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 produse importate în <5 minute, storefront white-label live, livrare proprie HIR.',
-  alternates: { canonical: ARTICLE_URL },
+  // Lane EN-I18N PR D — same URL serves both locales (cookie-based).
+  alternates: {
+    canonical: ARTICLE_URL,
+    languages: { 'ro-RO': ARTICLE_URL, en: ARTICLE_URL, 'x-default': ARTICLE_URL },
+  },
   openGraph: {
     title: 'Foișorul A — primul restaurant HIR live',
     description:
