@@ -6,27 +6,26 @@ import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { registerPushServiceWorker } from '@/lib/push/register-sw';
 import { subscribeToPush } from '@/lib/push/subscribe';
 
-const DISMISS_KEY = 'hir.courier.pushPromptDismissedAt';
-const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+// v1 key — permanent dismiss (no TTL). If we ever need to re-prompt
+// after a major UX change, bump to push-prompt-dismissed-v2.
+const DISMISS_KEY = 'push-prompt-dismissed-v1';
 
 /**
- * Mounts on the dashboard layout. Walks the courier through enabling
- * Web Push notifications:
+ * Post-login splash prompt for Web Push notifications — Wolt-style.
  *
- *   1. If browser doesn't support Notifications/PushManager → render nothing.
- *   2. If permission is already 'granted' → silently register SW + subscription
- *      (idempotent, no UI).
- *   3. If permission is 'default' (never asked) → show a small banner
- *      explaining why notifications matter and an "Activează" CTA.
- *      Dismiss persists for 7 days in localStorage.
- *   4. If permission is 'denied' → render nothing (browser won't re-prompt;
- *      courier must enable in OS settings; we don't nag).
+ * Renders as a bottom-sheet overlay on top of the dashboard so the copy
+ * is the first thing the courier sees after signing in (not buried inside
+ * settings). One-time dismiss persists in localStorage under DISMISS_KEY.
  *
- * The banner copy is intentionally short and value-first:
- * "primești comenzi instant, fără să ții aplicația deschisă".
+ * State machine:
+ *   1. Browser doesn't support Notifications/PushManager → render nothing.
+ *   2. Permission already 'granted' → silently re-subscribe (no UI).
+ *   3. Permission 'denied' → render nothing (OS settings required; no nag).
+ *   4. DISMISS_KEY in localStorage → render nothing (user already saw this).
+ *   5. Otherwise → show splash overlay with explanation + CTA.
  */
 export function PushBootstrap() {
-  const [phase, setPhase] = useState<'idle' | 'banner' | 'asking' | 'done'>('idle');
+  const [phase, setPhase] = useState<'idle' | 'splash' | 'asking' | 'done'>('idle');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -34,29 +33,22 @@ export function PushBootstrap() {
       return;
     }
 
-    const dismissedAtRaw = window.localStorage.getItem(DISMISS_KEY);
-    const dismissedAt = dismissedAtRaw ? Number(dismissedAtRaw) : 0;
-    const stillDismissed = dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS;
-
     const permission = Notification.permission;
 
     if (permission === 'granted') {
-      // Silent re-subscribe path.
       void enableSilently();
       return;
     }
 
     if (permission === 'denied') {
-      // Browser said no; do nothing.
       return;
     }
 
-    if (stillDismissed) {
-      // User dismissed our banner recently; respect it.
+    if (window.localStorage.getItem(DISMISS_KEY)) {
       return;
     }
 
-    setPhase('banner');
+    setPhase('splash');
   }, []);
 
   async function enableSilently() {
@@ -74,7 +66,6 @@ export function PushBootstrap() {
     try {
       const reg = await registerPushServiceWorker();
       if (!reg) {
-        // Permission denied or unsupported; close the banner.
         setPhase('done');
         return;
       }
@@ -89,52 +80,64 @@ export function PushBootstrap() {
 
   function handleDismiss() {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      window.localStorage.setItem(DISMISS_KEY, '1');
     }
     setPhase('done');
   }
 
-  if (phase !== 'banner' && phase !== 'asking') return null;
+  if (phase !== 'splash' && phase !== 'asking') return null;
 
   return (
+    /* Overlay backdrop */
     <div
-      className="mx-3 mt-3 flex items-start gap-3 rounded-xl border border-violet-500/30 bg-violet-500/10 p-3"
-      role="region"
+      className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
       aria-label="Activare notificări"
     >
-      <Bell className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-100">Activează notificările</p>
-        <p className="mt-0.5 text-xs text-zinc-400">
-          Primești comenzi instant, fără să ții aplicația deschisă.
+      {/* Bottom sheet */}
+      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+        {/* Close button */}
+        <div className="mb-4 flex items-start justify-between">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15">
+            <Bell className="h-5 w-5 text-violet-400" aria-hidden />
+          </div>
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Închide"
+            className="text-zinc-500 hover:text-zinc-300"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        <h2 className="text-base font-semibold text-zinc-100">
+          Cere notificări ca să primești comenzi când ești online
+        </h2>
+        <p className="mt-1.5 text-sm text-zinc-400">
+          Primești comenzi instant, fără să ții aplicația deschisă. Poți dezactiva oricând din setările telefonului.
         </p>
-        <div className="mt-2 flex items-center gap-2">
+
+        <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
             onClick={handleEnable}
             disabled={phase === 'asking'}
-            className="rounded-md bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-50"
+            className="w-full rounded-xl bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-50"
           >
-            {phase === 'asking' ? 'Se activează…' : 'Activează'}
+            {phase === 'asking' ? 'Se activează…' : 'Activează notificările'}
           </button>
           <button
             type="button"
             onClick={handleDismiss}
             disabled={phase === 'asking'}
-            className="rounded-md px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200"
+            className="w-full rounded-xl border border-zinc-800 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200"
           >
             Mai târziu
           </button>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label="Închide"
-        className="text-zinc-500 hover:text-zinc-300"
-      >
-        <X className="h-4 w-4" aria-hidden />
-      </button>
     </div>
   );
 }

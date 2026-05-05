@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
+import { toast } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
 
 type SlotState = { file: File | null; preview: string | null; url: string | null };
@@ -108,6 +109,16 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
       if (rxSlot.file && !cached.prescription) {
         tasks.push(uploadSlot(rxSlot, 'prescription').then((url) => ({ folder: 'prescription', url })));
       }
+
+      // Show retry feedback only when the user is re-attempting after a
+      // previous failure (error was set). The total count is how many slots
+      // still need uploading vs. the grand total that were attempted.
+      if (error !== null && tasks.length > 0) {
+        const totalSlots =
+          (delivery.file ? 1 : 0) + (idSlot.file ? 1 : 0) + (rxSlot.file ? 1 : 0);
+        const doneCount = totalSlots - tasks.length;
+        toast.loading(`Reîncerc poza ${doneCount + 1} / ${totalSlots}`, { id: 'proof-retry' });
+      }
       const results = await Promise.allSettled(tasks);
       const next = { ...cached };
       for (const r of results) {
@@ -132,8 +143,10 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
       }
       onComplete({ delivery: next.delivery, id: next.id, prescription: next.prescription });
     } catch (err) {
+      toast.dismiss('proof-retry');
       setError(err instanceof Error ? err.message : 'Eroare la încărcare. Încearcă din nou.');
     } finally {
+      toast.dismiss('proof-retry');
       setUploading(false);
     }
   }
