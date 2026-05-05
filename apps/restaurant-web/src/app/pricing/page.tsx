@@ -36,7 +36,7 @@ const COMPARE: CompareRow[] = [
   {
     feature: 'Cost per comandă livrată',
     hir: { good: true, label: '3 RON flat' },
-    glovo: { good: false, label: '~25-30%' },
+    glovo: { good: false, label: '~30%' },
     wolt: { good: false, label: '~25-30%' },
     gloriafood: { good: true, label: '0% (dar fără livrare)' },
   },

@@ -2,12 +2,12 @@ import { ShieldCheck, TrendingUp } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Hero panel that frames the entire dashboard around HIR's commercial pitch:
-// "you kept 100% of your revenue; on Wolt/Glovo you'd have lost ~25%".
-// The 25% rate is the conservative middle of the 22–30% range RO restaurants
-// pay aggregators in 2026 — we use it instead of 30% so the math survives
-// scrutiny when an operator compares with their actual aggregator invoice.
+// "you kept 100% of your revenue; on Wolt/Glovo you'd have lost ~30%".
+// 30% matches Glovo's standard merchant rate for new RO clients in 2026
+// (legacy contracts sat at 25%); Wolt's RO range is 25–30%. Using the
+// upper end is honest with new clients onboarded after the rate hike.
 
-const AGGREGATOR_COMMISSION_RATE = 0.25;
+const AGGREGATOR_COMMISSION_RATE = 0.3;
 
 type Stats = {
   monthSalesRon: number;
@@ -79,13 +79,13 @@ export async function OwnerValueHero({ tenantId }: { tenantId: string }) {
           <p className="mt-1 text-sm text-zinc-700">
             {hasActivity ? (
               <>
-                Pe Wolt sau Glovo, comisionul de ~25% pe{' '}
+                Pe Wolt sau Glovo, comisionul de ~30% pe{' '}
                 <span className="font-mono tabular-nums">{formatRonShort(s.monthSalesRon)}</span>{' '}
                 vânzări ar fi însemnat banii ăștia. Pe HIR ai plătit doar tariful flat per livrare.
               </>
             ) : (
               <>
-                Aici vei vedea câți bani economisești pe HIR vs Wolt/Glovo (~25% comision agregator)
+                Aici vei vedea câți bani economisești pe HIR vs Wolt/Glovo (~30% comision agregator)
                 de îndată ce primești prima comandă.
               </>
             )}

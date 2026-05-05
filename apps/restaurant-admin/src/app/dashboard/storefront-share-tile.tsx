@@ -42,7 +42,7 @@ export async function StorefrontShareTile({ storefrontUrl, tenantName }: Props) 
 
           <p className="mt-3 text-xs text-zinc-500">
             Postează linkul în story-uri Instagram, în descrierea Google Maps, sau lipește un QR pe
-            masă. Fiecare comandă pe HIR e cu 25% mai profitabilă decât pe Wolt sau Glovo.
+            masă. Fiecare comandă pe HIR e cu 30% mai profitabilă decât pe Wolt sau Glovo.
           </p>
         </div>
 
