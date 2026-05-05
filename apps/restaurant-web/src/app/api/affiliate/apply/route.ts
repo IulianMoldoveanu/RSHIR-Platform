@@ -16,6 +16,8 @@ import { z } from 'zod';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
+import { sendEmail } from '@/lib/newsletter/resend';
+import { affiliatePendingEmail } from '@/lib/email/templates';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -136,60 +138,16 @@ export async function POST(req: NextRequest) {
 
 // ────────────────────────────────────────────────────────────────────────
 // Application-submitted confirmation email. Uses Resend if configured; if
-// not, no-op (the audit trail is the affiliate_applications row itself).
-// Kept inline (~30 LOC) instead of a shared util — only one caller for now.
+// not, sendEmail() short-circuits with `not_configured`. Best-effort — the
+// audit trail is the affiliate_applications row itself.
+// Lane N (2026-05-04): copy + HTML now live in @/lib/email/templates so the
+// pending email shares the same shell as approval / newsletter / reservations.
 // ────────────────────────────────────────────────────────────────────────
 
 async function sendApplicationSubmittedEmail(args: {
   to: string;
   fullName: string;
 }): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
-  const from = process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev';
-
-  const subject = 'HIR Affiliate — am primit aplicația ta';
-  const text = `Salut ${args.fullName},
-
-Am primit aplicația ta pentru HIR Affiliate Program.
-
-Ce urmează:
-- Echipa HIR revizuiește aplicația ta în maxim 48 de ore lucrătoare.
-- Dacă te aprobăm, primești un email cu codul tău de afiliat + linkul către dashboard-ul tău.
-- Începi să recomanzi HIR și câștigi 300 RON pentru fiecare restaurant onboarded (600 RON dacă deja ai cont HIR ca tenant).
-
-Dacă ai întrebări între timp, răspunde la acest email.
-
-— Echipa HIR
-https://hirforyou.ro`;
-
-  const html = `<!DOCTYPE html>
-<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#0F172A;line-height:1.6;max-width:560px;margin:0 auto;padding:24px;">
-<h2 style="margin:0 0 16px;font-size:20px;font-weight:600;">Am primit aplicația ta ✓</h2>
-<p style="margin:0 0 12px;">Salut <strong>${escapeHtml(args.fullName)}</strong>,</p>
-<p style="margin:0 0 12px;">Aplicația ta pentru HIR Affiliate Program a ajuns la noi.</p>
-<p style="margin:16px 0 8px;font-weight:600;">Ce urmează:</p>
-<ul style="margin:0 0 16px;padding-left:20px;color:#475569;">
-  <li>Echipa HIR revizuiește aplicația în maxim <strong>48 ore</strong> lucrătoare.</li>
-  <li>Dacă te aprobăm, primești email cu <strong>codul tău de afiliat</strong> + link către dashboard.</li>
-  <li>Începi să câștigi <strong>300 RON / restaurant onboarded</strong> (600 RON dacă deja ai cont HIR).</li>
-</ul>
-<p style="margin:24px 0 0;color:#94a3b8;font-size:12px;">Răspunde la acest email pentru întrebări. — Echipa HIR · <a href="https://hirforyou.ro" style="color:#4F46E5;">hirforyou.ro</a></p>
-</body></html>`;
-
-  try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ from, to: args.to, subject, html, text }),
-    });
-  } catch {
-    // Best-effort. Submission already persisted.
-  }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]!));
+  const tpl = affiliatePendingEmail({ fullName: args.fullName });
+  await sendEmail({ to: args.to, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }

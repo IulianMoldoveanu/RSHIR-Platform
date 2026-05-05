@@ -134,19 +134,26 @@ Deno.serve(async (req: Request) => {
       ? `${WEB_BASE.replace(/\/$/, '')}/track/${c.public_track_token}`
       : `/track/${c.public_track_token}`;
     const tenantName = c.tenants?.name ?? 'restaurant';
-    const firstName = c.customers.first_name?.trim() || 'salut';
+    const firstName = c.customers.first_name?.trim() || null;
+    const greeting = firstName ? `Bună ziua, ${firstName}` : 'Bună ziua';
 
-    const subject = `${tenantName} — cum a fost comanda ta?`;
+    const subject = `${tenantName} — cum a fost comanda dumneavoastră?`;
     const text = [
-      `Bună, ${firstName}!`,
+      `${greeting},`,
       '',
-      `Speram că ți-a plăcut ce ai comandat de la ${tenantName}. Lasă-le o părere — durează 10 secunde și îi ajută enorm:`,
+      `Sperăm că v-a plăcut ce ați comandat de la ${tenantName}. Lăsați o părere — durează 10 secunde și îi ajută enorm pe ceilalți clienți:`,
       '',
       trackUrl,
       '',
       'Mulțumim,',
-      '— HIR',
+      '— HIR · hir.ro',
     ].join('\n');
+
+    const html = renderReviewReminderHtml({
+      tenantName,
+      greeting,
+      trackUrl,
+    });
 
     try {
       const r = await resend.emails.send({
@@ -154,6 +161,7 @@ Deno.serve(async (req: Request) => {
         to: c.customers.email,
         subject,
         text,
+        html,
       });
       if (r.error) {
         console.error('[review-reminder] resend error', c.id, r.error);
@@ -180,3 +188,77 @@ Deno.serve(async (req: Request) => {
 
   return json(200, { ok: true, candidates: candidates.length, sent, skipped, errors });
 });
+
+// Lane N (2026-05-04) — adds HTML alongside the text/* fallback. Same shell
+// as notify-customer-status (single column, max-width 560, inline CSS, no
+// <style> blocks). Kept inline because Deno Edge Functions can't import from
+// the Next.js app's shared lib at compile time.
+function renderReviewReminderHtml(opts: {
+  tenantName: string;
+  greeting: string;
+  trackUrl: string;
+}): string {
+  const accent = '#7c3aed';
+  return `<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>${escapeHtml(opts.tenantName)} — cum a fost comanda?</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#18181b">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;visibility:hidden;opacity:0;color:transparent;height:0;width:0">${escapeHtml(`Cum a fost comanda dumneavoastră de la ${opts.tenantName}? Lăsați o părere — durează 10 secunde.`)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5">
+      <tr>
+        <td align="center" style="padding:24px 12px">
+          <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
+            <tr>
+              <td align="center" style="padding:20px 24px;border-top:3px solid ${accent};border-bottom:1px solid #f4f4f5">
+                <span style="font-size:18px;font-weight:600;color:#18181b">${escapeHtml(opts.tenantName)}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px">
+                <h1 style="font-size:20px;line-height:1.3;margin:0 0 12px;color:#18181b">Cum a fost comanda?</h1>
+                <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46">
+                  ${escapeHtml(opts.greeting)},
+                </p>
+                <p style="margin:0 0 14px;font-size:15px;line-height:1.5;color:#3f3f46">
+                  Sperăm că v-a plăcut ce ați comandat de la <strong>${escapeHtml(opts.tenantName)}</strong>.
+                  Lăsați o părere — durează 10 secunde și îi ajută enorm pe ceilalți clienți să aleagă.
+                </p>
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0">
+                  <tr>
+                    <td style="border-radius:8px;background:${accent}">
+                      <a href="${escapeHtml(opts.trackUrl)}" style="display:inline-block;padding:12px 24px;font-family:Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px">
+                        Lasă o părere
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:8px 0 0;font-size:12px;color:#71717a;line-height:1.5">
+                  Sau copiați linkul: <a href="${escapeHtml(opts.trackUrl)}" style="color:#71717a;text-decoration:underline;word-break:break-all">${escapeHtml(opts.trackUrl)}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:14px 24px 18px;background:#fafafa;border-top:1px solid #e4e4e7;font-size:11px;color:#a1a1aa;text-align:center;line-height:1.5">
+                Trimis prin <strong style="color:#71717a">HIR</strong> · <a href="https://hir.ro" style="color:#a1a1aa;text-decoration:none">hir.ro</a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

@@ -1,23 +1,29 @@
 import 'server-only';
+import {
+  renderEmail,
+  renderButton,
+  escapeHtml,
+  type EmailBrand,
+} from '@/lib/email/layout';
 
 // Lane L PR 2 — magic-link email template. RO copy. Subject is intentionally
 // generic ("Linkul tău…") and does NOT include the customer's name or the
 // promo code, to prevent SMTP-enum-style address probing.
-
-function escapeHtml(s: string): string {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
+//
+// Lane N (2026-05-04): migrated to the shared `renderEmail()` shell so brand
+// updates, footer copy and unsubscribe styling all flow from one place. The
+// signature stays compatible with the existing TenantBrand alias used by
+// `lib/account/magic-link.ts` so call sites need no change.
 
 type TenantBrand = {
   name: string;
   logoUrl: string | null;
   brandColor: string;
 };
+
+function asEmailBrand(b: TenantBrand): EmailBrand {
+  return { name: b.name, logoUrl: b.logoUrl, brandColor: b.brandColor };
+}
 
 export function magicLinkEmail(args: {
   brand: TenantBrand;
@@ -27,48 +33,46 @@ export function magicLinkEmail(args: {
   // Subject deliberately neutral — the recipient knows what it is from the
   // sender domain + branding inside, but a leaked subject line doesn't
   // confirm the address is associated with the tenant.
-  const subject = `Linkul tău rapid — ${args.brand.name}`;
+  const subject = `Linkul rapid — ${args.brand.name}`;
   const expires = new Date(args.expiresAtIso).toLocaleString('ro-RO', {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const btn = args.brand.brandColor;
-  const logo = args.brand.logoUrl
-    ? `<img src="${escapeHtml(args.brand.logoUrl)}" alt="${escapeHtml(args.brand.name)}" style="max-height:48px;display:block;margin:0 auto 16px"/>`
-    : '';
-  const html = `<!doctype html>
-<html lang="ro">
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#18181b">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 0">
-    <tr><td align="center">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
-        <tr><td style="text-align:center">${logo}</td></tr>
-        <tr><td>
-          <h1 style="font-size:20px;margin:0 0 16px">Salvează-ți datele într-un click</h1>
-          <p style="margin:0 0 16px;line-height:1.5">Apasă butonul de mai jos ca să-ți salvezi adresa și telefonul. Data viitoare comanzi în 30 de secunde — fără cont, fără parolă.</p>
-          <p style="margin:24px 0;text-align:center">
-            <a href="${escapeHtml(args.redeemUrl)}" style="display:inline-block;background:${escapeHtml(btn)};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Salvează datele mele</a>
-          </p>
-          <p style="margin:0 0 16px;line-height:1.5;font-size:13px;color:#52525b">Linkul expiră ${escapeHtml(expires)} și poate fi folosit o singură dată.</p>
-          <p style="margin:24px 0 0;line-height:1.5;font-size:13px;color:#71717a">Dacă nu ai cerut tu acest link, ignoră emailul — datele tale rămân anonime.</p>
-        </td></tr>
-        <tr><td style="padding-top:32px;border-top:1px solid #e4e4e7;margin-top:24px;font-size:12px;color:#71717a;text-align:center">
-          ${escapeHtml(args.brand.name)} — trimis prin HIR Restaurant Suite
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const preheader = `Salvați adresa și telefonul într-un click — comandați data viitoare în 30 de secunde.`;
+
+  const bodyHtml = `
+    <h1 style="font-size:20px;line-height:1.3;margin:0 0 12px;color:#18181b">Salvați datele într-un click</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46">
+      Apăsați butonul de mai jos pentru a salva adresa și telefonul. Data viitoare comandați în 30 de secunde, fără cont și fără parolă.
+    </p>
+    ${renderButton({ href: args.redeemUrl, label: 'Salvează datele mele', brandColor: args.brand.brandColor })}
+    <p style="margin:0 0 16px;font-size:12px;line-height:1.5;color:#71717a">
+      Linkul expiră <strong>${escapeHtml(expires)}</strong> și poate fi folosit o singură dată.
+    </p>
+    <p style="margin:24px 0 0;font-size:13px;color:#a1a1aa;line-height:1.5">
+      Dacă nu dumneavoastră ați cerut acest link, ignorați e-mailul — datele rămân anonime.
+    </p>
+  `;
+
+  const html = renderEmail({
+    brand: asEmailBrand(args.brand),
+    preheader,
+    title: subject,
+    bodyHtml,
+  });
+
   const text = [
-    `Salvează-ți datele într-un click la ${args.brand.name}`,
+    `Salvați datele într-un click la ${args.brand.name}`,
     '',
-    'Apasă linkul de mai jos ca să salvezi adresa și telefonul. Data viitoare comanzi în 30 de secunde — fără cont, fără parolă:',
+    'Apăsați linkul de mai jos pentru a salva adresa și telefonul. Data viitoare comandați în 30 de secunde, fără cont și fără parolă:',
     args.redeemUrl,
     '',
     `Linkul expiră ${expires} și poate fi folosit o singură dată.`,
     '',
-    'Dacă nu ai cerut tu acest link, ignoră emailul.',
+    'Dacă nu dumneavoastră ați cerut acest link, ignorați e-mailul.',
+    '',
+    '— HIR · hir.ro',
   ].join('\n');
+
   return { subject, html, text };
 }

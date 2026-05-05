@@ -1,5 +1,16 @@
 import 'server-only';
 import { sendEmail } from './resend';
+import {
+  renderEmail,
+  renderButton,
+  escapeHtml,
+  type EmailBrand,
+} from './layout';
+
+// Lane N (2026-05-04) — admin-side reservation decision e-mails. Triggered
+// from /dashboard/reservations actions when the operator confirms / rejects /
+// cancels a request. Each variant has its own accent color (emerald / rose /
+// amber) but shares the canonical HIR shell.
 
 export type DecisionKind = 'CONFIRMED' | 'REJECTED' | 'CANCELLED';
 
@@ -7,11 +18,12 @@ export type DecisionEmailInput = {
   customerEmail: string;
   customerFirstName: string;
   tenantName: string;
+  /** Optional brand override (logo + accent). Defaults to tenant name only. */
+  brand?: EmailBrand;
   partySize: number;
   requestedAtIso: string;
   rejectionReason?: string | null;
-  /** Optional /rezervari/track/[token] absolute URL. When provided, the
-   *  email gets a CTA button that deep-links to the live status page. */
+  /** Optional /rezervari/track/[token] URL for live status. */
   trackUrl?: string | null;
 };
 
@@ -23,15 +35,6 @@ function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 const COPY: Record<
   DecisionKind,
   {
@@ -39,28 +42,35 @@ const COPY: Record<
     headline: string;
     body: (when: string, partySize: number) => string;
     accent: string;
+    preheader: (when: string, partySize: number, tenant: string) => string;
   }
 > = {
   CONFIRMED: {
-    subject: (t) => `Rezervarea ta la ${t} este confirmată`,
-    headline: 'Rezervarea ta este confirmată',
+    subject: (t) => `Rezervarea dumneavoastră la ${t} este confirmată`,
+    headline: 'Rezervarea este confirmată',
     body: (when, partySize) =>
-      `Te așteptăm pentru ${partySize} persoane pe ${when}. Mulțumim că ai ales restaurantul!`,
-    accent: '#16a34a', // emerald
+      `Vă așteptăm pentru ${partySize} persoane pe ${when}. Mulțumim că ați ales restaurantul nostru.`,
+    accent: '#16a34a',
+    preheader: (when, partySize, tenant) =>
+      `${tenant} a confirmat rezervarea pentru ${partySize} persoane pe ${when}.`,
   },
   REJECTED: {
-    subject: (t) => `Rezervarea ta la ${t} nu a putut fi acceptată`,
-    headline: 'Cererea ta nu a putut fi acceptată',
+    subject: (t) => `Rezervarea dumneavoastră la ${t} nu a putut fi acceptată`,
+    headline: 'Cererea nu a putut fi acceptată',
     body: (when, partySize) =>
-      `Din păcate nu am putut accepta rezervarea pentru ${partySize} persoane pe ${when}. Te rugăm să încerci o altă oră sau să ne contactezi telefonic.`,
-    accent: '#dc2626', // rose
+      `Din păcate nu am putut accepta rezervarea pentru ${partySize} persoane pe ${when}. Vă rugăm să încercați altă oră sau să ne contactați telefonic.`,
+    accent: '#dc2626',
+    preheader: (when, partySize, tenant) =>
+      `${tenant} nu a putut accepta rezervarea pentru ${partySize} persoane pe ${when}.`,
   },
   CANCELLED: {
-    subject: (t) => `Rezervarea ta la ${t} a fost anulată`,
-    headline: 'Rezervarea ta a fost anulată',
+    subject: (t) => `Rezervarea dumneavoastră la ${t} a fost anulată`,
+    headline: 'Rezervarea a fost anulată',
     body: (when, partySize) =>
-      `Rezervarea pentru ${partySize} persoane pe ${when} a fost anulată. Pentru detalii, te rugăm să ne contactezi.`,
-    accent: '#a16207', // amber
+      `Rezervarea pentru ${partySize} persoane pe ${when} a fost anulată. Pentru detalii, vă rugăm să ne contactați.`,
+    accent: '#a16207',
+    preheader: (when, partySize, tenant) =>
+      `${tenant} a anulat rezervarea pentru ${partySize} persoane pe ${when}.`,
   },
 };
 
@@ -71,48 +81,66 @@ export async function notifyCustomerOfReservationDecision(
   const when = formatDate(input.requestedAtIso);
   const copy = COPY[kind];
   const subject = copy.subject(input.tenantName);
-  const reasonBlock =
+  const preheader = copy.preheader(when, input.partySize, input.tenantName);
+
+  // Brand color overridden to the per-status accent so CTA + header rule
+  // colors match the message tone (green = confirmed, red = rejected, amber
+  // = cancelled). Logo stays per-tenant when supplied.
+  const brand: EmailBrand = {
+    name: input.brand?.name ?? input.tenantName,
+    logoUrl: input.brand?.logoUrl ?? null,
+    brandColor: copy.accent,
+  };
+
+  const reasonHtml =
+    kind === 'REJECTED' && input.rejectionReason
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:12px 0;background:#fef2f2;border-left:3px solid ${copy.accent};border-radius:6px">
+           <tr>
+             <td style="padding:12px 14px;font-size:13px;color:#3f3f46;line-height:1.5">
+               <strong style="color:${copy.accent}">Motiv:</strong> ${escapeHtml(input.rejectionReason)}
+             </td>
+           </tr>
+         </table>`
+      : '';
+  const reasonText =
     kind === 'REJECTED' && input.rejectionReason
       ? `\n\nMotiv: ${input.rejectionReason}`
       : '';
-  const reasonHtml =
-    kind === 'REJECTED' && input.rejectionReason
-      ? `<p style="margin:8px 0 0;font-size:13px;color:#71717a"><b>Motiv:</b> ${escapeHtml(
-          input.rejectionReason,
-        )}</p>`
-      : '';
 
-  const trackBlock = input.trackUrl
-    ? `\n\nVezi statusul rezervării: ${input.trackUrl}`
-    : '';
   const trackHtml = input.trackUrl
-    ? `<p style="margin-top:20px"><a href="${escapeHtml(input.trackUrl)}" style="display:inline-block;background:${copy.accent};color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Vezi statusul rezervării</a></p>`
+    ? renderButton({
+        href: input.trackUrl,
+        label: 'Vedeți statusul rezervării',
+        brandColor: copy.accent,
+      })
     : '';
+  const trackText = input.trackUrl ? `\n\nVedeți statusul rezervării: ${input.trackUrl}` : '';
 
   const text = [
-    `Salut ${input.customerFirstName},`,
+    `Bună ziua, ${input.customerFirstName},`,
     '',
-    copy.body(when, input.partySize) + reasonBlock + trackBlock,
+    copy.body(when, input.partySize) + reasonText + trackText,
     '',
     `Echipa ${input.tenantName}`,
+    '',
+    '— HIR · hir.ro',
   ].join('\n');
 
-  const html = `
-<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:560px;color:#27272a">
-  <div style="border-left:4px solid ${copy.accent};padding:12px 16px;background:#fafafa;border-radius:6px">
-    <h2 style="margin:0;font-size:18px;color:${copy.accent}">${escapeHtml(copy.headline)}</h2>
-  </div>
-  <p style="line-height:1.5;font-size:14px;margin-top:16px">
-    Salut <b>${escapeHtml(input.customerFirstName)}</b>,
-  </p>
-  <p style="line-height:1.5;font-size:14px">
-    ${escapeHtml(copy.body(when, input.partySize))}
-  </p>
-  ${reasonHtml}
-  ${trackHtml}
-  <p style="margin-top:24px;color:#71717a;font-size:12px">Echipa ${escapeHtml(input.tenantName)}</p>
-</div>
-`.trim();
+  const bodyHtml = `
+    <h1 style="font-size:20px;margin:0 0 12px;color:${copy.accent}">${escapeHtml(copy.headline)}</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46">
+      Bună ziua, <strong>${escapeHtml(input.customerFirstName)}</strong>.
+    </p>
+    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;color:#3f3f46">
+      ${escapeHtml(copy.body(when, input.partySize))}
+    </p>
+    ${reasonHtml}
+    ${trackHtml}
+    <p style="margin:24px 0 0;font-size:13px;color:#71717a;line-height:1.5">
+      Echipa ${escapeHtml(input.tenantName)}
+    </p>
+  `;
 
+  const html = renderEmail({ brand, preheader, title: subject, bodyHtml });
   await sendEmail({ to: input.customerEmail, subject, html, text });
 }
