@@ -16,7 +16,14 @@ const nextConfig = {
     // 52+ files import from lucide-react across web + admin. Without this
     // flag Next bundles the full barrel; with it Next emits per-icon
     // imports and shaves measurable JS from cold loads.
-    optimizePackageImports: ['lucide-react'],
+    //
+    // Lane M (perf pass 2026-05-04): added framer-motion + date-fns +
+    // @hir/ui. framer-motion is on the storefront landing critical path
+    // (menu-list, menu-item-card, category-tabs, cart-drawer, locale-
+    // switcher). Next 14's transformer rewrites `import { motion } from
+    // 'framer-motion'` to a deep import that strips the unused half of
+    // the library — measurable LCP/TBT improvement on slow connections.
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'date-fns', '@hir/ui'],
   },
 };
 
