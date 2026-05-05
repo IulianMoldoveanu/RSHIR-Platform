@@ -8,11 +8,26 @@
  * Registered from src/lib/push/register-sw.ts.
  */
 
-const PAGE_CACHE = 'hir-courier-pages-v1';
+const PAGE_CACHE = 'hir-courier-pages-v2';
+const OFFLINE_CACHE = 'hir-courier-offline-v1';
+const OFFLINE_URL = '/offline';
 const CACHEABLE_PATH_PREFIX = '/dashboard/orders';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    (async () => {
+      // Pre-cache the offline fallback so it survives the first network
+      // outage. If the response fails (e.g. dev build without /offline),
+      // we silently skip — the SW must still install successfully.
+      try {
+        const cache = await caches.open(OFFLINE_CACHE);
+        await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+      } catch {
+        /* offline page optional */
+      }
+      await self.skipWaiting();
+    })(),
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -21,7 +36,13 @@ self.addEventListener('activate', (event) => {
       // Drop any older versioned caches.
       const names = await caches.keys();
       await Promise.all(
-        names.filter((name) => name.startsWith('hir-courier-pages-') && name !== PAGE_CACHE).map((n) => caches.delete(n)),
+        names
+          .filter(
+            (name) =>
+              (name.startsWith('hir-courier-pages-') && name !== PAGE_CACHE) ||
+              (name.startsWith('hir-courier-offline-') && name !== OFFLINE_CACHE),
+          )
+          .map((n) => caches.delete(n)),
       );
       await self.clients.claim();
     })(),
@@ -32,24 +53,24 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
 
-  // Only intercept navigations to active-order pages — full HTML
-  // documents the rider may want to re-open after a refresh while
-  // offline. We do NOT cache the orders list itself (data changes
-  // too fast) or any data fetches.
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (request.mode !== 'navigate') return;
-  if (!url.pathname.startsWith(CACHEABLE_PATH_PREFIX)) return;
-  if (url.pathname === CACHEABLE_PATH_PREFIX || url.pathname === `${CACHEABLE_PATH_PREFIX}/`) return;
+
+  const isCacheableOrder =
+    url.pathname.startsWith(CACHEABLE_PATH_PREFIX) &&
+    url.pathname !== CACHEABLE_PATH_PREFIX &&
+    url.pathname !== `${CACHEABLE_PATH_PREFIX}/`;
 
   event.respondWith(
     (async () => {
       try {
         const fresh = await fetch(request);
-        if (fresh.ok) {
-          // Keep the SW alive until the cache write completes; otherwise
-          // mobile/backgrounded tabs can terminate the worker right after
-          // respondWith resolves and silently drop the put.
+        if (fresh.ok && isCacheableOrder) {
+          // Active-order pages are the only navigations we cache for
+          // re-open. Keep the SW alive until the cache write completes;
+          // otherwise mobile/backgrounded tabs can terminate the worker
+          // right after respondWith resolves and silently drop the put.
           event.waitUntil(
             (async () => {
               const cache = await caches.open(PAGE_CACHE);
@@ -59,9 +80,16 @@ self.addEventListener('fetch', (event) => {
         }
         return fresh;
       } catch (err) {
-        const cache = await caches.open(PAGE_CACHE);
-        const cached = await cache.match(request);
-        if (cached) return cached;
+        // Offline path. Try the active-order cache first, then the
+        // global offline fallback page. Re-throw only if neither hits.
+        if (isCacheableOrder) {
+          const cache = await caches.open(PAGE_CACHE);
+          const cached = await cache.match(request);
+          if (cached) return cached;
+        }
+        const offlineCache = await caches.open(OFFLINE_CACHE);
+        const offline = await offlineCache.match(OFFLINE_URL);
+        if (offline) return offline;
         throw err;
       }
     })(),

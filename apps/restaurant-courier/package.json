@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build",
+    "build:web": "next build",
+    "build:ios": "echo 'iOS build stub — install Capacitor first. See NATIVE_SHELL.md.' && exit 1",
+    "build:android": "echo 'Android build stub — install Capacitor first. See NATIVE_SHELL.md.' && exit 1",
     "start": "next start -p 3002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
