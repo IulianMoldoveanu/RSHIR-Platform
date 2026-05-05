@@ -21,6 +21,15 @@ export const revalidate = 86400;
 
 const LAST_UPDATED = '2026-05-05';
 
+// Absolute canonical URL — relative `/press` would require `metadataBase`
+// in the root layout, which this app does not set. Match the pattern used
+// by /case-studies/foisorul-a and the rest of the marketing routes.
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const CANONICAL_BASE = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}`
+  : 'https://hir-restaurant-web.vercel.app';
+const PRESS_URL = `${CANONICAL_BASE}/press`;
+
 const OG_IMAGE = marketingOgImageUrl({
   title: 'HIR Press Kit',
   subtitle: 'Logo, culori, screenshot-uri și fapte despre HIR Restaurant Suite.',
@@ -36,6 +45,7 @@ export const metadata: Metadata = {
       'Materiale presă HIR Restaurant Suite: logo, culori brand, screenshot-uri și contact.',
     type: 'website',
     locale: 'ro_RO',
+    url: PRESS_URL,
     images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'HIR Press Kit' }],
   },
   twitter: {
@@ -46,7 +56,7 @@ export const metadata: Metadata = {
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
-  alternates: { canonical: '/press' },
+  alternates: { canonical: PRESS_URL },
 };
 
 const BRAND_COLORS = [
