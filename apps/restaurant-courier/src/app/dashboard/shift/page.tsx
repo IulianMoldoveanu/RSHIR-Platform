@@ -1,8 +1,9 @@
 import { Banknote, Clock, TrendingUp } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { startShiftAction, endShiftAction } from '../actions';
+import { startShiftAction, endShiftAction, forceEndShiftAction } from '../actions';
 import { SwipeButton } from '@/components/swipe-button';
+import { ForceEndShift } from '@/components/force-end-shift';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,15 +20,23 @@ export default async function ShiftPage() {
 
   const admin = createAdminClient();
 
-  const { data: shiftRow } = await admin
-    .from('courier_shifts')
-    .select('id, started_at')
-    .eq('courier_user_id', user.id)
-    .eq('status', 'ONLINE')
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: shiftRow }, { count: activeOrderCountRaw }] = await Promise.all([
+    admin
+      .from('courier_shifts')
+      .select('id, started_at')
+      .eq('courier_user_id', user.id)
+      .eq('status', 'ONLINE')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_courier_user_id', user.id)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
+  ]);
   const active = shiftRow as ShiftRow | null;
+  const activeOrderCount = activeOrderCountRaw ?? 0;
 
   let stats: { count: number; earnings: number; perHour: number; minutes: number } | null = null;
 
@@ -88,6 +97,14 @@ export default async function ShiftPage() {
               label="→ Glisează pentru a închide tura"
               onConfirm={endShiftAction}
             />
+            {activeOrderCount > 0 ? (
+              <div className="mt-3">
+                <ForceEndShift
+                  activeOrderCount={activeOrderCount}
+                  onForceEnd={forceEndShiftAction}
+                />
+              </div>
+            ) : null}
           </>
         ) : (
           <>
