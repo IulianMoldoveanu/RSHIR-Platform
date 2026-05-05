@@ -132,6 +132,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             label: 'Feedback vendori',
             icon: 'megaphone' as const,
           },
+          {
+            href: '/dashboard/admin/system',
+            label: 'Sentry · sistem',
+            icon: 'settings' as const,
+          },
         ]
       : []),
   ];

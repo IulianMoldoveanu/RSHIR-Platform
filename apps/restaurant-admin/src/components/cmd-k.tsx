@@ -42,6 +42,7 @@ const ACTIONS: Action[] = [
   // Reseller / Affiliate (platform admin scope, but harmless to show)
   { id: 'pa-partners', label: 'Admin → Parteneri (reseller)', group: 'Admin', href: '/dashboard/admin/partners', keywords: 'reseller partner platform admin' },
   { id: 'pa-affiliates', label: 'Admin → Aplicații afiliați', group: 'Admin', href: '/dashboard/admin/affiliates', keywords: 'affiliate aplicatii pending' },
+  { id: 'pa-system', label: 'Admin → Sentry · sistem', group: 'Admin', href: '/dashboard/admin/system', keywords: 'sentry alerts system errors uptime status monitor' },
   { id: 'pa-reseller-portal', label: 'Reseller portal', group: 'Reseller', href: '/reseller', keywords: 'portal reseller mine' },
 
   // Help
