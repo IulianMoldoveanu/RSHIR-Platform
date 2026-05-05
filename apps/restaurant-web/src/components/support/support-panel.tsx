@@ -144,7 +144,7 @@ export function SupportPanel({ tenantSlug }: { tenantSlug?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Deschideți panoul de suport HIR"
-        className="fixed bottom-4 right-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-[#7c3aed] px-4 text-sm font-medium text-white shadow-lg shadow-[#7c3aed]/30 transition hover:bg-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40 focus:ring-offset-2"
+        className="fixed bottom-24 right-4 z-[60] flex h-12 items-center gap-2 rounded-full bg-[#7c3aed] px-4 text-sm font-medium text-white shadow-lg shadow-[#7c3aed]/30 transition hover:bg-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/40 focus:ring-offset-2 sm:bottom-4"
       >
         <LifeBuoy size={18} aria-hidden />
         <span>Suport</span>
