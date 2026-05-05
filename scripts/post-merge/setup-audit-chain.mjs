@@ -23,6 +23,8 @@
 //   - NEVER runs the backfill or the cron — those are printed only.
 
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
 const VAULT_PATH = 'C:/Users/Office HIR CEO/.hir/secrets.json';
 const v = JSON.parse(readFileSync(VAULT_PATH, 'utf8'));
@@ -30,10 +32,18 @@ const SUPABASE_REF = v.supabase.project_ref;
 const SUPABASE_PAT = v.supabase.management_pat;
 
 // Path resolution — the script is committed to whichever clone runs it.
-// We resolve relative to the file URL so it works from any worktree.
-const here = new URL('.', import.meta.url).pathname.replace(/^\//, '');
-const repoRoot = here.replace(/\/scripts\/post-merge\/?$/, '');
-const migrationPath = `${repoRoot}/supabase/migrations/20260605_003_audit_log_chain_hardening.sql`;
+// We resolve relative to the file URL so it works from any worktree on any
+// OS. Earlier draft used `pathname.replace(/^\//, '')` which on POSIX
+// turned `/workspace/...` into `workspace/...` (Codex P2, 2026-05-05).
+// fileURLToPath is the canonical Node API for this conversion.
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(here, '..', '..');
+const migrationPath = resolve(
+  repoRoot,
+  'supabase',
+  'migrations',
+  '20260605_003_audit_log_chain_hardening.sql',
+);
 
 const sql = readFileSync(migrationPath, 'utf8');
 

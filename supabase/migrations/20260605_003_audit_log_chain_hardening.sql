@@ -71,13 +71,26 @@ declare
   v_payload   text;
 begin
   -- Serialize concurrent inserts so the chain stays linear.
-  -- `for update` on the latest row pins it until this transaction commits.
-  -- If table is empty, v_prev_hash stays NULL → genesis row.
+  --
+  -- A bare `select … for update` does NOT linearize under READ COMMITTED:
+  -- a second transaction that started before T1's insert committed will
+  -- wait on the row lock, but when T1 commits and the lock releases, T2's
+  -- snapshot is still the old one, so the new latest row (T1's insert)
+  -- is invisible — both transactions would compute identical prev_hash
+  -- and the chain would fork (Codex P1, 2026-05-05).
+  --
+  -- We use a transaction-scoped advisory lock (single integer key derived
+  -- from the table OID) as a global serializer for the *trigger body*. The
+  -- subsequent SELECT then runs in a snapshot taken AFTER the previous
+  -- writer committed, so it sees the freshest row_hash.
+  perform pg_advisory_xact_lock(
+    ('public.audit_log'::regclass::oid)::bigint
+  );
+
   select row_hash into v_prev_hash
   from public.audit_log
   order by created_at desc, id desc
-  limit 1
-  for update;
+  limit 1;
 
   new.prev_hash := v_prev_hash;
 
