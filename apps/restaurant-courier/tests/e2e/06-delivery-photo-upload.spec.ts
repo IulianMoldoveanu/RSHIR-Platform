@@ -33,7 +33,11 @@ async function seedCardOrder(fleetId: string, assignedCourierId: string): Promis
     .from('courier_orders')
     .insert({
       fleet_id: fleetId,
-      source_type: 'e2e_test',
+      // 'MANUAL' is one of the values allowed by the courier_orders.source_type
+      // check constraint (the others are HIR_TENANT and EXTERNAL_API). The
+      // earlier 'e2e_test' value would have been rejected by Postgres at the
+      // INSERT, blocking both tests in this file (Codex P2 on PR #277).
+      source_type: 'MANUAL',
       vertical: 'restaurant',
       customer_first_name: 'E2E Photo Client',
       customer_phone: '+40700000002',
@@ -171,17 +175,16 @@ test.describe('Delivery photo upload', () => {
     await expect(uploadBtn).toBeVisible({ timeout: 10_000 });
     await uploadBtn.click();
 
-    // CRITICAL race-fix (Codex P2): for CARD restaurant orders the swipe
-    // button is rendered regardless of `restaurantProofUrl`, so its mere
-    // visibility is NOT proof that the upload's onComplete fired and set
-    // proofUrl in component state. If we swipe before that, the action
-    // server fires `markDeliveredAction(undefined, ...)` and
-    // delivered_proof_url stays null even though the upload itself
-    // succeeded. Wait for an explicit upload-complete signal: the
-    // "Încarcă fotografia" button must transition out of `Se încarcă…` AND
-    // the upload control hides (component flips to a small "✓ Încărcată"
-    // confirmation strip in the UI once `onComplete(url)` runs).
-    await expect(uploadBtn).toBeHidden({ timeout: 30_000 });
+    // CRITICAL race-fix (Codex P2 round 2): the upload button remains
+    // rendered as long as `delivery.file` is set — a successful upload
+    // stores `delivery.url` but does NOT clear `file`, so waiting for the
+    // button to disappear would never resolve. The component now flips to
+    // a `data-testid="delivery-proof-uploaded"` confirmation strip when
+    // `delivery.url` is populated (and only then), which is the real
+    // upload-complete signal we can wait on.
+    await expect(
+      page.getByTestId('delivery-proof-uploaded'),
+    ).toBeVisible({ timeout: 30_000 });
 
     // Now the delivery swipe is unblocked (proofUrl set). Wait for it to
     // be visible and swipe.
