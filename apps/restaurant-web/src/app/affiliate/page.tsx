@@ -6,15 +6,37 @@
 // Design tokens match /reseller (greyscale + indigo-600 accent on #FAFAFA,
 // Inter 14 px base, no shadows on chrome).
 
+import type { Metadata } from 'next';
 import { ApplyForm } from './apply-form';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Recomandă HIR — primești 300 RON / restaurant',
+  subtitle: '600 RON dacă deja ai cont HIR. Plată trimestrial pe factură PFA / SRL.',
+  variant: 'partner',
+});
+
+export const metadata: Metadata = {
   title: 'HIR Affiliate Program — recomandă HIR, primește 300 RON / restaurant',
   description:
     'Câștigă 300 RON pentru fiecare restaurant care se înscrie pe HIR prin linkul tău (600 RON dacă ai deja un cont HIR). Plată trimestrial pe factură PFA / SRL.',
+  openGraph: {
+    title: 'HIR Affiliate Program — 300 RON / restaurant onboarded',
+    description:
+      'Câștigă 300 RON pentru fiecare restaurant care se înscrie pe HIR prin linkul tău (600 RON dacă ai deja un cont HIR).',
+    type: 'website',
+    locale: 'ro_RO',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'HIR Affiliate Program' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HIR Affiliate Program',
+    description: '300 RON / restaurant onboarded prin linkul tău.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 

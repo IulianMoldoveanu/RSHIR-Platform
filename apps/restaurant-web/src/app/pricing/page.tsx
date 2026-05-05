@@ -5,9 +5,16 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Tarife — 3 RON / livrare flat',
+  subtitle: 'Fără abonament. Fără procent. Plată lunară pe factură SRL.',
+  variant: 'pricing',
+});
 
 export const metadata: Metadata = {
   title: 'Tarife — HIR Restaurant Suite',
@@ -19,8 +26,14 @@ export const metadata: Metadata = {
       'Plătești doar pentru comenzile livrate. 3 RON / livrare. Fără surprize.',
     type: 'website',
     locale: 'ro_RO',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Tarife HIR' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Tarife — HIR Restaurant Suite',
+    description: 'Plătești doar pentru comenzile livrate. 3 RON / livrare.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 

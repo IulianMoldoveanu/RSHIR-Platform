@@ -68,6 +68,29 @@ export function tenantCanonicalUrl(
   return `http://${tenant.slug}.lvh.me`;
 }
 
+// Lane SEO+ (2026-05-05) — build the absolute URL of the dynamic OG image
+// for a marketing route. Returns `<canonical>/api/og?title=…&subtitle=…&variant=…`
+// where `<canonical>` is the apex of PRIMARY_DOMAIN (or the Vercel canonical
+// fallback) so social crawlers fetch it from a stable host even when the
+// user lands on a preview deployment.
+//
+// Variants tune the visual style; all are rendered by the single
+// `app/api/og/route.tsx` edge handler.
+export function marketingOgImageUrl(input: {
+  title: string;
+  subtitle?: string;
+  variant?: 'default' | 'pricing' | 'case-study' | 'partner' | 'migrate';
+}): string {
+  const base = PRIMARY_DOMAIN
+    ? `https://${PRIMARY_DOMAIN}`
+    : 'https://hir-restaurant-web.vercel.app';
+  const params = new URLSearchParams();
+  params.set('title', input.title);
+  if (input.subtitle) params.set('subtitle', input.subtitle);
+  if (input.variant && input.variant !== 'default') params.set('variant', input.variant);
+  return `${base}/api/og?${params.toString()}`;
+}
+
 // JSON-LD: HIR Organization. Used on `/` (Lane H homepage).
 export function organizationJsonLd(baseUrl: string) {
   return {

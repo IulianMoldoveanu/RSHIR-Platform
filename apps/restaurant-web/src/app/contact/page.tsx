@@ -5,9 +5,15 @@ import {
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
 import { ContactForm } from './contact-form';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Contact HIR',
+  subtitle: 'Răspuns în 24 de ore lucrătoare. Pentru restaurante, flote și parteneri.',
+});
 
 export const metadata: Metadata = {
   title: 'Contact — HIR Restaurant Suite',
@@ -18,8 +24,14 @@ export const metadata: Metadata = {
     description: 'Vorbește cu echipa HIR. Răspuns în 24 de ore lucrătoare.',
     type: 'website',
     locale: 'ro_RO',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Contact HIR' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact — HIR Restaurant Suite',
+    description: 'Răspuns în 24 de ore lucrătoare.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 

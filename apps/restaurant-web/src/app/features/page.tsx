@@ -17,9 +17,16 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Funcționalități — totul într-o singură platformă',
+  subtitle:
+    'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări.',
+});
 
 export const metadata: Metadata = {
   title: 'Funcționalități — HIR Restaurant Suite',
@@ -31,8 +38,14 @@ export const metadata: Metadata = {
       'Tot ce are nevoie un restaurant ca să vândă online, livreze cu curier propriu și păstreze datele clienților.',
     type: 'website',
     locale: 'ro_RO',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Funcționalități HIR' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Funcționalități — HIR Restaurant Suite',
+    description: 'Tot ce are nevoie un restaurant ca să vândă online.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 

@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 import { t, type TKey } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { LeadForms } from './_components/lead-forms';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 // Deadline: GloriaFood shutdown date
 const SHUTDOWN_DATE = new Date('2027-04-30T23:59:59Z');
@@ -15,6 +16,11 @@ function daysUntilShutdown(): number {
 export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   const url = 'https://hiraisolutions.ro/migrate-from-gloriafood';
+  const ogImage = marketingOgImageUrl({
+    title: t(locale, 'marketing.migrate.og_title'),
+    subtitle: t(locale, 'marketing.migrate.page_description'),
+    variant: 'migrate',
+  });
   return {
     title: t(locale, 'marketing.migrate.page_title'),
     description: t(locale, 'marketing.migrate.page_description'),
@@ -28,6 +34,13 @@ export async function generateMetadata(): Promise<Metadata> {
       url,
       type: 'website',
       locale: locale === 'en' ? 'en_GB' : 'ro_RO',
+      images: [{ url: ogImage, width: 1200, height: 630, alt: t(locale, 'marketing.migrate.og_title') }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t(locale, 'marketing.migrate.og_title'),
+      description: t(locale, 'marketing.migrate.page_description'),
+      images: [ogImage],
     },
   };
 }

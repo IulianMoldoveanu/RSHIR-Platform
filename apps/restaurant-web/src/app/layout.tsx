@@ -43,12 +43,19 @@ function supabaseHost(): string | null {
   }
 }
 
+// Lane SEO+ (2026-05-05): twitter:site identifies the brand handle so
+// embedded cards link back to the HIR account. Empty string = tag omitted
+// (Twitter rejects empty `site=`). Set NEXT_PUBLIC_TWITTER_HANDLE to e.g.
+// `@hir_solutions` once the account is registered.
+const TWITTER_SITE = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   return {
     title: t(locale, 'meta.default_title'),
     description: t(locale, 'meta.default_description'),
     verification: GSC_VERIFICATION ? { google: GSC_VERIFICATION } : undefined,
+    twitter: TWITTER_SITE ? { site: TWITTER_SITE, card: 'summary_large_image' } : undefined,
   };
 }
 
