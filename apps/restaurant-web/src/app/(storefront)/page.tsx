@@ -37,9 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   if (!tenant) {
     // Lane H marketing landing — only on canonical hosts with no tenant.
-    const title = 'HIR Restaurant Suite — Software complet la 3 RON / livrare';
-    const description =
-      'Comenzi online cu storefront white-label, livrare proprie HIR la 3 RON / livrare flat, importer GloriaFood și CRM. Construit în România pentru restaurante.';
+    // Lane EN-I18N (2026-05-05): title + description now resolve from
+    // `marketing.home.*` so the SERP snippet matches the language of the
+    // visitor's locale cookie / Accept-Language preference.
+    const title = t(locale, 'marketing.home.page_title');
+    const description = t(locale, 'marketing.home.page_description');
     return {
       title,
       description,
