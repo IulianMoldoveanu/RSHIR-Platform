@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>HIR Curier</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        background: #0a0a0f;
+        color: #fafafa;
+        font-family:
+          'Inter',
+          system-ui,
+          -apple-system,
+          sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 24px;
+        overflow: hidden;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .logo {
+        width: 96px;
+        height: 96px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        box-shadow: 0 12px 32px rgba(139, 92, 246, 0.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 40px;
+        letter-spacing: -1px;
+      }
+      .label {
+        font-size: 14px;
+        opacity: 0.7;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo" aria-hidden="true">H</div>
+    <div class="label">HIR Curier</div>
+    <div class="spinner" role="status" aria-label="Se încarcă"></div>
+  </body>
+</html>

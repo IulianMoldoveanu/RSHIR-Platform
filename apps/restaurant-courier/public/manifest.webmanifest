@@ -2,24 +2,58 @@
   "name": "HIR Curier",
   "short_name": "HIR Curier",
   "description": "Aplicație curier HIR — comenzi, tură, câștiguri.",
+  "lang": "ro",
+  "dir": "ltr",
   "start_url": "/dashboard",
   "scope": "/",
+  "id": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0A0A0F",
   "theme_color": "#8B5CF6",
+  "categories": ["business", "productivity", "food"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Comenzi disponibile",
+      "short_name": "Comenzi",
+      "description": "Vezi comenzile disponibile pentru livrare",
+      "url": "/dashboard/orders",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Tura mea",
+      "short_name": "Tura",
+      "description": "Începe sau termină tura",
+      "url": "/dashboard/shift",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
