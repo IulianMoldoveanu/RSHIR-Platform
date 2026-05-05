@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Banknote, Bell, MessageCircle, Star, TriangleAlert } from 'lucide-react';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
+import { useTrackBroadcast, type TrackBroadcastPayload } from '@/lib/realtime/track-subscription';
 
 const TrackMap = dynamic(() => import('./TrackMap').then((m) => m.TrackMap), {
   ssr: false,
@@ -78,6 +79,7 @@ function TrackInner({
   locale: Locale;
   showAccountNudge: boolean;
 }) {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery<{ order: TrackOrder }>({
     queryKey: ['track', token],
     queryFn: async () => {
@@ -86,6 +88,24 @@ function TrackInner({
       return res.json();
     },
     refetchInterval: 30_000,
+  });
+
+  // Lane RT-PUSH — real-time status nudge.
+  // The Edge Function `track-broadcast` (see supabase/functions/) publishes
+  // a `status_change` event to channel `track:<token>` whenever the AFTER
+  // UPDATE trigger fires on `restaurant_orders.status`. We invalidate the
+  // React Query so the next render uses fresh authoritative data from
+  // /api/track/:token, and (if the user has previously granted Notification
+  // permission via PushOptInTile) also fire a localized in-page Notification
+  // when the tab is hidden. The 30s poll above remains as a fallback.
+  const lastBroadcastStatusRef = useRef<string | null>(null);
+  useTrackBroadcast(token, (payload: TrackBroadcastPayload) => {
+    queryClient.invalidateQueries({ queryKey: ['track', token] });
+    // De-dupe: same status arriving twice should not fire two notifications
+    // (e.g. quick reconnect on flaky mobile networks).
+    if (lastBroadcastStatusRef.current === payload.status) return;
+    lastBroadcastStatusRef.current = payload.status;
+    maybeShowBrowserNotification(locale, payload);
   });
 
   const fallbackPickup = useMemo(
@@ -838,4 +858,63 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
       <span className="font-mono">{value}</span>
     </div>
   );
+}
+
+// Lane RT-PUSH — fire an in-page browser Notification when the realtime
+// channel reports a status change AND the customer previously granted
+// permission via PushOptInTile. We only show it when the tab is hidden
+// (otherwise the on-screen timeline already conveys the change). No
+// payload contains the courier identity beyond the fixed customer-facing
+// label "curier HIR" — fleet/subcontractor naming is internal-only.
+const NOTIF_BODY_KEYS: Record<string, TKey> = {
+  CONFIRMED: 'track.notif_body_CONFIRMED',
+  PREPARING: 'track.notif_body_PREPARING',
+  READY: 'track.notif_body_READY',
+  DISPATCHED: 'track.notif_body_DISPATCHED',
+  IN_DELIVERY: 'track.notif_body_IN_DELIVERY',
+  DELIVERED: 'track.notif_body_DELIVERED',
+  CANCELLED: 'track.notif_body_CANCELLED',
+};
+
+const NOTIF_STATUS_KEYS: Record<string, TKey> = {
+  CONFIRMED: 'track.status_CONFIRMED',
+  PREPARING: 'track.status_PREPARING',
+  READY: 'track.status_READY',
+  DISPATCHED: 'track.status_DISPATCHED',
+  IN_DELIVERY: 'track.status_IN_DELIVERY',
+  DELIVERED: 'track.status_DELIVERED',
+  CANCELLED: 'track.status_CANCELLED',
+};
+
+function maybeShowBrowserNotification(
+  locale: Locale,
+  payload: TrackBroadcastPayload,
+): void {
+  if (typeof Notification === 'undefined') return;
+  if (Notification.permission !== 'granted') return;
+  // If the tab is visible, the on-screen UI update is enough.
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') return;
+
+  const bodyKey = NOTIF_BODY_KEYS[payload.status];
+  const statusKey = NOTIF_STATUS_KEYS[payload.status];
+  if (!bodyKey || !statusKey) return;
+
+  const short = (payload.order_id ?? '').slice(0, 8);
+  const status = t(locale, statusKey);
+  const title = t(locale, 'track.notif_title_template', { short, status });
+  const body = t(locale, bodyKey);
+  try {
+    // `renotify` is part of the Notification API but missing from the
+    // ambient TS DOM lib; cast keeps strict mode happy while preserving
+    // the same-tag re-show behaviour on Chrome/Edge.
+    new Notification(title, {
+      body,
+      tag: `hir-track-${payload.order_id}`,
+      renotify: true,
+    } as NotificationOptions & { renotify?: boolean });
+  } catch {
+    // Some browsers throw on direct `new Notification` from a page (require
+    // a SW notification instead). Silent fallback — VAPID server-push handles
+    // those clients via the existing notify-customer-status pipeline.
+  }
 }
