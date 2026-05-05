@@ -8,6 +8,10 @@ import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './s
 import { logAudit } from '@/lib/audit';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { awardLoyaltyForDeliveredOrder } from '@/lib/loyalty';
+import {
+  dispatchToExternalFleet,
+  type ExternalDispatchPayload,
+} from '@/lib/external-dispatch';
 
 // RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
 // the action if the cookie-derived active tenant has drifted (multi-tenant
@@ -85,6 +89,21 @@ export async function updateOrderStatus(
     notes: null,
   });
 
+  // Fleet Manager multi-tenant Option A: when the order is DISPATCHED and
+  // the tenant is wired to an external Fleet Manager, POST a signed
+  // payload to his dispatch endpoint. fireExternalDispatch is a no-op for
+  // tenants without the feature configured. Errors are logged to
+  // external_dispatch_attempts; never thrown — the order stays in
+  // DISPATCHED state regardless and the operator can recover via the
+  // platform-admin UI if the webhook is failing.
+  if (newStatus === 'DISPATCHED') {
+    // Fire-and-forget; don't block the action's revalidatePath. The retry
+    // loop inside dispatchToExternalFleet has its own bounded timeout.
+    fireExternalDispatch(orderId, tenantId).catch((err) => {
+      console.error('[external-dispatch] unexpected error', (err as Error).message);
+    });
+  }
+
   // Award loyalty points on DELIVERED. Best-effort — never throws.
   if (newStatus === 'DELIVERED') {
     await awardLoyaltyForDeliveredOrder({ tenantId, orderId });
@@ -92,6 +111,79 @@ export async function updateOrderStatus(
 
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+// ────────────────────────────────────────────────────────────
+// fireExternalDispatch — load order detail + post to external FM.
+// Pulled into its own function so the success-path of updateOrderStatus
+// stays linear. Never throws — it's a side-effect.
+// ────────────────────────────────────────────────────────────
+
+async function fireExternalDispatch(orderId: string, tenantId: string): Promise<void> {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // restaurant_orders embeds the line items as JSONB ("items" col) and
+  // links customer + delivery_address by FK. We pull all three in one
+  // PostgREST embed so the FM webhook gets a self-contained payload.
+  const { data: order, error } = await sb
+    .from('restaurant_orders')
+    .select(
+      'id, tenant_id, total_ron, items, notes, ' +
+        'customer:customers(first_name, last_name, phone), ' +
+        'address:customer_addresses!delivery_address_id(line1, line2, city)',
+    )
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error || !order) {
+    console.error(
+      '[external-dispatch] order load failed',
+      error?.message ?? 'not_found',
+    );
+    return;
+  }
+
+  type LineItem = { name?: string; quantity?: number; unit_price_ron?: number };
+  const rawItems = Array.isArray(order.items) ? (order.items as LineItem[]) : [];
+  const customer = (order.customer ?? null) as
+    | { first_name: string | null; last_name: string | null; phone: string | null }
+    | null;
+  const address = (order.address ?? null) as
+    | { line1: string | null; line2: string | null; city: string | null }
+    | null;
+
+  const payload: ExternalDispatchPayload = {
+    order_id: orderId,
+    tenant_id: tenantId,
+    dispatched_at: new Date().toISOString(),
+    total_ron: Number(order.total_ron ?? 0),
+    customer: {
+      first_name: customer?.first_name ?? '',
+      last_name: customer?.last_name ?? null,
+      phone: customer?.phone ?? '',
+    },
+    delivery_address: {
+      line1: address?.line1 ?? '',
+      line2: address?.line2 ?? null,
+      city: address?.city ?? null,
+      notes: order.notes ?? null,
+    },
+    items: rawItems.map((i) => ({
+      name: i.name ?? '',
+      quantity: Number(i.quantity ?? 0),
+      unit_price_ron: Number(i.unit_price_ron ?? 0),
+    })),
+  };
+
+  const result = await dispatchToExternalFleet(payload);
+  if (result.kind === 'failed') {
+    console.error(
+      `[external-dispatch] tenant=${tenantId} order=${orderId} failed after ${result.attempts} attempts: ${result.error}`,
+    );
+  }
 }
 
 /**
