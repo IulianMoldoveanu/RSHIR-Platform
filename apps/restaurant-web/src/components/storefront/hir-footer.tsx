@@ -25,6 +25,13 @@ export function HirFooter() {
           Confidențialitate
         </a>
         <span aria-hidden className="text-zinc-300">·</span>
+        <a
+          href="/ajutor"
+          className="transition-colors hover:text-zinc-700"
+        >
+          Ajutor
+        </a>
+        <span aria-hidden className="text-zinc-300">·</span>
         <span className="text-zinc-400">
           HIR &amp; BUILD YOUR DREAMS S.R.L. · CUI RO46864293
         </span>
