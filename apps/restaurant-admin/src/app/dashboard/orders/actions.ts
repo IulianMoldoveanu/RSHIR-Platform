@@ -146,7 +146,18 @@ async function fireExternalDispatch(orderId: string, tenantId: string): Promise<
     return;
   }
 
-  type LineItem = { name?: string; quantity?: number; unit_price_ron?: number };
+  // restaurant_orders.items has multiple historical shapes — storefront
+  // checkout writes priceRon (camel) per apps/restaurant-web/src/app/api/
+  // checkout/pricing.ts; older paths also use price_ron / unit_price_ron.
+  // Read all three and prefer in that order so the FM webhook always
+  // gets a non-zero unit price (Codex P2 #280).
+  type LineItem = {
+    name?: string;
+    quantity?: number;
+    priceRon?: number;
+    price_ron?: number;
+    unit_price_ron?: number;
+  };
   const rawItems = Array.isArray(order.items) ? (order.items as LineItem[]) : [];
   const customer = (order.customer ?? null) as
     | { first_name: string | null; last_name: string | null; phone: string | null }
@@ -174,7 +185,7 @@ async function fireExternalDispatch(orderId: string, tenantId: string): Promise<
     items: rawItems.map((i) => ({
       name: i.name ?? '',
       quantity: Number(i.quantity ?? 0),
-      unit_price_ron: Number(i.unit_price_ron ?? 0),
+      unit_price_ron: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
     })),
   };
 
