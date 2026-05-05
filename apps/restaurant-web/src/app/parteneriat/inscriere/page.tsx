@@ -11,15 +11,37 @@
 // inbound traffic that prefers a lighter intake. /parteneriat/inscriere is
 // linked from the new /r/<code> CTA + future "Devino partener HIR" surfaces.
 
+import type { Metadata } from 'next';
 import { SignupForm } from './signup-form';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Devino partener HIR — link-ul tău în 2 minute',
+  subtitle: 'Cont, cod de afiliat și link personal după primul submit.',
+  variant: 'partner',
+});
+
+export const metadata: Metadata = {
   title: 'Devino partener HIR — primește link-ul tău în 2 minute',
   description:
     'Înscrie-te ca partener HIR și primește instant codul tău de afiliat + linkul personal. Câștigi 300 RON pentru fiecare restaurant onboarded prin link (600 RON dacă deja ai cont HIR).',
+  openGraph: {
+    title: 'Devino partener HIR',
+    description:
+      'Cont, cod de afiliat și link personal în 2 minute. 300 RON / restaurant onboarded.',
+    type: 'website',
+    locale: 'ro_RO',
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Devino partener HIR' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Devino partener HIR',
+    description: 'Link-ul tău de afiliat în 2 minute.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 

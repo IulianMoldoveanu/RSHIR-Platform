@@ -12,31 +12,79 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { safeJsonLd } from '@/lib/jsonld';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
+import { buildArticleJsonLd, breadcrumbJsonLd } from '@/lib/seo/structured-data';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+const CANONICAL_BASE = PRIMARY_DOMAIN
+  ? `https://${PRIMARY_DOMAIN}`
+  : 'https://hir-restaurant-web.vercel.app';
+const ARTICLE_URL = `${CANONICAL_BASE}/case-studies/foisorul-a`;
+const ARTICLE_PUBLISHED = '2026-05-03T12:00:00+03:00';
+
+const OG_IMAGE = marketingOgImageUrl({
+  title: 'Foișorul A — primul restaurant HIR live',
+  subtitle: '158 produse migrate din GloriaFood în sub 5 minute. Brașov · 03.05.2026.',
+  variant: 'case-study',
+});
 
 export const metadata: Metadata = {
   title: 'Foișorul A — primul restaurant HIR live | Studiu de caz',
   description:
     'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 produse importate în <5 minute, storefront white-label live, livrare proprie HIR.',
+  alternates: { canonical: ARTICLE_URL },
   openGraph: {
     title: 'Foișorul A — primul restaurant HIR live',
     description:
       'Cum am migrat un restaurant brașovean cu 158 de produse din GloriaFood pe HIR în mai puțin de 5 minute.',
+    url: ARTICLE_URL,
     type: 'article',
     locale: 'ro_RO',
+    publishedTime: ARTICLE_PUBLISHED,
+    authors: ['HIR Restaurant Suite'],
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Foișorul A — studiu de caz HIR' }],
   },
-  twitter: { card: 'summary_large_image' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Foișorul A — primul restaurant HIR live',
+    description: '158 produse migrate din GloriaFood în sub 5 minute.',
+    images: [OG_IMAGE],
+  },
   robots: { index: true, follow: true },
 };
 
 export default function FoisorulACaseStudyPage() {
+  const articleJsonLd = buildArticleJsonLd({
+    headline: 'Foișorul A — primul restaurant HIR live',
+    description:
+      'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 produse importate în sub 5 minute, storefront white-label live, livrare proprie HIR.',
+    url: ARTICLE_URL,
+    imageUrl: OG_IMAGE,
+    datePublished: ARTICLE_PUBLISHED,
+    publisherLogoUrl: `${CANONICAL_BASE}/logo.svg`,
+  });
+  const breadcrumb = breadcrumbJsonLd(CANONICAL_BASE, [
+    { name: 'Acasă', path: '/' },
+    { name: 'Studii de caz', path: '/case-studies/foisorul-a' },
+    { name: 'Foișorul A', path: '/case-studies/foisorul-a' },
+  ]);
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumb) }}
+      />
       <MarketingHeader active="/case-studies/foisorul-a" />
 
       {/* Hero */}
