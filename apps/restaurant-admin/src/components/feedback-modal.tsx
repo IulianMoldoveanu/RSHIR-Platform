@@ -35,7 +35,7 @@ const TAB_TO_CATEGORY: Record<'bug' | 'sugestie' | 'intrebare', Category> = {
 
 const TAB_LABELS: Record<'bug' | 'sugestie' | 'intrebare', { title: string; help: string }> = {
   bug: {
-    title: 'Raportează o eroare',
+    title: 'Suport / Raportează o problemă',
     help: 'Spuneți-ne ce nu a funcționat. Captura ecranului ne ajută cel mai mult.',
   },
   sugestie: {
