@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { resolveTenantFromHost } from '@/lib/tenant';
+import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
 import { assertSameOrigin } from '@/lib/origin-check';
@@ -368,31 +368,80 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
+  // Lane J — migrate from Stripe Elements (client-side `confirmPayment` with
+  // a `pk_live_*` publishable key) to Stripe Checkout Session (server creates
+  // a hosted-checkout URL, client window.location-redirects). The publishable
+  // key is no longer needed anywhere; the bundle drops `@stripe/stripe-js` +
+  // `@stripe/react-stripe-js`. Webhook handler is unchanged: a Checkout
+  // Session in `mode: 'payment'` still emits `payment_intent.succeeded` /
+  // `payment_intent.payment_failed`, and we propagate `metadata.order_id`
+  // onto the inner PaymentIntent via `payment_intent_data.metadata` so the
+  // existing /api/webhooks/stripe lookup keeps working.
   const stripe = getStripe();
-  const intent = await stripe.paymentIntents.create(
+  const totalRonAmount = Number(order.total_ron);
+  const baseUrl = tenantBaseUrl();
+
+  const session = await stripe.checkout.sessions.create(
     {
-      amount: Math.round(Number(order.total_ron) * 100),
-      currency: 'ron',
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: 'ron',
+            unit_amount: Math.round(totalRonAmount * 100),
+            // One aggregated line — matches what the customer just confirmed
+            // on the review step. Detailed line items live on
+            // restaurant_orders.items already; the Stripe receipt only needs
+            // a single human-readable label.
+            product_data: {
+              name: `Comandă ${tenant.name}`,
+              description: `Comandă #${order.id.slice(0, 8)}`,
+            },
+          },
+        },
+      ],
+      success_url: `${baseUrl}/checkout/success?order_id=${order.id}&token=${order.public_track_token}`,
+      cancel_url: `${baseUrl}/checkout/cancel?order_id=${order.id}`,
       metadata: {
         order_id: order.id,
         tenant_id: tenant.id,
         tenant_slug: tenant.slug,
       },
+      // CRITICAL: propagate order_id onto the underlying PaymentIntent's
+      // metadata. The webhook handler at /api/webhooks/stripe reads
+      // `event.data.object.metadata.order_id` for `payment_intent.succeeded`
+      // and `payment_intent.payment_failed`. Without this, those events
+      // arrive without an order_id and the order is never marked PAID.
+      payment_intent_data: {
+        metadata: {
+          order_id: order.id,
+          tenant_id: tenant.id,
+          tenant_slug: tenant.slug,
+        },
+      },
+      // Default Stripe expiration is 24h; matches our pending-order tolerance.
     },
     { idempotencyKey: `order:${order.id}` },
   );
 
-  await admin
-    .from('restaurant_orders')
-    .update({ stripe_payment_intent_id: intent.id })
-    .eq('id', order.id);
+  // We don't have the PaymentIntent id yet — Stripe creates it lazily when
+  // the customer lands on the hosted checkout page. The webhook fills in
+  // stripe_payment_intent_id when payment_intent.succeeded fires (Lane G's
+  // markOrderPaidAndDispatch path is keyed on order_id metadata, not on
+  // the column being set up-front). The /api/checkout/confirm fallback
+  // path becomes a no-op for new Checkout-Session orders; webhook is the
+  // single source of truth post-Lane J.
 
   const responsePayload = {
     orderId: order.id,
     publicTrackToken: order.public_track_token,
     paymentMethod: 'CARD' as const,
-    clientSecret: intent.client_secret,
+    // The Stripe-hosted checkout URL. Client does
+    // `window.location.href = url`. After payment Stripe redirects the
+    // customer to success_url / cancel_url.
+    url: session.url,
     quote: responseQuote,
   };
   if (idempotencyContext) {
