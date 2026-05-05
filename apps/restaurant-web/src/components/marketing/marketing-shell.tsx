@@ -4,19 +4,35 @@
 //
 // Design tokens match /affiliate + /reseller (Inter, indigo-600 primary,
 // greyscale background, no shadows on chrome).
+//
+// Lane EN-I18N (2026-05-05) — accepts `currentLocale` from the calling
+// server component (each route reads `getLocale()` and passes it in) so
+// nav labels + CTAs + footer copy translate via `t()` with no client
+// boundary; the `LocaleSwitcher` pill is the one client-island in the
+// chrome and writes the cookie via /api/locale on click.
 
 import Link from 'next/link';
+import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
+import { t, type Locale, type TKey } from '@/lib/i18n';
 
-const NAV: { href: string; label: string }[] = [
-  { href: '/', label: 'Acasă' },
-  { href: '/features', label: 'Funcționalități' },
-  { href: '/pricing', label: 'Tarife' },
-  { href: '/migrate-from-gloriafood', label: 'Migrare GloriaFood' },
-  { href: '/case-studies/foisorul-a', label: 'Studiu de caz' },
-  { href: '/contact', label: 'Contact' },
+type NavItem = { href: string; labelKey: TKey };
+
+const NAV: NavItem[] = [
+  { href: '/', labelKey: 'marketing.shell.nav_home' },
+  { href: '/features', labelKey: 'marketing.shell.nav_features' },
+  { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
+  { href: '/migrate-from-gloriafood', labelKey: 'marketing.shell.nav_migrate' },
+  { href: '/case-studies/foisorul-a', labelKey: 'marketing.shell.nav_case_studies' },
+  { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
 
-export function MarketingHeader({ active }: { active?: string }) {
+export function MarketingHeader({
+  active,
+  currentLocale,
+}: {
+  active?: string;
+  currentLocale: Locale;
+}) {
   return (
     <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
@@ -27,7 +43,7 @@ export function MarketingHeader({ active }: { active?: string }) {
           <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
             H
           </span>
-          HIR Restaurant Suite
+          {t(currentLocale, 'marketing.shell.brand_name')}
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map((item) => {
@@ -42,23 +58,27 @@ export function MarketingHeader({ active }: { active?: string }) {
                     : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
                 }`}
               >
-                {item.label}
+                {t(currentLocale, item.labelKey)}
               </Link>
             );
           })}
         </nav>
         <div className="flex items-center gap-2">
+          <LocaleSwitcher
+            current={currentLocale}
+            ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
+          />
           <Link
             href="/affiliate"
             className="hidden rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] sm:inline-flex"
           >
-            Devino partener
+            {t(currentLocale, 'marketing.shell.cta_become_partner')}
           </Link>
           <Link
             href="/migrate-from-gloriafood"
             className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
           >
-            Înscrie restaurantul
+            {t(currentLocale, 'marketing.shell.cta_signup_restaurant')}
           </Link>
         </div>
       </div>
@@ -76,7 +96,7 @@ export function MarketingHeader({ active }: { active?: string }) {
                   : 'text-[#475569] hover:text-[#0F172A]'
               }`}
             >
-              {item.label}
+              {t(currentLocale, item.labelKey)}
             </Link>
           );
         })}
@@ -85,7 +105,7 @@ export function MarketingHeader({ active }: { active?: string }) {
   );
 }
 
-export function MarketingFooter() {
+export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-[#E2E8F0] bg-white">
@@ -96,44 +116,43 @@ export function MarketingFooter() {
               <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
                 H
               </span>
-              HIR Restaurant Suite
+              {t(currentLocale, 'marketing.shell.brand_name')}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-[#64748B]">
-              Platformă completă pentru restaurante: comenzi online, livrare proprie, CRM,
-              loyalty și migrare GloriaFood. Construit în România.
+              {t(currentLocale, 'marketing.shell.footer_tagline')}
             </p>
           </div>
           <FooterCol
-            title="Produs"
+            title={t(currentLocale, 'marketing.shell.footer_col_product')}
             links={[
-              { href: '/features', label: 'Funcționalități' },
-              { href: '/pricing', label: 'Tarife' },
-              { href: '/migrate-from-gloriafood', label: 'Migrare GloriaFood' },
-              { href: '/case-studies/foisorul-a', label: 'Studiu de caz' },
-              { href: '/status', label: 'Status platformă' },
+              { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
+              { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
+              { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
+              { href: '/case-studies/foisorul-a', label: t(currentLocale, 'marketing.shell.footer_link_case_studies') },
+              { href: '/status', label: t(currentLocale, 'marketing.shell.footer_link_status') },
             ]}
           />
           <FooterCol
-            title="Parteneri"
+            title={t(currentLocale, 'marketing.shell.footer_col_partners')}
             links={[
-              { href: '/affiliate', label: 'Program Afiliați' },
-              { href: '/reseller', label: 'Program Reseleri' },
-              { href: '/contact', label: 'Contact comercial' },
-              { href: '/press', label: 'Press kit' },
+              { href: '/affiliate', label: t(currentLocale, 'marketing.shell.footer_link_affiliate') },
+              { href: '/reseller', label: t(currentLocale, 'marketing.shell.footer_link_reseller') },
+              { href: '/contact', label: t(currentLocale, 'marketing.shell.footer_link_contact') },
+              { href: '/press', label: t(currentLocale, 'marketing.shell.footer_link_press') },
             ]}
           />
           <FooterCol
-            title="Legal"
+            title={t(currentLocale, 'marketing.shell.footer_col_legal')}
             links={[
-              { href: '/privacy', label: 'Confidențialitate' },
-              { href: '/terms', label: 'Termeni' },
-              { href: '/cookies', label: 'Cookies' },
+              { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
+              { href: '/terms', label: t(currentLocale, 'marketing.shell.footer_link_terms') },
+              { href: '/cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
             ]}
           />
         </div>
         <div className="mt-10 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
           <p>
-            © {year} HIR &amp; BUILD YOUR DREAMS S.R.L. · CUI RO46864293
+            {t(currentLocale, 'marketing.shell.footer_copyright_template', { year })}
           </p>
           <p>
             <a

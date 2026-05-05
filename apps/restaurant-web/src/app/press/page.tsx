@@ -4,6 +4,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 // Press kit page. Public, indexable, no auth. Bilingual RO + EN sections
@@ -69,12 +70,13 @@ const BRAND_COLORS = [
 ];
 
 export default function PressPage() {
+  const currentLocale = getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader />
+      <MarketingHeader currentLocale={currentLocale} />
 
       {/* Hero */}
       <section className="border-b border-[#E2E8F0] bg-white">
@@ -334,7 +336,7 @@ export default function PressPage() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </main>
   );
 }

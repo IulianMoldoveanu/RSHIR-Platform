@@ -12,6 +12,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 import { safeJsonLd } from '@/lib/jsonld';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 import { buildArticleJsonLd, breadcrumbJsonLd } from '@/lib/seo/structured-data';
@@ -58,6 +59,7 @@ export const metadata: Metadata = {
 };
 
 export default function FoisorulACaseStudyPage() {
+  const currentLocale = getLocale();
   const articleJsonLd = buildArticleJsonLd({
     headline: 'Foișorul A — primul restaurant HIR live',
     description:
@@ -85,7 +87,7 @@ export default function FoisorulACaseStudyPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumb) }}
       />
-      <MarketingHeader active="/case-studies/foisorul-a" />
+      <MarketingHeader active="/case-studies/foisorul-a" currentLocale={currentLocale} />
 
       {/* Hero */}
       <section className="border-b border-[#E2E8F0] bg-white">
@@ -231,7 +233,7 @@ export default function FoisorulACaseStudyPage() {
         </div>
       </section>
 
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </main>
   );
 }
