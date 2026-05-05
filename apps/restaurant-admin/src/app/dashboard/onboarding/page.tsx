@@ -189,6 +189,28 @@ export default async function OnboardingPage() {
         </div>
       )}
 
+      {!allDone && (
+        <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="text-sm font-semibold text-indigo-900">
+                Folosește asistentul de configurare
+              </p>
+              <p className="mt-0.5 text-xs text-indigo-700">
+                Te ghidăm pas cu pas (detalii → brand → meniu → livrare → plăți → activare).
+                Salvăm automat după fiecare modificare. ~10 min total.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/onboarding/wizard"
+              className="inline-flex shrink-0 items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-indigo-700"
+            >
+              Deschide asistentul →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {!state.menu_added && (
         <div className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
