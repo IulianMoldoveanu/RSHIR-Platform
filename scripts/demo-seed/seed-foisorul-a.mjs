@@ -292,6 +292,21 @@ const zoneRows = await runSql(`
 `);
 const ZONE_IDS = (Array.isArray(zoneRows) ? zoneRows : []).map((z) => z.id);
 
+// Pull a default courier fleet — required NOT NULL FK on courier_profiles
+// and courier_orders.
+const fleetRows = await runSql(`
+  select id from public.courier_fleets
+  where lower(name) like 'hir default%'
+  order by created_at asc
+  limit 1;
+`);
+let DEFAULT_FLEET_ID = (Array.isArray(fleetRows) && fleetRows[0]) ? fleetRows[0].id : null;
+if (!DEFAULT_FLEET_ID && !args.dryRun) {
+  console.error('[seed-foisorul-a] no "HIR Default Fleet" courier_fleet found — aborting.');
+  exit(1);
+}
+if (!DEFAULT_FLEET_ID) DEFAULT_FLEET_ID = '00000000-0000-0000-0000-fleet00000000';
+
 // 5. Build the seed.
 const rng = makeRng(20260505); // deterministic per date
 const NOW = new Date('2026-05-05T18:00:00Z'); // anchor "now" so screenshots are stable
@@ -300,7 +315,7 @@ const NOW = new Date('2026-05-05T18:00:00Z'); // anchor "now" so screenshots are
 const courierAuthUuids = [];
 for (let i = 0; i < COURIER_NAMES.length; i++) {
   // Deterministic UUIDs derived from index so reseeding produces same ids.
-  const u = `00000000-d3a1-4ec0-aa00-${String(i).padStart(11, '0')}c01`;
+  const u = `00000000-d3a1-4ec0-aa00-${String(i).padStart(9, '0')}c01`;
   courierAuthUuids.push(u);
 }
 
@@ -571,13 +586,14 @@ for (let i = 0; i < COURIER_NAMES.length; i++) {
     on conflict (id) do nothing;
   `);
   courierSql.push(`
-    insert into public.courier_profiles (user_id, full_name, phone, vehicle_type, status, created_at)
+    insert into public.courier_profiles (user_id, full_name, phone, vehicle_type, status, fleet_id, created_at)
     values (
       ${sqlStr(uid)}::uuid,
       ${sqlStr(`${c.first} ${c.last}`)},
       ${sqlStr(phone)},
       ${sqlStr(c.vehicle)},
       'ACTIVE',
+      ${sqlStr(DEFAULT_FLEET_ID)}::uuid,
       now() - interval '${30 + i * 10} days'
     )
     on conflict (user_id) do nothing;
@@ -797,6 +813,7 @@ for (let start = 0; start < courierOrders.length; start += COURIER_ORDER_BATCH) 
         `(select longitude from pg_temp.demo_seed_address_map where customer_id = (select id from pg_temp.demo_seed_customer_map where email = ${sqlStr(cust.email)}) limit 1), ` +
         `'[]'::jsonb, ${co.total.toFixed(2)}, ${co.deliveryFee.toFixed(2)}, ${sqlStr(co.paymentMethod)}, ` +
         `${sqlStr(co.status)}, ${sqlStr(courierAuthUuids[co.courierIdx])}::uuid, ${sqlStr(trackToken)}, ` +
+        `${sqlStr(DEFAULT_FLEET_ID)}::uuid, 'restaurant', ` +
         `${sqlTs(co.ts)}, ${sqlTs(co.ts)})`,
     );
   }
@@ -809,6 +826,7 @@ for (let start = 0; start < courierOrders.length; start += COURIER_ORDER_BATCH) 
       dropoff_line1, dropoff_lat, dropoff_lng,
       items, total_ron, delivery_fee_ron, payment_method,
       status, assigned_courier_user_id, public_track_token,
+      fleet_id, vertical,
       created_at, updated_at
     )
     values
