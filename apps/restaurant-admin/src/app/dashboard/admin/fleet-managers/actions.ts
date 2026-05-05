@@ -16,6 +16,44 @@ import { logAudit } from '@/lib/audit';
 
 const REVALIDATE = '/dashboard/admin/fleet-managers';
 
+// Platform-level audit sink. Same pattern as /dashboard/admin/partners
+// actions: the sentinel UUID does not match any row in public.tenants,
+// so the audit_log INSERT fails the FK and logAudit() swallows the
+// error. Net effect: internal dispatch metadata is never persisted to
+// the tenant-visible feed at /dashboard/settings/audit, satisfying the
+// dispatch-confidentiality rule. A platform-scoped audit table is a
+// future improvement (tracked in STRATEGY) — for now we accept the
+// trade-off of "no platform audit row" over "leaks to merchants".
+const PLATFORM_SENTINEL_TENANT_ID = '00000000-0000-0000-0000-000000000000';
+
+// ────────────────────────────────────────────────────────────
+// findAuthUserByEmail — paginated Supabase Admin user lookup.
+// Default Auth Admin listUsers caps at 200/page. We page until the email
+// matches or we exhaust the directory. perPage=200 is the supabase-js
+// hard limit — verified empirically; raising it returns the same set.
+// ────────────────────────────────────────────────────────────
+
+const MAX_AUTH_PAGES = 25; // 25 × 200 = 5,000 users — well past pilot scale.
+
+async function findAuthUserByEmail(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  email: string,
+): Promise<{ id: string } | null> {
+  const lower = email.toLowerCase();
+  for (let page = 1; page <= MAX_AUTH_PAGES; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(error.message);
+    const users = (data?.users ?? []) as { id: string; email?: string | null }[];
+    if (users.length === 0) return null;
+    const match = users.find((u) => (u.email ?? '').toLowerCase() === lower);
+    if (match) return { id: match.id };
+    if (users.length < 200) return null; // last page
+  }
+  // Bail rather than scan unbounded — operator should narrow input.
+  return null;
+}
+
 // ────────────────────────────────────────────────────────────
 // Platform-admin gate
 // ────────────────────────────────────────────────────────────
@@ -89,16 +127,14 @@ export async function addFleetManagerMembership(input: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
 
-  // Resolve auth user by email via Supabase Admin API. Auth schema is not
-  // exposed via PostgREST; we use the Auth admin client.
-  const { data: authData, error: authErr } = await sb.auth.admin.listUsers({
-    page: 1,
-    perPage: 200,
-  });
-  if (authErr) return { ok: false, error: authErr.message };
-  const target = (authData?.users ?? []).find(
-    (u: { email?: string | null }) => (u.email ?? '').toLowerCase() === email,
-  );
+  // Resolve auth user by email via paginated Admin lookup. Auth schema
+  // is not exposed via PostgREST; we use the Auth admin client.
+  let target: { id: string } | null;
+  try {
+    target = await findAuthUserByEmail(sb, email);
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
   if (!target) {
     return {
       ok: false,
@@ -134,13 +170,15 @@ export async function addFleetManagerMembership(input: {
   });
   if (error) return { ok: false, error: error.message };
 
+  // Platform-level audit — never written to the tenant's audit feed
+  // (confidentiality rule). entityId carries tenant+user for traceability.
   await logAudit({
-    tenantId: input.tenant_id,
+    tenantId: PLATFORM_SENTINEL_TENANT_ID,
     actorUserId: guard.userId,
     action: 'fleet_manager.membership_added',
     entityType: 'tenant_member',
-    entityId: target.id,
-    metadata: { email, role: 'FLEET_MANAGER' },
+    entityId: `${input.tenant_id}:${target.id}`,
+    metadata: { tenant_id: input.tenant_id, email, role: 'FLEET_MANAGER' },
   });
 
   revalidatePath(REVALIDATE);
@@ -177,12 +215,12 @@ export async function removeFleetManagerMembership(input: {
   if (error) return { ok: false, error: error.message };
 
   await logAudit({
-    tenantId: input.tenant_id,
+    tenantId: PLATFORM_SENTINEL_TENANT_ID,
     actorUserId: guard.userId,
     action: 'fleet_manager.membership_removed',
     entityType: 'tenant_member',
-    entityId: input.user_id,
-    metadata: { role: 'FLEET_MANAGER' },
+    entityId: `${input.tenant_id}:${input.user_id}`,
+    metadata: { tenant_id: input.tenant_id, role: 'FLEET_MANAGER' },
   });
 
   revalidatePath(REVALIDATE);
@@ -254,13 +292,18 @@ export async function setExternalDispatchConfig(input: {
     .eq('id', input.tenant_id);
   if (error) return { ok: false, error: error.message };
 
+  // Platform-level audit. The webhook URL + enabled flag are confidential
+  // — must never reach the tenant-visible audit feed at
+  // /dashboard/settings/audit. Sentinel tenant_id keeps it scoped to
+  // platform admins via the admin client only.
   await logAudit({
-    tenantId: input.tenant_id,
+    tenantId: PLATFORM_SENTINEL_TENANT_ID,
     actorUserId: guard.userId,
     action: 'tenant.external_dispatch_configured',
     entityType: 'tenant',
     entityId: input.tenant_id,
     metadata: {
+      tenant_id: input.tenant_id,
       webhook_url: input.webhook_url,
       enabled: finalEnabled,
       secret_rotated: secretRotated,

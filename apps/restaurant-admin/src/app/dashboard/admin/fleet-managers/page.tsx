@@ -106,15 +106,23 @@ export default async function FleetManagersPage() {
     ),
   );
 
-  // Resolve emails for those user_ids via the Auth admin API.
+  // Resolve emails for those user_ids via the Auth admin API. Paginate
+  // so we don't miss FMs whose accounts fall on a later page once the
+  // project crosses 200 total auth users (Codex P2 #276).
   const emailByUserId = new Map<string, string>();
   if (fmUserIds.length > 0) {
-    // listUsers paginates; FM count is small (<200) at pilot scale.
-    const { data: authData } = await sb.auth.admin.listUsers({ page: 1, perPage: 200 });
-    for (const u of (authData?.users ?? []) as { id: string; email?: string | null }[]) {
-      if (fmUserIds.includes(u.id) && u.email) {
-        emailByUserId.set(u.id, u.email);
+    const remaining = new Set(fmUserIds);
+    for (let page = 1; page <= 25 && remaining.size > 0; page++) {
+      const { data } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+      const users = (data?.users ?? []) as { id: string; email?: string | null }[];
+      if (users.length === 0) break;
+      for (const u of users) {
+        if (remaining.has(u.id) && u.email) {
+          emailByUserId.set(u.id, u.email);
+          remaining.delete(u.id);
+        }
       }
+      if (users.length < 200) break;
     }
   }
 
