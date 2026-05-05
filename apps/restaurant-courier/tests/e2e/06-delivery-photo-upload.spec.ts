@@ -171,8 +171,20 @@ test.describe('Delivery photo upload', () => {
     await expect(uploadBtn).toBeVisible({ timeout: 10_000 });
     await uploadBtn.click();
 
-    // After upload completes, the delivery swipe is unblocked (restaurantProofUrl
-    // is now set). Wait for the swipe button to appear.
+    // CRITICAL race-fix (Codex P2): for CARD restaurant orders the swipe
+    // button is rendered regardless of `restaurantProofUrl`, so its mere
+    // visibility is NOT proof that the upload's onComplete fired and set
+    // proofUrl in component state. If we swipe before that, the action
+    // server fires `markDeliveredAction(undefined, ...)` and
+    // delivered_proof_url stays null even though the upload itself
+    // succeeded. Wait for an explicit upload-complete signal: the
+    // "Încarcă fotografia" button must transition out of `Se încarcă…` AND
+    // the upload control hides (component flips to a small "✓ Încărcată"
+    // confirmation strip in the UI once `onComplete(url)` runs).
+    await expect(uploadBtn).toBeHidden({ timeout: 30_000 });
+
+    // Now the delivery swipe is unblocked (proofUrl set). Wait for it to
+    // be visible and swipe.
     const swipeTrack = page
       .locator('[role="button"], button')
       .filter({ hasText: /Glisează pentru a confirma livrare/i })
