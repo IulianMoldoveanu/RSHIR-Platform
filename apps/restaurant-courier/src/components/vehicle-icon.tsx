@@ -1,39 +1,35 @@
-// Top-down 3/4 miniature illustrations for the rider's own marker.
-// All shapes are inline SVG so they scale crisply on retina + can be
-// embedded into a Leaflet divIcon without a network round-trip.
+// Modern 3D-illustration markers for the rider's own pin on the live map.
+// Complete redesign of the previous flat top-down icons.
 //
-// Design notes:
-//   * Light source: upper-left. Highlights on the top edge, shadows on the
-//     bottom-right. Gives the icons their "miniature 3D" feel.
-//   * Each vehicle has a soft ground shadow drawn as a blurred ellipse
-//     beneath, so the icon reads as a small object hovering over the map
-//     (not stamped flat onto it).
-//   * Default orientation: vehicle facing UP (north). The marker container
-//     in `rider-map.tsx` rotates the whole icon by the live GPS heading
+// Design approach (after first cut was rejected as 'extrem de facil si
+// neplacut'):
+//   * 3/4 isometric perspective (looking from rear-above, ~30° tilt) so
+//     the silhouette reads as a real vehicle, not a logo.
+//   * Multi-stop linear gradients on every body panel — top edge bright,
+//     bottom edge dark — to fake studio lighting.
+//   * SVG <filter> drop shadows (feGaussianBlur) instead of plain ellipses;
+//     gives a soft, modern "icon hovering over a surface" look akin to
+//     3dicons.co / Apple Maps style.
+//   * Specular highlights as small light-blue rounded rects on the top of
+//     each surface, faintly visible — sells the "shiny" feel without
+//     overdoing it.
+//   * Wheels have rim spokes + tire wall + center hub (3 layers each).
+//   * Front-facing direction is UP in the artwork; the marker container
+//     in rider-map.tsx rotates the whole element by the live GPS heading,
 //     so the front always points where the rider is going.
-//   * Palette is anchored on violet-500 (#8b5cf6) and violet-300 (#c4b5fd)
-//     so it matches the rest of the app chrome.
 //
 // Public API:
-//   - `vehicleIconHtml(type)` → string of `<svg>...</svg>` ready for
-//     L.divIcon({ html }).
-//   - `<VehicleIcon type=... size=... className=...>` for use in JSX
-//     (settings preview, header, etc).
+//   - `vehicleIconHtml(type)` → string of `<svg>...</svg>` for L.divIcon.
+//   - `<VehicleIcon type=... size=... />` for use in JSX previews.
+//
+// Color anchors stay on violet (HIR brand) but each panel gets a 3-stop
+// gradient between #ede9fe (top highlight), #8b5cf6 (mid), #4c1d95 (deep
+// shadow). Tires + glass + lights have their own palettes.
 
 import type { CSSProperties } from 'react';
 
 export type VehicleType = 'BIKE' | 'SCOOTER' | 'CAR';
 
-const VIOLET_FILL = '#8b5cf6';
-const VIOLET_DARK = '#6d28d9';
-const VIOLET_LIGHT = '#c4b5fd';
-const HIGHLIGHT = '#f5f3ff';
-const TIRE = '#0f0f12';
-const TIRE_RIM = '#3f3f46';
-
-// Returns a self-contained SVG string. We inline gradient defs per call so
-// the SVG stays portable when injected into Leaflet's divIcon HTML — Leaflet
-// strips <defs> referenced from outside the icon's own DOM scope.
 export function vehicleIconHtml(type: VehicleType): string {
   if (type === 'CAR') return carSvg();
   if (type === 'SCOOTER') return scooterSvg();
@@ -55,159 +51,210 @@ export function VehicleIcon({
     <span
       className={className}
       style={{ display: 'inline-block', width: size, height: size, ...style }}
-      // Inline SVG payload as innerHTML — same source the map uses, so the
-      // settings preview is pixel-identical to the live marker.
       dangerouslySetInnerHTML={{ __html: vehicleIconHtml(type) }}
     />
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Car — top-down with a slight tilt forward. Reads as a hatchback silhouette
-// at small sizes. Gradient hood + windshield highlight + four wheels.
+// Shared <defs>: gradients + a soft drop shadow filter. Kept inline per icon
+// (not extracted) so each SVG payload is self-contained when injected as a
+// Leaflet divIcon — the filter cannot reference an id outside its own DOM.
+// ─────────────────────────────────────────────────────────────────────────
+function commonDefs(id: string): string {
+  return `
+    <defs>
+      <filter id="${id}-drop" x="-30%" y="-30%" width="160%" height="160%">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="2.2"/>
+        <feOffset dx="0" dy="2.4" result="off"/>
+        <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+        <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="${id}-body" x1="50%" y1="0%" x2="50%" y2="100%">
+        <stop offset="0%"  stop-color="#ede9fe"/>
+        <stop offset="35%" stop-color="#a78bfa"/>
+        <stop offset="70%" stop-color="#7c3aed"/>
+        <stop offset="100%" stop-color="#4c1d95"/>
+      </linearGradient>
+      <linearGradient id="${id}-side" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"  stop-color="#ede9fe" stop-opacity="0.6"/>
+        <stop offset="50%" stop-color="#ffffff" stop-opacity="0.0"/>
+        <stop offset="100%" stop-color="#1e1b4b" stop-opacity="0.55"/>
+      </linearGradient>
+      <linearGradient id="${id}-glass" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#dbeafe"/>
+        <stop offset="55%" stop-color="#60a5fa"/>
+        <stop offset="100%" stop-color="#1e3a8a"/>
+      </linearGradient>
+      <radialGradient id="${id}-tire" cx="35%" cy="30%" r="70%">
+        <stop offset="0%"  stop-color="#52525b"/>
+        <stop offset="55%" stop-color="#27272a"/>
+        <stop offset="100%" stop-color="#09090b"/>
+      </radialGradient>
+      <radialGradient id="${id}-rim" cx="50%" cy="50%" r="55%">
+        <stop offset="0%"  stop-color="#e4e4e7"/>
+        <stop offset="60%" stop-color="#a1a1aa"/>
+        <stop offset="100%" stop-color="#52525b"/>
+      </radialGradient>
+      <radialGradient id="${id}-headlight" cx="50%" cy="50%" r="50%">
+        <stop offset="0%"  stop-color="#fffbeb"/>
+        <stop offset="50%" stop-color="#fde68a"/>
+        <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"/>
+      </radialGradient>
+    </defs>
+  `;
+}
+
+// Reusable wheel block — drawn as 3 stacked circles + spokes.
+function wheel(cx: number, cy: number, r: number, id: string): string {
+  const rimR = r * 0.62;
+  const hubR = r * 0.22;
+  const sp = (angleDeg: number) => {
+    const a = (angleDeg * Math.PI) / 180;
+    return `${cx + Math.cos(a) * rimR},${cy + Math.sin(a) * rimR}`;
+  };
+  return `
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-tire)"/>
+    <circle cx="${cx}" cy="${cy}" r="${rimR}" fill="url(#${id}-rim)"/>
+    ${[0, 60, 120, 180, 240, 300]
+      .map((a) => `<line x1="${cx}" y1="${cy}" x2="${sp(a)}" stroke="#52525b" stroke-width="0.7" opacity="0.6"/>`)
+      .join('')}
+    <circle cx="${cx}" cy="${cy}" r="${hubR}" fill="#27272a"/>
+    <circle cx="${cx - r * 0.18}" cy="${cy - r * 0.22}" r="${r * 0.12}" fill="#ffffff" opacity="0.18"/>
+  `;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CAR — 3/4 isometric. Trunk at bottom, hood at top. Roof + windshield
+// + 4 wheels visible at corners. Headlight + tail-light detail.
 // ─────────────────────────────────────────────────────────────────────────
 function carSvg(): string {
   const id = 'car';
   return `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
-  <defs>
-    <linearGradient id="${id}-body" x1="20%" y1="0%" x2="80%" y2="100%">
-      <stop offset="0%" stop-color="${VIOLET_LIGHT}"/>
-      <stop offset="55%" stop-color="${VIOLET_FILL}"/>
-      <stop offset="100%" stop-color="${VIOLET_DARK}"/>
-    </linearGradient>
-    <linearGradient id="${id}-glass" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.95"/>
-      <stop offset="100%" stop-color="#312e81" stop-opacity="0.85"/>
-    </linearGradient>
-    <radialGradient id="${id}-shadow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0.45"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <!-- ground shadow -->
-  <ellipse cx="32" cy="56" rx="20" ry="3.5" fill="url(#${id}-shadow)"/>
-  <!-- wheels (drawn first so the body sits on top of them) -->
-  <rect x="9" y="14" width="6" height="9" rx="1.5" fill="${TIRE}"/>
-  <rect x="49" y="14" width="6" height="9" rx="1.5" fill="${TIRE}"/>
-  <rect x="9" y="40" width="6" height="9" rx="1.5" fill="${TIRE}"/>
-  <rect x="49" y="40" width="6" height="9" rx="1.5" fill="${TIRE}"/>
-  <!-- body -->
-  <rect x="13" y="8" width="38" height="48" rx="9" fill="url(#${id}-body)" stroke="${VIOLET_DARK}" stroke-width="0.6"/>
-  <!-- front windshield (top) -->
-  <path d="M17 14 L47 14 L43 22 L21 22 Z" fill="url(#${id}-glass)"/>
-  <!-- rear windshield (bottom) -->
-  <path d="M21 42 L43 42 L47 50 L17 50 Z" fill="url(#${id}-glass)"/>
-  <!-- roof highlight -->
-  <rect x="22" y="24" width="20" height="16" rx="2.5" fill="${VIOLET_LIGHT}" opacity="0.18"/>
-  <!-- hood specular -->
-  <rect x="22" y="9.5" width="6" height="2.2" rx="1" fill="${HIGHLIGHT}" opacity="0.55"/>
-  <!-- headlights at top -->
-  <circle cx="18.5" cy="12.5" r="1.4" fill="#fde68a"/>
-  <circle cx="45.5" cy="12.5" r="1.4" fill="#fde68a"/>
-  <!-- forward direction notch (the ▲ on the hood disambiguates which way is forward) -->
-  <path d="M32 5 L36 10 L28 10 Z" fill="${HIGHLIGHT}" opacity="0.85"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="100%" height="100%">
+  ${commonDefs(id)}
+  <!-- Ground shadow (soft, blurred ellipse beneath) -->
+  <ellipse cx="48" cy="86" rx="30" ry="4" fill="#000" opacity="0.32"/>
+  <g filter="url(#${id}-drop)">
+    <!-- 4 wheels (corners) — drawn first so the body sits on top of them -->
+    ${wheel(20, 28, 7, id)}
+    ${wheel(76, 28, 7, id)}
+    ${wheel(20, 64, 7.5, id)}
+    ${wheel(76, 64, 7.5, id)}
+    <!-- Lower body (chassis), darker, slightly wider than the cabin -->
+    <rect x="14" y="22" width="68" height="50" rx="14" fill="#1e1b4b"/>
+    <!-- Main body — cabin shape -->
+    <path d="M22 18 Q22 12 30 12 L66 12 Q74 12 74 18 L74 78 Q74 84 66 84 L30 84 Q22 84 22 78 Z"
+          fill="url(#${id}-body)"/>
+    <!-- Side gradient overlay (light↔shadow across X) -->
+    <path d="M22 18 Q22 12 30 12 L66 12 Q74 12 74 18 L74 78 Q74 84 66 84 L30 84 Q22 84 22 78 Z"
+          fill="url(#${id}-side)"/>
+    <!-- Front windshield -->
+    <path d="M28 22 L68 22 L62 36 L34 36 Z" fill="url(#${id}-glass)"/>
+    <line x1="48" y1="22" x2="48" y2="36" stroke="#1e3a8a" stroke-width="0.6" opacity="0.6"/>
+    <!-- Rear windshield -->
+    <path d="M34 64 L62 64 L68 78 L28 78 Z" fill="url(#${id}-glass)" opacity="0.92"/>
+    <!-- Roof highlight (specular reflection) -->
+    <rect x="34" y="40" width="28" height="20" rx="3" fill="#ede9fe" opacity="0.18"/>
+    <rect x="36" y="42" width="14" height="3" rx="1.5" fill="#ffffff" opacity="0.45"/>
+    <!-- Hood specular streak (top edge highlight) -->
+    <rect x="32" y="13.5" width="32" height="2" rx="1" fill="#ffffff" opacity="0.55"/>
+    <!-- Headlights -->
+    <circle cx="28" cy="17" r="3.5" fill="url(#${id}-headlight)"/>
+    <circle cx="28" cy="17" r="1.6" fill="#fffbeb"/>
+    <circle cx="68" cy="17" r="3.5" fill="url(#${id}-headlight)"/>
+    <circle cx="68" cy="17" r="1.6" fill="#fffbeb"/>
+    <!-- Tail-lights -->
+    <rect x="26" y="78" width="8" height="2.4" rx="1" fill="#dc2626"/>
+    <rect x="62" y="78" width="8" height="2.4" rx="1" fill="#dc2626"/>
+    <!-- Direction notch on the hood (subtle ▲) -->
+    <path d="M48 6 L52 11 L44 11 Z" fill="#ede9fe" opacity="0.85"/>
+  </g>
 </svg>`.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Scooter — top-down. Deck + steering column + handlebar + two wheels
-// (front wheel slightly smaller, like a real kick scooter).
+// SCOOTER — 3/4 view. Deck + steering column + handlebar + 2 wheels.
+// More vertical proportions than the car so silhouettes read distinctly.
 // ─────────────────────────────────────────────────────────────────────────
 function scooterSvg(): string {
   const id = 'scooter';
   return `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
-  <defs>
-    <linearGradient id="${id}-deck" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${VIOLET_LIGHT}"/>
-      <stop offset="50%" stop-color="${VIOLET_FILL}"/>
-      <stop offset="100%" stop-color="${VIOLET_DARK}"/>
-    </linearGradient>
-    <linearGradient id="${id}-bar" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="${TIRE_RIM}"/>
-      <stop offset="50%" stop-color="#71717a"/>
-      <stop offset="100%" stop-color="${TIRE_RIM}"/>
-    </linearGradient>
-    <radialGradient id="${id}-shadow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0.4"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <!-- ground shadow -->
-  <ellipse cx="32" cy="56" rx="14" ry="3" fill="url(#${id}-shadow)"/>
-  <!-- back wheel + axle -->
-  <rect x="29" y="46" width="6" height="10" rx="1.5" fill="${TIRE}"/>
-  <ellipse cx="32" cy="51" rx="2" ry="2" fill="${TIRE_RIM}"/>
-  <!-- deck -->
-  <rect x="22" y="20" width="20" height="28" rx="6" fill="url(#${id}-deck)" stroke="${VIOLET_DARK}" stroke-width="0.6"/>
-  <!-- grip pattern on deck -->
-  <line x1="26" y1="26" x2="38" y2="26" stroke="${VIOLET_DARK}" stroke-width="0.5" opacity="0.6"/>
-  <line x1="26" y1="30" x2="38" y2="30" stroke="${VIOLET_DARK}" stroke-width="0.5" opacity="0.6"/>
-  <line x1="26" y1="34" x2="38" y2="34" stroke="${VIOLET_DARK}" stroke-width="0.5" opacity="0.6"/>
-  <line x1="26" y1="38" x2="38" y2="38" stroke="${VIOLET_DARK}" stroke-width="0.5" opacity="0.6"/>
-  <line x1="26" y1="42" x2="38" y2="42" stroke="${VIOLET_DARK}" stroke-width="0.5" opacity="0.6"/>
-  <!-- steering column -->
-  <rect x="30" y="12" width="4" height="10" rx="1" fill="${TIRE_RIM}"/>
-  <!-- handlebar -->
-  <rect x="20" y="10" width="24" height="3.5" rx="1.7" fill="url(#${id}-bar)"/>
-  <circle cx="20" cy="11.7" r="2" fill="${VIOLET_FILL}"/>
-  <circle cx="44" cy="11.7" r="2" fill="${VIOLET_FILL}"/>
-  <!-- front wheel -->
-  <rect x="29" y="6" width="6" height="9" rx="1.5" fill="${TIRE}"/>
-  <ellipse cx="32" cy="10.5" rx="1.7" ry="1.7" fill="${TIRE_RIM}"/>
-  <!-- forward indicator (small light at the front edge) -->
-  <circle cx="32" cy="5" r="1.4" fill="#fde68a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="100%" height="100%">
+  ${commonDefs(id)}
+  <ellipse cx="48" cy="86" rx="22" ry="3.4" fill="#000" opacity="0.32"/>
+  <g filter="url(#${id}-drop)">
+    <!-- Rear wheel -->
+    ${wheel(48, 76, 8, id)}
+    <!-- Deck -->
+    <rect x="32" y="36" width="32" height="36" rx="8" fill="url(#${id}-body)"/>
+    <rect x="32" y="36" width="32" height="36" rx="8" fill="url(#${id}-side)"/>
+    <!-- Grip-tape on deck (small dot pattern) -->
+    ${[0, 1, 2, 3, 4, 5]
+      .flatMap((row) =>
+        [0, 1, 2, 3, 4].map(
+          (col) =>
+            `<circle cx="${36 + col * 6}" cy="${42 + row * 5}" r="0.7" fill="#1e1b4b" opacity="0.5"/>`,
+        ),
+      )
+      .join('')}
+    <!-- Highlight on top edge of deck -->
+    <rect x="34" y="37" width="28" height="1.6" rx="0.8" fill="#ffffff" opacity="0.5"/>
+    <!-- Steering column (rises from deck up to handlebar) -->
+    <path d="M44 36 L42 18 Q42 14 46 14 L50 14 Q54 14 54 18 L52 36 Z"
+          fill="url(#${id}-body)"/>
+    <rect x="44" y="14" width="8" height="22" fill="url(#${id}-side)"/>
+    <!-- Handlebar grips -->
+    <rect x="22" y="12" width="52" height="5" rx="2.5" fill="#27272a"/>
+    <rect x="22" y="12" width="52" height="1.6" rx="0.8" fill="#ffffff" opacity="0.35"/>
+    <circle cx="22" cy="14.5" r="3" fill="url(#${id}-body)"/>
+    <circle cx="22" cy="14.5" r="3" fill="url(#${id}-side)"/>
+    <circle cx="74" cy="14.5" r="3" fill="url(#${id}-body)"/>
+    <circle cx="74" cy="14.5" r="3" fill="url(#${id}-side)"/>
+    <!-- Front wheel (smaller, like a real kick scooter) -->
+    ${wheel(48, 22, 5.5, id)}
+    <!-- Headlight cluster -->
+    <ellipse cx="48" cy="10" rx="3.5" ry="2.4" fill="url(#${id}-headlight)"/>
+    <circle cx="48" cy="10" r="1.4" fill="#fffbeb"/>
+  </g>
 </svg>`.trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Bike — top-down. Two wheels with rims, frame between, handlebars at front,
-// saddle at back. Smaller scale than scooter so it reads as "lighter".
+// BIKE — 3/4 view. Two big wheels, frame triangle, saddle, handlebars.
+// More airy than the scooter (no deck) so it reads as "lighter".
 // ─────────────────────────────────────────────────────────────────────────
 function bikeSvg(): string {
   const id = 'bike';
   return `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
-  <defs>
-    <linearGradient id="${id}-frame" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${VIOLET_LIGHT}"/>
-      <stop offset="50%" stop-color="${VIOLET_FILL}"/>
-      <stop offset="100%" stop-color="${VIOLET_DARK}"/>
-    </linearGradient>
-    <radialGradient id="${id}-shadow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0.4"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="${id}-wheel" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="${TIRE_RIM}"/>
-      <stop offset="60%" stop-color="${TIRE}"/>
-      <stop offset="100%" stop-color="${TIRE}"/>
-    </radialGradient>
-  </defs>
-  <!-- ground shadow -->
-  <ellipse cx="32" cy="56" rx="13" ry="2.6" fill="url(#${id}-shadow)"/>
-  <!-- back wheel -->
-  <circle cx="32" cy="48" r="9" fill="url(#${id}-wheel)" stroke="${TIRE_RIM}" stroke-width="0.6"/>
-  <circle cx="32" cy="48" r="3.2" fill="${TIRE_RIM}"/>
-  <line x1="32" y1="40" x2="32" y2="56" stroke="${HIGHLIGHT}" stroke-width="0.4" opacity="0.4"/>
-  <line x1="24" y1="48" x2="40" y2="48" stroke="${HIGHLIGHT}" stroke-width="0.4" opacity="0.4"/>
-  <!-- frame: top tube + down tube + seat tube -->
-  <line x1="32" y1="20" x2="32" y2="48" stroke="url(#${id}-frame)" stroke-width="3.2" stroke-linecap="round"/>
-  <line x1="32" y1="32" x2="40" y2="48" stroke="url(#${id}-frame)" stroke-width="2.4" stroke-linecap="round"/>
-  <line x1="32" y1="20" x2="24" y2="16" stroke="url(#${id}-frame)" stroke-width="2.4" stroke-linecap="round"/>
-  <!-- saddle -->
-  <ellipse cx="32" cy="34" rx="3.2" ry="1.6" fill="#1f1f24" stroke="${VIOLET_DARK}" stroke-width="0.6"/>
-  <!-- front wheel -->
-  <circle cx="32" cy="16" r="8" fill="url(#${id}-wheel)" stroke="${TIRE_RIM}" stroke-width="0.6"/>
-  <circle cx="32" cy="16" r="2.8" fill="${TIRE_RIM}"/>
-  <line x1="32" y1="9" x2="32" y2="23" stroke="${HIGHLIGHT}" stroke-width="0.4" opacity="0.4"/>
-  <line x1="25" y1="16" x2="39" y2="16" stroke="${HIGHLIGHT}" stroke-width="0.4" opacity="0.4"/>
-  <!-- handlebar across the front wheel -->
-  <rect x="22" y="10.5" width="20" height="2.6" rx="1.3" fill="${TIRE_RIM}"/>
-  <circle cx="22" cy="11.8" r="1.7" fill="${VIOLET_FILL}"/>
-  <circle cx="42" cy="11.8" r="1.7" fill="${VIOLET_FILL}"/>
-  <!-- forward light -->
-  <circle cx="32" cy="6" r="1.3" fill="#fde68a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="100%" height="100%">
+  ${commonDefs(id)}
+  <ellipse cx="48" cy="86" rx="22" ry="3.2" fill="#000" opacity="0.30"/>
+  <g filter="url(#${id}-drop)">
+    <!-- Rear wheel -->
+    ${wheel(48, 70, 12, id)}
+    <!-- Frame: down-tube + seat-tube + chain-stay -->
+    <path d="M48 70 L48 36" stroke="url(#${id}-body)" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M48 36 L40 22" stroke="url(#${id}-body)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M48 36 L62 70" stroke="url(#${id}-body)" stroke-width="4" stroke-linecap="round"/>
+    <!-- Frame highlight strokes (specular) -->
+    <path d="M48 70 L48 36" stroke="#ede9fe" stroke-width="1" stroke-linecap="round" opacity="0.5"/>
+    <!-- Saddle (3D pill) -->
+    <ellipse cx="48" cy="36" rx="6" ry="2.4" fill="#1e1b4b"/>
+    <ellipse cx="48" cy="35.4" rx="5.4" ry="1.5" fill="#3b3b54"/>
+    <ellipse cx="46" cy="34.8" rx="2.2" ry="0.7" fill="#ffffff" opacity="0.3"/>
+    <!-- Front wheel -->
+    ${wheel(48, 22, 11, id)}
+    <!-- Handlebar -->
+    <rect x="26" y="14" width="44" height="3.6" rx="1.8" fill="#27272a"/>
+    <rect x="26" y="14" width="44" height="1.2" rx="0.6" fill="#ffffff" opacity="0.35"/>
+    <circle cx="26" cy="15.8" r="2.4" fill="url(#${id}-body)"/>
+    <circle cx="70" cy="15.8" r="2.4" fill="url(#${id}-body)"/>
+    <!-- Stem connecting handlebar to front wheel -->
+    <rect x="46" y="16" width="4" height="6" fill="#27272a"/>
+    <!-- Headlight -->
+    <circle cx="48" cy="10" r="2.6" fill="url(#${id}-headlight)"/>
+    <circle cx="48" cy="10" r="1.1" fill="#fffbeb"/>
+  </g>
 </svg>`.trim();
 }
