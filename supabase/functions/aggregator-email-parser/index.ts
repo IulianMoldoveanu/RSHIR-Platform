@@ -322,15 +322,13 @@ Deno.serve(async (req) => {
 
     // 5) Persist parsed_data + decide auto-apply.
     if (highConfidence(parsed)) {
-      // Codex P1+P2: dedup must be ATOMIC. Migration 20260506_015 added a
-      // unique partial index on restaurant_orders (tenant_id, source,
-      // hir_delivery_id) where source IN aggregator + hir_delivery_id
-      // not null. We store the aggregator's external order id in
-      // hir_delivery_id and do an INSERT ... ON CONFLICT DO NOTHING via
-      // upsert with ignoreDuplicates. On conflict, we look up the
-      // winning row and link this job to it. This serializes correctly
-      // under concurrent retries — Postgres unique-index check is
-      // atomic with the insert.
+      // Codex P1 follow-up: dedup must be ATOMIC + use a conflict target
+      // that matches the partial unique index. supabase-js upsert can't
+      // emit `ON CONFLICT (...) WHERE ...`, so we delegate to the
+      // public.apply_aggregator_order RPC (migration 20260606_009) which
+      // does the INSERT ... ON CONFLICT ... WHERE source IN (...) AND
+      // hir_delivery_id IS NOT NULL DO NOTHING + deterministic lookup
+      // in a single SQL function. service_role only.
       const externalId = parsed.external_order_id ?? null;
 
       // Codex P2 item shape: existing order detail + KDS readers compute
@@ -347,75 +345,61 @@ Deno.serve(async (req) => {
         modifiers: it.modifiers ?? null,
       }));
 
-      const orderRow: Record<string, unknown> = {
-        tenant_id: tenantId,
-        items: itemsJson,
-        subtotal_ron: parsed.subtotal_ron,
-        delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
-        total_ron: parsed.total_ron,
-        status: 'CONFIRMED',
-        payment_status: 'PAID', // aggregators settle on their side
-        source: detected,
-        hir_delivery_id: externalId, // dedup key per migration 015
-        notes: [
-          externalId ? `${detected} #${externalId}` : null,
-          parsed.customer_name,
-          parsed.customer_phone,
-          parsed.delivery_address,
-          parsed.notes,
-        ]
-          .filter(Boolean)
-          .join(' • ')
-          .slice(0, 1000),
-      };
+      const notes = [
+        externalId ? `${detected} #${externalId}` : null,
+        parsed.customer_name,
+        parsed.customer_phone,
+        parsed.delivery_address,
+        parsed.notes,
+      ]
+        .filter(Boolean)
+        .join(' • ')
+        .slice(0, 1000);
 
       let appliedOrderId: string | null = null;
       let deduped = false;
 
       if (externalId) {
-        // Upsert with ignoreDuplicates is supabase-js's wrapper for
-        // INSERT ... ON CONFLICT DO NOTHING. onConflict names the
-        // unique index columns (no minRows/single because the no-op
-        // path returns zero rows).
-        const { data: upserted, error: upErr } = await sb
-          .from('restaurant_orders')
-          .upsert(orderRow, {
-            onConflict: 'tenant_id,source,hir_delivery_id',
-            ignoreDuplicates: true,
-          })
-          .select('id');
-        if (upErr) {
+        // Atomic via RPC. Returns table (order_id uuid, deduped boolean).
+        const { data: rpcRows, error: rpcErr } = await sb.rpc('apply_aggregator_order', {
+          p_tenant_id: tenantId,
+          p_source: detected,
+          p_external_order_id: externalId,
+          p_items: itemsJson,
+          p_subtotal_ron: parsed.subtotal_ron,
+          p_delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
+          p_total_ron: parsed.total_ron,
+          p_notes: notes,
+        });
+        if (rpcErr) {
           await sb
             .from('aggregator_email_jobs')
             .update({
               status: 'PARSED',
               parsed_data: parsed as unknown as Record<string, unknown>,
-              error_text: `Auto-aplicare esuata: ${upErr.message}. Aplicati manual.`,
+              error_text: `Auto-aplicare esuata: ${rpcErr.message}. Aplicati manual.`,
             })
             .eq('id', jobId);
-          setMetadata({ apply_error: upErr.message.slice(0, 200) });
+          setMetadata({ apply_error: rpcErr.message.slice(0, 200) });
           return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
         }
-        if (upserted && upserted.length > 0) {
-          appliedOrderId = (upserted[0] as { id: string }).id;
-        } else {
-          // Conflict path: a prior row already exists for this
-          // (tenant, source, externalId). Look it up by the same key.
-          const { data: prior } = await sb
-            .from('restaurant_orders')
-            .select('id')
-            .eq('tenant_id', tenantId)
-            .eq('source', detected)
-            .eq('hir_delivery_id', externalId)
-            .limit(1)
-            .single();
-          appliedOrderId = (prior as { id: string } | null)?.id ?? null;
-          deduped = true;
-        }
+        const row = Array.isArray(rpcRows) ? rpcRows[0] : rpcRows;
+        appliedOrderId = (row as { order_id: string | null } | null)?.order_id ?? null;
+        deduped = (row as { deduped: boolean } | null)?.deduped ?? false;
       } else {
-        // No external_order_id parsed → no dedup key. Best-effort
-        // straight insert (better-than-nothing path; the parse already
-        // had to clear highConfidence guards).
+        // No external_order_id parsed → no dedup key. Plain insert.
+        const orderRow = {
+          tenant_id: tenantId,
+          items: itemsJson,
+          subtotal_ron: parsed.subtotal_ron,
+          delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
+          total_ron: parsed.total_ron,
+          status: 'CONFIRMED',
+          payment_status: 'PAID',
+          source: detected,
+          hir_delivery_id: null,
+          notes,
+        };
         const { data: inserted, error: insErr } = await sb
           .from('restaurant_orders')
           .insert(orderRow)
@@ -433,7 +417,7 @@ Deno.serve(async (req) => {
           setMetadata({ apply_error: insErr?.message?.slice(0, 200) });
           return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
         }
-        appliedOrderId = inserted.id;
+        appliedOrderId = (inserted as { id: string }).id;
       }
 
       if (!appliedOrderId) {
