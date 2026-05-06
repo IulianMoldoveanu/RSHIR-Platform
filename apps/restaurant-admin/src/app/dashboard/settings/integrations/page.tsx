@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { IntegrationsClient } from './client';
 import { ExternalPlatformsCard } from './external-platforms-card';
+import { EmbedWidgetCard } from './embed-widget-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,6 +140,8 @@ export default async function IntegrationsPage() {
       />
 
       <ExternalPlatformsCard />
+
+      <EmbedWidgetCard tenantId={tenant.id} tenantSlug={tenant.slug} />
     </div>
   );
 }
