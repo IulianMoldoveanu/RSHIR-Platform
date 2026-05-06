@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { Button, toast } from '@hir/ui';
 import {
@@ -106,10 +107,12 @@ export function ReservationsClient({
   tenantId,
   reservations,
   settings: initialSettings,
+  hasTablePlan = false,
 }: {
   tenantId: string;
   reservations: Reservation[];
   settings: Settings;
+  hasTablePlan?: boolean;
 }) {
   const [busy, start] = useTransition();
   const [settings, setSettings] = useState<Settings>(initialSettings);
@@ -392,7 +395,22 @@ export function ReservationsClient({
 
           {reservations.length === 0 && (
             <div className="rounded-md border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
-              Nu ai încă rezervări. Activează sistemul din setări pentru a primi.
+              <p>
+                Nu aveți încă rezervări. Activați sistemul din setări pentru a
+                începe să primiți rezervări de la clienți.
+              </p>
+              {!hasTablePlan && (
+                <p className="mt-3 text-xs text-zinc-600">
+                  Pasul următor recomandat:{' '}
+                  <Link
+                    href="/dashboard/reservations/table-plan"
+                    className="font-medium text-purple-700 hover:text-purple-900 underline-offset-2 hover:underline"
+                  >
+                    definiți planul de mese
+                  </Link>
+                  {' '}pentru ca clienții să poată alege o masă specifică.
+                </p>
+              )}
             </div>
           )}
         </>

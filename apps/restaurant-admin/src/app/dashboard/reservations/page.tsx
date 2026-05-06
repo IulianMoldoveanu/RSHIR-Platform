@@ -94,6 +94,11 @@ export default async function ReservationsPage() {
   const settings: Settings = settingsRes.data
     ? (settingsRes.data as Settings)
     : DEFAULT_SETTINGS;
+  // Polish 2026-05-06: surface a "Define table plan" nudge in the empty
+  // state when the operator hasn't drawn any tables yet. Empty plan is the
+  // common case at onboarding and the existing copy didn't suggest the
+  // next step.
+  const hasTablePlan = planTables.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -128,6 +133,7 @@ export default async function ReservationsPage() {
         tenantId={tenant.id}
         reservations={reservations}
         settings={settings}
+        hasTablePlan={hasTablePlan}
       />
     </div>
   );

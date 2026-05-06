@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
 import { TiersCard } from './tiers-card';
+import { lookupCityCenter } from './default-city-centers';
 import type { Zone, Tier, Polygon } from './types';
 
 const ZoneMap = dynamic(() => import('./zone-map').then((m) => m.ZoneMap), {
@@ -19,9 +20,37 @@ type Props = {
   initialZones: Zone[];
   initialTiers: Tier[];
   tenantCenter: { lat: number; lng: number } | null;
+  tenantCity?: string | null;
 };
 
-export function ZonesClient({ initialZones, initialTiers, tenantCenter }: Props) {
+// Polish 2026-05-06: build a closed 24-sided polygon approximating a circle
+// of `radiusKm` around `center`. Used by the empty-state "default zone" CTA
+// so a brand-new tenant gets a usable zone in one click instead of having
+// to learn the polygon-drawing tool to ship their first delivery.
+//
+// Latitude is straight degrees (~111 km / deg). Longitude shrinks with
+// cos(latitude). 24 vertices is a visually-smooth circle without bloating
+// the GeoJSON payload.
+function buildCirclePolygon(
+  center: { lat: number; lng: number },
+  radiusKm: number,
+): Polygon {
+  const SIDES = 24;
+  const KM_PER_DEG_LAT = 111;
+  const kmPerDegLng = 111 * Math.cos((center.lat * Math.PI) / 180);
+  const ring: [number, number][] = [];
+  for (let i = 0; i < SIDES; i++) {
+    const angle = (2 * Math.PI * i) / SIDES;
+    const dLat = (radiusKm / KM_PER_DEG_LAT) * Math.sin(angle);
+    const dLng = (radiusKm / kmPerDegLng) * Math.cos(angle);
+    ring.push([center.lng + dLng, center.lat + dLat]);
+  }
+  // Close the ring (GeoJSON requires first === last; min 4 points).
+  ring.push(ring[0]);
+  return { type: 'Polygon', coordinates: [ring] };
+}
+
+export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCity }: Props) {
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftPolygon, setDraftPolygon] = useState<Polygon | null>(null);
@@ -41,6 +70,41 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter }: Props)
       throw new Error(body.error ?? `Request failed (${res.status})`);
     }
     return (await res.json()) as T;
+  }
+
+  // Resolve a default circle center: prefer the tenant's pinned location
+  // (set during onboarding), otherwise fall back to the city's centroid
+  // from our hard-coded RO city table. If neither resolves, the CTA is
+  // hidden — the operator must use the polygon tool the conventional way.
+  const defaultCircle = (() => {
+    if (tenantCenter) {
+      return {
+        center: tenantCenter,
+        label: tenantCity?.trim() || 'restaurant',
+      };
+    }
+    const cityHit = lookupCityCenter(tenantCity);
+    if (cityHit) return { center: { lat: cityHit.lat, lng: cityHit.lng }, label: cityHit.name };
+    return null;
+  })();
+
+  function seedDefaultZone() {
+    if (!defaultCircle) return;
+    setError(null);
+    const polygon = buildCirclePolygon(defaultCircle.center, 5);
+    const name = `Zonă implicită ${defaultCircle.label} (5 km)`;
+    startTransition(async () => {
+      try {
+        const { zone } = await api<{ zone: Zone }>('/api/zones', {
+          method: 'POST',
+          body: JSON.stringify({ name, polygon, is_active: true }),
+        });
+        setZones((prev) => [...prev, zone]);
+        setSelectedId(zone.id);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Salvarea zonei implicite a eșuat.');
+      }
+    });
   }
 
   function saveDraft() {
@@ -104,9 +168,26 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter }: Props)
           <div className="rounded-md border border-zinc-200 bg-white p-3">
             <h2 className="mb-2 text-sm font-semibold text-zinc-800">Zone existente</h2>
             {zones.length === 0 ? (
-              <p className="text-xs text-zinc-500">
-                Nicio zonă încă. Folosește unealta de poligon pe hartă pentru a desena prima zonă.
-              </p>
+              <div className="flex flex-col gap-2">
+                <p className="text-xs text-zinc-500">
+                  Nicio zonă încă. Folosiți unealta de poligon pe hartă pentru
+                  a desena prima zonă.
+                </p>
+                {defaultCircle && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={seedDefaultZone}
+                    disabled={isPending}
+                    className="self-start"
+                  >
+                    {isPending
+                      ? 'Se adaugă…'
+                      : `Adaugă zonă implicită ${defaultCircle.label}, 5 km`}
+                  </Button>
+                )}
+              </div>
             ) : (
               <ul className="flex flex-col gap-1">
                 {zones.map((z) => (

@@ -8,6 +8,12 @@ import { useMemo, useState } from 'react';
 // dependency) and use simple lowercase substring matching with a 3x weight
 // for title hits. Volume is small (~25 topics) — this stays fast even on
 // a low-end Android.
+//
+// Polish 2026-05-06: long-tail multi-word queries like "cum schimb logo"
+// were under-ranking topics whose only match was in the body, because body
+// hits scored 1× while title/summary hits scored 3×/2×. When the query has
+// more than two tokens, body hits go to 2× — the searcher is clearly
+// drilling into a specific procedure and the body is where procedures live.
 
 export type SearchTopic = {
   slug: string;
@@ -24,6 +30,10 @@ function score(query: string, t: SearchTopic): { score: number; snippet: string 
   const q = query.trim().toLowerCase();
   if (!q) return { score: 0, snippet: '' };
   const tokens = q.split(/\s+/).filter(Boolean);
+  // For multi-word queries (>2 tokens) the user is hunting a specific
+  // procedure — boost body matches to 2× so step-by-step guides surface
+  // even when their title is just the topic name.
+  const bodyWeight = tokens.length > 2 ? 2 : 1;
   let s = 0;
   let snippetSource = t.summary;
   for (const tok of tokens) {
@@ -31,7 +41,7 @@ function score(query: string, t: SearchTopic): { score: number; snippet: string 
     if (t.summary.toLowerCase().includes(tok)) s += 2;
     const idx = t.body.toLowerCase().indexOf(tok);
     if (idx >= 0) {
-      s += 1;
+      s += bodyWeight;
       if (snippetSource === t.summary) {
         const start = Math.max(0, idx - 40);
         snippetSource = t.body.slice(start, idx + 80);
