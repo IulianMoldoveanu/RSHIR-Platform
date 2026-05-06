@@ -154,6 +154,30 @@ export async function linkRecipeAction(formData: FormData): Promise<{ ok: true; 
       qty_per_serving: formData.get('qty_per_serving'),
     });
     const admin = createAdminClient();
+
+    // Defense-in-depth: verify both parent rows belong to the active tenant
+    // before the insert. The schema also has composite tenant FKs
+    // ((tenant_id, *_id) -> parent(tenant_id, id)) so the DB will reject
+    // cross-tenant inserts at the FK level — this check just yields a
+    // cleaner error message when forged FormData arrives.
+    const [menuItemCheck, invItemCheck] = await Promise.all([
+      admin
+        .from('restaurant_menu_items')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('id', parsed.menu_item_id)
+        .maybeSingle(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (admin as any).from('inventory_items')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('id', parsed.inventory_item_id)
+        .maybeSingle(),
+    ]);
+    if (!menuItemCheck.data || !invItemCheck.data) {
+      return { ok: false, error: 'Produs din meniu sau ingredient invalid pentru acest restaurant.' };
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (admin as any).from('menu_item_recipes')
       .insert({ ...parsed, tenant_id: tenantId })
