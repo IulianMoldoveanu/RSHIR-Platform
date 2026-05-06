@@ -322,12 +322,59 @@ Deno.serve(async (req) => {
 
     // 5) Persist parsed_data + decide auto-apply.
     if (highConfidence(parsed)) {
-      // Insert into restaurant_orders. Items in the canonical jsonb shape
-      // used by the rest of the platform.
+      // Codex P1 dedup: same email may be delivered twice (Cloudflare
+      // retry, aggregator resend, restaurant inbox forwarding loop). If
+      // we already APPLIED an order with this (tenant, source,
+      // external_order_id), point this job at the existing order and
+      // skip the insert. Without this, duplicate emails become
+      // duplicate paid CONFIRMED rows in KDS + admin dashboard.
+      const externalId = parsed.external_order_id;
+      if (externalId) {
+        const { data: priorJobs } = await sb
+          .from('aggregator_email_jobs')
+          .select('applied_order_id, parsed_data')
+          .eq('tenant_id', tenantId)
+          .eq('detected_source', detected)
+          .eq('status', 'APPLIED')
+          .not('applied_order_id', 'is', null)
+          .limit(50);
+        const dup = (priorJobs ?? []).find((p) => {
+          const pd = p.parsed_data as Record<string, unknown> | null;
+          return pd && pd.external_order_id === externalId;
+        });
+        if (dup?.applied_order_id) {
+          await sb
+            .from('aggregator_email_jobs')
+            .update({
+              status: 'APPLIED',
+              parsed_data: parsed as unknown as Record<string, unknown>,
+              applied_order_id: dup.applied_order_id,
+              error_text: `Duplicat — comanda ${detected} #${externalId} a fost deja aplicată anterior.`,
+            })
+            .eq('id', jobId);
+          setMetadata({ dedup: true, applied_order_id: dup.applied_order_id as string });
+          return json(200, {
+            ok: true,
+            job_id: jobId,
+            status: 'APPLIED',
+            order_id: dup.applied_order_id,
+            source: detected,
+            deduped: true,
+          });
+        }
+      }
+
+      // Codex P2 item shape: existing order detail + KDS readers compute
+      // line totals via `price_ron ?? unit_price ?? price` and quantity
+      // via `qty ?? quantity`. Write BOTH the canonical aggregator field
+      // (unit_price_ron) and the legacy fields so admin/orders/[id] +
+      // kds/print/[id] render line totals correctly.
       const itemsJson = parsed.items.map((it) => ({
         name: it.name,
         quantity: it.quantity,
+        qty: it.quantity,
         unit_price_ron: it.unit_price_ron,
+        price_ron: it.unit_price_ron,
         modifiers: it.modifiers ?? null,
       }));
       const { data: order, error: orderErr } = await sb
