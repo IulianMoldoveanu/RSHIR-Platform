@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, TriangleAlert } from 'lucide-react';
+import { ChevronDown, ShoppingBag, TriangleAlert } from 'lucide-react';
+import Link from 'next/link';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { geocodeAddressRo } from '@/lib/zones/nominatim';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
@@ -970,25 +971,84 @@ function CartSummaryBox({
   quote: Quote | null;
   locale: Locale;
 }) {
+  // Persistent cart summary — sticks under the page header so the customer
+  // never loses sight of what they're paying for, even on the review step
+  // and during long forms. On mobile we collapse to a single chip
+  // ("3 produse · 78,50 lei ▾") to stay out of the way; tap to expand into
+  // the same item list + estimated subtotal as before. Desktop renders
+  // expanded by default.
+  const [collapsed, setCollapsed] = useState(true);
+  const itemCount = cart.items.reduce((acc, it) => acc + it.quantity, 0);
+  const subtotal = quote?.subtotalRon ?? fallbackTotal;
+  const collapsedLabel =
+    itemCount === 1
+      ? t(locale, 'checkout.cart_summary_collapsed_one_template', {
+          amount: formatRon(subtotal, locale),
+        })
+      : t(locale, 'checkout.cart_summary_collapsed_many_template', {
+          count: String(itemCount),
+          amount: formatRon(subtotal, locale),
+        });
   return (
-    <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">
-        {t(locale, 'checkout.your_cart')}
-      </p>
-      <ul className="space-y-1">
-        {cart.items.map((it) => (
-          <li key={it.itemId} className="flex justify-between">
-            <span>
-              {it.quantity}× {it.name}
-            </span>
-            <span className="font-mono text-zinc-700">{formatRon(it.priceRon * it.quantity, locale)}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600">
-        {t(locale, 'checkout.subtotal_estimated_template', {
-          amount: formatRon(quote?.subtotalRon ?? fallbackTotal, locale),
-        })}
+    <section
+      data-testid="cart-summary"
+      className="sticky top-2 z-30 rounded-xl border border-zinc-200 bg-zinc-50 text-sm shadow-sm sm:static sm:shadow-none"
+    >
+      {/* Collapsed chip — mobile only, default state. Tap reveals the
+          expanded panel. Hidden on sm+ where the panel always shows. */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+        aria-controls="cart-summary-panel"
+        aria-label={
+          collapsed
+            ? t(locale, 'checkout.cart_summary_expand_aria')
+            : t(locale, 'checkout.cart_summary_collapse_aria')
+        }
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left font-medium text-zinc-900 sm:hidden"
+      >
+        <span className="truncate">{collapsedLabel}</span>
+        <ChevronDown
+          className={`h-4 w-4 flex-none text-zinc-500 transition-transform ${collapsed ? '' : 'rotate-180'}`}
+          aria-hidden
+        />
+      </button>
+
+      {/* Expanded panel — always visible on sm+, conditional on mobile. */}
+      <div
+        id="cart-summary-panel"
+        className={`${collapsed ? 'hidden' : 'block'} px-4 pb-4 pt-1 sm:block sm:p-4`}
+      >
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          {t(locale, 'checkout.your_cart')}
+        </p>
+        <ul className="space-y-1">
+          {cart.items.map((it) => (
+            <li key={it.itemId} className="flex justify-between">
+              <span>
+                {it.quantity}× {it.name}
+              </span>
+              <span className="font-mono text-zinc-700">{formatRon(it.priceRon * it.quantity, locale)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600">
+          <span>
+            {t(locale, 'checkout.subtotal_estimated_template', {
+              amount: formatRon(subtotal, locale),
+            })}
+          </span>
+          {/* Edit-cart link returns to storefront (the only place where
+              quantities can be changed). Avoids race conditions inside
+              checkout's quote/review flow. */}
+          <Link
+            href="/"
+            className="font-medium text-purple-700 underline-offset-2 hover:underline"
+          >
+            {t(locale, 'checkout.cart_summary_edit_link')}
+          </Link>
+        </div>
       </div>
     </section>
   );
