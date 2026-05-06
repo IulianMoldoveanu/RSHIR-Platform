@@ -1,3 +1,6 @@
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
+
 // Health Monitor — pings the 3 production healthz endpoints and pings
 // Hepi via Telegram on any non-200 or slow response. Triggered every 5 min
 // from .github/workflows/health-monitor.yml using HEALTH_MONITOR_TOKEN.
@@ -143,9 +146,11 @@ async function tg(text: string): Promise<void> {
 Deno.serve(async (req) => {
   const auth = req.headers.get('x-health-token') ?? '';
   if (auth !== HEALTH_MONITOR_TOKEN || !HEALTH_MONITOR_TOKEN) {
+    // Skip withRunLog: don't pollute function_runs with auth-rejected probes.
     return new Response('forbidden', { status: 403 });
   }
 
+  return withRunLog('health-monitor', async ({ setMetadata }) => {
   const results = await Promise.all(ENDPOINTS.map((e) => probe(e.app, e.url)));
   const state = await loadState();
   const now = new Date().toISOString();
@@ -187,10 +192,17 @@ Deno.serve(async (req) => {
     }
   }
 
+  setMetadata({
+    checked: results.length,
+    transitions: transitions.length,
+    failures: results.filter((r) => !r.ok).length,
+  });
+
   return Response.json({
     checked: results.length,
     transitions: transitions.length,
     results: results.map((r) => ({ app: r.app, ok: r.ok, status: r.status, latencyMs: r.latencyMs })),
     ts: now,
+  });
   });
 });
