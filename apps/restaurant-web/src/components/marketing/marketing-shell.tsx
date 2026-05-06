@@ -129,6 +129,10 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
               { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
               { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
               { href: '/case-studies/foisorul-a', label: t(currentLocale, 'marketing.shell.footer_link_case_studies') },
+              // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the
+              // city directory in the product column so SEO crawlers find
+              // /orase from every marketing page.
+              { href: '/orase', label: t(currentLocale, 'marketing.shell.footer_link_cities') },
               { href: '/status', label: t(currentLocale, 'marketing.shell.footer_link_status') },
             ]}
           />

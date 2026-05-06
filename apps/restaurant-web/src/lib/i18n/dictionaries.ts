@@ -530,6 +530,7 @@ export const dictionaries = {
         footer_link_migrate: 'Migrare GloriaFood',
         footer_link_case_studies: 'Studiu de caz',
         footer_link_status: 'Status platformă',
+        footer_link_cities: 'Orașe acoperite',
         footer_link_affiliate: 'Program Afiliați',
         footer_link_reseller: 'Program Reseleri',
         footer_link_contact: 'Contact comercial',
@@ -538,6 +539,47 @@ export const dictionaries = {
         footer_link_terms: 'Termeni',
         footer_link_cookies: 'Cookies',
         footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+      },
+      // Lane STOREFRONT-CITY-LANDING (2026-05-06) — copy for the per-city
+      // landing pages at `/orase/[slug]` and the `/orase` index. SEO win:
+      // each city page targets long-tail queries like "restaurante livrare
+      // Brașov" and serves both as a public listing and as a reseller
+      // demo URL ("vezi cum apare restaurantul tău în Brașov").
+      cities: {
+        index_page_title: 'Orașe acoperite — HIR Restaurant Suite',
+        index_page_description:
+          'Restaurante și livrări HIR în orașele acoperite din România. Comandă online direct de la restaurant, fără agregator între dumneavoastră și client.',
+        index_hero_eyebrow: 'Acoperire națională',
+        index_hero_title: 'Orașe acoperite de HIR',
+        index_hero_subtitle:
+          'Suntem prezenți în {count} orașe din România. Alegeți orașul dumneavoastră pentru a vedea restaurantele active și livrările disponibile.',
+        index_card_count_one: '{count} restaurant activ',
+        index_card_count_other: '{count} restaurante active',
+        index_card_count_zero: 'În pregătire',
+        index_card_cta: 'Vezi restaurantele',
+        index_breadcrumb_home: 'Acasă',
+        index_breadcrumb_self: 'Orașe',
+        city_page_title_template: 'Restaurante și livrări în {city} — HIR',
+        city_page_description_template:
+          'Restaurante active în {city} cu livrare prin HIR. Comandă online direct de la restaurant, fără comision agregator.',
+        city_hero_eyebrow_template: '{county}',
+        city_hero_title_template: 'Restaurante și livrări în {city}',
+        city_hero_subtitle_active_one:
+          'Un restaurant activ în {city}. Comandă direct de la restaurant, livrare prin HIR.',
+        city_hero_subtitle_active_other:
+          '{count} restaurante active în {city}. Comandă direct de la restaurant, livrare prin HIR.',
+        city_hero_subtitle_empty:
+          'Suntem în pregătire pentru {city}. Înscrieți restaurantul dumneavoastră și fiți primul.',
+        city_grid_card_view_menu: 'Vezi meniul',
+        city_grid_card_new_badge: 'Nou pe HIR',
+        city_grid_card_cuisine_default: 'Restaurant',
+        city_empty_title: 'Suntem în pregătire pentru {city}',
+        city_empty_body:
+          'Niciun restaurant activ încă în {city}. Dacă aveți un restaurant aici, înscrieți-vă acum și fiți primul listat.',
+        city_empty_cta_signup: 'Înscrie restaurantul',
+        city_empty_cta_partner: 'Devino partener',
+        city_breadcrumb_home: 'Acasă',
+        city_breadcrumb_cities: 'Orașe',
       },
       // Homepage body (rendered at `/` on the canonical host when no tenant
       // is resolved). High-funnel — full bilingual coverage.
@@ -1239,6 +1281,7 @@ export const dictionaries = {
         footer_link_migrate: 'GloriaFood migration',
         footer_link_case_studies: 'Case study',
         footer_link_status: 'Platform status',
+        footer_link_cities: 'Cities we cover',
         footer_link_affiliate: 'Affiliate programme',
         footer_link_reseller: 'Reseller programme',
         footer_link_contact: 'Sales contact',
@@ -1247,6 +1290,45 @@ export const dictionaries = {
         footer_link_terms: 'Terms',
         footer_link_cookies: 'Cookies',
         footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+      },
+      // Lane STOREFRONT-CITY-LANDING (2026-05-06) — EN copy for /orase index
+      // and /orase/[slug]. The URL stays Romanian (`/orase/brasov`) since
+      // the locale is cookie-based, not path-based.
+      cities: {
+        index_page_title: 'Cities we cover — HIR Restaurant Suite',
+        index_page_description:
+          'HIR restaurants and deliveries across the Romanian cities we cover. Order online directly from the restaurant, with no aggregator between you and the merchant.',
+        index_hero_eyebrow: 'National coverage',
+        index_hero_title: 'Cities covered by HIR',
+        index_hero_subtitle:
+          'We are live in {count} Romanian cities. Pick your city to see the active restaurants and the deliveries available there.',
+        index_card_count_one: '{count} active restaurant',
+        index_card_count_other: '{count} active restaurants',
+        index_card_count_zero: 'Coming soon',
+        index_card_cta: 'See restaurants',
+        index_breadcrumb_home: 'Home',
+        index_breadcrumb_self: 'Cities',
+        city_page_title_template: 'Restaurants and deliveries in {city} — HIR',
+        city_page_description_template:
+          'Active restaurants in {city} with HIR delivery. Order online directly from the restaurant, with no aggregator commission.',
+        city_hero_eyebrow_template: '{county}',
+        city_hero_title_template: 'Restaurants and deliveries in {city}',
+        city_hero_subtitle_active_one:
+          'One active restaurant in {city}. Order directly from the restaurant, delivery by HIR.',
+        city_hero_subtitle_active_other:
+          '{count} active restaurants in {city}. Order directly from the restaurant, delivery by HIR.',
+        city_hero_subtitle_empty:
+          'We are getting ready for {city}. Sign your restaurant up to be the first listed.',
+        city_grid_card_view_menu: 'View menu',
+        city_grid_card_new_badge: 'New on HIR',
+        city_grid_card_cuisine_default: 'Restaurant',
+        city_empty_title: 'We are getting ready for {city}',
+        city_empty_body:
+          'No active restaurant in {city} yet. If you run a restaurant here, sign up now and be the first listed.',
+        city_empty_cta_signup: 'Sign up your restaurant',
+        city_empty_cta_partner: 'Become a partner',
+        city_breadcrumb_home: 'Home',
+        city_breadcrumb_cities: 'Cities',
       },
       // Homepage body — full bilingual coverage.
       home: {
