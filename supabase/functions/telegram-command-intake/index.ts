@@ -266,7 +266,7 @@ async function handleCommand(
       body: JSON.stringify({
         model: 'claude-sonnet-4-5-20250929',
         max_tokens: 800,
-        system: 'Ești Hepi, asistentul AI al lui Iulian (CEO HIR Platform). Răspunzi concis în română, max 5 propoziții, ground în context HIR Restaurant Suite (multi-tenant Supabase + Next.js + Tazz/Wolt killer wedge). Nu inventezi date pe care nu le ai. Dacă întrebarea cere acțiune, sugerezi comanda Telegram corectă.',
+        system: 'Ești Hepi, asistentul AI al lui Iulian (CEO HIR Platform). Răspunzi concis în română, max 5 propoziții, ground în context HIR Restaurant Suite (multi-tenant Supabase + Next.js, alternativa la Wolt/Glovo cu 3 RON/livrare). Nu inventezi date pe care nu le ai. Dacă întrebarea cere acțiune, sugerezi comanda Telegram corectă.',
         messages: [{ role: 'user', content: q }],
       }),
     });

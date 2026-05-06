@@ -55,6 +55,10 @@ const STATUS_PILL: Record<OrderStatus, string> = {
 
 type Filter = 'active' | 'today' | 'all' | 'cash';
 
+// DB-shaped union: includes legacy aggregator values (TAZZ + FOODPANDA)
+// because the Postgres enum still carries them — we cannot drop enum values
+// safely while legacy orders exist. UI rendering narrows legacy values to
+// a generic "Sursă externă" pill via resolveSourceDisplay() below.
 type OrderSource =
   | 'INTERNAL_STOREFRONT'
   | 'EXTERNAL_API'
@@ -65,6 +69,17 @@ type OrderSource =
   | 'TAZZ'
   | 'FOODPANDA'
   | 'BOLT_FOOD';
+
+// Legacy aggregators removed from active integrations 2026-05-06.
+// Tazz merged into Wolt RO (May 2025); foodpanda exited RO (2021).
+// Values kept for legacy data compatibility only — renderer maps them to
+// a neutral "Sursă externă" pill so historical orders still display.
+const LEGACY_AGGREGATOR_SOURCES = ['TAZZ', 'FOODPANDA'] as const;
+type LegacyAggregatorSource = (typeof LEGACY_AGGREGATOR_SOURCES)[number];
+
+function isLegacyAggregator(s: string): s is LegacyAggregatorSource {
+  return (LEGACY_AGGREGATOR_SOURCES as readonly string[]).includes(s);
+}
 
 type OrderRow = {
   id: string;
@@ -84,18 +99,21 @@ type OrderRow = {
 // scan time low when the orders feed mixes Glovo + Wolt + storefront on
 // the same day. Phase 1 only — until Phase 2 wires per-platform webhooks
 // the aggregator values are reachable only via direct DB writes.
-const SOURCE_LABEL: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, string> = {
+type ActiveOrderSource = Exclude<
+  OrderSource,
+  'INTERNAL_STOREFRONT' | LegacyAggregatorSource
+>;
+
+const SOURCE_LABEL: Record<ActiveOrderSource, string> = {
   EXTERNAL_API: 'API',
   POS_PUSH: 'POS',
   MANUAL_ADMIN: 'Manual',
   GLOVO: 'Glovo',
   WOLT: 'Wolt',
-  TAZZ: 'Tazz',
-  FOODPANDA: 'foodpanda',
   BOLT_FOOD: 'Bolt Food',
 };
 
-const SOURCE_BADGE_CLASS: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, string> = {
+const SOURCE_BADGE_CLASS: Record<ActiveOrderSource, string> = {
   // Generic / internal-ish sources keep the original neutral sky chip.
   EXTERNAL_API: 'bg-sky-50 text-sky-800 ring-sky-200',
   POS_PUSH: 'bg-sky-50 text-sky-800 ring-sky-200',
@@ -104,10 +122,26 @@ const SOURCE_BADGE_CLASS: Record<Exclude<OrderSource, 'INTERNAL_STOREFRONT'>, st
   // and ring-1 ring-inset already applied at the wrapping span.
   GLOVO: 'bg-yellow-50 text-yellow-900 ring-yellow-300',
   WOLT: 'bg-cyan-50 text-cyan-900 ring-cyan-300',
-  TAZZ: 'bg-orange-50 text-orange-900 ring-orange-300',
-  FOODPANDA: 'bg-pink-50 text-pink-900 ring-pink-300',
   BOLT_FOOD: 'bg-emerald-50 text-emerald-900 ring-emerald-300',
 };
+
+// Single-source-of-truth renderer — handles legacy aggregator values
+// defensively without crashing when DB returns TAZZ / FOODPANDA on a
+// historical order.
+function resolveSourceDisplay(
+  source: Exclude<OrderSource, 'INTERNAL_STOREFRONT'>,
+): { label: string; badgeClass: string } {
+  if (isLegacyAggregator(source)) {
+    return {
+      label: 'Sursă externă',
+      badgeClass: 'bg-zinc-100 text-zinc-800 ring-zinc-300',
+    };
+  }
+  return {
+    label: SOURCE_LABEL[source],
+    badgeClass: SOURCE_BADGE_CLASS[source],
+  };
+}
 
 const PENDING_DANGER_MS = 5 * 60_000;
 
@@ -303,13 +337,16 @@ export default async function OrdersPage({
                                 Ridicare
                               </span>
                             )}
-                            {o.source && o.source !== 'INTERNAL_STOREFRONT' && (
-                              <span
-                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${SOURCE_BADGE_CLASS[o.source]}`}
-                              >
-                                {SOURCE_LABEL[o.source]}
-                              </span>
-                            )}
+                            {o.source && o.source !== 'INTERNAL_STOREFRONT' && (() => {
+                              const display = resolveSourceDisplay(o.source);
+                              return (
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${display.badgeClass}`}
+                                >
+                                  {display.label}
+                                </span>
+                              );
+                            })()}
                             {o.payment_method === 'COD' && (
                               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
                                 Cash

@@ -114,7 +114,7 @@ export default function PressPage() {
               <strong>HIR Restaurant Suite</strong> este platforma all-in-one
               pentru restaurante din România: storefront pentru clienți, panou
               de administrare, aplicație de curier și rețea de livrare —
-              construite să înlocuiască Wolt, Glovo, Tazz și GloriaFood la un
+              construite să înlocuiască Wolt, Glovo și GloriaFood la un
               cost previzibil de <strong>3 RON pe livrare</strong>, fără
               comisioane procentuale. Lansat în Brașov, scalează la nivel
               național printr-o rețea de afiliați și manageri de flotă.
@@ -127,8 +127,8 @@ export default function PressPage() {
             <p className="mt-3 text-base leading-relaxed text-[#0F172A]">
               <strong>HIR Restaurant Suite</strong> is the all-in-one platform
               for Romanian restaurants: customer storefront, admin dashboard,
-              courier app and delivery network — built to replace Wolt, Glovo,
-              Tazz and GloriaFood at a flat{' '}
+              courier app and delivery network — built to replace Wolt, Glovo
+              and GloriaFood at a flat{' '}
               <strong>3 RON per delivery</strong> cost, with no percentage
               commission. Launched in Brașov, scaling nationally through an
               affiliate and fleet-manager network.

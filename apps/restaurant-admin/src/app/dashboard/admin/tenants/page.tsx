@@ -16,7 +16,23 @@ import { TenantsListClient, type TenantListRow, type SortKey, type StatusFilter 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const AGGREGATOR_SOURCES = ['GLOVO', 'WOLT', 'TAZZ', 'FOODPANDA', 'BOLT_FOOD'] as const;
+// Active aggregator integrations as of 2026-05-06 (Glovo + Wolt + Bolt Food).
+const ACTIVE_AGGREGATOR_SOURCES = ['GLOVO', 'WOLT', 'BOLT_FOOD'] as const;
+// Legacy aggregator enum values kept in DB for historical data compatibility.
+// Tazz merged into Wolt RO (May 2025); foodpanda exited RO market (2021).
+// We still query for them so platform-admin can see legacy orders, but the
+// rendered badge collapses to a generic "Sursă externă" label.
+const LEGACY_AGGREGATOR_SOURCES = ['TAZZ', 'FOODPANDA'] as const;
+const AGGREGATOR_SOURCES = [
+  ...ACTIVE_AGGREGATOR_SOURCES,
+  ...LEGACY_AGGREGATOR_SOURCES,
+] as const;
+const LEGACY_AGGREGATOR_BADGE = 'Sursă externă';
+function aggregatorBadgeLabel(source: string): string {
+  return (LEGACY_AGGREGATOR_SOURCES as readonly string[]).includes(source)
+    ? LEGACY_AGGREGATOR_BADGE
+    : source;
+}
 
 type SearchParams = {
   city?: string;
@@ -265,7 +281,14 @@ export default async function PlatformAdminTenantsPage({
     const integrationBadges: string[] = [];
     if (gloriafoodTenants.has(t.id)) integrationBadges.push('GloriaFood');
     if (aggregators) {
-      for (const a of aggregators) integrationBadges.push(a);
+      const seenAggregatorLabels = new Set<string>();
+      for (const a of aggregators) {
+        const label = aggregatorBadgeLabel(a);
+        if (!seenAggregatorLabels.has(label)) {
+          seenAggregatorLabels.add(label);
+          integrationBadges.push(label);
+        }
+      }
     }
     if (posProviders) {
       for (const p of posProviders) integrationBadges.push(p.toUpperCase());
