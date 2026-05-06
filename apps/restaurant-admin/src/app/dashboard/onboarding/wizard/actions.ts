@@ -25,6 +25,10 @@ export type WizardDraft = {
     phone: string;
     address: string;
     city: string;
+    // Lane MULTI-CITY: when the user picks from the canonical cities
+    // dropdown we store the FK so /dashboard/admin/tenants can do exact
+    // city-scoped filtering. Legacy free-text in `city` keeps working.
+    city_id: string | null;
     location_lat: number | null;
     location_lng: number | null;
   };
@@ -160,6 +164,7 @@ export async function saveRestaurantInfo(args: {
   phone: string;
   address: string;
   city: string;
+  city_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
 }): Promise<WizardActionResult> {
@@ -181,6 +186,11 @@ export async function saveRestaurantInfo(args: {
   }
   if (city.length > 100) {
     return { ok: false, error: 'invalid_input', detail: 'city too long' };
+  }
+  // Lane MULTI-CITY: city_id is optional, but if provided must be a uuid.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (args.city_id !== null && !UUID_RE.test(args.city_id)) {
+    return { ok: false, error: 'invalid_input', detail: 'city_id format' };
   }
   const lat = args.location_lat;
   const lng = args.location_lng;
@@ -208,9 +218,17 @@ export async function saveRestaurantInfo(args: {
       : {}),
   });
 
-  const { error: writeErr } = await admin
+  // Lane MULTI-CITY: write city_id alongside settings so admin filters
+  // can join cities precisely. We pass `null` explicitly when the user
+  // typed a free-text city not in the dropdown — that clears any prior
+  // mismatched FK so downstream queries don't show stale data.
+  const update: Record<string, unknown> = { settings: merged };
+  update.city_id = args.city_id;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: writeErr } = await (admin as any)
     .from('tenants')
-    .update({ settings: merged as never })
+    .update(update)
     .eq('id', args.tenantId);
   if (writeErr) return { ok: false, error: 'db_error', detail: writeErr.message };
 

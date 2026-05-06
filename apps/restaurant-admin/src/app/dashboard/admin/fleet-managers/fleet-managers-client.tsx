@@ -11,6 +11,8 @@ type TenantRow = {
   id: string;
   slug: string;
   name: string;
+  citySlug: string | null;
+  cityName: string | null;
   external_dispatch_webhook_url: string | null;
   external_dispatch_enabled: boolean;
   has_secret: boolean;
@@ -22,16 +24,24 @@ type FleetManagerRow = {
   tenants: { id: string; name: string; slug: string }[];
 };
 
+type CityOption = { slug: string; name: string };
+
 export function FleetManagersClient({
   tenants,
   fleetManagers,
+  cities,
 }: {
   tenants: TenantRow[];
   fleetManagers: FleetManagerRow[];
+  cities: CityOption[];
 }) {
   return (
     <div className="flex flex-col gap-8">
-      <FleetManagerAssignSection tenants={tenants} fleetManagers={fleetManagers} />
+      <FleetManagerAssignSection
+        tenants={tenants}
+        fleetManagers={fleetManagers}
+        cities={cities}
+      />
       <ExternalDispatchSection tenants={tenants} />
     </div>
   );
@@ -44,14 +54,27 @@ export function FleetManagersClient({
 function FleetManagerAssignSection({
   tenants,
   fleetManagers,
+  cities,
 }: {
   tenants: TenantRow[];
   fleetManagers: FleetManagerRow[];
+  cities: CityOption[];
 }) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<
     { kind: 'ok'; msg: string } | { kind: 'err'; msg: string } | null
   >(null);
+  // Lane MULTI-CITY: per-city filter so Iulian can answer "câți FM-i avem
+  // în Brașov?" without scrolling. Filter is on the FM list (an FM matches
+  // if any of his tenants is in the selected city) — affects only the
+  // displayed list, not the assign form (which keeps full tenant choices).
+  const [cityFilter, setCityFilter] = useState<string>('');
+  const tenantSlugById = new Map(tenants.map((t) => [t.id, t.citySlug]));
+  const filteredFms = cityFilter
+    ? fleetManagers.filter((fm) =>
+        fm.tenants.some((t) => tenantSlugById.get(t.id) === cityFilter),
+      )
+    : fleetManagers;
 
   function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -146,16 +169,36 @@ function FleetManagerAssignSection({
         </div>
       )}
 
-      <h3 className="mt-6 text-sm font-semibold text-zinc-900">
-        Manageri asociați ({fleetManagers.length})
-      </h3>
-      {fleetManagers.length === 0 ? (
+      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+        <h3 className="text-sm font-semibold text-zinc-900">
+          Manageri asociați ({filteredFms.length}
+          {cityFilter ? ` din ${fleetManagers.length}` : ''})
+        </h3>
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="font-medium text-zinc-700">Filtrează după oraș</span>
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="min-w-[180px] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900"
+          >
+            <option value="">Toate orașele</option>
+            {cities.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {filteredFms.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-500">
-          Niciun fleet manager configurat încă.
+          {fleetManagers.length === 0
+            ? 'Niciun fleet manager configurat încă.'
+            : 'Niciun fleet manager în orașul selectat.'}
         </p>
       ) : (
         <ul className="mt-3 flex flex-col gap-3">
-          {fleetManagers.map((fm) => (
+          {filteredFms.map((fm) => (
             <li
               key={fm.user_id}
               className="rounded-md border border-zinc-200 bg-zinc-50 p-3"

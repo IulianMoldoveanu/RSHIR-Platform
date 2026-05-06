@@ -7,6 +7,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { listActiveCities, type CityRow } from '@/lib/cities';
 import { FleetManagersClient } from './fleet-managers-client';
 
 export const runtime = 'nodejs';
@@ -16,6 +17,10 @@ type TenantRow = {
   id: string;
   slug: string;
   name: string;
+  // Lane MULTI-CITY: canonical city slug for filtering. NULL when tenant
+  // hasn't been assigned a city yet (legacy free-text in settings only).
+  citySlug: string | null;
+  cityName: string | null;
   external_dispatch_webhook_url: string | null;
   external_dispatch_enabled: boolean;
   has_secret: boolean;
@@ -54,10 +59,14 @@ export default async function FleetManagersPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
 
+  // ── Cities list (Lane MULTI-CITY) — for the FM filter dropdown ──
+  const canonicalCities: CityRow[] = await listActiveCities();
+  const cityById = new Map(canonicalCities.map((c) => [c.id, c]));
+
   // ── Tenants list (with external dispatch flags) ─────────────
   const { data: tenantsRaw, error: tErr } = await sb
     .from('tenants')
-    .select('id, slug, name, external_dispatch_webhook_url, external_dispatch_secret, external_dispatch_enabled')
+    .select('id, slug, name, settings, city_id, external_dispatch_webhook_url, external_dispatch_secret, external_dispatch_enabled')
     .order('name', { ascending: true });
 
   if (tErr) {
@@ -74,22 +83,42 @@ export default async function FleetManagersPage() {
     );
   }
 
+  const collator = new Intl.Collator('ro', { sensitivity: 'base' });
   const tenants: TenantRow[] = (tenantsRaw ?? []).map(
     (t: {
       id: string;
       slug: string;
       name: string;
+      settings: Record<string, unknown> | null;
+      city_id: string | null;
       external_dispatch_webhook_url: string | null;
       external_dispatch_secret: string | null;
       external_dispatch_enabled: boolean;
-    }) => ({
-      id: t.id,
-      slug: t.slug,
-      name: t.name,
-      external_dispatch_webhook_url: t.external_dispatch_webhook_url,
-      external_dispatch_enabled: t.external_dispatch_enabled,
-      has_secret: t.external_dispatch_secret !== null,
-    }),
+    }) => {
+      // Lane MULTI-CITY: prefer canonical city, fall back to legacy free-text.
+      const canonical = t.city_id ? cityById.get(t.city_id) : undefined;
+      let citySlug: string | null = canonical?.slug ?? null;
+      let cityName: string | null = canonical?.name ?? null;
+      if (!canonical) {
+        const legacy =
+          typeof t.settings?.city === 'string' ? (t.settings.city as string).trim() : '';
+        if (legacy) {
+          const match = canonicalCities.find((c) => collator.compare(c.name, legacy) === 0);
+          citySlug = match?.slug ?? null;
+          cityName = match?.name ?? legacy;
+        }
+      }
+      return {
+        id: t.id,
+        slug: t.slug,
+        name: t.name,
+        citySlug,
+        cityName,
+        external_dispatch_webhook_url: t.external_dispatch_webhook_url,
+        external_dispatch_enabled: t.external_dispatch_enabled,
+        has_secret: t.external_dispatch_secret !== null,
+      };
+    },
   );
 
   // ── Existing FLEET_MANAGER memberships, grouped by user ─────
@@ -160,7 +189,11 @@ export default async function FleetManagersPage() {
           </p>
         </header>
 
-        <FleetManagersClient tenants={tenants} fleetManagers={fmRows} />
+        <FleetManagersClient
+          tenants={tenants}
+          fleetManagers={fmRows}
+          cities={canonicalCities.map((c) => ({ slug: c.slug, name: c.name }))}
+        />
       </div>
     </main>
   );

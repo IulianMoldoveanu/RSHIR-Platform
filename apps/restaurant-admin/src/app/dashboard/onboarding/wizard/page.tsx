@@ -16,6 +16,7 @@ import { redirect } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import { listActiveCities } from '@/lib/cities';
 import { WizardClient } from './client';
 import { loadWizardDraft, type WizardDraft } from './actions';
 
@@ -27,6 +28,7 @@ const DEFAULT_DRAFT: WizardDraft = {
     phone: '',
     address: '',
     city: '',
+    city_id: null,
     location_lat: null,
     location_lng: null,
   },
@@ -53,19 +55,31 @@ export default async function OnboardingWizardPage() {
 
   // Per-user draft (form fields the user has typed but not finalized).
   const draftRes = await loadWizardDraft(tenant.id);
-  const initialDraft: WizardDraft =
+  const rawDraft: WizardDraft =
     draftRes.ok && draftRes.draft ? draftRes.draft : DEFAULT_DRAFT;
+  // Lane MULTI-CITY: existing drafts (saved before this lane) won't have
+  // `city_id` — backfill it to null so the client never reads undefined.
+  const initialDraft: WizardDraft = {
+    ...rawDraft,
+    restaurantInfo: {
+      ...rawDraft.restaurantInfo,
+      city_id: rawDraft.restaurantInfo.city_id ?? null,
+    },
+  };
   const initialStep = draftRes.ok ? draftRes.step : 1;
 
   // Read persisted contact + branding so Step 1 + Step 2 reflect what's
   // already on the tenant (relevant if they came back from a sub-page).
   const admin = createAdminClient();
-  const { data: tenantRow } = await admin
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: tenantRow } = await (admin as any)
     .from('tenants')
-    .select('settings')
+    .select('settings, city_id')
     .eq('id', tenant.id)
     .maybeSingle();
   const settings = (tenantRow?.settings as Record<string, unknown> | null) ?? {};
+  const persistedCityId =
+    typeof tenantRow?.city_id === 'string' ? (tenantRow.city_id as string) : null;
   const branding = (settings.branding as Record<string, unknown> | undefined) ?? {};
   const flatBrand = (settings.brand as Record<string, unknown> | undefined) ?? {};
   const persisted = {
@@ -73,6 +87,7 @@ export default async function OnboardingWizardPage() {
       typeof settings.contact_phone === 'string' ? (settings.contact_phone as string) : '',
     address: typeof settings.address === 'string' ? (settings.address as string) : '',
     city: typeof settings.city === 'string' ? (settings.city as string) : '',
+    city_id: persistedCityId,
     location_lat:
       settings.location && typeof (settings.location as { lat?: unknown }).lat === 'number'
         ? ((settings.location as { lat: number }).lat as number)
@@ -95,6 +110,9 @@ export default async function OnboardingWizardPage() {
           : null,
     cod_enabled: settings.cod_enabled !== false, // default true
   };
+
+  // Lane MULTI-CITY: load canonical cities for the Step 1 dropdown.
+  const cities = await listActiveCities();
 
   // If the tenant is already live, redirect to dashboard — wizard is done.
   if (state.went_live) {
@@ -129,6 +147,7 @@ export default async function OnboardingWizardPage() {
           zones_set: state.zones_set,
         }}
         persisted={persisted}
+        cities={cities}
       />
 
       <div className="text-xs text-zinc-500">

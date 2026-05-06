@@ -5,8 +5,8 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTransition, type ChangeEvent } from 'react';
-import { openTenantAsPlatformAdmin } from './actions';
+import { useState, useTransition, type ChangeEvent } from 'react';
+import { openTenantAsPlatformAdmin, setTenantCity } from './actions';
 
 export type StatusFilter = 'all' | 'live' | 'onboarding';
 export type SortKey = 'last_order' | 'name' | 'created';
@@ -16,6 +16,9 @@ export type TenantListRow = {
   slug: string;
   name: string;
   city: string | null;
+  cityId?: string | null;
+  citySlug?: string | null;
+  legacyCityText?: string | null;
   tenantStatus: string;
   isLive: boolean;
   wentLiveAt: string | null;
@@ -25,6 +28,8 @@ export type TenantListRow = {
   integrationBadges: string[];
   createdAt: string;
 };
+
+export type CityOption = { slug: string; name: string };
 
 function formatDateRO(iso: string | null): string {
   if (!iso) return '—';
@@ -64,7 +69,7 @@ export function TenantsListClient({
   totalCount: number;
   filteredCount: number;
   capped: boolean;
-  cities: string[];
+  cities: CityOption[];
   currentCity: string;
   currentStatus: StatusFilter;
   currentSort: SortKey;
@@ -112,12 +117,12 @@ export function TenantsListClient({
               value={currentCity}
               onChange={onCityChange}
               disabled={pending || cities.length === 0}
-              className="min-w-[140px] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 disabled:opacity-50"
+              className="min-w-[180px] rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 disabled:opacity-50"
             >
               <option value="">Toate ({totalCount})</option>
               {cities.map((c) => (
-                <option key={c} value={c.toLowerCase()}>
-                  {c}
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -194,7 +199,9 @@ export function TenantsListClient({
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-y-2 text-xs">
                   <dt className="text-zinc-500">Oraș</dt>
-                  <dd className="text-zinc-900">{r.city ?? '—'}</dd>
+                  <dd className="text-zinc-900">
+                    <CityCell row={r} cities={cities} />
+                  </dd>
                   <dt className="text-zinc-500">Fleet managers</dt>
                   <dd className="text-zinc-900">{r.fmCount > 0 ? `${r.fmCount}` : '—'}</dd>
                   <dt className="text-zinc-500">Comenzi 7z</dt>
@@ -241,7 +248,7 @@ export function TenantsListClient({
                       <div className="text-xs text-zinc-500">/{r.slug}</div>
                     </td>
                     <td className="px-3 py-2.5 align-top text-zinc-700">
-                      {r.city ?? <span className="text-zinc-400">—</span>}
+                      <CityCell row={r} cities={cities} />
                     </td>
                     <td className="px-3 py-2.5 align-top">
                       <StatusPill isLive={r.isLive} />
@@ -310,6 +317,87 @@ function StatusPill({ isLive }: { isLive: boolean }) {
       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
       În configurare
     </span>
+  );
+}
+
+// Lane MULTI-CITY: inline city display + admin "Setează oraș" affordance.
+//
+// States:
+//   - Tenant has cityId set → just show the canonical name.
+//   - Tenant has only legacy free-text → show text + small "Setează" button
+//     opening an inline dropdown to assign a canonical city_id.
+//   - Tenant has neither → show "—" + "Setează oraș" button.
+//
+// No automated backfill: each transition is a deliberate platform-admin
+// action and goes through the audit log via setTenantCity server action.
+function CityCell({ row, cities }: { row: TenantListRow; cities: CityOption[] }) {
+  const [editing, setEditing] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  // Strip the `legacy:` synthetic slugs from the picker — admins should only
+  // assign canonical cities, not perpetuate free-text values.
+  const pickable = cities.filter((c) => !c.slug.startsWith('legacy:'));
+
+  function onPick(slug: string) {
+    if (!slug) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await setTenantCity({ tenantId: row.id, citySlug: slug });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setEditing(false);
+    });
+  }
+
+  if (row.cityId && row.city) {
+    // Canonical city assigned — read-only display + audit trail covers it.
+    return <span>{row.city}</span>;
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-1">
+        <select
+          autoFocus
+          disabled={pending}
+          defaultValue=""
+          onChange={(e) => onPick(e.target.value)}
+          className="rounded border border-zinc-300 bg-white px-1.5 py-1 text-xs"
+        >
+          <option value="" disabled>Alegeți…</option>
+          {pickable.map((c) => (
+            <option key={c.slug} value={c.slug}>{c.name}</option>
+          ))}
+        </select>
+        {error && <span className="text-[11px] text-rose-600">{error}</span>}
+        <button
+          type="button"
+          onClick={() => { setEditing(false); setError(null); }}
+          disabled={pending}
+          className="self-start text-[11px] text-zinc-500 hover:underline"
+        >
+          Anulează
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className={row.legacyCityText ? 'text-zinc-700' : 'text-zinc-400'}>
+        {row.legacyCityText ?? '—'}
+      </span>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="self-start text-[11px] font-medium text-indigo-600 hover:underline"
+      >
+        Setează oraș
+      </button>
+    </div>
   );
 }
 
