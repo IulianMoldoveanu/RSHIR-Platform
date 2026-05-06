@@ -83,7 +83,9 @@ export type AuditAction =
   | 'inventory.item_updated'
   | 'inventory.item_deleted'
   | 'inventory.recipe_linked'
-  | 'inventory.recipe_unlinked';
+  | 'inventory.recipe_unlinked'
+  | 'hepy.telegram_connect_link_generated'
+  | 'hepy.telegram_unbound';
 
 export async function logAudit(args: {
   tenantId: string;
