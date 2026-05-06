@@ -2,12 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireTenantAuth } from '@/lib/api-tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { parseMenuImage } from '@/lib/anthropic';
+import { parseMenuImage, MenuParseError, type MenuParseFailureKind } from '@/lib/anthropic';
 import { checkLimit } from '@/lib/rate-limit';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { logAudit } from '@/lib/audit';
 
 // RSHIR-20: per-tenant Claude budget. Soft cost ceiling is 10 parses/hour
-// ≈ $0.30 worst case at Claude Sonnet 4.6 vision pricing (8 MB PDF input,
+// ≈ $0.30 worst case at Claude Sonnet 4.5 vision pricing (8 MB PDF input,
 // modest output). This is operational accounting, not a hard guard against
 // abuse — Vercel function timeout (60s) plus the Anthropic per-org rate
 // already cap the absolute worst case, and the per-tenant key prevents one
@@ -88,16 +89,93 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const parsed = await parseMenuImage(bytes, file.type);
+    const result = await parseMenuImage(bytes, file.type);
+
+    // Cost observability — best-effort, never blocks the response.
+    // Per-tenant token spend lets us see who is exercising the AI menu
+    // import surface and refine the 10/h rate-limit if a tenant exceeds it.
+    const categoryCount = result.parsed.categories.length;
+    const itemCount = result.parsed.categories.reduce((n, c) => n + c.items.length, 0);
+    void logAudit({
+      tenantId: auth.tenantId,
+      actorUserId: auth.userId,
+      action: 'menu.ai_parsed',
+      entityType: 'menu_import',
+      entityId: uploadId,
+      metadata: {
+        model: result.model,
+        input_tokens: result.usage?.input_tokens ?? null,
+        output_tokens: result.usage?.output_tokens ?? null,
+        category_count: categoryCount,
+        item_count: itemCount,
+        mime: file.type,
+        bytes: file.size,
+      },
+    });
+    console.info(
+      '[menu-import/parse] ok',
+      JSON.stringify({
+        tenantId: auth.tenantId,
+        uploadId,
+        model: result.model,
+        input_tokens: result.usage?.input_tokens ?? null,
+        output_tokens: result.usage?.output_tokens ?? null,
+        category_count: categoryCount,
+        item_count: itemCount,
+      }),
+    );
+
     return NextResponse.json({
       uploadId,
       path,
-      parsed,
+      parsed: result.parsed,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'Parsare esuata';
-    console.error('[menu-import/parse]', message.slice(0, 1000));
-    return NextResponse.json({ error: message }, { status: 502 });
+    const kind: MenuParseFailureKind = e instanceof MenuParseError ? e.kind : 'unknown';
+    const internal = e instanceof Error ? e.message : 'Parsare esuata';
+    // Log the raw provider message internally; never surface it to the user.
+    console.error('[menu-import/parse]', kind, internal.slice(0, 1000));
+
+    const userMessage = userFacingMessage(kind);
+    const status = httpStatusFor(kind);
+    return NextResponse.json(
+      { error: userMessage, kind },
+      { status, headers: kind === 'rate_limited' ? { 'Retry-After': '120' } : undefined },
+    );
+  }
+}
+
+// Romanian formal copy mapped from classified failure modes. Keep in sync
+// with `MenuParseFailureKind` in src/lib/anthropic.ts.
+function userFacingMessage(kind: MenuParseFailureKind): string {
+  switch (kind) {
+    case 'auth_or_billing':
+      return 'AI temporar indisponibil — verificați tokenul Anthropic în panoul administrativ. Codul este pregătit și va funcționa imediat ce tokenul este reactivat.';
+    case 'rate_limited':
+      return 'Prea multe solicitări AI într-un timp scurt. Vă rugăm să reveniți în câteva minute.';
+    case 'model_not_found':
+      return 'Configurația AI nu este corectă. Contactați suportul HIR.';
+    case 'invalid_input':
+      return 'Fișierul nu a putut fi procesat. Verificați că este un meniu lizibil în format PDF, JPEG sau PNG.';
+    case 'unknown':
+    default:
+      return 'Ne pare rău, importul AI a întâmpinat o problemă tehnică. Reîncercați sau contactați suportul.';
+  }
+}
+
+function httpStatusFor(kind: MenuParseFailureKind): number {
+  switch (kind) {
+    case 'auth_or_billing':
+      return 503;
+    case 'rate_limited':
+      return 429;
+    case 'model_not_found':
+      return 503;
+    case 'invalid_input':
+      return 400;
+    case 'unknown':
+    default:
+      return 502;
   }
 }
 
