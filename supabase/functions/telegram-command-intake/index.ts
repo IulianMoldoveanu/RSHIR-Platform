@@ -275,6 +275,30 @@ async function authorizeChat(supabase: any, chatId: number): Promise<ChatAuth> {
     .is('unbound_at', null)
     .maybeSingle();
   if (!binding) return null;
+
+  // Codex P1 (PR B review): re-check membership on EVERY message. If the
+  // OWNER was demoted to STAFF or removed from tenant_members after the
+  // binding was created, they must lose Telegram access immediately —
+  // the binding row alone is not authoritative. We auto-mark the binding
+  // unbound to keep state consistent (idempotent best-effort).
+  const { data: stillOwner } = await supabase
+    .from('tenant_members')
+    .select('role')
+    .eq('user_id', binding.owner_user_id)
+    .eq('tenant_id', binding.tenant_id)
+    .eq('role', 'OWNER')
+    .maybeSingle();
+  if (!stillOwner) {
+    // Best-effort revocation; don't block the rejection on the update.
+    supabase
+      .from('hepy_owner_bindings')
+      .update({ unbound_at: new Date().toISOString() })
+      .eq('id', binding.id)
+      .is('unbound_at', null)
+      .then(() => undefined, (e: unknown) => console.warn('hepy auto-unbind on demote fail', (e as Error)?.message));
+    return null;
+  }
+
   const t = (binding as any).tenants;
   return {
     kind: 'owner',
@@ -315,6 +339,26 @@ async function consumeConnectNonce(
     .eq('id', row.tenant_id)
     .maybeSingle();
   if (!tenant) return { ok: false, error: 'tenant_missing' };
+
+  // Codex P1 (PR B review): the user might have been demoted between
+  // mint-time and click-time. Re-check OWNER membership before claiming
+  // the nonce. If they are no longer OWNER, mark the nonce consumed
+  // (one-shot anyway) and reject without creating a binding.
+  const { data: stillOwner } = await supabase
+    .from('tenant_members')
+    .select('role')
+    .eq('user_id', row.owner_user_id)
+    .eq('tenant_id', row.tenant_id)
+    .eq('role', 'OWNER')
+    .maybeSingle();
+  if (!stillOwner) {
+    await supabase
+      .from('hepy_connect_nonces')
+      .update({ consumed_at: new Date().toISOString(), consumed_by_tg: telegramUserId })
+      .eq('nonce', nonce)
+      .is('consumed_at', null);
+    return { ok: false, error: 'not_found' }; // surface as "link expirat sau folosit"
+  }
 
   // 3) If this Telegram user already had an active binding (perhaps to a
   //    different tenant), unbind it first — one TG account = one active
