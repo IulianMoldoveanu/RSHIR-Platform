@@ -117,6 +117,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/payments', label: 'Plăți & facturare' },
         { href: '/dashboard/settings/exports', label: 'Export contabilitate' },
         { href: '/dashboard/settings/smartbill', label: 'SmartBill (facturare)' },
+        { href: '/dashboard/settings/efactura', label: 'ANAF e-Factura' },
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
         { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
         { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
