@@ -541,6 +541,10 @@ Deno.serve(async (req) => {
           regexHighButNoOrderId)
       ) {
         // Gap-fill: tiny prompt with only the missing keys.
+        // Codex P3 #315: set the strategy BEFORE awaiting Anthropic so a
+        // gap-fill failure is categorized as `attempted_strategy='regex+ai-fill'`
+        // in the catch block (not the initial `ai-full` default).
+        parsedStrategy = 'regex+ai-fill';
         const base = regexToParserShape((regexResult as { data: RegexParsedOrder }).data);
         const r = await callAnthropicGapFill(
           apiKey,
@@ -551,7 +555,6 @@ Deno.serve(async (req) => {
         );
         parsed = mergeGapFill(base, r.patch, (regexResult as { missing: string[] }).missing);
         cost_usd = r.cost_usd;
-        parsedStrategy = 'regex+ai-fill';
       } else {
         // Full Anthropic parse — long-tail / unrecognized layouts.
         // apiKey is guaranteed truthy here because the early-return
