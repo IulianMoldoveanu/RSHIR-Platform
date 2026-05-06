@@ -36,7 +36,7 @@ export type PushRegistrationResult =
 /** Returns true when running inside a Capacitor native shell. */
 function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false;
-  const cap = (window as Record<string, unknown>)['Capacitor'] as
+  const cap = (window as unknown as Record<string, unknown>)['Capacitor'] as
     | { isNativePlatform?: () => boolean }
     | undefined;
   return cap?.isNativePlatform?.() ?? false;
@@ -106,7 +106,7 @@ export async function registerForPush(
 
   const subscription = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
+    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
   });
 
   const endpoint = subscription.endpoint;
