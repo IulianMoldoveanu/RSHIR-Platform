@@ -111,5 +111,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...marketingEntries, ...tenantEntries];
+  // Lane STOREFRONT-CITY-LANDING (2026-05-06) — emit `/orase` + one entry
+  // per active city so search engines crawl the long-tail "restaurante
+  // livrare <oraș>" pages from a single sitemap submission. The cities
+  // table is small (~12 rows) so a head-fetch is cheap.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data: cityRows } = await sb
+    .from('cities')
+    .select('slug')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  const citySlugs = ((cityRows ?? []) as Array<{ slug: string }>).map((r) => r.slug);
+  const cityEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/orase`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+      alternates: {
+        languages: {
+          'ro-RO': `${baseUrl}/orase`,
+          en: `${baseUrl}/orase`,
+          'x-default': `${baseUrl}/orase`,
+        },
+      },
+    },
+    ...citySlugs.map((slug) => {
+      const url = `${baseUrl}/orase/${slug}`;
+      return {
+        url,
+        lastModified: now,
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+        alternates: {
+          languages: { 'ro-RO': url, en: url, 'x-default': url },
+        },
+      };
+    }),
+  ];
+
+  return [...marketingEntries, ...cityEntries, ...tenantEntries];
 }
