@@ -385,8 +385,14 @@ export function estimateCostRon(strategy: ParseStrategy): number {
  * Estimate the RON saved by `strategy` versus the all-AI baseline.
  * Used to populate `aggregator_email_jobs.parsed_data.cost_savings_ron`
  * (or whichever sink the integrator chooses).
+ *
+ * `failed` returns 0 — a failed run did NOT save anything; the parser
+ * may already have paid for a full AI attempt before failing. Counting
+ * the baseline as saved would inflate the admin savings tile every
+ * time Anthropic 5xx'd. Codex review #311.
  */
 export function estimateSavingsRon(strategy: ParseStrategy): number {
+  if (strategy === 'failed') return 0;
   const baseline = COST_USD['ai-full'] * RON_PER_USD;
   const actual = COST_USD[strategy] * RON_PER_USD;
   return Math.round((baseline - actual) * 10000) / 10000;

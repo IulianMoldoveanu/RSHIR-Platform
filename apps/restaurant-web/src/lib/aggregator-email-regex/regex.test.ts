@@ -293,6 +293,13 @@ describe('cost estimation', () => {
     }
   });
 
+  it('failed strategy contributes 0 savings (Codex P2 #311)', () => {
+    // A failed parse may already have paid for a full AI attempt.
+    // Treating it as "saved baseline" would inflate the admin tile
+    // every time Anthropic 5xx'd.
+    expect(estimateSavingsRon('failed')).toBe(0);
+  });
+
   it('regex strategy saves ~full RON of an ai-full call', () => {
     const saved = estimateSavingsRon('regex');
     const full = estimateCostRon('ai-full');
