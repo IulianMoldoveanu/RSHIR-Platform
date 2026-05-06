@@ -40,6 +40,13 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { withRunLog } from '../_shared/log.ts';
+import {
+  tryRegexParse,
+  estimateCostRon,
+  estimateSavingsRon,
+  type ParseStrategy,
+  type ParsedOrder as RegexParsedOrder,
+} from '../_shared/aggregator-email-regex.ts';
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -120,6 +127,148 @@ function buildParserPrompt(source: DetectedSource, body: string): string {
     'Corp email:',
     body.slice(0, 12000), // hard cap to keep tokens bounded
   ].join('\n');
+}
+
+// Lane EMAIL-REGEX-WIREUP — gap-fill prompt for the hybrid path.
+// When the regex layer produced `medium` confidence (items + total in
+// hand, but at least one auxiliary field missing) we send Anthropic a
+// much smaller prompt: only the body + the list of missing keys. Output
+// is a partial object that the caller merges over the regex data. This
+// trims input tokens from ~5k to ~1.5k for templated emails with only
+// the customer phone or address missing.
+function buildGapFillPrompt(
+  source: DetectedSource,
+  body: string,
+  missing: string[],
+): string {
+  return [
+    'Esti un parser de email-uri de comanda pentru restaurante din Romania.',
+    `Sursa: ${source}.`,
+    'Layout-ul a fost deja extras partial cu regex. Avem nevoie DOAR de campurile lipsa.',
+    `Campuri lipsa (returneaza-le pe TOATE, valoare null daca chiar nu apar in email): ${missing.join(', ')}.`,
+    'Returneaza STRICT un singur obiect JSON (fara text in plus, fara markdown) care contine NUMAI cheile cerute mai sus.',
+    'Reguli:',
+    '- preturile in RON ca numere (ex: 39.50)',
+    '- nu inventa valori — daca un camp chiar lipseste din corpul emailului, returneaza null',
+    '- nu adauga alte chei in afara celor cerute',
+    '',
+    'Corp email:',
+    body.slice(0, 12000),
+  ].join('\n');
+}
+
+async function callAnthropicGapFill(
+  apiKey: string,
+  model: string,
+  source: DetectedSource,
+  body: string,
+  missing: string[],
+): Promise<{ patch: Partial<ParsedOrder>; cost_usd: number }> {
+  const prompt = buildGapFillPrompt(source, body, missing);
+  const res = await fetch(ANTHROPIC_API, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': ANTHROPIC_VERSION,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 800, // gap-fill is much smaller than full parse
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`anthropic_${res.status}: ${errText.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const text: string =
+    Array.isArray(data?.content) && data.content[0]?.type === 'text' ? data.content[0].text : '';
+  if (!text) throw new Error('anthropic_empty_response');
+
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  let patch: Partial<ParsedOrder>;
+  try {
+    patch = JSON.parse(cleaned) as Partial<ParsedOrder>;
+  } catch {
+    throw new Error(`anthropic_unparseable_json: ${cleaned.slice(0, 200)}`);
+  }
+
+  const usage = data?.usage ?? {};
+  const inTok = Number(usage.input_tokens ?? 0);
+  const outTok = Number(usage.output_tokens ?? 0);
+  const cost = (inTok * 3.0 + outTok * 15.0) / 1_000_000;
+  return { patch, cost_usd: cost };
+}
+
+// Coerce a regex `ParsedOrder` (per-line items have unit_price_ron|null)
+// into the parser's `ParsedOrder` shape (per-line unit_price_ron number).
+// Drops items missing a price — they would render as 0,00 lei in admin.
+function regexToParserShape(r: RegexParsedOrder): ParsedOrder {
+  const items = r.items
+    .filter((it) => it.unit_price_ron != null && Number.isFinite(it.unit_price_ron as number))
+    .map((it) => ({
+      name: it.name,
+      quantity: it.quantity,
+      unit_price_ron: Number(it.unit_price_ron),
+      modifiers: it.modifiers ?? null,
+    }));
+  return {
+    external_order_id: r.external_order_id,
+    items,
+    subtotal_ron: r.subtotal_ron ?? 0,
+    delivery_fee_ron: r.delivery_fee_ron ?? 0,
+    total_ron: r.total_ron ?? 0,
+    customer_name: r.customer_name,
+    customer_phone: r.customer_phone,
+    delivery_address: r.delivery_address,
+    scheduled_for: r.scheduled_for,
+    notes: r.notes,
+  };
+}
+
+// Merge a gap-fill patch over a base ParsedOrder. The regex base is
+// canonical for every field that wasn't requested; only keys that were
+// actually in `requested` (i.e. the original `missing[]` we asked the
+// model to fill) are eligible to be overwritten. This protects against
+// the model ignoring the "only these keys" instruction and emitting a
+// fuller object — Codex P2 (3rd pass) #315.
+//
+// Items[] from the patch wins only if base has none (defensive — regex
+// `medium` always already has items; this guards the edge case where
+// the patch returns an empty items[] for an unrelated key).
+function mergeGapFill(
+  base: ParsedOrder,
+  patch: Partial<ParsedOrder>,
+  requested: string[],
+): ParsedOrder {
+  const merged: ParsedOrder = { ...base };
+  const allowed = new Set(requested);
+  for (const k of Object.keys(patch) as Array<keyof ParsedOrder>) {
+    if (!allowed.has(k as string)) continue; // Codex P2 #315: ignore unrequested keys
+    const v = patch[k];
+    if (v === undefined || v === null) continue;
+    if (k === 'items') {
+      if (Array.isArray(v) && v.length > 0 && base.items.length === 0) {
+        merged.items = v as ParsedOrder['items'];
+      }
+      continue;
+    }
+    // Numeric keys: only adopt finite numbers.
+    if (k === 'subtotal_ron' || k === 'delivery_fee_ron' || k === 'total_ron') {
+      const n = Number(v);
+      if (Number.isFinite(n)) (merged[k] as number) = n;
+      continue;
+    }
+    (merged[k] as unknown) = v;
+  }
+  return merged;
 }
 
 async function callAnthropicParser(
@@ -314,11 +463,59 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, job_id: jobId, status: 'SKIPPED' });
     }
 
-    // 4) Parse with Anthropic — graceful degradation if env missing.
+    // 4) Parse — hybrid strategy decision tree.
+    //
+    // Lane EMAIL-REGEX-WIREUP:
+    //   - regex high  → skip Anthropic entirely (parsed_strategy='regex').
+    //   - regex med   → ask Anthropic ONLY for the missing keys
+    //                   (parsed_strategy='regex+ai-fill').
+    //   - regex fail  → existing full Anthropic parse
+    //                   (parsed_strategy='ai-full').
+    //
+    // Codex P2 (4th pass) #315: run the regex BEFORE the Anthropic key
+    // guard — if a tenant or environment is missing ANTHROPIC_API_KEY we
+    // still want to auto-apply pure-regex high-confidence emails (cost = 0).
+    await sb.from('aggregator_email_jobs').update({ status: 'PARSING' }).eq('id', jobId);
+
+    const regexResult = tryRegexParse(bodyText, detected);
+
+    let parsed: ParsedOrder;
+    let cost_usd = 0;
+    let parsedStrategy: ParseStrategy = 'ai-full';
+
+    // Codex P1 #315: even when items/subtotal/total balance ('high'),
+    // external_order_id may still be missing. Skipping Anthropic in that
+    // case parks the job in PARSED later (no dedup key → no auto-apply).
+    // Treat missing external_order_id as a forced downgrade to gap-fill
+    // so the AI can recover the order id and the job auto-applies.
+    const regexHighButNoOrderId =
+      regexResult.ok &&
+      regexResult.confidence === 'high' &&
+      regexResult.missing.includes('external_order_id');
+
+    // Codex P2 (second pass) #315: a 'medium' result can be triggered
+    // by total drift even when every field IS present — `missing` is
+    // empty, so the gap-fill prompt asks Anthropic for nothing useful
+    // and `mergeGapFill` leaves the inconsistent totals untouched.
+    // Fall back to a full AI parse so the previous path's correction
+    // capability is preserved.
+    const regexMediumNoMissing =
+      regexResult.ok &&
+      regexResult.confidence === 'medium' &&
+      regexResult.missing.length === 0;
+
+    const canUsePureRegex =
+      regexResult.ok &&
+      regexResult.confidence === 'high' &&
+      !regexHighButNoOrderId;
+
+    // Anthropic env — only required for the gap-fill / full-AI branches.
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
     const model = Deno.env.get('ANTHROPIC_MODEL') ?? DEFAULT_MODEL;
 
-    if (!apiKey) {
+    if (!apiKey && !canUsePureRegex) {
+      // Same graceful-degradation behaviour as before, but only when
+      // the regex path can NOT carry the email on its own.
       await sb
         .from('aggregator_email_jobs')
         .update({
@@ -331,14 +528,43 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, job_id: jobId, status: 'PARSED', degraded: true });
     }
 
-    await sb.from('aggregator_email_jobs').update({ status: 'PARSING' }).eq('id', jobId);
-
-    let parsed: ParsedOrder;
-    let cost_usd = 0;
     try {
-      const r = await callAnthropicParser(apiKey, model, detected, bodyText);
-      parsed = r.parsed;
-      cost_usd = r.cost_usd;
+      if (canUsePureRegex) {
+        // Pure regex — zero Anthropic cost. Works even when ANTHROPIC_API_KEY
+        // is missing (Codex P2 4th pass #315).
+        parsed = regexToParserShape((regexResult as { data: RegexParsedOrder }).data);
+        parsedStrategy = 'regex';
+      } else if (
+        apiKey &&
+        regexResult.ok &&
+        ((regexResult.confidence === 'medium' && !regexMediumNoMissing) ||
+          regexHighButNoOrderId)
+      ) {
+        // Gap-fill: tiny prompt with only the missing keys.
+        // Codex P3 #315: set the strategy BEFORE awaiting Anthropic so a
+        // gap-fill failure is categorized as `attempted_strategy='regex+ai-fill'`
+        // in the catch block (not the initial `ai-full` default).
+        parsedStrategy = 'regex+ai-fill';
+        const base = regexToParserShape((regexResult as { data: RegexParsedOrder }).data);
+        const r = await callAnthropicGapFill(
+          apiKey,
+          model,
+          detected,
+          bodyText,
+          (regexResult as { missing: string[] }).missing,
+        );
+        parsed = mergeGapFill(base, r.patch, (regexResult as { missing: string[] }).missing);
+        cost_usd = r.cost_usd;
+      } else {
+        // Full Anthropic parse — long-tail / unrecognized layouts.
+        // apiKey is guaranteed truthy here because the early-return
+        // above handles `!apiKey && !canUsePureRegex`, and the two
+        // branches above both require apiKey or pure-regex.
+        const r = await callAnthropicParser(apiKey as string, model, detected, bodyText);
+        parsed = r.parsed;
+        cost_usd = r.cost_usd;
+        parsedStrategy = 'ai-full';
+      }
     } catch (e) {
       const msg = (e as Error).message;
       const isCredit = /credit|insufficient|billing|quota/i.test(msg);
@@ -349,13 +575,46 @@ Deno.serve(async (req) => {
           error_text: isCredit
             ? 'Credit Anthropic epuizat — verificati emailul manual din inbox si reincercati cand creditul este realimentat.'
             : `Eroare la parsare: ${msg.slice(0, 400)}`,
+          parsed_data: {
+            parsed_strategy: 'failed' as ParseStrategy,
+            attempted_strategy: parsedStrategy,
+            cost_usd,
+            cost_savings_ron: 0,
+          } as unknown as Record<string, unknown>,
         })
         .eq('id', jobId);
-      setMetadata({ parse_error: msg.slice(0, 200) });
+      setMetadata({
+        parse_error: msg.slice(0, 200),
+        parsed_strategy: 'failed',
+        attempted_strategy: parsedStrategy,
+        cost_usd,
+      });
       return json(200, { ok: true, job_id: jobId, status: 'FAILED', degraded: true });
     }
 
-    setMetadata({ cost_usd, items: parsed.items?.length ?? 0 });
+    const cost_savings_ron = estimateSavingsRon(parsedStrategy);
+    const cost_estimate_ron = estimateCostRon(parsedStrategy);
+    setMetadata({
+      cost_usd,
+      items: parsed.items?.length ?? 0,
+      parsed_strategy: parsedStrategy,
+      cost_savings_ron,
+      cost_estimate_ron,
+    });
+
+    // Lane EMAIL-REGEX-WIREUP — uniform parsed_data jsonb shape so the
+    // admin inbox can render the strategy pill + the savings tile from a
+    // single column without joining on function_runs. Includes the
+    // canonical ParsedOrder fields plus three additive keys:
+    //   parsed_strategy   (regex|regex+ai-fill|ai-full|failed)
+    //   cost_savings_ron  (RON saved vs the baseline ai-full)
+    //   cost_estimate_ron (RON this run cost)
+    const parsedDataPayload = (): Record<string, unknown> => ({
+      ...(parsed as unknown as Record<string, unknown>),
+      parsed_strategy: parsedStrategy,
+      cost_savings_ron,
+      cost_estimate_ron,
+    });
 
     // 5) Persist parsed_data + decide auto-apply.
     if (highConfidence(parsed)) {
@@ -413,7 +672,7 @@ Deno.serve(async (req) => {
             .from('aggregator_email_jobs')
             .update({
               status: 'PARSED',
-              parsed_data: parsed as unknown as Record<string, unknown>,
+              parsed_data: parsedDataPayload(),
               error_text: `Auto-aplicare esuata: ${rpcErr.message}. Aplicati manual.`,
             })
             .eq('id', jobId);
@@ -432,7 +691,7 @@ Deno.serve(async (req) => {
           .from('aggregator_email_jobs')
           .update({
             status: 'PARSED',
-            parsed_data: parsed as unknown as Record<string, unknown>,
+            parsed_data: parsedDataPayload(),
             error_text:
               'Lipseste numarul comenzii (external_order_id) — verificati manual si aplicati din inbox.',
           })
@@ -447,7 +706,7 @@ Deno.serve(async (req) => {
           .from('aggregator_email_jobs')
           .update({
             status: 'PARSED',
-            parsed_data: parsed as unknown as Record<string, unknown>,
+            parsed_data: parsedDataPayload(),
             error_text:
               'Auto-aplicare esuata: nu s-a putut determina id-ul comenzii. Aplicati manual.',
           })
@@ -459,7 +718,7 @@ Deno.serve(async (req) => {
         .from('aggregator_email_jobs')
         .update({
           status: 'APPLIED',
-          parsed_data: parsed as unknown as Record<string, unknown>,
+          parsed_data: parsedDataPayload(),
           applied_order_id: appliedOrderId,
           error_text: deduped
             ? `Duplicat — comanda ${detected} #${externalId} a fost deja aplicată anterior.`
@@ -482,7 +741,7 @@ Deno.serve(async (req) => {
       .from('aggregator_email_jobs')
       .update({
         status: 'PARSED',
-        parsed_data: parsed as unknown as Record<string, unknown>,
+        parsed_data: parsedDataPayload(),
         error_text: 'Confidenta scazuta — verificati datele si aplicati manual.',
       })
       .eq('id', jobId);
