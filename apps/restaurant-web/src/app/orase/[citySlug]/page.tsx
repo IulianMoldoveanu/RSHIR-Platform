@@ -264,6 +264,13 @@ function TenantCard({
     slug: tenant.slug,
     custom_domain: tenant.custom_domain,
   });
+  // Lane PRESENTATION (2026-05-06) — surface the optional `/poveste` page
+  // when the tenant has explicitly enabled it. Off by default for every
+  // existing tenant so this stays purely additive. `tenantCanonicalUrl`
+  // always returns a clean origin (no path, no query), so direct
+  // concatenation is safe.
+  const presentationEnabled = settings.presentation_enabled === true;
+  const povesteHref = presentationEnabled ? `${href}/poveste` : null;
   const cuisine =
     typeof settings.tagline === 'string' && settings.tagline.trim().length > 0
       ? settings.tagline
@@ -272,11 +279,8 @@ function TenantCard({
 
   return (
     <li>
-      <a
-        href={href}
-        className="group flex h-full flex-col rounded-2xl border border-[#E2E8F0] bg-white p-5 transition-colors hover:border-[#C7D2FE] hover:bg-[#F8FAFC]"
-      >
-        <div className="flex items-start gap-4">
+      <div className="group flex h-full flex-col rounded-2xl border border-[#E2E8F0] bg-white p-5 transition-colors hover:border-[#C7D2FE] hover:bg-[#F8FAFC]">
+        <a href={href} className="flex items-start gap-4">
           {logoUrl ? (
             // External logos served from Supabase Storage. <img> is fine
             // here — these are listing-card thumbnails, no LCP hot path.
@@ -310,13 +314,26 @@ function TenantCard({
             </div>
             <p className="mt-1 line-clamp-2 text-xs text-[#64748B]">{cuisine}</p>
           </div>
-        </div>
+        </a>
 
-        <div className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-[#4F46E5] group-hover:gap-2 transition-all">
-          {t(currentLocale, 'marketing.cities.city_grid_card_view_menu')}
-          <ArrowRight className="h-4 w-4" />
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <a
+            href={href}
+            className="inline-flex items-center gap-1 font-medium text-[#4F46E5] hover:gap-2 transition-all"
+          >
+            {t(currentLocale, 'marketing.cities.city_grid_card_view_menu')}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+          {povesteHref ? (
+            <a
+              href={povesteHref}
+              className="inline-flex items-center gap-1 text-xs font-medium text-[#64748B] hover:text-[#4F46E5]"
+            >
+              Vezi povestea
+            </a>
+          ) : null}
         </div>
-      </a>
+      </div>
     </li>
   );
 }
