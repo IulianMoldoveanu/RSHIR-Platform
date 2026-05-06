@@ -2,10 +2,15 @@
 //
 // Read-only card grid that signals to the operator (and to the visiting
 // reseller / GloriaFood migrant) which delivery aggregators HIR will
-// integrate with so a single dashboard absorbs every Glovo / Wolt / Tazz /
-// foodpanda / Bolt Food order. Phase 1 ships display only — no DB row, no
-// OAuth, no webhook handler. Phase 2 wires `source='GLOVO'` etc. via the
-// per-platform webhooks.
+// integrate with so a single dashboard absorbs every Glovo / Wolt /
+// Bolt Food order. Phase 1 ships display only — no DB row, no OAuth, no
+// webhook handler. Phase 2 wires `source='GLOVO'` etc. via the per-platform
+// webhooks.
+//
+// 2026-05-06: Tazz and foodpanda removed from active integrations — Tazz
+// merged into Wolt RO (May 2025) and foodpanda exited the RO market (2021).
+// DB enum values kept for legacy data compatibility (see
+// LEGACY_AGGREGATOR_SOURCES in apps/restaurant-admin order rendering).
 //
 // Distribution impact: gives Iulian a tangible artifact to demo on his
 // Bucharest reseller tour — "look, the aggregator panel is already there,
@@ -41,20 +46,6 @@ const PLATFORMS: Platform[] = [
     badge: 'bg-cyan-100 text-cyan-900 ring-cyan-300',
   },
   {
-    key: 'TAZZ',
-    label: 'Tazz',
-    blurb: 'Comenzi Tazz preluate automat de aplicația HIR.',
-    accent: 'bg-orange-50 ring-orange-300',
-    badge: 'bg-orange-100 text-orange-900 ring-orange-300',
-  },
-  {
-    key: 'FOODPANDA',
-    label: 'foodpanda',
-    blurb: 'Comenzi foodpanda agregate într-un singur ecran.',
-    accent: 'bg-pink-50 ring-pink-300',
-    badge: 'bg-pink-100 text-pink-900 ring-pink-300',
-  },
-  {
     key: 'BOLT_FOOD',
     label: 'Bolt Food',
     blurb: 'Comenzi Bolt Food gestionate alături de comenzile proprii.',
@@ -77,8 +68,8 @@ export function ExternalPlatformsCard(): ReactNode {
           Platforme externe
         </h2>
         <p className="text-sm text-zinc-600">
-          În curând puteți primi comenzile din Glovo, Wolt, Tazz, foodpanda
-          și Bolt Food direct în aplicația HIR, fără tabletă separată.
+          În curând puteți primi comenzile din Glovo, Wolt și Bolt Food
+          direct în aplicația HIR, fără tabletă separată.
         </p>
       </header>
 

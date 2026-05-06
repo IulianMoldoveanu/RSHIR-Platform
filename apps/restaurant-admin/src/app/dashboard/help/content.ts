@@ -278,7 +278,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         summary:
           'Cum folosești panoul ROI și galeria de materiale pentru pitch-uri și prezentări.',
         intro:
-          'Panoul ROI estimează economiile potențiale pentru un restaurant nou (vs. comisioanele Wolt/Glovo/Tazz). Galeria de materiale conține banner-e, sales sheet și fluturași gata de printat.',
+          'Panoul ROI estimează economiile potențiale pentru un restaurant nou (vs. comisioanele Wolt/Glovo). Galeria de materiale conține banner-e, sales sheet și fluturași gata de printat.',
         steps: [
           {
             title: 'Calculați ROI pentru un prospect',
