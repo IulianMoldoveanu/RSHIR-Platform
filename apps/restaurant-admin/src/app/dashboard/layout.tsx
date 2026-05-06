@@ -81,6 +81,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         ]),
     { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
     { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
+    { href: '/dashboard/orders/aggregator-inbox', label: 'Inbox preluare email' },
     { href: '/dashboard/menu', label: 'Meniu', icon: 'bookOpen' as const },
     {
       label: 'Marketing',
@@ -116,6 +117,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/exports', label: 'Export contabilitate' },
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
         { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
+        { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
     },
