@@ -44,7 +44,7 @@ const WATCH_OPTIONS: PositionOptions = {
 function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false;
   // Capacitor sets window.Capacitor.isNativePlatform() once loaded.
-  const cap = (window as Record<string, unknown>)['Capacitor'] as
+  const cap = (window as unknown as Record<string, unknown>)['Capacitor'] as
     | { isNativePlatform?: () => boolean }
     | undefined;
   return cap?.isNativePlatform?.() ?? false;
