@@ -1,0 +1,18 @@
+{
+  "name": "@hir/e2e-multi-city",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-city E2E Playwright suite (storefront city pages + admin city filters + onboarding city step)",
+  "scripts": {
+    "test:e2e:multi-city": "playwright test --config=playwright.config.ts",
+    "test:e2e:multi-city:ui": "playwright test --config=playwright.config.ts --ui",
+    "e2e:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@supabase/supabase-js": "^2.46.1",
+    "@types/node": "^22.9.1",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.6.3"
+  }
+}
