@@ -379,11 +379,16 @@ async function runIntent(
       for (const it of items) {
         const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
         if (!name) continue;
-        const qty = Number(it?.qty ?? it?.quantity ?? 1);
-        const price = Number(it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
+        const qty = Number(it?.quantity ?? it?.qty ?? 1);
+        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
+        // imports may use snake_case. Prefer lineTotalRon if present so we
+        // don't double-multiply by qty.
+        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
+        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
+        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
         if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
         counts[name].qty += qty;
-        counts[name].revenue += qty * price;
+        counts[name].revenue += revenue;
       }
     }
     const top3 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 3);
@@ -425,11 +430,16 @@ async function runIntent(
       for (const it of items) {
         const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
         if (!name) continue;
-        const qty = Number(it?.qty ?? it?.quantity ?? 1);
-        const price = Number(it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
+        const qty = Number(it?.quantity ?? it?.qty ?? 1);
+        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
+        // imports may use snake_case. Prefer lineTotalRon if present so we
+        // don't double-multiply by qty.
+        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
+        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
+        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
         if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
         counts[name].qty += qty;
-        counts[name].revenue += qty * price;
+        counts[name].revenue += revenue;
       }
     }
     const top10 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
