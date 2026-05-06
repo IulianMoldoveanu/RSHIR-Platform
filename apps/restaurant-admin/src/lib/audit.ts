@@ -61,7 +61,9 @@ export type AuditAction =
   | 'fleet_manager.invite_created'
   | 'fleet_manager.invite_revoked'
   | 'fleet_manager.invite_accepted'
-  | 'tenant.external_dispatch_configured';
+  | 'tenant.external_dispatch_configured'
+  | 'fiscal.settings_updated'
+  | 'fiscal.export_generated';
 
 export async function logAudit(args: {
   tenantId: string;
