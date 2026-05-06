@@ -23,10 +23,13 @@ type Job = {
 type AnySb = { from: (t: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 // Lane EMAIL-REGEX-WIREUP — sum cost_savings_ron from parsed_data on the
-// month-to-date window. We read the last 200 jobs of the current month
-// (well under any tenant's 200/24h cap × ~30 days) and sum in JS rather
-// than via Postgres jsonb path arithmetic — keeps the page free of any
-// SQL function dependency and makes the Romanian copy easy to translate.
+// month-to-date window. We page through the rows so the tile keeps an
+// honest number even on busy tenants. Codex P2 #315: at 200 jobs/24h the
+// theoretical monthly max is ~6000; a single 2000-row select silently
+// under-reports. Paging at 1000/page worst-case = 6 round-trips/month.
+const SAVINGS_PAGE_SIZE = 1000;
+const SAVINGS_MAX_PAGES = 8; // hard ceiling — ~8000 rows, > tenant cap
+
 function monthStartISO(now = new Date()): string {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
@@ -41,6 +44,31 @@ function sumSavingsRon(jobs: Array<{ parsed_data: Record<string, unknown> | null
   return Math.round(total * 100) / 100;
 }
 
+async function fetchMonthSavings(
+  admin: AnySb,
+  tenantId: string,
+  sinceMonth: string,
+): Promise<number> {
+  let total = 0;
+  for (let page = 0; page < SAVINGS_MAX_PAGES; page++) {
+    const from = page * SAVINGS_PAGE_SIZE;
+    const to = from + SAVINGS_PAGE_SIZE - 1;
+    const res = await admin
+      .from('aggregator_email_jobs')
+      .select('parsed_data')
+      .eq('tenant_id', tenantId)
+      .gte('received_at', sinceMonth)
+      .order('received_at', { ascending: false })
+      .range(from, to);
+    const rows = ((res as { data: Array<{ parsed_data: Record<string, unknown> | null }> | null })
+      .data ?? []) as Array<{ parsed_data: Record<string, unknown> | null }>;
+    if (rows.length === 0) break;
+    total += sumSavingsRon(rows);
+    if (rows.length < SAVINGS_PAGE_SIZE) break; // last page reached
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export default async function AggregatorInboxPage() {
   const { user, tenant } = await getActiveTenant();
   const role = await getTenantRole(user.id, tenant.id);
@@ -49,7 +77,7 @@ export default async function AggregatorInboxPage() {
   const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const sinceMonth = monthStartISO();
 
-  const [received, applied, failed, jobsRes, savingsRes] = await Promise.all([
+  const [received, applied, failed, jobsRes, savingsMonthRon] = await Promise.all([
     admin
       .from('aggregator_email_jobs')
       .select('id', { count: 'exact', head: true })
@@ -75,22 +103,13 @@ export default async function AggregatorInboxPage() {
       .eq('tenant_id', tenant.id)
       .order('received_at', { ascending: false })
       .limit(100),
-    admin
-      .from('aggregator_email_jobs')
-      .select('parsed_data')
-      .eq('tenant_id', tenant.id)
-      .gte('received_at', sinceMonth)
-      .limit(2000),
+    fetchMonthSavings(admin, tenant.id, sinceMonth),
   ]);
 
   const received24h = (received as { count: number | null }).count ?? 0;
   const applied24h = (applied as { count: number | null }).count ?? 0;
   const failed24h = (failed as { count: number | null }).count ?? 0;
   const jobs = ((jobsRes as { data: Job[] | null }).data ?? []) as Job[];
-  const savingsRows =
-    ((savingsRes as { data: Array<{ parsed_data: Record<string, unknown> | null }> | null })
-      .data ?? []) as Array<{ parsed_data: Record<string, unknown> | null }>;
-  const savingsMonthRon = sumSavingsRon(savingsRows);
 
   return (
     <div className="flex flex-col gap-6">

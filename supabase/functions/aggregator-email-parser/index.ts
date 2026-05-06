@@ -484,12 +484,29 @@ Deno.serve(async (req) => {
     let cost_usd = 0;
     let parsedStrategy: ParseStrategy = 'ai-full';
 
+    // Codex P1 #315: even when items/subtotal/total balance ('high'),
+    // external_order_id may still be missing. Skipping Anthropic in that
+    // case parks the job in PARSED later (no dedup key → no auto-apply).
+    // Treat missing external_order_id as a forced downgrade to gap-fill
+    // so the AI can recover the order id and the job auto-applies.
+    const regexHighButNoOrderId =
+      regexResult.ok &&
+      regexResult.confidence === 'high' &&
+      regexResult.missing.includes('external_order_id');
+
     try {
-      if (regexResult.ok && regexResult.confidence === 'high') {
+      if (
+        regexResult.ok &&
+        regexResult.confidence === 'high' &&
+        !regexHighButNoOrderId
+      ) {
         // Pure regex — zero Anthropic cost.
         parsed = regexToParserShape(regexResult.data);
         parsedStrategy = 'regex';
-      } else if (regexResult.ok && regexResult.confidence === 'medium') {
+      } else if (
+        regexResult.ok &&
+        (regexResult.confidence === 'medium' || regexHighButNoOrderId)
+      ) {
         // Gap-fill: tiny prompt with only the missing keys.
         const base = regexToParserShape(regexResult.data);
         const r = await callAnthropicGapFill(
