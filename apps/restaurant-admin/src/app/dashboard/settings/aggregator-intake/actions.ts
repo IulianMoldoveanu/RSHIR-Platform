@@ -270,53 +270,89 @@ export async function applyParsedJob(
     modifiers: (it.modifiers as string | null | undefined) ?? null,
   }));
 
+  // Untyped chainable for the upsert path (aggregator-specific helper
+  // shape — onConflict is a real supabase-js option but the inferred
+  // type from generated types doesn't expose it cleanly).
   const ordersSb = admin as unknown as {
-    from: (t: string) => {
-      insert: (row: Record<string, unknown>) => {
-        select: (cols: string) => {
-          single: () => Promise<{
-            data: { id: string } | null;
-            error: { message: string } | null;
-          }>;
-        };
-      };
-    };
+    from: (t: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
+  const externalId = (parsed.external_order_id as string | null | undefined) ?? null;
   const notesParts = [
-    parsed.external_order_id ? `${job.detected_source} #${parsed.external_order_id}` : null,
+    externalId ? `${job.detected_source} #${externalId}` : null,
     parsed.customer_name as string | undefined,
     parsed.customer_phone as string | undefined,
     parsed.delivery_address as string | undefined,
     parsed.notes as string | undefined,
   ].filter((v): v is string => typeof v === 'string' && v.length > 0);
 
-  const { data: order, error: orderErr } = await ordersSb
-    .from('restaurant_orders')
-    .insert({
-      tenant_id: guard.tenantId,
-      items,
-      subtotal_ron: Number(parsed.subtotal_ron ?? 0),
-      delivery_fee_ron: Number(parsed.delivery_fee_ron ?? 0),
-      total_ron: Number(parsed.total_ron ?? 0),
-      status: 'CONFIRMED',
-      payment_status: 'PAID',
-      source: job.detected_source,
-      notes: notesParts.join(' • ').slice(0, 1000),
-    })
-    .select('id')
-    .single();
+  const orderRow = {
+    tenant_id: guard.tenantId,
+    items,
+    subtotal_ron: Number(parsed.subtotal_ron ?? 0),
+    delivery_fee_ron: Number(parsed.delivery_fee_ron ?? 0),
+    total_ron: Number(parsed.total_ron ?? 0),
+    status: 'CONFIRMED',
+    payment_status: 'PAID',
+    source: job.detected_source,
+    hir_delivery_id: externalId, // dedup key per migration 20260506_015
+    notes: notesParts.join(' • ').slice(0, 1000),
+  };
 
-  if (orderErr || !order) {
-    return { ok: false, error: orderErr?.message ?? 'Aplicare eșuată.' };
+  // Codex P1 atomic dedup (Edge Function PR #308 follow-up): mirror the
+  // INSERT ... ON CONFLICT path so manual-applies are idempotent vs the
+  // auto-apply for the same (tenant, source, external_order_id).
+  let appliedOrderId: string | null = null;
+  let deduped = false;
+  if (externalId) {
+    const upRes = await ordersSb
+      .from('restaurant_orders')
+      .upsert(orderRow, {
+        onConflict: 'tenant_id,source,hir_delivery_id',
+        ignoreDuplicates: true,
+      })
+      .select('id');
+    if (upRes.error) return { ok: false, error: upRes.error.message };
+    if (upRes.data && upRes.data.length > 0) {
+      appliedOrderId = upRes.data[0].id;
+    } else {
+      const priorRes = await ordersSb
+        .from('restaurant_orders')
+        .select('id')
+        .eq('tenant_id', guard.tenantId)
+        .eq('source', job.detected_source)
+        .eq('hir_delivery_id', externalId)
+        .limit(1)
+        .single();
+      appliedOrderId = priorRes.data?.id ?? null;
+      deduped = true;
+    }
+  } else {
+    const insRes = await ordersSb
+      .from('restaurant_orders')
+      .insert(orderRow)
+      .select('id')
+      .single();
+    if (insRes.error || !insRes.data) {
+      return { ok: false, error: insRes.error?.message ?? 'Aplicare eșuată.' };
+    }
+    appliedOrderId = insRes.data.id;
   }
+
+  if (!appliedOrderId) return { ok: false, error: 'Nu s-a putut determina id-ul comenzii.' };
 
   await sb
     .from('aggregator_email_jobs')
-    .update({ status: 'APPLIED', applied_order_id: order.id, error_text: null })
+    .update({
+      status: 'APPLIED',
+      applied_order_id: appliedOrderId,
+      error_text: deduped
+        ? `Duplicat — comanda ${job.detected_source} #${externalId} a fost deja aplicată anterior.`
+        : null,
+    })
     .eq('id', jobId);
 
   revalidatePath(INBOX_PATH);
   revalidatePath('/dashboard/orders');
-  return { ok: true, data: { order_id: order.id } };
+  return { ok: true, data: { order_id: appliedOrderId, deduped } };
 }
