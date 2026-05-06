@@ -494,6 +494,17 @@ Deno.serve(async (req) => {
       regexResult.confidence === 'high' &&
       regexResult.missing.includes('external_order_id');
 
+    // Codex P2 (second pass) #315: a 'medium' result can be triggered
+    // by total drift even when every field IS present — `missing` is
+    // empty, so the gap-fill prompt asks Anthropic for nothing useful
+    // and `mergeGapFill` leaves the inconsistent totals untouched.
+    // Fall back to a full AI parse so the previous path's correction
+    // capability is preserved.
+    const regexMediumNoMissing =
+      regexResult.ok &&
+      regexResult.confidence === 'medium' &&
+      regexResult.missing.length === 0;
+
     try {
       if (
         regexResult.ok &&
@@ -505,7 +516,8 @@ Deno.serve(async (req) => {
         parsedStrategy = 'regex';
       } else if (
         regexResult.ok &&
-        (regexResult.confidence === 'medium' || regexHighButNoOrderId)
+        ((regexResult.confidence === 'medium' && !regexMediumNoMissing) ||
+          regexHighButNoOrderId)
       ) {
         // Gap-fill: tiny prompt with only the missing keys.
         const base = regexToParserShape(regexResult.data);
