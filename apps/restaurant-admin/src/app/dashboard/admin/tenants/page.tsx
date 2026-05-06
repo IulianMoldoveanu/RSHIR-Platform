@@ -70,12 +70,16 @@ export default async function PlatformAdminTenantsPage({
   const sb = admin as any;
 
   // ── 1) Tenants base list (all RESTAURANT vertical, regardless of status) ──
+  // We pull *all* RESTAURANT tenants (small N today, ~10) so server-side
+  // filters + sort apply over the full dataset, then slice to MAX_ROWS at the
+  // end. The cap-after-filter ordering matters: if we capped before sorting
+  // by last_order, tenants with recent orders but later in alphabet would
+  // be invisible (Codex P2 #1, PR #291).
   const { data: tenantsRaw, error: tErr } = await sb
     .from('tenants')
     .select('id, slug, name, vertical, status, settings, integration_mode, external_dispatch_enabled, created_at, updated_at')
     .eq('vertical', 'RESTAURANT')
-    .order('name', { ascending: true })
-    .limit(50);
+    .order('name', { ascending: true });
 
   if (tErr) {
     return (
@@ -113,30 +117,46 @@ export default async function PlatformAdminTenantsPage({
     }
   }
 
-  // ── 3) Last 7 days orders per tenant (status <> CANCELLED) + last order ts ──
+  // ── 3a) Last 7 days orders per tenant (status <> CANCELLED) ──
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const orders7dByTenant = new Map<string, number>();
-  const lastOrderByTenant = new Map<string, string>();
   if (tenantIds.length > 0) {
     const { data: orderRows } = await sb
       .from('restaurant_orders')
-      .select('tenant_id, created_at, status')
+      .select('tenant_id, status')
       .in('tenant_id', tenantIds)
       .gte('created_at', sevenDaysAgo)
-      .order('created_at', { ascending: false })
       .limit(5000);
-    for (const r of (orderRows ?? []) as {
-      tenant_id: string;
-      created_at: string;
-      status: string;
-    }[]) {
+    for (const r of (orderRows ?? []) as { tenant_id: string; status: string }[]) {
       if (r.status !== 'CANCELLED') {
         orders7dByTenant.set(r.tenant_id, (orders7dByTenant.get(r.tenant_id) ?? 0) + 1);
       }
-      // first row per tenant_id (already sorted desc) wins
-      if (!lastOrderByTenant.has(r.tenant_id)) {
-        lastOrderByTenant.set(r.tenant_id, r.created_at);
-      }
+    }
+  }
+
+  // ── 3b) Most recent order timestamp per tenant — UNBOUNDED window so
+  // tenants whose latest non-cancelled order is older than 7 days still
+  // surface a real "Ultima comandă" instead of "fără comenzi" (Codex P2 #2,
+  // PR #291). One small query per tenant, run in parallel; with ≤50 tenants
+  // this is bounded and faster than a giant scan + JS dedup.
+  const lastOrderByTenant = new Map<string, string>();
+  if (tenantIds.length > 0) {
+    const lookups = await Promise.all(
+      tenantIds.map(async (tid) => {
+        const { data } = await sb
+          .from('restaurant_orders')
+          .select('tenant_id, created_at')
+          .eq('tenant_id', tid)
+          .neq('status', 'CANCELLED')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        return data && data.length > 0
+          ? { tenant_id: data[0].tenant_id as string, created_at: data[0].created_at as string }
+          : null;
+      }),
+    );
+    for (const r of lookups) {
+      if (r) lastOrderByTenant.set(r.tenant_id, r.created_at);
     }
   }
 
@@ -258,6 +278,12 @@ export default async function PlatformAdminTenantsPage({
     });
   }
 
+  // ── Cap displayed rows AFTER filter + sort so distant-but-relevant tenants
+  // still surface (Codex P2 #1, PR #291). Today's count is <10; the cap is
+  // defensive for the next 6-12 months before we wire pagination.
+  const MAX_ROWS = 50;
+  const displayRows = rows.slice(0, MAX_ROWS);
+
   // ── Distinct city values from full unfiltered list (for filter dropdown) ──
   const citiesSet = new Set<string>();
   for (const r of allRows) {
@@ -282,9 +308,10 @@ export default async function PlatformAdminTenantsPage({
       </header>
 
       <TenantsListClient
-        rows={rows}
+        rows={displayRows}
         totalCount={allRows.length}
         filteredCount={rows.length}
+        capped={rows.length > displayRows.length}
         cities={cities}
         currentCity={cityFilter}
         currentStatus={statusFilter}

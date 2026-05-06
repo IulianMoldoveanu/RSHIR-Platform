@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type ChangeEvent } from 'react';
+import { openTenantAsPlatformAdmin } from './actions';
 
 export type StatusFilter = 'all' | 'live' | 'onboarding';
 export type SortKey = 'last_order' | 'name' | 'created';
@@ -53,6 +54,7 @@ export function TenantsListClient({
   rows,
   totalCount,
   filteredCount,
+  capped,
   cities,
   currentCity,
   currentStatus,
@@ -61,6 +63,7 @@ export function TenantsListClient({
   rows: TenantListRow[];
   totalCount: number;
   filteredCount: number;
+  capped: boolean;
   cities: string[];
   currentCity: string;
   currentStatus: StatusFilter;
@@ -203,12 +206,7 @@ export function TenantsListClient({
                 </dl>
                 <IntegrationBadges badges={r.integrationBadges} />
                 <div className="mt-3 flex items-center gap-3 border-t border-zinc-100 pt-2 text-xs">
-                  <Link
-                    href={`/dashboard?tenant=${r.slug}`}
-                    className="font-medium text-zinc-900 hover:underline"
-                  >
-                    Deschide
-                  </Link>
+                  <OpenTenantButton tenantId={r.id} />
                   <Link
                     href={`/dashboard/admin/fleet-managers`}
                     className="text-zinc-600 hover:underline"
@@ -261,12 +259,7 @@ export function TenantsListClient({
                       {relativeTimeRO(r.lastOrderAt)}
                     </td>
                     <td className="px-3 py-2.5 align-top text-right">
-                      <Link
-                        href={`/dashboard?tenant=${r.slug}`}
-                        className="text-xs font-medium text-zinc-900 hover:underline"
-                      >
-                        Deschide
-                      </Link>
+                      <OpenTenantButton tenantId={r.id} />
                     </td>
                   </tr>
                 ))}
@@ -277,11 +270,29 @@ export function TenantsListClient({
       )}
 
       <p className="text-xs text-zinc-500">
-        Lista include toate restaurantele cu vertical RESTAURANT (max. 50 — vom
-        adăuga paginare când depășim acest prag). Comenzile sunt din ultimele 7
-        zile, exclusiv cele anulate.
+        Lista include toate restaurantele cu vertical RESTAURANT.{' '}
+        {capped
+          ? 'Afișăm primele 50 după filtrele curente — restrângeți filtrele pentru a vedea mai multe.'
+          : 'Comenzile sunt din ultimele 7 zile, exclusiv cele anulate. Coloana „Ultima comandă” acoperă întregul istoric.'}
       </p>
     </div>
+  );
+}
+
+// Server-action form button: switches the platform admin's TENANT_COOKIE
+// to the chosen tenant and redirects to /dashboard. Replaces the previous
+// `?tenant=<slug>` link, which had no handler (Codex P2 #3, PR #291).
+function OpenTenantButton({ tenantId }: { tenantId: string }) {
+  return (
+    <form action={openTenantAsPlatformAdmin} className="inline">
+      <input type="hidden" name="tenantId" value={tenantId} />
+      <button
+        type="submit"
+        className="text-xs font-medium text-zinc-900 hover:underline"
+      >
+        Deschide
+      </button>
+    </form>
   );
 }
 
