@@ -92,7 +92,16 @@ const VERCEL_PROJECTS: Record<string, string> = {
 const REPO = 'IulianMoldoveanu/RSHIR-Platform';
 
 async function logCommand(supabase: any, row: any): Promise<void> {
-  await supabase.from('command_log').insert(row).catch((e: any) => console.warn('log fail', e));
+  // NOTE: PostgrestQueryBuilder is a thenable, not a real Promise — `.catch()`
+  // is undefined on it. Always await inside try/catch (pre-existing bug
+  // surfaced when the whole serve was wrapped in withRunLog; the unhandled
+  // rejection from `.catch is not a function` killed the worker with 503).
+  try {
+    const { error } = await supabase.from('command_log').insert(row);
+    if (error) console.warn('log fail', error.message);
+  } catch (e) {
+    console.warn('log threw', (e as Error)?.message);
+  }
 }
 
 // =====================================================================
@@ -260,16 +269,20 @@ async function setActiveTenant(supabase: any, chatId: number, slug: string): Pro
 }
 
 async function logHepyAudit(supabase: any, tenantId: string, intent: string, payload: Record<string, unknown>): Promise<void> {
-  await supabase
-    .from('audit_log')
-    .insert({
-      tenant_id: tenantId,
-      action: 'hepy_intent',
-      entity_type: 'hepy',
-      entity_id: intent,
-      metadata: payload,
-    })
-    .catch((e: any) => console.warn('hepy audit_log fail', e?.message));
+  try {
+    const { error } = await supabase
+      .from('audit_log')
+      .insert({
+        tenant_id: tenantId,
+        action: 'hepy_intent',
+        entity_type: 'hepy',
+        entity_id: intent,
+        metadata: payload,
+      });
+    if (error) console.warn('hepy audit_log fail', error.message);
+  } catch (e) {
+    console.warn('hepy audit_log threw', (e as Error)?.message);
+  }
 }
 
 async function runIntent(
