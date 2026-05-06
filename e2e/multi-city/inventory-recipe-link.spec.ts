@@ -97,10 +97,11 @@ test.describe('Inventory v1 — recipe link', { tag: '@inventory' }, () => {
     await page.locator('input[name="qty_per_serving"]').fill('0.05');
     await page.getByRole('button', { name: /adaugă rețetă/i }).click();
 
-    // Recipe row visible after refresh.
-    const recipeRow = page.getByTestId('recipe-row').filter({
-      has: page.locator(`[data-menu-item-id="${menuItemId}"]`),
-    });
+    // Recipe row visible after refresh. Match by data-menu-item-id directly
+    // on the <li> (filter({has}) needs a descendant; we want the row itself).
+    const recipeRow = page.locator(
+      `[data-testid="recipe-row"][data-menu-item-id="${menuItemId}"]`,
+    );
     await expect(recipeRow).toBeVisible();
     await expect(recipeRow).toContainText(/0,05 kg per porție/);
 
