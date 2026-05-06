@@ -47,6 +47,25 @@ export default async function ExportsSettingsPage() {
         </div>
       )}
 
+      <div className="rounded-xl border border-purple-200 bg-purple-50/60 p-4 text-sm text-purple-900">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-medium">SmartBill direct (recomandat)</p>
+            <p className="mt-1 text-xs text-purple-800/80">
+              Conectați contul SmartBill al restaurantului și HIR trimite
+              automat factura pentru fiecare comandă livrată. Exportul CSV
+              de mai jos rămâne disponibil ca alternativă offline.
+            </p>
+          </div>
+          <a
+            href="/dashboard/settings/smartbill"
+            className="shrink-0 rounded-md bg-purple-600 px-3 py-2 text-xs font-medium text-white hover:bg-purple-700"
+          >
+            Configurează SmartBill
+          </a>
+        </div>
+      </div>
+
       <ExportsClient
         tenantId={tenant.id}
         tenantSlug={tenant.slug}

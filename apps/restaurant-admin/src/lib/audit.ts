@@ -66,7 +66,13 @@ export type AuditAction =
   | 'tenant.city_assigned'
   | 'tenant.presentation_updated'
   | 'fiscal.settings_updated'
-  | 'fiscal.export_generated';
+  | 'fiscal.export_generated'
+  | 'smartbill.settings_updated'
+  | 'smartbill.token_set'
+  | 'smartbill.token_cleared'
+  | 'smartbill.test_connection'
+  | 'smartbill.invoice_pushed'
+  | 'smartbill.invoice_retried';
 
 export async function logAudit(args: {
   tenantId: string;
