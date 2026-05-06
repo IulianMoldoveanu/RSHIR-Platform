@@ -1,0 +1,358 @@
+'use server';
+
+// Lane AGGREGATOR-EMAIL-INTAKE — PR 3 of 3.
+// Server actions for /dashboard/settings/aggregator-intake.
+// All actions are OWNER-gated.
+
+import { randomBytes } from 'crypto';
+import { revalidatePath } from 'next/cache';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+
+const SETTINGS_PATH = '/dashboard/settings/aggregator-intake';
+const INBOX_PATH = '/dashboard/orders/aggregator-inbox';
+
+export type ActionResult =
+  | { ok: true; data?: Record<string, unknown> }
+  | { ok: false; error: string };
+
+async function requireOwner(
+  expectedTenantId: string,
+): Promise<{ userId: string; tenantId: string } | { error: string }> {
+  if (!expectedTenantId) return { error: 'missing_tenant_id' };
+  const { user, tenant } = await getActiveTenant().catch(() => ({
+    user: null as null,
+    tenant: null as null,
+  }));
+  if (!user || !tenant) return { error: 'Neautentificat.' };
+  if (tenant.id !== expectedTenantId) return { error: 'tenant_mismatch' };
+  const role = await getTenantRole(user.id, expectedTenantId);
+  if (role !== 'OWNER')
+    return { error: 'Acces interzis: doar OWNER poate modifica preluarea email.' };
+  return { userId: user.id, tenantId: expectedTenantId };
+}
+
+function makeAliasLocal(slug: string): string {
+  // sanitize slug to a-z0-9-, prefix "comenzi-", clamp to 40 chars
+  const safe = slug
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 30);
+  return `comenzi-${safe || 'restaurant'}`.slice(0, 40);
+}
+
+function makeSecret(): string {
+  return randomBytes(24).toString('hex'); // 48-char hex
+}
+
+/**
+ * Enables the feature for this tenant and provisions an alias if missing.
+ * Idempotent — calling twice returns the existing alias.
+ */
+export async function enableIntake(
+  expectedTenantId: string,
+  tenantSlug: string,
+): Promise<ActionResult> {
+  const guard = await requireOwner(expectedTenantId);
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  // tenants.feature_flags is in the DB (migration 20260506_013) but not yet
+  // in the generated supabase-types — cast through unknown.
+  const tenantsSb = admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{
+            data: { feature_flags: Record<string, unknown> | null } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+
+  // Flip the feature flag.
+  const { data: tRow, error: tErr } = await tenantsSb
+    .from('tenants')
+    .select('feature_flags')
+    .eq('id', guard.tenantId)
+    .maybeSingle();
+  if (tErr) return { ok: false, error: tErr.message };
+  const flags = (tRow?.feature_flags as Record<string, unknown> | null) ?? {};
+  const nextFlags = { ...flags, aggregator_email_intake_enabled: true };
+  const { error: updErr } = await tenantsSb
+    .from('tenants')
+    .update({ feature_flags: nextFlags })
+    .eq('id', guard.tenantId);
+  if (updErr) return { ok: false, error: updErr.message };
+
+  // Provision alias if missing.
+  // Cast through unknown — table not yet in generated types.
+  const aliasSb = admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{
+            data: Record<string, unknown> | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+      insert: (row: Record<string, unknown>) => {
+        select: (cols: string) => {
+          single: () => Promise<{
+            data: Record<string, unknown> | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => Promise<{
+          error: { message: string } | null;
+        }>;
+      };
+    };
+  };
+
+  const { data: existing } = await aliasSb
+    .from('aggregator_intake_aliases')
+    .select('alias_local')
+    .eq('tenant_id', guard.tenantId)
+    .maybeSingle();
+
+  if (!existing) {
+    const aliasLocal = makeAliasLocal(tenantSlug);
+    const secret = makeSecret();
+    // Best-effort: if the alias_local is already taken (collision across
+    // tenants with similar slugs), append a random suffix.
+    let finalAlias = aliasLocal;
+    for (let i = 0; i < 3; i++) {
+      const attempt =
+        i === 0 ? aliasLocal : `${aliasLocal.slice(0, 36)}-${randomBytes(2).toString('hex')}`;
+      const { error: insErr } = await aliasSb
+        .from('aggregator_intake_aliases')
+        .insert({ tenant_id: guard.tenantId, alias_local: attempt, secret, enabled: true })
+        .select('alias_local')
+        .single();
+      if (!insErr) {
+        finalAlias = attempt;
+        break;
+      }
+      if (!/duplicate|unique/i.test(insErr.message)) {
+        return { ok: false, error: insErr.message };
+      }
+      if (i === 2) return { ok: false, error: 'alias_collision_max_retries' };
+    }
+    revalidatePath(SETTINGS_PATH);
+    return { ok: true, data: { alias_local: finalAlias } };
+  }
+
+  revalidatePath(SETTINGS_PATH);
+  return { ok: true, data: { alias_local: existing.alias_local as string } };
+}
+
+/**
+ * Disables the feature flag (does NOT delete the alias — admin can re-enable
+ * without re-publishing forwarding rules to restaurants).
+ */
+export async function disableIntake(expectedTenantId: string): Promise<ActionResult> {
+  const guard = await requireOwner(expectedTenantId);
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const tenantsSb = admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{
+            data: { feature_flags: Record<string, unknown> | null } | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  };
+  const { data: tRow } = await tenantsSb
+    .from('tenants')
+    .select('feature_flags')
+    .eq('id', guard.tenantId)
+    .maybeSingle();
+  const flags = (tRow?.feature_flags as Record<string, unknown> | null) ?? {};
+  const nextFlags = { ...flags, aggregator_email_intake_enabled: false };
+  const { error } = await tenantsSb
+    .from('tenants')
+    .update({ feature_flags: nextFlags })
+    .eq('id', guard.tenantId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(SETTINGS_PATH);
+  return { ok: true };
+}
+
+/**
+ * Manually applies a PARSED job → restaurant_orders row. Used when the
+ * Anthropic parse landed below the auto-apply confidence bar.
+ */
+export async function applyParsedJob(
+  expectedTenantId: string,
+  jobId: string,
+): Promise<ActionResult> {
+  const guard = await requireOwner(expectedTenantId);
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  const admin = createAdminClient();
+  const sb = admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          eq: (col: string, val: string) => {
+            maybeSingle: () => Promise<{
+              data: Record<string, unknown> | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+      insert: (row: Record<string, unknown>) => {
+        select: (cols: string) => {
+          single: () => Promise<{
+            data: Record<string, unknown> | null;
+            error: { message: string } | null;
+          }>;
+        };
+      };
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => Promise<{
+          error: { message: string } | null;
+        }>;
+      };
+    };
+  };
+
+  const { data: job, error: jobErr } = await sb
+    .from('aggregator_email_jobs')
+    .select('id, status, detected_source, parsed_data, applied_order_id')
+    .eq('id', jobId)
+    .eq('tenant_id', guard.tenantId)
+    .maybeSingle();
+  if (jobErr) return { ok: false, error: jobErr.message };
+  if (!job) return { ok: false, error: 'Jobul nu a fost găsit.' };
+  if (job.applied_order_id) return { ok: false, error: 'Comanda a fost deja aplicată.' };
+  if (!['PARSED'].includes(job.status as string))
+    return { ok: false, error: `Statusul curent (${job.status}) nu permite aplicarea.` };
+
+  const parsed = job.parsed_data as Record<string, unknown> | null;
+  if (!parsed) return { ok: false, error: 'Datele parsate lipsesc.' };
+  const rawItems = Array.isArray(parsed.items)
+    ? (parsed.items as Record<string, unknown>[])
+    : [];
+  if (rawItems.length === 0)
+    return { ok: false, error: 'Nu există linii de comandă în date.' };
+
+  // Codex P2 (Edge Function PR #308): existing readers compute line
+  // totals via `price_ron ?? unit_price ?? price` and quantity via
+  // `qty ?? quantity`. Mirror the auto-apply path: write both the
+  // canonical (unit_price_ron, quantity) and legacy-compatible keys.
+  const items = rawItems.map((it) => ({
+    name: it.name,
+    quantity: it.quantity,
+    qty: it.quantity,
+    unit_price_ron: it.unit_price_ron,
+    price_ron: it.unit_price_ron,
+    modifiers: (it.modifiers as string | null | undefined) ?? null,
+  }));
+
+  // Untyped chainable for the upsert path (aggregator-specific helper
+  // shape — onConflict is a real supabase-js option but the inferred
+  // type from generated types doesn't expose it cleanly).
+  const ordersSb = admin as unknown as {
+    from: (t: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  };
+
+  const externalId = (parsed.external_order_id as string | null | undefined) ?? null;
+  const notesParts = [
+    externalId ? `${job.detected_source} #${externalId}` : null,
+    parsed.customer_name as string | undefined,
+    parsed.customer_phone as string | undefined,
+    parsed.delivery_address as string | undefined,
+    parsed.notes as string | undefined,
+  ].filter((v): v is string => typeof v === 'string' && v.length > 0);
+
+  const orderRow = {
+    tenant_id: guard.tenantId,
+    items,
+    subtotal_ron: Number(parsed.subtotal_ron ?? 0),
+    delivery_fee_ron: Number(parsed.delivery_fee_ron ?? 0),
+    total_ron: Number(parsed.total_ron ?? 0),
+    status: 'CONFIRMED',
+    payment_status: 'PAID',
+    source: job.detected_source,
+    hir_delivery_id: externalId, // dedup key per migration 20260506_015
+    notes: notesParts.join(' • ').slice(0, 1000),
+  };
+
+  // Codex P1 atomic dedup (Edge Function PR #308 follow-up): mirror the
+  // INSERT ... ON CONFLICT path so manual-applies are idempotent vs the
+  // auto-apply for the same (tenant, source, external_order_id).
+  let appliedOrderId: string | null = null;
+  let deduped = false;
+  if (externalId) {
+    const upRes = await ordersSb
+      .from('restaurant_orders')
+      .upsert(orderRow, {
+        onConflict: 'tenant_id,source,hir_delivery_id',
+        ignoreDuplicates: true,
+      })
+      .select('id');
+    if (upRes.error) return { ok: false, error: upRes.error.message };
+    if (upRes.data && upRes.data.length > 0) {
+      appliedOrderId = upRes.data[0].id;
+    } else {
+      const priorRes = await ordersSb
+        .from('restaurant_orders')
+        .select('id')
+        .eq('tenant_id', guard.tenantId)
+        .eq('source', job.detected_source)
+        .eq('hir_delivery_id', externalId)
+        .limit(1)
+        .single();
+      appliedOrderId = priorRes.data?.id ?? null;
+      deduped = true;
+    }
+  } else {
+    const insRes = await ordersSb
+      .from('restaurant_orders')
+      .insert(orderRow)
+      .select('id')
+      .single();
+    if (insRes.error || !insRes.data) {
+      return { ok: false, error: insRes.error?.message ?? 'Aplicare eșuată.' };
+    }
+    appliedOrderId = insRes.data.id;
+  }
+
+  if (!appliedOrderId) return { ok: false, error: 'Nu s-a putut determina id-ul comenzii.' };
+
+  await sb
+    .from('aggregator_email_jobs')
+    .update({
+      status: 'APPLIED',
+      applied_order_id: appliedOrderId,
+      error_text: deduped
+        ? `Duplicat — comanda ${job.detected_source} #${externalId} a fost deja aplicată anterior.`
+        : null,
+    })
+    .eq('id', jobId);
+
+  revalidatePath(INBOX_PATH);
+  revalidatePath('/dashboard/orders');
+  return { ok: true, data: { order_id: appliedOrderId, deduped } };
+}
