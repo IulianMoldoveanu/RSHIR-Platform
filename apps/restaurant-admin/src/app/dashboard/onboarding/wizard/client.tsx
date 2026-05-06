@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from '@hir/ui';
 import {
   saveWizardDraft,
   saveRestaurantInfo,
@@ -27,6 +28,7 @@ import {
 } from './actions';
 import { uploadBrandingAsset, setBrandColor } from '../../settings/branding/actions';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
+import { StepCelebration } from '@/components/onboarding/StepCelebration';
 
 type SourceState = {
   menu_added: boolean;
@@ -110,6 +112,18 @@ export function WizardClient(props: {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Lane ONBOARDING-CELEBRATION — drives the per-step + go-live confetti burst.
+  // `kind` selects intensity; `fireKey` re-keys the burst so consecutive
+  // advances of the same step type still re-trigger the animation.
+  const [celebrate, setCelebrate] = useState<{
+    kind: 'step' | 'golive';
+    fireKey: number;
+  } | null>(null);
+  // Latched once the user clicks "Activează" on Step 6. Disables the wizard
+  // for the ~1.4s celebration window so a second click can't fire
+  // `wizardGoLive` twice (which would emit duplicate `tenant.went_live`
+  // audit entries and re-stamp `went_live_at`).
+  const [redirecting, setRedirecting] = useState(false);
 
   // Autosave the draft 1.2s after the last edit.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,7 +156,15 @@ export function WizardClient(props: {
 
   function goNext() {
     setGlobalError(null);
-    if (step < 6) setStep(step + 1);
+    if (step < 6) {
+      // Celebrate the step the user just COMPLETED (not the one we're about to show).
+      const completed = STEPS[step - 1];
+      if (completed) {
+        toast.success(`Pas ${completed.num} din 6 finalizat: ${completed.label}`);
+        setCelebrate({ kind: 'step', fireKey: Date.now() });
+      }
+      setStep(step + 1);
+    }
   }
   function goBack() {
     setGlobalError(null);
@@ -183,6 +205,13 @@ export function WizardClient(props: {
 
   return (
     <div className="flex flex-col gap-5">
+      {celebrate && (
+        <StepCelebration
+          intensity={celebrate.kind}
+          fireKey={celebrate.fireKey}
+          onDone={() => setCelebrate(null)}
+        />
+      )}
       {/* Sticky progress bar */}
       <div className="sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:px-5">
         <div className="flex items-center justify-between gap-3">
@@ -205,21 +234,38 @@ export function WizardClient(props: {
           />
         </div>
         <ol className="mt-2 hidden grid-cols-6 gap-1 text-[10px] sm:grid">
-          {STEPS.map((s) => (
-            <li
-              key={s.num}
-              className={
-                'truncate text-center ' +
-                (s.num < step
-                  ? 'text-emerald-600'
-                  : s.num === step
-                    ? 'font-semibold text-zinc-900'
-                    : 'text-zinc-400')
-              }
-            >
-              {s.num}. {s.shortLabel}
-            </li>
-          ))}
+          {STEPS.map((s) => {
+            const done = s.num < step;
+            const current = s.num === step;
+            return (
+              <li
+                key={s.num}
+                className={
+                  'truncate text-center ' +
+                  (done
+                    ? 'text-emerald-600'
+                    : current
+                      ? 'font-semibold text-zinc-900'
+                      : 'text-zinc-400')
+                }
+              >
+                <span
+                  aria-hidden
+                  className={
+                    'mr-0.5 inline-block ' +
+                    (done
+                      ? 'animate-[bounce_0.6s_ease-out_1] text-emerald-600'
+                      : current
+                        ? 'animate-pulse text-indigo-500'
+                        : '')
+                  }
+                >
+                  {done ? '✓' : current ? '●' : `${s.num}.`}
+                </span>
+                {s.shortLabel}
+              </li>
+            );
+          })}
         </ol>
       </div>
 
@@ -276,9 +322,24 @@ export function WizardClient(props: {
             sourceState={props.sourceState}
             tenantId={props.tenantId}
             tenantSlug={props.tenantSlug}
-            disabled={!props.canEdit}
+            disabled={!props.canEdit || redirecting}
             onError={setGlobalError}
-            onLive={() => router.push('/dashboard/orders')}
+            onLive={() => {
+              // Bigger, longer burst for go-live + dialog-style toast.
+              // Hold the redirect briefly (~1.4s) so the merchant SEES the
+              // celebration before the orders dashboard takes over.
+              // `redirecting` latches the wizard so a second click during
+              // the delay can't fire wizardGoLive twice.
+              setRedirecting(true);
+              toast.success(
+                `Felicitări! ${props.tenantName} este live.`,
+                { duration: 4000 },
+              );
+              setCelebrate({ kind: 'golive', fireKey: Date.now() });
+              window.setTimeout(() => {
+                router.push('/dashboard/orders');
+              }, 1400);
+            }}
           />
         )}
       </div>
@@ -295,7 +356,7 @@ export function WizardClient(props: {
           <button
             type="button"
             onClick={goBack}
-            disabled={step === 1 || pending}
+            disabled={step === 1 || pending || redirecting}
             className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ← Înapoi
@@ -303,7 +364,7 @@ export function WizardClient(props: {
           <button
             type="button"
             onClick={() => startTransition(() => void saveNow())}
-            disabled={pending}
+            disabled={pending || redirecting}
             className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
           >
             Salvează schiță
