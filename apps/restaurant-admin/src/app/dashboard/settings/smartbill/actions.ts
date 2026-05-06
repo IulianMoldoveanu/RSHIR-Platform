@@ -256,9 +256,15 @@ export async function retrySmartbillJob(
       };
     };
   };
+  // Reset attempts to 0 alongside the status flip. The pickup query filters
+  // `attempts < MAX_ATTEMPTS`, so a row that exhausted its 5 retries would
+  // otherwise be silently stranded as PENDING after this action — UI would
+  // claim success but cron would never pick it up (caught by Codex P2 round 2
+  // on PR #316). The OWNER explicitly clicked "Reîncearcă", which is the
+  // signal that they want a fresh budget.
   const { error } = await sb
     .from('smartbill_invoice_jobs')
-    .update({ status: 'PENDING', error_text: null })
+    .update({ status: 'PENDING', error_text: null, attempts: 0 } as Record<string, unknown>)
     .eq('id', jobId)
     .eq('tenant_id', tenantId)
     .eq('status', 'FAILED');

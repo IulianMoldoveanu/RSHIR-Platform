@@ -12,7 +12,10 @@ import type { SmartbillSettings } from '@/lib/smartbill';
 
 type JobRow = {
   id: string;
-  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+  // CLAIMED is the transient state held while the Edge Function is calling
+  // SmartBill. Owners can land on this page while a row is in flight, so
+  // the UI must render it (caught by Codex P2 round 2 on PR #316).
+  status: 'PENDING' | 'CLAIMED' | 'SENT' | 'FAILED' | 'SKIPPED';
   smartbill_invoice_id: string | null;
   smartbill_invoice_number: string | null;
   smartbill_invoice_series: string | null;
@@ -40,14 +43,17 @@ function errorLabel(result: Extract<SmartbillResult, { ok: false }>): string {
   return result.detail ? `${base} (${result.detail})` : base;
 }
 
+const STATUS_PILL_FALLBACK = { label: 'Necunoscut', cls: 'bg-zinc-100 text-zinc-700' };
+
 function StatusPill({ status }: { status: JobRow['status'] }) {
   const map: Record<JobRow['status'], { label: string; cls: string }> = {
     PENDING: { label: 'În așteptare', cls: 'bg-amber-100 text-amber-800' },
+    CLAIMED: { label: 'Se trimite…', cls: 'bg-sky-100 text-sky-800' },
     SENT: { label: 'Trimisă', cls: 'bg-emerald-100 text-emerald-800' },
     FAILED: { label: 'Eșuată', cls: 'bg-rose-100 text-rose-800' },
     SKIPPED: { label: 'Omisă', cls: 'bg-zinc-100 text-zinc-700' },
   };
-  const m = map[status];
+  const m = map[status] ?? STATUS_PILL_FALLBACK;
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${m.cls}`}

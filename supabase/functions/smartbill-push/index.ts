@@ -642,6 +642,14 @@ Deno.serve(async (req: Request) => {
 
     // -----------------------------------------------------------------
     // Mode: PICKUP (default) — cron tick.
+    // NOTE on concurrency: this SELECT is non-locking and a parallel cron
+    // run could read the same rows. That is INTENTIONAL — the per-row
+    // `claimJob()` call below uses an atomic conditional UPDATE
+    // (`status='CLAIMED' WHERE id=$ AND status='PENDING'`) which acts as
+    // the actual mutex. Only one caller wins per row; losers count as
+    // `raced` in metadata. So we never POST to SmartBill twice for the
+    // same order, even if the SELECT phase saw the row in N concurrent
+    // ticks. Codex P1 round 1 + 2 flagged this; the guard is at line ~720.
     // -----------------------------------------------------------------
     setMetadata({ mode: 'pickup' });
     const { data: pending, error } = await supabase

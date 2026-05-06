@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 type JobRow = {
   id: string;
-  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+  status: 'PENDING' | 'CLAIMED' | 'SENT' | 'FAILED' | 'SKIPPED';
   smartbill_invoice_id: string | null;
   smartbill_invoice_number: string | null;
   smartbill_invoice_series: string | null;
