@@ -183,33 +183,46 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    if (provider.provider_key !== 'mock') {
-      // Real adapter dispatching ships in a future sprint. Marking DEAD
-      // (rather than retrying) avoids the row sitting in the queue forever
-      // and surfaces the misconfiguration loudly in the audit/UI.
-      await markDead(supabase, row.id, 'provider_not_implemented_in_dispatcher');
-      dead += 1;
+    if (provider.provider_key === 'mock') {
+      // Mock adapter: always succeeds, no external call. We replicate its
+      // behaviour inline here because the workspace package can't be
+      // imported into the Deno Edge runtime.
+      try {
+        console.log('[integration-dispatcher] mock dispatch', {
+          event_id: row.id,
+          tenant_id: row.tenant_id,
+          event_type: row.event_type,
+        });
+        await markSent(supabase, row.id);
+        await auditDispatched(supabase, row.tenant_id, row);
+        sent += 1;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const outcome = await markRetry(supabase, row, msg);
+        if (outcome === 'dead') dead += 1;
+        else failed += 1;
+      }
       continue;
     }
 
-    // Mock adapter: always succeeds, no external call. We replicate its
-    // behaviour inline here because the workspace package can't be
-    // imported into the Deno Edge runtime.
-    try {
-      console.log('[integration-dispatcher] mock dispatch', {
-        event_id: row.id,
-        tenant_id: row.tenant_id,
-        event_type: row.event_type,
-      });
-      await markSent(supabase, row.id);
-      await auditDispatched(supabase, row.tenant_id, row);
-      sent += 1;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const outcome = await markRetry(supabase, row, msg);
-      if (outcome === 'dead') dead += 1;
+    if (provider.provider_key === 'custom') {
+      // Custom HTTPS-webhook adapter — mirrors
+      // packages/integration-core/src/adapters/custom.ts. Keep the two
+      // in sync; this duplication only exists because Deno can't pull
+      // in the workspace package today.
+      const outcome = await dispatchCustom(supabase, row, provider);
+      if (outcome === 'sent') sent += 1;
+      else if (outcome === 'dead') dead += 1;
       else failed += 1;
+      continue;
     }
+
+    // Other adapters (iiko / freya / posnet / smartcash) — out of
+    // scope for the dispatcher today. Marking DEAD (rather than
+    // retrying) avoids the row sitting in the queue forever and
+    // surfaces the misconfiguration loudly in the audit/UI.
+    await markDead(supabase, row.id, 'provider_not_implemented_in_dispatcher');
+    dead += 1;
   }
 
   console.log(
@@ -217,3 +230,180 @@ Deno.serve(async (req: Request) => {
   );
   return json(200, { processed: events.length, sent, failed, dead });
 });
+
+// ----------------------------------------------------------------------
+// Custom HTTPS-webhook adapter — Deno mirror of
+// packages/integration-core/src/adapters/custom.ts.
+// Any change to the contract (header name, envelope shape, SSRF rules)
+// MUST be reflected in both files.
+// ----------------------------------------------------------------------
+
+const CUSTOM_SIG_HEADER = 'x-hir-signature';
+const CUSTOM_VALID_STATUSES = new Set([
+  'NEW',
+  'PREPARING',
+  'READY',
+  'DISPATCHED',
+  'DELIVERED',
+  'CANCELLED',
+]);
+
+function customIsSafeWebhookUrl(url: string): { ok: true } | { ok: false; error: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, error: 'webhook_url_unparseable' };
+  }
+  if (parsed.protocol !== 'https:') return { ok: false, error: 'webhook_url_not_https' };
+  const host = parsed.hostname.toLowerCase();
+  if (host.length === 0) return { ok: false, error: 'webhook_url_no_host' };
+  if (host === 'localhost' || host === 'localhost.localdomain') {
+    return { ok: false, error: 'webhook_url_localhost_blocked' };
+  }
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const o = v4.slice(1).map((n) => Number(n));
+    for (const x of o) {
+      if (Number.isNaN(x) || x < 0 || x > 255) {
+        return { ok: false, error: 'webhook_url_bad_ipv4' };
+      }
+    }
+    const a = o[0]!;
+    const b = o[1]!;
+    if (a === 10) return { ok: false, error: 'webhook_url_private_ipv4' };
+    if (a === 172 && b >= 16 && b <= 31) return { ok: false, error: 'webhook_url_private_ipv4' };
+    if (a === 192 && b === 168) return { ok: false, error: 'webhook_url_private_ipv4' };
+    if (a === 127) return { ok: false, error: 'webhook_url_loopback_ipv4' };
+    if (a === 169 && b === 254) return { ok: false, error: 'webhook_url_link_local_ipv4' };
+    if (a === 0) return { ok: false, error: 'webhook_url_zero_ipv4' };
+  }
+  if (host.includes(':')) {
+    const h = host.replace(/^\[/, '').replace(/\]$/, '');
+    if (h === '::1' || h === '0:0:0:0:0:0:0:1') {
+      return { ok: false, error: 'webhook_url_loopback_ipv6' };
+    }
+    if (/^fc/i.test(h) || /^fd/i.test(h)) {
+      return { ok: false, error: 'webhook_url_private_ipv6' };
+    }
+    if (/^fe[89ab]/i.test(h)) {
+      return { ok: false, error: 'webhook_url_link_local_ipv6' };
+    }
+  }
+  return { ok: true };
+}
+
+function customValidateConfig(
+  raw: unknown,
+):
+  | { ok: true; webhook_url: string; fire_on_statuses: string[] }
+  | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'object') return { ok: false, error: 'config_not_object' };
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.webhook_url !== 'string' || obj.webhook_url.length === 0) {
+    return { ok: false, error: 'webhook_url_missing' };
+  }
+  const safe = customIsSafeWebhookUrl(obj.webhook_url);
+  if (!safe.ok) return { ok: false, error: safe.error };
+  if (!Array.isArray(obj.fire_on_statuses) || obj.fire_on_statuses.length === 0) {
+    return { ok: false, error: 'fire_on_statuses_empty' };
+  }
+  for (const s of obj.fire_on_statuses) {
+    if (typeof s !== 'string' || !CUSTOM_VALID_STATUSES.has(s)) {
+      return { ok: false, error: `fire_on_statuses_invalid:${String(s)}` };
+    }
+  }
+  return {
+    ok: true,
+    webhook_url: obj.webhook_url,
+    fire_on_statuses: obj.fire_on_statuses as string[],
+  };
+}
+
+function customHex(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let out = '';
+  for (let i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0');
+  return out;
+}
+
+async function customHmacSha256Hex(secret: string, body: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(body));
+  return customHex(sig);
+}
+
+async function dispatchCustom(
+  supabase: SupabaseClient,
+  row: EventRow,
+  provider: ProviderRow,
+): Promise<'sent' | 'retry' | 'dead'> {
+  const validation = customValidateConfig(provider.config);
+  if (!validation.ok) {
+    await markDead(supabase, row.id, `custom_config_invalid:${validation.error}`);
+    return 'dead';
+  }
+
+  // The bus is the source of truth for status filtering, but we re-check
+  // here in case a stale event was queued before the operator tightened
+  // their fire_on_statuses list.
+  const statusInPayload =
+    typeof row.payload?.status === 'string' ? (row.payload.status as string) : null;
+  const isStatusEvent = row.event_type === 'order.status_changed';
+  if (isStatusEvent && statusInPayload && !validation.fire_on_statuses.includes(statusInPayload)) {
+    await markSent(supabase, row.id); // Drop quietly; this is not a failure.
+    await auditDispatched(supabase, row.tenant_id, row);
+    return 'sent';
+  }
+
+  const envelope = {
+    event: row.event_type,
+    test_mode: false,
+    order: row.payload,
+    delivered_at: new Date().toISOString(),
+  };
+  const body = JSON.stringify(envelope);
+  const signature = await customHmacSha256Hex(provider.webhook_secret, body);
+
+  try {
+    const res = await fetch(validation.webhook_url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        [CUSTOM_SIG_HEADER]: signature,
+        'x-hir-event': row.event_type,
+        'x-hir-test-mode': '0',
+      },
+      body,
+    });
+    if (res.ok) {
+      console.log('[integration-dispatcher] custom dispatch ok', {
+        event_id: row.id,
+        tenant_id: row.tenant_id,
+        status: res.status,
+      });
+      await markSent(supabase, row.id);
+      await auditDispatched(supabase, row.tenant_id, row);
+      return 'sent';
+    }
+    const retry = res.status >= 500 || res.status === 429;
+    const reason = `custom_http_${res.status}`;
+    if (!retry) {
+      await markDead(supabase, row.id, reason);
+      return 'dead';
+    }
+    const outcome = await markRetry(supabase, row, reason);
+    return outcome === 'dead' ? 'dead' : 'retry';
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const outcome = await markRetry(supabase, row, `custom_network_error:${msg}`);
+    return outcome === 'dead' ? 'dead' : 'retry';
+  }
+}
