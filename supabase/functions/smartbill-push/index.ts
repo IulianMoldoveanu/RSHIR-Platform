@@ -415,22 +415,77 @@ async function bumpAttempts(
   status: 'SENT' | 'FAILED' | 'SKIPPED',
   detail: string,
 ): Promise<void> {
+  // SKIPPED (rate-limit / config-disabled) does NOT consume a retry attempt
+  // — the condition is transient and the job must be re-eligible on the
+  // next pickup. Otherwise it would burn through MAX_ATTEMPTS in 5 cron
+  // ticks and become permanently stranded as PENDING (caught by Codex P1
+  // on PR #316).
   const { data: row } = await supabase
     .from('smartbill_invoice_jobs')
     .select('attempts')
     .eq('id', jobId)
     .maybeSingle();
-  const attempts = ((row as { attempts?: number } | null)?.attempts ?? 0) + 1;
-  // SKIPPED keeps job PENDING for next tick (rate-limit / config-disabled).
-  const persistedStatus = status === 'SKIPPED' ? 'PENDING' : status;
+  const currentAttempts = (row as { attempts?: number } | null)?.attempts ?? 0;
+  if (status === 'SKIPPED') {
+    await supabase
+      .from('smartbill_invoice_jobs')
+      .update({
+        status: 'PENDING',
+        error_text: detail,
+      })
+      .eq('id', jobId);
+    return;
+  }
   await supabase
     .from('smartbill_invoice_jobs')
     .update({
-      status: persistedStatus,
-      attempts,
+      status,
+      attempts: currentAttempts + 1,
       error_text: status === 'SENT' ? null : detail,
     })
     .eq('id', jobId);
+}
+
+/**
+ * Atomic claim — flips PENDING → CLAIMED for exactly one row. Returns true
+ * iff this caller won the race; concurrent pickups (or a manual push that
+ * ran in parallel with cron) will see the row already CLAIMED/SENT/FAILED
+ * and back off. Without this guard, two ticks reading the same PENDING row
+ * before either updates would both POST to SmartBill and create duplicate
+ * invoices for the same order (caught by Codex P1 on PR #316).
+ */
+async function claimJob(
+  supabase: SupabaseClient,
+  jobId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('smartbill_invoice_jobs')
+    .update({ status: 'CLAIMED' })
+    .eq('id', jobId)
+    .eq('status', 'PENDING')
+    .select('id');
+  if (error) {
+    console.warn('[smartbill-push] claim failed', jobId, error.message);
+    return false;
+  }
+  return Array.isArray(data) && data.length === 1;
+}
+
+/**
+ * Release a CLAIMED row back to PENDING — used when the function throws
+ * mid-processing (network blip, OOM, ...) so the next cron tick can retry.
+ * Only flips CLAIMED → PENDING; if the row was already moved to a terminal
+ * state by `bumpAttempts`, this is a no-op.
+ */
+async function releaseClaim(
+  supabase: SupabaseClient,
+  jobId: string,
+): Promise<void> {
+  await supabase
+    .from('smartbill_invoice_jobs')
+    .update({ status: 'PENDING' })
+    .eq('id', jobId)
+    .eq('status', 'CLAIMED');
 }
 
 Deno.serve(async (req: Request) => {
@@ -538,8 +593,22 @@ Deno.serve(async (req: Request) => {
       let jobId: string;
       if (existing) {
         jobId = (existing as { id: string }).id;
-        if ((existing as { status: string }).status === 'SENT' && body.force !== true) {
+        const existingStatus = (existing as { status: string }).status;
+        if (existingStatus === 'SENT' && body.force !== true) {
           return json(200, { ok: true, skipped: 'already_sent' });
+        }
+        // If a row is currently CLAIMED by a cron tick, refuse so we don't
+        // double-post. The button can be retried in a few seconds.
+        if (existingStatus === 'CLAIMED') {
+          return json(200, { ok: false, status: 'busy', detail: 'job_in_progress' });
+        }
+        // For FAILED rows that the OWNER is force-pushing, flip back to
+        // PENDING first so the claim-update sees a transitional row.
+        if (existingStatus !== 'PENDING') {
+          await supabase
+            .from('smartbill_invoice_jobs')
+            .update({ status: 'PENDING', error_text: null })
+            .eq('id', jobId);
         }
       } else {
         const { data: ins, error: insErr } = await supabase
@@ -553,10 +622,22 @@ Deno.serve(async (req: Request) => {
         jobId = (ins as { id: string }).id;
       }
 
-      const r = await processJob(supabase, jobId, tenantId, orderId);
-      await bumpAttempts(supabase, jobId, r.status, r.detail);
-      setMetadata({ result_status: r.status });
-      return json(200, { ok: r.status === 'SENT', status: r.status, detail: r.detail });
+      // Atomic claim — same guard as the cron pickup path.
+      const won = await claimJob(supabase, jobId);
+      if (!won) {
+        return json(200, { ok: false, status: 'busy', detail: 'lost_claim_race' });
+      }
+      try {
+        const r = await processJob(supabase, jobId, tenantId, orderId);
+        await bumpAttempts(supabase, jobId, r.status, r.detail);
+        setMetadata({ result_status: r.status });
+        return json(200, { ok: r.status === 'SENT', status: r.status, detail: r.detail });
+      } catch (e) {
+        await releaseClaim(supabase, jobId);
+        const msg = e instanceof Error ? e.message : String(e);
+        await bumpAttempts(supabase, jobId, 'FAILED', `throw: ${msg.slice(0, 200)}`);
+        return json(500, { ok: false, status: 'FAILED', detail: msg.slice(0, 200) });
+      }
     }
 
     // -----------------------------------------------------------------
@@ -582,7 +663,15 @@ Deno.serve(async (req: Request) => {
     let sent = 0;
     let failed = 0;
     let skipped = 0;
+    let raced = 0;
     for (const j of jobs) {
+      // Atomic CLAIM before any external API call. If another tick (or a
+      // concurrent manual push) already claimed it, skip silently.
+      const won = await claimJob(supabase, j.id);
+      if (!won) {
+        raced++;
+        continue;
+      }
       try {
         const r = await processJob(supabase, j.id, j.tenant_id, j.order_id);
         await bumpAttempts(supabase, j.id, r.status, r.detail);
@@ -591,6 +680,11 @@ Deno.serve(async (req: Request) => {
         else skipped++;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        // Release claim back to PENDING — bumpAttempts only fires on
+        // catchable processJob errors, so a thrown error mid-flight could
+        // otherwise leave a row CLAIMED forever. Then mark as FAILED with
+        // the actual error so the operator can see what happened.
+        await releaseClaim(supabase, j.id);
         await bumpAttempts(supabase, j.id, 'FAILED', `throw: ${msg.slice(0, 200)}`);
         failed++;
       }
@@ -600,7 +694,8 @@ Deno.serve(async (req: Request) => {
       sent,
       failed,
       skipped,
+      raced,
     });
-    return json(200, { ok: true, picked: jobs.length, sent, failed, skipped });
+    return json(200, { ok: true, picked: jobs.length, sent, failed, skipped, raced });
   });
 });

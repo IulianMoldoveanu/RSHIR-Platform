@@ -43,7 +43,7 @@ create table if not exists public.smartbill_invoice_jobs (
   tenant_id                uuid not null references public.tenants(id) on delete cascade,
   order_id                 uuid not null references public.restaurant_orders(id) on delete cascade,
   status                   text not null default 'PENDING'
-                             check (status in ('PENDING','SENT','FAILED','SKIPPED')),
+                             check (status in ('PENDING','CLAIMED','SENT','FAILED','SKIPPED')),
   smartbill_invoice_id     text,
   smartbill_invoice_number text,
   smartbill_invoice_series text,
@@ -52,6 +52,14 @@ create table if not exists public.smartbill_invoice_jobs (
   created_at               timestamptz not null default now(),
   updated_at               timestamptz not null default now()
 );
+
+-- If the table already existed from a prior migration apply (without CLAIMED),
+-- swap the CHECK constraint additively. Idempotent.
+alter table public.smartbill_invoice_jobs
+  drop constraint if exists smartbill_invoice_jobs_status_check;
+alter table public.smartbill_invoice_jobs
+  add constraint smartbill_invoice_jobs_status_check
+  check (status in ('PENDING','CLAIMED','SENT','FAILED','SKIPPED'));
 
 -- One job per (tenant, order). Re-firing the trigger on the same order is
 -- a no-op; manual "Reîncearcă" flips status back to PENDING in place.
