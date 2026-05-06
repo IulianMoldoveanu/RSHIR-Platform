@@ -26,8 +26,14 @@
 // log warning instead.
 //
 // Pricing assumption: HIR fee = 3.00 RON per delivered+paid order
-// (Tier 1 in the pricing memory). TODO: when Tier 2 / per-order
-// `hir_fee_ron` lands, sum the per-row fee instead of multiplying by 3.
+// (Tier 1 in the pricing memory).
+//
+// DEFERRED — Tier 2 (per-order aggregator margin) cannot be implemented
+// until both (a) HIR signs the first aggregator/marketplace contract and
+// (b) `restaurant_orders` exposes a per-row `hir_fee_ron numeric` column
+// (or equivalent settlement table). When both land, sum the per-row fee
+// instead of `orderCount * HIR_FEE_PER_ORDER_RON`. Tracking note in
+// HIR-Status-Reports/RSHIR/2026-05-06-GAP-AUDIT.md §2.
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 

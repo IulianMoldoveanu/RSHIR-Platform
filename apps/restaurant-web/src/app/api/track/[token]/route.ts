@@ -9,11 +9,15 @@ const paramsSchema = z.object({ token: z.string().uuid() });
 
 /**
  * Anonymous fetch of an order by its public_track_token.
- * Returns ONLY the safe subset of fields needed to render /track/[token].
  *
- * TODO: replace with `get_public_order(token uuid)` Postgres function once
- * that migration ships (spec §5.4). For now we use the service-role client
- * server-side and hand-pick columns.
+ * Calls the `get_public_order(token uuid)` Postgres RPC (security definer)
+ * which scopes the read at the DB layer and returns ONLY the safe subset
+ * of columns rendered on /track/[token]. The RPC ships in
+ * supabase/migrations/20260506_007_get_public_order_rpc.sql.
+ *
+ * The Supabase client is still the service-role admin so we can call the
+ * function from a server route without an end-user JWT, but the RPC's
+ * row-shape contract — not RLS — is what defines the safe public view.
  */
 export async function GET(_req: Request, ctx: { params: { token: string } }) {
   const parsed = paramsSchema.safeParse(ctx.params);
@@ -23,49 +27,30 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
 
   const admin = getSupabaseAdmin();
 
-  // Defensive SELECT: try with payment_method (20260504_001 column); on
-  // PostgREST 'column does not exist' fall back to the legacy column set so
-  // /track keeps working when the migration lags the code deploy. The COD
-  // banner just doesn't render until the column exists.
-  const COLS_FULL = `
-    id, status, payment_status, payment_method, items,
-    subtotal_ron, delivery_fee_ron, total_ron, created_at, updated_at,
-    public_track_token, delivery_address_id,
-    tenants ( name, slug, settings ),
-    customers ( first_name, last_name ),
-    customer_addresses ( line1, city )
-  `;
-  const COLS_LEGACY = `
-    id, status, payment_status, items,
-    subtotal_ron, delivery_fee_ron, total_ron, created_at, updated_at,
-    public_track_token, delivery_address_id,
-    tenants ( name, slug, settings ),
-    customers ( first_name, last_name ),
-    customer_addresses ( line1, city )
-  `;
-  const loadOrder = (cols: string) =>
-    admin
-      .from('restaurant_orders')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .select(cols as any)
-      .eq('public_track_token', parsed.data.token)
-      .single();
-  let { data: order, error } = await loadOrder(COLS_FULL);
-  if (error && /payment_method/i.test(error.message ?? '')) {
-    ({ data: order, error } = await loadOrder(COLS_LEGACY));
-  }
+  // Cast: `get_public_order` is added by
+  // supabase/migrations/20260506_007_get_public_order_rpc.sql; the generated
+  // Database types in @hir/supabase-types are regenerated post-merge by
+  // `supabase/gen-types.mjs`. Until that runs, narrow via `any` here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.rpc as any)('get_public_order', {
+    p_token: parsed.data.token,
+  });
 
-  if (error || !order) {
+  if (error) {
+    console.error('[track/route] get_public_order rpc error', error.message);
+    return NextResponse.json({ error: 'rpc_failed' }, { status: 500 });
+  }
+  if (!data) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  // The defensive any-cast on .select(cols as any) widened the row type;
-  // narrow it back so the rest of this route reads cleanly.
-  const orderRow = order as unknown as {
+  // The RPC returns jsonb shaped like the previous direct-select, with
+  // snake_case keys. Narrow it for the rest of this handler.
+  const row = data as unknown as {
     id: string;
     status: string;
     payment_status: string;
-    payment_method?: 'CARD' | 'COD' | null;
+    payment_method: 'CARD' | 'COD' | null;
     items: unknown;
     subtotal_ron: number | string;
     delivery_fee_ron: number | string;
@@ -74,25 +59,13 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
     updated_at: string;
     public_track_token: string;
     delivery_address_id: string | null;
-    tenants: { name: string; slug: string; settings: unknown } | null;
-    customers: { first_name: string | null; last_name: string | null } | null;
-    customer_addresses: { line1: string | null; city: string | null } | null;
+    has_review: boolean;
+    tenant: { name: string; slug: string; settings: unknown } | null;
+    customer: { first_name: string | null; last_name: string | null } | null;
+    customer_address: { line1: string | null; city: string | null } | null;
   };
 
-  // RSHIR-39: surface whether the customer has already left a review so the
-  // /track UI can render the prompt vs the thank-you state without a second
-  // round-trip.
-  let hasReview = false;
-  if (orderRow.status === 'DELIVERED') {
-    const { data: review } = await admin
-      .from('restaurant_reviews')
-      .select('id')
-      .eq('order_id', orderRow.id)
-      .maybeSingle();
-    hasReview = !!review;
-  }
-
-  const tenantSettings = (orderRow.tenants?.settings ?? {}) as Record<string, unknown>;
+  const tenantSettings = (row.tenant?.settings ?? {}) as Record<string, unknown>;
   const tenantPhone =
     typeof tenantSettings.whatsapp_phone === 'string'
       ? tenantSettings.whatsapp_phone
@@ -117,31 +90,27 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
       ? Math.round(tenantSettings.delivery_eta_min_minutes)
       : null;
 
-  const isPickup = orderRow.delivery_address_id === null;
-
-  const paymentMethod =
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((order as any).payment_method as 'CARD' | 'COD' | null | undefined) ?? null;
+  const isPickup = row.delivery_address_id === null;
 
   return NextResponse.json({
     order: {
-      id: orderRow.id,
-      status: orderRow.status,
-      paymentStatus: orderRow.payment_status,
-      paymentMethod,
-      items: orderRow.items,
-      subtotalRon: Number(orderRow.subtotal_ron),
-      deliveryFeeRon: Number(orderRow.delivery_fee_ron),
-      totalRon: Number(orderRow.total_ron),
-      createdAt: orderRow.created_at,
-      updatedAt: orderRow.updated_at,
-      publicTrackToken: orderRow.public_track_token,
+      id: row.id,
+      status: row.status,
+      paymentStatus: row.payment_status,
+      paymentMethod: row.payment_method ?? null,
+      items: row.items,
+      subtotalRon: Number(row.subtotal_ron),
+      deliveryFeeRon: Number(row.delivery_fee_ron),
+      totalRon: Number(row.total_ron),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      publicTrackToken: row.public_track_token,
       fulfillment: isPickup ? 'PICKUP' : 'DELIVERY',
-      hasReview,
-      tenant: orderRow.tenants
+      hasReview: row.has_review,
+      tenant: row.tenant
         ? {
-            name: orderRow.tenants.name,
-            slug: orderRow.tenants.slug,
+            name: row.tenant.name,
+            slug: row.tenant.slug,
             phone: tenantPhone,
             location:
               tenantLat !== null && tenantLng !== null ? { lat: tenantLat, lng: tenantLng } : null,
@@ -150,20 +119,20 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
             deliveryEtaMinutes,
           }
         : null,
-      customer: orderRow.customers
+      customer: row.customer
         ? {
-            firstName: orderRow.customers.first_name,
-            lastNameInitial: initial(orderRow.customers.last_name),
+            firstName: row.customer.first_name,
+            lastNameInitial: initial(row.customer.last_name),
           }
         : null,
       dropoff:
-        !isPickup && orderRow.customer_addresses
+        !isPickup && row.customer_address
           ? {
               neighborhood: neighborhoodOf(
-                orderRow.customer_addresses.line1,
-                orderRow.customer_addresses.city,
+                row.customer_address.line1,
+                row.customer_address.city,
               ),
-              city: orderRow.customer_addresses.city,
+              city: row.customer_address.city,
             }
           : null,
     },

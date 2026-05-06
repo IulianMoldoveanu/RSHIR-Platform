@@ -9,11 +9,9 @@ let cached: SupabaseClient<Database> | null = null;
  *
  * Used for:
  *   - Inserting orders (anon has no insert policy on `restaurant_orders`).
- *   - Reading orders by `public_track_token` for the anonymous tracking page,
- *     filtered to a safe column subset by the caller.
- *
- * TODO: replace anon-tracking reads with a `get_public_order(token uuid)` RPC
- * once the migration lands. (Spec §5.4)
+ *   - Calling security-definer RPCs that scope sensitive reads at the DB
+ *     layer (e.g. `get_public_order(token uuid)` for the anonymous /track
+ *     page — see supabase/migrations/20260506_007_get_public_order_rpc.sql).
  */
 export function getSupabaseAdmin(): SupabaseClient<Database> {
   if (cached) return cached;

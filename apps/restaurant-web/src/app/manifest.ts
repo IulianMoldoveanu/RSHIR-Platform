@@ -6,10 +6,9 @@ import { resolveTenantFromHost, brandingFor } from '@/lib/tenant';
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   let name = 'HIR Restaurant';
   let themeColor = '#7c3aed';
-  // TODO (ops): replace /icon-192.png and /icon-512.png in public/ with
-  // actual PNG files (192×192 and 512×512, HIR purple on white).
-  // The push service-worker already references /icon-192.png as notification
-  // icon so both must be present before going live.
+  // /icon-192.png + /icon-512.png ship under apps/restaurant-web/public/
+  // (HIR-branded PNG, shared with restaurant-courier). Per-tenant logos
+  // override these below when `branding.logo_url` is set on the tenant.
   let iconSrc192 = '/icon-192.png';
   let iconSrc512 = '/icon-512.png';
 
