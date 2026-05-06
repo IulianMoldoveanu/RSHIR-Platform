@@ -236,6 +236,13 @@ grant execute on function public.hir_delete_vault_secret(text) to service_role;
 --     'smartbill_push_url',
 --     'smartbill-push Edge Function URL');
 -- HIR_NOTIFY_SECRET on the function reuses notify_new_order_secret.
+--
+-- Authorization header: requests to *.functions.supabase.co are rejected
+-- with UNAUTHORIZED_NO_AUTH_HEADER by the gateway unless an Authorization
+-- bearer is present, regardless of the function's verify_jwt setting (see
+-- 20260501_006_notify_jwt_gateway_fix.sql). We reuse the existing
+-- `notify_function_anon_jwt` vault secret. The bearer is gateway plumbing
+-- only — the real auth gate remains x-hir-notify-secret on the function.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
@@ -262,6 +269,11 @@ select cron.schedule(
                   where name = 'smartbill_push_url' limit 1),
       headers := jsonb_build_object(
         'Content-Type',        'application/json',
+        'Authorization',       'Bearer ' || coalesce(
+          (select decrypted_secret from vault.decrypted_secrets
+            where name = 'notify_function_anon_jwt' limit 1),
+          ''
+        ),
         'x-hir-notify-secret', (select decrypted_secret from vault.decrypted_secrets
                                 where name = 'notify_new_order_secret' limit 1)
       ),
