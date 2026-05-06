@@ -71,19 +71,29 @@ async function fetchExistingVerifyJwt() {
   return { existed: true, verifyJwt: Boolean(json.verify_jwt) };
 }
 
-const { existed, verifyJwt: existingVerifyJwt } = await fetchExistingVerifyJwt();
-
+// When the CLI flag explicitly sets verify_jwt, skip the GET entirely. This
+// avoids requiring `edge_functions:read` on the access token (the Mgmt API
+// scopes read + write separately) and honors the documented "CLI flag always
+// wins" contract without an unnecessary round-trip. Per Codex review on
+// PR #287.
+let existed = null; // null = not probed
+let existingVerifyJwt = null;
 let verifyJwt;
 let sourceOfDecision;
 if (cliVerifyJwt !== null) {
   verifyJwt = cliVerifyJwt;
   sourceOfDecision = 'cli-flag';
-} else if (existed) {
-  verifyJwt = existingVerifyJwt;
-  sourceOfDecision = 'preserved-from-existing';
 } else {
-  verifyJwt = true;
-  sourceOfDecision = 'default-new-function';
+  const probe = await fetchExistingVerifyJwt();
+  existed = probe.existed;
+  existingVerifyJwt = probe.verifyJwt;
+  if (existed) {
+    verifyJwt = existingVerifyJwt;
+    sourceOfDecision = 'preserved-from-existing';
+  } else {
+    verifyJwt = true;
+    sourceOfDecision = 'default-new-function';
+  }
 }
 
 console.log(
