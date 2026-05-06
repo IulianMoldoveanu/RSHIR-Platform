@@ -13,4 +13,10 @@ export type {
 } from './contract';
 
 export { mockAdapter } from './adapters/mock';
+export {
+  customAdapter,
+  validateCustomConfig,
+  isSafeWebhookUrl,
+} from './adapters/custom';
+export type { CustomConfig, CustomConfigValidation, CustomEnvelope } from './adapters/custom';
 export { getAdapter, isProviderImplemented } from './adapters/registry';

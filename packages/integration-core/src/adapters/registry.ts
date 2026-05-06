@@ -3,13 +3,15 @@ import { mockAdapter } from './mock';
 import { freyaAdapter } from './freya';
 import { posnetAdapter } from './posnet';
 import { iikoAdapter } from './iiko';
+import { customAdapter } from './custom';
 
 const REGISTRY: Partial<Record<ProviderKey, IntegrationAdapter>> = {
   mock: mockAdapter,
   freya: freyaAdapter,
   posnet: posnetAdapter,
   iiko: iikoAdapter,
-  // Future: smartcash, custom — register here as adapters are implemented.
+  custom: customAdapter,
+  // Future: smartcash — register here as adapters are implemented.
   // Throwing on unknown keys is intentional; a tenant configured with an
   // unimplemented provider should fail loudly so the operator notices.
 };
