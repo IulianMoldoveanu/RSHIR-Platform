@@ -143,7 +143,6 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
       }
       onComplete({ delivery: next.delivery, id: next.id, prescription: next.prescription });
     } catch (err) {
-      toast.dismiss('proof-retry');
       setError(err instanceof Error ? err.message : 'Eroare la încărcare. Încearcă din nou.');
     } finally {
       toast.dismiss('proof-retry');
