@@ -360,17 +360,30 @@ async function consumeConnectNonce(
     return { ok: false, error: 'not_found' }; // surface as "link expirat sau folosit"
   }
 
-  // 3) If this Telegram user already had an active binding (perhaps to a
-  //    different tenant), unbind it first — one TG account = one active
-  //    tenant. We don't delete the row; we mark `unbound_at` for audit.
+  // 3) Claim the nonce FIRST (atomic-ish: PK + IS NULL filter). If two
+  //    concurrent /start clicks land, only one update affects a row;
+  //    the other sees zero affected rows. We use .select() to confirm
+  //    that we won the race before mutating any binding state.
+  const { data: claimed, error: claimErr } = await supabase
+    .from('hepy_connect_nonces')
+    .update({ consumed_at: new Date().toISOString(), consumed_by_tg: telegramUserId })
+    .eq('nonce', nonce)
+    .is('consumed_at', null)
+    .select('nonce')
+    .maybeSingle();
+  if (claimErr) return { ok: false, error: 'db_error', detail: claimErr.message };
+  if (!claimed) return { ok: false, error: 'already_consumed' };
+
+  // 4) Now that we've won the nonce, unbind any prior active binding
+  //    for THIS Telegram user (one TG account = one active tenant) and
+  //    for THIS (owner, tenant) pair (re-issue from admin UI). Best
+  //    effort — the unique partial index on
+  //    (telegram_user_id WHERE unbound_at IS NULL) is the real invariant.
   await supabase
     .from('hepy_owner_bindings')
     .update({ unbound_at: new Date().toISOString() })
     .eq('telegram_user_id', telegramUserId)
     .is('unbound_at', null);
-
-  // 4) Same for any prior active binding the OWNER held on this tenant
-  //    (covers re-issue from the admin UI).
   await supabase
     .from('hepy_owner_bindings')
     .update({ unbound_at: new Date().toISOString() })
@@ -378,24 +391,7 @@ async function consumeConnectNonce(
     .eq('tenant_id', row.tenant_id)
     .is('unbound_at', null);
 
-  // 5) Atomic claim: only proceed if consumed_at is still NULL. Equivalent
-  //    to SELECT FOR UPDATE in this read+update pattern under
-  //    PostgREST — with the unique nonce PK + the IS NULL filter, two
-  //    concurrent /start clicks either both see consumed_at=NULL and one
-  //    update wins (upsert race) or one sees it filled and bails. We
-  //    accept this best-effort guard because the worst case is the same
-  //    OWNER getting two bindings (we already unbind any prior in step
-  //    3), the rate is ~0/sec, and the unique partial index on
-  //    (telegram_user_id WHERE unbound_at IS NULL) is the actual
-  //    invariant we rely on.
-  const { error: claimErr } = await supabase
-    .from('hepy_connect_nonces')
-    .update({ consumed_at: new Date().toISOString(), consumed_by_tg: telegramUserId })
-    .eq('nonce', nonce)
-    .is('consumed_at', null);
-  if (claimErr) return { ok: false, error: 'db_error', detail: claimErr.message };
-
-  // 6) Insert the new binding.
+  // 5) Insert the new binding.
   const { error: insErr } = await supabase
     .from('hepy_owner_bindings')
     .insert({
