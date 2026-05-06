@@ -13,6 +13,7 @@ import {
   removeProvider,
   createApiKey,
   revokeApiKey,
+  testCustomWebhook,
 } from './actions';
 
 type Provider = {
@@ -74,6 +75,17 @@ function fmt(iso: string | null) {
 
 // ------- Add Provider Form -------
 
+// Order-status enum exposed to the operator. Mirrors the Custom adapter
+// VALID_STATUSES set in @hir/integration-core. Keep in sync.
+const CUSTOM_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'NEW', label: 'Nouă' },
+  { value: 'PREPARING', label: 'În pregătire' },
+  { value: 'READY', label: 'Gata' },
+  { value: 'DISPATCHED', label: 'Plecată' },
+  { value: 'DELIVERED', label: 'Livrată' },
+  { value: 'CANCELLED', label: 'Anulată' },
+];
+
 function AddProviderForm({
   tenantId,
   onDone,
@@ -85,6 +97,12 @@ function AddProviderForm({
   const [providerKey, setProviderKey] = useState<string>(PROVIDER_OPTIONS[0].value);
   const [displayName, setDisplayName] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [fireOnStatuses, setFireOnStatuses] = useState<string[]>([
+    'NEW',
+    'DELIVERED',
+    'CANCELLED',
+  ]);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -92,14 +110,43 @@ function AddProviderForm({
     setWebhookSecret(crypto.randomUUID());
   };
 
+  const isCustom = providerKey === 'custom';
+
+  const toggleStatus = (s: string) => {
+    setFireOnStatuses((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+    );
+  };
+
   const submit = () => {
     if (!displayName.trim()) {
       setError('Completați numele de afișare.');
       return;
     }
+    if (webhookSecret.length < 16) {
+      setError('Secretul webhook trebuie să aibă minim 16 caractere.');
+      return;
+    }
+    if (isCustom) {
+      if (!webhookUrl.trim()) {
+        setError('Completați URL-ul webhook.');
+        return;
+      }
+      if (!webhookUrl.trim().toLowerCase().startsWith('https://')) {
+        setError('URL-ul webhook trebuie să fie HTTPS.');
+        return;
+      }
+      if (fireOnStatuses.length === 0) {
+        setError('Selectați cel puțin un status pentru care să trimitem webhook.');
+        return;
+      }
+    }
     setError(null);
+    const config: Record<string, unknown> = isCustom
+      ? { webhook_url: webhookUrl.trim(), fire_on_statuses: fireOnStatuses }
+      : {};
     start(async () => {
-      const r = await addProvider(tenantId, providerKey, displayName.trim(), {}, webhookSecret);
+      const r = await addProvider(tenantId, providerKey, displayName.trim(), config, webhookSecret);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -145,6 +192,47 @@ function AddProviderForm({
         />
       </div>
 
+      {isCustom && (
+        <>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-zinc-600" htmlFor="webhook-url">
+              URL webhook (HTTPS)
+            </label>
+            <input
+              id="webhook-url"
+              type="url"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://exemplu.ro/hir-webhook"
+              className="rounded-md border border-zinc-200 px-3 py-2 font-mono text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <p className="text-[11px] text-zinc-500">
+              Trimitem POST cu antet <code className="text-violet-700">X-HIR-Signature</code> (HMAC-SHA256). Doar HTTPS, fără adrese interne (10.x, 192.168.x, localhost).
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-zinc-600">Trimite webhook la</span>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CUSTOM_STATUS_OPTIONS.map((s) => (
+                <label
+                  key={s.value}
+                  className="flex items-center gap-2 rounded-md border border-zinc-200 px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={fireOnStatuses.includes(s.value)}
+                    onChange={() => toggleStatus(s.value)}
+                    className="h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
+                  />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="flex flex-col gap-1">
         <label className="text-xs text-zinc-600" htmlFor="webhook-secret">
           Secret webhook (HMAC)
@@ -155,7 +243,7 @@ function AddProviderForm({
             type="text"
             value={webhookSecret}
             onChange={(e) => setWebhookSecret(e.target.value)}
-            placeholder="Generează sau introdu manual"
+            placeholder="Generează sau introdu manual (min. 16 caractere)"
             className="flex-1 rounded-md border border-zinc-200 px-3 py-2 font-mono text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
           <button
@@ -342,6 +430,11 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
   const [actionError, setActionError] = useState<string | null>(null);
   const [, start] = useTransition();
 
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<
+    { providerId: string; ok: boolean; message: string } | null
+  >(null);
+
   const handleRemoveProvider = (id: string) => {
     setActionError(null);
     setRemovingId(id);
@@ -353,6 +446,25 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
         return;
       }
       router.refresh();
+    });
+  };
+
+  const handleTestWebhook = (id: string) => {
+    setActionError(null);
+    setTestResult(null);
+    setTestingId(id);
+    start(async () => {
+      const r = await testCustomWebhook(tenantId, id);
+      setTestingId(null);
+      if (r.ok) {
+        setTestResult({
+          providerId: id,
+          ok: true,
+          message: `Webhook livrat în ${r.latencyMs} ms (HTTP ${r.httpStatus}).`,
+        });
+      } else {
+        setTestResult({ providerId: id, ok: false, message: r.error });
+      }
     });
   };
 
@@ -479,15 +591,38 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
                     <td className="px-4 py-3 text-xs text-zinc-500">{fmt(p.created_at)}</td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveProvider(p.id)}
-                          disabled={removingId === p.id}
-                          className="rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                          aria-label={`Șterge furnizor ${p.display_name}`}
-                        >
-                          {removingId === p.id ? 'Se șterge…' : 'Șterge'}
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          {p.provider_key === 'custom' && (
+                            <button
+                              type="button"
+                              onClick={() => handleTestWebhook(p.id)}
+                              disabled={testingId === p.id}
+                              className="rounded px-2 py-1 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                              aria-label={`Testează conexiunea pentru ${p.display_name}`}
+                            >
+                              {testingId === p.id ? 'Se testează…' : 'Testează'}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveProvider(p.id)}
+                            disabled={removingId === p.id}
+                            className="rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                            aria-label={`Șterge furnizor ${p.display_name}`}
+                          >
+                            {removingId === p.id ? 'Se șterge…' : 'Șterge'}
+                          </button>
+                        </div>
+                        {testResult && testResult.providerId === p.id && (
+                          <p
+                            className={`mt-1 text-xs ${
+                              testResult.ok ? 'text-emerald-700' : 'text-rose-700'
+                            }`}
+                            role="status"
+                          >
+                            {testResult.message}
+                          </p>
+                        )}
                       </td>
                     )}
                   </tr>
