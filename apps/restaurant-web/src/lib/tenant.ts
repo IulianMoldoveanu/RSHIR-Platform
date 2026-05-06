@@ -1,5 +1,6 @@
 import { headers } from 'next/headers';
 import type { Json } from '@hir/supabase-types';
+import { getTemplate, type RestaurantTemplate } from '@hir/restaurant-templates';
 import { getSupabase } from './supabase';
 
 export type TenantBranding = {
@@ -37,6 +38,7 @@ export type TenantSettings = {
 };
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';
+export const DEFAULT_ACCENT_COLOR = '#f5f3ff';
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 /**
@@ -60,6 +62,48 @@ export function brandingFor(settings: TenantSettings): {
   };
 }
 
+/**
+ * Lane THEMES (2026-05-06): resolve the active vertical template for a tenant
+ * and merge its values with the tenant's own branding overrides. Tenants
+ * with `template_slug = NULL` keep the historical default look (purple
+ * #7c3aed brand + Inter sans for both heading and body); tenants with a
+ * template get accent + heading-font + body-font tokens from the package.
+ *
+ * Precedence (high → low):
+ *   1. tenant.settings.branding.brand_color (OWNER override in admin)
+ *   2. template.branding.brand_color (when template_slug is set)
+ *   3. DEFAULT_BRAND_COLOR
+ *
+ * Fonts come straight from the template (or default to `inter` for both)
+ * — there's no per-tenant font override surface yet.
+ */
+export type ResolvedTheme = {
+  brandColor: string;
+  accentColor: string;
+  headingFont: 'inter' | 'playfair' | 'space-grotesk' | 'fraunces';
+  bodyFont: 'inter' | 'space-grotesk';
+  templateSlug: string | null;
+};
+
+export function themeFor(
+  settings: TenantSettings,
+  templateSlug: string | null,
+): ResolvedTheme {
+  const template: RestaurantTemplate | null = templateSlug ? getTemplate(templateSlug) : null;
+  const { brandColor } = brandingFor(settings);
+  const ownerOverrode =
+    typeof settings.branding?.brand_color === 'string' &&
+    HEX_RE.test(settings.branding.brand_color);
+
+  return {
+    brandColor: ownerOverrode || !template ? brandColor : template.branding.brand_color,
+    accentColor: template?.branding.accent_color ?? DEFAULT_ACCENT_COLOR,
+    headingFont: template?.typography.heading_font ?? 'inter',
+    bodyFont: template?.typography.body_font ?? 'inter',
+    templateSlug: template?.slug ?? null,
+  };
+}
+
 export type ResolvedTenant = {
   id: string;
   slug: string;
@@ -67,6 +111,7 @@ export type ResolvedTenant = {
   custom_domain: string | null;
   status: string;
   settings: TenantSettings;
+  template_slug: string | null;
 };
 
 type TenantRow = {
@@ -76,6 +121,7 @@ type TenantRow = {
   custom_domain: string | null;
   status: string;
   settings: Json;
+  template_slug: string | null;
 };
 
 // Primary public domain is env-driven so the codebase isn't tied to any one
@@ -129,7 +175,7 @@ export async function resolveTenantFromHost(): Promise<{
   const slug = subSlug ?? h.get('x-hir-tenant-slug')?.toLowerCase() ?? host.split('.')[0];
 
   const supabase = getSupabase();
-  const SELECT = 'id, slug, name, custom_domain, status, settings';
+  const SELECT = 'id, slug, name, custom_domain, status, settings, template_slug';
 
   let row: TenantRow | null = null;
   // Preview-host tenant override (?tenant=<slug>). Only honored on
@@ -167,6 +213,7 @@ export async function resolveTenantFromHost(): Promise<{
       custom_domain: row.custom_domain,
       status: row.status,
       settings,
+      template_slug: row.template_slug ?? null,
     },
     host,
     slug,

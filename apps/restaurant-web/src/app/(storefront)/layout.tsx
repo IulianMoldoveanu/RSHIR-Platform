@@ -1,4 +1,4 @@
-import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost, themeFor } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { EmptyCartCta } from '@/components/storefront/empty-cart-cta';
@@ -26,6 +26,20 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   const locale = getLocale();
   const { brandColor } = brandingFor(tenant.settings);
+  // Lane THEMES (2026-05-06): resolve vertical-template tokens (accent +
+  // heading/body fonts) on top of the legacy brand color. CSS vars below
+  // let any storefront component opt in via var(--hir-accent),
+  // var(--hir-font-heading), var(--hir-font-body). Components keep using
+  // var(--hir-brand) unchanged.
+  const theme = themeFor(tenant.settings, tenant.template_slug);
+  const FONT_VAR_BY_KEY: Record<string, string> = {
+    inter: 'var(--font-sans)',
+    playfair: 'var(--font-playfair)',
+    'space-grotesk': 'var(--font-space-grotesk)',
+    fraunces: 'var(--font-fraunces)',
+  };
+  const headingFontVar = FONT_VAR_BY_KEY[theme.headingFont] ?? 'var(--font-sans)';
+  const bodyFontVar = FONT_VAR_BY_KEY[theme.bodyFont] ?? 'var(--font-sans)';
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const pauseReason =
@@ -68,8 +82,17 @@ export default async function StorefrontLayout({ children }: { children: React.R
   return (
     <div
       data-hir-embed={embed ? '1' : undefined}
+      data-hir-template={theme.templateSlug ?? undefined}
       className={embed ? 'hir-embed' : undefined}
-      style={{ ['--hir-brand' as never]: brandColor }}
+      style={
+        {
+          ['--hir-brand' as never]: brandColor,
+          ['--hir-accent' as never]: theme.accentColor,
+          ['--hir-font-heading' as never]: headingFontVar,
+          ['--hir-font-body' as never]: bodyFontVar,
+          fontFamily: bodyFontVar,
+        } as React.CSSProperties
+      }
     >
       <StorefrontShell tenantId={tenant.id}>
         {children}

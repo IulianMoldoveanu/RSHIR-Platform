@@ -7,3 +7,14 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/*
+ * Lane THEMES (2026-05-06): per-tenant heading font. The (storefront)/layout
+ * sets --hir-font-heading on a wrapper with [data-hir-template]; headings
+ * inside it pick that font up. Scoped to the data attribute so the
+ * marketing landing (no template) keeps the default Inter look. When the
+ * variable is unset the rule has no effect (inherited stays in play).
+ */
+[data-hir-template] :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--hir-font-heading, inherit);
+}
