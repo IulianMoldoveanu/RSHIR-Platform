@@ -33,7 +33,16 @@ export type ThemeActionResult =
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-async function resolveOwner(expectedTenantId: string) {
+type ResolveOwnerError = {
+  error: 'unauthenticated' | 'tenant_mismatch' | 'forbidden_owner_only';
+};
+type ResolveOwnerOk = {
+  user: { id: string };
+  tenant: { id: string; slug: string };
+};
+type ResolveOwnerResult = ResolveOwnerError | ResolveOwnerOk;
+
+async function resolveOwner(expectedTenantId: string): Promise<ResolveOwnerResult> {
   const { user, tenant } = await getActiveTenant().catch(() => ({
     user: null as null,
     tenant: null as null,
