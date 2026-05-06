@@ -5,6 +5,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { RoiCalculator } from '@/components/marketing/roi-calculator';
 import { getLocale } from '@/lib/i18n/server';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
@@ -265,15 +266,18 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* ROI calculator — Lane MARKETING-ROI 2026-05-06 */}
+      <RoiCalculator />
+
       {/* CTA */}
       <section className="border-t border-[#E2E8F0] bg-[#0F172A] text-white">
         <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
           <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
-            Calculează singur economia
+            Gata să faceți primul pas?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-[#CBD5E1] md:text-base">
-            La 30 comenzi / zi de 80 RON medie pe Glovo plătești ~720 RON / zi în
-            comision. Pe HIR plătești 90 RON. Diferența: <strong>630 RON / zi</strong>.
+            Migrare în 5 minute, fără angajament. Începeți cu prima comandă —
+            plătiți doar dacă livrați.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
