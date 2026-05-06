@@ -30,6 +30,8 @@
 // `hir_fee_ron` lands, sum the per-row fee instead of multiplying by 3.
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -285,6 +287,7 @@ async function upsertCommission(
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('partner-commission-calc', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) return json(500, { error: 'secret_not_configured' });
   const got = req.headers.get('x-hir-notify-secret') ?? '';
@@ -410,5 +413,7 @@ Deno.serve(async (req: Request) => {
     total_amount_cents: totalAmountCents,
   };
   console.log('[partner-commission-calc] summary', summary);
+  setMetadata(summary);
   return json(200, summary);
+  });
 });

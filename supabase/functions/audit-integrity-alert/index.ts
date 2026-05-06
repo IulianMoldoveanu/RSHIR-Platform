@@ -20,6 +20,8 @@
 // because the caller is the verifier API route (server-side, not user JWT).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +48,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
+  return withRunLog('audit-integrity-alert', async ({ setMetadata }) => {
   // --- Auth ---
   const expected = Deno.env.get('AUDIT_INTEGRITY_ALERT_TOKEN');
   if (!expected) return json({ error: 'token_not_configured' }, 500);
@@ -92,5 +95,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: 'telegram_failed', status: tgRes.status }, 502);
   }
 
+  setMetadata({ row_id: body.row_id, verifier_run_id: body.verifier_run_id ?? null });
   return json({ ok: true });
+  });
 });

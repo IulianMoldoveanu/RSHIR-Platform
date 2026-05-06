@@ -24,6 +24,8 @@
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 type Body = { tenant_id?: string; week_start?: string; force?: boolean };
 
@@ -770,6 +772,7 @@ async function processPlatform(
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('weekly-analytics-digest', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) {
     console.error('[weekly-digest] HIR_NOTIFY_SECRET not configured');
@@ -866,11 +869,20 @@ Deno.serve(async (req: Request) => {
     return json(200, { ok: true, week_start: weekStart, skipped: r.status, detail: r.detail });
   }
 
+  setMetadata({
+    week_start: weekStart,
+    tenants_processed: results.length,
+    sent: results.filter((r) => r.status === 'sent').length,
+    platform_status: platform?.status ?? null,
+    tenant_id: body.tenant_id ?? null,
+  });
+
   return json(200, {
     ok: true,
     week_start: weekStart,
     tenants: results.length,
     sent: results.filter((r) => r.status === 'sent').length,
     platform,
+  });
   });
 });

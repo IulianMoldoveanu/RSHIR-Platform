@@ -17,6 +17,8 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
+// Lane 9 observability — additive wrap, never changes behavior.
+import { withRunLog } from '../_shared/log.ts';
 
 type Body = { tenant_id?: string; day?: string };
 
@@ -215,6 +217,7 @@ async function processTenant(
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('daily-digest', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) {
     console.error('[daily-digest] HIR_NOTIFY_SECRET not configured');
@@ -286,6 +289,13 @@ Deno.serve(async (req: Request) => {
     results.push(r);
   }
 
+  setMetadata({
+    day,
+    tenants_processed: tenants.length,
+    sent: results.filter((r) => r.status === 'sent').length,
+    tenant_id: body.tenant_id ?? null,
+  });
+
   // Single-tenant requests return a top-level `skipped` to match the
   // verification contract; multi-tenant runs return the per-tenant array.
   if (body.tenant_id && results.length === 1) {
@@ -296,4 +306,5 @@ Deno.serve(async (req: Request) => {
     return json(200, { ok: true, day, skipped: r.status, detail: r.detail });
   }
   return json(200, { ok: true, day, results });
+  });
 });
