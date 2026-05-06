@@ -861,14 +861,8 @@ Deno.serve(async (req: Request) => {
     platform = await processPlatform(supabase, resend, FROM, weekStart, results, activeTenants);
   }
 
-  if (body.tenant_id && results.length === 1 && !body.force) {
-    const r = results[0];
-    if (r.status === 'sent') {
-      return json(200, { ok: true, week_start: weekStart, sent: r.recipients ?? 0, tenant: r.tenant_name });
-    }
-    return json(200, { ok: true, week_start: weekStart, skipped: r.status, detail: r.detail });
-  }
-
+  // Record metadata BEFORE the single-tenant early return so manual replays
+  // remain queryable in function_runs (per Codex review on PR #289).
   setMetadata({
     week_start: weekStart,
     tenants_processed: results.length,
@@ -876,6 +870,14 @@ Deno.serve(async (req: Request) => {
     platform_status: platform?.status ?? null,
     tenant_id: body.tenant_id ?? null,
   });
+
+  if (body.tenant_id && results.length === 1 && !body.force) {
+    const r = results[0];
+    if (r.status === 'sent') {
+      return json(200, { ok: true, week_start: weekStart, sent: r.recipients ?? 0, tenant: r.tenant_name });
+    }
+    return json(200, { ok: true, week_start: weekStart, skipped: r.status, detail: r.detail });
+  }
 
   return json(200, {
     ok: true,
