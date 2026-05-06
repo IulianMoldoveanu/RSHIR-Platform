@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { brandingFor, resolveTenantFromHost, themeFor } from '@/lib/tenant';
 import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
@@ -26,17 +27,33 @@ export default async function StorefrontLayout({ children }: { children: React.R
 
   const locale = getLocale();
   const { brandColor } = brandingFor(tenant.settings);
+
+  // Theme picker wizard preview (2026-05-07): if the OWNER has the
+  // `hir-theme-preview` cookie set to this tenant's ID (written by the
+  // admin wizard's previewTheme server action), use theme_preview_slug
+  // from settings instead of the live template_slug. Regular visitors
+  // never have this cookie, so the guard keeps previews admin-only.
+  const jar = cookies();
+  const previewCookie = jar.get('hir-theme-preview')?.value ?? null;
+  const isPreviewSession = previewCookie === tenant.id;
+  const effectiveTemplateSlug = isPreviewSession
+    ? ((tenant.settings as { theme_preview_slug?: string | null }).theme_preview_slug ??
+       tenant.template_slug)
+    : tenant.template_slug;
+
   // Lane THEMES (2026-05-06): resolve vertical-template tokens (accent +
   // heading/body fonts) on top of the legacy brand color. CSS vars below
   // let any storefront component opt in via var(--hir-accent),
   // var(--hir-font-heading), var(--hir-font-body). Components keep using
   // var(--hir-brand) unchanged.
-  const theme = themeFor(tenant.settings, tenant.template_slug);
+  const theme = themeFor(tenant.settings, effectiveTemplateSlug);
   const FONT_VAR_BY_KEY: Record<string, string> = {
     inter: 'var(--font-sans)',
     playfair: 'var(--font-playfair)',
     'space-grotesk': 'var(--font-space-grotesk)',
     fraunces: 'var(--font-fraunces)',
+    // Bold Urban style theme (2026-05-07): Oswald condensed headings.
+    oswald: 'var(--font-oswald)',
   };
   const headingFontVar = FONT_VAR_BY_KEY[theme.headingFont] ?? 'var(--font-sans)';
   const bodyFontVar = FONT_VAR_BY_KEY[theme.bodyFont] ?? 'var(--font-sans)';

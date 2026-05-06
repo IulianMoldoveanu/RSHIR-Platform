@@ -45,6 +45,12 @@ export type TenantSettings = {
   presentation_team?: PresentationTeamMember[];
   presentation_video_url?: string | null;
   presentation_socials?: PresentationSocials | null;
+  // Theme picker wizard preview (2026-05-07): OWNER sets this temporarily
+  // while previewing a theme in the wizard iframe. Storefront reads it when
+  // the `hir-theme-preview` cookie is present and the value matches the
+  // tenant ID. Never shown to real end-users unless they somehow have the
+  // cookie, which requires an admin session.
+  theme_preview_slug?: string | null;
 };
 
 export type PresentationGalleryItem = {
@@ -190,7 +196,7 @@ export function brandingFor(settings: TenantSettings): {
 export type ResolvedTheme = {
   brandColor: string;
   accentColor: string;
-  headingFont: 'inter' | 'playfair' | 'space-grotesk' | 'fraunces';
+  headingFont: 'inter' | 'playfair' | 'space-grotesk' | 'fraunces' | 'oswald';
   bodyFont: 'inter' | 'space-grotesk';
   templateSlug: string | null;
 };
