@@ -33,7 +33,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withRunLog } from '../_shared/log.ts';
 
-const ALLOWED_CHAT_ID = 1274150118; // Iulian
+const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
+// PR B: bot is also reachable by tenant OWNERs that bound their Telegram
+// account via /dashboard/settings/hepy. Authorization decided per-message
+// in `authorizeChat()`.
+const NONCE_TTL_MS = 60 * 60 * 1000; // 1h
+const BOT_USERNAME = 'MasterHIRbot';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -242,7 +247,147 @@ function deltaPct(curr: number, prev: number): string {
 
 const TENANT_HINT = 'Hepy nu știe pentru ce restaurant. Setați mai întâi: <code>/tenant &lt;slug&gt;</code>\nExemplu: <code>/tenant foisorul-a</code>';
 
-async function getActiveTenant(supabase: any, chatId: number): Promise<{ tenant_id: string; slug: string; name: string } | null> {
+// =====================================================================
+// PR B — Owner binding & authorization
+// =====================================================================
+// `authorizeChat` decides who can talk to the bot. There are two roles:
+//   - operator (Iulian): chat_id === ALLOWED_CHAT_ID. Full access to ops
+//     commands (/pr, /merge, /deploy, /fix) + Hepy intents with explicit
+//     /tenant <slug> switching.
+//   - owner: a tenant OWNER who bound this Telegram account via
+//     /dashboard/settings/hepy → t.me/<bot>?start=connect_<nonce>. Scoped
+//     to their tenant; can run read-only Hepy intents only.
+//
+// Anyone else is rejected (silently, except deep-link /start handler).
+
+type ChatAuth =
+  | { kind: 'operator' }
+  | { kind: 'owner'; tenant_id: string; tenant_slug: string; tenant_name: string; owner_user_id: string; binding_id: string }
+  | null;
+
+async function authorizeChat(supabase: any, chatId: number): Promise<ChatAuth> {
+  if (chatId === ALLOWED_CHAT_ID) return { kind: 'operator' };
+  // Owner binding: telegram_user_id === DM chat_id.
+  const { data: binding } = await supabase
+    .from('hepy_owner_bindings')
+    .select('id, tenant_id, owner_user_id, tenants:tenant_id (slug, name)')
+    .eq('telegram_user_id', chatId)
+    .is('unbound_at', null)
+    .maybeSingle();
+  if (!binding) return null;
+  const t = (binding as any).tenants;
+  return {
+    kind: 'owner',
+    tenant_id: binding.tenant_id,
+    tenant_slug: t?.slug ?? '?',
+    tenant_name: t?.name ?? '?',
+    owner_user_id: binding.owner_user_id,
+    binding_id: binding.id,
+  };
+}
+
+async function consumeConnectNonce(
+  supabase: any,
+  nonce: string,
+  telegramUserId: number,
+  telegramUsername: string | undefined,
+): Promise<
+  | { ok: true; tenant_id: string; tenant_name: string; tenant_slug: string }
+  | { ok: false; error: 'not_found' | 'expired' | 'already_consumed' | 'tenant_missing' | 'db_error'; detail?: string }
+> {
+  // 1) Look up + lock the nonce (single-row atomic via unique PK + the
+  //    consumed_at IS NULL check below).
+  const { data: row, error: selErr } = await supabase
+    .from('hepy_connect_nonces')
+    .select('nonce, tenant_id, owner_user_id, created_at, consumed_at')
+    .eq('nonce', nonce)
+    .maybeSingle();
+  if (selErr) return { ok: false, error: 'db_error', detail: selErr.message };
+  if (!row) return { ok: false, error: 'not_found' };
+  if (row.consumed_at) return { ok: false, error: 'already_consumed' };
+  const ageMs = Date.now() - new Date(row.created_at).getTime();
+  if (ageMs > NONCE_TTL_MS) return { ok: false, error: 'expired' };
+
+  // 2) Tenant lookup (we need name + slug for the success message).
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id, slug, name')
+    .eq('id', row.tenant_id)
+    .maybeSingle();
+  if (!tenant) return { ok: false, error: 'tenant_missing' };
+
+  // 3) If this Telegram user already had an active binding (perhaps to a
+  //    different tenant), unbind it first — one TG account = one active
+  //    tenant. We don't delete the row; we mark `unbound_at` for audit.
+  await supabase
+    .from('hepy_owner_bindings')
+    .update({ unbound_at: new Date().toISOString() })
+    .eq('telegram_user_id', telegramUserId)
+    .is('unbound_at', null);
+
+  // 4) Same for any prior active binding the OWNER held on this tenant
+  //    (covers re-issue from the admin UI).
+  await supabase
+    .from('hepy_owner_bindings')
+    .update({ unbound_at: new Date().toISOString() })
+    .eq('owner_user_id', row.owner_user_id)
+    .eq('tenant_id', row.tenant_id)
+    .is('unbound_at', null);
+
+  // 5) Atomic claim: only proceed if consumed_at is still NULL. Equivalent
+  //    to SELECT FOR UPDATE in this read+update pattern under
+  //    PostgREST — with the unique nonce PK + the IS NULL filter, two
+  //    concurrent /start clicks either both see consumed_at=NULL and one
+  //    update wins (upsert race) or one sees it filled and bails. We
+  //    accept this best-effort guard because the worst case is the same
+  //    OWNER getting two bindings (we already unbind any prior in step
+  //    3), the rate is ~0/sec, and the unique partial index on
+  //    (telegram_user_id WHERE unbound_at IS NULL) is the actual
+  //    invariant we rely on.
+  const { error: claimErr } = await supabase
+    .from('hepy_connect_nonces')
+    .update({ consumed_at: new Date().toISOString(), consumed_by_tg: telegramUserId })
+    .eq('nonce', nonce)
+    .is('consumed_at', null);
+  if (claimErr) return { ok: false, error: 'db_error', detail: claimErr.message };
+
+  // 6) Insert the new binding.
+  const { error: insErr } = await supabase
+    .from('hepy_owner_bindings')
+    .insert({
+      telegram_user_id: telegramUserId,
+      tenant_id: row.tenant_id,
+      owner_user_id: row.owner_user_id,
+      telegram_username: telegramUsername ?? null,
+      last_active_at: new Date().toISOString(),
+    });
+  if (insErr) return { ok: false, error: 'db_error', detail: insErr.message };
+
+  // 7) Audit row in tenant audit_log.
+  try {
+    await supabase.from('audit_log').insert({
+      tenant_id: row.tenant_id,
+      action: 'hepy_telegram_bound',
+      entity_type: 'hepy',
+      entity_id: String(telegramUserId),
+      metadata: {
+        owner_user_id: row.owner_user_id,
+        telegram_username: telegramUsername ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn('hepy bound audit_log fail', (e as Error)?.message);
+  }
+
+  return { ok: true, tenant_id: tenant.id, tenant_name: tenant.name, tenant_slug: tenant.slug };
+}
+
+async function getActiveTenant(supabase: any, chatId: number, auth?: ChatAuth): Promise<{ tenant_id: string; slug: string; name: string } | null> {
+  // PR B: an OWNER's tenant scope is fixed by the binding; never falls
+  // back to the operator's manual /tenant pointer.
+  if (auth?.kind === 'owner') {
+    return { tenant_id: auth.tenant_id, slug: auth.tenant_slug, name: auth.tenant_name };
+  }
   const { data: row } = await supabase
     .from('chat_active_tenant')
     .select('tenant_id, tenants:tenant_id (slug, name)')
@@ -290,8 +435,9 @@ async function runIntent(
   intent: HepyIntent,
   period: HepyPeriod | undefined,
   chatId: number,
+  auth: ChatAuth,
 ): Promise<{ text: string; status: string; intentRan?: HepyIntent }> {
-  const tenant = await getActiveTenant(supabase, chatId);
+  const tenant = await getActiveTenant(supabase, chatId, auth);
 
   if (intent === 'orders_now') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
@@ -459,12 +605,188 @@ async function runIntent(
   return { text: '', status: 'NONE' };
 }
 
+// PR B intent helpers — used by both /comenzi /stoc /vanzari slash commands
+// and (later, in PR C) free-text owner questions.
+async function ownerOrdersToday(supabase: any, tenant: { tenant_id: string; name: string }): Promise<{ text: string; status: string }> {
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const { data: orders } = await supabase
+    .from('restaurant_orders')
+    .select('id, status, total_ron, created_at')
+    .eq('tenant_id', tenant.tenant_id)
+    .gte('created_at', startOfToday.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(50);
+  await logHepyAudit(supabase, tenant.tenant_id, 'comenzi_today', { returned: orders?.length ?? 0 });
+  if (!orders || orders.length === 0) {
+    return { text: `<b>📋 ${escapeHtml(tenant.name)} — comenzi azi</b>\nNicio comandă astăzi încă.`, status: 'OK' };
+  }
+  const active = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY'];
+  const activeCount = orders.filter((o: any) => active.includes(o.status)).length;
+  const cancelled = orders.filter((o: any) => o.status === 'CANCELLED').length;
+  const delivered = orders.filter((o: any) => o.status === 'DELIVERED').length;
+  const lines = [
+    `<b>📋 ${escapeHtml(tenant.name)} — comenzi azi</b>`,
+    `Total: <b>${orders.length}</b> · Active: ${activeCount} · Livrate: ${delivered}${cancelled > 0 ? ` · Anulate: ${cancelled}` : ''}`,
+    '',
+    '<b>Ultimele 10:</b>',
+  ];
+  for (const o of orders.slice(0, 10)) {
+    const t = new Date(o.created_at).toISOString().substring(11, 16);
+    const total = fmtRon(Number(o.total_ron || 0));
+    lines.push(`<code>${t}</code> · ${escapeHtml(o.status)} · ${escapeHtml(total)}`);
+  }
+  return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
+}
+
+async function ownerSalesToday(supabase: any, tenant: { tenant_id: string; name: string }): Promise<{ text: string; status: string }> {
+  // Today + yesterday for the trend line.
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const startOfYday = new Date(startOfToday.getTime() - 24 * 3600 * 1000);
+  const [{ data: today }, { data: yday }] = await Promise.all([
+    supabase
+      .from('restaurant_orders')
+      .select('total_ron, status')
+      .eq('tenant_id', tenant.tenant_id)
+      .gte('created_at', startOfToday.toISOString()),
+    supabase
+      .from('restaurant_orders')
+      .select('total_ron, status')
+      .eq('tenant_id', tenant.tenant_id)
+      .gte('created_at', startOfYday.toISOString())
+      .lt('created_at', startOfToday.toISOString()),
+  ]);
+  const sumRevenue = (rows: any[] | null) =>
+    (rows ?? []).filter((o: any) => o.status !== 'CANCELLED').reduce((a: number, o: any) => a + Number(o.total_ron || 0), 0);
+  const sumCount = (rows: any[] | null) =>
+    (rows ?? []).filter((o: any) => o.status !== 'CANCELLED').length;
+  const todayRev = sumRevenue(today);
+  const ydayRev = sumRevenue(yday);
+  const todayCnt = sumCount(today);
+  await logHepyAudit(supabase, tenant.tenant_id, 'vanzari_today', { revenue: todayRev, count: todayCnt });
+  const lines = [
+    `<b>💰 ${escapeHtml(tenant.name)} — vânzări azi</b>`,
+    `Încasări: <b>${escapeHtml(fmtRon(todayRev))}</b>  ${escapeHtml(deltaPct(todayRev, ydayRev))}`,
+    `Comenzi: <b>${todayCnt}</b>`,
+  ];
+  return { text: lines.join('\n'), status: 'OK' };
+}
+
+async function ownerLowStock(supabase: any, tenant: { tenant_id: string; name: string }): Promise<{ text: string; status: string }> {
+  // Inventory v1 ships in a parallel lane (HIR-inventory-worktree). If
+  // the table doesn't exist yet, return a graceful "în curând" message
+  // instead of a 500. We probe by attempting a HEAD count and treating
+  // the "relation does not exist" PostgREST error code (PGRST205 / 42P01)
+  // as not-yet-shipped.
+  const { error } = await supabase
+    .from('inventory_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenant.tenant_id)
+    .limit(1);
+  if (error) {
+    const code = (error as any)?.code ?? '';
+    const msg = String((error as any)?.message ?? '');
+    if (code === 'PGRST205' || code === '42P01' || /does not exist/i.test(msg) || /Could not find the table/i.test(msg)) {
+      return {
+        text: `<b>📦 ${escapeHtml(tenant.name)} — stoc</b>\n<i>Modulul Inventar nu este încă activ pentru contul dumneavoastră.</i>\n\nVeți primi notificare când va fi disponibil.`,
+        status: 'OK',
+      };
+    }
+    return { text: `<b>📦 Stoc</b>\nA apărut o eroare temporară. Reîncercați în câteva minute.`, status: 'ERR' };
+  }
+  // Inventory v1 schema (per HIR-inventory worktree spec): fields likely
+  // include `current_qty` + `low_stock_threshold` + `name`. We fetch
+  // generously and filter in app code so a slight schema variance doesn't
+  // break the bot.
+  const { data: items } = await supabase
+    .from('inventory_items')
+    .select('id, name, current_qty, low_stock_threshold, unit')
+    .eq('tenant_id', tenant.tenant_id)
+    .order('name', { ascending: true })
+    .limit(200);
+  const low = (items ?? []).filter((it: any) => {
+    const q = Number(it.current_qty);
+    const th = Number(it.low_stock_threshold);
+    return Number.isFinite(q) && Number.isFinite(th) && th > 0 && q <= th;
+  });
+  await logHepyAudit(supabase, tenant.tenant_id, 'stoc_low', { returned: low.length });
+  if (low.length === 0) {
+    return { text: `<b>📦 ${escapeHtml(tenant.name)} — stoc</b>\n✅ Nicio poziție sub prag.`, status: 'OK' };
+  }
+  const lines = [`<b>📦 ${escapeHtml(tenant.name)} — poziții sub prag (${low.length})</b>`];
+  for (const it of low.slice(0, 20)) {
+    const unit = it.unit ? ` ${escapeHtml(it.unit)}` : '';
+    lines.push(`· ${escapeHtml(it.name)} — ${it.current_qty}${unit} (prag ${it.low_stock_threshold})`);
+  }
+  if (low.length > 20) lines.push(`…și încă ${low.length - 20}`);
+  return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
+}
+
 async function handleCommand(
   supabase: any, ghToken: string, vercelToken: string, anthropicKey: string,
-  cmd: string, args: string, chatId: number
+  cmd: string, args: string, chatId: number, auth: ChatAuth, telegramUsername?: string
 ): Promise<{ text: string; keyboard?: any[][]; status: string }> {
+  // ────────────────────────────────────────────────────────────
+  // PR B: /start connect_<nonce> deep link (no auth gate — this is
+  // how anonymous users self-bind). Handled BEFORE the help branch.
+  // ────────────────────────────────────────────────────────────
+  if (cmd === '/start' && args.trim().toLowerCase().startsWith('connect_')) {
+    const nonce = args.trim().slice('connect_'.length);
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) {
+      return { text: '❌ Link invalid. Reveniți la pagina de setări și generați un link nou.', status: 'ERR' };
+    }
+    const r = await consumeConnectNonce(supabase, nonce, chatId, telegramUsername);
+    if (!r.ok) {
+      const msg: Record<string, string> = {
+        not_found: 'Link expirat sau folosit. Generați unul nou din /dashboard/settings/hepy.',
+        expired: 'Link expirat (>1 oră). Generați unul nou din /dashboard/settings/hepy.',
+        already_consumed: 'Acest link a fost deja folosit. Generați unul nou dacă doriți să reconectați.',
+        tenant_missing: 'Restaurantul nu mai există. Contactați-ne.',
+        db_error: 'Eroare temporară. Reîncercați în câteva secunde.',
+      };
+      return { text: `❌ ${msg[r.error] ?? 'Eroare necunoscută.'}`, status: 'ERR' };
+    }
+    return {
+      text: `✅ <b>Hepy este conectat la ${escapeHtml(r.tenant_name)}.</b>
+
+Acum puteți întreba liber, fără slug:
+· <i>câte comenzi am azi</i>
+· <i>cum a mers ieri</i>
+· <i>top produse</i>
+
+Sau folosiți comenzile rapide:
+/comenzi — comenzile de astăzi
+/vanzari — încasările de astăzi
+/stoc — pozițiile sub prag
+/help hepy — toate comenzile`,
+      status: 'OK',
+    };
+  }
+
   if (cmd === '/help' || cmd === '/start') {
     const sub = args.trim().toLowerCase();
+    if (auth?.kind === 'owner') {
+      return {
+        text: `<b>💬 Hepy — ${escapeHtml(auth.tenant_name)}</b>
+
+Întrebări în limbaj natural:
+· <i>câte comenzi am acum</i>
+· <i>cum a mers azi / ieri / săptămâna</i>
+· <i>top produse</i>
+· <i>ce recomandări am azi</i>
+
+Comenzi rapide:
+/comenzi — comenzile de astăzi
+/vanzari — încasările de astăzi
+/stoc — pozițiile sub prag
+/help — acest ecran
+
+Pentru a deconecta acest cont, accesați
+<i>Setări → Hepy</i> în panoul de administrare.`,
+        status: 'OK',
+      };
+    }
     if (sub === 'hepy') {
       return {
         text: `<b>💬 Hepy — întrebări în limbaj natural</b>
@@ -506,10 +828,34 @@ Comenzi auxiliare:
     };
   }
 
+  // ────────────────────────────────────────────────────────────
+  // PR B: owner-only quick commands. Operator may also run them
+  // (their active tenant via /tenant).
+  // ────────────────────────────────────────────────────────────
+  if (cmd === '/comenzi' || cmd === '/vanzari' || cmd === '/stoc') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    if (cmd === '/comenzi') return await ownerOrdersToday(supabase, tenant);
+    if (cmd === '/vanzari') return await ownerSalesToday(supabase, tenant);
+    return await ownerLowStock(supabase, tenant);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // PR B: OWNER-scope hard ban on operator-only commands. Anything
+  // below this line touches ops infrastructure (GitHub, Vercel,
+  // global feedback queue) and is operator-only.
+  // ────────────────────────────────────────────────────────────
+  if (auth?.kind === 'owner') {
+    return {
+      text: `Comanda <code>${escapeHtml(cmd)}</code> nu este disponibilă în acest cont. Folosiți /help pentru a vedea comenzile permise.`,
+      status: 'OWNER_FORBIDDEN',
+    };
+  }
+
   if (cmd === '/tenant') {
     const slug = args.trim().toLowerCase();
     if (!slug) {
-      const cur = await getActiveTenant(supabase, chatId);
+      const cur = await getActiveTenant(supabase, chatId, auth);
       if (cur) return { text: `Restaurant activ: <b>${escapeHtml(cur.name)}</b> (<code>${escapeHtml(cur.slug)}</code>)\n\nSchimbați cu: <code>/tenant &lt;slug&gt;</code>`, status: 'OK' };
       return { text: 'Niciun restaurant setat. Folosiți <code>/tenant &lt;slug&gt;</code>.', status: 'OK' };
     }
@@ -801,19 +1147,45 @@ Deno.serve(async (req: Request) => {
     if (!msg) return new Response('ok', { status: 200, headers: corsHeaders });
     const chatId = msg.chat?.id;
     const text = msg.text ?? '';
+    const tgUsername = msg.from?.username;
     if (!chatId) return new Response('ok', { status: 200, headers: corsHeaders });
 
-    if (chatId !== ALLOWED_CHAT_ID) {
+    const trimmed = text.trim();
+
+    // PR B: authorize the chat. Three outcomes:
+    //   - operator (Iulian) → full access
+    //   - owner (bound TG) → owner-scoped Hepy
+    //   - null (anonymous) → only the /start connect_<nonce> deep link is
+    //     allowed; everything else gets silently ignored (logged as
+    //     UNAUTHORIZED for the audit trail).
+    const auth = await authorizeChat(supabase, chatId);
+
+    const isStartConnect =
+      trimmed.startsWith('/start') &&
+      /^\/start(?:@\w+)?\s+connect_[A-Za-z0-9_-]{8,}/i.test(trimmed);
+
+    if (!auth && !isStartConnect) {
       EdgeRuntime.waitUntil(logCommand(supabase, {
-        chat_id: chatId, message_id: msg.message_id, username: msg.from?.username,
+        chat_id: chatId, message_id: msg.message_id, username: tgUsername,
         command: text.slice(0, 50), status: 'UNAUTHORIZED', duration_ms: Date.now() - start,
       }));
       return new Response(JSON.stringify({ ok: true, ignored: 'unauthorized' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const trimmed = text.trim();
+    // Refresh last_active_at for owner bindings (best-effort, never blocks).
+    if (auth?.kind === 'owner') {
+      EdgeRuntime.waitUntil(
+        supabase
+          .from('hepy_owner_bindings')
+          .update({ last_active_at: new Date().toISOString() })
+          .eq('id', auth.binding_id)
+          .then(() => undefined, (e: unknown) => console.warn('hepy last_active update fail', (e as Error)?.message))
+      );
+    }
 
     // Non-slash text: try Hepy intent router first; fall through to /ask if NONE.
+    // Owners only ever hit the intent router (owner-forbidden ops commands
+    // are handled inside handleCommand).
     if (!trimmed.startsWith('/')) {
       // 1) Regex classifier (zero cost)
       let cls = detectIntentRegex(trimmed);
@@ -828,22 +1200,34 @@ Deno.serve(async (req: Request) => {
       }
 
       if (cls.intent !== 'NONE') {
-        const ir = await runIntent(supabase, cls.intent, cls.period, chatId);
+        const ir = await runIntent(supabase, cls.intent, cls.period, chatId, auth);
         await tgSend(tgToken, chatId, ir.text, msg.message_id);
-        setMetadata({ hepy: true, intent: cls.intent, period: cls.period ?? null, used_llm_classifier: usedLLM, intent_status: ir.status });
+        setMetadata({ hepy: true, intent: cls.intent, period: cls.period ?? null, used_llm_classifier: usedLLM, intent_status: ir.status, role: auth?.kind ?? 'anon' });
         EdgeRuntime.waitUntil(logCommand(supabase, {
-          chat_id: chatId, message_id: msg.message_id, username: msg.from?.username,
+          chat_id: chatId, message_id: msg.message_id, username: tgUsername,
           command: 'hepy:' + cls.intent, args: trimmed.slice(0, 200), result_summary: ir.text.slice(0, 200),
           status: ir.status, duration_ms: Date.now() - start,
         }));
         return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // 3) No intent matched → fall through to existing /ask behavior.
-      const result = await handleCommand(supabase, ghToken, vercelToken, anthropicKey, '/ask', trimmed, chatId);
+      // 3) No intent matched.
+      //    For OWNERs we do NOT proxy free-text to /ask (Anthropic) — they
+      //    get a friendly nudge instead. Only the operator falls through.
+      if (auth?.kind === 'owner') {
+        const reply = `Hepy nu a înțeles întrebarea. Încercați:\n· <i>câte comenzi am azi</i>\n· <i>cum a mers ieri</i>\n· <i>top produse</i>\n\nSau /help pentru lista completă.`;
+        await tgSend(tgToken, chatId, reply, msg.message_id);
+        EdgeRuntime.waitUntil(logCommand(supabase, {
+          chat_id: chatId, message_id: msg.message_id, username: tgUsername,
+          command: 'hepy:none', args: trimmed.slice(0, 200), result_summary: reply.slice(0, 200),
+          status: 'OWNER_NO_INTENT', duration_ms: Date.now() - start,
+        }));
+        return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const result = await handleCommand(supabase, ghToken, vercelToken, anthropicKey, '/ask', trimmed, chatId, auth, tgUsername);
       await tgSend(tgToken, chatId, result.text, msg.message_id);
       EdgeRuntime.waitUntil(logCommand(supabase, {
-        chat_id: chatId, message_id: msg.message_id, username: msg.from?.username,
+        chat_id: chatId, message_id: msg.message_id, username: tgUsername,
         command: '/ask', args: trimmed.slice(0, 200), result_summary: result.text.slice(0, 200),
         status: result.status, duration_ms: Date.now() - start,
       }));
@@ -854,13 +1238,13 @@ Deno.serve(async (req: Request) => {
     const cmd = (space === -1 ? trimmed : trimmed.slice(0, space)).toLowerCase().split('@')[0];
     const args = space === -1 ? '' : trimmed.slice(space + 1);
 
-    const result = await handleCommand(supabase, ghToken, vercelToken, anthropicKey, cmd, args, chatId);
+    const result = await handleCommand(supabase, ghToken, vercelToken, anthropicKey, cmd, args, chatId, auth, tgUsername);
     await tgSend(tgToken, chatId, result.text, msg.message_id, result.keyboard);
-    if (cmd === '/tenant' || (cmd === '/help' && args.trim().toLowerCase() === 'hepy') || (cmd === '/status' && args.trim().toLowerCase() === 'hepy')) {
-      setMetadata({ hepy: true, intent: cmd.slice(1) + (args ? ':' + args.trim().toLowerCase() : '') });
+    if (cmd === '/tenant' || cmd === '/comenzi' || cmd === '/vanzari' || cmd === '/stoc' || (cmd === '/help' && args.trim().toLowerCase() === 'hepy') || (cmd === '/status' && args.trim().toLowerCase() === 'hepy')) {
+      setMetadata({ hepy: true, intent: cmd.slice(1) + (args ? ':' + args.trim().toLowerCase() : ''), role: auth?.kind ?? 'anon' });
     }
     EdgeRuntime.waitUntil(logCommand(supabase, {
-      chat_id: chatId, message_id: msg.message_id, username: msg.from?.username,
+      chat_id: chatId, message_id: msg.message_id, username: tgUsername,
       command: cmd, args: args.slice(0, 500), result_summary: result.text.slice(0, 200),
       status: result.status, duration_ms: Date.now() - start,
     }));

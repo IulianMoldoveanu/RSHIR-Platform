@@ -78,7 +78,9 @@ export type AuditAction =
   | 'efactura.cert_uploaded'
   | 'efactura.token_set'
   | 'efactura.token_cleared'
-  | 'efactura.test_connection';
+  | 'efactura.test_connection'
+  | 'hepy.telegram_connect_link_generated'
+  | 'hepy.telegram_unbound';
 
 export async function logAudit(args: {
   tenantId: string;

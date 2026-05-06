@@ -8,6 +8,7 @@
 
 import Link from 'next/link';
 import {
+  Bot,
   Building2,
   ClipboardList,
   CreditCard,
@@ -164,6 +165,12 @@ export default async function SettingsLandingPage() {
       title: 'Echipă',
       description: 'Invitați colegi și gestionați rolurile (OWNER / STAFF).',
       icon: UsersIcon,
+    },
+    {
+      href: '/dashboard/settings/hepy',
+      title: 'Hepy — asistent Telegram',
+      description: 'Conectați Telegram pentru rapoarte și întrebări în limbaj natural.',
+      icon: Bot,
     },
     {
       href: '/dashboard/settings/audit',
