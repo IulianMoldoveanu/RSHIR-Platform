@@ -123,6 +123,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     ...(isPlatformAdmin
       ? [
           {
+            href: '/dashboard/admin/tenants',
+            label: 'Toate restaurantele',
+            icon: 'users' as const,
+          },
+          {
             href: '/dashboard/admin/onboard',
             label: '+ Tenant nou',
             icon: 'rocket' as const,
