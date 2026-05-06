@@ -181,7 +181,18 @@ function highConfidence(p: ParsedOrder): boolean {
   const computed = (p.subtotal_ron ?? 0) + (p.delivery_fee_ron ?? 0);
   if (computed <= 0) return false;
   const drift = Math.abs(p.total_ron - computed) / p.total_ron;
-  return drift <= 0.05;
+  if (drift > 0.05) return false;
+  // Codex P2: validate every item's per-line fields. Anthropic output is
+  // untrusted; a missing/NaN quantity or unit_price_ron would persist as
+  // 0 in the orders.[id] + KDS totals. Reject the auto-apply.
+  for (const it of p.items) {
+    const q = Number(it.quantity);
+    const u = Number(it.unit_price_ron);
+    if (!Number.isFinite(q) || q <= 0) return false;
+    if (!Number.isFinite(u) || u < 0) return false;
+    if (typeof it.name !== 'string' || it.name.trim().length === 0) return false;
+  }
+  return true;
 }
 
 Deno.serve(async (req) => {
@@ -224,6 +235,25 @@ Deno.serve(async (req) => {
 
     const tenantId = alias.tenant_id as string;
     setMetadata({ tenant_id: tenantId, alias_local: aliasLocal });
+
+    // Codex P2: enforce the tenant feature flag too. An alias provisioned
+    // earlier and disabled via the settings page only flips
+    // tenants.feature_flags.aggregator_email_intake_enabled = false,
+    // not aggregator_intake_aliases.enabled (so re-enabling later
+    // doesn't break forwarding rules). Without this gate, mail routed
+    // to a stale alias would still create paid orders.
+    const { data: tenantRow, error: tenantErr } = await sb
+      .from('tenants')
+      .select('feature_flags')
+      .eq('id', tenantId)
+      .maybeSingle();
+    if (tenantErr) return json(500, { error: 'tenant_lookup_failed', detail: tenantErr.message });
+    const flags = ((tenantRow as { feature_flags?: Record<string, unknown> } | null)
+      ?.feature_flags ?? {}) as Record<string, unknown>;
+    if (flags.aggregator_email_intake_enabled !== true) {
+      setMetadata({ rejected: 'feature_flag_disabled' });
+      return json(403, { error: 'feature_disabled' });
+    }
 
     // Per-tenant 24h rate limit.
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
