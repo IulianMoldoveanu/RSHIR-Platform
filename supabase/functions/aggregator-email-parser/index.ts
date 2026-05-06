@@ -233,14 +233,25 @@ function regexToParserShape(r: RegexParsedOrder): ParsedOrder {
   };
 }
 
-// Merge a gap-fill patch over a base ParsedOrder. Only the keys the patch
-// returns non-null/non-undefined for win — the regex base is canonical
-// for everything else. Items[] from the patch wins only if base has none
-// (defensive — regex `medium` always already has items; this guards the
-// edge case where the patch returns an empty items[] for an unrelated key).
-function mergeGapFill(base: ParsedOrder, patch: Partial<ParsedOrder>): ParsedOrder {
+// Merge a gap-fill patch over a base ParsedOrder. The regex base is
+// canonical for every field that wasn't requested; only keys that were
+// actually in `requested` (i.e. the original `missing[]` we asked the
+// model to fill) are eligible to be overwritten. This protects against
+// the model ignoring the "only these keys" instruction and emitting a
+// fuller object — Codex P2 (3rd pass) #315.
+//
+// Items[] from the patch wins only if base has none (defensive — regex
+// `medium` always already has items; this guards the edge case where
+// the patch returns an empty items[] for an unrelated key).
+function mergeGapFill(
+  base: ParsedOrder,
+  patch: Partial<ParsedOrder>,
+  requested: string[],
+): ParsedOrder {
   const merged: ParsedOrder = { ...base };
+  const allowed = new Set(requested);
   for (const k of Object.keys(patch) as Array<keyof ParsedOrder>) {
+    if (!allowed.has(k as string)) continue; // Codex P2 #315: ignore unrequested keys
     const v = patch[k];
     if (v === undefined || v === null) continue;
     if (k === 'items') {
@@ -528,7 +539,7 @@ Deno.serve(async (req) => {
           bodyText,
           regexResult.missing,
         );
-        parsed = mergeGapFill(base, r.patch);
+        parsed = mergeGapFill(base, r.patch, regexResult.missing);
         cost_usd = r.cost_usd;
         parsedStrategy = 'regex+ai-fill';
       } else {
