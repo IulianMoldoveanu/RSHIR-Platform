@@ -251,8 +251,24 @@ export async function applyParsedJob(
 
   const parsed = job.parsed_data as Record<string, unknown> | null;
   if (!parsed) return { ok: false, error: 'Datele parsate lipsesc.' };
-  const items = Array.isArray(parsed.items) ? (parsed.items as Record<string, unknown>[]) : [];
-  if (items.length === 0) return { ok: false, error: 'Nu există linii de comandă în date.' };
+  const rawItems = Array.isArray(parsed.items)
+    ? (parsed.items as Record<string, unknown>[])
+    : [];
+  if (rawItems.length === 0)
+    return { ok: false, error: 'Nu există linii de comandă în date.' };
+
+  // Codex P2 (Edge Function PR #308): existing readers compute line
+  // totals via `price_ron ?? unit_price ?? price` and quantity via
+  // `qty ?? quantity`. Mirror the auto-apply path: write both the
+  // canonical (unit_price_ron, quantity) and legacy-compatible keys.
+  const items = rawItems.map((it) => ({
+    name: it.name,
+    quantity: it.quantity,
+    qty: it.quantity,
+    unit_price_ron: it.unit_price_ron,
+    price_ron: it.unit_price_ron,
+    modifiers: (it.modifiers as string | null | undefined) ?? null,
+  }));
 
   const ordersSb = admin as unknown as {
     from: (t: string) => {
