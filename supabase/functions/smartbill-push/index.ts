@@ -119,6 +119,8 @@ type OrderRow = {
   total_ron: number | string | null;
   items: Json;
   created_at: string;
+  payment_method: string | null;
+  payment_status: string | null;
   customers: { first_name: string | null; last_name: string | null } | null;
 };
 
@@ -193,12 +195,34 @@ function buildInvoicePayload(
     dueDate: issueDate,
     deliveryDate: issueDate,
     products: items,
-    payment: {
-      value: Number(total.toFixed(2)),
-      paymentSeries: '',
-      type: 'Card',
-      isCash: false,
-    },
+    // Reconciliation: a delivered COD order settles in cash at the door,
+    // not on a card terminal. SmartBill expects `type: 'Numerar'` + `isCash:
+    // true` for cash collections, otherwise reports show every COD invoice
+    // as a card transaction and accountants can't tie SmartBill back to the
+    // courier's cash bag (caught by Codex P2 round 3 on PR #316).
+    //
+    // Mapping rules:
+    //   - payment_method = 'COD' (or payment_status = 'UNPAID'): cash
+    //   - everything else (CARD / payment_status = 'PAID'): card
+    // We treat missing payment_method conservatively and lean on
+    // payment_status as the second signal.
+    payment: (() => {
+      const method = (order.payment_method ?? '').toUpperCase();
+      const isCod = method === 'COD' || order.payment_status === 'UNPAID';
+      return isCod
+        ? {
+            value: Number(total.toFixed(2)),
+            paymentSeries: '',
+            type: 'Numerar',
+            isCash: true,
+          }
+        : {
+            value: Number(total.toFixed(2)),
+            paymentSeries: '',
+            type: 'Card',
+            isCash: false,
+          };
+    })(),
     observations: `HIR Restaurant Suite — comandă #${order.id.slice(0, 8)} (${legalName}).`,
   };
 }
@@ -312,6 +336,10 @@ async function processJob(
   jobId: string,
   tenantId: string,
   orderId: string,
+  // True for cron-pickup path so we honor the auto_push_enabled toggle.
+  // False for manual push (the OWNER clicked "Reîncearcă" / direct push and
+  // is providing explicit consent regardless of the auto-push setting).
+  respectAutoPush: boolean,
 ): Promise<{ status: 'SENT' | 'FAILED' | 'SKIPPED'; detail: string }> {
   // Hourly cap.
   const used = await tenantHourlyCount(supabase, tenantId);
@@ -335,6 +363,14 @@ async function processJob(
   if (!sb.enabled) {
     return { status: 'SKIPPED', detail: 'smartbill_disabled' };
   }
+  // Cron pickup honors the per-tenant auto-push toggle. If the OWNER
+  // turned only "Trimitere automată la livrare" off, queued backlog
+  // should NOT auto-fire — it stays PENDING until they either re-enable
+  // auto-push or manually push from the dashboard (caught by Codex P2
+  // round 3 on PR #316).
+  if (respectAutoPush && !sb.auto_push_enabled) {
+    return { status: 'SKIPPED', detail: 'auto_push_disabled' };
+  }
 
   const settingsObj =
     (tenant as Tenant).settings && typeof (tenant as Tenant).settings === 'object'
@@ -356,11 +392,12 @@ async function processJob(
     return { status: 'FAILED', detail: 'api_token_missing' };
   }
 
-  // Order.
+  // Order — pull payment_method + payment_status so the SmartBill payment
+  // block reflects card vs cash correctly (COD = cash; see buildInvoicePayload).
   const { data: order, error: orderErr } = await supabase
     .from('restaurant_orders')
     .select(
-      `id, tenant_id, total_ron, items, created_at,
+      `id, tenant_id, total_ron, items, created_at, payment_method, payment_status,
        customers ( first_name, last_name )`,
     )
     .eq('id', orderId)
@@ -628,7 +665,9 @@ Deno.serve(async (req: Request) => {
         return json(200, { ok: false, status: 'busy', detail: 'lost_claim_race' });
       }
       try {
-        const r = await processJob(supabase, jobId, tenantId, orderId);
+        // Manual push — respectAutoPush=false so an OWNER can force a
+        // single send even with the auto-push toggle off.
+        const r = await processJob(supabase, jobId, tenantId, orderId, false);
         await bumpAttempts(supabase, jobId, r.status, r.detail);
         setMetadata({ result_status: r.status });
         return json(200, { ok: r.status === 'SENT', status: r.status, detail: r.detail });
@@ -681,7 +720,10 @@ Deno.serve(async (req: Request) => {
         continue;
       }
       try {
-        const r = await processJob(supabase, j.id, j.tenant_id, j.order_id);
+        // Cron pickup — respectAutoPush=true so the auto-push toggle gates
+        // the queue: a tenant that toggles auto-push off mid-day stops
+        // emitting invoices for the existing PENDING backlog.
+        const r = await processJob(supabase, j.id, j.tenant_id, j.order_id, true);
         await bumpAttempts(supabase, j.id, r.status, r.detail);
         if (r.status === 'SENT') sent++;
         else if (r.status === 'FAILED') failed++;
