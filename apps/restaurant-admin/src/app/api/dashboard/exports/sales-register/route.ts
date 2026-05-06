@@ -71,17 +71,18 @@ function dateRo(iso: string): string {
 function monthBoundsUtc(year: number, monthIdxZeroBased: number): { startIso: string; endIso: string } {
   // Bucharest is UTC+2 (winter) / UTC+3 (summer). Build the local-midnight
   // boundary, then convert to UTC by subtracting the offset returned for
-  // that wall-clock instant. This correctly handles DST without pulling in
-  // a tz library.
+  // that wall-clock instant. We MUST compute the start and end offsets
+  // independently — DST transitions never occur on the 1st of a month in
+  // RO, but they do occur INSIDE March + October. For a March export the
+  // end boundary (Apr 1 00:00 local) sits in EEST while the start boundary
+  // (Mar 1 00:00 local) sits in EET, so reusing one offset for both shifts
+  // the window by one hour. Caught by Codex review on PR #286.
   const localStart = new Date(Date.UTC(year, monthIdxZeroBased, 1, 0, 0, 0));
   const localEnd = new Date(Date.UTC(year, monthIdxZeroBased + 1, 1, 0, 0, 0));
-  // Offset for Europe/Bucharest at the boundary instant. We approximate via
-  // the offset at the start of the month — DST transitions never occur on
-  // the 1st of a month in RO (they happen on the last Sun of Mar / Oct), so
-  // a single offset spans the whole window.
-  const offsetMin = bucharestOffsetMinutes(localStart);
-  const startIso = new Date(localStart.getTime() - offsetMin * 60_000).toISOString();
-  const endIso = new Date(localEnd.getTime() - offsetMin * 60_000).toISOString();
+  const startOffsetMin = bucharestOffsetMinutes(localStart);
+  const endOffsetMin = bucharestOffsetMinutes(localEnd);
+  const startIso = new Date(localStart.getTime() - startOffsetMin * 60_000).toISOString();
+  const endIso = new Date(localEnd.getTime() - endOffsetMin * 60_000).toISOString();
   return { startIso, endIso };
 }
 
