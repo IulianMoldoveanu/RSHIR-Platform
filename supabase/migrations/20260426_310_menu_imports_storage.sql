@@ -3,7 +3,9 @@
 -- Holds source PDF/JPEG/PNG uploads while Claude Vision extracts menu rows.
 -- Files are NOT public; the API parses them via service-role and the human
 -- review/commit flow inserts into restaurant_menu_items. Objects expire after
--- ~24h (TODO: wire a pg_cron sweep — for MVP files are short-lived and small).
+-- ~24h via the daily pg_cron sweep scheduled in
+-- supabase/migrations/20260427_520_menu_imports_ttl.sql (job
+-- `menu-imports-ttl-sweep`, 01:00 UTC = ~03:00 Europe/Bucharest).
 --
 -- Path convention enforced by RLS:
 --   menu-imports / {tenant_id}/{upload_id}.{ext}
@@ -68,6 +70,6 @@ using (
   )
 );
 
--- TODO(RSHIR-13): schedule a daily job to delete objects older than 24h.
---   Either Supabase Edge Function with pg_cron, or a periodic cron route in
---   restaurant-admin invoking storage.objects DELETE. Tracked as follow-up.
+-- The 24h sweep itself is scheduled in 20260427_520_menu_imports_ttl.sql
+-- (pg_cron job `menu-imports-ttl-sweep`). This migration only owns the
+-- bucket + RLS policies above.

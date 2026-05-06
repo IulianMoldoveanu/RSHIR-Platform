@@ -9,11 +9,13 @@ const paramsSchema = z.object({ token: z.string().uuid() });
 
 /**
  * Anonymous fetch of an order by its public_track_token.
- * Returns ONLY the safe subset of fields needed to render /track/[token].
  *
- * TODO: replace with `get_public_order(token uuid)` Postgres function once
- * that migration ships (spec §5.4). For now we use the service-role client
- * server-side and hand-pick columns.
+ * Calls the `get_public_order(token uuid)` Postgres RPC (security definer,
+ * granted to anon). The RPC itself enforces the redaction contract — last
+ * name → initial, full street address → neighborhood only, tenant settings
+ * → whitelisted keys — so this route is a thin pass-through that just
+ * remaps snake_case to camelCase. See
+ * supabase/migrations/20260506_008_get_public_order_redact.sql.
  */
 export async function GET(_req: Request, ctx: { params: { token: string } }) {
   const parsed = paramsSchema.safeParse(ctx.params);
@@ -23,49 +25,28 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
 
   const admin = getSupabaseAdmin();
 
-  // Defensive SELECT: try with payment_method (20260504_001 column); on
-  // PostgREST 'column does not exist' fall back to the legacy column set so
-  // /track keeps working when the migration lags the code deploy. The COD
-  // banner just doesn't render until the column exists.
-  const COLS_FULL = `
-    id, status, payment_status, payment_method, items,
-    subtotal_ron, delivery_fee_ron, total_ron, created_at, updated_at,
-    public_track_token, delivery_address_id,
-    tenants ( name, slug, settings ),
-    customers ( first_name, last_name ),
-    customer_addresses ( line1, city )
-  `;
-  const COLS_LEGACY = `
-    id, status, payment_status, items,
-    subtotal_ron, delivery_fee_ron, total_ron, created_at, updated_at,
-    public_track_token, delivery_address_id,
-    tenants ( name, slug, settings ),
-    customers ( first_name, last_name ),
-    customer_addresses ( line1, city )
-  `;
-  const loadOrder = (cols: string) =>
-    admin
-      .from('restaurant_orders')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .select(cols as any)
-      .eq('public_track_token', parsed.data.token)
-      .single();
-  let { data: order, error } = await loadOrder(COLS_FULL);
-  if (error && /payment_method/i.test(error.message ?? '')) {
-    ({ data: order, error } = await loadOrder(COLS_LEGACY));
-  }
+  // Cast: `get_public_order` is added by 20260506_008; @hir/supabase-types
+  // is regenerated post-merge by `supabase/gen-types.mjs`. Until then,
+  // narrow via `any` here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.rpc as any)('get_public_order', {
+    p_token: parsed.data.token,
+  });
 
-  if (error || !order) {
+  if (error) {
+    console.error('[track/route] get_public_order rpc error', error.message);
+    return NextResponse.json({ error: 'rpc_failed' }, { status: 500 });
+  }
+  if (!data) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  // The defensive any-cast on .select(cols as any) widened the row type;
-  // narrow it back so the rest of this route reads cleanly.
-  const orderRow = order as unknown as {
+  // The RPC returns jsonb already shaped + redacted for the public track UI.
+  const row = data as unknown as {
     id: string;
     status: string;
     payment_status: string;
-    payment_method?: 'CARD' | 'COD' | null;
+    payment_method: 'CARD' | 'COD' | null;
     items: unknown;
     subtotal_ron: number | string;
     delivery_fee_ron: number | string;
@@ -73,75 +54,61 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
     created_at: string;
     updated_at: string;
     public_track_token: string;
-    delivery_address_id: string | null;
-    tenants: { name: string; slug: string; settings: unknown } | null;
-    customers: { first_name: string | null; last_name: string | null } | null;
-    customer_addresses: { line1: string | null; city: string | null } | null;
+    fulfillment: 'PICKUP' | 'DELIVERY';
+    has_review: boolean;
+    tenant: {
+      name: string;
+      slug: string;
+      settings: {
+        phone: string | null;
+        whatsapp_phone: string | null;
+        location_lat: number | null;
+        location_lng: number | null;
+        pickup_address: string | null;
+        pickup_eta_minutes: number | null;
+        delivery_eta_min_minutes: number | null;
+      };
+    } | null;
+    customer: { first_name: string | null; last_name_initial: string | null } | null;
+    dropoff: { neighborhood: string; city: string | null } | null;
   };
 
-  // RSHIR-39: surface whether the customer has already left a review so the
-  // /track UI can render the prompt vs the thank-you state without a second
-  // round-trip.
-  let hasReview = false;
-  if (orderRow.status === 'DELIVERED') {
-    const { data: review } = await admin
-      .from('restaurant_reviews')
-      .select('id')
-      .eq('order_id', orderRow.id)
-      .maybeSingle();
-    hasReview = !!review;
-  }
-
-  const tenantSettings = (orderRow.tenants?.settings ?? {}) as Record<string, unknown>;
-  const tenantPhone =
-    typeof tenantSettings.whatsapp_phone === 'string'
-      ? tenantSettings.whatsapp_phone
-      : typeof tenantSettings.phone === 'string'
-        ? tenantSettings.phone
-        : null;
-
-  const tenantLat = typeof tenantSettings.location_lat === 'number' ? tenantSettings.location_lat : null;
-  const tenantLng = typeof tenantSettings.location_lng === 'number' ? tenantSettings.location_lng : null;
-  const pickupAddress =
-    typeof tenantSettings.pickup_address === 'string' ? tenantSettings.pickup_address : null;
+  const tenantSettings = row.tenant?.settings ?? null;
+  const tenantPhone = tenantSettings?.whatsapp_phone ?? tenantSettings?.phone ?? null;
+  const tenantLat = tenantSettings?.location_lat ?? null;
+  const tenantLng = tenantSettings?.location_lng ?? null;
+  const pickupAddress = tenantSettings?.pickup_address ?? null;
   const pickupEtaMinutes =
-    typeof tenantSettings.pickup_eta_minutes === 'number' && tenantSettings.pickup_eta_minutes > 0
+    tenantSettings?.pickup_eta_minutes && tenantSettings.pickup_eta_minutes > 0
       ? Math.round(tenantSettings.pickup_eta_minutes)
       : null;
   // For DELIVERY orders, use the *min* of the configured range as the target
   // — under-promise / over-deliver beats the inverse for repeat-order intent
   // (Tazz Trustpilot pattern).
   const deliveryEtaMinutes =
-    typeof tenantSettings.delivery_eta_min_minutes === 'number' &&
-    tenantSettings.delivery_eta_min_minutes > 0
+    tenantSettings?.delivery_eta_min_minutes && tenantSettings.delivery_eta_min_minutes > 0
       ? Math.round(tenantSettings.delivery_eta_min_minutes)
       : null;
 
-  const isPickup = orderRow.delivery_address_id === null;
-
-  const paymentMethod =
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((order as any).payment_method as 'CARD' | 'COD' | null | undefined) ?? null;
-
   return NextResponse.json({
     order: {
-      id: orderRow.id,
-      status: orderRow.status,
-      paymentStatus: orderRow.payment_status,
-      paymentMethod,
-      items: orderRow.items,
-      subtotalRon: Number(orderRow.subtotal_ron),
-      deliveryFeeRon: Number(orderRow.delivery_fee_ron),
-      totalRon: Number(orderRow.total_ron),
-      createdAt: orderRow.created_at,
-      updatedAt: orderRow.updated_at,
-      publicTrackToken: orderRow.public_track_token,
-      fulfillment: isPickup ? 'PICKUP' : 'DELIVERY',
-      hasReview,
-      tenant: orderRow.tenants
+      id: row.id,
+      status: row.status,
+      paymentStatus: row.payment_status,
+      paymentMethod: row.payment_method ?? null,
+      items: row.items,
+      subtotalRon: Number(row.subtotal_ron),
+      deliveryFeeRon: Number(row.delivery_fee_ron),
+      totalRon: Number(row.total_ron),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      publicTrackToken: row.public_track_token,
+      fulfillment: row.fulfillment,
+      hasReview: row.has_review,
+      tenant: row.tenant
         ? {
-            name: orderRow.tenants.name,
-            slug: orderRow.tenants.slug,
+            name: row.tenant.name,
+            slug: row.tenant.slug,
             phone: tenantPhone,
             location:
               tenantLat !== null && tenantLng !== null ? { lat: tenantLat, lng: tenantLng } : null,
@@ -150,34 +117,13 @@ export async function GET(_req: Request, ctx: { params: { token: string } }) {
             deliveryEtaMinutes,
           }
         : null,
-      customer: orderRow.customers
+      customer: row.customer
         ? {
-            firstName: orderRow.customers.first_name,
-            lastNameInitial: initial(orderRow.customers.last_name),
+            firstName: row.customer.first_name,
+            lastNameInitial: row.customer.last_name_initial,
           }
         : null,
-      dropoff:
-        !isPickup && orderRow.customer_addresses
-          ? {
-              neighborhood: neighborhoodOf(
-                orderRow.customer_addresses.line1,
-                orderRow.customer_addresses.city,
-              ),
-              city: orderRow.customer_addresses.city,
-            }
-          : null,
+      dropoff: row.dropoff,
     },
   });
-}
-
-function initial(name: string | null): string | null {
-  if (!name) return null;
-  const first = name.trim().charAt(0);
-  return first ? `${first.toUpperCase()}.` : null;
-}
-
-function neighborhoodOf(line1: string | null, city: string | null): string {
-  const trimmed = (line1 ?? '').trim();
-  if (!trimmed) return city ?? '';
-  return trimmed.split(',')[0].trim();
 }
