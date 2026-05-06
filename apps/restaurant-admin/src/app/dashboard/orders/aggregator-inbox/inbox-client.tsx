@@ -33,6 +33,21 @@ const STATUS_PILL: Record<string, { label: string; cls: string }> = {
   SKIPPED: { label: 'Ignorat', cls: 'bg-zinc-100 text-zinc-500' },
 };
 
+// Lane EMAIL-REGEX-WIREUP — pill for the parser strategy. Reads from
+// parsed_data.parsed_strategy. Older jobs (before this PR) won't carry
+// the field and fall through to the "—" pill.
+const STRATEGY_PILL: Record<string, { label: string; cls: string }> = {
+  regex: { label: 'Regex', cls: 'bg-emerald-100 text-emerald-800' },
+  'regex+ai-fill': { label: 'Regex + AI', cls: 'bg-amber-100 text-amber-800' },
+  'ai-full': { label: 'AI complet', cls: 'bg-orange-100 text-orange-800' },
+  failed: { label: 'Eșuat', cls: 'bg-rose-100 text-rose-800' },
+};
+
+function getStrategy(parsedData: Record<string, unknown> | null): string | null {
+  const v = parsedData?.['parsed_strategy'];
+  return typeof v === 'string' ? v : null;
+}
+
 export function InboxClient({ tenantId, canEdit, jobs }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -55,6 +70,8 @@ export function InboxClient({ tenantId, canEdit, jobs }: Props) {
       <ul className="divide-y divide-zinc-100">
         {jobs.map((j) => {
           const pill = STATUS_PILL[j.status] ?? STATUS_PILL.RECEIVED;
+          const strategy = getStrategy(j.parsed_data);
+          const stratPill = strategy ? STRATEGY_PILL[strategy] : null;
           const open = openId === j.id;
           return (
             <li key={j.id} className="px-4 py-3">
@@ -68,6 +85,18 @@ export function InboxClient({ tenantId, canEdit, jobs }: Props) {
                 >
                   {pill.label}
                 </span>
+                {stratPill ? (
+                  <span
+                    title="Strategia de parsare folosită"
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium ${stratPill.cls}`}
+                  >
+                    {stratPill.label}
+                  </span>
+                ) : (
+                  <span className="shrink-0 rounded-md bg-zinc-50 px-2 py-0.5 text-[11px] font-medium text-zinc-400">
+                    —
+                  </span>
+                )}
                 <span className="shrink-0 text-xs text-zinc-500">
                   {new Date(j.received_at).toLocaleString('ro-RO')}
                 </span>
