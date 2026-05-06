@@ -293,9 +293,21 @@ export default async function PlatformAdminTenantsPage({
   // ── Apply server-side filters ──
   let rows = allRows;
   if (cityFilter) {
-    // Lane MULTI-CITY: filter by slug. Match canonical city_id, OR legacy
-    // free-text whose name resolved to the same slug above.
-    rows = rows.filter((r) => r.citySlug === cityFilter);
+    // Lane MULTI-CITY: filter by slug. Two cases:
+    //   1. canonical slug ("brasov") → match rows whose citySlug resolved
+    //      to that slug (either via city_id FK or legacy text → name match).
+    //   2. synthetic "legacy:<lowercased text>" slug for unresolved legacy
+    //      free-text values (e.g. "Bistrița") that don't yet have a
+    //      canonical city. Match rows by lowercased legacyCityText so the
+    //      dropdown option doesn't lie about what it returns (Codex P2 #299).
+    if (cityFilter.startsWith('legacy:')) {
+      const target = cityFilter.slice('legacy:'.length);
+      rows = rows.filter(
+        (r) => (r.legacyCityText ?? '').toLowerCase() === target,
+      );
+    } else {
+      rows = rows.filter((r) => r.citySlug === cityFilter);
+    }
   }
   if (statusFilter === 'live') rows = rows.filter((r) => r.isLive);
   if (statusFilter === 'onboarding') rows = rows.filter((r) => !r.isLive);
