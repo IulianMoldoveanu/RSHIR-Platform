@@ -119,6 +119,11 @@ export function WizardClient(props: {
     kind: 'step' | 'golive';
     fireKey: number;
   } | null>(null);
+  // Latched once the user clicks "Activează" on Step 6. Disables the wizard
+  // for the ~1.4s celebration window so a second click can't fire
+  // `wizardGoLive` twice (which would emit duplicate `tenant.went_live`
+  // audit entries and re-stamp `went_live_at`).
+  const [redirecting, setRedirecting] = useState(false);
 
   // Autosave the draft 1.2s after the last edit.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -317,12 +322,15 @@ export function WizardClient(props: {
             sourceState={props.sourceState}
             tenantId={props.tenantId}
             tenantSlug={props.tenantSlug}
-            disabled={!props.canEdit}
+            disabled={!props.canEdit || redirecting}
             onError={setGlobalError}
             onLive={() => {
               // Bigger, longer burst for go-live + dialog-style toast.
               // Hold the redirect briefly (~1.4s) so the merchant SEES the
               // celebration before the orders dashboard takes over.
+              // `redirecting` latches the wizard so a second click during
+              // the delay can't fire wizardGoLive twice.
+              setRedirecting(true);
               toast.success(
                 `Felicitări! ${props.tenantName} este live.`,
                 { duration: 4000 },
@@ -348,7 +356,7 @@ export function WizardClient(props: {
           <button
             type="button"
             onClick={goBack}
-            disabled={step === 1 || pending}
+            disabled={step === 1 || pending || redirecting}
             className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ← Înapoi
@@ -356,7 +364,7 @@ export function WizardClient(props: {
           <button
             type="button"
             onClick={() => startTransition(() => void saveNow())}
-            disabled={pending}
+            disabled={pending || redirecting}
             className="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
           >
             Salvează schiță
