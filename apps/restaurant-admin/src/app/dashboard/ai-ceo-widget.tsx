@@ -1,26 +1,41 @@
 import Link from 'next/link';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { getLatestSuggestions, getAutoExecutedActions } from '@/lib/ai-ceo/queries';
+import { getAiAvailability } from '@/lib/ai-availability';
+import { AiUnavailableNotice } from '@/components/ai/ai-unavailable-notice';
 
 // Drives engagement on HIR's strategic differentiator. Suggestions and
 // auto-actions live on /dashboard/ai-ceo but operators rarely visit that
 // page — surfacing pending counts on the home screen pulls them in.
-// Hidden when there's nothing to show, so the dashboard stays clean for
-// new tenants who haven't connected the bot yet.
+// Hidden when there's nothing to show AND the AI provider is healthy, so
+// the dashboard stays clean for new tenants who haven't connected the bot
+// yet. When AI is degraded but no historical data exists, we surface a
+// friendly notice so the operator understands the silence is intentional.
 export async function AiCeoWidget({ tenantId }: { tenantId: string }) {
-  const [suggestions, autoActions] = await Promise.all([
+  const [suggestions, autoActions, aiAvail] = await Promise.all([
     getLatestSuggestions(tenantId),
     getAutoExecutedActions(tenantId, 7),
+    getAiAvailability(),
   ]);
 
   const pending = suggestions.filter((s) => s.status === 'pending');
   const totalSuggestions = suggestions.length;
   const totalAuto = autoActions.length;
+  const briefStatus = aiAvail.byFunction['copilot-daily-brief'];
+  const briefDegraded = briefStatus?.degraded === true;
 
-  // Hide the entire widget when the bot hasn't done anything for this tenant
-  // yet. The empty state already lives on /dashboard/ai-ceo for operators
-  // who navigate there directly.
-  if (totalSuggestions === 0 && totalAuto === 0) return null;
+  // No history + AI degraded: render the friendly notice so the dashboard
+  // doesn't silently swallow the AI surface.
+  if (totalSuggestions === 0 && totalAuto === 0) {
+    if (briefDegraded) {
+      return (
+        <AiUnavailableNotice
+          body="Asistentul AI este în mentenanță. Brief-ul zilnic și sugestiile vor fi reactivate în scurt timp."
+        />
+      );
+    }
+    return null;
+  }
 
   return (
     <Link
@@ -56,9 +71,11 @@ export async function AiCeoWidget({ tenantId }: { tenantId: string }) {
               )}
             </p>
             <p className="mt-0.5 truncate text-xs text-zinc-600">
-              {pending.length > 0
-                ? 'Aprobă sau respinge ce a propus botul azi.'
-                : 'Activitate recentă a copilotului tău digital.'}
+              {briefDegraded
+                ? 'Asistentul AI este în mentenanță — afișăm istoricul recent.'
+                : pending.length > 0
+                  ? 'Aprobă sau respinge ce a propus botul azi.'
+                  : 'Activitate recentă a copilotului tău digital.'}
             </p>
           </div>
         </div>
