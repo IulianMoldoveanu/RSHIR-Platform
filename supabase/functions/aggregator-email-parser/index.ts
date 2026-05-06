@@ -240,7 +240,14 @@ Deno.serve(async (req) => {
     const senderEmail = safeFromEmail(payload.from);
     const detected = detectSource(senderEmail);
     const subject = (payload.subject ?? '').slice(0, 500);
-    const bodyText = (payload.text ?? payload.html ?? '').slice(0, 50000);
+    // Codex P2: `text ?? html` only falls back on null/undefined; an
+    // HTML-only email arrives as { text: '', html: '<...>' } and we
+    // would have shipped an empty body to Anthropic. Use OR so empty
+    // text falls through to html.
+    const bodyText = ((payload.text && payload.text.trim()) || payload.html || '').slice(
+      0,
+      50000,
+    );
 
     // 1) Insert RECEIVED row (without raw_email_path yet — we need the id to key the file).
     const { data: jobRow, error: jobErr } = await sb
@@ -387,37 +394,21 @@ Deno.serve(async (req) => {
         appliedOrderId = (row as { order_id: string | null } | null)?.order_id ?? null;
         deduped = (row as { deduped: boolean } | null)?.deduped ?? false;
       } else {
-        // No external_order_id parsed → no dedup key. Plain insert.
-        const orderRow = {
-          tenant_id: tenantId,
-          items: itemsJson,
-          subtotal_ron: parsed.subtotal_ron,
-          delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
-          total_ron: parsed.total_ron,
-          status: 'CONFIRMED',
-          payment_status: 'PAID',
-          source: detected,
-          hir_delivery_id: null,
-          notes,
-        };
-        const { data: inserted, error: insErr } = await sb
-          .from('restaurant_orders')
-          .insert(orderRow)
-          .select('id')
-          .single();
-        if (insErr || !inserted) {
-          await sb
-            .from('aggregator_email_jobs')
-            .update({
-              status: 'PARSED',
-              parsed_data: parsed as unknown as Record<string, unknown>,
-              error_text: `Auto-aplicare esuata: ${insErr?.message ?? 'unknown'}. Aplicati manual.`,
-            })
-            .eq('id', jobId);
-          setMetadata({ apply_error: insErr?.message?.slice(0, 200) });
-          return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
-        }
-        appliedOrderId = (inserted as { id: string }).id;
+        // Codex P1: without external_order_id we have NO dedup key, so a
+        // plain-insert path would let a retried email create duplicate
+        // paid orders (bypassing the partial unique index). Refuse
+        // auto-apply: keep PARSED for owner manual review in the inbox.
+        await sb
+          .from('aggregator_email_jobs')
+          .update({
+            status: 'PARSED',
+            parsed_data: parsed as unknown as Record<string, unknown>,
+            error_text:
+              'Lipseste numarul comenzii (external_order_id) — verificati manual si aplicati din inbox.',
+          })
+          .eq('id', jobId);
+        setMetadata({ apply_blocked: 'missing_external_order_id' });
+        return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
       }
 
       if (!appliedOrderId) {
