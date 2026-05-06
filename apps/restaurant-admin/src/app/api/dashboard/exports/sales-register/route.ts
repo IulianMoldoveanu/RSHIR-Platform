@@ -259,20 +259,21 @@ export async function GET(req: NextRequest) {
   let totalRows = 0;
   let totalGross = 0;
 
-  // Exclude REFUNDED orders. Stripe refund flow flips `payment_status` to
-  // 'REFUNDED' but leaves `status` at DELIVERED (food may have already been
-  // handed over). Without this filter, refunded orders would inflate the
-  // monthly fiscal register as positive revenue. Caught by Codex round 2 on
-  // PR #286. Other accepted payment_status values for the export are
-  // 'PAID' and 'UNPAID' (COD orders settled at delivery); 'FAILED' cannot
-  // co-exist with status='DELIVERED' in our flow but is harmlessly excluded.
+  // payment_status allowlist. Only PAID (card) and UNPAID (COD settled at
+  // delivery) count toward fiscal revenue. REFUNDED is excluded because the
+  // Stripe refund handler flips payment_status without cancelling the order
+  // (food may have already been handed over). FAILED is excluded defensively
+  // — external/POS and courier webhooks can update `status` independently of
+  // `payment_status`, so a `DELIVERED + FAILED` row is technically reachable
+  // and must not appear as positive revenue. Caught by Codex rounds 2 + 4 on
+  // PR #286.
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data: page, error } = await admin
       .from('restaurant_orders')
       .select('id, created_at, total_ron, customers(first_name, last_name)')
       .eq('tenant_id', tenant.id)
       .eq('status', 'DELIVERED')
-      .neq('payment_status', 'REFUNDED')
+      .in('payment_status', ['PAID', 'UNPAID'])
       .gte('created_at', startIso)
       .lt('created_at', endIso)
       .order('created_at', { ascending: true })

@@ -157,7 +157,9 @@ export function ExportsClient({
               ))}
             </select>
             <p className="text-xs text-zinc-500">
-              HoReCa folosește 9%. Schimbați doar dacă firma este pe altă cotă.
+              HoReCa folosește 11% (rata redusă în vigoare de la 1 august 2025).
+              Cotele 9% și 19% rămân selectabile pentru exporturi pe luni
+              istorice când acea cotă era în vigoare.
             </p>
           </div>
 
