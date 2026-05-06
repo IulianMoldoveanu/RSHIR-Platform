@@ -322,47 +322,16 @@ Deno.serve(async (req) => {
 
     // 5) Persist parsed_data + decide auto-apply.
     if (highConfidence(parsed)) {
-      // Codex P1 dedup: same email may be delivered twice (Cloudflare
-      // retry, aggregator resend, restaurant inbox forwarding loop). If
-      // we already APPLIED an order with this (tenant, source,
-      // external_order_id), point this job at the existing order and
-      // skip the insert. Without this, duplicate emails become
-      // duplicate paid CONFIRMED rows in KDS + admin dashboard.
-      const externalId = parsed.external_order_id;
-      if (externalId) {
-        const { data: priorJobs } = await sb
-          .from('aggregator_email_jobs')
-          .select('applied_order_id, parsed_data')
-          .eq('tenant_id', tenantId)
-          .eq('detected_source', detected)
-          .eq('status', 'APPLIED')
-          .not('applied_order_id', 'is', null)
-          .limit(50);
-        const dup = (priorJobs ?? []).find((p) => {
-          const pd = p.parsed_data as Record<string, unknown> | null;
-          return pd && pd.external_order_id === externalId;
-        });
-        if (dup?.applied_order_id) {
-          await sb
-            .from('aggregator_email_jobs')
-            .update({
-              status: 'APPLIED',
-              parsed_data: parsed as unknown as Record<string, unknown>,
-              applied_order_id: dup.applied_order_id,
-              error_text: `Duplicat — comanda ${detected} #${externalId} a fost deja aplicată anterior.`,
-            })
-            .eq('id', jobId);
-          setMetadata({ dedup: true, applied_order_id: dup.applied_order_id as string });
-          return json(200, {
-            ok: true,
-            job_id: jobId,
-            status: 'APPLIED',
-            order_id: dup.applied_order_id,
-            source: detected,
-            deduped: true,
-          });
-        }
-      }
+      // Codex P1+P2: dedup must be ATOMIC. Migration 20260506_015 added a
+      // unique partial index on restaurant_orders (tenant_id, source,
+      // hir_delivery_id) where source IN aggregator + hir_delivery_id
+      // not null. We store the aggregator's external order id in
+      // hir_delivery_id and do an INSERT ... ON CONFLICT DO NOTHING via
+      // upsert with ignoreDuplicates. On conflict, we look up the
+      // winning row and link this job to it. This serializes correctly
+      // under concurrent retries — Postgres unique-index check is
+      // atomic with the insert.
+      const externalId = parsed.external_order_id ?? null;
 
       // Codex P2 item shape: existing order detail + KDS readers compute
       // line totals via `price_ron ?? unit_price ?? price` and quantity
@@ -377,41 +346,107 @@ Deno.serve(async (req) => {
         price_ron: it.unit_price_ron,
         modifiers: it.modifiers ?? null,
       }));
-      const { data: order, error: orderErr } = await sb
-        .from('restaurant_orders')
-        .insert({
-          tenant_id: tenantId,
-          items: itemsJson,
-          subtotal_ron: parsed.subtotal_ron,
-          delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
-          total_ron: parsed.total_ron,
-          status: 'CONFIRMED',
-          payment_status: 'PAID', // aggregators settle on their side
-          source: detected,
-          notes: [
-            parsed.external_order_id ? `${detected} #${parsed.external_order_id}` : null,
-            parsed.customer_name,
-            parsed.customer_phone,
-            parsed.delivery_address,
-            parsed.notes,
-          ]
-            .filter(Boolean)
-            .join(' • ')
-            .slice(0, 1000),
-        })
-        .select('id')
-        .single();
 
-      if (orderErr || !order) {
+      const orderRow: Record<string, unknown> = {
+        tenant_id: tenantId,
+        items: itemsJson,
+        subtotal_ron: parsed.subtotal_ron,
+        delivery_fee_ron: parsed.delivery_fee_ron ?? 0,
+        total_ron: parsed.total_ron,
+        status: 'CONFIRMED',
+        payment_status: 'PAID', // aggregators settle on their side
+        source: detected,
+        hir_delivery_id: externalId, // dedup key per migration 015
+        notes: [
+          externalId ? `${detected} #${externalId}` : null,
+          parsed.customer_name,
+          parsed.customer_phone,
+          parsed.delivery_address,
+          parsed.notes,
+        ]
+          .filter(Boolean)
+          .join(' • ')
+          .slice(0, 1000),
+      };
+
+      let appliedOrderId: string | null = null;
+      let deduped = false;
+
+      if (externalId) {
+        // Upsert with ignoreDuplicates is supabase-js's wrapper for
+        // INSERT ... ON CONFLICT DO NOTHING. onConflict names the
+        // unique index columns (no minRows/single because the no-op
+        // path returns zero rows).
+        const { data: upserted, error: upErr } = await sb
+          .from('restaurant_orders')
+          .upsert(orderRow, {
+            onConflict: 'tenant_id,source,hir_delivery_id',
+            ignoreDuplicates: true,
+          })
+          .select('id');
+        if (upErr) {
+          await sb
+            .from('aggregator_email_jobs')
+            .update({
+              status: 'PARSED',
+              parsed_data: parsed as unknown as Record<string, unknown>,
+              error_text: `Auto-aplicare esuata: ${upErr.message}. Aplicati manual.`,
+            })
+            .eq('id', jobId);
+          setMetadata({ apply_error: upErr.message.slice(0, 200) });
+          return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
+        }
+        if (upserted && upserted.length > 0) {
+          appliedOrderId = (upserted[0] as { id: string }).id;
+        } else {
+          // Conflict path: a prior row already exists for this
+          // (tenant, source, externalId). Look it up by the same key.
+          const { data: prior } = await sb
+            .from('restaurant_orders')
+            .select('id')
+            .eq('tenant_id', tenantId)
+            .eq('source', detected)
+            .eq('hir_delivery_id', externalId)
+            .limit(1)
+            .single();
+          appliedOrderId = (prior as { id: string } | null)?.id ?? null;
+          deduped = true;
+        }
+      } else {
+        // No external_order_id parsed → no dedup key. Best-effort
+        // straight insert (better-than-nothing path; the parse already
+        // had to clear highConfidence guards).
+        const { data: inserted, error: insErr } = await sb
+          .from('restaurant_orders')
+          .insert(orderRow)
+          .select('id')
+          .single();
+        if (insErr || !inserted) {
+          await sb
+            .from('aggregator_email_jobs')
+            .update({
+              status: 'PARSED',
+              parsed_data: parsed as unknown as Record<string, unknown>,
+              error_text: `Auto-aplicare esuata: ${insErr?.message ?? 'unknown'}. Aplicati manual.`,
+            })
+            .eq('id', jobId);
+          setMetadata({ apply_error: insErr?.message?.slice(0, 200) });
+          return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
+        }
+        appliedOrderId = inserted.id;
+      }
+
+      if (!appliedOrderId) {
+        // Should not happen — defensive.
         await sb
           .from('aggregator_email_jobs')
           .update({
             status: 'PARSED',
             parsed_data: parsed as unknown as Record<string, unknown>,
-            error_text: `Auto-aplicare esuata: ${orderErr?.message ?? 'unknown'}. Aplicati manual.`,
+            error_text:
+              'Auto-aplicare esuata: nu s-a putut determina id-ul comenzii. Aplicati manual.',
           })
           .eq('id', jobId);
-        setMetadata({ apply_error: orderErr?.message?.slice(0, 200) });
         return json(200, { ok: true, job_id: jobId, status: 'PARSED', auto_apply: false });
       }
 
@@ -420,15 +455,20 @@ Deno.serve(async (req) => {
         .update({
           status: 'APPLIED',
           parsed_data: parsed as unknown as Record<string, unknown>,
-          applied_order_id: order.id,
+          applied_order_id: appliedOrderId,
+          error_text: deduped
+            ? `Duplicat — comanda ${detected} #${externalId} a fost deja aplicată anterior.`
+            : null,
         })
         .eq('id', jobId);
+      setMetadata({ applied_order_id: appliedOrderId, deduped });
       return json(200, {
         ok: true,
         job_id: jobId,
         status: 'APPLIED',
-        order_id: order.id,
+        order_id: appliedOrderId,
         source: detected,
+        deduped,
       });
     }
 
