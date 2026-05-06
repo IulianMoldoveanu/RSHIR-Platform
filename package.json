@@ -10,7 +10,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules",
-    "seed-demo": "node scripts/seed-demo-scenario.mjs"
+    "seed-demo": "node scripts/seed-demo-scenario.mjs",
+    "test:e2e:multi-city": "pnpm --filter @hir/e2e-multi-city test:e2e:multi-city"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
