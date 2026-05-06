@@ -5,7 +5,19 @@ import Link from 'next/link';
 import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Banknote, Bell, MessageCircle, Star, TriangleAlert } from 'lucide-react';
+import {
+  Banknote,
+  Bell,
+  Bike,
+  ChefHat,
+  CookingPot,
+  MessageCircle,
+  PartyPopper,
+  Star,
+  TriangleAlert,
+  UtensilsCrossed,
+  XCircle,
+} from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -146,14 +158,35 @@ function TrackInner({
 
   const order = data.order;
   const pickup = order.tenant?.location ?? fallbackPickup;
+  const targetMinutes =
+    order.fulfillment === 'PICKUP'
+      ? (order.tenant?.pickupEtaMinutes ?? null)
+      : (order.tenant?.deliveryEtaMinutes ?? null);
+  const totalMinutes =
+    targetMinutes && targetMinutes > 0
+      ? targetMinutes
+      : order.fulfillment === 'PICKUP'
+        ? DEFAULT_PICKUP_MINUTES
+        : DEFAULT_DELIVERY_MINUTES;
+  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60_000));
+  const remaining = Math.max(0, totalMinutes - elapsed);
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        {order.tenant && <p className="text-xs uppercase tracking-widest text-zinc-400">{order.tenant.name}</p>}
-        <h1 className="text-2xl font-semibold tracking-tight">{t(locale, 'track.your_order')}</h1>
-        <p className="font-mono text-xs text-zinc-500">#{order.id.slice(0, 8)}</p>
+      {/* Brand strip — tenant name + order # in one tight row. */}
+      <header className="flex items-baseline justify-between gap-3 border-b border-zinc-200 pb-3">
+        <p className="truncate text-sm font-semibold text-zinc-900">{order.tenant?.name ?? t(locale, 'track.your_order')}</p>
+        <p className="font-mono text-xs text-zinc-500">
+          {t(locale, 'track.order_label_template', { short: order.id.slice(0, 8) })}
+        </p>
       </header>
+
+      <Hero order={order} locale={locale} remainingMinutes={remaining} />
+
+      {/* Cancel widget surfaced above timeline per UX audit (was buried below). */}
+      {order.status === 'PENDING' && order.paymentStatus !== 'PAID' && (
+        <CancelWidget token={token} locale={locale} />
+      )}
 
       <Timeline
         status={order.status}
@@ -162,11 +195,7 @@ function TrackInner({
         updatedAt={order.updatedAt}
         paymentStatus={order.paymentStatus}
         locale={locale}
-        targetMinutes={
-          order.fulfillment === 'PICKUP'
-            ? (order.tenant?.pickupEtaMinutes ?? null)
-            : (order.tenant?.deliveryEtaMinutes ?? null)
-        }
+        targetMinutes={targetMinutes}
       />
 
       {order.paymentMethod === 'COD' &&
@@ -251,8 +280,8 @@ function TrackInner({
 
       <PushOptInTile token={token} orderStatus={order.status} />
 
-      {order.status === 'PENDING' && order.paymentStatus !== 'PAID' && (
-        <CancelWidget token={token} locale={locale} />
+      {order.status === 'DELIVERED' && order.tenant && (
+        <ReorderRail tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
 
       {order.status === 'DELIVERED' && (
@@ -279,6 +308,181 @@ function TrackInner({
         <SaveMyInfoCard locale={locale} />
       )}
     </div>
+  );
+}
+
+/**
+ * 3-state hero (per UX audit 2026-05-06):
+ *   PENDING / CONFIRMED → "În pregătire" + chef icon
+ *   PREPARING / READY   → "Mâncarea este aproape gata" + steam/utensils icon
+ *   DISPATCHED / IN_DELIVERY → "Curierul este pe drum" + bike icon
+ *   DELIVERED          → "Bună poftă!" + party icon + reorder hook
+ *   CANCELLED          → muted neutral state
+ *
+ * The hero is the first thing the customer sees on the page. It restates
+ * the order's emotional state in one sentence + one large icon, using the
+ * same authoritative status from the API. Animated subtly with framer-motion
+ * (respects `prefers-reduced-motion`).
+ *
+ * Fleet confidentiality: copy says "curier HIR" — never "fleet" / "subcontractor".
+ */
+function Hero({
+  order,
+  locale,
+  remainingMinutes,
+}: {
+  order: TrackOrder;
+  locale: Locale;
+  remainingMinutes: number;
+}) {
+  const s = order.status;
+  const isPickup = order.fulfillment === 'PICKUP';
+
+  let titleKey: TKey;
+  let bodyKey: TKey;
+  let Icon: typeof ChefHat;
+  let iconClass: string;
+  let bg: string;
+  let border: string;
+  let showEta = false;
+
+  if (s === 'CANCELLED') {
+    titleKey = 'track.hero_cancelled_title';
+    bodyKey = 'track.hero_cancelled_body';
+    Icon = XCircle;
+    iconClass = 'text-rose-600';
+    bg = 'bg-rose-50';
+    border = 'border-rose-200';
+  } else if (s === 'DELIVERED') {
+    titleKey = 'track.hero_delivered_title';
+    bodyKey = 'track.hero_delivered_body';
+    Icon = PartyPopper;
+    iconClass = 'text-emerald-600';
+    bg = 'bg-emerald-50';
+    border = 'border-emerald-200';
+  } else if (s === 'IN_DELIVERY') {
+    titleKey = 'track.hero_in_delivery_title';
+    bodyKey = 'track.hero_in_delivery_body';
+    Icon = Bike;
+    iconClass = 'text-purple-700';
+    bg = 'bg-purple-50';
+    border = 'border-purple-200';
+    showEta = remainingMinutes > 0;
+  } else if (s === 'DISPATCHED') {
+    titleKey = 'track.hero_dispatched_title';
+    bodyKey = 'track.hero_dispatched_body';
+    Icon = Bike;
+    iconClass = 'text-purple-700';
+    bg = 'bg-purple-50';
+    border = 'border-purple-200';
+    showEta = remainingMinutes > 0;
+  } else if (s === 'READY') {
+    titleKey = 'track.hero_ready_title';
+    bodyKey = isPickup ? 'track.hero_ready_pickup_body' : 'track.hero_ready_body';
+    Icon = UtensilsCrossed;
+    iconClass = 'text-amber-600';
+    bg = 'bg-amber-50';
+    border = 'border-amber-200';
+  } else if (s === 'PREPARING') {
+    titleKey = 'track.hero_preparing_title';
+    bodyKey = 'track.hero_preparing_body';
+    Icon = CookingPot;
+    iconClass = 'text-amber-600';
+    bg = 'bg-amber-50';
+    border = 'border-amber-200';
+    showEta = remainingMinutes > 0;
+  } else if (s === 'CONFIRMED') {
+    titleKey = 'track.hero_confirmed_title';
+    bodyKey = 'track.hero_confirmed_body';
+    Icon = ChefHat;
+    iconClass = 'text-purple-700';
+    bg = 'bg-purple-50';
+    border = 'border-purple-200';
+    showEta = remainingMinutes > 0;
+  } else {
+    // PENDING (default)
+    titleKey = 'track.hero_pending_title';
+    bodyKey = 'track.hero_pending_body';
+    Icon = ChefHat;
+    iconClass = 'text-zinc-700';
+    bg = 'bg-zinc-50';
+    border = 'border-zinc-200';
+  }
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative overflow-hidden rounded-2xl border ${border} ${bg} p-5 motion-reduce:transform-none motion-reduce:transition-none`}
+    >
+      <div className="flex items-start gap-4">
+        <motion.div
+          aria-hidden
+          className={`flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-white/70 ${iconClass} shadow-sm`}
+          animate={
+            s === 'CANCELLED' || s === 'DELIVERED'
+              ? undefined
+              : { scale: [1, 1.06, 1] }
+          }
+          transition={{
+            duration: 2.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        >
+          <Icon className="h-7 w-7" strokeWidth={2} />
+        </motion.div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-semibold leading-snug tracking-tight text-zinc-900">
+            {t(locale, titleKey)}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-700">{t(locale, bodyKey)}</p>
+          {showEta && (
+            <p className="mt-2 text-xs font-medium text-zinc-600">
+              {t(locale, 'track.hero_eta_in', { minutes: String(remainingMinutes || 5) })}
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+/**
+ * Reorder rail (post-DELIVERED).
+ *
+ * Spec called for "3 popular items" but no popular-items API exists today
+ * and the track payload only carries item names (not menu_item_ids), so a
+ * one-click cart restore is not safe. We ship the lighter-weight version:
+ * a single CTA back to the tenant storefront. Iulian flagged this fallback
+ * as acceptable in the lane prompt; a richer rail is tracked for next
+ * iteration once a `/api/storefront/popular` endpoint exists.
+ */
+function ReorderRail({
+  tenantName,
+  tenantSlug,
+  locale,
+}: {
+  tenantName: string;
+  tenantSlug: string;
+  locale: Locale;
+}) {
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'lvh.me';
+  const url = `https://${tenantSlug}.${primaryDomain}`;
+  return (
+    <section className="rounded-xl border border-purple-200 bg-purple-50/60 p-4">
+      <p className="text-base font-semibold text-purple-900">{t(locale, 'track.reorder_title')}</p>
+      <p className="mt-1 text-xs text-purple-800/80">
+        {t(locale, 'track.reorder_body_template', { tenant: tenantName })}
+      </p>
+      <a
+        href={url}
+        className="mt-3 inline-flex h-11 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
+      >
+        {t(locale, 'track.reorder_cta')}
+      </a>
+    </section>
   );
 }
 
@@ -807,11 +1011,21 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 function TrackSkeleton() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
-      <header className="space-y-1">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-7 w-44" />
+      <header className="flex items-baseline justify-between gap-3 border-b border-zinc-200 pb-3">
+        <Skeleton className="h-4 w-32" />
         <Skeleton className="h-3 w-20" />
       </header>
+      {/* Hero skeleton */}
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+        <div className="flex items-start gap-4">
+          <Skeleton className="h-14 w-14 flex-none rounded-2xl" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      </section>
       <section className="rounded-xl border border-zinc-200 bg-white p-4">
         <Skeleton className="mb-2 h-3 w-28" />
         <Skeleton className="h-5 w-48" />
