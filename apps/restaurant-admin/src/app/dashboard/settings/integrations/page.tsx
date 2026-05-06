@@ -139,6 +139,27 @@ export default async function IntegrationsPage() {
         }>}
       />
 
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">
+              ANAF e-Factura — transmitere SPV
+            </h2>
+            <p className="mt-1 text-xs text-zinc-500">
+              Configurați transmiterea automată a facturilor către SPV. Este
+              obligatoriu pentru toate facturile B2B și B2C emise de la
+              1 ianuarie 2025.
+            </p>
+          </div>
+          <a
+            href="/dashboard/settings/efactura"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-purple-600 bg-white px-3 py-2 text-xs font-medium text-purple-700 hover:bg-purple-50"
+          >
+            Configurează ANAF
+          </a>
+        </div>
+      </div>
+
       <ExternalPlatformsCard />
 
       <EmbedWidgetCard tenantId={tenant.id} tenantSlug={tenant.slug} />

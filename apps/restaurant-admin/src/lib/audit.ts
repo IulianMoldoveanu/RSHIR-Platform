@@ -73,7 +73,12 @@ export type AuditAction =
   | 'smartbill.token_cleared'
   | 'smartbill.test_connection'
   | 'smartbill.invoice_pushed'
-  | 'smartbill.invoice_retried';
+  | 'smartbill.invoice_retried'
+  | 'efactura.config_step_completed'
+  | 'efactura.cert_uploaded'
+  | 'efactura.token_set'
+  | 'efactura.token_cleared'
+  | 'efactura.test_connection';
 
 export async function logAudit(args: {
   tenantId: string;
