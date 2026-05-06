@@ -109,7 +109,7 @@ export async function seedOrder(fleetId: string): Promise<{ orderId: string }> {
     .from('courier_orders')
     .insert({
       fleet_id: fleetId,
-      source_type: 'e2e_test',
+      source_type: 'MANUAL',
       vertical: 'restaurant',
       customer_first_name: 'E2E Client',
       customer_phone: '+40700000001',
