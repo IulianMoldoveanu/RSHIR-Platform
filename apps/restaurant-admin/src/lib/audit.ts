@@ -63,6 +63,7 @@ export type AuditAction =
   | 'fleet_manager.invite_revoked'
   | 'fleet_manager.invite_accepted'
   | 'tenant.external_dispatch_configured'
+  | 'tenant.city_assigned'
   | 'fiscal.settings_updated'
   | 'fiscal.export_generated';
 

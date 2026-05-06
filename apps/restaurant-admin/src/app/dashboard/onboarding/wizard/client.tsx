@@ -38,11 +38,20 @@ type Persisted = {
   contact_phone: string;
   address: string;
   city: string;
+  city_id: string | null;
   location_lat: number | null;
   location_lng: number | null;
   logo_url: string | null;
   brand_color: string | null;
   cod_enabled: boolean;
+};
+
+// Lane MULTI-CITY: canonical cities list passed from the server.
+type CityOption = {
+  id: string;
+  name: string;
+  slug: string;
+  county: string | null;
 };
 
 type StepDef = {
@@ -75,6 +84,7 @@ export function WizardClient(props: {
   initialStep: number;
   sourceState: SourceState;
   persisted: Persisted;
+  cities: CityOption[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState<number>(Math.min(Math.max(props.initialStep, 1), 6));
@@ -86,6 +96,8 @@ export function WizardClient(props: {
         props.initialDraft.restaurantInfo.phone || props.persisted.contact_phone || '',
       address: props.initialDraft.restaurantInfo.address || props.persisted.address || '',
       city: props.initialDraft.restaurantInfo.city || props.persisted.city || '',
+      city_id:
+        props.initialDraft.restaurantInfo.city_id ?? props.persisted.city_id ?? null,
       location_lat:
         props.initialDraft.restaurantInfo.location_lat ?? props.persisted.location_lat,
       location_lng:
@@ -220,6 +232,7 @@ export function WizardClient(props: {
             tenantId={props.tenantId}
             disabled={!props.canEdit}
             onError={setGlobalError}
+            cities={props.cities}
           />
         )}
         {step === 2 && (
@@ -307,6 +320,7 @@ export function WizardClient(props: {
                   phone: draft.restaurantInfo.phone,
                   address: draft.restaurantInfo.address,
                   city: draft.restaurantInfo.city,
+                  city_id: draft.restaurantInfo.city_id,
                   location_lat: draft.restaurantInfo.location_lat,
                   location_lng: draft.restaurantInfo.location_lng,
                 });
@@ -347,13 +361,40 @@ function Step1({
   value,
   onChange,
   disabled,
+  cities,
 }: {
   value: WizardDraft['restaurantInfo'];
   onChange: (v: WizardDraft['restaurantInfo']) => void;
   tenantId: string;
   disabled: boolean;
   onError: (e: string | null) => void;
+  cities: CityOption[];
 }) {
+  // Lane MULTI-CITY: pre-select the dropdown when:
+  //   1. user already picked a city_id earlier (resume case), OR
+  //   2. legacy free-text matches a canonical city name (case-insensitive,
+  //      diacritic-tolerant via Intl.Collator).
+  // If neither matches we leave the dropdown on "" and the free-text input
+  // captures whatever the user types.
+  const collator = new Intl.Collator('ro', { sensitivity: 'base' });
+  const matchedFromText = !value.city_id && value.city
+    ? cities.find((c) => collator.compare(c.name, value.city) === 0)
+    : null;
+  const selectedSlug = value.city_id
+    ? cities.find((c) => c.id === value.city_id)?.slug ?? ''
+    : matchedFromText?.slug ?? '';
+
+  function onCityPick(slug: string) {
+    if (slug === '') {
+      // "Orașul nu este în listă" — keep free-text, drop FK.
+      onChange({ ...value, city_id: null });
+      return;
+    }
+    const city = cities.find((c) => c.slug === slug);
+    if (!city) return;
+    onChange({ ...value, city_id: city.id, city: city.name });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
@@ -392,17 +433,41 @@ function Step1({
           </Field>
         </div>
         <Field label="Oraș" required>
+          <select
+            value={selectedSlug}
+            disabled={disabled || cities.length === 0}
+            onChange={(e) => onCityPick(e.target.value)}
+            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-base focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Alegeți orașul…</option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {/* Lane MULTI-CITY: free-text fallback for cities not yet in the
+          dropdown. Dezbrăcat de FK pentru ca un oraș nou (ex: Bistrița) să
+          rămână în settings.city până când admin-ul îl adaugă în listă. */}
+      {selectedSlug === '' && (
+        <Field label="Orașul nu este în listă? Tastați manual">
           <input
             type="text"
             autoComplete="address-level2"
             value={value.city}
             disabled={disabled}
-            onChange={(e) => onChange({ ...value, city: e.target.value })}
-            placeholder="Brașov"
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-base focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+            onChange={(e) => onChange({ ...value, city: e.target.value, city_id: null })}
+            placeholder="ex: Bistrița"
+            className="w-full rounded-md border border-dashed border-zinc-300 bg-white px-3 py-2.5 text-base focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
           />
+          <p className="mt-1 text-xs text-zinc-500">
+            Trimiteți un mesaj la <a href="mailto:contact@hir.ro" className="underline">contact@hir.ro</a> ca să adăugăm orașul în listă.
+          </p>
         </Field>
-      </div>
+      )}
 
       <details className="rounded-md border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-600">
         <summary className="cursor-pointer font-medium text-zinc-700">

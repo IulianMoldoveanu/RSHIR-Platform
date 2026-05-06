@@ -10,6 +10,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { listActiveCities, type CityRow } from '@/lib/cities';
 import { TenantsListClient, type TenantListRow, type SortKey, type StatusFilter } from './client';
 
 export const runtime = 'nodejs';
@@ -23,6 +24,9 @@ type SearchParams = {
   sort?: string;
 };
 
+// Lane MULTI-CITY: city filter is now slug-based (matches `cities.slug`).
+// Legacy free-text filter (?city=brasov where the value was a name like
+// "Brașov") still works because slugs are ASCII-lowercase.
 function normalizeCity(raw: string | undefined): string {
   if (!raw) return '';
   return raw.trim().toLowerCase();
@@ -69,6 +73,12 @@ export default async function PlatformAdminTenantsPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
 
+  // ── 0) Canonical cities (Lane MULTI-CITY) — drives the filter dropdown
+  //      AND the legacy-text fallback when `tenants.city_id IS NULL`.
+  const canonicalCities: CityRow[] = await listActiveCities();
+  const cityBySlug = new Map(canonicalCities.map((c) => [c.slug, c]));
+  const cityById = new Map(canonicalCities.map((c) => [c.id, c]));
+
   // ── 1) Tenants base list (all RESTAURANT vertical, regardless of status) ──
   // We pull *all* RESTAURANT tenants (small N today, ~10) so server-side
   // filters + sort apply over the full dataset, then slice to MAX_ROWS at the
@@ -77,7 +87,7 @@ export default async function PlatformAdminTenantsPage({
   // be invisible (Codex P2 #1, PR #291).
   const { data: tenantsRaw, error: tErr } = await sb
     .from('tenants')
-    .select('id, slug, name, vertical, status, settings, integration_mode, external_dispatch_enabled, created_at, updated_at')
+    .select('id, slug, name, vertical, status, settings, city_id, integration_mode, external_dispatch_enabled, created_at, updated_at')
     .eq('vertical', 'RESTAURANT')
     .order('name', { ascending: true });
 
@@ -96,6 +106,7 @@ export default async function PlatformAdminTenantsPage({
     vertical: string;
     status: string;
     settings: Record<string, unknown> | null;
+    city_id: string | null;
     integration_mode: string | null;
     external_dispatch_enabled: boolean | null;
     created_at: string;
@@ -215,9 +226,30 @@ export default async function PlatformAdminTenantsPage({
   }
 
   // ── Compose enriched rows ──
-  const allRows: TenantListRow[] = baseTenants.map((t) => {
+  const allRows: (TenantListRow & {
+    cityId: string | null;
+    citySlug: string | null;
+    legacyCityText: string | null;
+  })[] = baseTenants.map((t) => {
     const settings = (t.settings ?? {}) as Record<string, unknown>;
     const cityRaw = typeof settings.city === 'string' ? settings.city.trim() : '';
+    // Lane MULTI-CITY: prefer canonical city (FK) over legacy free-text.
+    // Display "Brașov" with diacritics when city_id resolves; otherwise
+    // show the unmigrated free-text exactly as the user typed it.
+    const canonicalCity = t.city_id ? cityById.get(t.city_id) : undefined;
+    const displayCity = canonicalCity?.name ?? cityRaw ?? null;
+    // Resolve a slug for legacy free-text by matching against canonical
+    // city names (case-insensitive, diacritic-tolerant). This lets the
+    // ?city=brasov filter find tenants whose `settings.city` is "brasov"
+    // or "Brașov" without forcing a backfill.
+    let legacySlug: string | null = null;
+    if (!canonicalCity && cityRaw) {
+      const collator = new Intl.Collator('ro', { sensitivity: 'base' });
+      const match = canonicalCities.find(
+        (c) => collator.compare(c.name, cityRaw) === 0,
+      );
+      legacySlug = match?.slug ?? null;
+    }
     const onboarding =
       typeof settings.onboarding === 'object' && settings.onboarding !== null
         ? (settings.onboarding as Record<string, unknown>)
@@ -243,7 +275,10 @@ export default async function PlatformAdminTenantsPage({
       id: t.id,
       slug: t.slug,
       name: t.name,
-      city: cityRaw || null,
+      city: displayCity || null,
+      cityId: t.city_id,
+      citySlug: canonicalCity?.slug ?? legacySlug,
+      legacyCityText: !canonicalCity && cityRaw ? cityRaw : null,
       tenantStatus: t.status,
       isLive,
       wentLiveAt,
@@ -258,7 +293,21 @@ export default async function PlatformAdminTenantsPage({
   // ── Apply server-side filters ──
   let rows = allRows;
   if (cityFilter) {
-    rows = rows.filter((r) => (r.city ?? '').trim().toLowerCase() === cityFilter);
+    // Lane MULTI-CITY: filter by slug. Two cases:
+    //   1. canonical slug ("brasov") → match rows whose citySlug resolved
+    //      to that slug (either via city_id FK or legacy text → name match).
+    //   2. synthetic "legacy:<lowercased text>" slug for unresolved legacy
+    //      free-text values (e.g. "Bistrița") that don't yet have a
+    //      canonical city. Match rows by lowercased legacyCityText so the
+    //      dropdown option doesn't lie about what it returns (Codex P2 #299).
+    if (cityFilter.startsWith('legacy:')) {
+      const target = cityFilter.slice('legacy:'.length);
+      rows = rows.filter(
+        (r) => (r.legacyCityText ?? '').toLowerCase() === target,
+      );
+    } else {
+      rows = rows.filter((r) => r.citySlug === cityFilter);
+    }
   }
   if (statusFilter === 'live') rows = rows.filter((r) => r.isLive);
   if (statusFilter === 'onboarding') rows = rows.filter((r) => !r.isLive);
@@ -284,12 +333,27 @@ export default async function PlatformAdminTenantsPage({
   const MAX_ROWS = 50;
   const displayRows = rows.slice(0, MAX_ROWS);
 
-  // ── Distinct city values from full unfiltered list (for filter dropdown) ──
-  const citiesSet = new Set<string>();
+  // ── Filter dropdown options (Lane MULTI-CITY) ──
+  // Build {slug, name} pairs from canonical cities first (preserves the
+  // sort_order Iulian configured), then append any legacy free-text city
+  // that doesn't resolve to a canonical name so the operator can still
+  // filter "Bistrița" until it gets added to the cities table.
+  const citiesForFilter: { slug: string; name: string }[] = canonicalCities.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+  }));
+  const seenSlugs = new Set(citiesForFilter.map((c) => c.slug));
   for (const r of allRows) {
-    if (r.city) citiesSet.add(r.city);
+    if (r.legacyCityText && !r.citySlug) {
+      const fakeSlug = `legacy:${r.legacyCityText.toLowerCase()}`;
+      if (!seenSlugs.has(fakeSlug)) {
+        citiesForFilter.push({ slug: fakeSlug, name: `${r.legacyCityText} (text liber)` });
+        seenSlugs.add(fakeSlug);
+      }
+    }
   }
-  const cities = Array.from(citiesSet).sort((a, b) => a.localeCompare(b, 'ro'));
+  // Suppress legacy match — we don't surface "(text liber)" entries that
+  // already resolve to a canonical slug. They're filtered above by !r.citySlug.
 
   return (
     <div className="flex flex-col gap-6">
@@ -312,7 +376,7 @@ export default async function PlatformAdminTenantsPage({
         totalCount={allRows.length}
         filteredCount={rows.length}
         capped={rows.length > displayRows.length}
-        cities={cities}
+        cities={citiesForFilter}
         currentCity={cityFilter}
         currentStatus={statusFilter}
         currentSort={sort}
