@@ -110,6 +110,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       icon: 'settings' as const,
       items: [
         { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
+        { href: '/dashboard/settings/presentation', label: 'Pagină de prezentare' },
         { href: '/dashboard/settings/domain', label: 'Domeniu' },
         { href: '/dashboard/settings/seo', label: 'SEO' },
         { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },

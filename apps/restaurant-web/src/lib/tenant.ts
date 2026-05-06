@@ -35,7 +35,117 @@ export type TenantSettings = {
   fb_pixel_id?: string | null;
   /** GA4 Measurement ID (e.g. "G-XXXXXXXX"). Sanitised at render. */
   ga4_measurement_id?: string | null;
+  // Lane PRESENTATION (2026-05-06) — optional brand-presentation landing
+  // (`/poveste`). All fields live in JSONB so no schema migration is
+  // required. Tenants with `presentation_enabled=false` (default) get a
+  // 404 on the route so we never expose half-empty pages.
+  presentation_enabled?: boolean;
+  presentation_about_long?: string | null;
+  presentation_gallery?: PresentationGalleryItem[];
+  presentation_team?: PresentationTeamMember[];
+  presentation_video_url?: string | null;
+  presentation_socials?: PresentationSocials | null;
 };
+
+export type PresentationGalleryItem = {
+  url: string;
+  alt?: string | null;
+  caption?: string | null;
+};
+
+export type PresentationTeamMember = {
+  name: string;
+  role?: string | null;
+  photo_url?: string | null;
+};
+
+export type PresentationSocials = {
+  instagram?: string | null;
+  facebook?: string | null;
+  tiktok?: string | null;
+  youtube?: string | null;
+};
+
+export type PresentationConfig = {
+  enabled: boolean;
+  aboutLong: string | null;
+  gallery: PresentationGalleryItem[];
+  team: PresentationTeamMember[];
+  videoUrl: string | null;
+  socials: PresentationSocials;
+};
+
+const SAFE_URL_RE = /^https?:\/\/[^\s<>"']+$/i;
+const MAX_GALLERY_ITEMS = 24;
+const MAX_TEAM_MEMBERS = 12;
+
+function safeString(v: unknown, max = 2000): string | null {
+  if (typeof v !== 'string') return null;
+  const trimmed = v.trim();
+  if (!trimmed) return null;
+  return trimmed.length > max ? trimmed.slice(0, max) : trimmed;
+}
+
+function safeUrl(v: unknown): string | null {
+  const s = safeString(v, 2000);
+  if (!s) return null;
+  return SAFE_URL_RE.test(s) ? s : null;
+}
+
+/**
+ * Defensive helper: read presentation fields out of `settings` JSONB and
+ * coerce them into a strict shape. Anything malformed is dropped silently
+ * so a corrupted JSONB write can never crash the page. Caller checks
+ * `enabled` before rendering — when false, the route should 404.
+ */
+export function getPresentationConfig(settings: TenantSettings): PresentationConfig {
+  const enabled = settings.presentation_enabled === true;
+  const aboutLong = safeString(settings.presentation_about_long, 8000);
+
+  const rawGallery = Array.isArray(settings.presentation_gallery)
+    ? settings.presentation_gallery
+    : [];
+  const gallery: PresentationGalleryItem[] = [];
+  for (const raw of rawGallery) {
+    if (gallery.length >= MAX_GALLERY_ITEMS) break;
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const url = safeUrl(item.url);
+    if (!url) continue;
+    gallery.push({
+      url,
+      alt: safeString(item.alt, 200),
+      caption: safeString(item.caption, 200),
+    });
+  }
+
+  const rawTeam = Array.isArray(settings.presentation_team) ? settings.presentation_team : [];
+  const team: PresentationTeamMember[] = [];
+  for (const raw of rawTeam) {
+    if (team.length >= MAX_TEAM_MEMBERS) break;
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const name = safeString(item.name, 120);
+    if (!name) continue;
+    team.push({
+      name,
+      role: safeString(item.role, 120),
+      photo_url: safeUrl(item.photo_url),
+    });
+  }
+
+  const videoUrl = safeUrl(settings.presentation_video_url);
+
+  const rawSocials = (settings.presentation_socials ?? null) as PresentationSocials | null;
+  const socials: PresentationSocials = {
+    instagram: safeUrl(rawSocials?.instagram),
+    facebook: safeUrl(rawSocials?.facebook),
+    tiktok: safeUrl(rawSocials?.tiktok),
+    youtube: safeUrl(rawSocials?.youtube),
+  };
+
+  return { enabled, aboutLong, gallery, team, videoUrl, socials };
+}
 
 export const DEFAULT_BRAND_COLOR = '#7c3aed';
 export const DEFAULT_ACCENT_COLOR = '#f5f3ff';
