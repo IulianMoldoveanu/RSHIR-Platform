@@ -463,32 +463,20 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, job_id: jobId, status: 'SKIPPED' });
     }
 
-    // 4) Parse with Anthropic — graceful degradation if env missing.
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    const model = Deno.env.get('ANTHROPIC_MODEL') ?? DEFAULT_MODEL;
-
-    if (!apiKey) {
-      await sb
-        .from('aggregator_email_jobs')
-        .update({
-          status: 'PARSED',
-          error_text:
-            'Cheia Anthropic lipseste — emailul a fost primit dar nu a putut fi parsat automat. Verificati manual din inbox.',
-        })
-        .eq('id', jobId);
-      setMetadata({ degraded: 'anthropic_env_missing' });
-      return json(200, { ok: true, job_id: jobId, status: 'PARSED', degraded: true });
-    }
-
-    await sb.from('aggregator_email_jobs').update({ status: 'PARSING' }).eq('id', jobId);
-
-    // Lane EMAIL-REGEX-WIREUP — hybrid strategy decision tree.
+    // 4) Parse — hybrid strategy decision tree.
+    //
+    // Lane EMAIL-REGEX-WIREUP:
     //   - regex high  → skip Anthropic entirely (parsed_strategy='regex').
     //   - regex med   → ask Anthropic ONLY for the missing keys
     //                   (parsed_strategy='regex+ai-fill').
     //   - regex fail  → existing full Anthropic parse
     //                   (parsed_strategy='ai-full').
-    // Cost savings reported per strategy via estimateSavingsRon.
+    //
+    // Codex P2 (4th pass) #315: run the regex BEFORE the Anthropic key
+    // guard — if a tenant or environment is missing ANTHROPIC_API_KEY we
+    // still want to auto-apply pure-regex high-confidence emails (cost = 0).
+    await sb.from('aggregator_email_jobs').update({ status: 'PARSING' }).eq('id', jobId);
+
     const regexResult = tryRegexParse(bodyText, detected);
 
     let parsed: ParsedOrder;
@@ -516,35 +504,60 @@ Deno.serve(async (req) => {
       regexResult.confidence === 'medium' &&
       regexResult.missing.length === 0;
 
+    const canUsePureRegex =
+      regexResult.ok &&
+      regexResult.confidence === 'high' &&
+      !regexHighButNoOrderId;
+
+    // Anthropic env — only required for the gap-fill / full-AI branches.
+    const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const model = Deno.env.get('ANTHROPIC_MODEL') ?? DEFAULT_MODEL;
+
+    if (!apiKey && !canUsePureRegex) {
+      // Same graceful-degradation behaviour as before, but only when
+      // the regex path can NOT carry the email on its own.
+      await sb
+        .from('aggregator_email_jobs')
+        .update({
+          status: 'PARSED',
+          error_text:
+            'Cheia Anthropic lipseste — emailul a fost primit dar nu a putut fi parsat automat. Verificati manual din inbox.',
+        })
+        .eq('id', jobId);
+      setMetadata({ degraded: 'anthropic_env_missing' });
+      return json(200, { ok: true, job_id: jobId, status: 'PARSED', degraded: true });
+    }
+
     try {
-      if (
-        regexResult.ok &&
-        regexResult.confidence === 'high' &&
-        !regexHighButNoOrderId
-      ) {
-        // Pure regex — zero Anthropic cost.
-        parsed = regexToParserShape(regexResult.data);
+      if (canUsePureRegex) {
+        // Pure regex — zero Anthropic cost. Works even when ANTHROPIC_API_KEY
+        // is missing (Codex P2 4th pass #315).
+        parsed = regexToParserShape((regexResult as { data: RegexParsedOrder }).data);
         parsedStrategy = 'regex';
       } else if (
+        apiKey &&
         regexResult.ok &&
         ((regexResult.confidence === 'medium' && !regexMediumNoMissing) ||
           regexHighButNoOrderId)
       ) {
         // Gap-fill: tiny prompt with only the missing keys.
-        const base = regexToParserShape(regexResult.data);
+        const base = regexToParserShape((regexResult as { data: RegexParsedOrder }).data);
         const r = await callAnthropicGapFill(
           apiKey,
           model,
           detected,
           bodyText,
-          regexResult.missing,
+          (regexResult as { missing: string[] }).missing,
         );
-        parsed = mergeGapFill(base, r.patch, regexResult.missing);
+        parsed = mergeGapFill(base, r.patch, (regexResult as { missing: string[] }).missing);
         cost_usd = r.cost_usd;
         parsedStrategy = 'regex+ai-fill';
       } else {
         // Full Anthropic parse — long-tail / unrecognized layouts.
-        const r = await callAnthropicParser(apiKey, model, detected, bodyText);
+        // apiKey is guaranteed truthy here because the early-return
+        // above handles `!apiKey && !canUsePureRegex`, and the two
+        // branches above both require apiKey or pure-regex.
+        const r = await callAnthropicParser(apiKey as string, model, detected, bodyText);
         parsed = r.parsed;
         cost_usd = r.cost_usd;
         parsedStrategy = 'ai-full';
