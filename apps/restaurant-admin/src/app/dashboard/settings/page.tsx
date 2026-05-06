@@ -13,6 +13,7 @@ import {
   CreditCard,
   Globe,
   Image as ImageIcon,
+  Palette,
   Plug,
   Search,
   Settings as SettingsIcon,
@@ -50,9 +51,22 @@ export default async function SettingsLandingPage() {
   const { tenant } = await getActiveTenant();
 
   // Fetch every status-pill input in parallel — keeps TTFB tight.
+  // Lane THEMES (2026-05-06): also fetch template_slug so the new
+  // "Temă vizuală" card can show the active vertical template.
   const admin = createAdminClient();
   const [tenantRow, domainInfo, loyalty] = await Promise.all([
-    admin.from('tenants').select('settings').eq('id', tenant.id).maybeSingle(),
+    (admin.from('tenants') as unknown as {
+      select: (s: string) => {
+        eq: (col: string, v: string) => {
+          maybeSingle: () => Promise<{
+            data: { settings: Record<string, unknown> | null; template_slug: string | null } | null;
+          }>;
+        };
+      };
+    })
+      .select('settings, template_slug')
+      .eq('id', tenant.id)
+      .maybeSingle(),
     getCurrentTenantDomain(tenant.id),
     getLoyaltySettings(tenant.id),
   ]);
@@ -60,6 +74,16 @@ export default async function SettingsLandingPage() {
   const settings = (tenantRow.data?.settings as Record<string, unknown> | null) ?? {};
   const branding = (settings.branding as Record<string, unknown> | undefined) ?? {};
   const hasLogo = typeof branding.logo_url === 'string' && branding.logo_url.length > 0;
+  const templateSlug = tenantRow.data?.template_slug ?? null;
+  // Display labels for the 5 templates — kept inline (4 entries, no need
+  // for a shared lookup table). Romanian formal copy.
+  const TEMPLATE_LABEL: Record<string, string> = {
+    italian: 'Italian',
+    asian: 'Asian',
+    'fine-dining': 'Fine Dining',
+    bistro: 'Bistro',
+    'romanian-traditional': 'Tradițional românesc',
+  };
 
   const domainLabel = domainInfo.domain
     ? domainInfo.status === 'ACTIVE'
@@ -76,6 +100,15 @@ export default async function SettingsLandingPage() {
       status: hasLogo
         ? { label: 'Logo definit', tone: 'ok' }
         : { label: 'Logo lipsește', tone: 'warn' },
+    },
+    {
+      href: '/dashboard/settings/branding/template',
+      title: 'Temă vizuală',
+      description: 'Paletă de culori și fonturi predefinite pentru tipul de restaurant.',
+      icon: Palette,
+      status: templateSlug
+        ? { label: TEMPLATE_LABEL[templateSlug] ?? 'Temă activă', tone: 'ok' }
+        : { label: 'Implicit', tone: 'muted' },
     },
     {
       href: '/dashboard/settings/domain',

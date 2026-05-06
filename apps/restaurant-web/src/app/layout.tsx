@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Playfair_Display, Space_Grotesk, Fraunces } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
@@ -21,6 +21,28 @@ export const viewport: Viewport = {
 const inter = Inter({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+// Lane THEMES (2026-05-06): vertical-template fonts. Each is exposed as a
+// CSS variable so the (storefront)/layout can swap heading/body fonts per
+// tenant via `var(--hir-font-heading)` / `var(--hir-font-body)`. We
+// instantiate all 4 unconditionally at the root because next/font requires
+// font functions at module scope. `display: 'swap'` keeps FOUT minimal;
+// tenants without a template fall back to Inter for both.
+const playfair = Playfair_Display({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-playfair',
+  display: 'swap',
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-space-grotesk',
+  display: 'swap',
+});
+const fraunces = Fraunces({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
@@ -66,8 +88,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // an embed iframe; merchants don't want HIR install prompts on their
   // own site.
   const embed = isEmbedMode();
+  const fontVars = [
+    inter.variable,
+    playfair.variable,
+    spaceGrotesk.variable,
+    fraunces.variable,
+  ].join(' ');
   return (
-    <html lang={locale} className={inter.variable}>
+    <html lang={locale} className={fontVars}>
       <head>
         {supaHost && <link rel="dns-prefetch" href={`https://${supaHost}`} />}
         {supaHost && <link rel="preconnect" href={`https://${supaHost}`} crossOrigin="" />}

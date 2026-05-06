@@ -29,6 +29,9 @@ importers:
       '@hir/integration-core':
         specifier: workspace:*
         version: link:../../packages/integration-core
+      '@hir/restaurant-templates':
+        specifier: workspace:*
+        version: link:../../packages/restaurant-templates
       '@hir/supabase-types':
         specifier: workspace:*
         version: link:../../packages/supabase-types
@@ -223,6 +226,9 @@ importers:
       '@hir/integration-core':
         specifier: workspace:*
         version: link:../../packages/integration-core
+      '@hir/restaurant-templates':
+        specifier: workspace:*
+        version: link:../../packages/restaurant-templates
       '@hir/supabase-types':
         specifier: workspace:*
         version: link:../../packages/supabase-types
