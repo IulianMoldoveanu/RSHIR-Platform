@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 type TenantLocationSettings = {
   location?: { lat?: number; lng?: number } | null;
+  city?: string | null;
 };
 
 export default async function ZonesPage() {
@@ -62,6 +63,7 @@ export default async function ZonesPage() {
   }
 
   let tenantCenter: { lat: number; lng: number } | null = null;
+  let tenantCity: string | null = null;
   try {
     const tenantRes = await supabase
       .from('tenants')
@@ -75,6 +77,9 @@ export default async function ZonesPage() {
       typeof settings.location?.lng === 'number'
     ) {
       tenantCenter = { lat: settings.location.lat, lng: settings.location.lng };
+    }
+    if (typeof settings.city === 'string' && settings.city.trim().length > 0) {
+      tenantCity = settings.city.trim();
     }
   } catch (err) {
     console.error('[zones] tenant settings load failed', {
@@ -99,7 +104,12 @@ export default async function ZonesPage() {
         </div>
       ) : null}
 
-      <ZonesClient initialZones={zones} initialTiers={tiers} tenantCenter={tenantCenter} />
+      <ZonesClient
+        initialZones={zones}
+        initialTiers={tiers}
+        tenantCenter={tenantCenter}
+        tenantCity={tenantCity}
+      />
     </div>
   );
 }
