@@ -165,3 +165,106 @@ export async function getCityIdBySlug(slug: string): Promise<string | null> {
     .maybeSingle();
   return (data?.id as string | null) ?? null;
 }
+
+// ── Inventory v1 helpers ────────────────────────────────────────────────────
+
+/**
+ * Toggle the inventory_enabled feature flag on a tenant. Used by the
+ * inventory-recipe-link spec to enable Premium gating during the test
+ * and reset to off afterwards.
+ */
+export async function setInventoryEnabled(
+  tenantId: string,
+  enabled: boolean,
+): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = adminSupabase as any;
+  const { data: row } = await sb
+    .from('tenants')
+    .select('feature_flags')
+    .eq('id', tenantId)
+    .maybeSingle();
+  const flags = (row?.feature_flags ?? {}) as Record<string, unknown>;
+  flags.inventory_enabled = enabled;
+  await sb.from('tenants').update({ feature_flags: flags }).eq('id', tenantId);
+}
+
+/**
+ * Ensure at least one menu item exists for `tenantId` so the recipe-link
+ * dropdown has options. Returns the menu_item id. Idempotent.
+ */
+export async function ensureTestMenuItem(tenantId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = adminSupabase as any;
+  const E2E_ITEM_NAME = 'E2E Inventory Test Burger';
+
+  const { data: existing } = await sb
+    .from('restaurant_menu_items')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('name', E2E_ITEM_NAME)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+
+  const { data: existingCat } = await sb
+    .from('restaurant_menu_categories')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  let categoryId: string | null = (existingCat?.id as string | null) ?? null;
+  if (!categoryId) {
+    const { data: createdCat, error: catErr } = await sb
+      .from('restaurant_menu_categories')
+      .insert({
+        tenant_id: tenantId,
+        name: 'E2E Test Category',
+        sort_order: 0,
+        is_active: true,
+      })
+      .select('id')
+      .single();
+    if (catErr) throw catErr;
+    categoryId = createdCat.id as string;
+  }
+
+  const { data: created, error } = await sb
+    .from('restaurant_menu_items')
+    .insert({
+      tenant_id: tenantId,
+      category_id: categoryId,
+      name: E2E_ITEM_NAME,
+      price_ron: 25,
+      is_available: true,
+      sort_order: 0,
+    })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return created.id as string;
+}
+
+/**
+ * Remove every inventory_item + menu_item_recipe row owned by `tenantId`.
+ * Composite FK cascades the recipes when items go.
+ */
+export async function clearTenantInventory(tenantId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = adminSupabase as any;
+  await sb.from('menu_item_recipes').delete().eq('tenant_id', tenantId);
+  await sb.from('inventory_items').delete().eq('tenant_id', tenantId);
+}
+
+export async function readRecipeRowsForTenant(
+  tenantId: string,
+): Promise<Array<{ menu_item_id: string; inventory_item_id: string; qty_per_serving: number }>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = adminSupabase as any;
+  const { data } = await sb
+    .from('menu_item_recipes')
+    .select('menu_item_id, inventory_item_id, qty_per_serving')
+    .eq('tenant_id', tenantId);
+  return (data ?? []) as Array<{ menu_item_id: string; inventory_item_id: string; qty_per_serving: number }>;
+}
