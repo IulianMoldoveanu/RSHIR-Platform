@@ -1,5 +1,6 @@
 import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap } from 'lucide-react';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import { createServerClient } from '@/lib/supabase/server';
 import {
   getThreadForTenant,
   getRecentAgentRuns,
@@ -8,8 +9,19 @@ import {
   getLatestSuggestions,
   getAutoExecutedActions,
 } from '@/lib/ai-ceo/queries';
+import { getAiAvailability } from '@/lib/ai-availability';
+import { AiUnavailableNotice } from '@/components/ai/ai-unavailable-notice';
 import { BriefScheduleEditor } from './brief-schedule-editor';
 import { SuggestionsList } from './suggestions-list';
+
+function isPlatformAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return allow.includes(email.toLowerCase());
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +50,7 @@ function truncate(s: string | null, n: number): string {
 export default async function AiCeoPage() {
   const { user, tenant } = await getActiveTenant();
 
-  const [thread, runs, facts, brief, suggestions, autoActions, role] = await Promise.all([
+  const [thread, runs, facts, brief, suggestions, autoActions, role, aiAvail] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
     getTenantFacts(tenant.id),
@@ -46,9 +58,30 @@ export default async function AiCeoPage() {
     getLatestSuggestions(tenant.id),
     getAutoExecutedActions(tenant.id, 7),
     getTenantRole(user.id, tenant.id),
+    getAiAvailability(),
   ]);
   const canEditBrief = role === 'OWNER';
   const canActSuggestions = role === 'OWNER';
+
+  // Resolve user email for platform-admin diagnostic visibility. We re-read
+  // via the server client because `getActiveTenant` returns a stripped user
+  // record without the email field on every page.
+  let viewerEmail: string | null = null;
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase.auth.getUser();
+    viewerEmail = data.user?.email ?? null;
+  } catch {
+    viewerEmail = null;
+  }
+  const canSeeDiagnostics = isPlatformAdminEmail(viewerEmail);
+
+  // The daily brief + suggestions are powered by the `copilot-daily-brief`
+  // Edge Function. When it's degraded (Anthropic credit out / 4xx loop) we
+  // surface a friendly notice instead of leaving the operator to guess why
+  // there are no suggestions.
+  const briefStatus = aiAvail.byFunction['copilot-daily-brief'];
+  const briefDegraded = briefStatus?.degraded === true;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -63,6 +96,15 @@ export default async function AiCeoPage() {
           </p>
         </div>
       </header>
+
+      {aiAvail.anyDegraded && (
+        <AiUnavailableNotice
+          showDiagnostics={canSeeDiagnostics}
+          lastErrorAt={briefStatus?.last_error_at ?? null}
+          lastErrorText={briefStatus?.last_error_text ?? null}
+          body="Asistentul AI este în mentenanță. Datele istorice rămân vizibile mai jos; sugestiile noi și brief-ul zilnic vor fi reactivate în scurt timp."
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* 1. Telegram thread status */}
@@ -217,6 +259,15 @@ export default async function AiCeoPage() {
             Sugestii pentru aprobare
           </p>
           <h2 className="mt-1 text-base font-semibold text-zinc-900">Ultimele propuneri</h2>
+          {briefDegraded && suggestions.length === 0 && (
+            <div className="mt-3">
+              <AiUnavailableNotice
+                variant="inline"
+                title="Generarea sugestiilor este pe pauză"
+                body="Sugestiile noi vor reapărea automat de îndată ce asistentul AI revine online."
+              />
+            </div>
+          )}
           <SuggestionsList
             tenantId={tenant.id}
             canAct={canActSuggestions}
