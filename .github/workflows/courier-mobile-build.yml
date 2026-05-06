@@ -1,0 +1,262 @@
+name: Courier Mobile Build
+
+# Triggered on tags matching mobile-v* (e.g. mobile-v1.0.0).
+# Builds unsigned .apk (Android) and a placeholder for .ipa (iOS — macOS runner needed).
+#
+# SIGNING GATES (Iulian-action required before these steps can work):
+#   - Android: generate a keystore, store base64 in secret ANDROID_KEYSTORE_BASE64,
+#     and set ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD, ANDROID_STORE_PASSWORD.
+#   - iOS: Apple Developer account ($99/yr), provisioning profile + .p12 cert,
+#     store in secrets APPLE_CERT_BASE64, APPLE_PROVISION_PROFILE_BASE64, APPLE_CERT_PASSWORD.
+#   - FCM: google-services.json content in secret GOOGLE_SERVICES_JSON.
+#
+# Until signing certs are provisioned, the workflow produces a debug .apk only.
+# The iOS step is skipped — it requires macOS runner + Xcode (not available on
+# GitHub-hosted runners without an Apple Developer account and self-hosted macOS).
+
+on:
+  push:
+    tags:
+      - 'mobile-v*'
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Build target'
+        required: true
+        default: 'android-debug'
+        type: choice
+        options:
+          - android-debug
+          - android-release
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+  JAVA_VERSION: '17'
+  # Capacitor app ID — must match capacitor.config.ts
+  APP_ID: ro.hir.courier
+
+jobs:
+  # ── Web build (Next.js) ────────────────────────────────────────────────────
+  web-build:
+    name: Web Build (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/restaurant-courier
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Next.js build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          # The native shell uses server.url (hosted-webview pattern) so the
+          # static export is only needed as a fallback. Build it anyway so the
+          # `cap sync` step has something to sync from `out/`.
+          # To enable static export, add `output: 'export'` to next.config.mjs
+          # and set NEXT_EXPORT=1 here.
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: courier-web-build
+          path: apps/restaurant-courier/.next/
+          retention-days: 1
+
+  # ── Android Debug Build ────────────────────────────────────────────────────
+  android-debug:
+    name: Android Debug APK
+    runs-on: ubuntu-latest
+    needs: web-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Capacitor packages
+        working-directory: apps/restaurant-courier
+        run: |
+          pnpm add @capacitor/core @capacitor/cli @capacitor/android \
+            @capacitor/geolocation @capacitor/push-notifications \
+            @capacitor/preferences @capacitor/app \
+            @capacitor/splash-screen @capacitor/status-bar
+        # NOTE: This step adds to package.json on the runner only (not committed).
+        # When Capacitor is permanently added to package.json, remove this step.
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: courier-web-build
+          path: apps/restaurant-courier/.next/
+
+      - name: Cap sync (Android)
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Write google-services.json
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        working-directory: apps/restaurant-courier
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Build debug APK
+        working-directory: apps/restaurant-courier/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: courier-android-debug-${{ github.ref_name }}
+          path: apps/restaurant-courier/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  # ── Android Release Build (signing gate) ──────────────────────────────────
+  android-release:
+    name: Android Release APK (signed)
+    runs-on: ubuntu-latest
+    needs: web-build
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mobile-v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_target == 'android-release')
+    env:
+      # Signing gate: skip if secrets are not provisioned.
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Capacitor packages
+        working-directory: apps/restaurant-courier
+        run: |
+          pnpm add @capacitor/core @capacitor/cli @capacitor/android \
+            @capacitor/geolocation @capacitor/push-notifications \
+            @capacitor/preferences @capacitor/app \
+            @capacitor/splash-screen @capacitor/status-bar
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: courier-web-build
+          path: apps/restaurant-courier/.next/
+
+      - name: Cap sync (Android)
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Write google-services.json
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        working-directory: apps/restaurant-courier
+        run: |
+          echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Decode keystore
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
+            > apps/restaurant-courier/android/app/hir-courier.keystore
+
+      - name: Build release APK (signed)
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        working-directory: apps/restaurant-courier/android
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=app/hir-courier.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+
+      - name: Build release APK (unsigned — no keystore)
+        if: ${{ env.HAS_KEYSTORE != 'true' }}
+        working-directory: apps/restaurant-courier/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: courier-android-release-${{ github.ref_name }}
+          path: apps/restaurant-courier/android/app/build/outputs/apk/release/app-release*.apk
+          retention-days: 90
+
+  # ── iOS (macOS self-hosted runner gate) ───────────────────────────────────
+  # iOS builds require Xcode which is only available on macOS. GitHub-hosted
+  # macOS runners are expensive (~10× Linux cost). This job is disabled
+  # (via the `if: false` gate) until Iulian provisions a self-hosted macOS
+  # runner or we budget for GitHub-hosted macOS minutes.
+  #
+  # When enabled:
+  #   1. Ensure APPLE_CERT_BASE64, APPLE_CERT_PASSWORD, and
+  #      APPLE_PROVISION_PROFILE_BASE64 secrets are set.
+  #   2. Change `if: false` to `if: true` (or remove the condition).
+  #   3. Set `runs-on: macos-latest` or your self-hosted runner label.
+  ios:
+    name: iOS IPA (macOS gate — disabled)
+    runs-on: ubuntu-latest
+    needs: web-build
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: iOS build not yet configured
+        run: |
+          echo "iOS build requires macOS runner + Xcode + Apple Developer account."
+          echo "See apps/restaurant-courier/mobile/README.md for activation steps."
+          exit 1

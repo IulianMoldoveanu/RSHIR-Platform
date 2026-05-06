@@ -1,29 +1,33 @@
 /**
- * Capacitor configuration for the HIR Courier native shell.
+ * Capacitor configuration for the HIR Curier native shell.
  *
- * STATUS: staged, NOT YET INSTALLED. We ship this file ahead of the
- * native build so when Iulian green-lights iOS + Android distribution
- * the wrap-up is a 1-day job, not a 1-week setup.
+ * STATUS: config staged. Capacitor packages not yet installed.
  *
- * To activate (later):
- *   pnpm --filter @hir/restaurant-courier add -D \
- *     @capacitor/cli @capacitor/core @capacitor/ios @capacitor/android \
+ * To activate (when Iulian green-lights App Store / Play Store):
+ *
+ *   pnpm --filter @hir/restaurant-courier add @capacitor/core
+ *   pnpm --filter @hir/restaurant-courier add -D @capacitor/cli
+ *   pnpm --filter @hir/restaurant-courier add \
+ *     @capacitor/ios @capacitor/android \
  *     @capacitor/geolocation @capacitor/push-notifications \
+ *     @capacitor/preferences @capacitor/app \
  *     @capacitor/splash-screen @capacitor/status-bar
- *   pnpm --filter @hir/restaurant-courier exec cap init
- *   pnpm --filter @hir/restaurant-courier exec cap add ios android
+ *   cd apps/restaurant-courier
+ *   npx cap add ios      # macOS only — opens Xcode project
+ *   npx cap add android  # Windows / macOS / Linux — opens Android Studio
+ *   npx cap sync         # after every web build
  *
- * The app uses `server.url` mode (not bundled web assets). The native
- * shell is a thin WebView pointing at the live Vercel deployment, so
- * web releases ship instantly to the native shell with no app-store
- * resubmit. Only native plugins (geolocation background, push, etc.)
- * require a native rebuild.
+ * Pattern: hosted-webview (server.url). The WebView always loads the live
+ * Vercel deployment, so web updates ship instantly to the native shell with
+ * no app-store resubmit. Only native plugin changes (geolocation scope,
+ * push keys, new capabilities) require a rebuild + store review.
  *
- * Reference: https://capacitorjs.com/docs/config
+ * See apps/restaurant-courier/mobile/README.md for the full store-submission
+ * checklist (Apple Developer account, signing certs, screenshots, etc.).
  *
- * NOTE: the `CapacitorConfig` type import is intentionally inlined as a
- * local interface so this file typechecks WITHOUT @capacitor/cli being
- * installed. When Capacitor lands, swap the local type for:
+ * NOTE: CapacitorConfig is inlined as a local interface so this file
+ * typechecks without @capacitor/cli installed. When Capacitor is installed,
+ * replace the local interface with:
  *   import type { CapacitorConfig } from '@capacitor/cli';
  */
 
@@ -36,6 +40,7 @@ interface CapacitorConfig {
     androidScheme?: string;
     iosScheme?: string;
     cleartext?: boolean;
+    allowNavigation?: string[];
   };
   ios?: Record<string, unknown>;
   android?: Record<string, unknown>;
@@ -45,30 +50,38 @@ interface CapacitorConfig {
 const config: CapacitorConfig = {
   appId: 'ro.hir.courier',
   appName: 'HIR Curier',
-  // `out` is the Next.js export directory. Only used in fallback mode
-  // if `server.url` is unset. With server.url set, this is a safety net.
+  // webDir is the Next.js static export directory. Only relevant in
+  // bundled-assets mode. With server.url set, this is a safety net fallback.
   webDir: 'out',
-  // Live-reload from the production deploy — see header comment.
   server: {
+    // The live Vercel deployment. Change to a staging URL for the staging
+    // native build (see mobile/README.md dual-channel section).
     url: 'https://courier-beta-seven.vercel.app',
     androidScheme: 'https',
     iosScheme: 'https',
     cleartext: false,
+    // Allow Supabase Edge Functions and API to be called from the WebView.
+    allowNavigation: ['*.supabase.co', '*.supabase.in'],
   },
   ios: {
+    // Paint under notch + home indicator (pair with safe-area-inset CSS).
     contentInset: 'always',
-    // Match the brand purple to avoid white flash on launch.
+    // Match brand dark background to avoid white flash on launch.
     backgroundColor: '#0A0A0F',
+    // Scroll elasticity feels wrong for a courier dashboard. Disable it.
+    scrollEnabled: false,
   },
   android: {
     backgroundColor: '#0A0A0F',
     allowMixedContent: false,
-    // Webview accepts the system back button.
+    // Hardware back button navigates the WebView history.
     captureInput: true,
+    // Keyboard resize mode: body only (avoids WebView resize on focus).
+    windowSoftInputMode: 'adjustResize',
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      launchShowDuration: 1200,
       launchAutoHide: true,
       backgroundColor: '#0A0A0F',
       androidSplashResourceName: 'splash',
@@ -77,15 +90,24 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
+    StatusBar: {
+      // Overlay on iOS so the app paints under the status bar.
+      overlaysWebView: true,
+      style: 'DARK',
+      backgroundColor: '#00000000',
+    },
     PushNotifications: {
-      // VAPID/FCM/APNs wiring lives outside Capacitor (Supabase Edge
-      // Function `dispatch-push`). Capacitor bridges native -> JS only.
+      // Token-based push (FCM on Android, APNs on iOS). The Supabase Edge
+      // Function `courier-push-dispatch` sends the payloads. When Capacitor
+      // is installed, the native shim in src/lib/native/push.ts bridges the
+      // Capacitor PushNotifications plugin back to the existing subscribe.ts
+      // registration flow so no backend changes are needed.
       presentationOptions: ['badge', 'sound', 'alert'],
     },
     Geolocation: {
-      // Permissions auto-prompt on first use. We rely on the system
-      // dialog wired via Info.plist + AndroidManifest entries — see
-      // NATIVE_SHELL.md for the exact strings.
+      // Permission prompts are driven by Info.plist (iOS) and
+      // AndroidManifest.xml (Android) — see mobile/README.md.
+      // No additional plugin config needed.
     },
   },
 };
