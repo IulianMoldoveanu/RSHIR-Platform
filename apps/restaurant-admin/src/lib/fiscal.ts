@@ -7,8 +7,14 @@
 //   settings.fiscal = {
 //     legal_name?: string,   // exact name registered at ONRC; falls back to tenant.name
 //     cui?: string,          // Romanian CUI / VAT number (without "RO" prefix); blank for B2C-only
-//     vat_rate_pct?: number, // default 9 (RO HoReCa); editable for businesses on a different rate
+//     vat_rate_pct?: number, // default 11 (RO HoReCa post-2025-08-01); editable
 //   }
+//
+// VAT rates: Romania raised the reduced rate from 9% → 11% and the standard
+// rate from 19% → 21% on 2025-08-01 (Legea 141/2025). Historical rates
+// (5/9/19) remain in the allowed list so tenants exporting older months
+// can still pick the rate that was in force at the time. Caught by Codex
+// round 3 P1 on PR #286.
 
 export type TenantFiscal = {
   legal_name: string;
@@ -16,9 +22,17 @@ export type TenantFiscal = {
   vat_rate_pct: number;
 };
 
-const DEFAULT_VAT_RATE_PCT = 9;
+// Current default = 11% (RO HoReCa reduced rate after 2025-08-01 hike).
+const DEFAULT_VAT_RATE_PCT = 11;
 
-const ALLOWED_VAT_RATES = [0, 5, 9, 19] as const;
+// Includes both current (0/5/11/21) and historical (9/19) rates so old-month
+// exports remain accurate. Pre-2025-08-01 reduced rate was 9%, standard 19%.
+const ALLOWED_VAT_RATES = [0, 5, 9, 11, 19, 21] as const;
+type AllowedVatRate = (typeof ALLOWED_VAT_RATES)[number];
+
+function isAllowedVatRate(n: number): n is AllowedVatRate {
+  return (ALLOWED_VAT_RATES as readonly number[]).includes(n);
+}
 
 export function readFiscal(
   settings: unknown,
@@ -35,9 +49,7 @@ export function readFiscal(
   return {
     legal_name: legalNameRaw || fallbackName,
     cui: cuiRaw,
-    vat_rate_pct: ALLOWED_VAT_RATES.includes(vatRaw as 0 | 5 | 9 | 19)
-      ? vatRaw
-      : DEFAULT_VAT_RATE_PCT,
+    vat_rate_pct: isAllowedVatRate(vatRaw) ? vatRaw : DEFAULT_VAT_RATE_PCT,
   };
 }
 
@@ -54,7 +66,7 @@ export function normalizeCui(input: string): string | null {
 }
 
 export function isValidVatRate(n: number): boolean {
-  return ALLOWED_VAT_RATES.includes(n as 0 | 5 | 9 | 19);
+  return isAllowedVatRate(n);
 }
 
 export const VAT_RATE_OPTIONS: ReadonlyArray<number> = ALLOWED_VAT_RATES;

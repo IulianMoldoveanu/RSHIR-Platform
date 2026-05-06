@@ -19,10 +19,11 @@ export const dynamic = 'force-dynamic';
 // orders.
 //
 // VAT: schema has no per-row VAT field, so the rate is read from
-// tenants.settings.fiscal.vat_rate_pct (default 9 for HoReCa) and applied
-// inclusively against total_ron. Accountants who need a different rate per
-// product line can edit the CSV directly; this is the standard SmartBill
-// "single-rate" import shape.
+// tenants.settings.fiscal.vat_rate_pct (default 11 for HoReCa post-2025-08-01;
+// see lib/fiscal.ts for the full allowed list including historical 9/19) and
+// applied inclusively against total_ron. Accountants who need a different
+// rate per product line can edit the CSV directly; this is the standard
+// SmartBill "single-rate" import shape.
 
 const querySchema = z.object({
   year: z.string().regex(/^\d{4}$/),
