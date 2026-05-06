@@ -30,10 +30,12 @@ export function FleetManagersClient({
   tenants,
   fleetManagers,
   cities,
+  initialCity = '',
 }: {
   tenants: TenantRow[];
   fleetManagers: FleetManagerRow[];
   cities: CityOption[];
+  initialCity?: string;
 }) {
   return (
     <div className="flex flex-col gap-8">
@@ -41,6 +43,7 @@ export function FleetManagersClient({
         tenants={tenants}
         fleetManagers={fleetManagers}
         cities={cities}
+        initialCity={initialCity}
       />
       <ExternalDispatchSection tenants={tenants} />
     </div>
@@ -55,10 +58,12 @@ function FleetManagerAssignSection({
   tenants,
   fleetManagers,
   cities,
+  initialCity = '',
 }: {
   tenants: TenantRow[];
   fleetManagers: FleetManagerRow[];
   cities: CityOption[];
+  initialCity?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<
@@ -68,7 +73,9 @@ function FleetManagerAssignSection({
   // în Brașov?" without scrolling. Filter is on the FM list (an FM matches
   // if any of his tenants is in the selected city) — affects only the
   // displayed list, not the assign form (which keeps full tenant choices).
-  const [cityFilter, setCityFilter] = useState<string>('');
+  // Honors `?city=<slug>` URL param so the platform-admin tenant list can
+  // deep-link straight into a city-scoped FM view (Wave 7 E2E caught this).
+  const [cityFilter, setCityFilter] = useState<string>(initialCity ?? '');
   const tenantSlugById = new Map(tenants.map((t) => [t.id, t.citySlug]));
   const filteredFms = cityFilter
     ? fleetManagers.filter((fm) =>

@@ -32,7 +32,11 @@ type FleetManagerRow = {
   tenants: { id: string; name: string; slug: string }[];
 };
 
-export default async function FleetManagersPage() {
+export default async function FleetManagersPage({
+  searchParams,
+}: {
+  searchParams?: { city?: string };
+}) {
   const supabase = createServerClient();
   const {
     data: { user },
@@ -193,6 +197,7 @@ export default async function FleetManagersPage() {
           tenants={tenants}
           fleetManagers={fmRows}
           cities={canonicalCities.map((c) => ({ slug: c.slug, name: c.name }))}
+          initialCity={searchParams?.city ?? ''}
         />
       </div>
     </main>
