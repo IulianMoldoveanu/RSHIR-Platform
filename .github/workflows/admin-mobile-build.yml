@@ -1,0 +1,251 @@
+name: Admin Mobile Build
+
+# Triggered on tags matching admin-mobile-v* (e.g. admin-mobile-v1.0.0).
+# Builds unsigned .apk (Android) and a placeholder for .ipa (iOS — macOS runner needed).
+#
+# SIGNING GATES (Iulian-action required before these steps can work):
+#   - Android: generate a keystore, store base64 in ADMIN_ANDROID_KEYSTORE_BASE64,
+#     and set ADMIN_ANDROID_KEY_ALIAS, ADMIN_ANDROID_KEY_PASSWORD,
+#     ADMIN_ANDROID_STORE_PASSWORD.
+#   - iOS: Apple Developer account ($99/yr, shared with storefront + courier),
+#     provisioning profile + .p12 cert in ADMIN_APPLE_CERT_BASE64,
+#     ADMIN_APPLE_PROVISION_PROFILE_BASE64, ADMIN_APPLE_CERT_PASSWORD.
+#   - FCM: google-services.json content in ADMIN_GOOGLE_SERVICES_JSON.
+#
+# Until signing certs are provisioned, the workflow produces a debug .apk only.
+
+on:
+  push:
+    tags:
+      - 'admin-mobile-v*'
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Build target'
+        required: true
+        default: 'android-debug'
+        type: choice
+        options:
+          - android-debug
+          - android-release
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+  JAVA_VERSION: '17'
+  APP_ID: ro.hir.admin
+
+jobs:
+  # ── Web build (Next.js) ────────────────────────────────────────────────────
+  web-build:
+    name: Web Build (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/restaurant-admin
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Next.js build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          NEXT_PUBLIC_ADMIN_URL: ${{ secrets.NEXT_PUBLIC_ADMIN_URL }}
+
+      - name: Upload web build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-web-build
+          path: apps/restaurant-admin/.next/
+          retention-days: 1
+
+  # ── Android Debug Build ────────────────────────────────────────────────────
+  android-debug:
+    name: Android Debug APK
+    runs-on: ubuntu-latest
+    needs: web-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Capacitor packages
+        working-directory: apps/restaurant-admin
+        run: |
+          pnpm add @capacitor/core @capacitor/cli @capacitor/android \
+            @capacitor/push-notifications \
+            @capacitor/preferences \
+            @capacitor/app \
+            @capacitor/splash-screen @capacitor/status-bar
+        # NOTE: This step adds to package.json on the runner only (not committed).
+        # When Capacitor is permanently added to package.json, remove this step.
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-web-build
+          path: apps/restaurant-admin/.next/
+
+      - name: Cap sync (Android)
+        working-directory: apps/restaurant-admin
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Write google-services.json
+        if: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON != '' }}
+        working-directory: apps/restaurant-admin
+        run: |
+          echo '${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Build debug APK
+        working-directory: apps/restaurant-admin/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-android-debug-${{ github.ref_name }}
+          path: apps/restaurant-admin/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  # ── Android Release Build (signing gate) ──────────────────────────────────
+  android-release:
+    name: Android Release APK (signed)
+    runs-on: ubuntu-latest
+    needs: web-build
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/admin-mobile-v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_target == 'android-release')
+    env:
+      HAS_KEYSTORE: ${{ secrets.ADMIN_ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Capacitor packages
+        working-directory: apps/restaurant-admin
+        run: |
+          pnpm add @capacitor/core @capacitor/cli @capacitor/android \
+            @capacitor/push-notifications \
+            @capacitor/preferences \
+            @capacitor/app \
+            @capacitor/splash-screen @capacitor/status-bar
+
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-web-build
+          path: apps/restaurant-admin/.next/
+
+      - name: Cap sync (Android)
+        working-directory: apps/restaurant-admin
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Write google-services.json
+        if: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON != '' }}
+        working-directory: apps/restaurant-admin
+        run: |
+          echo '${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Decode keystore
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        run: |
+          echo "${{ secrets.ADMIN_ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
+            > apps/restaurant-admin/android/app/hir-admin.keystore
+
+      - name: Build release APK (signed)
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        working-directory: apps/restaurant-admin/android
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=app/hir-admin.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ADMIN_ANDROID_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ADMIN_ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ADMIN_ANDROID_KEY_PASSWORD }}"
+
+      - name: Build release APK (unsigned — no keystore)
+        if: ${{ env.HAS_KEYSTORE != 'true' }}
+        working-directory: apps/restaurant-admin/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-android-release-${{ github.ref_name }}
+          path: apps/restaurant-admin/android/app/build/outputs/apk/release/app-release*.apk
+          retention-days: 90
+
+  # ── iOS (macOS self-hosted runner gate) ───────────────────────────────────
+  # Disabled until Apple Developer account + macOS runner are provisioned.
+  # The Apple Developer account ($99/yr) is shared with storefront + courier.
+  # See apps/restaurant-admin/mobile/README.md for iOS signing setup.
+  ios:
+    name: iOS IPA (macOS gate — disabled)
+    runs-on: ubuntu-latest
+    needs: web-build
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: iOS build not yet configured
+        run: |
+          echo "iOS build requires macOS runner + Xcode + Apple Developer account."
+          echo "See apps/restaurant-admin/mobile/README.md for activation steps."
+          exit 1
