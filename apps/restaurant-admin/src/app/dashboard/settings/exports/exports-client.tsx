@@ -98,8 +98,12 @@ export function ExportsClient({
       <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Date fiscale</h2>
         <p className="mt-1 text-xs text-zinc-600">
-          Aceste date apar în fișierele exportate. Le puteți schimba oricând —
-          doar exporturile generate ulterior reflectă modificările.
+          Cota TVA configurată aici se aplică tuturor liniilor din registrul
+          de vânzări exportat. Denumirea firmei și CUI se folosesc pentru
+          identificare internă (numele fișierului, jurnal de audit) și pentru
+          documente viitoare; SmartBill și SAGA preiau identitatea
+          vânzătorului din contul în care importați. Le puteți schimba
+          oricând — doar exporturile generate ulterior reflectă modificările.
         </p>
 
         <form onSubmit={saveFiscal} className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
