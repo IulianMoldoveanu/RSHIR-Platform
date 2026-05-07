@@ -73,16 +73,21 @@ function makeMockSupabase(state: MockState) {
   return {
     from: (tableName: string) => {
       if (tableName === 'menu_agent_invocations') {
+        // Helper that returns the cap count from state. The real query
+        // filters out 'capped' rows (per Codex P2 #1), so the mock count
+        // mirrors that — only count rows whose outcome is 'ok' or 'failed'.
+        const capCount = () =>
+          state.forcedInvocationCount != null
+            ? state.forcedInvocationCount
+            : state.insertedInvocations.filter((r) => r.outcome !== 'capped').length;
         return {
           select: (_cols: string, _opts?: { count?: string; head?: boolean }) => ({
             eq: () => ({
-              gte: async () => ({
-                count:
-                  state.forcedInvocationCount != null
-                    ? state.forcedInvocationCount
-                    : state.insertedInvocations.length,
-                error: null,
+              in: () => ({
+                gte: async () => ({ count: capCount(), error: null }),
               }),
+              // Backwards-compat: original chain (no .in()) still resolved.
+              gte: async () => ({ count: capCount(), error: null }),
             }),
           }),
           insert: async (row: InsertedInvocation) => {
@@ -334,6 +339,43 @@ describe('menu-agent / propose_new_item handler', () => {
     expect(state.insertedProposals).toHaveLength(0);
     expect(state.insertedInvocations).toHaveLength(1);
     expect(state.insertedInvocations[0]!.outcome).toBe('capped');
+  });
+});
+
+describe('menu-agent / cap accounting — capped rows do not extend lockout', () => {
+  test('execute() lets a fresh attempt through when the only prior rows are capped (Codex P2 #1 fix)', async () => {
+    const state = defaultState();
+    // Seed 5 prior 'capped' rows — these MUST NOT count toward the cap.
+    for (let i = 0; i < 5; i++) {
+      state.insertedInvocations.push({
+        tenant_id: 't1',
+        intent: 'menu.propose_new_item',
+        outcome: 'capped',
+        cost_micro_usd: null,
+      });
+    }
+    stubAnthropic({
+      name: 'X',
+      description: 'Y',
+      price_ron: 10,
+      category_hint: 'Z',
+      tags: [],
+    });
+    const ctx = {
+      tenantId: 't1',
+      channel: 'telegram' as const,
+      actorUserId: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: makeMockSupabase(state) as any,
+    };
+    const plan = await __TESTING__.proposeNewItemHandler.plan(ctx, { seed: 'orice' });
+    // This must NOT throw daily_cap_reached — capped rows are excluded.
+    const result = await __TESTING__.proposeNewItemHandler.execute(ctx, plan);
+    expect(result.summary).toContain('X');
+    expect(state.insertedProposals).toHaveLength(1);
+    // Last invocation logged is 'ok' (the new attempt), not 'capped'.
+    const last = state.insertedInvocations[state.insertedInvocations.length - 1]!;
+    expect(last.outcome).toBe('ok');
   });
 });
 

@@ -71,7 +71,12 @@ async function decideProposal(
   if (existing.status !== 'DRAFT') return { ok: false, error: 'already_decided' };
 
   const now = new Date().toISOString();
-  const { error: updateErr } = await sb
+  // Codex P2 (PR #354 round 1): if two OWNER sessions race to decide the
+  // same proposal, both can pass the `existing.status !== 'DRAFT'` check
+  // before either UPDATE commits. Make the UPDATE conditional on
+  // `status='DRAFT'` so only the first writer wins; the loser sees a
+  // zero-row result + returns `already_decided`.
+  const { data: updated, error: updateErr } = await sb
     .from('menu_agent_proposals')
     .update({
       status: next,
@@ -79,10 +84,17 @@ async function decideProposal(
       decided_by: user.id,
       decision_note: parsed.data.note ?? null,
     })
-    .eq('id', existing.id);
+    .eq('id', existing.id)
+    .eq('status', 'DRAFT')
+    .select('id');
   if (updateErr) {
     console.warn('[menu-agent/decide] update failed:', updateErr.message);
     return { ok: false, error: 'update_failed' };
+  }
+  if (!Array.isArray(updated) || updated.length === 0) {
+    // Lost the race — another OWNER session decided this proposal first.
+    // Don't write an audit row; the winner already wrote theirs.
+    return { ok: false, error: 'already_decided' };
   }
 
   await logAudit({
