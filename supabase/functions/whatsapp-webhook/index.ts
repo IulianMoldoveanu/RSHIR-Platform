@@ -204,11 +204,15 @@ async function intentOrdersNow(
   supabase: any,
   tenantId: string,
 ): Promise<string> {
+  // restaurant_orders schema (20260425_000_initial.sql):
+  //   tenant_id uuid (NOT restaurant_id)
+  //   status check (PENDING|CONFIRMED|PREPARING|READY|DISPATCHED|IN_DELIVERY|DELIVERED|CANCELLED)
+  // "Active" = anything not yet delivered or cancelled.
   const { count } = await supabase
     .from('restaurant_orders')
     .select('id', { count: 'exact', head: true })
-    .eq('restaurant_id', tenantId)
-    .in('status', ['NEW', 'CONFIRMED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY']);
+    .eq('tenant_id', tenantId)
+    .in('status', ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY']);
   const n = count ?? 0;
   return `Aveți ${n} ${n === 1 ? 'comandă activă' : 'comenzi active'} acum.`;
 }
@@ -218,15 +222,19 @@ async function intentSalesToday(
   supabase: any,
   tenantId: string,
 ): Promise<string> {
+  // restaurant_orders.total_ron numeric(10,2) is the canonical total.
   const start = new Date();
   start.setHours(0, 0, 0, 0);
   const { data } = await supabase
     .from('restaurant_orders')
-    .select('total')
-    .eq('restaurant_id', tenantId)
+    .select('total_ron')
+    .eq('tenant_id', tenantId)
     .eq('status', 'DELIVERED')
     .gte('created_at', start.toISOString());
-  const sum = (data ?? []).reduce((acc: number, r: { total: number | string | null }) => acc + Number(r.total ?? 0), 0);
+  const sum = (data ?? []).reduce(
+    (acc: number, r: { total_ron: number | string | null }) => acc + Number(r.total_ron ?? 0),
+    0,
+  );
   return `Vânzări astăzi: ${sum.toFixed(2)} RON.`;
 }
 
