@@ -38,52 +38,73 @@ export default async function PreOrdersPage() {
 
   const admin = createAdminClient();
 
-  // Fetch tenant settings (for the OWNER settings card) in parallel with the
-  // pre-order list. Cast through unknown — is_pre_order/scheduled_for ship
-  // post-merge in 20260609_001 and supabase-types regenerates after.
-  const [tenantRow, listRaw] = await Promise.all([
-    admin.from('tenants').select('settings').eq('id', tenant.id).maybeSingle(),
-    (
-      admin as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            eq: (col: string, val: unknown) => {
-              eq: (col: string, val: unknown) => {
-                order: (
-                  col: string,
-                  opts: { ascending: boolean; nullsFirst?: boolean },
-                ) => {
-                  limit: (n: number) => Promise<{
-                    data: PreOrderListRow[] | null;
-                    error: { message: string } | null;
-                  }>;
-                };
+  // Fetch tenant settings + two SEPARATE pre-order queries in parallel:
+  // upcoming and history. Codex P2 catch — a single LIMIT-100 query sorted by
+  // scheduled_for would be starved of upcoming rows once a tenant accumulates
+  // 100+ delivered/cancelled pre-orders with old scheduled dates. Splitting
+  // the query keeps each list correctly populated regardless of history size.
+  // Cast through unknown — is_pre_order/scheduled_for ship post-merge in
+  // 20260609_001 and supabase-types regenerates after.
+  type PreOrderQuery = {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: unknown) => {
+          eq: (col: string, val: unknown) => {
+            in: (col: string, vals: string[]) => {
+              order: (
+                col: string,
+                opts: { ascending: boolean; nullsFirst?: boolean },
+              ) => {
+                limit: (n: number) => Promise<{
+                  data: PreOrderListRow[] | null;
+                  error: { message: string } | null;
+                }>;
+              };
+            };
+            not: (col: string, op: string, vals: string) => {
+              order: (
+                col: string,
+                opts: { ascending: boolean; nullsFirst?: boolean },
+              ) => {
+                limit: (n: number) => Promise<{
+                  data: PreOrderListRow[] | null;
+                  error: { message: string } | null;
+                }>;
               };
             };
           };
         };
-      }
-    )
+      };
+    };
+  };
+  const adminQ = admin as unknown as PreOrderQuery;
+  const SELECT =
+    'id, status, scheduled_for, created_at, total_ron, notes, customers(first_name, last_name, phone)';
+  const TERMINAL = ['DELIVERED', 'CANCELLED'];
+
+  const [tenantRow, upcomingRaw, historyRaw] = await Promise.all([
+    admin.from('tenants').select('settings').eq('id', tenant.id).maybeSingle(),
+    adminQ
       .from('restaurant_orders')
-      .select(
-        'id, status, scheduled_for, created_at, total_ron, notes, customers(first_name, last_name, phone)',
-      )
+      .select(SELECT)
       .eq('tenant_id', tenant.id)
       .eq('is_pre_order', true)
+      .not('status', 'in', `(${TERMINAL.join(',')})`)
       .order('scheduled_for', { ascending: true, nullsFirst: false })
       .limit(100),
+    adminQ
+      .from('restaurant_orders')
+      .select(SELECT)
+      .eq('tenant_id', tenant.id)
+      .eq('is_pre_order', true)
+      .in('status', TERMINAL)
+      .order('scheduled_for', { ascending: false, nullsFirst: false })
+      .limit(50),
   ]);
 
   const settings = readPreOrderSettings(tenantRow.data?.settings);
-  const rows = listRaw?.data ?? [];
-
-  // Split: upcoming (status not terminal) vs history (DELIVERED + CANCELLED).
-  const upcoming = rows.filter(
-    (r) => r.status !== 'DELIVERED' && r.status !== 'CANCELLED',
-  );
-  const history = rows.filter(
-    (r) => r.status === 'DELIVERED' || r.status === 'CANCELLED',
-  );
+  const upcoming = upcomingRaw?.data ?? [];
+  const history = historyRaw?.data ?? [];
 
   return (
     <div className="flex flex-col gap-6">

@@ -31,11 +31,15 @@ function fmtAge(createdAt: string): string {
 
 export async function ActiveOrdersPanel({ tenantId }: { tenantId: string }) {
   const admin = createAdminClient();
-  const { data } = await admin
+  // Exclude pre-orders (is_pre_order=true) — they belong on /dashboard/pre-orders
+  // and should not surface in the homepage active-orders quick-glance.
+  const { data } = await (admin
     .from('restaurant_orders')
     .select('id, status, total_ron, created_at, customers(first_name)')
     .eq('tenant_id', tenantId)
     .in('status', ACTIVE_STATUSES as unknown as string[])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .or('is_pre_order.is.null,is_pre_order.eq.false') as any)
     .order('created_at', { ascending: false })
     .limit(5);
 

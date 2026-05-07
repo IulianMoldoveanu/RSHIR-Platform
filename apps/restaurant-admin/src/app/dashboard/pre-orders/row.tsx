@@ -45,7 +45,9 @@ function formatScheduled(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  // Romanian-friendly format: "vin., 12 mai 2026, 14:30"
+  // Codex P2 catch — Vercel's Node runtime is UTC, so locale-only formatting
+  // shows 18:00 RO times as 15:00/16:00. The restaurant must see the customer's
+  // local hour. Pin to Europe/Bucharest, same as reservation surfaces.
   return d.toLocaleString('ro-RO', {
     weekday: 'short',
     day: '2-digit',
@@ -53,6 +55,7 @@ function formatScheduled(iso: string | null): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
   });
 }
 
