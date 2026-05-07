@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { MenuTabs } from './menu-tabs';
+import { loadProposals } from './menu-agent-loader';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,6 +135,12 @@ export default async function MenuPage() {
 
   const storefrontUrl = tenantStorefrontUrl(tenant.slug);
 
+  // Sprint 12: Menu Agent proposals tab. Defensive fetch — if the
+  // 20260608_003 migration hasn't been applied yet (e.g. preview env on a
+  // fresh branch), loadProposals returns [] gracefully and the tab still
+  // renders with an empty state.
+  const proposals = await loadProposals(tenant.id, { limit: 50 });
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -151,7 +158,14 @@ export default async function MenuPage() {
           <p className="text-xs text-zinc-500">{tenant.name}</p>
         </div>
       </div>
-      <MenuTabs categories={categories} items={items} modifiers={modifiers} modifierGroups={groupRows} />
+      <MenuTabs
+        tenantId={tenant.id}
+        categories={categories}
+        items={items}
+        modifiers={modifiers}
+        modifierGroups={groupRows}
+        proposals={proposals}
+      />
     </div>
   );
 }

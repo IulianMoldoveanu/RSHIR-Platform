@@ -14,6 +14,7 @@
 //   /confirm <code>    — confirm a pending destructive action
 //   /tenant <slug>     — set active tenant for this chat (Hepy intents)
 //   /vreme [oras]      — current weather for the tenant's city (or named city)
+//   /evenimente [oras] — upcoming events for the tenant's city (or named city)
 //   /help [hepy]       — list commands (or Hepy NL examples)
 //   /status hepy       — last 10 Hepy intent runs
 //
@@ -49,6 +50,14 @@ import {
   missingFields,
   type ParsedReservation,
 } from '../_shared/reservation-parser.ts';
+import { dispatchIntent } from '../_shared/master-orchestrator.ts';
+import { registerMenuAgentIntents } from '../_shared/menu-agent.ts';
+import { registerAnalyticsIntents } from '../_shared/analytics-intents.ts';
+import { registerOpsAgentIntents } from '../_shared/ops-agent.ts';
+
+registerMenuAgentIntents();
+registerAnalyticsIntents();
+registerOpsAgentIntents();
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
@@ -529,86 +538,85 @@ async function runIntent(
 
   if (intent === 'recommendations_today') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
-    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-    const { data: recs } = await supabase
-      .from('growth_recommendations')
-      .select('priority, category, title_ro, suggested_action_ro, generated_at, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('generated_at', since)
-      .order('generated_at', { ascending: false })
-      .limit(5);
-    await logHepyAudit(supabase, tenant.tenant_id, 'recommendations_today', { returned: recs?.length ?? 0 });
-    if (!recs || recs.length === 0) {
-      return { text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări recente</b>\nNicio recomandare nouă în ultimele 7 zile.`, status: 'OK', intentRan: 'recommendations_today' };
+    // Wired through Master Orchestrator dispatcher. Handler lives in
+    // _shared/analytics-intents.ts.
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.recommendations_today',
+      payload: { days: 7 },
+    });
+    if (r.ok && r.state === 'EXECUTED') {
+      const d = r.data as {
+        days: number;
+        recommendations: Array<{
+          priority: string;
+          category: string;
+          title_ro: string;
+          suggested_action_ro: string;
+        }>;
+      };
+      if (!d.recommendations || d.recommendations.length === 0) {
+        return {
+          text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări recente</b>\nNicio recomandare nouă în ultimele ${d.days} zile.`,
+          status: 'OK',
+          intentRan: 'recommendations_today',
+        };
+      }
+      const lines = [`<b>💡 ${escapeHtml(tenant.name)} — recomandări (ultimele ${d.days} zile)</b>`];
+      const prioEmoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '⚪' };
+      for (const rec of d.recommendations.slice(0, 5)) {
+        const e = prioEmoji[rec.priority] ?? '·';
+        lines.push(`\n${e} <b>${escapeHtml(rec.title_ro)}</b>`);
+        lines.push(`<i>${escapeHtml(rec.category)}</i> · ${escapeHtml((rec.suggested_action_ro || '').slice(0, 180))}`);
+      }
+      return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'recommendations_today' };
     }
-    const lines = [`<b>💡 ${escapeHtml(tenant.name)} — recomandări (ultimele 7 zile)</b>`];
-    const prioEmoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '⚪' };
-    for (const r of recs) {
-      const e = prioEmoji[r.priority] ?? '·';
-      lines.push(`\n${e} <b>${escapeHtml(r.title_ro)}</b>`);
-      lines.push(`<i>${escapeHtml(r.category)}</i> · ${escapeHtml((r.suggested_action_ro || '').slice(0, 180))}`);
-    }
-    return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'recommendations_today' };
+    return {
+      text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări</b>\nNu am putut citi recomandările momentan.`,
+      status: 'OK',
+      intentRan: 'recommendations_today',
+    };
   }
 
   if (intent === 'orders_summary') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
     const p = period ?? 'today';
-    const win = periodWindow(p);
-    const { data: curr } = await supabase
-      .from('restaurant_orders')
-      .select('total_ron, status, items')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.from.toISOString())
-      .lt('created_at', win.to.toISOString());
-    const { data: prev } = await supabase
-      .from('restaurant_orders')
-      .select('total_ron, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.prevFrom.toISOString())
-      .lt('created_at', win.prevTo.toISOString());
-
-    const isRevenueStatus = (s: string) => s !== 'CANCELLED';
-    const totalCurr = (curr ?? []).filter((o: any) => isRevenueStatus(o.status)).length;
-    const revenueCurr = (curr ?? []).filter((o: any) => isRevenueStatus(o.status)).reduce((a: number, o: any) => a + Number(o.total_ron || 0), 0);
-    const cancelledCurr = (curr ?? []).filter((o: any) => o.status === 'CANCELLED').length;
-    const totalPrev = (prev ?? []).filter((o: any) => isRevenueStatus(o.status)).length;
-    const revenuePrev = (prev ?? []).filter((o: any) => isRevenueStatus(o.status)).reduce((a: number, o: any) => a + Number(o.total_ron || 0), 0);
-
-    const counts: Record<string, { qty: number; revenue: number }> = {};
-    for (const o of curr ?? []) {
-      if (!isRevenueStatus(o.status)) continue;
-      const items = Array.isArray(o.items) ? o.items : [];
-      for (const it of items) {
-        const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
-        if (!name) continue;
-        const qty = Number(it?.quantity ?? it?.qty ?? 1);
-        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
-        // imports may use snake_case. Prefer lineTotalRon if present so we
-        // don't double-multiply by qty.
-        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
-        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
-        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
-        if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
-        counts[name].qty += qty;
-        counts[name].revenue += revenue;
-      }
+    // Wired through Master Orchestrator dispatcher. Handler lives in
+    // _shared/analytics-intents.ts. Same 30-day baseline + same RON formatting.
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.summary',
+      payload: { period: p },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return {
+        text: `<b>📊 ${escapeHtml(tenant.name)}</b>\nNu am putut citi sumarul momentan.`,
+        status: 'OK',
+        intentRan: 'orders_summary',
+      };
     }
-    const top3 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 3);
-
-    await logHepyAudit(supabase, tenant.tenant_id, 'orders_summary', { period: p, total: totalCurr, revenue: revenueCurr });
-
+    const d = r.data as {
+      label: string;
+      orders: number;
+      revenue_ron: number;
+      cancelled: number;
+      orders_delta: string;
+      revenue_delta: string;
+      top_products: Array<{ name: string; qty: number; revenue: number }>;
+    };
     const lines = [
-      `<b>📊 ${escapeHtml(tenant.name)} — cum a mers ${win.label}</b>`,
+      `<b>📊 ${escapeHtml(tenant.name)} — cum a mers ${d.label}</b>`,
       ``,
-      `Comenzi: <b>${totalCurr}</b>  ${escapeHtml(deltaPct(totalCurr, totalPrev))}`,
-      `Încasări: <b>${escapeHtml(fmtRon(revenueCurr))}</b>  ${escapeHtml(deltaPct(revenueCurr, revenuePrev))}`,
+      `Comenzi: <b>${d.orders}</b>  ${escapeHtml(d.orders_delta)}`,
+      `Încasări: <b>${escapeHtml(fmtRon(Number(d.revenue_ron)))}</b>  ${escapeHtml(d.revenue_delta)}`,
     ];
-    if (cancelledCurr > 0) lines.push(`Anulate: ${cancelledCurr}`);
-    if (top3.length) {
+    if (d.cancelled > 0) lines.push(`Anulate: ${d.cancelled}`);
+    if (d.top_products.length) {
       lines.push('', '<b>Top produse:</b>');
-      for (const [name, agg] of top3) {
-        lines.push(`· ${escapeHtml(name)} — ${agg.qty} buc · ${escapeHtml(fmtRon(agg.revenue))}`);
+      for (const t of d.top_products) {
+        lines.push(`· ${escapeHtml(t.name)} — ${t.qty} buc · ${escapeHtml(fmtRon(Number(t.revenue)))}`);
       }
     } else {
       lines.push('', '<i>Niciun produs vândut în această perioadă.</i>');
@@ -619,41 +627,31 @@ async function runIntent(
   if (intent === 'top_products') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
     const p = period ?? 'week';
-    const win = periodWindow(p);
-    const { data: curr } = await supabase
-      .from('restaurant_orders')
-      .select('items, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.from.toISOString())
-      .lt('created_at', win.to.toISOString());
-    const counts: Record<string, { qty: number; revenue: number }> = {};
-    for (const o of curr ?? []) {
-      if (o.status === 'CANCELLED') continue;
-      const items = Array.isArray(o.items) ? o.items : [];
-      for (const it of items) {
-        const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
-        if (!name) continue;
-        const qty = Number(it?.quantity ?? it?.qty ?? 1);
-        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
-        // imports may use snake_case. Prefer lineTotalRon if present so we
-        // don't double-multiply by qty.
-        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
-        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
-        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
-        if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
-        counts[name].qty += qty;
-        counts[name].revenue += revenue;
-      }
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.top_products',
+      payload: { period: p, limit: 10 },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return {
+        text: `<b>🍽️ ${escapeHtml(tenant.name)}</b>\nNu am putut citi topul produselor momentan.`,
+        status: 'OK',
+        intentRan: 'top_products',
+      };
     }
-    const top10 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
-    await logHepyAudit(supabase, tenant.tenant_id, 'top_products', { period: p, returned: top10.length });
-    if (top10.length === 0) {
-      return { text: `<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${win.label})</b>\nNiciun produs vândut în această perioadă.`, status: 'OK', intentRan: 'top_products' };
+    const d = r.data as { label: string; products: Array<{ name: string; qty: number; revenue: number }> };
+    if (d.products.length === 0) {
+      return {
+        text: `<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${d.label})</b>\nNiciun produs vândut în această perioadă.`,
+        status: 'OK',
+        intentRan: 'top_products',
+      };
     }
-    const lines = [`<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${win.label})</b>`];
+    const lines = [`<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${d.label})</b>`];
     let i = 1;
-    for (const [name, agg] of top10) {
-      lines.push(`${i}. ${escapeHtml(name)} — ${agg.qty} buc · ${escapeHtml(fmtRon(agg.revenue))}`);
+    for (const t of d.products) {
+      lines.push(`${i}. ${escapeHtml(t.name)} — ${t.qty} buc · ${escapeHtml(fmtRon(Number(t.revenue)))}`);
       i++;
     }
     return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'top_products' };
@@ -903,6 +901,117 @@ async function ownerWeather(
   }
   if (detail.length) parts.push(detail.join(' · '));
   parts.push(`<i>actualizat ${tsLabel} UTC</i>`);
+
+  return { text: parts.join('\n').slice(0, 4000), status: 'OK' };
+}
+
+// =====================================================================
+// HEPY — Events (read, all roles)
+// =====================================================================
+// `/evenimente` (tenant's city) or `/evenimente <oras>` (named). Reads the
+// next 5 upcoming `city_events` rows. Lane EVENTS-SIGNAL-INGESTION 2026-05-08.
+//
+// Resolution mirrors ownerWeather above. Same diacritic-normalised slug
+// match; same auto-detect-FK guardrail (two cheap queries instead of an
+// embed alias).
+
+async function ownerEvents(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  let citySlug: string | null = null;
+  let cityName: string | null = null;
+  const namedArg = args.trim();
+
+  if (namedArg) {
+    citySlug = _vremeNormalize(namedArg);
+  } else {
+    const { data: trow } = await supabase
+      .from('tenants')
+      .select('city_id, settings')
+      .eq('id', tenant.tenant_id)
+      .maybeSingle();
+    if (trow?.city_id) {
+      const { data: fkCity } = await supabase
+        .from('cities')
+        .select('slug, name')
+        .eq('id', trow.city_id)
+        .maybeSingle();
+      if (fkCity?.slug) {
+        citySlug = fkCity.slug as string;
+        cityName = (fkCity.name as string | null) ?? null;
+      }
+    }
+    if (!citySlug) {
+      const free = (trow?.settings as { city?: unknown } | null)?.city;
+      if (typeof free === 'string' && free.trim()) {
+        citySlug = _vremeNormalize(free);
+      }
+    }
+  }
+
+  if (!citySlug) {
+    return {
+      text: '<b>📅 Evenimente</b>\nNu am putut determina orașul. Folosiți <code>/evenimente &lt;oras&gt;</code>, ex: <code>/evenimente Brașov</code>.',
+      status: 'OK',
+    };
+  }
+
+  const { data: city } = await supabase
+    .from('cities')
+    .select('id, slug, name')
+    .eq('slug', citySlug)
+    .maybeSingle();
+  if (!city) {
+    return {
+      text: `<b>📅 Evenimente</b>\nOrașul <code>${escapeHtml(citySlug)}</code> nu este în lista HIR. Pentru oraș nou contactați suportul.`,
+      status: 'OK',
+    };
+  }
+  cityName = cityName ?? (city.name as string | null) ?? citySlug;
+
+  const horizonIso = new Date(Date.now() + 14 * 86400_000).toISOString();
+  const nowIso = new Date().toISOString();
+  const { data: rows } = await supabase
+    .from('city_events')
+    .select('id, event_name, event_type, start_at, venue_name, source')
+    .eq('city_id', city.id)
+    .gte('start_at', nowIso)
+    .lte('start_at', horizonIso)
+    .order('start_at', { ascending: true })
+    .limit(5);
+
+  await logHepyAudit(supabase, tenant.tenant_id, 'evenimente', {
+    city_slug: citySlug,
+    returned: rows?.length ?? 0,
+  });
+
+  const events = (rows ?? []) as Array<{
+    id: string;
+    event_name: string;
+    event_type: string;
+    start_at: string;
+    venue_name: string | null;
+    source: string;
+  }>;
+
+  if (events.length === 0) {
+    return {
+      text: `<b>📅 ${escapeHtml(cityName)}</b>\n<i>Nu sunt evenimente programate în următoarele 14 zile.</i>`,
+      status: 'OK',
+    };
+  }
+
+  const parts: string[] = [`<b>📅 Evenimente — ${escapeHtml(cityName)}</b>`];
+  for (const e of events) {
+    const start = new Date(e.start_at);
+    const dayLabel = start.toISOString().substring(0, 10);
+    const timeLabel = start.toISOString().substring(11, 16);
+    const venue = e.venue_name ? ` — ${escapeHtml(e.venue_name)}` : '';
+    parts.push(`• <b>${escapeHtml(e.event_name)}</b>\n  ${dayLabel} ${timeLabel} UTC${venue}`);
+  }
+  parts.push(`<i>actualizat zilnic la 04:07 UTC</i>`);
 
   return { text: parts.join('\n').slice(0, 4000), status: 'OK' };
 }
@@ -1684,6 +1793,219 @@ async function handleAnuleazaRezervare(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Menu Agent — Sprint 12 commands. Each parses Telegram args, calls
+// dispatchIntent() on the orchestrator, and renders the agent's RO
+// summary back to the user. Errors surfaced inline so the OWNER sees
+// what to fix without checking server logs.
+// ─────────────────────────────────────────────────────────────────────
+
+const MENU_USAGE = {
+  propune:
+    'Folosire: <code>/menu_propune &lt;descriere produs&gt;</code>\nExemplu: <code>/menu_propune cheesecake de afine cu blat de biscuiți, porție 180g</code>',
+  oprime:
+    'Folosire: <code>/menu_oprime &lt;nume produs&gt; [pentru &lt;ore&gt;h]</code>\nExemplu: <code>/menu_oprime salata caesar pentru 6h</code>',
+  promo:
+    'Folosire: <code>/menu_promo &lt;nume produs&gt; — &lt;brief&gt;</code>\nExemplu: <code>/menu_promo pizza margherita — week-end 25% reducere vinerea-duminica</code>',
+} as const;
+
+// Resolve a user-typed item name to a uuid for the active tenant. Uses
+// case-insensitive prefix match. Returns the first hit, or null when no
+// match. Bounded to 50 rows — typical tenant has 30-150 menu items.
+async function resolveMenuItem(
+  supabase: any,
+  tenantId: string,
+  query: string,
+): Promise<{ id: string; name: string; price_ron: number } | null> {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  // Case-insensitive ILIKE; the menu items table is already indexed on
+  // (tenant_id, sort_order) so a small filtered scan is cheap.
+  const { data: rows } = await supabase
+    .from('restaurant_menu_items')
+    .select('id, name, price_ron')
+    .eq('tenant_id', tenantId)
+    .ilike('name', `%${q.replace(/[%_]/g, '\\$&')}%`)
+    .limit(10);
+  if (!rows || rows.length === 0) return null;
+  // Prefer exact case-insensitive match if available.
+  const exact = (rows as Array<{ id: string; name: string; price_ron: number }>).find(
+    (r) => r.name.toLowerCase() === q,
+  );
+  if (exact) return exact;
+  return rows[0] as { id: string; name: string; price_ron: number };
+}
+
+// Tries to extract an "until" duration from the trailing text. Accepts
+// "pentru 6h", "pentru 2 zile", "pana joi" (latter ignored — defaults to
+// 24h). Returns ISO timestamp.
+function parseUntilHint(text: string): string {
+  const m = text.match(/pentru\s+(\d+)\s*(h|ore|zi|zile)/i);
+  if (m) {
+    const n = parseInt(m[1]!, 10);
+    const unit = m[2]!.toLowerCase();
+    const hours = unit.startsWith('zi') ? n * 24 : n;
+    return new Date(Date.now() + hours * 3600 * 1000).toISOString();
+  }
+  // Default: 24h
+  return new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+}
+
+async function handleMenuPropune(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const seed = args.trim();
+  if (!seed || seed.length < 5) {
+    return { text: MENU_USAGE.propune, status: 'OK' };
+  }
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.propose_new_item',
+    payload: { seed },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    if (result.error === 'handler_threw' && /credit balance|anthropic_401|anthropic_402|missing_api_key/.test(result.message)) {
+      return { text: '⚠️ Cheia Anthropic nu este configurată sau creditul este epuizat.', status: 'ERR' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare necunoscută')}`, status: 'ERR' };
+  }
+  // EXECUTED branch (readOnly: true → always EXECUTED).
+  if (result.state === 'EXECUTED') {
+    const data = result.data as { proposalId: string | null; payload: { name: string; price_ron: number; category_hint: string }; rationale: string };
+    const lines = [
+      `<b>✨ Hepy a propus un produs nou</b>`,
+      `Nume: <b>${escapeHtml(data.payload.name)}</b>`,
+      `Preț sugerat: <b>${data.payload.price_ron.toFixed(2)} RON</b>`,
+      `Categorie: ${escapeHtml(data.payload.category_hint)}`,
+      ``,
+      `<i>${escapeHtml(data.rationale)}</i>`,
+      ``,
+      `Acceptă/respinge propunerea pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: `Propunere salvată ca DRAFT — verificați în pagina <b>${escapeHtml(tenant.name)}</b> / Meniu / Sugestii Hepy.`, status: 'OK' };
+}
+
+async function handleMenuOprime(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const trimmed = args.trim();
+  if (!trimmed) return { text: MENU_USAGE.oprime, status: 'OK' };
+
+  // Strip the "pentru Xh" hint if present, leaving just the item name.
+  const itemNameQuery = trimmed.replace(/\s+pentru\s+\d+\s*(h|ore|zi|zile).*$/i, '').trim();
+  if (!itemNameQuery) return { text: MENU_USAGE.oprime, status: 'OK' };
+
+  const item = await resolveMenuItem(supabase, tenant.tenant_id, itemNameQuery);
+  if (!item) {
+    return {
+      text: `❌ Nu am găsit produsul "<code>${escapeHtml(itemNameQuery)}</code>" în meniu. Verificați numele sau folosiți pagina <b>Meniu</b> pentru a-l găsi.`,
+      status: 'OK',
+    };
+  }
+  const until_iso = parseUntilHint(trimmed);
+  const reasonMatch = trimmed.match(/motiv\s*[:\-]\s*(.+)$/i);
+  const reason = reasonMatch?.[1]?.trim() ?? '';
+
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.mark_sold_out',
+    payload: { item_id: item.id, item_name: item.name, reason, until_iso },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare')}`, status: 'ERR' };
+  }
+  if (result.state === 'EXECUTED') {
+    const data = result.data as { proposalId: string | null; payload: { item_name: string; customer_facing_reason: string; until_iso: string } };
+    const lines = [
+      `<b>🚫 Marcaj epuizat — DRAFT</b>`,
+      `Produs: <b>${escapeHtml(data.payload.item_name)}</b>`,
+      `Până la: <b>${escapeHtml(data.payload.until_iso)}</b>`,
+      ``,
+      `<i>Mesaj pentru client:</i> ${escapeHtml(data.payload.customer_facing_reason)}`,
+      ``,
+      `Acceptă/respinge pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: 'Marcaj salvat ca DRAFT.', status: 'OK' };
+}
+
+async function handleMenuPromo(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const trimmed = args.trim();
+  if (!trimmed) return { text: MENU_USAGE.promo, status: 'OK' };
+
+  // Split on em/en dash or "—" or "-" first occurrence, with "<itemName> — <brief>" shape.
+  const splitMatch = trimmed.match(/^(.+?)\s*[—–\-]\s*(.+)$/);
+  if (!splitMatch) {
+    return { text: MENU_USAGE.promo, status: 'OK' };
+  }
+  const itemNameQuery = splitMatch[1]!.trim();
+  const brief = splitMatch[2]!.trim();
+  if (!itemNameQuery || !brief) return { text: MENU_USAGE.promo, status: 'OK' };
+
+  const item = await resolveMenuItem(supabase, tenant.tenant_id, itemNameQuery);
+  if (!item) {
+    return {
+      text: `❌ Nu am găsit produsul "<code>${escapeHtml(itemNameQuery)}</code>" în meniu.`,
+      status: 'OK',
+    };
+  }
+
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.draft_promo',
+    payload: {
+      item_id: item.id,
+      item_name: item.name,
+      item_price_ron: item.price_ron,
+      brief,
+    },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare')}`, status: 'ERR' };
+  }
+  if (result.state === 'EXECUTED') {
+    const data = result.data as {
+      proposalId: string | null;
+      payload: { item_name: string; discount_pct: number; headline: string; body: string; valid_from: string; valid_to: string };
+    };
+    const lines = [
+      `<b>🎯 Propunere promoție — DRAFT</b>`,
+      `<b>${escapeHtml(data.payload.headline)}</b>`,
+      `Produs: ${escapeHtml(data.payload.item_name)} — <b>−${data.payload.discount_pct}%</b>`,
+      `Valabilitate: ${escapeHtml(data.payload.valid_from)} → ${escapeHtml(data.payload.valid_to)}`,
+      ``,
+      `<i>${escapeHtml(data.payload.body)}</i>`,
+      ``,
+      `Acceptă/respinge pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: 'Propunere de promoție salvată ca DRAFT.', status: 'OK' };
+}
+
 async function handleCommand(
   supabase: any, ghToken: string, vercelToken: string, anthropicKey: string,
   cmd: string, args: string, chatId: number, auth: ChatAuth, telegramUsername?: string
@@ -1721,6 +2043,7 @@ Sau folosiți comenzile rapide:
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
 /vreme — vremea în orașul restaurantului
+/evenimente — evenimente apropiate din oraș
 /help hepy — toate comenzile`,
       status: 'OK',
     };
@@ -1743,11 +2066,17 @@ Comenzi rapide:
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
 /vreme [oras] — vremea în orașul restaurantului (sau în orașul indicat)
+/evenimente [oras] — evenimente apropiate (concerte, festivaluri, sport)
 
 Rezervări:
 /rezerva — rezervare nouă (vă voi întreba pas cu pas, sau scrieți totul într-un mesaj)
 /rezervari — următoarele 14 zile
 /anuleaza_rezervare &lt;token&gt; — anulează după token
+
+Sugestii Hepy pentru meniu (DRAFT — aprobați la Meniu / Sugestii Hepy):
+/menu_propune &lt;descriere produs&gt; — propunere produs nou
+/menu_oprime &lt;nume produs&gt; [pentru Xh] — marcaj epuizat temporar
+/menu_promo &lt;nume produs&gt; — &lt;brief&gt; — propunere promoție
 
 /help — acest ecran
 
@@ -1817,6 +2146,14 @@ Comenzi auxiliare:
     return await ownerWeather(supabase, tenant, args);
   }
 
+  // Lane EVENTS-SIGNAL-INGESTION: /evenimente [oras]. Read-only upcoming
+  // events lookup. Same resolution rules as /vreme.
+  if (cmd === '/evenimente') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    return await ownerEvents(supabase, tenant, args);
+  }
+
   // ────────────────────────────────────────────────────────────
   // Hepy reservation booking — OWNER-only write intents. Operator
   // (Iulian) can also use them after /tenant <slug> for testing.
@@ -1827,6 +2164,19 @@ Comenzi auxiliare:
     if (cmd === '/rezerva') return await handleReservaCommand(supabase, tenant, chatId, args);
     if (cmd === '/rezervari') return await handleRezervariList(supabase, tenant);
     return await handleAnuleazaRezervare(supabase, tenant, chatId, args);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Menu Agent — OWNER + operator. Dispatches via Master Orchestrator.
+  // Sprint 12: proposals stay in DRAFT; OWNER reviews under "Sugestii
+  // Hepy" on /dashboard/menu. No live menu mutations.
+  // ────────────────────────────────────────────────────────────
+  if (cmd === '/menu_propune' || cmd === '/menu_oprime' || cmd === '/menu_promo') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    if (cmd === '/menu_propune') return await handleMenuPropune(supabase, tenant, args);
+    if (cmd === '/menu_oprime') return await handleMenuOprime(supabase, tenant, args);
+    return await handleMenuPromo(supabase, tenant, args);
   }
 
   // ────────────────────────────────────────────────────────────

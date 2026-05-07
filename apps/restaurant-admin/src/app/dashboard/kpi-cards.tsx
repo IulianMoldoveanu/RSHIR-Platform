@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AlertTriangle, Receipt, ShieldCheck, ShoppingCart, Star, TrendingDown, TrendingUp } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildSparklineSeries } from '@/lib/uiux-quickwins';
+import { ExplainAnomalyButton, type ExplainMetric } from './explain-anomaly-button';
 
 // Server component. Pulls 4 KPIs for "today" + a delta vs yesterday so the
 // owner can see a glanceable health line at the top of the dashboard.
@@ -237,12 +238,18 @@ function Card({
   delta,
   icon,
   sparkline,
+  explainMetric,
 }: {
   label: string;
   value: string;
   delta?: React.ReactNode;
   icon: React.ReactNode;
   sparkline?: React.ReactNode;
+  // When set, renders the "Explică această cifră" button + popover
+  // (Lane GO Option A 2026-05-08). Read-only Sonnet 4.5 intent capped at
+  // 5/tenant/day; the button only appears for metrics where a hypothesis
+  // is meaningful (orders / revenue / aov — not for review counts).
+  explainMetric?: ExplainMetric;
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4">
@@ -253,6 +260,7 @@ function Card({
       <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">{value}</p>
       {delta ? <div className="mt-1">{delta}</div> : null}
       {sparkline}
+      {explainMetric ? <ExplainAnomalyButton metric={explainMetric} /> : null}
     </div>
   );
 }
@@ -305,6 +313,7 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
         delta={<DeltaChip value={salesDelta} />}
         icon={<TrendingUp className="h-4 w-4" />}
         sparkline={<Sparkline values={s.salesSeries7d} positive={salesPositive} />}
+        explainMetric="revenue"
       />
       <Card
         label="Comenzi azi"
@@ -312,11 +321,13 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
         delta={<DeltaChip value={ordersDelta} />}
         icon={<Receipt className="h-4 w-4" />}
         sparkline={<Sparkline values={s.ordersSeries7d} positive={ordersPositive} />}
+        explainMetric="orders"
       />
       <Card
         label="Coș mediu"
         value={s.todayOrders > 0 ? formatRon(avgTicket) : '—'}
         icon={<ShoppingCart className="h-4 w-4" />}
+        explainMetric={s.todayOrders > 0 ? 'aov' : undefined}
       />
       <Link
         href="/dashboard/reviews"

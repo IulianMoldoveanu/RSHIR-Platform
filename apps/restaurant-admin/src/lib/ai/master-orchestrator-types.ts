@@ -40,10 +40,15 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.', readOnly: true },
   { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.', readOnly: true },
   { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).', readOnly: true },
+  { name: 'analytics.explain_anomaly', agent: 'analytics', defaultCategory: 'analytics.explain_anomaly.read', description: 'Explică o cifră (orders/revenue/aov) cu 2-3 ipoteze.', readOnly: true },
   { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.', readOnly: true },
   { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.', readOnly: true },
   { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.', readOnly: true },
   { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.', readOnly: true },
+  // Sprint 14 ops sub-agent (PR #364):
+  { name: 'ops.suggest_delivery_zones', agent: 'ops', defaultCategory: 'ops.read', description: 'Sugerează zone noi de livrare pe baza comenzilor din 30 de zile.', readOnly: true },
+  { name: 'ops.optimize_courier_schedule', agent: 'ops', defaultCategory: 'ops.read', description: 'Propune program curieri pe baza istoricului 14 zile.', readOnly: true },
+  { name: 'ops.flag_kitchen_bottlenecks', agent: 'ops', defaultCategory: 'ops.read', description: 'Identifică produsele care încetinesc fluxul (proxy 7 zile).', readOnly: true },
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
   { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },
   { name: 'cs.reservation_cancel', agent: 'cs', defaultCategory: 'reservation.cancel', description: 'Anulează o rezervare după token.' },
@@ -83,6 +88,7 @@ export const TRUST_CATEGORIES: TrustCategoryMeta[] = [
   { agent: 'ops', category: 'hours.change', label: 'Operațiuni — schimbare program', destructive: true },
   { agent: 'finance', category: 'refund.issue', label: 'Financiar — emitere rambursare', destructive: true },
   { agent: 'analytics', category: 'analytics.read', label: 'Analiză — rapoarte (read-only)', destructive: false },
+  { agent: 'analytics', category: 'analytics.explain_anomaly.read', label: 'Analiză — explicație cifră (AI, read-only)', destructive: false },
 ];
 
 // One-line RO label per trust level for the UI selects.
