@@ -413,7 +413,7 @@ export const dictionaries = {
         og_title: 'GloriaFood se închide. Migrează la HIR Restaurant gratuit.',
         hero_heading: 'GloriaFood se închide pe 30 aprilie 2027.',
         hero_subheading: 'Migrăm meniul tău în 5 minute.',
-        hero_body: 'Alternativa românească construită pentru restaurante mici și medii. Comision 0% pe agregator. Curier propriu sau prin rețeaua noastră de flote partenere.',
+        hero_body: 'Alternativa românească construită pentru restaurante mici și medii. Comision 0% pe agregator. Curier HIR sau curier propriu.',
         days_remaining_template: '{days} zile rămase',
         cta_migrate: 'Migrează gratuit acum',
         cta_reseller: 'Sunt partener GloriaFood',
@@ -633,20 +633,20 @@ export const dictionaries = {
         pricing_card1_title: 'HIR Direct',
         pricing_card1_price: '3 RON',
         pricing_card1_price_sub: '/ comandă livrată',
-        pricing_card1_p1: 'Curier HIR — propriu sau prin rețeaua de flotă',
+        pricing_card1_p1: 'Curier HIR — propriu sau prin rețeaua HIR de curieri',
         pricing_card1_p2: 'Storefront white-label inclus',
         pricing_card1_p3: 'Importer GloriaFood inclus',
         pricing_card1_p4: 'CRM + loyalty + reviews inclus',
         pricing_card1_p5: 'Fără abonament, fără setup fee',
         pricing_card1_cta: 'Începeți migrarea',
-        pricing_card2_tag: 'ENTERPRISE / FLOTĂ',
+        pricing_card2_tag: 'ENTERPRISE / VOLUM MARE',
         pricing_card2_title: 'Passthrough + 3 RON',
         pricing_card2_price: 'cost real + 3 RON',
         pricing_card2_price_sub: '/ comandă livrată',
-        pricing_card2_p1: 'Pentru lanțuri sau flote cu volum mare',
+        pricing_card2_p1: 'Pentru lanțuri sau restaurante cu volum mare',
         pricing_card2_p2: 'Cost transport real al curierului propriu',
         pricing_card2_p3: '+ 3 RON fee platformă HIR',
-        pricing_card2_p4: 'Dashboard fleet manager dedicat',
+        pricing_card2_p4: 'Dashboard dedicat operatorilor HIR',
         pricing_card2_p5: 'Negociere directă',
         pricing_card2_cta: 'Discutați cu echipa',
         pricing_disclaimer:
@@ -679,7 +679,7 @@ export const dictionaries = {
       features: {
         page_title: 'Funcționalități — HIR Restaurant Suite',
         page_description:
-          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări, dashboard fleet manager — toate într-o singură platformă.',
+          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări, dashboard pentru operatori HIR — toate într-o singură platformă.',
         og_title: 'Funcționalități — totul într-o singură platformă',
         og_subtitle:
           'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări.',
@@ -714,13 +714,13 @@ export const dictionaries = {
           'Aplicația de curier inclusă: dispatch, hartă, GPS, dovadă livrare.',
         item_courier_pricing_title: 'Curier HIR la 3 RON / livrare',
         item_courier_pricing_body:
-          'Tarif flat indiferent de valoarea comenzii. Fără procent, fără peak fees. Susțineți direct rețeaua HIR (curier propriu sau prin flotă parteneră).',
+          'Tarif flat indiferent de valoarea comenzii. Fără procent, fără peak fees. Susțineți direct rețeaua HIR de curieri (proprii sau ai HIR).',
         item_courier_map_title: 'Hartă + GPS în timp real',
         item_courier_map_body:
           'Curierul vede comenzile pe hartă, navighează cu Google Maps în-app, status sync în timp real cu restaurantul și clientul.',
-        item_courier_multifleet_title: 'Multi-fleet, multi-restaurant',
+        item_courier_multifleet_title: 'Soluție pentru lanțuri și volum mare',
         item_courier_multifleet_body:
-          'Un curier poate prelua comenzi de la mai multe restaurante simultan. Manager de flotă vede agregat KPI + venituri pe rider.',
+          'Un curier poate prelua comenzi de la mai multe restaurante simultan. Operatorul HIR vede agregat KPI + venituri pe curier.',
         group3_title: 'Pentru clienți',
         group3_intro:
           'Experiența finală pe care o vede cumpărătorul când deschide pagina dumneavoastră.',
@@ -1170,7 +1170,7 @@ export const dictionaries = {
         og_title: 'GloriaFood is shutting down. Migrate to HIR Restaurant for free.',
         hero_heading: 'GloriaFood shuts down April 30, 2027.',
         hero_subheading: 'We migrate your menu in 5 minutes.',
-        hero_body: 'The Romanian alternative built for small and medium restaurants. 0% aggregator commission. Your own courier or through our partner fleet network.',
+        hero_body: 'The Romanian alternative built for small and medium restaurants. 0% aggregator commission. HIR courier or your own.',
         days_remaining_template: '{days} days remaining',
         cta_migrate: 'Migrate for free now',
         cta_reseller: "I'm a GloriaFood reseller",
@@ -1384,20 +1384,20 @@ export const dictionaries = {
         pricing_card1_title: 'HIR Direct',
         pricing_card1_price: '3 RON',
         pricing_card1_price_sub: '/ delivered order',
-        pricing_card1_p1: 'HIR courier — your own or via the fleet network',
+        pricing_card1_p1: 'HIR courier — your own or via the HIR courier network',
         pricing_card1_p2: 'White-label storefront included',
         pricing_card1_p3: 'GloriaFood importer included',
         pricing_card1_p4: 'CRM + loyalty + reviews included',
         pricing_card1_p5: 'No subscription, no setup fee',
         pricing_card1_cta: 'Start the migration',
-        pricing_card2_tag: 'ENTERPRISE / FLEET',
+        pricing_card2_tag: 'ENTERPRISE / HIGH VOLUME',
         pricing_card2_title: 'Passthrough + 3 RON',
         pricing_card2_price: 'real cost + 3 RON',
         pricing_card2_price_sub: '/ delivered order',
-        pricing_card2_p1: 'For chains or fleets with high volume',
+        pricing_card2_p1: 'For chains or restaurants with high volume',
         pricing_card2_p2: 'Real transport cost of your courier',
         pricing_card2_p3: '+ 3 RON HIR platform fee',
-        pricing_card2_p4: 'Dedicated fleet manager dashboard',
+        pricing_card2_p4: 'Dedicated HIR operator dashboard',
         pricing_card2_p5: 'Direct contract negotiation',
         pricing_card2_cta: 'Talk to the team',
         pricing_disclaimer:
@@ -1430,7 +1430,7 @@ export const dictionaries = {
       features: {
         page_title: 'Features — HIR Restaurant Suite',
         page_description:
-          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations, fleet manager dashboard — all in one platform.',
+          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations, HIR operator dashboard — all in one platform.',
         og_title: 'Features — everything in one platform',
         og_subtitle:
           'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations.',
@@ -1465,13 +1465,13 @@ export const dictionaries = {
           'The included courier app: dispatch, map, GPS, proof of delivery.',
         item_courier_pricing_title: 'HIR courier at 3 RON / delivery',
         item_courier_pricing_body:
-          'Flat fare regardless of order value. No percentage, no peak fees. You back the HIR network directly (own courier or via partner fleet).',
+          'Flat fare regardless of order value. No percentage, no peak fees. You back the HIR courier network directly (your own courier or HIR couriers).',
         item_courier_map_title: 'Map + real-time GPS',
         item_courier_map_body:
           'The courier sees orders on a map, navigates in-app with Google Maps, status syncs in real time with the restaurant and customer.',
-        item_courier_multifleet_title: 'Multi-fleet, multi-restaurant',
+        item_courier_multifleet_title: 'For chains and high-volume restaurants',
         item_courier_multifleet_body:
-          'A courier can pick up orders from several restaurants at once. Fleet managers see aggregated KPIs and revenue per rider.',
+          'A courier can pick up orders from several restaurants at once. HIR operators see aggregated KPIs and revenue per courier.',
         group3_title: 'For customers',
         group3_intro:
           'The end experience the buyer sees when they open your page.',

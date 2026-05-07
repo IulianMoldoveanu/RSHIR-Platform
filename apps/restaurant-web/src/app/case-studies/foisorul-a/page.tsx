@@ -198,7 +198,7 @@ export default function FoisorulACaseStudyPage() {
             <Deliverable
               icon={<CheckCircle2 className="h-5 w-5" />}
               title="Livrare HIR la 3 RON flat"
-              body="Curier propriu sau prin rețeaua HIR de flotă. Tarif fix indiferent de valoare."
+              body="Curier propriu sau prin rețeaua HIR de curieri. Tarif fix indiferent de valoare."
             />
             <Deliverable
               icon={<CheckCircle2 className="h-5 w-5" />}
