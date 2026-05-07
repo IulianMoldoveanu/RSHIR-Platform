@@ -119,7 +119,12 @@ export type AuditAction =
   | 'cs_response_generated'
   | 'cs_response_posted'
   | 'cs_response_dismissed'
-  | 'cs_complaint_template_used';
+  | 'cs_complaint_template_used'
+  // Fleet Allocation grid — PR1b
+  | 'fleet_assignment_created'
+  | 'fleet_assignment_role_changed'
+  | 'fleet_assignment_terminated'
+  | 'fleet_realloc_recommendation_run';
 
 export async function logAudit(args: {
   tenantId: string;
