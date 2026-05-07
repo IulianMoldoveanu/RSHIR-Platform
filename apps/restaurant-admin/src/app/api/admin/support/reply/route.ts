@@ -30,6 +30,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { supportReplyEmail } from '@/lib/email/support-reply';
 import { HIR_PLATFORM_BRAND, type EmailBrand } from '@/lib/email/layout';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,6 +65,18 @@ async function isPlatformAdmin(): Promise<AuthOk | AuthErr> {
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF defense: cookie-authed PLATFORM_ADMIN endpoint that sends emails to
+  // arbitrary customer addresses on success — refuse cross-origin POSTs even
+  // if the operator is logged in. Matches the pattern in /api/zones,
+  // /api/domains, etc.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json(
+      { error: 'forbidden_origin', reason: origin.reason },
+      { status: 403 },
+    );
+  }
+
   const auth = await isPlatformAdmin();
   if (!auth.ok) {
     return NextResponse.json(
