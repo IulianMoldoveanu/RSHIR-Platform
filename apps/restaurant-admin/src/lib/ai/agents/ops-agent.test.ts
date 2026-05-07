@@ -326,6 +326,42 @@ describe('ops-agent / ops.suggest_delivery_zones', () => {
     expect(data.proposed_zones).toHaveLength(0);
     expect(data.notes).toMatch(/Sub 5 comenzi/);
   });
+
+  test('center coord validation: rejects zone with empty center {}', async () => {
+    // Codex P2 (PR #364 round 2) regression test.
+    const state = defaultState();
+    state.addresses = Array.from({ length: 6 }).map((_, i) => ({
+      id: `addr-${i}`,
+      latitude: 45.65 + i * 0.005,
+      longitude: 25.6 + i * 0.005,
+    }));
+    state.orders = state.addresses.map((a) => ({ delivery_address_id: a.id }));
+    stubAnthropic({
+      proposed_zones: [
+        {
+          name: 'Bad Zone',
+          polygon: null,
+          radius_km: 3.0,
+          center: {}, // missing lat/lng — must be rejected
+          justification: 'X',
+          est_orders_per_day: 1.0,
+        },
+      ],
+      notes: '',
+    });
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.suggest_delivery_zones',
+      payload: {},
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toBe('handler_threw');
+    expect(result.message).toMatch(/zone needs polygon OR radius\+center/);
+  });
 });
 
 describe('ops-agent / ops.optimize_courier_schedule', () => {

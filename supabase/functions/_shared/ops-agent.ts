@@ -592,9 +592,20 @@ function validateZonesShape(obj: unknown): { proposed_zones: unknown[]; notes: s
     if (!nonEmptyString(zr.justification, 400)) throw new Error('anthropic_invalid_shape: zone.justification');
     if (clampNumber(zr.est_orders_per_day, 0, 10000) === null)
       throw new Error('anthropic_invalid_shape: zone.est_orders_per_day');
-    const hasPoly = zr.polygon && typeof zr.polygon === 'object';
-    const hasRadius = clampNumber(zr.radius_km, 0.01, 50) !== null && zr.center && typeof zr.center === 'object';
-    if (!hasPoly && !hasRadius) throw new Error('anthropic_invalid_shape: zone needs polygon OR radius+center');
+    // Codex P2 (PR #364 round 2): when radius mode, also require center
+    // to be {lat: number, lng: number} with finite values in valid ranges
+    // — otherwise `{radius_km:3, center:{}}` slips through and the admin
+    // mirror's Zod schema (which expects numeric coords) + downstream
+    // map rendering reject it after the row is already in the result.
+    const hasPoly = !!zr.polygon && typeof zr.polygon === 'object';
+    let hasRadius = false;
+    if (clampNumber(zr.radius_km, 0.01, 50) !== null && zr.center && typeof zr.center === 'object') {
+      const c = zr.center as Record<string, unknown>;
+      const lat = clampNumber(c.lat, -90, 90);
+      const lng = clampNumber(c.lng, -180, 180);
+      hasRadius = lat !== null && lng !== null;
+    }
+    if (!hasPoly && !hasRadius) throw new Error('anthropic_invalid_shape: zone needs polygon OR radius+center{lat,lng}');
   }
   return { proposed_zones: arr, notes };
 }
