@@ -36,3 +36,17 @@ export type {
   DatecsReceiptStep,
   DatecsVatGroup,
 } from './receipts/datecs';
+
+// Payment Service Provider (PSP) adapters — separate contract from the
+// POS integration adapters above. First adapter: Netopia (RO).
+export type {
+  PspAdapter,
+  PspContext,
+  PspCredentials,
+  PspIntentInput,
+  PspIntentResult,
+  PspMode,
+  PspProviderKey,
+  PspWebhookEvent,
+} from './payment/contract';
+export { netopiaAdapter } from './payment/netopia';

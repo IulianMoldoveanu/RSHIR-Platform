@@ -107,7 +107,7 @@ export default async function PaymentsSettingsPage() {
             label="Card online (Netopia)"
             status={netopiaActive ? 'Activ' : 'Inactiv'}
             tone={netopiaActive ? 'emerald' : 'zinc'}
-            description="Carduri emise în România. Activare prin echipa HIR."
+            description="Carduri emise în România. Configurați prin /dashboard/settings/payments/netopia."
           />
         </div>
       </section>
