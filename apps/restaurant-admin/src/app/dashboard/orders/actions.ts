@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
 import { logAudit } from '@/lib/audit';
-import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { dispatchOrderEvent, probeCustomDispatchEligibility } from '@/lib/integration-bus';
 import { awardLoyaltyForDeliveredOrder } from '@/lib/loyalty';
 import {
   dispatchToExternalFleet,
@@ -372,23 +372,8 @@ export async function printFiscalReceipt(
   }
 
   const admin = createAdminClient();
-
-  // Probe: does the tenant have at least one active Custom provider?
-  // If not, we tell the UI cleanly instead of silently dropping the
-  // event into the bus (where it would be filtered out anyway).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
-  const { data: customs, error: probeErr } = await sb
-    .from('integration_providers')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .eq('provider_key', 'custom')
-    .eq('is_active', true)
-    .limit(1);
-  if (probeErr) return { ok: false, error: probeErr.message };
-  if (!customs || customs.length === 0) {
-    return { ok: true, queued: false, reason: 'no_custom_provider' };
-  }
 
   // Load order with the same shape fireExternalDispatch uses, plus
   // payment_method / payment_status / status / total_ron breakdown
@@ -414,21 +399,34 @@ export async function printFiscalReceipt(
     priceRon?: number;
     price_ron?: number;
     unit_price_ron?: number;
+    lineTotalRon?: number;
+    line_total_ron?: number;
   };
   const rawItems = Array.isArray(order.items) ? (order.items as LineItem[]) : [];
 
   // Build the OrderPayload shape integration-core expects. Mirror the
   // priceRon-then-fallbacks pattern from fireExternalDispatch so the
-  // receipt has a non-zero unit price for older items.
+  // receipt has a non-zero unit price for older items. Also pass the
+  // adjusted `lineTotalRon` when present so the Datecs receipt builder
+  // can reconcile against the order total when modifiers / promos
+  // were applied.
   const payload = {
     orderId: order.id as string,
     source: 'MANUAL_ADMIN' as const,
     status: order.status as string,
-    items: rawItems.map((i) => ({
-      name: i.name ?? 'Produs',
-      qty: Number(i.qty ?? i.quantity ?? 1),
-      priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
-    })),
+    items: rawItems.map((i) => {
+      const qty = Number(i.qty ?? i.quantity ?? 1);
+      const lineTotalRaw = i.lineTotalRon ?? i.line_total_ron;
+      const out: { name: string; qty: number; priceRon: number; lineTotalRon?: number } = {
+        name: i.name ?? 'Produs',
+        qty,
+        priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
+      };
+      if (typeof lineTotalRaw === 'number' && Number.isFinite(lineTotalRaw)) {
+        out.lineTotalRon = Number(lineTotalRaw);
+      }
+      return out;
+    }),
     totals: {
       subtotalRon: Number(order.subtotal_ron ?? 0),
       deliveryFeeRon: Number(order.delivery_fee_ron ?? 0),
@@ -453,10 +451,30 @@ export async function printFiscalReceipt(
     paymentMethod: (order.payment_method as 'CARD' | 'COD' | null) ?? null,
   };
 
-  // Dispatch through the existing bus path. Status filter applies (if
-  // tenant only enabled DELIVERED, a PREPARING reprint won't fire —
-  // that's the right semantics). Rate limit applies. Queue + retry
-  // handle transient failures.
+  // Pre-flight eligibility probe — the manual reprint button must
+  // tell the operator the truth. Without this check, the bus would
+  // silently drop the event when (a) no Custom provider is configured,
+  // (b) the operator's status filter excludes the current status (e.g.
+  // they enabled DELIVERED-only and the order is PREPARING), or
+  // (c) the per-tenant hourly cap is hit. UI would show "Trimis" while
+  // nothing actually printed.
+  const eligibility = await probeCustomDispatchEligibility(
+    tenantId,
+    'order.status_changed',
+    { status: payload.status },
+  );
+  if (eligibility === 'no_custom') {
+    return { ok: true, queued: false, reason: 'no_custom_provider' };
+  }
+  if (eligibility === 'filtered_out') {
+    return { ok: true, queued: false, reason: 'status_filtered_out' };
+  }
+  if (eligibility === 'rate_limited') {
+    return { ok: true, queued: false, reason: 'rate_limited' };
+  }
+
+  // Eligible — dispatch through the existing bus path. Queue + retry
+  // handle transient failures from the companion.
   await dispatchOrderEvent(
     tenantId,
     'status_changed',

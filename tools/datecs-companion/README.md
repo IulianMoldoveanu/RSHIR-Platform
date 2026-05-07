@@ -85,18 +85,21 @@ node list-ports.js
 
 # 4. Copy + edit env config.
 cp .env.example .env
-# (edit .env — paste COMPANION_TOKEN/HIR_WEBHOOK_SECRET from HIR admin,
+# (edit .env — paste HIR_WEBHOOK_SECRET from HIR admin,
 #  set DATECS_SERIAL_PATH=COM3, leave DATECS_DRY_RUN=1 the first time)
 
-# 5. Start the companion (loads .env automatically if you use a .env loader; see "running" below).
+# 5. Start the companion. `npm start` runs Node with `--env-file=.env`,
+#    so the `.env` file you just created is loaded automatically.
 npm start
 # → [companion] HIR Datecs companion listening on :7890
 # → [companion] dryRun=1 serialPath=COM3 baud=115200
 ```
 
-> **Note on `.env` loading:** Node 20.6+ supports `node --env-file=.env server.js`.
-> On older Node, install `dotenv` and add `import 'dotenv/config'` to the top
-> of `server.js`, OR set the env vars manually in your shell before `npm start`.
+> **Node version:** the `start` script uses Node's native `--env-file`
+> flag, which requires Node ≥ 20.6 (the engine pin in `package.json`).
+> If you must run on an older Node, either set the env vars in your
+> shell before `node server.js`, or `npm i dotenv` and add
+> `import 'dotenv/config'` at the top of `server.js`.
 
 ---
 

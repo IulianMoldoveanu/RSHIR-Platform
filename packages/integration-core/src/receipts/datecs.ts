@@ -205,10 +205,25 @@ export function buildDatecsReceipt(input: BuildReceiptInput): DatecsReceiptProgr
     text: sanitizeLine(`HIR #${order.orderId.slice(0, 8)}`),
   });
 
-  // Sale lines — every product as one line.
+  // Sale lines — every product as one line. Each line emitted at the
+  // ADJUSTED unit price (base + modifiers): when the producer fills
+  // `lineTotalRon` we compute `unitPriceRon = lineTotalRon / qty`;
+  // otherwise we fall back to `priceRon` (legacy adapters / pre-pricing
+  // refactor orders). This is the only way the Datecs running
+  // line-subtotal can match the payment line when modifiers carry a
+  // price delta — firmware refuses `close` when running total ≠ paid
+  // total.
+  let saleLineSumRon = 0;
   for (const item of order.items) {
     const qty = item.qty > 0 ? item.qty : 1;
-    const unit = roundRon(item.priceRon);
+    const lineTotal =
+      typeof item.lineTotalRon === 'number' && Number.isFinite(item.lineTotalRon)
+        ? roundRon(item.lineTotalRon)
+        : null;
+    const unit =
+      lineTotal !== null && qty > 0
+        ? roundRon(lineTotal / qty)
+        : roundRon(item.priceRon);
     if (unit <= 0) {
       // 0-RON or negative items skipped — printer rejects 0-RON sales
       // on most RO firmware revisions. Keep the receipt clean.
@@ -221,6 +236,10 @@ export function buildDatecsReceipt(input: BuildReceiptInput): DatecsReceiptProgr
       unitPriceRon: unit,
       quantity: qty,
     });
+    // Track using the actual emitted unit×qty (post-rounding) so the
+    // reconciliation delta below uses the same numbers the printer
+    // will tally internally.
+    saleLineSumRon = roundRon(saleLineSumRon + roundRon(unit * qty));
   }
 
   // Delivery fee as its own sale line (only if > 0). Same VAT group
@@ -235,6 +254,29 @@ export function buildDatecsReceipt(input: BuildReceiptInput): DatecsReceiptProgr
       unitPriceRon: deliveryFee,
       quantity: 1,
     });
+    saleLineSumRon = roundRon(saleLineSumRon + deliveryFee);
+  }
+
+  // Reconciliation — when a promo / loyalty discount was applied, the
+  // line-subtotal sum exceeds `totals.totalRon`. Emit a synthetic
+  // negative-price "Reducere" sale line so the printer's running tally
+  // exactly matches the payment line. Without this, Datecs firmware
+  // aborts the receipt on `close` (running total ≠ paid total) and
+  // beeps. The negative-price sale-line pattern is supported by FP-700
+  // / FP-2000 / FMP-350 / DP-50 firmware revisions sold in RO since
+  // 2020 — earlier devices that reject negative prices need a firmware
+  // bump (documented in companion README).
+  const targetTotal = roundRon(order.totals.totalRon);
+  const discountRon = roundRon(saleLineSumRon - targetTotal);
+  if (discountRon > 0) {
+    steps.push({
+      kind: 'sale_line',
+      description: 'Reducere',
+      vat,
+      unitPriceRon: roundRon(-discountRon),
+      quantity: 1,
+    });
+    saleLineSumRon = roundRon(saleLineSumRon - discountRon);
   }
 
   // Defensive: if no sale lines made it through (all 0-RON), skip

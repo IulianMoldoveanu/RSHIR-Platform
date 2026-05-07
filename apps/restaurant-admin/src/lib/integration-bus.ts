@@ -181,17 +181,27 @@ async function hydrateOrderPayload(
     priceRon?: number;
     price_ron?: number;
     unit_price_ron?: number;
+    lineTotalRon?: number;
+    line_total_ron?: number;
   };
   const rawItems = Array.isArray(data.items) ? (data.items as LineItem[]) : [];
   return {
     orderId: data.id,
     source: 'INTERNAL_STOREFRONT',
     status: (data.status as string) ?? fallbackStatus,
-    items: rawItems.map((i) => ({
-      name: i.name ?? 'Produs',
-      qty: Number(i.qty ?? i.quantity ?? 1),
-      priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
-    })),
+    items: rawItems.map((i) => {
+      const qty = Number(i.qty ?? i.quantity ?? 1);
+      const lineTotalRaw = i.lineTotalRon ?? i.line_total_ron;
+      const out: { name: string; qty: number; priceRon: number; lineTotalRon?: number } = {
+        name: i.name ?? 'Produs',
+        qty,
+        priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
+      };
+      if (typeof lineTotalRaw === 'number' && Number.isFinite(lineTotalRaw)) {
+        out.lineTotalRon = Number(lineTotalRaw);
+      }
+      return out;
+    }),
     totals: {
       subtotalRon: Number(data.subtotal_ron ?? 0),
       deliveryFeeRon: Number(data.delivery_fee_ron ?? 0),
@@ -246,6 +256,46 @@ async function enqueue(rows: EventRow[]): Promise<void> {
   } catch (e) {
     console.error('[integration-bus] enqueue threw', e);
   }
+}
+
+// Pre-flight probe used by the manual "Tipărește bon fiscal" button on
+// the order detail page. dispatchOrderEvent() drops events that miss
+// the status filter or hit the rate limit silently — that's the right
+// behavior for the automatic event bus (we don't surface bus internals
+// to a payment flow), but the manual reprint button needs to tell the
+// operator WHY their click didn't print, otherwise they keep clicking.
+//
+// Returns:
+//   - 'eligible'        — at least one Custom provider would receive
+//                         the event (filter ok + not throttled)
+//   - 'no_custom'       — no active Custom provider configured
+//   - 'filtered_out'    — Custom provider exists but its
+//                         `fire_on_statuses` excludes this status
+//   - 'rate_limited'    — Custom provider exists, status passes, but
+//                         the per-tenant hourly cap is hit
+export type CustomDispatchEligibility =
+  | 'eligible'
+  | 'no_custom'
+  | 'filtered_out'
+  | 'rate_limited';
+
+export async function probeCustomDispatchEligibility(
+  tenantId: string,
+  eventType: 'order.created' | 'order.status_changed' | 'order.cancelled',
+  payload: { status?: string },
+): Promise<CustomDispatchEligibility> {
+  const providers = await activeProviders(tenantId);
+  const customs = providers.filter((p) => p.provider_key === 'custom');
+  if (customs.length === 0) return 'no_custom';
+  // If ANY custom provider passes the status filter, dispatch is
+  // eligible — at least one receiver will get the event. Otherwise
+  // every custom is filtered out and the button is a no-op.
+  const anyPasses = customs.some((p) =>
+    customStatusFilterPasses(p.config, eventType, payload as Record<string, unknown>),
+  );
+  if (!anyPasses) return 'filtered_out';
+  if (await shouldThrottleCustom(tenantId)) return 'rate_limited';
+  return 'eligible';
 }
 
 export async function dispatchOrderEvent(

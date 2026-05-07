@@ -150,17 +150,27 @@ async function hydrateOrderPayload(
     priceRon?: number;
     price_ron?: number;
     unit_price_ron?: number;
+    lineTotalRon?: number;
+    line_total_ron?: number;
   };
   const rawItems = Array.isArray(data.items) ? (data.items as LineItem[]) : [];
   return {
     orderId: data.id,
     source: 'INTERNAL_STOREFRONT',
     status: (data.status as string) ?? fallbackStatus,
-    items: rawItems.map((i) => ({
-      name: i.name ?? 'Produs',
-      qty: Number(i.qty ?? i.quantity ?? 1),
-      priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
-    })),
+    items: rawItems.map((i) => {
+      const qty = Number(i.qty ?? i.quantity ?? 1);
+      const lineTotalRaw = i.lineTotalRon ?? i.line_total_ron;
+      const out: { name: string; qty: number; priceRon: number; lineTotalRon?: number } = {
+        name: i.name ?? 'Produs',
+        qty,
+        priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
+      };
+      if (typeof lineTotalRaw === 'number' && Number.isFinite(lineTotalRaw)) {
+        out.lineTotalRon = Number(lineTotalRaw);
+      }
+      return out;
+    }),
     totals: {
       subtotalRon: Number(data.subtotal_ron ?? 0),
       deliveryFeeRon: Number(data.delivery_fee_ron ?? 0),
