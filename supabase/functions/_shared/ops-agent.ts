@@ -363,17 +363,34 @@ async function fetchScheduleHeatmap(
   // a 19:00 RO local peak would land in the 16:00 (or 17:00 during DST) UTC
   // bucket, and the schedule prompt — which says "hour is local Europe/Bucharest"
   // — would mislead the model into recommending couriers 2-3 hours early.
-  const orderBuckets: Map<string, number> = new Map();
+  //
+  // Codex P2 (PR #364 round 5): normalize by the number of observed
+  // calendar dates per (dow, hour) bucket so the model receives an
+  // average per occurrence, not the cumulative total. Without this,
+  // 4 orders × 2 Mondays at 19:00 → orders=8 and the prompt
+  // (sizing by 3-5 orders/hour) staffs ~double the actual hourly demand.
+  type OrderHist = { sum: number; days: Set<string> };
+  const orderBuckets: Map<string, OrderHist> = new Map();
   for (const o of orders ?? []) {
-    const { dow, hour } = bucketToLocal((o as { created_at: string }).created_at);
-    if (dow === null || hour === null) continue;
-    const k = `${dow}:${hour}`;
-    orderBuckets.set(k, (orderBuckets.get(k) ?? 0) + 1);
+    const created = (o as { created_at: string }).created_at;
+    const parts = bucketToLocalParts(new Date(created));
+    if (parts.dow === null || parts.hour === null || parts.dateKey === null) continue;
+    const k = `${parts.dow}:${parts.hour}`;
+    const cur = orderBuckets.get(k) ?? { sum: 0, days: new Set<string>() };
+    cur.sum += 1;
+    cur.days.add(parts.dateKey);
+    orderBuckets.set(k, cur);
   }
   const orderCounts: Array<{ dow: number; hour: number; orders: number }> = [];
-  for (const [k, n] of orderBuckets.entries()) {
+  for (const [k, v] of orderBuckets.entries()) {
     const [dowStr, hourStr] = k.split(':');
-    orderCounts.push({ dow: Number(dowStr), hour: Number(hourStr), orders: n });
+    const days = Math.max(1, v.days.size);
+    orderCounts.push({
+      dow: Number(dowStr),
+      hour: Number(hourStr),
+      // Average orders per observed occurrence, rounded to 1 decimal.
+      orders: +(v.sum / days).toFixed(1),
+    });
   }
 
   // Courier capacity: courier_shifts started/ended over the same window.
@@ -589,12 +606,14 @@ Reguli:
 
 const SYSTEM_PROMPT_SCHEDULE = `Ești asistentul "Hepy" pentru un restaurant din România. Pe baza histogramei comenzi/oră vs curieri online/oră din ultimele 14 zile, propui un program de personal pentru fiecare oră a săptămânii unde există un decalaj semnificativ.
 
+ATENȚIE: cifra "avg_orders_per_occurrence" din input reprezintă MEDIA comenzilor pe instanță observată a (dow, hour) — adică deja per-oră, nu total cumulat. Exemplu: dacă au fost 4 comenzi la fiecare luni 19:00 timp de 2 săptămâni, primești 4.0, nu 8.0. Nu mai diviza tu.
+
 Reguli:
 - Returnezi DOAR JSON valid, fără text suplimentar.
 - Forma: {"schedule":[{"day_of_week":1,"hour":19,"recommended_couriers":3,"current_avg":1.2,"gap":1.8}],"summary":"..."}.
 - day_of_week: 0=Duminică, 1=Luni, ..., 6=Sâmbătă (Postgres dow).
 - hour: ora locală 0-23 (presupune fus Europe/Bucharest).
-- recommended_couriers: număr întreg 0-50, bazat pe presupunerea că un curier livrează 3-5 comenzi/oră în orele de vârf.
+- recommended_couriers: număr întreg 0-50, bazat pe presupunerea că un curier livrează 3-5 comenzi/oră în orele de vârf, aplicat direct asupra avg_orders_per_occurrence.
 - current_avg: media curentă (preluată direct din input).
 - gap: recommended_couriers - current_avg (poate fi negativ pentru sub-utilizare).
 - schedule: maxim 168 elemente. Concentrează-te pe orele cu gap >= 1 (prioritate) sau cu gap <= -1 (sub-utilizare). Ignoră orele cu volum mic.
@@ -800,7 +819,7 @@ const optimizeCourierScheduleHandler: IntentHandler = {
     const apiKey = await getApiKey();
     const orderLines = heat.orderCounts
       .sort((a, b) => (a.dow - b.dow) || (a.hour - b.hour))
-      .map((r) => `dow=${r.dow} h=${r.hour} orders=${r.orders}`)
+      .map((r) => `dow=${r.dow} h=${r.hour} avg_orders_per_occurrence=${r.orders}`)
       .slice(0, 168);
     const courierLines = heat.courierAvg
       .sort((a, b) => (a.dow - b.dow) || (a.hour - b.hour))
