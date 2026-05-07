@@ -400,6 +400,12 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.', readOnly: true },
   { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.', readOnly: true },
   { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.', readOnly: true },
+  // Sprint 14 ops sub-agent (PR #364): on-demand suggestions over the
+  // tenant's recent operational data. Read-only; results are render-only
+  // and never auto-applied.
+  { name: 'ops.suggest_delivery_zones', agent: 'ops', defaultCategory: 'ops.read', description: 'Sugerează zone noi de livrare pe baza comenzilor din 30 de zile.', readOnly: true },
+  { name: 'ops.optimize_courier_schedule', agent: 'ops', defaultCategory: 'ops.read', description: 'Propune program curieri pe baza istoricului 14 zile.', readOnly: true },
+  { name: 'ops.flag_kitchen_bottlenecks', agent: 'ops', defaultCategory: 'ops.read', description: 'Identifică produsele care încetinesc fluxul (proxy 7 zile).', readOnly: true },
   // --- CS agent (write, low-risk) ---
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
   { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },

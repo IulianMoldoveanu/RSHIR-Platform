@@ -53,12 +53,11 @@ import {
 import { dispatchIntent } from '../_shared/master-orchestrator.ts';
 import { registerMenuAgentIntents } from '../_shared/menu-agent.ts';
 import { registerAnalyticsIntents } from '../_shared/analytics-intents.ts';
+import { registerOpsAgentIntents } from '../_shared/ops-agent.ts';
 
-// Cold-start: register sub-agent intents on the orchestrator registry.
-// Idempotent — registerIntent ignores duplicates. Each sub-agent registers
-// once per Edge Function instance.
 registerMenuAgentIntents();
 registerAnalyticsIntents();
+registerOpsAgentIntents();
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
