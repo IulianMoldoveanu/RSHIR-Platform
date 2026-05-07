@@ -14,6 +14,7 @@
 //   /confirm <code>    — confirm a pending destructive action
 //   /tenant <slug>     — set active tenant for this chat (Hepy intents)
 //   /vreme [oras]      — current weather for the tenant's city (or named city)
+//   /evenimente [oras] — upcoming events for the tenant's city (or named city)
 //   /help [hepy]       — list commands (or Hepy NL examples)
 //   /status hepy       — last 10 Hepy intent runs
 //
@@ -903,6 +904,117 @@ async function ownerWeather(
 }
 
 // =====================================================================
+// HEPY — Events (read, all roles)
+// =====================================================================
+// `/evenimente` (tenant's city) or `/evenimente <oras>` (named). Reads the
+// next 5 upcoming `city_events` rows. Lane EVENTS-SIGNAL-INGESTION 2026-05-08.
+//
+// Resolution mirrors ownerWeather above. Same diacritic-normalised slug
+// match; same auto-detect-FK guardrail (two cheap queries instead of an
+// embed alias).
+
+async function ownerEvents(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  let citySlug: string | null = null;
+  let cityName: string | null = null;
+  const namedArg = args.trim();
+
+  if (namedArg) {
+    citySlug = _vremeNormalize(namedArg);
+  } else {
+    const { data: trow } = await supabase
+      .from('tenants')
+      .select('city_id, settings')
+      .eq('id', tenant.tenant_id)
+      .maybeSingle();
+    if (trow?.city_id) {
+      const { data: fkCity } = await supabase
+        .from('cities')
+        .select('slug, name')
+        .eq('id', trow.city_id)
+        .maybeSingle();
+      if (fkCity?.slug) {
+        citySlug = fkCity.slug as string;
+        cityName = (fkCity.name as string | null) ?? null;
+      }
+    }
+    if (!citySlug) {
+      const free = (trow?.settings as { city?: unknown } | null)?.city;
+      if (typeof free === 'string' && free.trim()) {
+        citySlug = _vremeNormalize(free);
+      }
+    }
+  }
+
+  if (!citySlug) {
+    return {
+      text: '<b>📅 Evenimente</b>\nNu am putut determina orașul. Folosiți <code>/evenimente &lt;oras&gt;</code>, ex: <code>/evenimente Brașov</code>.',
+      status: 'OK',
+    };
+  }
+
+  const { data: city } = await supabase
+    .from('cities')
+    .select('id, slug, name')
+    .eq('slug', citySlug)
+    .maybeSingle();
+  if (!city) {
+    return {
+      text: `<b>📅 Evenimente</b>\nOrașul <code>${escapeHtml(citySlug)}</code> nu este în lista HIR. Pentru oraș nou contactați suportul.`,
+      status: 'OK',
+    };
+  }
+  cityName = cityName ?? (city.name as string | null) ?? citySlug;
+
+  const horizonIso = new Date(Date.now() + 14 * 86400_000).toISOString();
+  const nowIso = new Date().toISOString();
+  const { data: rows } = await supabase
+    .from('city_events')
+    .select('id, event_name, event_type, start_at, venue_name, source')
+    .eq('city_id', city.id)
+    .gte('start_at', nowIso)
+    .lte('start_at', horizonIso)
+    .order('start_at', { ascending: true })
+    .limit(5);
+
+  await logHepyAudit(supabase, tenant.tenant_id, 'evenimente', {
+    city_slug: citySlug,
+    returned: rows?.length ?? 0,
+  });
+
+  const events = (rows ?? []) as Array<{
+    id: string;
+    event_name: string;
+    event_type: string;
+    start_at: string;
+    venue_name: string | null;
+    source: string;
+  }>;
+
+  if (events.length === 0) {
+    return {
+      text: `<b>📅 ${escapeHtml(cityName)}</b>\n<i>Nu sunt evenimente programate în următoarele 14 zile.</i>`,
+      status: 'OK',
+    };
+  }
+
+  const parts: string[] = [`<b>📅 Evenimente — ${escapeHtml(cityName)}</b>`];
+  for (const e of events) {
+    const start = new Date(e.start_at);
+    const dayLabel = start.toISOString().substring(0, 10);
+    const timeLabel = start.toISOString().substring(11, 16);
+    const venue = e.venue_name ? ` — ${escapeHtml(e.venue_name)}` : '';
+    parts.push(`• <b>${escapeHtml(e.event_name)}</b>\n  ${dayLabel} ${timeLabel} UTC${venue}`);
+  }
+  parts.push(`<i>actualizat zilnic la 04:07 UTC</i>`);
+
+  return { text: parts.join('\n').slice(0, 4000), status: 'OK' };
+}
+
+// =====================================================================
 // HEPY — Reservation booking (write, OWNER-only)
 // =====================================================================
 // Three intents: /rezerva (book), /rezervari (list), /anuleaza_rezervare.
@@ -1716,6 +1828,7 @@ Sau folosiți comenzile rapide:
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
 /vreme — vremea în orașul restaurantului
+/evenimente — evenimente apropiate din oraș
 /help hepy — toate comenzile`,
       status: 'OK',
     };
@@ -1738,6 +1851,7 @@ Comenzi rapide:
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
 /vreme [oras] — vremea în orașul restaurantului (sau în orașul indicat)
+/evenimente [oras] — evenimente apropiate (concerte, festivaluri, sport)
 
 Rezervări:
 /rezerva — rezervare nouă (vă voi întreba pas cu pas, sau scrieți totul într-un mesaj)
@@ -1810,6 +1924,14 @@ Comenzi auxiliare:
     const tenant = await getActiveTenant(supabase, chatId, auth);
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
     return await ownerWeather(supabase, tenant, args);
+  }
+
+  // Lane EVENTS-SIGNAL-INGESTION: /evenimente [oras]. Read-only upcoming
+  // events lookup. Same resolution rules as /vreme.
+  if (cmd === '/evenimente') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    return await ownerEvents(supabase, tenant, args);
   }
 
   // ────────────────────────────────────────────────────────────
