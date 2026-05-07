@@ -54,6 +54,8 @@ export type AuditAction =
   | 'partner.profile_updated'
   | 'partner.code_generated'
   | 'partner.landing_updated'
+  | 'partner.notification_settings_updated'
+  | 'partner.notification_sent'
   | 'team.zone_capability_granted'
   | 'team.zone_capability_revoked'
   | 'affiliate.application_approved'

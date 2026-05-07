@@ -59,6 +59,12 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
       audience_size: Number(fd.get('audience_size') ?? '') || null,
       channels,
       pitch: String(fd.get('pitch') ?? '').trim(),
+      // PR3: optional self-declared fleet-manager flag + free-text network
+      // description. Both columns exist on affiliate_applications since PR1
+      // (also_fleet_manager bool, network_description text). UI is opt-in;
+      // partner-portal IS partner-facing so the word "flotă" is allowed here.
+      also_fleet_manager: fd.get('also_fleet_manager') === 'on',
+      network_description: String(fd.get('network_description') ?? '').trim() || null,
       honeypot: String(fd.get('website') ?? ''),
     };
 
@@ -219,6 +225,33 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
           maxLength={1000}
           rows={4}
           placeholder="Spune-ne unde vei recomanda HIR: TikTok / Instagram / blog / clienți restaurant existenți / lista ta de manageri flotă. Cu cât e mai concret, cu atât aprobăm mai repede."
+          className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
+        />
+      </Field>
+
+      {/* PR3: optional fleet self-declaration + network description.
+          Partner-portal is partner-facing — word "flotă" is allowed here. */}
+      <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] hover:border-[#C7D2FE]">
+        <input
+          type="checkbox"
+          name="also_fleet_manager"
+          className="mt-0.5 accent-[#4F46E5]"
+        />
+        <span>
+          <span className="block font-medium">Operați și o flotă de curieri?</span>
+          <span className="mt-0.5 block text-xs text-[#475569]">
+            Bifați dacă, pe lângă recomandarea HIR, gestionați și curieri proprii. Dublează
+            valoarea propunerii (software + capacitate de livrare).
+          </span>
+        </span>
+      </label>
+
+      <Field label="Spuneți-ne despre rețeaua dumneavoastră">
+        <textarea
+          name="network_description"
+          maxLength={500}
+          rows={3}
+          placeholder="Ex: 12 restaurante GloriaFood pe care le ghidez pe Telegram + 4 SRL-uri flotă în Brașov și Cluj. Opțional, max. 500 caractere."
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         />
       </Field>

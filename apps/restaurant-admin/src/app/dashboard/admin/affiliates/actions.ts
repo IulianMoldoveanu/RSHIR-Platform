@@ -10,8 +10,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
-import { sendEmail } from '@/lib/email/resend';
-import { affiliateApprovedEmail } from '@/lib/email/templates';
+import { sendPartnerNotification } from '@/lib/email/partner-notify';
 
 const REVALIDATE = '/dashboard/admin/affiliates';
 const DEFAULT_BOUNTY_RON = 300;
@@ -171,15 +170,21 @@ export async function approveAffiliateApplication(
     .eq('id', application_id);
   if (updErr) return { ok: false, error: updErr.message };
 
-  // Send the approval email + log the dispatch result. Email failure is
-  // non-fatal — the partner row is the source of truth, ops can re-send
-  // manually from the admin if needed.
-  const emailRes = await sendApprovalEmail({
-    to: a.email.toLowerCase(),
-    fullName: a.full_name,
+  // PR3 — route through sendPartnerNotification so partners.notification_settings
+  // (on_application_approved) is honoured. The helper itself audit-logs the
+  // dispatch result; we still log the high-level affiliate.application_approved
+  // event below for the admin queue audit trail. Email failure is non-fatal.
+  const referralLink = `${PUBLIC_WEB_BASE_URL}/r/${assignedCode}`;
+  const dashboardLink = process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL
+    ? `${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL}/partner-portal`
+    : 'https://hir-restaurant-admin.vercel.app/partner-portal';
+  const notifyRes = await sendPartnerNotification(partnerId, {
+    kind: 'application_approved',
     code: assignedCode,
-    bounty,
-  }).catch((e) => ({ ok: false as const, reason: 'request_failed' as const, detail: e instanceof Error ? e.message : String(e) }));
+    bountyRon: bounty,
+    referralUrl: referralLink,
+    dashboardUrl: dashboardLink,
+  }).catch((e) => ({ ok: false as const, reason: 'send_failed' as const, detail: e instanceof Error ? e.message : String(e) }));
 
   await logAudit({
     tenantId: '00000000-0000-0000-0000-000000000000',
@@ -192,38 +197,14 @@ export async function approveAffiliateApplication(
       partner_code: assignedCode,
       bounty_one_shot_ron: bounty,
       audience_type: a.audience_type,
-      email_sent: emailRes.ok,
-      email_error: emailRes.ok ? null : emailRes.reason,
+      email_sent: notifyRes.ok && 'sent' in notifyRes ? notifyRes.sent : false,
+      email_skip_reason: notifyRes.ok && 'sent' in notifyRes && !notifyRes.sent ? notifyRes.reason : null,
+      email_error: notifyRes.ok ? null : notifyRes.reason,
     },
   });
 
   revalidatePath(REVALIDATE);
   return { ok: true, partner_id: partnerId };
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Approval email — congrats + here's your code + here's your dashboard.
-// ────────────────────────────────────────────────────────────────────────
-
-async function sendApprovalEmail(args: {
-  to: string;
-  fullName: string;
-  code: string;
-  bounty: number;
-}) {
-  const referralLink = `${PUBLIC_WEB_BASE_URL}/r/${args.code}`;
-  const dashboardLink = process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL
-    ? `${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL}/reseller`
-    : 'https://hir-restaurant-admin.vercel.app/reseller';
-
-  const tpl = affiliateApprovedEmail({
-    fullName: args.fullName,
-    code: args.code,
-    bountyRon: args.bounty,
-    referralUrl: referralLink,
-    dashboardUrl: dashboardLink,
-  });
-  return sendEmail({ to: args.to, subject: tpl.subject, html: tpl.html, text: tpl.text });
 }
 
 const rejectSchema = z.object({

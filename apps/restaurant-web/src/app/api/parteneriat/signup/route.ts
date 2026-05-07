@@ -43,6 +43,10 @@ const schema = z.object({
   audience_size: z.number().int().min(0).max(100_000_000).nullable().optional(),
   channels: z.array(z.string().min(1).max(40)).max(20).default([]),
   pitch: z.string().trim().min(20).max(1000),
+  // PR3: optional partner self-declaration. Both columns exist on
+  // affiliate_applications since PR1 (default false / null).
+  also_fleet_manager: z.boolean().optional().default(false),
+  network_description: z.string().trim().max(500).nullable().optional(),
   honeypot: z.string().max(200).optional(),
 });
 
@@ -190,6 +194,10 @@ export async function POST(req: NextRequest) {
     audience_size: data.audience_size ?? null,
     channels: data.channels,
     pitch: data.pitch,
+    // PR3: PR1 schema columns; defaults are false/null but we pass through
+    // the form values for transparency in admin queue.
+    also_fleet_manager: data.also_fleet_manager ?? false,
+    network_description: data.network_description ?? null,
     honeypot: null,
     ip_hash: hashIp(ip),
     user_agent: ua.slice(0, 500),

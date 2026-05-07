@@ -102,3 +102,49 @@ export async function updatePartnerProfile(input: {
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
+
+// ────────────────────────────────────────────────────────────
+// PR3: updatePartnerNotificationSettings
+// 3 boolean toggles persisted into partners.notification_settings (jsonb).
+// Defaults from PR1 migration: all true except churn (we keep that default
+// honest — partners who explicitly toggled it ON before should not be reset).
+// ────────────────────────────────────────────────────────────
+
+export async function updatePartnerNotificationSettings(input: {
+  on_application_approved: boolean;
+  on_tenant_went_live: boolean;
+  on_tenant_churned: boolean;
+}): Promise<PartnerActionResult> {
+  const guard = await requireActivePartner();
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  // Whitelist the 3 keys we expose in the UI; future keys (e.g.
+  // on_commission_paid) stay at PR1 defaults until a UI ships.
+  const settings = {
+    on_application_approved: !!input.on_application_approved,
+    on_tenant_went_live: !!input.on_tenant_went_live,
+    on_tenant_churned: !!input.on_tenant_churned,
+    on_commission_paid: true, // pinned — future toggle
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const { error } = await admin
+    .from('partners')
+    .update({ notification_settings: settings, updated_at: new Date().toISOString() })
+    .eq('id', guard.partner.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    actorUserId: guard.userId,
+    action: 'partner.notification_settings_updated',
+    entityType: 'partner',
+    entityId: guard.partner.id,
+    metadata: settings,
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}

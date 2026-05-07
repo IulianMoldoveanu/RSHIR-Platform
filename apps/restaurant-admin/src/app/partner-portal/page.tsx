@@ -21,6 +21,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { InvitePanel } from './_components/invite-panel';
 import { ProfileForm } from './_components/profile-form';
+import { NotificationSettings } from './_components/notification-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ type Partner = {
   default_commission_pct: number;
   status: string;
   code: string | null;
+  notification_settings: Record<string, unknown> | null;
 };
 
 type Referral = {
@@ -115,7 +117,7 @@ export default async function PartnerPortalPage() {
   // 1. Partner row (PENDING + ACTIVE both allowed; PENDING shows banner)
   const { data: rawPartner } = await admin
     .from('partners')
-    .select('id, name, email, phone, default_commission_pct, status, code')
+    .select('id, name, email, phone, default_commission_pct, status, code, notification_settings')
     .eq('user_id', user.id)
     .in('status', ['PENDING', 'ACTIVE'])
     .maybeSingle();
@@ -130,6 +132,17 @@ export default async function PartnerPortalPage() {
     default_commission_pct: Number(rawPartner.default_commission_pct),
     status: String(rawPartner.status ?? 'PENDING'),
     code: (rawPartner.code as string | null) ?? null,
+    notification_settings:
+      (rawPartner.notification_settings as Record<string, unknown> | null) ?? null,
+  };
+
+  // PR3: extract the 3 UI-exposed toggles. Default-on if missing (matches
+  // PR1 migration default jsonb). Only an explicit `false` is opt-out.
+  const ns = partner.notification_settings ?? {};
+  const notificationDefaults = {
+    on_application_approved: ns.on_application_approved !== false,
+    on_tenant_went_live: ns.on_tenant_went_live !== false,
+    on_tenant_churned: ns.on_tenant_churned !== false,
   };
 
   const isPending = partner.status === 'PENDING';
@@ -531,6 +544,12 @@ export default async function PartnerPortalPage() {
           initialPhone={partner.phone ?? ''}
           email={partner.email}
         />
+      </section>
+
+      {/* PR3: Notification preferences */}
+      <section aria-label="Notificări pe e-mail">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Notificări pe e-mail</h2>
+        <NotificationSettings initial={notificationDefaults} />
       </section>
     </div>
   );
