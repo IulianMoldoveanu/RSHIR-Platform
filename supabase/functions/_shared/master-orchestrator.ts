@@ -410,6 +410,14 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
   { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },
   { name: 'cs.reservation_cancel', agent: 'cs', defaultCategory: 'reservation.cancel', description: 'Anulează o rezervare după token.' },
+  // --- CS agent — review + feedback drafts (Sprint 14) ---
+  // Drafts only: each intent generates options the OWNER picks from.
+  // The auto-post path (post_review_reply) runs through the orchestrator
+  // trust gate and is hard-blocked from auto-posting on negative reviews
+  // by `assertNotAutoPostingNegative()` in cs-agent.ts.
+  { name: 'cs.review_reply_draft', agent: 'cs', defaultCategory: 'review.reply', description: 'Generează 3 variante de răspuns la o recenzie.' },
+  { name: 'cs.complaint_template', agent: 'cs', defaultCategory: 'complaint.template', description: 'Generează template empatic pentru o reclamație + sugestie compensație.' },
+  { name: 'cs.feedback_digest', agent: 'cs', defaultCategory: 'feedback.digest', description: 'Sumar săptămânal feedback clienți.', readOnly: true },
   // --- Menu agent (write, mixed risk) — placeholders for Sprint 14 ---
   { name: 'menu.description_update', agent: 'menu', defaultCategory: 'description.update', description: 'Actualizează descrierea unui produs.' },
   { name: 'menu.price_change', agent: 'menu', defaultCategory: 'price.change', description: 'Schimbă prețul unui produs (destructiv).' },

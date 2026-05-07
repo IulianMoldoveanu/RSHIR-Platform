@@ -114,7 +114,12 @@ export type AuditAction =
   | 'voice.token_cleared'
   | 'voice.call_received'
   | 'voice.intent_dispatched'
-  | 'voice.response_sent';
+  | 'voice.response_sent'
+  // CS Agent — Sprint 14
+  | 'cs_response_generated'
+  | 'cs_response_posted'
+  | 'cs_response_dismissed'
+  | 'cs_complaint_template_used';
 
 export async function logAudit(args: {
   tenantId: string;
