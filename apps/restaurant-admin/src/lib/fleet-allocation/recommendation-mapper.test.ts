@@ -112,6 +112,27 @@ describe('buildAlgorithmInputs', () => {
     expect(inputs.fleets[0].city_id).toBe(CITY_BV);
   });
 
+  it('ignores secondary assignments when inferring fleet city', () => {
+    // Codex P2 #368: when a fleet has 1 primary in BV but 2 secondaries in
+    // BUC, the city must remain BV (the fleet's home), not BUC. Secondaries
+    // are backups and should never tip the city inference.
+    const grid: GridSnapshot = {
+      fleets: [fleet({ id: 'f1' })],
+      restaurants: [
+        restaurant({ id: 'r1', city_id: CITY_BV }),
+        restaurant({ id: 'r2', city_id: CITY_BUC }),
+        restaurant({ id: 'r3', city_id: CITY_BUC }),
+      ],
+      assignments: [
+        assignment({ id: 'a1', fleet_id: 'f1', restaurant_tenant_id: 'r1', role: 'primary', status: 'active' }),
+        assignment({ id: 'a2', fleet_id: 'f1', restaurant_tenant_id: 'r2', role: 'secondary', status: 'active' }),
+        assignment({ id: 'a3', fleet_id: 'f1', restaurant_tenant_id: 'r3', role: 'secondary', status: 'active' }),
+      ],
+    };
+    const inputs = buildAlgorithmInputs(grid, new Map());
+    expect(inputs.fleets[0].city_id).toBe(CITY_BV);
+  });
+
   it('leaves fleet city null when fleet has no active assignments', () => {
     const grid: GridSnapshot = {
       fleets: [fleet({ id: 'f1' })],

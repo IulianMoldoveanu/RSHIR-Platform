@@ -72,7 +72,7 @@ export function buildAlgorithmInputs(
   const restaurantById = new Map(grid.restaurants.map((r) => [r.id, r]));
   for (const f of grid.fleets) {
     const cities = grid.assignments
-      .filter((a) => a.fleet_id === f.id && a.status === 'active')
+      .filter((a) => a.fleet_id === f.id && a.status === 'active' && a.role === 'primary')
       .map((a) => restaurantById.get(a.restaurant_tenant_id)?.city_id ?? null)
       .filter((c): c is string => Boolean(c));
     if (cities.length === 0) {
