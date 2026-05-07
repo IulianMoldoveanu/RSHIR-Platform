@@ -49,6 +49,12 @@ import {
   missingFields,
   type ParsedReservation,
 } from '../_shared/reservation-parser.ts';
+import { dispatchIntent } from '../_shared/master-orchestrator.ts';
+import { registerAnalyticsIntents } from '../_shared/analytics-intents.ts';
+
+// Register analytics intent handlers once per Edge Function instance (cold
+// start). Idempotent — registerIntent ignores re-registration.
+registerAnalyticsIntents();
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
@@ -529,86 +535,85 @@ async function runIntent(
 
   if (intent === 'recommendations_today') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
-    const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-    const { data: recs } = await supabase
-      .from('growth_recommendations')
-      .select('priority, category, title_ro, suggested_action_ro, generated_at, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('generated_at', since)
-      .order('generated_at', { ascending: false })
-      .limit(5);
-    await logHepyAudit(supabase, tenant.tenant_id, 'recommendations_today', { returned: recs?.length ?? 0 });
-    if (!recs || recs.length === 0) {
-      return { text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări recente</b>\nNicio recomandare nouă în ultimele 7 zile.`, status: 'OK', intentRan: 'recommendations_today' };
+    // Wired through Master Orchestrator dispatcher. Handler lives in
+    // _shared/analytics-intents.ts.
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.recommendations_today',
+      payload: { days: 7 },
+    });
+    if (r.ok && r.state === 'EXECUTED') {
+      const d = r.data as {
+        days: number;
+        recommendations: Array<{
+          priority: string;
+          category: string;
+          title_ro: string;
+          suggested_action_ro: string;
+        }>;
+      };
+      if (!d.recommendations || d.recommendations.length === 0) {
+        return {
+          text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări recente</b>\nNicio recomandare nouă în ultimele ${d.days} zile.`,
+          status: 'OK',
+          intentRan: 'recommendations_today',
+        };
+      }
+      const lines = [`<b>💡 ${escapeHtml(tenant.name)} — recomandări (ultimele ${d.days} zile)</b>`];
+      const prioEmoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '⚪' };
+      for (const rec of d.recommendations.slice(0, 5)) {
+        const e = prioEmoji[rec.priority] ?? '·';
+        lines.push(`\n${e} <b>${escapeHtml(rec.title_ro)}</b>`);
+        lines.push(`<i>${escapeHtml(rec.category)}</i> · ${escapeHtml((rec.suggested_action_ro || '').slice(0, 180))}`);
+      }
+      return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'recommendations_today' };
     }
-    const lines = [`<b>💡 ${escapeHtml(tenant.name)} — recomandări (ultimele 7 zile)</b>`];
-    const prioEmoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '⚪' };
-    for (const r of recs) {
-      const e = prioEmoji[r.priority] ?? '·';
-      lines.push(`\n${e} <b>${escapeHtml(r.title_ro)}</b>`);
-      lines.push(`<i>${escapeHtml(r.category)}</i> · ${escapeHtml((r.suggested_action_ro || '').slice(0, 180))}`);
-    }
-    return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'recommendations_today' };
+    return {
+      text: `<b>💡 ${escapeHtml(tenant.name)} — recomandări</b>\nNu am putut citi recomandările momentan.`,
+      status: 'OK',
+      intentRan: 'recommendations_today',
+    };
   }
 
   if (intent === 'orders_summary') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
     const p = period ?? 'today';
-    const win = periodWindow(p);
-    const { data: curr } = await supabase
-      .from('restaurant_orders')
-      .select('total_ron, status, items')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.from.toISOString())
-      .lt('created_at', win.to.toISOString());
-    const { data: prev } = await supabase
-      .from('restaurant_orders')
-      .select('total_ron, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.prevFrom.toISOString())
-      .lt('created_at', win.prevTo.toISOString());
-
-    const isRevenueStatus = (s: string) => s !== 'CANCELLED';
-    const totalCurr = (curr ?? []).filter((o: any) => isRevenueStatus(o.status)).length;
-    const revenueCurr = (curr ?? []).filter((o: any) => isRevenueStatus(o.status)).reduce((a: number, o: any) => a + Number(o.total_ron || 0), 0);
-    const cancelledCurr = (curr ?? []).filter((o: any) => o.status === 'CANCELLED').length;
-    const totalPrev = (prev ?? []).filter((o: any) => isRevenueStatus(o.status)).length;
-    const revenuePrev = (prev ?? []).filter((o: any) => isRevenueStatus(o.status)).reduce((a: number, o: any) => a + Number(o.total_ron || 0), 0);
-
-    const counts: Record<string, { qty: number; revenue: number }> = {};
-    for (const o of curr ?? []) {
-      if (!isRevenueStatus(o.status)) continue;
-      const items = Array.isArray(o.items) ? o.items : [];
-      for (const it of items) {
-        const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
-        if (!name) continue;
-        const qty = Number(it?.quantity ?? it?.qty ?? 1);
-        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
-        // imports may use snake_case. Prefer lineTotalRon if present so we
-        // don't double-multiply by qty.
-        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
-        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
-        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
-        if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
-        counts[name].qty += qty;
-        counts[name].revenue += revenue;
-      }
+    // Wired through Master Orchestrator dispatcher. Handler lives in
+    // _shared/analytics-intents.ts. Same 30-day baseline + same RON formatting.
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.summary',
+      payload: { period: p },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return {
+        text: `<b>📊 ${escapeHtml(tenant.name)}</b>\nNu am putut citi sumarul momentan.`,
+        status: 'OK',
+        intentRan: 'orders_summary',
+      };
     }
-    const top3 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 3);
-
-    await logHepyAudit(supabase, tenant.tenant_id, 'orders_summary', { period: p, total: totalCurr, revenue: revenueCurr });
-
+    const d = r.data as {
+      label: string;
+      orders: number;
+      revenue_ron: number;
+      cancelled: number;
+      orders_delta: string;
+      revenue_delta: string;
+      top_products: Array<{ name: string; qty: number; revenue: number }>;
+    };
     const lines = [
-      `<b>📊 ${escapeHtml(tenant.name)} — cum a mers ${win.label}</b>`,
+      `<b>📊 ${escapeHtml(tenant.name)} — cum a mers ${d.label}</b>`,
       ``,
-      `Comenzi: <b>${totalCurr}</b>  ${escapeHtml(deltaPct(totalCurr, totalPrev))}`,
-      `Încasări: <b>${escapeHtml(fmtRon(revenueCurr))}</b>  ${escapeHtml(deltaPct(revenueCurr, revenuePrev))}`,
+      `Comenzi: <b>${d.orders}</b>  ${escapeHtml(d.orders_delta)}`,
+      `Încasări: <b>${escapeHtml(fmtRon(Number(d.revenue_ron)))}</b>  ${escapeHtml(d.revenue_delta)}`,
     ];
-    if (cancelledCurr > 0) lines.push(`Anulate: ${cancelledCurr}`);
-    if (top3.length) {
+    if (d.cancelled > 0) lines.push(`Anulate: ${d.cancelled}`);
+    if (d.top_products.length) {
       lines.push('', '<b>Top produse:</b>');
-      for (const [name, agg] of top3) {
-        lines.push(`· ${escapeHtml(name)} — ${agg.qty} buc · ${escapeHtml(fmtRon(agg.revenue))}`);
+      for (const t of d.top_products) {
+        lines.push(`· ${escapeHtml(t.name)} — ${t.qty} buc · ${escapeHtml(fmtRon(Number(t.revenue)))}`);
       }
     } else {
       lines.push('', '<i>Niciun produs vândut în această perioadă.</i>');
@@ -619,41 +624,31 @@ async function runIntent(
   if (intent === 'top_products') {
     if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
     const p = period ?? 'week';
-    const win = periodWindow(p);
-    const { data: curr } = await supabase
-      .from('restaurant_orders')
-      .select('items, status')
-      .eq('tenant_id', tenant.tenant_id)
-      .gte('created_at', win.from.toISOString())
-      .lt('created_at', win.to.toISOString());
-    const counts: Record<string, { qty: number; revenue: number }> = {};
-    for (const o of curr ?? []) {
-      if (o.status === 'CANCELLED') continue;
-      const items = Array.isArray(o.items) ? o.items : [];
-      for (const it of items) {
-        const name = typeof it?.name === 'string' ? it.name : (typeof it?.title === 'string' ? it.title : null);
-        if (!name) continue;
-        const qty = Number(it?.quantity ?? it?.qty ?? 1);
-        // Storefront orders write camelCase (priceRon, lineTotalRon); legacy
-        // imports may use snake_case. Prefer lineTotalRon if present so we
-        // don't double-multiply by qty.
-        const lineTotal = Number(it?.lineTotalRon ?? it?.line_total_ron ?? NaN);
-        const unitPrice = Number(it?.priceRon ?? it?.price_ron ?? it?.unit_price ?? it?.price ?? 0);
-        const revenue = Number.isFinite(lineTotal) ? lineTotal : qty * unitPrice;
-        if (!counts[name]) counts[name] = { qty: 0, revenue: 0 };
-        counts[name].qty += qty;
-        counts[name].revenue += revenue;
-      }
+    const r = await dispatchIntent(supabase, {
+      tenantId: tenant.tenant_id,
+      channel: 'telegram',
+      intent: 'analytics.top_products',
+      payload: { period: p, limit: 10 },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return {
+        text: `<b>🍽️ ${escapeHtml(tenant.name)}</b>\nNu am putut citi topul produselor momentan.`,
+        status: 'OK',
+        intentRan: 'top_products',
+      };
     }
-    const top10 = Object.entries(counts).sort((a, b) => b[1].qty - a[1].qty).slice(0, 10);
-    await logHepyAudit(supabase, tenant.tenant_id, 'top_products', { period: p, returned: top10.length });
-    if (top10.length === 0) {
-      return { text: `<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${win.label})</b>\nNiciun produs vândut în această perioadă.`, status: 'OK', intentRan: 'top_products' };
+    const d = r.data as { label: string; products: Array<{ name: string; qty: number; revenue: number }> };
+    if (d.products.length === 0) {
+      return {
+        text: `<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${d.label})</b>\nNiciun produs vândut în această perioadă.`,
+        status: 'OK',
+        intentRan: 'top_products',
+      };
     }
-    const lines = [`<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${win.label})</b>`];
+    const lines = [`<b>🍽️ ${escapeHtml(tenant.name)} — top produse (${d.label})</b>`];
     let i = 1;
-    for (const [name, agg] of top10) {
-      lines.push(`${i}. ${escapeHtml(name)} — ${agg.qty} buc · ${escapeHtml(fmtRon(agg.revenue))}`);
+    for (const t of d.products) {
+      lines.push(`${i}. ${escapeHtml(t.name)} — ${t.qty} buc · ${escapeHtml(fmtRon(Number(t.revenue)))}`);
       i++;
     }
     return { text: lines.join('\n').slice(0, 4000), status: 'OK', intentRan: 'top_products' };
