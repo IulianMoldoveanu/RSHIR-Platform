@@ -552,19 +552,53 @@ export function aggregatePredictedPayouts(
 // Per-intent handlers
 // ---------------------------------------------------------------------------
 
-// Helper: paginated select over restaurant_orders. Service-role bypasses
-// RLS, but we still scope by tenant_id for correctness + defense-in-depth.
+// Page size for paginated reads. Picked so a high-volume tenant
+// (~200 orders/day × 30 days = 6000 rows) gets through in 6 round-trips.
+const PAGE_SIZE = 1000;
+// Hard ceiling to bound memory + cost on a runaway tenant. ~50k orders
+// per 30d would mean a unicorn restaurant; we still cap to defend the
+// Edge Function memory limit.
+const MAX_ROWS = 50_000;
+
+// Helper: paginated select. Iterates with `.range(from, to)` until either
+// (a) a page returns fewer rows than PAGE_SIZE, or (b) MAX_ROWS reached.
+// Codex P2 (round 1, PR #366): single `.limit(5000)` silently dropped
+// rows for high-volume tenants, under-reporting revenue.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function paginatedSelect<T>(buildBase: () => any): Promise<T[]> {
+  const out: T[] = [];
+  let from = 0;
+  for (;;) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await buildBase().range(from, to);
+    if (error) throw new Error(`paginated_query_failed: ${error.message}`);
+    const rows = (data as T[]) ?? [];
+    out.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    if (out.length >= MAX_ROWS) {
+      console.warn(
+        `[finance-agent] paginatedSelect hit MAX_ROWS=${MAX_ROWS}; remaining rows ignored`,
+      );
+      break;
+    }
+    from += PAGE_SIZE;
+  }
+  return out;
+}
+
+// Service-role bypasses RLS, but we still scope by tenant_id for
+// correctness + defense-in-depth.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchOrders(supabase: any, tenantId: string, sinceIso: string, untilIso: string): Promise<OrderRow[]> {
-  const { data, error } = await supabase
-    .from('restaurant_orders')
-    .select('id, created_at, total_ron, subtotal_ron, delivery_fee_ron, payment_status')
-    .eq('tenant_id', tenantId)
-    .gte('created_at', sinceIso)
-    .lt('created_at', untilIso)
-    .limit(5000);
-  if (error) throw new Error(`orders_query_failed: ${error.message}`);
-  return (data as OrderRow[]) ?? [];
+  return paginatedSelect<OrderRow>(() =>
+    supabase
+      .from('restaurant_orders')
+      .select('id, created_at, total_ron, subtotal_ron, delivery_fee_ron, payment_status')
+      .eq('tenant_id', tenantId)
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso)
+      .order('created_at', { ascending: true }),
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -586,18 +620,20 @@ async function fetchPspPayments(supabase: any, tenantId: string, orderIds: strin
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchCourierOrders(supabase: any, tenantId: string, sinceIso: string, untilIso: string): Promise<CourierOrderRow[]> {
-  const { data, error } = await supabase
-    .from('courier_orders')
-    .select('id, source_tenant_id, delivery_fee_ron, status, assigned_courier_user_id, created_at')
-    .eq('source_tenant_id', tenantId)
-    .gte('created_at', sinceIso)
-    .lt('created_at', untilIso)
-    .limit(5000);
-  if (error) {
-    console.warn('[finance-agent] courier_orders query failed:', error.message);
+  try {
+    return await paginatedSelect<CourierOrderRow>(() =>
+      supabase
+        .from('courier_orders')
+        .select('id, source_tenant_id, delivery_fee_ron, status, assigned_courier_user_id, created_at')
+        .eq('source_tenant_id', tenantId)
+        .gte('created_at', sinceIso)
+        .lt('created_at', untilIso)
+        .order('created_at', { ascending: true }),
+    );
+  } catch (e) {
+    console.warn('[finance-agent] courier_orders query failed:', e instanceof Error ? e.message : String(e));
     return [];
   }
-  return (data as CourierOrderRow[]) ?? [];
 }
 
 // `finance.cash_flow_30d` — no input. Returns daily flow + totals + runway.
@@ -661,15 +697,20 @@ const cashFlow30dHandler: IntentHandler = {
 const taxSummaryMonthHandler: IntentHandler = {
   plan: async (_ctx, payload) => {
     const p = (payload ?? {}) as Record<string, unknown>;
-    const now = new Date();
+    // Codex P2 (round 1, PR #366): default year+month must be the
+    // tenant's LOCAL Bucharest calendar month, not UTC. Otherwise the
+    // first 2-3h after Bucharest midnight on the 1st of a month gets
+    // last month's report by accident.
+    const nowBucharest = bucharestDateKey(new Date().toISOString()); // YYYY-MM-DD local
+    const [bucharestYearStr, bucharestMonthStr] = nowBucharest.split('-');
     const year =
       typeof p.year === 'number' && p.year >= 2024 && p.year <= 2100
         ? p.year
-        : now.getUTCFullYear();
+        : Number(bucharestYearStr);
     const month =
       typeof p.month === 'number' && p.month >= 1 && p.month <= 12
         ? p.month
-        : now.getUTCMonth() + 1; // 1..12
+        : Number(bucharestMonthStr);
     const { startIso, endIso } = monthBoundsUtc(year, month - 1);
     return {
       actionCategory: 'analytics.read',

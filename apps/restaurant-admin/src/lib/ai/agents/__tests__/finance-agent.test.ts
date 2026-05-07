@@ -109,6 +109,8 @@ function makeMockSupabase(state: MockState) {
       const out = limit != null ? f.slice(0, limit) : f;
       return { data: out, error: null };
     }
+    let rangeFrom: number | null = null;
+    let rangeTo: number | null = null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const builder: any = {
       eq(col: string, val: unknown) {
@@ -131,15 +133,32 @@ function makeMockSupabase(state: MockState) {
         limit = n;
         return builder;
       },
+      // No-op order — we don't assert order in the test, just shape.
+      order(_col: string, _opts?: { ascending?: boolean }) {
+        return builder;
+      },
+      // .range(from, to) is Postgrest's pagination helper. We slice.
+      range(from: number, to: number) {
+        rangeFrom = from;
+        rangeTo = to;
+        return builder;
+      },
       async maybeSingle() {
         const f = filtered();
         return { data: f[0] ?? null, error: null };
       },
       // Thenable: any `await builder` resolves to the filtered rows / count.
       then(onFulfilled: (v: unknown) => unknown) {
-        return Promise.resolve(resolveValue()).then(onFulfilled);
+        return Promise.resolve(resolveValueWithRange()).then(onFulfilled);
       },
     };
+    function resolveValueWithRange() {
+      const v = resolveValue();
+      if (rangeFrom != null && rangeTo != null && Array.isArray(v.data)) {
+        return { ...v, data: v.data.slice(rangeFrom, rangeTo + 1) };
+      }
+      return v;
+    }
     return builder;
   }
 
@@ -563,6 +582,43 @@ describe('finance-agent / predict_payouts_next_week', () => {
     const data = result.data as any;
     expect(data.basis_sample_size).toBe(0);
     expect(data.predicted_payouts).toEqual([]);
+  });
+});
+
+describe('finance-agent / pagination — Codex P2 #1 fix', () => {
+  test('cash_flow_30d aggregates ALL pages (not just first 1000) for high-volume tenants', async () => {
+    const state = defaultState();
+    // Seed 2400 paid orders, 1 RON each, all in the last 24h. Pre-fix
+    // (.limit(5000)) would have been fine, but the new paginated read
+    // must still return all 2400. Pre-fix with .limit(1000) would have
+    // dropped 1400.
+    state.orders = [];
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    for (let i = 0; i < 2400; i++) {
+      state.orders.push({
+        id: `o-${i}`,
+        tenant_id: 't1',
+        created_at: oneHourAgo,
+        total_ron: 1,
+        subtotal_ron: 1,
+        delivery_fee_ron: 0,
+        payment_status: 'PAID',
+      });
+    }
+
+    const ctx = {
+      tenantId: 't1',
+      channel: 'telegram' as const,
+      actorUserId: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: makeMockSupabase(state) as any,
+    };
+    const plan = await __TESTING__.cashFlow30dHandler.plan(ctx, {});
+    const result = await __TESTING__.cashFlow30dHandler.execute(ctx, plan);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = result.data as any;
+    expect(data.totals.order_count).toBe(2400);
+    expect(data.totals.gross_revenue_ron).toBe(2400);
   });
 });
 
