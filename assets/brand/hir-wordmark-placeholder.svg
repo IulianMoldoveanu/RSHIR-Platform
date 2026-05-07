@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- PLACEHOLDER — replace before App Store submission. See assets/brand/README.md. -->
+<!-- Brand Bible: HIR-Brand-Bible-2026-05-08.md §2.5 (logo) + §4.1 (color tokens). -->
+<!-- Wordmark: lowercase "hir", body Inter 800 #C0392B (cărămidă), accent dot on "i" #F4A261 (pâine). -->
+<!-- Designer brief: replace with Manrope 800 outlined paths + Romanian breve diacritic on "i". -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120" role="img" aria-label="hir">
+  <title>hir — placeholder wordmark</title>
+  <desc>Temporary AI-generated wordmark. Lowercase hir in Inter 800 #C0392B with #F4A261 accent dot on the i. To be replaced by external designer per HIR Brand Bible §9 M3 milestone.</desc>
+  <text
+    x="20"
+    y="92"
+    font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif"
+    font-weight="800"
+    font-size="104"
+    letter-spacing="-4"
+    fill="#C0392B"
+  >hir</text>
+  <!-- Accent dot replacing the dot of "i" — pâine #F4A261. -->
+  <!-- Position calibrated to sit above the i stem in Inter 800 at this size; adjust per renderer. -->
+  <circle cx="155" cy="34" r="9" fill="#F4A261"/>
+</svg>
