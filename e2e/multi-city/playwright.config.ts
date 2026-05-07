@@ -92,6 +92,16 @@ export default defineConfig({
         timezoneId: 'Europe/Bucharest',
       },
     },
+    {
+      name: 'inventory-recipe-link',
+      testMatch: '**/inventory-recipe-link.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: ADMIN_BASE_URL,
+        locale: 'ro-RO',
+        timezoneId: 'Europe/Bucharest',
+      },
+    },
   ],
 
   webServer: [

@@ -79,6 +79,11 @@ export type AuditAction =
   | 'efactura.token_set'
   | 'efactura.token_cleared'
   | 'efactura.test_connection'
+  | 'inventory.item_created'
+  | 'inventory.item_updated'
+  | 'inventory.item_deleted'
+  | 'inventory.recipe_linked'
+  | 'inventory.recipe_unlinked'
   | 'hepy.telegram_connect_link_generated'
   | 'hepy.telegram_unbound';
 
