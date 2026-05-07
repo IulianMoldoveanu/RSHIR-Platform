@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { buildLandingPatch, type LandingPatch } from '@/lib/partner-landing/validators';
 
 const REVALIDATE = '/partner-portal';
 
@@ -160,6 +161,86 @@ export async function updatePartnerNotificationSettings(input: {
     entityType: 'partner',
     entityId: guard.partner.id,
     metadata: settings,
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
+
+// ────────────────────────────────────────────────────────────
+// updatePartnerBranding (Option A — extend in place)
+// Lets the partner edit their own white-label landing_settings jsonb.
+// Mirrors apps/.../dashboard/admin/partners/actions.ts updatePartnerLanding,
+// but scoped to the partner's own row. Validators are shared.
+//
+// PENDING partners are allowed: they can polish their /r/<code> landing
+// before admin approval — the link itself is shareable from PENDING (per
+// Lane T design). No commission risk: status gating is downstream.
+// ────────────────────────────────────────────────────────────
+
+export async function updatePartnerBranding(input: LandingPatch): Promise<PartnerActionResult> {
+  // Custom guard: include PENDING + ACTIVE (mirrors layout/page admission).
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Unauthentificat.' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminLookup = createAdminClient() as any;
+  const { data: partnerRow, error: lookupErr } = await adminLookup
+    .from('partners')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .in('status', ['PENDING', 'ACTIVE'])
+    .maybeSingle();
+  if (lookupErr) {
+    return { ok: false, error: `Eroare la verificarea partenerului: ${lookupErr.message}` };
+  }
+  if (!partnerRow) return { ok: false, error: 'Nu ești asociat unui cont de partener.' };
+  const partnerId = String(partnerRow.id);
+
+  const built = buildLandingPatch(input);
+  if (!built.ok) return { ok: false, error: built.error };
+  const patch = built.patch ?? {};
+  if (Object.keys(patch).length === 0) return { ok: false, error: 'Nimic de actualizat.' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = createAdminClient() as any;
+
+  // Try the merge RPC first; fall back to read-modify-write so we never lose
+  // pre-existing keys that the UI didn't surface.
+  const { error: rpcErr } = await sb.rpc('partner_landing_merge', {
+    p_partner_id: partnerId,
+    p_patch: patch,
+  });
+  if (rpcErr) {
+    const { data, error: readErr } = await sb
+      .from('partners')
+      .select('landing_settings')
+      .eq('id', partnerId)
+      .single();
+    if (readErr || !data) {
+      return { ok: false, error: readErr?.message ?? 'partner_not_found' };
+    }
+    const merged = { ...(data.landing_settings ?? {}), ...patch };
+    const { error: updErr } = await sb
+      .from('partners')
+      .update({ landing_settings: merged, updated_at: new Date().toISOString() })
+      .eq('id', partnerId);
+    if (updErr) return { ok: false, error: updErr.message };
+  }
+
+  await logAudit({
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    actorUserId: user.id,
+    // Reuse the existing audit action; same operation as the platform-admin
+    // path, just initiated by the partner themselves. The audit row carries
+    // actor_user_id so the source of the change is unambiguous.
+    action: 'partner.landing_updated',
+    entityType: 'partner',
+    entityId: partnerId,
+    metadata: patch,
   });
 
   revalidatePath(REVALIDATE);
