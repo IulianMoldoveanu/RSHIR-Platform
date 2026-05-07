@@ -17,6 +17,7 @@
 // Auto-injected by Supabase runtime:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { withRunLog } from '../_shared/log.ts';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -137,6 +138,7 @@ async function auditDispatched(
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('integration-dispatcher', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) {
     console.error('[integration-dispatcher] HIR_NOTIFY_SECRET not configured');
@@ -228,7 +230,9 @@ Deno.serve(async (req: Request) => {
   console.log(
     `[integration-dispatcher] processed=${events.length} sent=${sent} failed=${failed} dead=${dead}`,
   );
+  setMetadata({ processed: events.length, sent, failed, dead });
   return json(200, { processed: events.length, sent, failed, dead });
+  });
 });
 
 // ----------------------------------------------------------------------

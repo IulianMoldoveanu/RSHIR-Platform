@@ -27,6 +27,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
+import { withRunLog } from '../_shared/log.ts';
 
 type Body = { order_id: string; tenant_id: string };
 
@@ -77,6 +78,7 @@ function renderItems(items: unknown): string {
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('notify-new-order', async ({ setMetadata }) => {
   // RSHIR-22: shared-secret gate. Reject before any DB work so the URL
   // alone is not enough to invoke. Constant-time compare avoids leaking
   // the secret length via response timing.
@@ -100,6 +102,8 @@ Deno.serve(async (req: Request) => {
   if (!isUuid(body.order_id) || !isUuid(body.tenant_id)) {
     return json(400, { error: 'invalid_body' });
   }
+
+  setMetadata({ tenant_id: body.tenant_id, order_id: body.order_id });
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -232,7 +236,9 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  setMetadata({ recipients_count: results.length, sent_ok: results.filter((r) => r.ok).length });
   return json(200, { ok: true, sent: results });
+  });
 });
 
 // HTML new-order alert sent to restaurant owners. Same email-client compat

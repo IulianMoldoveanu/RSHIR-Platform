@@ -21,6 +21,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
 // @ts-expect-error — npm:web-push has no Deno types but works at runtime
 import webpush from 'npm:web-push@3.6.7';
+import { withRunLog } from '../_shared/log.ts';
 
 type Body = { order_id: string; tenant_id: string; status: string };
 
@@ -45,6 +46,7 @@ function fmtRon(n: number | string | null | undefined): string {
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('notify-customer-status', async ({ setMetadata }) => {
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) return json(500, { error: 'secret_not_configured' });
   const got = req.headers.get('x-hir-notify-secret') ?? '';
@@ -62,6 +64,8 @@ Deno.serve(async (req: Request) => {
   if (!isUuid(body.order_id) || !isUuid(body.tenant_id) || typeof body.status !== 'string') {
     return json(400, { error: 'invalid_body' });
   }
+
+  setMetadata({ tenant_id: body.tenant_id, order_id: body.order_id, status: body.status });
 
   const HANDLED = new Set(['CONFIRMED', 'READY', 'DISPATCHED', 'IN_DELIVERY']);
   if (!HANDLED.has(body.status)) {
@@ -268,6 +272,7 @@ Deno.serve(async (req: Request) => {
   }
 
   return json(200, { ok: true, sent: customer.email, status: body.status });
+  });
 });
 
 // Email-client compatible HTML status email. Inline CSS only — Gmail/Outlook

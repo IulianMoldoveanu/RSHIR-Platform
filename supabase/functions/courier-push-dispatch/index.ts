@@ -24,6 +24,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // @ts-expect-error — npm:web-push has no Deno types but works at runtime
 import webpush from 'npm:web-push@3.6.7';
+import { withRunLog } from '../_shared/log.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  return withRunLog('courier-push-dispatch', async ({ setMetadata }) => {
   const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY');
   const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY');
   const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:courier@hiraisolutions.ro';
@@ -92,6 +94,8 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+
+  setMetadata({ fleet_id, order_id });
 
   const { data: profiles, error: profilesErr } = await supabase
     .from('courier_profiles')
@@ -173,8 +177,10 @@ Deno.serve(async (req: Request) => {
   ).length;
   const failed = results.length - sent - pruned;
 
+  setMetadata({ sent, pruned, failed, total: subscriptions.length });
   return new Response(
     JSON.stringify({ ok: true, sent, pruned, failed, total: subscriptions.length }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
+  });
 });
