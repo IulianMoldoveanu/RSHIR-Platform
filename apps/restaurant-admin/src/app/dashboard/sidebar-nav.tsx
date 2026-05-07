@@ -46,16 +46,39 @@ export type SidebarItem = {
   icon?: IconName;
 };
 
+// QW3 (UIUX audit 2026-05-08): SidebarGroup now supports a single level of
+// nested sub-groups so Configurare can split its 14 leaves into 4 themed
+// buckets (Identitate / Operațiuni / Contabilitate / Integrări) without
+// flattening the navigation. Mixed children are allowed — sub-groups +
+// leaves at the same level — to keep flexibility for future surfaces.
+export type SidebarSubGroup = {
+  label: string;
+  items: SidebarItem[];
+};
+
 export type SidebarGroup = {
   label: string;
   icon?: IconName;
-  items: SidebarItem[];
+  items: Array<SidebarItem | SidebarSubGroup>;
 };
 
 export type SidebarEntry = SidebarItem | SidebarGroup;
 
 function isGroup(e: SidebarEntry): e is SidebarGroup {
   return 'items' in e;
+}
+
+function isSubGroup(e: SidebarItem | SidebarSubGroup): e is SidebarSubGroup {
+  return 'items' in e;
+}
+
+function flattenGroupHrefs(items: Array<SidebarItem | SidebarSubGroup>): string[] {
+  const out: string[] = [];
+  for (const i of items) {
+    if (isSubGroup(i)) out.push(...i.items.map((x) => x.href));
+    else out.push(i.href);
+  }
+  return out;
 }
 
 export function SidebarNav({ entries }: { entries: SidebarEntry[] }) {
@@ -92,7 +115,8 @@ function SidebarGroupRow({
   group: SidebarGroup;
   matches: (href: string) => boolean;
 }) {
-  const anyActive = group.items.some((i) => matches(i.href));
+  const allHrefs = flattenGroupHrefs(group.items);
+  const anyActive = allHrefs.some((href) => matches(href));
   const Icon = group.icon ? ICONS[group.icon] : undefined;
   return (
     <details className="group/sb" open={anyActive}>
@@ -122,7 +146,47 @@ function SidebarGroupRow({
         />
       </summary>
       <ul className="mt-0.5 flex flex-col gap-0.5 pb-1 pl-7">
-        {group.items.map((item) => (
+        {group.items.map((entry, idx) => {
+          if (isSubGroup(entry)) {
+            return (
+              <SidebarSubGroupRow
+                key={`sg-${entry.label}-${idx}`}
+                subGroup={entry}
+                matches={matches}
+              />
+            );
+          }
+          return (
+            <SidebarLeafRow
+              key={entry.href}
+              item={entry}
+              active={matches(entry.href)}
+              compact
+            />
+          );
+        })}
+      </ul>
+    </details>
+  );
+}
+
+// QW3 — second-level group inside a top-level group. Renders as a small
+// uppercase header with its own list of leaves below; no chevron, no
+// collapse (the parent group already collapses everything together).
+function SidebarSubGroupRow({
+  subGroup,
+  matches,
+}: {
+  subGroup: SidebarSubGroup;
+  matches: (href: string) => boolean;
+}) {
+  return (
+    <li className="flex flex-col gap-0.5 pt-1.5 first:pt-0">
+      <p className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+        {subGroup.label}
+      </p>
+      <ul className="flex flex-col gap-0.5">
+        {subGroup.items.map((item) => (
           <SidebarLeafRow
             key={item.href}
             item={item}
@@ -131,7 +195,7 @@ function SidebarGroupRow({
           />
         ))}
       </ul>
-    </details>
+    </li>
   );
 }
 

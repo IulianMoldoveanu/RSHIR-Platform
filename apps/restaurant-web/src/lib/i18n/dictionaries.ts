@@ -159,6 +159,9 @@ export const dictionaries = {
       field_last_name: 'Nume *',
       field_phone: 'Telefon *',
       field_email_optional: 'Email (opțional)',
+      // QW7 — saved-address pre-fill CTA + clear link.
+      saved_address_chip: 'Adresă salvată',
+      saved_address_clear: 'Folosește altă adresă',
       field_street: 'Stradă și număr *',
       field_apt_group: 'Detalii bloc (opțional)',
       field_apt_block: 'Bloc',
@@ -913,6 +916,9 @@ export const dictionaries = {
       field_last_name: 'Last name *',
       field_phone: 'Phone *',
       field_email_optional: 'Email (optional)',
+      // QW7 — saved-address pre-fill CTA + clear link.
+      saved_address_chip: 'Saved address',
+      saved_address_clear: 'Use another address',
       field_street: 'Street and number *',
       field_apt_group: 'Building details (optional)',
       field_apt_block: 'Block',
