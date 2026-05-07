@@ -100,7 +100,13 @@ export type AuditAction =
   | 'hepy.telegram_connect_link_generated'
   | 'hepy.telegram_unbound'
   | 'branding.theme_previewed'
-  | 'branding.theme_applied';
+  | 'branding.theme_applied'
+  | 'voice.settings_updated'
+  | 'voice.token_set'
+  | 'voice.token_cleared'
+  | 'voice.call_received'
+  | 'voice.intent_dispatched'
+  | 'voice.response_sent';
 
 export async function logAudit(args: {
   tenantId: string;

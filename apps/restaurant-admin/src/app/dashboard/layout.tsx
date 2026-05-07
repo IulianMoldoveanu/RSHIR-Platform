@@ -103,6 +103,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
         { href: '/dashboard/settings/notifications', label: 'Notificări' },
         { href: '/dashboard/reservations', label: 'Rezervări' },
+        { href: '/dashboard/voice', label: 'Apeluri vocale' },
         { href: '/dashboard/inventory', label: 'Stocuri' },
         { href: '/kds', label: 'Ecran bucătărie (KDS)' },
       ],
@@ -144,6 +145,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Integrări',
           items: [
             { href: '/dashboard/settings/integrations', label: 'Integrări' },
+            { href: '/dashboard/settings/voice', label: 'Canal vocal (Twilio)' },
             { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
             {
               href: '/dashboard/settings/aggregator-intake',
