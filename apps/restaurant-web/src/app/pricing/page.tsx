@@ -29,7 +29,7 @@ const OG_IMAGE = marketingOgImageUrl({
 export const metadata: Metadata = {
   title: 'Tarife — HIR Restaurant Suite',
   description:
-    'Tier 1: 3 RON / livrare flat. Tier 2: cost real curier + 3 RON pentru flote. Fără abonament, fără procent. Plată lunară pe factură SRL.',
+    'Tier 1: 3 RON / livrare flat. Tier 2: cost real curier + 3 RON pentru lanțuri și volum mare. Fără abonament, fără procent. Plată lunară pe factură SRL.',
   alternates: {
     canonical: PRICING_URL,
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
@@ -144,9 +144,9 @@ export default function PricingPage() {
             title="HIR Direct"
             price="3 RON"
             priceSub="/ comandă livrată"
-            description="Pentru restaurantul mediu — folosește curierul HIR sau curierul tău partener prin rețeaua noastră de flotă."
+            description="Pentru restaurantul mediu — folosește curierul HIR (propriu sau din rețeaua HIR) sau curierul tău."
             included={[
-              'Curier HIR (propriu sau prin flotă HIR)',
+              'Curier HIR (propriu sau din rețeaua HIR)',
               'Storefront white-label cu brand propriu',
               'Importer GloriaFood inclus',
               'CRM + loyalty + reviews + rezervări',
@@ -164,14 +164,14 @@ export default function PricingPage() {
             title="Passthrough + 3 RON"
             price="cost real + 3 RON"
             priceSub="/ comandă livrată"
-            description="Pentru flote mari sau lanțuri cu propria logistică. Plătești costul real al curierului + 3 RON fee platformă."
+            description="Pentru lanțuri sau restaurante cu volum mare și propria logistică. Plătești costul real al curierului + 3 RON fee platformă."
             included={[
               'Toate funcționalitățile Tier 1',
               'Cost transport real al curierului tău',
               '+ 3 RON fee platformă HIR',
-              'Dashboard fleet manager dedicat',
-              'KPI agregat pe rider / restaurant',
-              'Multi-fleet, multi-tenant suport',
+              'Dashboard dedicat operatorilor HIR',
+              'KPI agregat pe curier / restaurant',
+              'Suport multi-restaurant pentru lanțuri',
               'API custom + webhook configurabil',
               'Manager de cont dedicat',
               'Negociere directă termeni',
@@ -256,7 +256,7 @@ export default function PricingPage() {
             niciun markup. Vezi exact ce iei pe transferul lunar.
           </Faq>
           <Faq q="Pot folosi curierul meu existent?">
-            Da. Dacă ai deja flotă proprie, intri în Tier 2 (passthrough + 3 RON) și
+            Da. Dacă ai deja echipă proprie de livrare, intri în Tier 2 (passthrough + 3 RON) și
             îți facturezi singur clientul transportul.
           </Faq>
           <Faq q="Există minim de comenzi pentru a folosi platforma?">
