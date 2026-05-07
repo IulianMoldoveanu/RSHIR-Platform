@@ -34,6 +34,14 @@ const recipeLinkSchema = z.object({
 
 const recipeUnlinkSchema = z.object({ id: z.string().uuid() });
 
+const manualAdjustSchema = z.object({
+  inventory_item_id: z.string().uuid(),
+  delta: z.coerce
+    .number()
+    .refine((n) => Number.isFinite(n) && n !== 0, 'Delta trebuie să fie un număr nenul.'),
+  reason_note: z.string().trim().min(1, 'Adăugați un motiv.').max(200),
+});
+
 async function requireGatedTenant(): Promise<{ userId: string; tenantId: string }> {
   const supabase = createServerClient();
   const {
@@ -194,6 +202,69 @@ export async function linkRecipeAction(formData: FormData): Promise<{ ok: true; 
     });
     revalidatePath(`/dashboard/inventory/${parsed.inventory_item_id}`);
     return { ok: true, id: data.id as string };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+/**
+ * Manual stock adjustment by OWNER/STAFF. Writes an inventory_movements row
+ * (reason='MANUAL_ADJUST') AND updates inventory_items.current_stock by the
+ * delta. Audited as `inventory.manual_adjustment`.
+ *
+ * The DELIVERED trigger writes movements as the ORDER_DELIVERED reason; this
+ * is the only OTHER write path to inventory_movements.
+ */
+export async function manualAdjustStockAction(
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { userId, tenantId } = await requireGatedTenant();
+    const parsed = manualAdjustSchema.parse({
+      inventory_item_id: formData.get('inventory_item_id'),
+      delta: formData.get('delta'),
+      reason_note: formData.get('reason_note'),
+    });
+    const admin = createAdminClient();
+
+    // Atomic ledger insert + current_stock increment via the
+    // fn_inventory_manual_adjust RPC (migration 20260507_012). Replaces
+    // the previous SELECT-then-UPDATE which could race with the
+    // DELIVERED trigger or a concurrent manual adjust and silently
+    // diverge current_stock from sum(movements.delta). Codex PR #334 P2.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: rpcErr } = await (admin as any).rpc('fn_inventory_manual_adjust', {
+      p_tenant_id: tenantId,
+      p_item_id: parsed.inventory_item_id,
+      p_delta: parsed.delta,
+      p_note: parsed.reason_note,
+      p_actor_user: userId,
+    });
+    if (rpcErr) {
+      // Postgres P0002 (no rows updated → item missing for this tenant)
+      // and 22023 (delta=0) surface as user-friendly errors.
+      const code = (rpcErr as { code?: string }).code;
+      if (code === 'P0002') {
+        return { ok: false, error: 'Ingredient inexistent pentru acest restaurant.' };
+      }
+      if (code === '22023') {
+        return { ok: false, error: 'Delta trebuie să fie un număr nenul.' };
+      }
+      return { ok: false, error: rpcErr.message };
+    }
+
+    await logAudit({
+      tenantId,
+      actorUserId: userId,
+      action: 'inventory.manual_adjustment',
+      entityType: 'inventory_item',
+      entityId: parsed.inventory_item_id,
+      metadata: { delta: parsed.delta, note: parsed.reason_note },
+    });
+    revalidatePath('/dashboard/inventory');
+    revalidatePath(`/dashboard/inventory/${parsed.inventory_item_id}`);
+    revalidatePath('/dashboard/inventory/movements');
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: (err as Error).message };
   }
