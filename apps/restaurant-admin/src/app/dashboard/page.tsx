@@ -16,6 +16,7 @@ import { GloriaFoodRescueBanner } from './gloriafood-rescue-banner';
 import { GoLiveCelebration } from './go-live-celebration';
 import { StorefrontShareTile } from './storefront-share-tile';
 import { AiCeoWidget } from './ai-ceo-widget';
+import { WeatherTile } from './weather-tile';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +110,10 @@ export default async function DashboardOverviewPage({
 
       <Suspense fallback={null}>
         <AiCeoWidget tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <WeatherTile tenantId={tenant.id} />
       </Suspense>
 
       <StorefrontShareTile storefrontUrl={storefrontUrl} tenantName={tenant.name} />
