@@ -1514,12 +1514,25 @@ async function handleAnuleazaRezervare(
   }
   const r = matches[0];
 
-  const { error: updErr } = await supabase
+  // Codex P2 (round 9): guard the update with the same active-status
+  // predicate as the lookup. Without it, a concurrent status transition
+  // (e.g. the admin dashboard marking COMPLETED at the same instant)
+  // could be silently overwritten by our CANCELLED. With the predicate
+  // we get a 0-row update on a race and surface the friendly
+  // "already cancelled / completed" message instead.
+  const { data: updated, error: updErr } = await supabase
     .from('reservations')
     .update({ status: 'CANCELLED', rejection_reason: 'Anulată prin Hepy Telegram' })
-    .eq('id', r.id);
+    .eq('id', r.id)
+    .in('status', ['REQUESTED', 'CONFIRMED'])
+    .select('id');
   if (updErr) {
     return { text: 'Eroare temporară. Reîncercați.', status: 'ERR' };
+  }
+  if (!updated || (updated as Array<{ id: string }>).length === 0) {
+    // Lost the race — another process moved the row out of the active
+    // statuses between our lookup and update.
+    return { text: copy.cancelAlreadyCancelled, status: 'NOOP' };
   }
 
   try {
