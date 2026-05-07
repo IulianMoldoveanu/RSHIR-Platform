@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { MenuTabs } from './menu-tabs';
-import { loadProposals } from './menu-agent-actions';
+import { loadProposals } from './menu-agent-loader';
 
 export const dynamic = 'force-dynamic';
 

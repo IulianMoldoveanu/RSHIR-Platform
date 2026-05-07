@@ -195,29 +195,98 @@ function costUsdOf(input: number, output: number): number {
 // Daily cap helpers
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function checkDailyCap(supabase: any, tenantId: string): Promise<{ count: number; capped: boolean }> {
+// Reserves a slot in the daily cap by inserting an invocation row FIRST
+// (with outcome='ok' as a placeholder), then counting AFTER the insert.
+// If the post-insert count exceeds the cap, the row is rewritten as
+// 'capped' and the function returns capped=true. Otherwise the caller
+// proceeds with the Anthropic call and updates the row's outcome later
+// via finalizeInvocation().
+//
+// Codex P2 round 2 on PR #363:
+//   "When several /menu_* commands for the same tenant arrive
+//    concurrently, each execute path reads the count before any of them
+//    writes menu_agent_invocations. With 4 prior invocations, two
+//    simultaneous commands both see count=4 and both call Anthropic, so
+//    the 5/day cap is exceeded."
+//
+// Fix: insert-before-count. Two concurrent invocations both insert their
+// reservations + both count (each sees N+2). Both abort if N+2 > cap.
+// Conservative: strictly under-caps in race conditions rather than
+// over-capping. Acceptable because the cap is a soft cost guard, not a
+// security boundary.
+//
+// Codex P2 round 1 (carried forward): we exclude 'capped' rows from the
+// count so an OWNER who keeps retrying after seeing the cap message
+// doesn't extend the lockout beyond the 24h sliding window for paid
+// attempts.
+async function reserveCapSlot(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tenantId: string,
+  intent: string,
+): Promise<{ capped: boolean; reservationId: string | null }> {
+  // Step 1: INSERT the reservation row with outcome='ok' (placeholder).
+  const { data: inserted, error: insertErr } = await supabase
+    .from('menu_agent_invocations')
+    .insert({ tenant_id: tenantId, intent, outcome: 'ok', cost_micro_usd: null })
+    .select('id')
+    .maybeSingle();
+  if (insertErr) {
+    console.warn('[menu-agent] reserveCapSlot insert failed:', insertErr.message);
+    // Fail-open on transient DB errors — better to let the call through
+    // than block on a flake. The cost guard is a soft control.
+    return { capped: false, reservationId: null };
+  }
+  const reservationId = (inserted?.id as string | undefined) ?? null;
+  if (!reservationId) {
+    return { capped: false, reservationId: null };
+  }
+
+  // Step 2: SELECT count (including the reservation we just inserted).
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  // Codex P2 (PR #354 round 1): exclude already-capped rows from the
-  // count. Otherwise a user who keeps retrying after seeing the cap
-  // message keeps adding 'capped' rows that themselves extend the
-  // lockout window beyond the 24h sliding window for paid attempts.
-  // We only count attempts that actually reached the agent — 'ok' or
-  // 'failed' (Anthropic upstream error after the request was issued).
-  const { count, error } = await supabase
+  const { count, error: countErr } = await supabase
     .from('menu_agent_invocations')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
     .in('outcome', ['ok', 'failed'])
     .gte('created_at', since);
-  if (error) {
-    console.warn('[menu-agent] checkDailyCap failed:', error.message);
-    return { count: 0, capped: false };
+  if (countErr) {
+    console.warn('[menu-agent] reserveCapSlot count failed:', countErr.message);
+    return { capped: false, reservationId };
   }
   const n = typeof count === 'number' ? count : 0;
-  return { count: n, capped: n >= DAILY_INVOCATION_CAP };
+  if (n > DAILY_INVOCATION_CAP) {
+    // Over cap: rewrite the reservation as 'capped' so it doesn't count.
+    await supabase
+      .from('menu_agent_invocations')
+      .update({ outcome: 'capped' })
+      .eq('id', reservationId);
+    return { capped: true, reservationId };
+  }
+  return { capped: false, reservationId };
 }
 
+// Finalizes a reservation: updates outcome to 'ok' (with cost) or 'failed'.
+// Called once after the Anthropic call + proposal insert succeed/fail.
+async function finalizeInvocation(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  reservationId: string | null,
+  outcome: 'ok' | 'failed',
+  costUsd?: number,
+): Promise<void> {
+  if (!reservationId) return; // reservation insert had failed; nothing to finalize
+  const cost_micro_usd = typeof costUsd === 'number' ? Math.round(costUsd * 1_000_000) : null;
+  const { error } = await supabase
+    .from('menu_agent_invocations')
+    .update({ outcome, cost_micro_usd })
+    .eq('id', reservationId);
+  if (error) console.warn('[menu-agent] finalizeInvocation failed:', error.message);
+}
+
+// Standalone insert path used only when reservation has NOT been issued
+// (e.g. the very early plan-time validation rejects). Keeps the legacy
+// recordInvocation API for tests + external callers.
 async function recordInvocation(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -268,19 +337,18 @@ const proposeNewItemHandler: IntentHandler = {
     };
     return plan;
   },
-  // Execute: cap check → Anthropic → Zod → INSERT menu_agent_proposals.
+  // Execute: reserve cap slot → Anthropic → Zod → INSERT menu_agent_proposals.
   execute: async (ctx, plan) => {
     const seed = String(plan.resolvedPayload?.seed ?? '');
     const category_hint = String(plan.resolvedPayload?.category_hint ?? '');
-    const cap = await checkDailyCap(ctx.supabase, ctx.tenantId);
-    if (cap.capped) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.propose_new_item',
-        outcome: 'capped',
-      });
+
+    // Reserve cap slot atomically (insert-before-count). Concurrent calls
+    // both insert + both abort on race, never over-cap. See reserveCapSlot.
+    const reservation = await reserveCapSlot(ctx.supabase, ctx.tenantId, 'menu.propose_new_item');
+    if (reservation.capped) {
       throw new Error('daily_cap_reached');
     }
+    const reservationId = reservation.reservationId;
 
     const apiKey = await getApiKey();
     const userMessage = [
@@ -295,11 +363,7 @@ const proposeNewItemHandler: IntentHandler = {
     try {
       raw = await callAnthropic(apiKey, SYSTEM_PROMPT_NEW_ITEM, userMessage, 600);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.propose_new_item',
-        outcome: 'failed',
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed');
       throw e;
     }
 
@@ -307,12 +371,7 @@ const proposeNewItemHandler: IntentHandler = {
     try {
       parsed = extractJson(raw.text);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.propose_new_item',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error(`anthropic_unparseable_json: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}`);
     }
 
@@ -322,12 +381,7 @@ const proposeNewItemHandler: IntentHandler = {
     const price_ron = nonNegNumber(obj.price_ron, 10000);
     const cat = nonEmptyString(obj.category_hint, 120);
     if (!name || !description || price_ron === null || !cat) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.propose_new_item',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: required fields missing');
     }
     const tags = tagArray(obj.tags);
@@ -352,21 +406,11 @@ const proposeNewItemHandler: IntentHandler = {
       .select('id')
       .maybeSingle();
     if (error) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.propose_new_item',
-        outcome: 'failed',
-        costUsd,
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsd);
       throw new Error(`proposal_insert_failed: ${error.message}`);
     }
 
-    await recordInvocation(ctx.supabase, {
-      tenantId: ctx.tenantId,
-      intent: 'menu.propose_new_item',
-      outcome: 'ok',
-      costUsd,
-    });
+    await finalizeInvocation(ctx.supabase, reservationId, 'ok', costUsd);
 
     const result: HandlerResult = {
       summary: `Propunere "${name}" salvată ca DRAFT (${price_ron.toFixed(2)} RON).`,
@@ -402,15 +446,11 @@ const markSoldOutHandler: IntentHandler = {
     const reason = String(plan.resolvedPayload?.reason ?? '');
     const until_iso = String(plan.resolvedPayload?.until_iso ?? '');
 
-    const cap = await checkDailyCap(ctx.supabase, ctx.tenantId);
-    if (cap.capped) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'capped',
-      });
+    const reservation = await reserveCapSlot(ctx.supabase, ctx.tenantId, 'menu.mark_sold_out');
+    if (reservation.capped) {
       throw new Error('daily_cap_reached');
     }
+    const reservationId = reservation.reservationId;
 
     const apiKey = await getApiKey();
     const userMessage = [
@@ -425,11 +465,7 @@ const markSoldOutHandler: IntentHandler = {
     try {
       raw = await callAnthropic(apiKey, SYSTEM_PROMPT_SOLD_OUT, userMessage, 300);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed');
       throw e;
     }
 
@@ -437,42 +473,22 @@ const markSoldOutHandler: IntentHandler = {
     try {
       parsed = extractJson(raw.text);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error(`anthropic_unparseable_json: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}`);
     }
 
     const obj = parsed as Record<string, unknown>;
     if (!isUuid(obj.item_id) || obj.item_id !== item_id) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_item_id_mismatch');
     }
     const customer_facing_reason = nonEmptyString(obj.customer_facing_reason, 280);
     if (!customer_facing_reason) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: customer_facing_reason missing');
     }
     if (!isIsoDate(obj.until_iso)) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: until_iso missing');
     }
     const finalPayload = {
@@ -500,21 +516,11 @@ const markSoldOutHandler: IntentHandler = {
       .select('id')
       .maybeSingle();
     if (error) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.mark_sold_out',
-        outcome: 'failed',
-        costUsd,
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsd);
       throw new Error(`proposal_insert_failed: ${error.message}`);
     }
 
-    await recordInvocation(ctx.supabase, {
-      tenantId: ctx.tenantId,
-      intent: 'menu.mark_sold_out',
-      outcome: 'ok',
-      costUsd,
-    });
+    await finalizeInvocation(ctx.supabase, reservationId, 'ok', costUsd);
 
     return {
       summary: `Marcaj "${item_name}" epuizat — DRAFT pentru aprobare.`,
@@ -546,15 +552,11 @@ const draftPromoHandler: IntentHandler = {
     const item_price_ron = Number(plan.resolvedPayload?.item_price_ron ?? 0);
     const brief = String(plan.resolvedPayload?.brief ?? '');
 
-    const cap = await checkDailyCap(ctx.supabase, ctx.tenantId);
-    if (cap.capped) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'capped',
-      });
+    const reservation = await reserveCapSlot(ctx.supabase, ctx.tenantId, 'menu.draft_promo');
+    if (reservation.capped) {
       throw new Error('daily_cap_reached');
     }
+    const reservationId = reservation.reservationId;
 
     const apiKey = await getApiKey();
     const userMessage = [
@@ -569,11 +571,7 @@ const draftPromoHandler: IntentHandler = {
     try {
       raw = await callAnthropic(apiKey, SYSTEM_PROMPT_PROMO, userMessage, 500);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed');
       throw e;
     }
 
@@ -581,65 +579,35 @@ const draftPromoHandler: IntentHandler = {
     try {
       parsed = extractJson(raw.text);
     } catch (e) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error(`anthropic_unparseable_json: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}`);
     }
 
     const obj = parsed as Record<string, unknown>;
     if (!isUuid(obj.item_id) || obj.item_id !== item_id) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_item_id_mismatch');
     }
     const discount_pct = nonNegNumber(obj.discount_pct, 90);
     if (discount_pct === null || !Number.isInteger(discount_pct) || discount_pct < 1) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: discount_pct out of range');
     }
     const headline = nonEmptyString(obj.headline, 80);
     const body = nonEmptyString(obj.body, 400);
     if (!headline || !body) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: headline or body missing');
     }
     if (!isIsoDate(obj.valid_from) || !isIsoDate(obj.valid_to)) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: valid_from / valid_to missing');
     }
     const fromMs = Date.parse(String(obj.valid_from));
     const toMs = Date.parse(String(obj.valid_to));
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     if (fromMs >= toMs || toMs - fromMs > THIRTY_DAYS_MS) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd: costUsdOf(raw.inputTokens, raw.outputTokens),
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsdOf(raw.inputTokens, raw.outputTokens));
       throw new Error('anthropic_invalid_shape: promo window invalid (must be 0 < length <= 30d)');
     }
 
@@ -672,21 +640,11 @@ const draftPromoHandler: IntentHandler = {
       .select('id')
       .maybeSingle();
     if (error) {
-      await recordInvocation(ctx.supabase, {
-        tenantId: ctx.tenantId,
-        intent: 'menu.draft_promo',
-        outcome: 'failed',
-        costUsd,
-      });
+      await finalizeInvocation(ctx.supabase, reservationId, 'failed', costUsd);
       throw new Error(`proposal_insert_failed: ${error.message}`);
     }
 
-    await recordInvocation(ctx.supabase, {
-      tenantId: ctx.tenantId,
-      intent: 'menu.draft_promo',
-      outcome: 'ok',
-      costUsd,
-    });
+    await finalizeInvocation(ctx.supabase, reservationId, 'ok', costUsd);
 
     return {
       summary: `Promoție "${headline}" salvată ca DRAFT.`,
@@ -734,6 +692,7 @@ export const __TESTING__ = {
   proposeNewItemHandler,
   markSoldOutHandler,
   draftPromoHandler,
-  checkDailyCap,
+  reserveCapSlot,
+  finalizeInvocation,
   recordInvocation,
 };

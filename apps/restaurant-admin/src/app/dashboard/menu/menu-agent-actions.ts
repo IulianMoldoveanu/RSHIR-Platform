@@ -1,11 +1,17 @@
 'use server';
 
-// Menu Agent — server actions for the "Sugestii Hepy" tab on /dashboard/menu.
+// Menu Agent — Server Actions (mutating endpoints) for the "Sugestii Hepy"
+// tab on /dashboard/menu.
 //
 // Sprint 12 scope:
-//   - listProposals(tenantId, status?)  — read DRAFT/ACCEPTED/DISMISSED rows
-//   - acceptProposal(runId, note?)      — OWNER stamps decision = ACCEPTED
-//   - dismissProposal(runId, note?)     — OWNER stamps decision = DISMISSED
+//   - acceptProposal(proposalId, note?)  — OWNER stamps decision = ACCEPTED
+//   - dismissProposal(proposalId, note?) — OWNER stamps decision = DISMISSED
+//
+// Read-only fetcher `loadProposals` lives at ./menu-agent-loader.ts as a
+// non-Server-Actions module (security fix per Codex P1 round 2 on PR #363:
+// a 'use server' export is callable from any client and the original
+// implementation trusted the caller-supplied tenantId without the
+// membership re-check decideProposal performs).
 //
 // Per the lane brief: Accept does NOT mutate `restaurant_menu_items`. The
 // OWNER applies the suggestion by hand on the existing Menu page using the
@@ -19,7 +25,6 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { logAudit, type AuditAction } from '@/lib/audit';
-import type { MenuAgentProposalRow } from '@/lib/ai/agents/menu-agent';
 
 export type ActionResult =
   | { ok: true; id: string }
@@ -124,29 +129,5 @@ export async function dismissProposal(
   return decideProposal(expectedTenantId, raw, 'DISMISSED', 'menu_agent.proposal_dismissed');
 }
 
-// Server-side fetcher used by the menu page's "Sugestii Hepy" tab. Caps at
-// 50 rows — typical tenant won't accumulate more DRAFT proposals than the
-// daily cap × a few days. Caller filters by status when needed.
-export async function loadProposals(
-  tenantId: string,
-  opts?: { status?: 'DRAFT' | 'ACCEPTED' | 'DISMISSED'; limit?: number },
-): Promise<MenuAgentProposalRow[]> {
-  const admin = createAdminClient();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = admin as any;
-  let q = sb
-    .from('menu_agent_proposals')
-    .select(
-      'id, tenant_id, agent_run_id, kind, status, payload, rationale, model, input_tokens, output_tokens, decided_at, decided_by, decision_note, created_at, channel',
-    )
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
-    .limit(opts?.limit ?? 50);
-  if (opts?.status) q = q.eq('status', opts.status);
-  const { data, error } = await q;
-  if (error) {
-    console.warn('[menu-agent/load] query failed:', error.message);
-    return [];
-  }
-  return (data ?? []) as MenuAgentProposalRow[];
-}
+// loadProposals moved to ./menu-agent-loader.ts (server-only module, not
+// a Server Action) — Codex round-2 P1 fix on PR #363.

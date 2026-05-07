@@ -73,9 +73,9 @@ function makeMockSupabase(state: MockState) {
   return {
     from: (tableName: string) => {
       if (tableName === 'menu_agent_invocations') {
-        // Helper that returns the cap count from state. The real query
-        // filters out 'capped' rows (per Codex P2 #1), so the mock count
-        // mirrors that — only count rows whose outcome is 'ok' or 'failed'.
+        // Codex P2 round 2 fix on PR #363: insert-before-count cap
+        // accounting (reserveCapSlot). Codex P2 round 1: 'capped' rows
+        // excluded from the count. Mock mirrors both.
         const capCount = () =>
           state.forcedInvocationCount != null
             ? state.forcedInvocationCount
@@ -90,10 +90,35 @@ function makeMockSupabase(state: MockState) {
               gte: async () => ({ count: capCount(), error: null }),
             }),
           }),
-          insert: async (row: InsertedInvocation) => {
-            state.insertedInvocations.push(row);
-            return { error: null };
+          // reserveCapSlot inserts then chains .select('id').maybeSingle()
+          // to read back the new row's id; finalizeInvocation later
+          // .update(...).eq('id', reservationId). The legacy plain
+          // recordInvocation calls just `await insert(row)` without .select(),
+          // expecting `{error}`.
+          insert: (row: InsertedInvocation) => {
+            const id = `inv-${state.insertedInvocations.length + 1}`;
+            const stored = { ...row, id } as InsertedInvocation & { id: string };
+            state.insertedInvocations.push(stored);
+            const chained = {
+              select: () => ({
+                maybeSingle: async () => ({ data: { id }, error: null }),
+              }),
+              // Make `await insert(row)` resolve to {error: null} too.
+              then: (resolve: (value: { error: null }) => void) => resolve({ error: null }),
+            };
+            return chained;
           },
+          // reserveCapSlot may update outcome='capped'; finalizeInvocation
+          // updates outcome='ok'|'failed' + cost.
+          update: (patch: Partial<InsertedInvocation>) => ({
+            eq: async (_col: string, id: string) => {
+              const row = (state.insertedInvocations as Array<InsertedInvocation & { id?: string }>).find(
+                (r) => r.id === id,
+              );
+              if (row) Object.assign(row, patch);
+              return { error: null };
+            },
+          }),
         };
       }
       if (tableName === 'menu_agent_proposals') {
@@ -313,9 +338,14 @@ describe('menu-agent / propose_new_item handler', () => {
     expect(state.insertedInvocations[0]!.cost_micro_usd).toBeGreaterThan(0);
   });
 
-  test('execute() enforces daily cap — 5 invocations in 24h blocks the 6th', async () => {
+  test('execute() enforces daily cap via insert-before-count reservation — 6 (5 prior + 1 reserved) > cap blocks', async () => {
     const state = defaultState();
-    state.forcedInvocationCount = 5; // already at cap
+    // Codex P2 round 2 fix on PR #363: cap accounting now uses
+    // insert-before-count. The mock SELECT returns the forced count
+    // value AFTER the reservation insert. A 6th attempt sees post-insert
+    // count = 6 > DAILY_INVOCATION_CAP (5) → reservation rewritten as
+    // 'capped', execute() throws daily_cap_reached.
+    state.forcedInvocationCount = 6;
     stubAnthropic({
       name: 'X',
       description: 'X',
@@ -335,9 +365,44 @@ describe('menu-agent / propose_new_item handler', () => {
     await expect(__TESTING__.proposeNewItemHandler.execute(ctx, plan)).rejects.toThrow(
       /daily_cap_reached/,
     );
-    // Capped invocation logged, no proposal inserted.
+    // Reservation row was inserted then rewritten as 'capped'.
     expect(state.insertedProposals).toHaveLength(0);
     expect(state.insertedInvocations).toHaveLength(1);
+    expect(state.insertedInvocations[0]!.outcome).toBe('capped');
+  });
+});
+
+describe('menu-agent / cap reservation — Anthropic is NOT called when capped', () => {
+  test('reserveCapSlot blocks Anthropic call when post-insert count exceeds cap (Codex P2 round 2 fix)', async () => {
+    const state = defaultState();
+    state.forcedInvocationCount = 7; // post-insert count > cap
+    let fetchCalls = 0;
+    setFetchForTesting(async () => {
+      fetchCalls++;
+      return new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: '{}' }],
+          usage: { input_tokens: 0, output_tokens: 0 },
+        }),
+        { status: 200 },
+      );
+    });
+
+    const ctx = {
+      tenantId: 't1',
+      channel: 'telegram' as const,
+      actorUserId: null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: makeMockSupabase(state) as any,
+    };
+    const plan = await __TESTING__.proposeNewItemHandler.plan(ctx, { seed: 'cheesecake' });
+    await expect(__TESTING__.proposeNewItemHandler.execute(ctx, plan)).rejects.toThrow(
+      /daily_cap_reached/,
+    );
+    // Anthropic must not have been called — the cap reservation aborted
+    // before the upstream call.
+    expect(fetchCalls).toBe(0);
+    expect(state.insertedProposals).toHaveLength(0);
     expect(state.insertedInvocations[0]!.outcome).toBe('capped');
   });
 });
