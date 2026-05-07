@@ -106,7 +106,13 @@ export type AuditAction =
   | 'whatsapp.owner_bound'
   | 'branding.theme_previewed'
   | 'branding.theme_applied'
-  | 'pre_orders.settings_updated';
+  | 'pre_orders.settings_updated'
+  | 'voice.settings_updated'
+  | 'voice.token_set'
+  | 'voice.token_cleared'
+  | 'voice.call_received'
+  | 'voice.intent_dispatched'
+  | 'voice.response_sent';
 
 export async function logAudit(args: {
   tenantId: string;
