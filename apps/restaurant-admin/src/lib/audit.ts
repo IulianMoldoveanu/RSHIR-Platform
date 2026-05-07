@@ -99,6 +99,11 @@ export type AuditAction =
   | 'inventory.feature_toggled_off'
   | 'hepy.telegram_connect_link_generated'
   | 'hepy.telegram_unbound'
+  | 'whatsapp.connect_link_generated'
+  | 'whatsapp.unbound'
+  | 'whatsapp.message_received'
+  | 'whatsapp.message_sent'
+  | 'whatsapp.owner_bound'
   | 'branding.theme_previewed'
   | 'branding.theme_applied'
   | 'pre_orders.settings_updated';
