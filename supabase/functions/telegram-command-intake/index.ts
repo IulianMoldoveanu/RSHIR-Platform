@@ -13,6 +13,7 @@
 //   /fix <feedback_id> — manually trigger Fix Agent (writes triage_routed_to_fix=true)
 //   /confirm <code>    — confirm a pending destructive action
 //   /tenant <slug>     — set active tenant for this chat (Hepy intents)
+//   /vreme [oras]      — current weather for the tenant's city (or named city)
 //   /help [hepy]       — list commands (or Hepy NL examples)
 //   /status hepy       — last 10 Hepy intent runs
 //
@@ -777,6 +778,123 @@ async function ownerLowStock(supabase: any, tenant: { tenant_id: string; name: s
   }
   if (low.length > 20) lines.push(`…și încă ${low.length - 20}`);
   return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
+}
+
+// =====================================================================
+// HEPY — Weather (read, all roles)
+// =====================================================================
+// `/vreme` (tenant's city) or `/vreme <oras>` (named). Reads the most
+// recent `weather_snapshots` row. Lane WEATHER-SIGNAL-INGESTION 2026-05-08.
+//
+// Resolution mirrors WeatherTile in the admin app:
+//   1. tenant.city_id → cities.slug
+//   2. tenant.settings.city free-text fallback (legacy/unmigrated)
+// `/vreme <oras>` skips tenant resolution and looks up the city by slug
+// (after normalising diacritics + spaces).
+
+function _vremeNormalize(input: string): string {
+  return input
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '-');
+}
+
+async function ownerWeather(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  // 1. Resolve the city slug (named arg wins over tenant default).
+  let citySlug: string | null = null;
+  let cityName: string | null = null;
+  const namedArg = args.trim();
+
+  if (namedArg) {
+    citySlug = _vremeNormalize(namedArg);
+  } else {
+    const { data: trow } = await supabase
+      .from('tenants')
+      .select('city_id, settings, cities:city_id(slug, name)')
+      .eq('id', tenant.tenant_id)
+      .maybeSingle();
+    const fk = (trow?.cities as { slug?: string; name?: string } | null) ?? null;
+    if (fk?.slug) {
+      citySlug = fk.slug;
+      cityName = fk.name ?? null;
+    } else {
+      const free = (trow?.settings as { city?: unknown } | null)?.city;
+      if (typeof free === 'string' && free.trim()) {
+        citySlug = _vremeNormalize(free);
+      }
+    }
+  }
+
+  if (!citySlug) {
+    return {
+      text: '<b>🌤 Vreme</b>\nNu am putut determina orașul. Folosiți <code>/vreme &lt;oras&gt;</code>, ex: <code>/vreme Brașov</code>.',
+      status: 'OK',
+    };
+  }
+
+  // 2. Lookup the city row (for canonical display name).
+  const { data: city } = await supabase
+    .from('cities')
+    .select('id, slug, name')
+    .eq('slug', citySlug)
+    .maybeSingle();
+  if (!city) {
+    return {
+      text: `<b>🌤 Vreme</b>\nOrașul <code>${escapeHtml(citySlug)}</code> nu este în lista HIR. Pentru oraș nou contactați suportul.`,
+      status: 'OK',
+    };
+  }
+  cityName = cityName ?? (city.name as string | null) ?? citySlug;
+
+  // 3. Latest snapshot.
+  const { data: snap } = await supabase
+    .from('weather_snapshots')
+    .select(
+      'snapshot_at, temp_c, feels_like_c, weather_main, weather_desc, humidity_pct, wind_speed_ms, precipitation_1h_mm',
+    )
+    .eq('city_id', city.id)
+    .order('snapshot_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  await logHepyAudit(supabase, tenant.tenant_id, 'vreme', {
+    city_slug: citySlug,
+    has_snapshot: Boolean(snap),
+  });
+
+  if (!snap) {
+    return {
+      text: `<b>🌤 ${escapeHtml(cityName)}</b>\n<i>Nu există încă date meteo. Snapshot-urile se actualizează la fiecare 6 ore.</i>`,
+      status: 'OK',
+    };
+  }
+
+  const ts = new Date(snap.snapshot_at as string);
+  const tsLabel = ts.toISOString().substring(11, 16);
+  const parts: string[] = [`<b>🌤 ${escapeHtml(cityName)}</b>`];
+  const lineBits: string[] = [];
+  if (snap.temp_c !== null) lineBits.push(`<b>${Number(snap.temp_c).toFixed(1)}°C</b>`);
+  if (snap.weather_desc) lineBits.push(escapeHtml(String(snap.weather_desc)));
+  else if (snap.weather_main) lineBits.push(escapeHtml(String(snap.weather_main)));
+  parts.push(lineBits.join(' · '));
+
+  const detail: string[] = [];
+  if (snap.feels_like_c !== null) detail.push(`Resimțit ${Number(snap.feels_like_c).toFixed(1)}°C`);
+  if (snap.humidity_pct !== null) detail.push(`Umiditate ${snap.humidity_pct}%`);
+  if (snap.wind_speed_ms !== null) detail.push(`Vânt ${Number(snap.wind_speed_ms).toFixed(1)} m/s`);
+  if (Number(snap.precipitation_1h_mm ?? 0) > 0) {
+    detail.push(`Precipitații ${Number(snap.precipitation_1h_mm).toFixed(1)} mm/h`);
+  }
+  if (detail.length) parts.push(detail.join(' · '));
+  parts.push(`<i>actualizat ${tsLabel} UTC</i>`);
+
+  return { text: parts.join('\n').slice(0, 4000), status: 'OK' };
 }
 
 // =====================================================================
@@ -1592,6 +1710,7 @@ Sau folosiți comenzile rapide:
 /comenzi — comenzile de astăzi
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
+/vreme — vremea în orașul restaurantului
 /help hepy — toate comenzile`,
       status: 'OK',
     };
@@ -1613,6 +1732,7 @@ Comenzi rapide:
 /comenzi — comenzile de astăzi
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
+/vreme [oras] — vremea în orașul restaurantului (sau în orașul indicat)
 
 Rezervări:
 /rezerva — rezervare nouă (vă voi întreba pas cu pas, sau scrieți totul într-un mesaj)
@@ -1677,6 +1797,14 @@ Comenzi auxiliare:
     if (cmd === '/comenzi') return await ownerOrdersToday(supabase, tenant);
     if (cmd === '/vanzari') return await ownerSalesToday(supabase, tenant);
     return await ownerLowStock(supabase, tenant);
+  }
+
+  // Lane WEATHER-SIGNAL-INGESTION: /vreme [oras]. Read-only weather lookup
+  // for the tenant's city by default, or a named city as an argument.
+  if (cmd === '/vreme') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    return await ownerWeather(supabase, tenant, args);
   }
 
   // ────────────────────────────────────────────────────────────
