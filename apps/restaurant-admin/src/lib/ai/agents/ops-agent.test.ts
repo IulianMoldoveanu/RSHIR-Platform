@@ -165,6 +165,26 @@ function makeMockSupabase(state: MockState) {
           }),
         };
       }
+      if (table === 'fleet_restaurant_assignments') {
+        // PR #364 round 8: tenant → active fleets lookup.
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'courier_profiles') {
+        // PR #364 round 8: fleet → active couriers lookup.
+        return {
+          select: () => ({
+            in: () => ({
+              eq: async () => ({ data: [], error: null }),
+            }),
+          }),
+        };
+      }
       if (table === 'tenant_members') {
         return {
           select: (_cols: string, opts?: { count?: string; head?: boolean }) => ({

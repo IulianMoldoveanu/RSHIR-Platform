@@ -402,24 +402,28 @@ async function fetchScheduleHeatmap(
   // We count "online courier-hours" per (dow, hour) bucket and divide by
   // the number of distinct calendar days that overlapped that bucket.
   //
-  // Codex P2 (PR #364 round 1 + 4): scope shifts to couriers who actually
-  // served THIS tenant. courier_shifts has no direct tenant_id; without
-  // a filter we'd count every fleet's shifts and recommend under-staffing
-  // for tenants whose actual courier roster is small.
+  // Codex P2 (PR #364 round 1 + 4 + 8): scope shifts to couriers who
+  // actually CAN serve this tenant. courier_shifts has no direct
+  // tenant_id; without a filter we'd count every fleet's shifts and
+  // recommend under-staffing for tenants whose actual roster is small.
   //
-  // Two complementary sources:
-  //  (a) restaurant_orders.courier_user_id — primary path. Restaurant-
-  //      direct dispatch (Mode A / B) writes the courier here when the
-  //      order is handed off. This is the canonical roster for non-
-  //      pharma tenants per migration 20260603_002_phase1_fleet_schema.sql.
+  // Three complementary sources, unioned:
+  //  (a) restaurant_orders.courier_user_id — historical, restaurant-
+  //      direct dispatch path (Mode A / B). Per migration
+  //      20260603_002_phase1_fleet_schema.sql.
   //  (b) courier_orders.assigned_courier_user_id where source_tenant_id
-  //      = $tenantId — covers fleet-routed orders that mirror through
-  //      the unified courier_orders table (HIR via Fleet Network).
-  //      Restaurant orders are NOT auto-mirrored, so (a) is the bigger
-  //      source for most tenants; we union both to be safe.
+  //      = $tenantId — historical, fleet-routed mirror path.
+  //  (c) courier_profiles.fleet_id ∈ tenant's active fleet assignments
+  //      — covers newly-onboarded fleets whose couriers haven't yet
+  //      taken an order in the 14d window. Per migrations
+  //      20260428_002_courier_fleets_and_webhooks.sql (courier→fleet)
+  //      and 20260507_011_fleet_allocation_v1.sql (tenant→fleet).
+  //      Without (c), a fresh tenant whose fleet is staffed but
+  //      hasn't dispatched yet looks like 0 capacity.
   const [
     { data: rOrders, error: rOrdersErr },
     { data: cOrders, error: cOrdersErr },
+    { data: fleetAssigns, error: fleetAssignsErr },
   ] = await Promise.all([
     supabase
       .from('restaurant_orders')
@@ -435,6 +439,11 @@ async function fetchScheduleHeatmap(
       .gte('created_at', since)
       .not('assigned_courier_user_id', 'is', null)
       .limit(5000),
+    supabase
+      .from('fleet_restaurant_assignments')
+      .select('fleet_id')
+      .eq('restaurant_tenant_id', tenantId)
+      .eq('status', 'active'),
   ]);
   if (rOrdersErr) {
     console.warn('[ops-agent] fetchScheduleHeatmap restaurant_orders courier ids failed:', rOrdersErr.message);
@@ -442,6 +451,33 @@ async function fetchScheduleHeatmap(
   if (cOrdersErr) {
     console.warn('[ops-agent] fetchScheduleHeatmap courier_orders ids failed:', cOrdersErr.message);
   }
+  if (fleetAssignsErr) {
+    console.warn('[ops-agent] fetchScheduleHeatmap fleet_restaurant_assignments failed:', fleetAssignsErr.message);
+  }
+
+  const fleetIds = Array.from(
+    new Set(
+      ((fleetAssigns ?? []) as Array<{ fleet_id: string | null }>)
+        .map((r) => r.fleet_id)
+        .filter((x): x is string => !!x),
+    ),
+  );
+  let fleetCourierIds: string[] = [];
+  if (fleetIds.length > 0) {
+    const { data: fleetCouriers, error: fleetCouriersErr } = await supabase
+      .from('courier_profiles')
+      .select('user_id')
+      .in('fleet_id', fleetIds)
+      .eq('status', 'ACTIVE');
+    if (fleetCouriersErr) {
+      console.warn('[ops-agent] fetchScheduleHeatmap courier_profiles failed:', fleetCouriersErr.message);
+    } else {
+      fleetCourierIds = ((fleetCouriers ?? []) as Array<{ user_id: string | null }>)
+        .map((r) => r.user_id)
+        .filter((x): x is string => !!x);
+    }
+  }
+
   const tenantCourierIds = Array.from(
     new Set([
       ...((rOrders ?? []) as Array<{ courier_user_id: string | null }>)
@@ -450,6 +486,7 @@ async function fetchScheduleHeatmap(
       ...((cOrders ?? []) as Array<{ assigned_courier_user_id: string | null }>)
         .map((r) => r.assigned_courier_user_id)
         .filter((x): x is string => !!x),
+      ...fleetCourierIds,
     ]),
   );
 
