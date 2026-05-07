@@ -7,6 +7,17 @@
 // stable API to register through and unblocks Sprint 13 incremental
 // migration.
 //
+// Two-phase handler contract:
+//   plan()    — pure, MUST NOT mutate. Returns the action_category +
+//               human-readable summary + optional pre_state. Runs first.
+//   execute() — performs the side effect. The dispatcher only calls
+//               execute() AFTER the trust gate has decided EXECUTED.
+//               This is the architectural fix for Codex P1 review on
+//               PR #341 — without phase-split, a write handler under
+//               PROPOSE_ONLY would mutate state before the gate refused
+//               to execute, leaving the OWNER an "approve" button that
+//               does nothing.
+//
 // Goals:
 //  - Single dispatch surface across channels (telegram | web | voice).
 //  - Trust-level gate: every intent declares an action_category; the
@@ -90,30 +101,69 @@ export type HandlerContext = {
 };
 
 export type HandlerResult = {
-  // Action category the handler is reporting — the dispatcher uses this to
-  // resolve trust level + write the ledger row. Examples:
-  // 'analytics.read', 'menu.description.update', 'price.change'.
-  actionCategory: string;
   // Human-readable one-liner stored as `summary` on the ledger row.
   summary: string;
-  // Optional pre-state for revert. Skip when the action is non-revertible
-  // (read-only, transient).
+  // Optional pre-state captured before the side effect. Used by revert.
+  // Read-only intents (analytics, ops queries) leave this empty/undefined.
   preState?: Record<string, unknown>;
-  // What the handler returns to the caller.
+  // What the handler returns to the caller (channel-side formats it).
   data: unknown;
 };
 
-export type IntentHandler = (
-  ctx: HandlerContext,
-  payload: Record<string, unknown>,
-) => Promise<HandlerResult>;
+// Plan result — what the handler intends to do, computed BEFORE the
+// trust gate so the dispatcher can refuse to run a mutating handler
+// when the tenant has set the category to PROPOSE_ONLY. Plan must be
+// pure: no DB writes, no external side effects. Plan output is stored
+// on the ledger row's `payload` so a later Approve can replay it.
+export type HandlerPlan = {
+  // Action category for the trust gate, e.g. 'description.update'.
+  // Handlers MAY override the registration's defaultCategory at plan
+  // time (e.g. one /menu intent that touches both `description.update`
+  // and `price.change` depending on payload).
+  actionCategory: string;
+  // Human-readable one-liner shown to the OWNER in the approval UI
+  // and stored as `summary` on the PROPOSED ledger row.
+  summary: string;
+  // Optional pre-state to capture (read once during plan; revert uses
+  // this to restore). Skip for read-only intents.
+  preState?: Record<string, unknown>;
+  // Free-form payload echo — what the execute phase will need to
+  // actually run the side effect. Stored as the ledger row's `payload`.
+  // For a PROPOSED row, this is what Approve replays through `execute`.
+  resolvedPayload?: Record<string, unknown>;
+};
+
+// Two-phase handler. The dispatcher always calls `plan` first; if the
+// trust gate decides EXECUTE, it then calls `execute` with the plan
+// output. Read-only intents implement plan == execute (the
+// `readOnly: true` flag on registration tells the dispatcher to skip
+// the trust gate entirely).
+export type IntentHandler = {
+  // Pure planning step. MUST NOT mutate Supabase or call external APIs
+  // that have side effects. May READ from Supabase to compute pre_state.
+  plan: (
+    ctx: HandlerContext,
+    payload: Record<string, unknown>,
+  ) => Promise<HandlerPlan>;
+  // Executes the side effect. Called by the dispatcher after plan when
+  // trust resolves to EXECUTED, or by the future Approve action when an
+  // OWNER approves a PROPOSED row.
+  execute: (
+    ctx: HandlerContext,
+    plan: HandlerPlan,
+  ) => Promise<HandlerResult>;
+};
 
 export type IntentRegistration = {
   name: string;
   agent: AgentName;
-  // The default action_category this intent reports. Handlers MAY override
-  // per-call (e.g. /menu can do both 'description.update' and 'price.change').
+  // The default action_category this intent reports. Plan MAY override
+  // per-call.
   defaultCategory: string;
+  // When true, dispatcher bypasses the trust gate (analytics + ops reads
+  // are always EXECUTED — no point asking the OWNER to approve a query
+  // that returns "you have 3 active orders"). Defaults to false.
+  readOnly?: boolean;
   // Free-form one-liner shown in the admin "Intent registry" UI.
   description: string;
   handler: IntentHandler;
@@ -240,54 +290,80 @@ export async function dispatchIntent(
     supabase,
   };
 
-  let result: HandlerResult;
+  // PHASE 1 — plan. Pure: no side effects, may read for pre_state.
+  // CRITICAL: this runs BEFORE the trust gate so a write handler whose
+  // tenant/category resolves to PROPOSE_ONLY is NOT executed (the
+  // execute() phase below is what mutates state).
+  let plan: HandlerPlan;
   try {
-    result = await reg.handler(ctx, input.payload);
+    plan = await reg.handler.plan(ctx, input.payload);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(`[master-orchestrator] handler "${input.intent}" threw:`, message);
+    console.error(`[master-orchestrator] plan "${input.intent}" threw:`, message);
     return { ok: false, error: 'handler_threw', message };
   }
 
-  const trust = await resolveTrust(
-    supabase,
-    input.tenantId,
-    reg.agent,
-    result.actionCategory,
-  );
-
-  // PROPOSE_ONLY -> handler already ran (read or compute); we still write
-  // a PROPOSED ledger row when the intent has a non-trivial pre_state, so
-  // the OWNER can either Approve (move state -> EXECUTED) or Reject. For
-  // pure read-only intents (preState == null) we write EXECUTED directly.
-  const isReadOnly = !result.preState || Object.keys(result.preState).length === 0;
+  // Read-only intents skip the trust gate entirely. The dispatcher still
+  // writes an EXECUTED ledger row so usage is auditable.
   let ledgerState: RunState = 'EXECUTED';
-  if (trust === 'PROPOSE_ONLY' && !isReadOnly) ledgerState = 'PROPOSED';
-  // AUTO_REVERSIBLE and AUTO_FULL both EXECUTE; the difference is whether
-  // the action is reversible (24h revert window vs irreversible). The
-  // dispatcher itself doesn't enforce that — the handler is responsible
-  // for picking the right action_category.
+  if (!reg.readOnly) {
+    const trust = await resolveTrust(
+      supabase,
+      input.tenantId,
+      reg.agent,
+      plan.actionCategory,
+    );
+    if (trust === 'PROPOSE_ONLY') ledgerState = 'PROPOSED';
+    // AUTO_REVERSIBLE / AUTO_FULL both EXECUTE; the difference matters
+    // only for the revert UI window (24 h vs locked).
+  }
 
-  const runId = await writeLedger(supabase, {
-    tenantId: input.tenantId,
-    agentName: reg.agent,
-    actionType: `${reg.agent}.${result.actionCategory}`,
-    state: ledgerState,
-    payload: input.payload,
-    summary: result.summary,
-    preState: result.preState,
-    actorUserId: input.actorUserId ?? null,
-  });
-
+  // PROPOSED branch: write the ledger row with the plan output as
+  // payload (so a future Approve can replay it through execute()) and
+  // STOP. Side effect not yet performed.
   if (ledgerState === 'PROPOSED') {
+    const runId = await writeLedger(supabase, {
+      tenantId: input.tenantId,
+      agentName: reg.agent,
+      actionType: `${reg.agent}.${plan.actionCategory}`,
+      state: 'PROPOSED',
+      payload: plan.resolvedPayload ?? input.payload,
+      summary: plan.summary,
+      preState: plan.preState,
+      actorUserId: input.actorUserId ?? null,
+    });
     return {
       ok: true,
       state: 'PROPOSED',
       runId: runId ?? '',
       reason: 'trust_level',
-      summary: result.summary,
+      summary: plan.summary,
     };
   }
+
+  // PHASE 2 — execute. Trust resolved to EXECUTED (or read-only), so we
+  // run the side effect now and write an EXECUTED ledger row with the
+  // result.
+  let result: HandlerResult;
+  try {
+    result = await reg.handler.execute(ctx, plan);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[master-orchestrator] execute "${input.intent}" threw:`, message);
+    return { ok: false, error: 'handler_threw', message };
+  }
+
+  const runId = await writeLedger(supabase, {
+    tenantId: input.tenantId,
+    agentName: reg.agent,
+    actionType: `${reg.agent}.${plan.actionCategory}`,
+    state: 'EXECUTED',
+    payload: plan.resolvedPayload ?? input.payload,
+    summary: result.summary,
+    preState: result.preState ?? plan.preState,
+    actorUserId: input.actorUserId ?? null,
+  });
+
   return {
     ok: true,
     state: 'EXECUTED',
@@ -306,7 +382,7 @@ export async function dispatchIntent(
 
 export type RegistryEntry = Pick<
   IntentRegistration,
-  'name' | 'agent' | 'defaultCategory' | 'description'
+  'name' | 'agent' | 'defaultCategory' | 'description' | 'readOnly'
 >;
 
 // Static map of known intents — mirrors the registry and is used by the
@@ -314,18 +390,18 @@ export type RegistryEntry = Pick<
 // dispatchIntent(). Source of truth for documentation.
 export const KNOWN_INTENTS: RegistryEntry[] = [
   // --- Analytics agent (read) ---
-  { name: 'analytics.summary', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Sumar comenzi/încasări pentru o perioadă.' },
-  { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.' },
-  { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.' },
-  { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).' },
+  { name: 'analytics.summary', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Sumar comenzi/încasări pentru o perioadă.', readOnly: true },
+  { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.', readOnly: true },
+  { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.', readOnly: true },
+  { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).', readOnly: true },
   // --- Ops agent (read) ---
-  { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.' },
-  { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.' },
-  { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.' },
-  { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.' },
+  { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.', readOnly: true },
+  { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.', readOnly: true },
+  { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.', readOnly: true },
+  { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.', readOnly: true },
   // --- CS agent (write, low-risk) ---
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
-  { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.' },
+  { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },
   { name: 'cs.reservation_cancel', agent: 'cs', defaultCategory: 'reservation.cancel', description: 'Anulează o rezervare după token.' },
   // --- Menu agent (write, mixed risk) — placeholders for Sprint 14 ---
   { name: 'menu.description_update', agent: 'menu', defaultCategory: 'description.update', description: 'Actualizează descrierea unui produs.' },

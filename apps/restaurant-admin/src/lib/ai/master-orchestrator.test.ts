@@ -15,13 +15,21 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, beforeEach } from 'vitest';
 import {
   KNOWN_INTENTS,
   TRUST_CATEGORIES,
   TRUST_LEVEL_LABELS,
   RUN_STATE_LABELS,
 } from './master-orchestrator-types';
+// Direct import of the canonical dispatcher (pure TS, Deno-compatible
+// but no Deno globals, so vitest in Node loads it fine).
+import {
+  registerIntent,
+  dispatchIntent,
+  clearRegistryForTesting,
+  type IntentHandler,
+} from '../../../../../supabase/functions/_shared/master-orchestrator';
 
 // Drift guard: parse the canonical Deno-side dispatcher source as text and
 // extract the set of intent names from its KNOWN_INTENTS literal. The
@@ -238,5 +246,262 @@ describe('canRevert window', () => {
         created_at: twoDaysAgo,
       }),
     ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Dispatcher trust-gate tests — directly exercises dispatchIntent() with a
+// mock Supabase client. CRITICAL: confirms the Codex P1 fix — a
+// PROPOSE_ONLY write intent must NOT call execute() before the gate.
+// ---------------------------------------------------------------------------
+
+type MockSb = {
+  trustRows: Array<{
+    restaurant_id: string;
+    agent_name: string;
+    action_category: string;
+    trust_level: 'PROPOSE_ONLY' | 'AUTO_REVERSIBLE' | 'AUTO_FULL';
+    is_destructive: boolean;
+  }>;
+  insertedRuns: Array<Record<string, unknown>>;
+};
+
+function makeMockSupabase(state: MockSb) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return {
+    from(table: string) {
+      if (table === 'agent_trust_calibration') {
+        return {
+          select: () => ({
+            eq: (_c: string, _v: string) => ({
+              eq: (_c2: string, _v2: string) => ({
+                eq: (_c3: string, _v3: string) => ({
+                  maybeSingle: async () => {
+                    const r = state.trustRows[0] ?? null;
+                    return { data: r, error: null };
+                  },
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'copilot_agent_runs') {
+        return {
+          insert: (row: Record<string, unknown>) => {
+            state.insertedRuns.push(row);
+            return {
+              select: () => ({
+                maybeSingle: async () => ({ data: { id: 'run-' + state.insertedRuns.length }, error: null }),
+              }),
+            };
+          },
+        };
+      }
+      throw new Error('unmocked table: ' + table);
+    },
+  };
+}
+
+describe('dispatchIntent — trust gate ordering (Codex P1 fix)', () => {
+  beforeEach(() => clearRegistryForTesting());
+
+  test('PROPOSE_ONLY write intent does NOT call execute() — gate runs after plan, before execute', async () => {
+    let planCalls = 0;
+    let executeCalls = 0;
+    const handler: IntentHandler = {
+      plan: async () => {
+        planCalls++;
+        return {
+          actionCategory: 'description.update',
+          summary: 'Actualizez descrierea pentru X',
+          preState: { description: 'old' },
+          resolvedPayload: { item_id: 1, new: 'better' },
+        };
+      },
+      execute: async () => {
+        executeCalls++;
+        return { summary: 'done', data: { ok: true } };
+      },
+    };
+    registerIntent({
+      name: 'menu.description_update',
+      agent: 'menu',
+      defaultCategory: 'description.update',
+      description: 't',
+      handler,
+    });
+
+    const state: MockSb = {
+      trustRows: [
+        {
+          restaurant_id: 't1',
+          agent_name: 'menu',
+          action_category: 'description.update',
+          trust_level: 'PROPOSE_ONLY',
+          is_destructive: false,
+        },
+      ],
+      insertedRuns: [],
+    };
+    const sb = makeMockSupabase(state);
+
+    const r = await dispatchIntent(sb, {
+      tenantId: 't1',
+      channel: 'telegram',
+      intent: 'menu.description_update',
+      payload: {},
+    });
+
+    expect(planCalls).toBe(1);
+    // The CRITICAL assertion: execute must NOT have been called.
+    expect(executeCalls).toBe(0);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state).toBe('PROPOSED');
+    // Ledger row written with state PROPOSED.
+    expect(state.insertedRuns).toHaveLength(1);
+    expect(state.insertedRuns[0]!.state).toBe('PROPOSED');
+  });
+
+  test('AUTO_REVERSIBLE write intent DOES call execute()', async () => {
+    let executeCalls = 0;
+    registerIntent({
+      name: 'menu.description_update',
+      agent: 'menu',
+      defaultCategory: 'description.update',
+      description: 't',
+      handler: {
+        plan: async () => ({
+          actionCategory: 'description.update',
+          summary: 'plan',
+          preState: { description: 'old' },
+        }),
+        execute: async () => {
+          executeCalls++;
+          return { summary: 'executed', data: { ok: true } };
+        },
+      },
+    });
+
+    const state: MockSb = {
+      trustRows: [
+        {
+          restaurant_id: 't1',
+          agent_name: 'menu',
+          action_category: 'description.update',
+          trust_level: 'AUTO_REVERSIBLE',
+          is_destructive: false,
+        },
+      ],
+      insertedRuns: [],
+    };
+    const r = await dispatchIntent(makeMockSupabase(state), {
+      tenantId: 't1',
+      channel: 'telegram',
+      intent: 'menu.description_update',
+      payload: {},
+    });
+
+    expect(executeCalls).toBe(1);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state).toBe('EXECUTED');
+    expect(state.insertedRuns[0]!.state).toBe('EXECUTED');
+  });
+
+  test('readOnly intent bypasses trust gate entirely', async () => {
+    let executeCalls = 0;
+    registerIntent({
+      name: 'analytics.summary',
+      agent: 'analytics',
+      defaultCategory: 'analytics.read',
+      description: 't',
+      readOnly: true,
+      handler: {
+        plan: async () => ({ actionCategory: 'analytics.read', summary: 'plan' }),
+        execute: async () => {
+          executeCalls++;
+          return { summary: 'data', data: { orders: 5 } };
+        },
+      },
+    });
+
+    // Even with PROPOSE_ONLY in the DB, readOnly bypasses.
+    const state: MockSb = {
+      trustRows: [
+        {
+          restaurant_id: 't1',
+          agent_name: 'analytics',
+          action_category: 'analytics.read',
+          trust_level: 'PROPOSE_ONLY',
+          is_destructive: false,
+        },
+      ],
+      insertedRuns: [],
+    };
+    const r = await dispatchIntent(makeMockSupabase(state), {
+      tenantId: 't1',
+      channel: 'telegram',
+      intent: 'analytics.summary',
+      payload: {},
+    });
+
+    expect(executeCalls).toBe(1);
+    if (r.ok) expect(r.state).toBe('EXECUTED');
+  });
+
+  test('destructive flag forces PROPOSED even when trust_level=AUTO_FULL', async () => {
+    let executeCalls = 0;
+    registerIntent({
+      name: 'menu.price_change',
+      agent: 'menu',
+      defaultCategory: 'price.change',
+      description: 't',
+      handler: {
+        plan: async () => ({
+          actionCategory: 'price.change',
+          summary: 'plan',
+          preState: { price: 10 },
+        }),
+        execute: async () => {
+          executeCalls++;
+          return { summary: 'done', data: {} };
+        },
+      },
+    });
+
+    const state: MockSb = {
+      trustRows: [
+        {
+          restaurant_id: 't1',
+          agent_name: 'menu',
+          action_category: 'price.change',
+          trust_level: 'AUTO_FULL', // owner tried to escalate
+          is_destructive: true, // but DB says destructive
+        },
+      ],
+      insertedRuns: [],
+    };
+    const r = await dispatchIntent(makeMockSupabase(state), {
+      tenantId: 't1',
+      channel: 'telegram',
+      intent: 'menu.price_change',
+      payload: {},
+    });
+
+    // Destructive guard wins: ledger goes to PROPOSED, execute not called.
+    expect(executeCalls).toBe(0);
+    if (r.ok) expect(r.state).toBe('PROPOSED');
+  });
+
+  test('unknown intent returns error', async () => {
+    const state: MockSb = { trustRows: [], insertedRuns: [] };
+    const r = await dispatchIntent(makeMockSupabase(state), {
+      tenantId: 't1',
+      channel: 'telegram',
+      intent: 'does.not.exist',
+      payload: {},
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe('unknown_intent');
   });
 });

@@ -30,22 +30,22 @@ export type RegistryEntry = {
   agent: AgentName;
   defaultCategory: string;
   description: string;
+  readOnly?: boolean;
 };
 
 // Same list as `_shared/master-orchestrator.ts` KNOWN_INTENTS. Drift is
-// harmless: the Telegram side authoritative; this mirror is read-only for
-// the admin "Intent registry" surface.
+// caught by the test in master-orchestrator.test.ts.
 export const KNOWN_INTENTS: RegistryEntry[] = [
-  { name: 'analytics.summary', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Sumar comenzi/încasări pentru o perioadă.' },
-  { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.' },
-  { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.' },
-  { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).' },
-  { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.' },
-  { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.' },
-  { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.' },
-  { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.' },
+  { name: 'analytics.summary', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Sumar comenzi/încasări pentru o perioadă.', readOnly: true },
+  { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.', readOnly: true },
+  { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.', readOnly: true },
+  { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).', readOnly: true },
+  { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.', readOnly: true },
+  { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.', readOnly: true },
+  { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.', readOnly: true },
+  { name: 'ops.weather_today', agent: 'ops', defaultCategory: 'ops.read', description: 'Vremea curentă pentru orașul tenantului.', readOnly: true },
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
-  { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.' },
+  { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },
   { name: 'cs.reservation_cancel', agent: 'cs', defaultCategory: 'reservation.cancel', description: 'Anulează o rezervare după token.' },
   { name: 'menu.description_update', agent: 'menu', defaultCategory: 'description.update', description: 'Actualizează descrierea unui produs.' },
   { name: 'menu.price_change', agent: 'menu', defaultCategory: 'price.change', description: 'Schimbă prețul unui produs (destructiv).' },
