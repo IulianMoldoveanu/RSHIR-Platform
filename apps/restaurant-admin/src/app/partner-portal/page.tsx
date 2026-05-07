@@ -22,6 +22,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { InvitePanel } from './_components/invite-panel';
 import { ProfileForm } from './_components/profile-form';
 import { NotificationSettings } from './_components/notification-settings';
+import { BrandingForm } from './_components/branding-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,7 @@ type Partner = {
   status: string;
   code: string | null;
   notification_settings: Record<string, unknown> | null;
+  landing_settings: Record<string, unknown> | null;
 };
 
 type Referral = {
@@ -117,7 +119,9 @@ export default async function PartnerPortalPage() {
   // 1. Partner row (PENDING + ACTIVE both allowed; PENDING shows banner)
   const { data: rawPartner } = await admin
     .from('partners')
-    .select('id, name, email, phone, default_commission_pct, status, code, notification_settings')
+    .select(
+      'id, name, email, phone, default_commission_pct, status, code, notification_settings, landing_settings',
+    )
     .eq('user_id', user.id)
     .in('status', ['PENDING', 'ACTIVE'])
     .maybeSingle();
@@ -134,6 +138,8 @@ export default async function PartnerPortalPage() {
     code: (rawPartner.code as string | null) ?? null,
     notification_settings:
       (rawPartner.notification_settings as Record<string, unknown> | null) ?? null,
+    landing_settings:
+      (rawPartner.landing_settings as Record<string, unknown> | null) ?? null,
   };
 
   // PR3: extract the 3 UI-exposed toggles. Default-on if missing (matches
@@ -546,6 +552,28 @@ export default async function PartnerPortalPage() {
         />
       </section>
 
+      {/* White-label branding (per-partner /r/<code> page) */}
+      <section aria-label="White-label /r/<code>">
+        <h2 className="mb-1 text-sm font-semibold text-zinc-900">Pagina ta publică</h2>
+        <p className="mb-3 text-xs text-zinc-500">
+          Personalizează ce văd restaurantele când deschid linkul tău de recomandare. „Powered by HIR” rămâne afișat în footer (cerință brand HIR).
+        </p>
+        <BrandingForm
+          partnerCode={partner.code}
+          initial={{
+            headline: stringField(partner.landing_settings, 'headline'),
+            blurb: stringField(partner.landing_settings, 'blurb'),
+            cta_url: stringField(partner.landing_settings, 'cta_url'),
+            accent_color: stringField(partner.landing_settings, 'accent_color') || '#0f766e',
+            hero_image_url: stringField(partner.landing_settings, 'hero_image_url'),
+            logo_url: stringField(partner.landing_settings, 'logo_url'),
+            tagline_ro: stringField(partner.landing_settings, 'tagline_ro'),
+            tagline_en: stringField(partner.landing_settings, 'tagline_en'),
+            tenant_count_floor: numberFieldString(partner.landing_settings, 'tenant_count_floor'),
+          }}
+        />
+      </section>
+
       {/* PR3: Notification preferences */}
       <section aria-label="Notificări pe e-mail">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900">Notificări pe e-mail</h2>
@@ -637,4 +665,19 @@ function EmptyState({ text }: { text: string }) {
       <p className="text-sm text-zinc-500">{text}</p>
     </div>
   );
+}
+
+// Safely read a string field from the landing_settings jsonb. Anything that
+// isn't a string falls back to empty so the form never receives `null`.
+function stringField(settings: Record<string, unknown> | null, key: string): string {
+  const v = settings?.[key];
+  return typeof v === 'string' ? v : '';
+}
+
+// Read a numeric field, render as a string for the form input. Missing /
+// non-finite values fall back to empty.
+function numberFieldString(settings: Record<string, unknown> | null, key: string): string {
+  const v = settings?.[key];
+  if (typeof v === 'number' && Number.isFinite(v)) return String(Math.floor(v));
+  return '';
 }

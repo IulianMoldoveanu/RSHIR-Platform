@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createHash } from 'node:crypto';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { pickLocale, pickTagline, safeImageUrl } from './helpers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,15 +25,24 @@ type PartnerRow = {
     cta_url?: string;
     accent_color?: string;
     hero_image_url?: string;
+    // PR feat/reseller-white-label-per-partner-2026-05-08
+    logo_url?: string;
+    tagline_ro?: string;
+    tagline_en?: string;
+    tenant_count_floor?: number;
   } | null;
 };
 
 const DEFAULT_LANDING = {
   headline: 'HIR — soluția de comenzi online pentru restaurante',
-  blurb: 'Plătești doar 3 RON / livrare. Fără abonament. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
+  blurb:
+    'Plătești doar 3 RON / livrare. Fără abonament. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
   cta_url: '/migrate-from-gloriafood',
   accent_color: '#0f766e',
 };
+
+// Pure helpers (allow-list, image URL guard, locale pick, tagline fallback)
+// live in ./helpers so they can be unit-tested without booting Next.js.
 
 function hashIp(ip: string): string {
   const month = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -109,15 +119,9 @@ export default async function ResellerLandingPage({
   }
   const ctaHref = safeCta + (safeCta.includes('?') ? '&' : '?') + `ref=${encodeURIComponent(code)}`;
 
-  // Same defense for hero_image_url.
-  const rawHero = merged.hero_image_url;
-  let safeHero: string | null = null;
-  if (typeof rawHero === 'string' && rawHero.length > 0) {
-    try {
-      const u = new URL(rawHero);
-      if (u.protocol === 'https:') safeHero = rawHero;
-    } catch { /* skip */ }
-  }
+  // Image URLs go through a stricter allow-list check (host + protocol).
+  const safeHero = safeImageUrl(merged.hero_image_url);
+  const safeLogo = safeImageUrl(merged.logo_url);
 
   // accent_color: only allow #RGB or #RRGGBB. Default if invalid.
   const rawAccent = merged.accent_color ?? DEFAULT_LANDING.accent_color;
@@ -125,8 +129,39 @@ export default async function ResellerLandingPage({
     ? String(rawAccent)
     : DEFAULT_LANDING.accent_color;
 
+  // Locale: pick from Accept-Language; pick the matching tagline if present.
+  const acceptLanguage = headers().get('accept-language');
+  const locale = pickLocale(acceptLanguage);
+  const safeTagline = pickTagline(locale, merged.tagline_ro, merged.tagline_en);
+
+  // tenant_count_floor: integer 0..100_000. Used as social-proof line when set.
+  const rawFloor = merged.tenant_count_floor;
+  const safeFloor =
+    typeof rawFloor === 'number' && Number.isFinite(rawFloor) && rawFloor >= 0 && rawFloor <= 100_000
+      ? Math.floor(rawFloor)
+      : null;
+
+  // Locale-aware copy strings (only the surface chrome — partner-supplied
+  // headline / blurb / tagline already carry their own language).
+  const t = locale === 'en'
+    ? {
+        recommended_by: 'Recommended by',
+        cta: 'Get started with HIR',
+        ref_code: 'Referral code:',
+        powered_by: 'Powered by HIR',
+        floor_suffix: 'restaurants already on HIR',
+      }
+    : {
+        recommended_by: 'Recomandat de',
+        cta: 'Începe acum cu HIR',
+        ref_code: 'Cod referal:',
+        powered_by: 'Powered by HIR',
+        floor_suffix: 'restaurante folosesc deja HIR',
+      };
+
   return (
     <main
+      lang={locale}
       style={{
         minHeight: '100vh',
         background: `linear-gradient(135deg, ${safeAccent}10 0%, #ffffff 60%)`,
@@ -134,22 +169,81 @@ export default async function ResellerLandingPage({
         color: '#1e293b',
       }}
     >
-      <section style={{ maxWidth: 920, margin: '0 auto', padding: '64px 24px' }}>
-        <div style={{ marginBottom: 16, fontSize: 14, color: '#64748b' }}>
-          Recomandat de <strong>{partner.name}</strong>
+      {/* Header band: optional partner logo on the left, "recommended by" on the right. */}
+      <header
+        style={{
+          maxWidth: 920,
+          margin: '0 auto',
+          padding: '24px 24px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
+        {safeLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={safeLogo}
+            alt={partner.name}
+            style={{ height: 40, width: 'auto', objectFit: 'contain' }}
+          />
+        ) : (
+          <div
+            aria-hidden
+            style={{
+              height: 40,
+              display: 'flex',
+              alignItems: 'center',
+              fontWeight: 700,
+              fontSize: 18,
+              color: '#0f172a',
+            }}
+          >
+            {partner.name}
+          </div>
+        )}
+        <div style={{ fontSize: 13, color: '#64748b' }}>
+          {t.recommended_by} <strong style={{ color: '#0f172a' }}>{partner.name}</strong>
         </div>
+      </header>
+
+      <section style={{ maxWidth: 920, margin: '0 auto', padding: '40px 24px 64px' }}>
         <h1
           style={{
             fontSize: 'clamp(28px, 5vw, 48px)',
             lineHeight: 1.15,
-            margin: '0 0 16px',
+            margin: '0 0 12px',
             fontWeight: 700,
             color: '#0f172a',
           }}
         >
           {merged.headline}
         </h1>
-        <p style={{ fontSize: 'clamp(16px, 2.4vw, 20px)', lineHeight: 1.6, color: '#334155', maxWidth: 680, margin: '0 0 32px' }}>
+
+        {safeTagline ? (
+          <p
+            style={{
+              fontSize: 'clamp(15px, 2vw, 18px)',
+              lineHeight: 1.5,
+              color: safeAccent,
+              fontWeight: 600,
+              margin: '0 0 16px',
+            }}
+          >
+            {safeTagline}
+          </p>
+        ) : null}
+
+        <p
+          style={{
+            fontSize: 'clamp(16px, 2.4vw, 20px)',
+            lineHeight: 1.6,
+            color: '#334155',
+            maxWidth: 680,
+            margin: '0 0 32px',
+          }}
+        >
           {merged.blurb}
         </p>
 
@@ -167,8 +261,14 @@ export default async function ResellerLandingPage({
             boxShadow: '0 4px 12px rgba(15,23,42,0.12)',
           }}
         >
-          Începe acum cu HIR
+          {t.cta}
         </a>
+
+        {safeFloor !== null && safeFloor > 0 ? (
+          <p style={{ marginTop: 16, fontSize: 13, color: '#475569' }}>
+            <strong style={{ color: '#0f172a' }}>{safeFloor}+</strong> {t.floor_suffix}
+          </p>
+        ) : null}
 
         {safeHero ? (
           <div style={{ marginTop: 48 }}>
@@ -180,13 +280,34 @@ export default async function ResellerLandingPage({
             />
           </div>
         ) : null}
-
-        <footer style={{ marginTop: 64, fontSize: 13, color: '#94a3b8' }}>
-          Cod referal: <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>{partner.code}</code>
-          {' · '}
-          <a href="https://hirforyou.ro" style={{ color: '#64748b' }}>HIR for You</a>
-        </footer>
       </section>
+
+      {/* MANDATORY footer per Brand Bible reseller agreement. Do NOT remove. */}
+      <footer
+        data-hir-powered-by
+        style={{
+          borderTop: '1px solid #e2e8f0',
+          padding: '20px 24px',
+          textAlign: 'center',
+          fontSize: 13,
+          color: '#64748b',
+          background: 'white',
+        }}
+      >
+        <span>
+          {t.ref_code}{' '}
+          <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>
+            {partner.code}
+          </code>
+        </span>
+        {' · '}
+        <a
+          href="https://hirforyou.ro"
+          style={{ color: '#0f172a', fontWeight: 600, textDecoration: 'none' }}
+        >
+          {t.powered_by}
+        </a>
+      </footer>
     </main>
   );
 }
