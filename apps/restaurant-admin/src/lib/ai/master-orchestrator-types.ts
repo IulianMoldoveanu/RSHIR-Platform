@@ -40,6 +40,7 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'analytics.top_products', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Top produse vândute pentru o perioadă.', readOnly: true },
   { name: 'analytics.recommendations_today', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Ultimele recomandări de creștere pentru tenant.', readOnly: true },
   { name: 'analytics.report', agent: 'analytics', defaultCategory: 'analytics.read', description: 'Raport zilnic compact (orders + sales + low_stock).', readOnly: true },
+  { name: 'analytics.explain_anomaly', agent: 'analytics', defaultCategory: 'analytics.explain_anomaly.read', description: 'Explică o cifră (orders/revenue/aov) cu 2-3 ipoteze.', readOnly: true },
   { name: 'ops.orders_now', agent: 'ops', defaultCategory: 'ops.read', description: 'Câte comenzi sunt active acum.', readOnly: true },
   { name: 'ops.couriers_online', agent: 'ops', defaultCategory: 'ops.read', description: 'Câți curieri sunt online acum.', readOnly: true },
   { name: 'ops.low_stock', agent: 'ops', defaultCategory: 'ops.read', description: 'Produse cu stoc scăzut.', readOnly: true },
@@ -78,6 +79,7 @@ export const TRUST_CATEGORIES: TrustCategoryMeta[] = [
   { agent: 'ops', category: 'hours.change', label: 'Operațiuni — schimbare program', destructive: true },
   { agent: 'finance', category: 'refund.issue', label: 'Financiar — emitere rambursare', destructive: true },
   { agent: 'analytics', category: 'analytics.read', label: 'Analiză — rapoarte (read-only)', destructive: false },
+  { agent: 'analytics', category: 'analytics.explain_anomaly.read', label: 'Analiză — explicație cifră (AI, read-only)', destructive: false },
 ];
 
 // One-line RO label per trust level for the UI selects.
