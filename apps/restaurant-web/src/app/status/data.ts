@@ -32,6 +32,12 @@ export type DailyUptime = {
   uptime: number | null;
 };
 
+export type IncidentTimelineEntry = {
+  status: string;
+  note: string | null;
+  changedAt: string;
+};
+
 export type Incident = {
   id: string;
   title: string;
@@ -42,6 +48,7 @@ export type Incident = {
   postmortemUrl: string | null;
   startedAt: string;
   resolvedAt: string | null;
+  timeline: IncidentTimelineEntry[];
 };
 
 export type StatusSnapshot = {
@@ -121,6 +128,37 @@ export async function loadStatusSnapshot(): Promise<StatusSnapshot> {
     incidentsP,
   ]);
 
+  // Fetch the status-log timeline for the visible incidents in a single
+  // round-trip. Lane STATUS-INCIDENTS-ADMIN seeds an entry on create + every
+  // status change so the public page can show a "investigare → identificat
+  // → rezolvat" mini-timeline. Pre-existing incidents (created before the
+  // log table existed) come back with an empty timeline — the consumer
+  // gracefully falls back to just the start/end timestamps.
+  const incidentRows = incidentsR.data ?? [];
+  const incidentIds = incidentRows.map((r) => r.id);
+  let timelineByIncident: Record<string, IncidentTimelineEntry[]> = {};
+  if (incidentIds.length > 0) {
+    const logsR = await supabase
+      .from('public_incident_status_log' as never)
+      .select('incident_id, status, note, changed_at')
+      .in('incident_id', incidentIds)
+      .order('changed_at', { ascending: true })
+      .returns<
+        { incident_id: string; status: string; note: string | null; changed_at: string }[]
+      >();
+    timelineByIncident = (logsR.data ?? []).reduce<Record<string, IncidentTimelineEntry[]>>(
+      (acc, row) => {
+        (acc[row.incident_id] ??= []).push({
+          status: row.status,
+          note: row.note,
+          changedAt: row.changed_at,
+        });
+        return acc;
+      },
+      {},
+    );
+  }
+
   const stateRows = stateR.data ?? [];
   const stateByApp = new Map(stateRows.map((r) => [r.app, r]));
 
@@ -192,7 +230,7 @@ export async function loadStatusSnapshot(): Promise<StatusSnapshot> {
     }
   }
 
-  const incidents: Incident[] = (incidentsR.data ?? []).map((r) => ({
+  const incidents: Incident[] = incidentRows.map((r) => ({
     id: r.id,
     title: r.title,
     status: r.status,
@@ -202,6 +240,7 @@ export async function loadStatusSnapshot(): Promise<StatusSnapshot> {
     postmortemUrl: r.postmortem_url,
     startedAt: r.started_at,
     resolvedAt: r.resolved_at,
+    timeline: timelineByIncident[r.id] ?? [],
   }));
 
   return {

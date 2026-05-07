@@ -193,6 +193,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             icon: 'settings' as const,
           },
           {
+            href: '/dashboard/admin/incidents',
+            label: 'Incidente /status',
+            icon: 'megaphone' as const,
+          },
+          {
             href: '/dashboard/admin/observability/materialized-views',
             label: 'Vizualizări materializate',
             icon: 'settings' as const,
