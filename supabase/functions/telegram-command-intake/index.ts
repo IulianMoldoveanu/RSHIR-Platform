@@ -1093,11 +1093,37 @@ function applyBareAnswer(
       }
       break;
     }
+    case 'time': {
+      // Codex P2 (round 5): a very common dialog reply for the time
+      // question is just a bare hour ("20") or compact "1900". The
+      // parser's regexes require "19:00" / "ora 20" / "7 seara", so
+      // those bare replies would re-trigger the same question.
+      if (out.time != null) break;
+      let mTime = trimmed.match(/^\s*(\d{1,2})\s*$/);
+      if (mTime) {
+        const h = Number(mTime[1]);
+        if (h >= 0 && h <= 23) {
+          out.time = (h < 10 ? '0' + h : String(h)) + ':00';
+          break;
+        }
+      }
+      // "1900" → 19:00 (3-4 digit compact form).
+      mTime = trimmed.match(/^\s*(\d{1,2})(\d{2})\s*$/);
+      if (mTime) {
+        const h = Number(mTime[1]);
+        const min = Number(mTime[2]);
+        if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+          out.time = (h < 10 ? '0' + h : String(h)) + ':' + (min < 10 ? '0' + min : String(min));
+        }
+      }
+      break;
+    }
     case 'date':
-    case 'time':
       // The parser already covers all the natural-language forms for
-      // dates and times, including bare ones like "mâine" or "19:00",
-      // so no extra bare-answer handling is needed here.
+      // dates ("mâine", "vineri", "1 iunie", "15.06"), so a bare-answer
+      // reply that isn't already handled by the parser would itself be
+      // ambiguous (e.g. "5" — is that the day, or did the operator
+      // intend it as a number?). We let the dialog re-ask in that case.
       break;
   }
   return out;
