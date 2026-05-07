@@ -982,12 +982,29 @@ async function checkReservationRateLimit(
   return { ok: c < RESERVATION_RATE_LIMIT_PER_HOUR, recentCount: c };
 }
 
+type DraftField = 'date' | 'time' | 'party_size' | 'phone' | 'first_name';
+
+interface DraftEnvelope {
+  payload: ParsedReservation;
+  next_field: DraftField | null;
+}
+
 async function loadConversationDraft(
   supabase: any,
   telegramUserId: number,
   tenantId: string,
   intent: string,
 ): Promise<ParsedReservation | null> {
+  const env = await loadConversationDraftWithMeta(supabase, telegramUserId, tenantId, intent);
+  return env?.payload ?? null;
+}
+
+async function loadConversationDraftWithMeta(
+  supabase: any,
+  telegramUserId: number,
+  tenantId: string,
+  intent: string,
+): Promise<DraftEnvelope | null> {
   const { data } = await supabase
     .from('hepy_conversation_state')
     .select('payload, expires_at')
@@ -997,7 +1014,12 @@ async function loadConversationDraft(
     .maybeSingle();
   if (!data) return null;
   if (new Date(data.expires_at).getTime() < Date.now()) return null;
-  return data.payload as ParsedReservation;
+  // The payload jsonb stores the parsed-fields object plus a sidecar
+  // `_next_field` key; this is internal to the bot and not surfaced
+  // anywhere user-facing. Strip it before returning the typed payload.
+  const raw = (data.payload ?? {}) as ParsedReservation & { _next_field?: DraftField | null };
+  const { _next_field, ...payload } = raw;
+  return { payload: payload as ParsedReservation, next_field: _next_field ?? null };
 }
 
 async function saveConversationDraft(
@@ -1006,6 +1028,7 @@ async function saveConversationDraft(
   tenantId: string,
   intent: string,
   payload: ParsedReservation,
+  nextField: DraftField | null = null,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   await supabase
@@ -1015,12 +1038,82 @@ async function saveConversationDraft(
         telegram_user_id: telegramUserId,
         tenant_id: tenantId,
         intent,
-        payload,
+        payload: { ...payload, _next_field: nextField },
         updated_at: new Date().toISOString(),
         expires_at: expiresAt,
       },
       { onConflict: 'telegram_user_id,tenant_id,intent' },
     );
+}
+
+// Interpret a bare reply (just "4" or just "Iulian") as the answer to
+// the field we last asked about. Returns the merged draft. If the bare
+// reply does not parse for that field, the draft is returned unchanged
+// so tryCommitReservation will re-ask. We deliberately only fill the
+// SINGLE field we asked about so e.g. "4" while expecting a phone is
+// not silently misclassified as the party size.
+function applyBareAnswer(
+  merged: ParsedReservation,
+  raw: string,
+  nextField: DraftField | null,
+): ParsedReservation {
+  if (!nextField) return merged;
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return merged;
+  const out: ParsedReservation = { ...merged };
+
+  switch (nextField) {
+    case 'party_size': {
+      if (out.party_size != null) break;
+      const m = trimmed.match(/^\s*(\d{1,3})\s*$/);
+      if (m) {
+        const n = Number(m[1]);
+        if (n >= 1 && n <= 100) out.party_size = n;
+      }
+      break;
+    }
+    case 'phone': {
+      if (out.phone != null) break;
+      const digits = trimmed.replace(/[^\d+]/g, '');
+      // Mirror the parser's normalisation rules: 7-15 digits, leading
+      // '+' preserved.
+      const hasPlus = digits.startsWith('+');
+      const onlyDigits = digits.replace(/[^\d]/g, '');
+      if (onlyDigits.length >= 7 && onlyDigits.length <= 15) {
+        out.phone = hasPlus ? '+' + onlyDigits : onlyDigits;
+      }
+      break;
+    }
+    case 'first_name': {
+      if (out.first_name != null) break;
+      // Accept any short non-empty single line. Strip trailing punctuation.
+      const cleaned = trimmed.replace(/[.,;:!?]+$/, '').trim();
+      if (cleaned.length >= 1 && cleaned.length <= 80) {
+        out.first_name = cleaned;
+      }
+      break;
+    }
+    case 'date':
+    case 'time':
+      // The parser already covers all the natural-language forms for
+      // dates and times, including bare ones like "mâine" or "19:00",
+      // so no extra bare-answer handling is needed here.
+      break;
+  }
+  return out;
+}
+
+// Map "missing fields" → the single next field we will ask about. Used
+// both when persisting the draft (so the next message can be interpreted
+// in context) and when the dialog continues.
+function nextFieldFor(draft: ParsedReservation): DraftField | null {
+  const m = missingFields(draft);
+  if (m.includes('date')) return 'date';
+  if (m.includes('time')) return 'time';
+  if (m.includes('party_size')) return 'party_size';
+  if (m.includes('phone')) return 'phone';
+  if (m.includes('first_name')) return 'first_name';
+  return null;
 }
 
 async function clearConversationDraft(
@@ -1123,14 +1216,19 @@ async function handleReservaCommand(
   }
 
   // Merge any prior draft with the new fields parsed from this message.
-  const prior = await loadConversationDraft(
+  // We also load the prior "next_field" hint so we can interpret bare
+  // answers (e.g. "4" while the bot is asking the party size, or
+  // "Iulian" while it's asking the customer name) — the rule-based
+  // parser otherwise needs explicit keywords ("4 persoane", "nume Iulian").
+  const priorRow = await loadConversationDraftWithMeta(
     supabase,
     telegramUserId,
     tenant.tenant_id,
     'reserva',
   );
+  const prior = priorRow?.payload ?? null;
   const fresh = parseReservation(args ?? '');
-  const draft: ParsedReservation = {
+  const merged: ParsedReservation = {
     date: fresh.date ?? prior?.date ?? null,
     time: fresh.time ?? prior?.time ?? null,
     party_size: fresh.party_size ?? prior?.party_size ?? null,
@@ -1138,6 +1236,13 @@ async function handleReservaCommand(
     first_name: fresh.first_name ?? prior?.first_name ?? null,
     notes: fresh.notes ?? prior?.notes ?? null,
   };
+
+  // Codex P2 (re-review on 9e50997): if the parser left a field null and
+  // we previously asked for that exact field, try to interpret the raw
+  // reply as a bare answer. Order mirrors the question order in
+  // tryCommitReservation so we never misclassify (e.g. "4" while we
+  // were asking the date is rejected).
+  const draft: ParsedReservation = applyBareAnswer(merged, args ?? '', priorRow?.next_field ?? null);
 
   // If the operator typed bare `/rezerva` with NO prior draft AND no args,
   // show the help block before starting the dialog. Avoids surprising
@@ -1156,6 +1261,7 @@ async function handleReservaCommand(
       tenant.tenant_id,
       'reserva',
       draft,
+      'date',
     );
     return {
       text: `<b>📅 ${escapeHtml(tenant.name)} — rezervare nouă</b>\n${copy.oneLinerHelp}\n\n${copy.askDate}`,
@@ -1172,13 +1278,29 @@ async function handleReservaCommand(
   );
 
   if (result.kind === 'incomplete') {
-    await saveConversationDraft(supabase, telegramUserId, tenant.tenant_id, 'reserva', draft);
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+      nextFieldFor(draft),
+    );
     return { text: result.nextAsk, status: 'RESERVATION_INCOMPLETE' };
   }
 
   if (result.kind === 'rejected') {
-    // Keep the draft so the user can retry without losing fields.
-    await saveConversationDraft(supabase, telegramUserId, tenant.tenant_id, 'reserva', draft);
+    // Keep the draft so the user can retry without losing fields. Don't
+    // overwrite next_field — the user already saw a question; if they
+    // come back with a one-liner the merge path handles it.
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+      nextFieldFor(draft),
+    );
     return { text: copy.bookingFailed(result.message), status: 'RESERVATION_REJECTED' };
   }
 
@@ -1301,17 +1423,22 @@ async function handleAnuleazaRezervare(
     return { text: copy.cancelInvalidToken, status: 'ERR' };
   }
 
-  // Match by prefix on public_track_token (cast to text). RLS doesn't apply
-  // for service role; we add the tenant_id filter manually as defence in
-  // depth so the OWNER can never cancel another tenant's reservation by
-  // guessing a token prefix.
-  const { data: row } = await supabase
+  // Codex P2 (re-review on 9e50997): PostgREST does not support a cast
+  // in a horizontal `ilike` filter ("public_track_token::text" → 400).
+  // Instead, fetch the recent active reservations for the tenant
+  // (already a tiny set — typically <50 over the 14-day list window)
+  // and prefix-match in app code. RLS + the tenant_id filter still
+  // ensure cross-tenant isolation.
+  const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  const { data: rowsRaw } = await supabase
     .from('reservations')
-    .select('id, public_track_token, status')
+    .select('id, public_track_token, status, requested_at')
     .eq('tenant_id', tenant.tenant_id)
-    .ilike('public_track_token::text', tokenArg + '%')
-    .limit(2);
-  const matches = (row ?? []) as Array<{ id: string; public_track_token: string; status: string }>;
+    .gte('requested_at', since)
+    .order('requested_at', { ascending: false })
+    .limit(200);
+  const matches = ((rowsRaw ?? []) as Array<{ id: string; public_track_token: string; status: string }>)
+    .filter((r) => String(r.public_track_token).toLowerCase().startsWith(tokenArg));
   if (matches.length === 0) {
     return { text: copy.cancelNotFound, status: 'NOT_FOUND' };
   }
