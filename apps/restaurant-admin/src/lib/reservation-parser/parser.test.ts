@@ -276,3 +276,29 @@ describe('parseReservation — robustness', () => {
     expect(r.date).toBe('2026-05-14');
   });
 });
+
+describe('parseReservation — DST boundary (Codex P2 round 3)', () => {
+  // Winter (January 2026): Bucharest = UTC+2. UTC 21:30 → Bucharest 23:30,
+  // still the same calendar day. A naïve +3h offset would push it to
+  // 00:30 the NEXT day and "azi" would resolve to tomorrow.
+  it('winter UTC 21:30 stays on same Bucharest day', () => {
+    const winterLateUtc = new Date('2026-01-15T21:30:00Z');
+    const r = parseReservation('rezerva azi la 22:00', winterLateUtc);
+    expect(r.date).toBe('2026-01-15'); // not 2026-01-16
+  });
+
+  // Summer (July 2026): Bucharest = UTC+3. UTC 21:30 → Bucharest 00:30
+  // NEXT day. Tested for symmetry — confirms the new code keeps DST
+  // behaviour where the prior fixed +3h was already correct.
+  it('summer UTC 21:30 advances Bucharest day', () => {
+    const summerLateUtc = new Date('2026-07-15T21:30:00Z');
+    const r = parseReservation('rezerva azi la 22:00', summerLateUtc);
+    expect(r.date).toBe('2026-07-16');
+  });
+
+  it('winter "mâine" resolves correctly at the late-evening boundary', () => {
+    const winterLateUtc = new Date('2026-01-15T21:30:00Z');
+    const r = parseReservation('rezerva mâine 19:00', winterLateUtc);
+    expect(r.date).toBe('2026-01-16');
+  });
+});

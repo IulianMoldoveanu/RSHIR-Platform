@@ -59,14 +59,34 @@ function fmtDate(y: number, m: number, d: number): string {
 //
 // NOTE: we treat the calendar boundary in Europe/Bucharest. Server time
 // in Supabase Edge Functions is UTC. To keep the parser pure (no Intl
-// timezone API), we add the standard Bucharest offset (+2h winter / +3h
-// summer DST) approximated as +3h year-round. The bot composes the final
-// timestamptz with proper DST handling later via Date.toLocaleString.
+// timezone API), we apply EU DST math: Bucharest is UTC+3 from the last
+// Sunday of March 03:00 local until the last Sunday of October 04:00
+// local, and UTC+2 the rest of the year. The same rule lives in the
+// Edge Function (`bucharestLocalToUtcIso`) for symmetry.
 //
-// The parser ONLY emits a calendar day string; downstream code is the
-// authoritative DST converter, so this approximation is safe.
+// Codex P2 (round 3): the prior `+3h` constant produced a one-day-off
+// "azi" between 21:00 and 21:59 UTC in winter (i.e. 23:00-23:59
+// Bucharest). The DST-aware version below removes that bug.
+function bucharestOffsetHours(utc: Date): number {
+  const y = utc.getUTCFullYear();
+  // Last Sunday of a given month, 0-indexed, returned as UTC midnight.
+  const lastSundayUtc = (year: number, monthIdx: number): Date => {
+    const last = new Date(Date.UTC(year, monthIdx + 1, 0));
+    const lastDow = last.getUTCDay();
+    return new Date(Date.UTC(year, monthIdx, last.getUTCDate() - lastDow));
+  };
+  // Approximate the DST boundary at UTC midnight; the off-by-one-hour
+  // window (01:00-02:00 UTC on those Sundays) is acceptable for a
+  // calendar-day computation that is then confirmed by the Edge Function.
+  const dstStart = lastSundayUtc(y, 2); // March
+  const dstEnd = lastSundayUtc(y, 9);   // October
+  const inDst = utc.getTime() >= dstStart.getTime() && utc.getTime() < dstEnd.getTime();
+  return inDst ? 3 : 2;
+}
+
 function bucharestNow(now: Date): { y: number; m: number; d: number; dow: number } {
-  const ms = now.getTime() + 3 * 3600 * 1000;
+  const offsetH = bucharestOffsetHours(now);
+  const ms = now.getTime() + offsetH * 3600 * 1000;
   const t = new Date(ms);
   return {
     y: t.getUTCFullYear(),
