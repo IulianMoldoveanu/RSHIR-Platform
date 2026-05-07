@@ -62,7 +62,9 @@ export type LandingPatch = {
   logo_url?: string;
   tagline_ro?: string;
   tagline_en?: string;
-  tenant_count_floor?: number;
+  // `null` means "clear the field" (writes JSON null into the jsonb).
+  // `undefined` means "leave the field untouched".
+  tenant_count_floor?: number | null;
 };
 
 export type LandingSettings = LandingPatch & Record<string, unknown>;
@@ -185,7 +187,12 @@ export function buildLandingPatch(input: LandingPatch): Result & { patch?: Recor
     if (!v.ok) return v;
     patch.tagline_en = input.tagline_en;
   }
-  if (typeof input.tenant_count_floor === 'number') {
+  if (input.tenant_count_floor === null) {
+    // Explicit clear: write JSON null into the jsonb. Both the RPC merge and
+    // the read-modify-write fallback treat this as "set the key to null"
+    // rather than "leave key untouched".
+    patch.tenant_count_floor = null;
+  } else if (typeof input.tenant_count_floor === 'number') {
     const v = validateTenantCountFloor(input.tenant_count_floor);
     if (!v.ok) return v;
     patch.tenant_count_floor = Math.floor(input.tenant_count_floor);

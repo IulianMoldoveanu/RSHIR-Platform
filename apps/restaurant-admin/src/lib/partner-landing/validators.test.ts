@@ -169,4 +169,28 @@ describe('buildLandingPatch', () => {
       });
     }
   });
+
+  test('explicit null on tenant_count_floor clears the field (Codex P2 — issue #367)', () => {
+    // When a partner clears the tenant-count-floor input, the form sends
+    // `null` so the patch carries an explicit null. Without this, the prior
+    // value would persist forever because shallow-merge skips undefined.
+    const r = buildLandingPatch({ tenant_count_floor: null });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.patch).toEqual({ tenant_count_floor: null });
+      // Defense in-depth: the key must actually be present, not just
+      // `undefined`. JSON.stringify exposes the difference.
+      expect('tenant_count_floor' in (r.patch ?? {})).toBe(true);
+    }
+  });
+
+  test('omitted tenant_count_floor leaves the existing value alone', () => {
+    // Sanity: the previous test must not pass via "always present". When
+    // tenant_count_floor is undefined, the key is never added to the patch.
+    const r = buildLandingPatch({ headline: 'Bun venit' });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect('tenant_count_floor' in (r.patch ?? {})).toBe(false);
+    }
+  });
 });

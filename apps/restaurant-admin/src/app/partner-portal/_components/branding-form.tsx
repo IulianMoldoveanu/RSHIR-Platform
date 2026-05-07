@@ -71,15 +71,22 @@ export function BrandingForm({ initial, partnerCode }: { initial: Partial<Initia
     setError(null);
     setSuccess(false);
 
+    // Floor handling:
+    //   - empty input  → null  → server writes null into jsonb (clears field)
+    //   - filled input → number (validated below)
+    // Both paths are sent on every submit so the partner can transition from
+    // "had a floor" to "no floor" without losing other unrelated edits.
     const parsedFloor = tenantCountFloor.trim();
-    let tenantCountFloorNum: number | undefined;
-    if (parsedFloor.length > 0) {
+    let tenantCountFloorPayload: number | null;
+    if (parsedFloor.length === 0) {
+      tenantCountFloorPayload = null;
+    } else {
       const n = Number(parsedFloor);
       if (!Number.isFinite(n)) {
         setError('Numărul minim de restaurante afișat trebuie să fie un întreg valid.');
         return;
       }
-      tenantCountFloorNum = Math.floor(n);
+      tenantCountFloorPayload = Math.floor(n);
     }
 
     startTransition(async () => {
@@ -92,7 +99,7 @@ export function BrandingForm({ initial, partnerCode }: { initial: Partial<Initia
         logo_url: logoUrl,
         tagline_ro: taglineRo,
         tagline_en: taglineEn,
-        ...(tenantCountFloorNum !== undefined ? { tenant_count_floor: tenantCountFloorNum } : {}),
+        tenant_count_floor: tenantCountFloorPayload,
       });
       if (!res.ok) {
         setError(res.error);
