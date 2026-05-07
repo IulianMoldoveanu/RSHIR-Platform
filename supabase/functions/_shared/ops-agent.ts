@@ -300,27 +300,40 @@ async function fetchOrderDestinations(supabase: any, tenantId: string): Promise<
     console.warn('[ops-agent] fetchOrderDestinations orders failed:', ordErr.message);
     return [];
   }
-  const ids = (orders ?? [])
+  const orderAddressIds = (orders ?? [])
     .map((o: { delivery_address_id: string | null }) => o.delivery_address_id)
     .filter((x: string | null): x is string => !!x);
-  if (ids.length === 0) return [];
+  if (orderAddressIds.length === 0) return [];
 
+  // Codex P2 (PR #364 round 4): preserve one point per order, not per
+  // unique address. Repeat customers in a new neighborhood would
+  // otherwise be deduplicated and the density signal collapsed.
+  const uniqueAddressIds = Array.from(new Set(orderAddressIds));
   const { data: addrs, error: addrErr } = await supabase
     .from('customer_addresses')
-    .select('latitude, longitude')
-    .in('id', ids)
+    .select('id, latitude, longitude')
+    .in('id', uniqueAddressIds)
     .not('latitude', 'is', null)
     .not('longitude', 'is', null);
   if (addrErr) {
     console.warn('[ops-agent] fetchOrderDestinations addresses failed:', addrErr.message);
     return [];
   }
-  return (addrs ?? [])
-    .map((r: { latitude: number | null; longitude: number | null }) => {
-      if (!isFiniteNumber(r.latitude) || !isFiniteNumber(r.longitude)) return null;
-      return { lat: r.latitude, lng: r.longitude };
-    })
-    .filter((p: { lat: number; lng: number } | null): p is { lat: number; lng: number } => p !== null);
+  // Build addressId → coords map, then re-expand by orderAddressIds so a
+  // neighborhood with 12 orders to the same delivery address still
+  // contributes 12 points (capped by MAX_GEO_POINTS at the order step).
+  const coordsByAddr = new Map<string, { lat: number; lng: number }>();
+  for (const r of (addrs ?? []) as Array<{ id: string; latitude: number | null; longitude: number | null }>) {
+    if (isFiniteNumber(r.latitude) && isFiniteNumber(r.longitude)) {
+      coordsByAddr.set(r.id, { lat: r.latitude, lng: r.longitude });
+    }
+  }
+  const points: Array<{ lat: number; lng: number }> = [];
+  for (const id of orderAddressIds) {
+    const coords = coordsByAddr.get(id);
+    if (coords) points.push(coords);
+  }
+  return points;
 }
 
 // Returns [day_of_week 0-6, hour 0-23] -> count, plus average online
@@ -367,29 +380,55 @@ async function fetchScheduleHeatmap(
   // We count "online courier-hours" per (dow, hour) bucket and divide by
   // the number of distinct calendar days that overlapped that bucket.
   //
-  // Codex P2 (PR #364 round 1): scope shifts to couriers who actually
-  // served THIS tenant. courier_shifts has no direct tenant_id; the link
-  // is via courier_orders.assigned_courier_user_id where source_tenant_id
-  // = $tenantId. Without this filter we'd count every fleet's shifts and
-  // recommend under-staffing for tenants whose actual courier roster is
-  // small. We collect the relevant courier user IDs from the same 14d
-  // window — couriers who served at least one order for this tenant.
-  const { data: tenantOrders, error: tenantOrdersErr } = await supabase
-    .from('courier_orders')
-    .select('assigned_courier_user_id')
-    .eq('source_tenant_id', tenantId)
-    .gte('created_at', since)
-    .not('assigned_courier_user_id', 'is', null)
-    .limit(5000);
-  if (tenantOrdersErr) {
-    console.warn('[ops-agent] fetchScheduleHeatmap tenant courier ids failed:', tenantOrdersErr.message);
+  // Codex P2 (PR #364 round 1 + 4): scope shifts to couriers who actually
+  // served THIS tenant. courier_shifts has no direct tenant_id; without
+  // a filter we'd count every fleet's shifts and recommend under-staffing
+  // for tenants whose actual courier roster is small.
+  //
+  // Two complementary sources:
+  //  (a) restaurant_orders.courier_user_id — primary path. Restaurant-
+  //      direct dispatch (Mode A / B) writes the courier here when the
+  //      order is handed off. This is the canonical roster for non-
+  //      pharma tenants per migration 20260603_002_phase1_fleet_schema.sql.
+  //  (b) courier_orders.assigned_courier_user_id where source_tenant_id
+  //      = $tenantId — covers fleet-routed orders that mirror through
+  //      the unified courier_orders table (HIR via Fleet Network).
+  //      Restaurant orders are NOT auto-mirrored, so (a) is the bigger
+  //      source for most tenants; we union both to be safe.
+  const [
+    { data: rOrders, error: rOrdersErr },
+    { data: cOrders, error: cOrdersErr },
+  ] = await Promise.all([
+    supabase
+      .from('restaurant_orders')
+      .select('courier_user_id')
+      .eq('tenant_id', tenantId)
+      .gte('created_at', since)
+      .not('courier_user_id', 'is', null)
+      .limit(5000),
+    supabase
+      .from('courier_orders')
+      .select('assigned_courier_user_id')
+      .eq('source_tenant_id', tenantId)
+      .gte('created_at', since)
+      .not('assigned_courier_user_id', 'is', null)
+      .limit(5000),
+  ]);
+  if (rOrdersErr) {
+    console.warn('[ops-agent] fetchScheduleHeatmap restaurant_orders courier ids failed:', rOrdersErr.message);
+  }
+  if (cOrdersErr) {
+    console.warn('[ops-agent] fetchScheduleHeatmap courier_orders ids failed:', cOrdersErr.message);
   }
   const tenantCourierIds = Array.from(
-    new Set(
-      (tenantOrders ?? [])
-        .map((r: { assigned_courier_user_id: string | null }) => r.assigned_courier_user_id)
-        .filter((x: string | null): x is string => !!x),
-    ),
+    new Set([
+      ...((rOrders ?? []) as Array<{ courier_user_id: string | null }>)
+        .map((r) => r.courier_user_id)
+        .filter((x): x is string => !!x),
+      ...((cOrders ?? []) as Array<{ assigned_courier_user_id: string | null }>)
+        .map((r) => r.assigned_courier_user_id)
+        .filter((x): x is string => !!x),
+    ]),
   );
 
   type Hist = { sumHours: number; days: Set<string> };
@@ -873,6 +912,13 @@ const flagKitchenBottlenecksHandler: IntentHandler = {
 // Registration
 // ---------------------------------------------------------------------------
 
+// Wired into the runtime registry from
+//   supabase/functions/telegram-command-intake/index.ts (top-level call)
+// — that's the Hepy bot Edge Function and the first dispatch site.
+// Other Edge Functions that need ops intents must call this themselves
+// on cold start (registerIntent is idempotent, duplicate calls are
+// safe). Channel surfaces (slash commands, NL routing) for these intents
+// land in a Sprint 14 follow-up; this PR ships the registry plumbing.
 export function registerOpsAgentIntents(): void {
   registerIntent({
     name: 'ops.suggest_delivery_zones',

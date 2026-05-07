@@ -39,7 +39,7 @@ type MockState = {
   forcedCapCount: number;
   // rows returned by each table query (only the fields we use)
   zones: Array<{ name: string; polygon: unknown }>;
-  orders: Array<{ delivery_address_id: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown }>;
+  orders: Array<{ delivery_address_id?: string | null; courier_user_id?: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown }>;
   addresses: Array<{ id: string; latitude: number | null; longitude: number | null }>;
   shifts: Array<{ started_at: string; ended_at: string | null }>;
   // Couriers who served this tenant (via courier_orders.assigned_courier_user_id).
@@ -406,15 +406,18 @@ describe('ops-agent / ops.optimize_courier_schedule', () => {
     // 30 orders all at Friday 2026-05-01 19:30 Europe/Bucharest (= 16:30 UTC
     // during DST). The local-time bucketer should land them in dow=5
     // (Friday) hour=19 — proving the Codex-fix.
+    // courier_user_id populated so the round-4 fix (restaurant_orders as
+    // canonical roster source) finds the tenant's courier set.
+    const courierId = '88888888-8888-8888-8888-888888888888';
     state.orders = Array.from({ length: 30 }).map(() => ({
       delivery_address_id: null,
+      courier_user_id: courierId,
       created_at: '2026-05-01T16:30:00.000Z',
     }));
+    // Backup roster source via courier_orders mirror (fleet-routed path).
+    state.tenantCourierIds = [{ assigned_courier_user_id: courierId }];
     // Tenant has one courier; its shift covers the 16-19h UTC window
     // (= 19-22h Europe/Bucharest local).
-    state.tenantCourierIds = [
-      { assigned_courier_user_id: '88888888-8888-8888-8888-888888888888' },
-    ];
     state.shifts = [
       { started_at: '2026-05-01T15:00:00.000Z', ended_at: '2026-05-01T19:00:00.000Z' },
     ];
