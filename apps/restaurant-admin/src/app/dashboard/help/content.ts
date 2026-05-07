@@ -260,11 +260,15 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         steps: [
           {
             title: 'Obțineți token-ul API SmartBill',
-            body: 'În contul SmartBill mergeți la Setări → API. Generați un token nou cu permisiunile „Emitere facturi" și copiați-l. Token-ul începe cu „smartbill_" și se afișează o singură dată.',
+            body: 'În contul SmartBill mergeți la Setări → API. Generați un token nou cu permisiunile „Emitere facturi" și copiați-l. Token-ul se afișează o singură dată.',
           },
           {
-            title: 'Conectați în HIR',
-            body: 'Deschideți Configurare → SmartBill. Lipiți token-ul, introduceți seria de facturare (ex: HIR) și apăsați „Verifică și salvează". Sistemul face un apel test la SmartBill și confirmă conexiunea.',
+            title: 'Completați datele de conectare în HIR',
+            body: 'Deschideți Configurare → SmartBill. Completați toate câmpurile obligatorii: utilizator (emailul contului SmartBill), CUI-ul firmei (cu sau fără RO), seria de facturare (ex: HIR) și token-ul API. Apăsați „Salvează".',
+          },
+          {
+            title: 'Verificați conexiunea',
+            body: 'După salvare, apăsați butonul „Testează conexiunea" din pagină. HIR face un apel către SmartBill și afișează status-ul: „Conectat" (verde) sau eroarea returnată de SmartBill.',
           },
           {
             title: 'Alegeți modul de emitere',
@@ -284,11 +288,11 @@ export const HELP_CATEGORIES: HelpCategory[] = [
       },
       {
         slug: 'efactura-anaf',
-        title: 'Cum activez e-Factura ANAF',
+        title: 'Cum pregătesc e-Factura ANAF (wizard preparator)',
         summary:
-          'Conectare la SPV ANAF prin OAuth pentru transmiterea automată a facturilor fiscale către e-Factura.',
+          'Status: în pregătire — wizard-ul scaffold este live, transmiterea efectivă către ANAF se va activa într-o versiune ulterioară.',
         intro:
-          'De la 1 iulie 2024 toate facturile B2B din România trebuie transmise la ANAF prin sistemul e-Factura în maxim 5 zile lucrătoare. HIR automatizează transmiterea — wizard-ul self-serve durează 5–7 minute și nu necesită cunoștințe tehnice.',
+          'De la 1 iulie 2024 toate facturile B2B din România trebuie transmise la ANAF prin sistemul e-Factura în maxim 5 zile lucrătoare. HIR pregătește configurarea în avans — wizard-ul self-serve înregistrează datele necesare (CUI, seria, certificatul .p12) și verifică prerechizitele. Atenție: în această versiune transmiterea efectivă către SPV ANAF nu este încă activă; pasul final returnează „funcție în pregătire". Vă vom anunța prin Hepy + email când transmiterea live devine disponibilă.',
         steps: [
           {
             title: 'Verificați prerechizitele',
@@ -296,21 +300,21 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           },
           {
             title: 'Lansați wizard-ul',
-            body: 'Configurare → e-Factura ANAF → „Începe configurarea". Sunteți redirectat la portalul ANAF pentru autorizare OAuth — login cu DSC-ul atașat la USB.',
+            body: 'Configurare → e-Factura ANAF → „Începe configurarea". Wizard-ul are 4 pași și salvează datele incremental după fiecare pas.',
           },
           {
-            title: 'Acordați permisiunile',
-            body: 'Pe ecranul ANAF, autorizați aplicația HIR pentru transmitere e-Factura. Sunteți redirectat înapoi în HIR cu confirmarea „Conectat".',
+            title: 'Introduceți datele firmei + certificat',
+            body: 'Completați CUI-ul firmei (ex: RO12345678), seria de facturare și încărcați certificatul digital (.p12) cu parola asociată. Datele se păstrează criptat în vault-ul Supabase.',
           },
           {
-            title: 'Setați transmiterea automată',
-            body: 'În același panou activați „Transmitere automată la livrare". HIR trimite factura la ANAF în maxim 60 secunde după ce SmartBill a emis-o. Status-ul (TRANSMIS / VALIDAT / RESPINS) se actualizează în „Jurnal acțiuni".',
+            title: 'Verificați conexiunea (preparator)',
+            body: 'La pasul final apăsați „Testează conexiunea". În prezent HIR returnează „funcție în pregătire" (501) — este comportamentul așteptat. Configurarea introdusă rămâne salvată și va fi folosită automat când transmiterea live devine activă.',
           },
         ],
         outro:
-          'Tokenul ANAF expiră la 90 zile și se reînnoiește automat în background. Dacă reînnoirea eșuează, primiți alertă în dashboard și un ghid de re-autorizare în 2 click-uri.',
-        screenshot: 'Wizard e-Factura cu 4 pași și progress bar verde',
-        cta: { label: 'Configurare e-Factura', href: '/dashboard/settings/efactura' },
+          'Până la activarea transmiterii live, facturile către clienți B2B trebuie transmise manual prin portalul SPV ANAF (max. 5 zile lucrătoare de la emitere). Recomandare: emiteți factura prin SmartBill (automat la livrare) și transmiteți-o manual în SPV. La activarea transmiterii automate, HIR va folosi datele deja salvate aici fără pași suplimentari.',
+        screenshot: 'Wizard e-Factura cu 4 pași și badge „În pregătire" pe pasul final',
+        cta: { label: 'Pregătire e-Factura', href: '/dashboard/settings/efactura' },
         related: ['smartbill-integration', 'exporturi-vanzari'],
         updated: UPDATED_2026_05_08,
       },
@@ -323,16 +327,16 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           'Hepy este botul oficial HIR pe Telegram (handle @MasterHIRbot, nume afișat „Hepi"). Vă trimite notificări la fiecare comandă, vă lasă să confirmați/anulați rezervări direct din chat și răspunde la întrebări simple despre KPI-uri. Activarea durează sub 2 minute.',
         steps: [
           {
-            title: 'Deschideți botul',
-            body: 'Pe telefon, căutați în Telegram „@MasterHIRbot" și apăsați „Start". Botul răspunde cu un cod de pairing valabil 10 minute.',
+            title: 'Generați link-ul de conectare în HIR',
+            body: 'În HIR mergeți la Configurare → Hepy și apăsați „Conectează Telegram". Sistemul generează un link unic de tipul t.me/MasterHIRbot?start=connect_<...> valabil 1 oră.',
           },
           {
-            title: 'Asociați contul',
-            body: 'În HIR mergeți la Configurare → Hepy. Lipiți codul primit pe Telegram și apăsați „Asociază". Botul confirmă: „Salut, contul vostru pentru <restaurant> este conectat".',
+            title: 'Deschideți link-ul pe Telegram',
+            body: 'Apăsați link-ul direct (sau scanați codul QR afișat) — Telegram se deschide pe @MasterHIRbot. Apăsați „Start". Botul confirmă automat: „Salut, contul vostru pentru <restaurant> este conectat".',
           },
           {
             title: 'Activați notificările dorite',
-            body: 'În același panou bifați tipurile de mesaje: comenzi noi, rezervări noi, alerte stoc redus, KPI zilnic la ora 9. Recomandăm minimum „comenzi noi" + „rezervări noi".',
+            body: 'Înapoi în panoul Hepy, bifați tipurile de mesaje: comenzi noi, rezervări noi, alerte stoc redus, KPI zilnic la ora 9. Recomandăm minimum „comenzi noi" + „rezervări noi".',
           },
           {
             title: 'Folosiți comenzile rapide',
@@ -340,7 +344,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           },
         ],
         outro:
-          'Un cont HIR poate avea mai mulți utilizatori Telegram conectați — util când proprietarul și managerul vor amândoi notificări. Dezactivarea unui utilizator se face din același panou, fără afectarea celorlalți.',
+          'Link-ul de conectare expiră în 1 oră — dacă nu apucați să-l folosiți, generați altul fără probleme (limita este de 10 link-uri active în 24h). Un cont HIR poate avea mai mulți utilizatori Telegram conectați — util când proprietarul și managerul vor amândoi notificări.',
         screenshot: 'Conversație Telegram cu Hepy: comandă nouă + butoane „Confirmă" / „Anulează"',
         cta: { label: 'Configurare Hepy', href: '/dashboard/settings/hepy' },
         related: ['notificari-push'],
