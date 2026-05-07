@@ -88,6 +88,19 @@ export function IncidentList({ incidents }: { incidents: Incident[] }) {
             {i.description ? (
               <p className="mt-2 whitespace-pre-line text-sm text-[#334155]">{i.description}</p>
             ) : null}
+            {i.timeline.length > 0 ? (
+              <ol className="mt-3 space-y-1 border-l-2 border-[#E2E8F0] pl-3 text-xs text-[#475569]">
+                {i.timeline.map((t, idx) => (
+                  <li key={`${i.id}-${idx}`}>
+                    <span className="font-medium text-[#0F172A]">
+                      {STATUS_LABEL[t.status] ?? t.status}
+                    </span>
+                    <span className="text-[#94A3B8]"> · {fmt(t.changedAt)}</span>
+                    {t.note ? <span className="block text-[#475569]"> {t.note}</span> : null}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
             {i.postmortemUrl ? (
               <a
                 href={i.postmortemUrl}
