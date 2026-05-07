@@ -24,6 +24,17 @@
 //   "ce recomandari am azi"              → recommendations_today
 //   anything else → falls through to /ask (existing behavior).
 //
+// Hepy reservation booking (OWNER-only, write):
+//   /rezerva [one-liner]            — book a table; if all fields are
+//                                     present in the one-liner, commits
+//                                     immediately; otherwise asks for the
+//                                     missing fields step-by-step
+//   /rezervari                      — list upcoming reservations (next 14d)
+//   /anuleaza_rezervare <token>     — cancel a reservation by public token
+// Default-enabled when the tenant has BOTH a hepy_owner_bindings row AND
+// reservation_settings.is_enabled=true; disabled otherwise (friendly
+// "rezervările nu sunt activate" reply).
+//
 // Inline-button callbacks (callback_query):
 //   fix:feedback:<id>     — route to Fix Agent
 //   manual:feedback:<id>  — mark needs human review
@@ -32,6 +43,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withRunLog } from '../_shared/log.ts';
+import {
+  parseReservation,
+  missingFields,
+  type ParsedReservation,
+} from '../_shared/reservation-parser.ts';
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
@@ -763,6 +779,783 @@ async function ownerLowStock(supabase: any, tenant: { tenant_id: string; name: s
   return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
 }
 
+// =====================================================================
+// HEPY — Reservation booking (write, OWNER-only)
+// =====================================================================
+// Three intents: /rezerva (book), /rezervari (list), /anuleaza_rezervare.
+//
+// Default-enabled rule: a tenant must have BOTH a hepy_owner_bindings row
+// AND reservation_settings.is_enabled = true. The first is implicit when
+// auth.kind === 'owner'; the second is checked at the top of each handler
+// and reported with a friendly "rezervările nu sunt activate" reply that
+// tells the operator how to switch them on.
+//
+// Tenant locale: replies follow tenants.settings.default_locale ('en' →
+// English; otherwise RO). Most installs are RO so the EN copy is opt-in.
+//
+// Rate limit: 3 successful bookings per Telegram user per rolling hour.
+// Implemented by counting hepy_reservation_created audit_log rows in the
+// past 60 min for the same telegram_user_id (read from
+// hepy_owner_bindings). Cheap (< 5ms), no extra schema.
+
+const RESERVATION_RATE_LIMIT_PER_HOUR = 3;
+
+type Locale = 'ro' | 'en';
+
+interface ReservationCopy {
+  disabledShort: string;
+  disabledLong: string;
+  rateLimited: (n: number) => string;
+  askDate: string;
+  askTime: string;
+  askPartySize: string;
+  askPhone: string;
+  askName: string;
+  bookingFailed: (msg: string) => string;
+  bookingOk: (token: string, when: string, party: number, name: string) => string;
+  listEmpty: string;
+  listHeader: string;
+  cancelOk: (token: string) => string;
+  cancelNotFound: string;
+  cancelAlreadyCancelled: string;
+  cancelInvalidToken: string;
+  oneLinerHelp: string;
+}
+
+const RESERVATION_COPY: Record<Locale, ReservationCopy> = {
+  ro: {
+    disabledShort: 'Rezervările nu sunt activate pentru acest restaurant.',
+    disabledLong:
+      'Rezervările nu sunt activate. Activați-le din panoul de administrare:\n<i>Setări → Rezervări → Activează</i>.',
+    rateLimited: (n) =>
+      `Ați făcut ${n} rezervări în ultima oră prin Hepy. Vă rugăm să așteptați câteva minute înainte de a încerca din nou.`,
+    askDate:
+      'Pentru ce <b>dată</b>? (ex. <i>mâine</i>, <i>vineri</i>, <i>1 iunie</i>, <i>15.06</i>)',
+    askTime:
+      'La ce <b>oră</b>? (ex. <i>19:00</i>, <i>7 seara</i>, <i>ora 20</i>)',
+    askPartySize: 'Pentru <b>câte persoane</b>?',
+    askPhone:
+      'Care este <b>numărul de telefon</b> al clientului? (ex. <code>0712345678</code>)',
+    askName: 'Care este <b>numele</b> clientului?',
+    bookingFailed: (msg) => `Nu am putut crea rezervarea: ${escapeHtml(msg)}`,
+    bookingOk: (token, when, party, name) =>
+      `Rezervare creată pentru <b>${escapeHtml(name)}</b>.\nData: <b>${escapeHtml(when)}</b>\nPersoane: <b>${party}</b>\nToken: <code>${escapeHtml(token)}</code>\n\nClientul va primi confirmarea pe email dacă a fost furnizat. Folosiți /rezervari pentru lista completă.`,
+    listEmpty: 'Nicio rezervare în următoarele 14 zile.',
+    listHeader: 'Rezervări — următoarele 14 zile',
+    cancelOk: (token) =>
+      `Rezervarea <code>${escapeHtml(token)}</code> a fost anulată.`,
+    cancelNotFound:
+      'Token invalid sau rezervarea nu există. Folosiți /rezervari pentru lista activă.',
+    cancelAlreadyCancelled:
+      'Această rezervare a fost deja anulată sau finalizată.',
+    cancelInvalidToken:
+      'Token invalid. Folosiți: <code>/anuleaza_rezervare &lt;token&gt;</code>',
+    oneLinerHelp:
+      'Exemple:\n· <code>/rezerva mâine 19:00, 4 persoane, telefon 0712345678, nume Iulian</code>\n· <code>/rezerva vineri ora 20, masa de 6, tel 0712345678, numele Andrei</code>\n\nSau scrieți doar <code>/rezerva</code> și vă voi întreba pas cu pas.',
+  },
+  en: {
+    disabledShort: 'Reservations are not enabled for this restaurant.',
+    disabledLong:
+      'Reservations are not enabled. Turn them on from the admin panel:\n<i>Settings → Reservations → Enable</i>.',
+    rateLimited: (n) =>
+      `You created ${n} reservations via Hepy in the last hour. Please wait a few minutes before trying again.`,
+    askDate:
+      'What <b>date</b>? (e.g. <i>tomorrow</i>, <i>friday</i>, <i>june 1</i>, <i>15/06</i>)',
+    askTime: 'What <b>time</b>? (e.g. <i>19:00</i>, <i>7pm</i>)',
+    askPartySize: 'For <b>how many people</b>?',
+    askPhone:
+      'What is the customer\'s <b>phone number</b>? (e.g. <code>0712345678</code>)',
+    askName: 'What is the customer\'s <b>name</b>?',
+    bookingFailed: (msg) => `Could not create reservation: ${escapeHtml(msg)}`,
+    bookingOk: (token, when, party, name) =>
+      `Reservation created for <b>${escapeHtml(name)}</b>.\nWhen: <b>${escapeHtml(when)}</b>\nParty: <b>${party}</b>\nToken: <code>${escapeHtml(token)}</code>\n\nThe customer will receive a confirmation email if one was provided. Use /rezervari for the full list.`,
+    listEmpty: 'No reservations in the next 14 days.',
+    listHeader: 'Reservations — next 14 days',
+    cancelOk: (token) =>
+      `Reservation <code>${escapeHtml(token)}</code> has been cancelled.`,
+    cancelNotFound:
+      'Invalid token or the reservation does not exist. Use /rezervari to see the active list.',
+    cancelAlreadyCancelled:
+      'This reservation is already cancelled or completed.',
+    cancelInvalidToken:
+      'Invalid token. Usage: <code>/anuleaza_rezervare &lt;token&gt;</code>',
+    oneLinerHelp:
+      'Examples:\n· <code>/rezerva tomorrow 7pm, 4 people, phone 0712345678, name John</code>\n· <code>/rezerva friday at 8pm, table for 6, tel 0712345678, name Andrei</code>\n\nOr just type <code>/rezerva</code> and I will ask you step-by-step.',
+  },
+};
+
+async function getTenantLocale(supabase: any, tenantId: string): Promise<Locale> {
+  // The schema does not have a top-level tenants.default_locale column;
+  // we read it from the tenants.settings JSONB if present, defaulting to
+  // 'ro'. This is a soft-read — any failure falls back to RO.
+  try {
+    const { data } = await supabase
+      .from('tenants')
+      .select('settings')
+      .eq('id', tenantId)
+      .maybeSingle();
+    const loc = (data?.settings as { default_locale?: string } | null)?.default_locale;
+    return loc === 'en' ? 'en' : 'ro';
+  } catch (_e) {
+    return 'ro';
+  }
+}
+
+async function reservationsEnabled(
+  supabase: any,
+  tenantId: string,
+): Promise<{ enabled: boolean; partySizeMax: number }> {
+  const { data } = await supabase
+    .from('reservation_settings')
+    .select('is_enabled, party_size_max')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  return {
+    enabled: Boolean(data?.is_enabled),
+    partySizeMax: Number(data?.party_size_max ?? 12),
+  };
+}
+
+// Combine date (YYYY-MM-DD) + time (HH:MM) interpreted in Europe/Bucharest
+// into a UTC ISO string. Bucharest is UTC+2 in winter and UTC+3 in DST
+// (last Sunday of March → last Sunday of October). We use the standard
+// DST rule rather than Intl since Deno's Intl is not stable for this.
+// Codex P2 (round 8): EU DST transitions happen at 01:00 UTC, NOT at
+// UTC midnight. Concretely:
+//   - Last Sunday of March: 01:00 UTC → clocks jump from 03:00 local to
+//     04:00 local (UTC+2 → UTC+3).
+//   - Last Sunday of October: 01:00 UTC → clocks fall from 04:00 local
+//     to 03:00 local (UTC+3 → UTC+2).
+// Using midnight as the boundary mis-classifies the 1-hour window
+// between local midnight and the transition (e.g. 2026-03-29 01:30
+// Bucharest is still UTC+2, but a midnight-boundary check would treat
+// it as UTC+3 and produce a wrong UTC instant).
+function lastSundayDstBoundaryUtc(year: number, monthIdx: number): Date {
+  const last = new Date(Date.UTC(year, monthIdx + 1, 0));
+  const lastDow = last.getUTCDay();
+  // EU rule: transition at 01:00 UTC.
+  return new Date(Date.UTC(year, monthIdx, last.getUTCDate() - lastDow, 1, 0, 0));
+}
+
+function bucharestLocalToUtcIso(date: string, time: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const t = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!m || !t) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const hh = Number(t[1]);
+  const mm = Number(t[2]);
+
+  const dstStart = lastSundayDstBoundaryUtc(y, 2); // March, 01:00 UTC
+  const dstEnd = lastSundayDstBoundaryUtc(y, 9);   // October, 01:00 UTC
+  // Probe with the WINTER offset first to decide whether we're in DST.
+  // (We check the "naive UTC" as if it were UTC+2; if that lands inside
+  // the DST window, we redo with UTC+3 — this avoids a chicken-and-egg
+  // around the boundary hour.)
+  const winterUtc = new Date(Date.UTC(y, mo - 1, d, hh - 2, mm));
+  const inDst = winterUtc >= dstStart && winterUtc < dstEnd;
+  const offsetH = inDst ? 3 : 2;
+  return new Date(Date.UTC(y, mo - 1, d, hh - offsetH, mm)).toISOString();
+}
+
+function fmtBucharestForDisplay(iso: string): string {
+  // Render YYYY-MM-DD HH:MM in Bucharest local time. Reuses the DST
+  // calculation above to avoid pulling in Intl.
+  const utc = new Date(iso);
+  const y = utc.getUTCFullYear();
+  const dstStart = lastSundayDstBoundaryUtc(y, 2);
+  const dstEnd = lastSundayDstBoundaryUtc(y, 9);
+  const inDst = utc >= dstStart && utc < dstEnd;
+  const offsetH = inDst ? 3 : 2;
+  const local = new Date(utc.getTime() + offsetH * 3600 * 1000);
+  const pad = (n: number) => (n < 10 ? '0' + n : String(n));
+  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`;
+}
+
+async function checkReservationRateLimit(
+  supabase: any,
+  telegramUserId: number,
+): Promise<{ ok: boolean; recentCount: number }> {
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('audit_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('action', 'hepy_reservation_created')
+    .eq('entity_type', 'hepy_reservation')
+    .contains('metadata', { telegram_user_id: telegramUserId })
+    .gte('created_at', since);
+  const c = count ?? 0;
+  return { ok: c < RESERVATION_RATE_LIMIT_PER_HOUR, recentCount: c };
+}
+
+type DraftField = 'date' | 'time' | 'party_size' | 'phone' | 'first_name';
+
+interface DraftEnvelope {
+  payload: ParsedReservation;
+  next_field: DraftField | null;
+}
+
+async function loadConversationDraft(
+  supabase: any,
+  telegramUserId: number,
+  tenantId: string,
+  intent: string,
+): Promise<ParsedReservation | null> {
+  const env = await loadConversationDraftWithMeta(supabase, telegramUserId, tenantId, intent);
+  return env?.payload ?? null;
+}
+
+async function loadConversationDraftWithMeta(
+  supabase: any,
+  telegramUserId: number,
+  tenantId: string,
+  intent: string,
+): Promise<DraftEnvelope | null> {
+  const { data } = await supabase
+    .from('hepy_conversation_state')
+    .select('payload, expires_at')
+    .eq('telegram_user_id', telegramUserId)
+    .eq('tenant_id', tenantId)
+    .eq('intent', intent)
+    .maybeSingle();
+  if (!data) return null;
+  if (new Date(data.expires_at).getTime() < Date.now()) return null;
+  // The payload jsonb stores the parsed-fields object plus a sidecar
+  // `_next_field` key; this is internal to the bot and not surfaced
+  // anywhere user-facing. Strip it before returning the typed payload.
+  const raw = (data.payload ?? {}) as ParsedReservation & { _next_field?: DraftField | null };
+  const { _next_field, ...payload } = raw;
+  return { payload: payload as ParsedReservation, next_field: _next_field ?? null };
+}
+
+async function saveConversationDraft(
+  supabase: any,
+  telegramUserId: number,
+  tenantId: string,
+  intent: string,
+  payload: ParsedReservation,
+  nextField: DraftField | null = null,
+): Promise<void> {
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  await supabase
+    .from('hepy_conversation_state')
+    .upsert(
+      {
+        telegram_user_id: telegramUserId,
+        tenant_id: tenantId,
+        intent,
+        payload: { ...payload, _next_field: nextField },
+        updated_at: new Date().toISOString(),
+        expires_at: expiresAt,
+      },
+      { onConflict: 'telegram_user_id,tenant_id,intent' },
+    );
+}
+
+// Interpret a bare reply (just "4" or just "Iulian") as the answer to
+// the field we last asked about. Returns the merged draft. If the bare
+// reply does not parse for that field, the draft is returned unchanged
+// so tryCommitReservation will re-ask. We deliberately only fill the
+// SINGLE field we asked about so e.g. "4" while expecting a phone is
+// not silently misclassified as the party size.
+function applyBareAnswer(
+  merged: ParsedReservation,
+  raw: string,
+  nextField: DraftField | null,
+): ParsedReservation {
+  if (!nextField) return merged;
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return merged;
+  const out: ParsedReservation = { ...merged };
+
+  switch (nextField) {
+    case 'party_size': {
+      if (out.party_size != null) break;
+      const m = trimmed.match(/^\s*(\d{1,3})\s*$/);
+      if (m) {
+        const n = Number(m[1]);
+        if (n >= 1 && n <= 100) out.party_size = n;
+      }
+      break;
+    }
+    case 'phone': {
+      if (out.phone != null) break;
+      const digits = trimmed.replace(/[^\d+]/g, '');
+      // Mirror the parser's normalisation rules: 7-15 digits, leading
+      // '+' preserved.
+      const hasPlus = digits.startsWith('+');
+      const onlyDigits = digits.replace(/[^\d]/g, '');
+      if (onlyDigits.length >= 7 && onlyDigits.length <= 15) {
+        out.phone = hasPlus ? '+' + onlyDigits : onlyDigits;
+      }
+      break;
+    }
+    case 'first_name': {
+      if (out.first_name != null) break;
+      // Accept any short non-empty single line. Strip trailing punctuation.
+      const cleaned = trimmed.replace(/[.,;:!?]+$/, '').trim();
+      if (cleaned.length >= 1 && cleaned.length <= 80) {
+        out.first_name = cleaned;
+      }
+      break;
+    }
+    case 'time': {
+      // Codex P2 (round 5): a very common dialog reply for the time
+      // question is just a bare hour ("20") or compact "1900". The
+      // parser's regexes require "19:00" / "ora 20" / "7 seara", so
+      // those bare replies would re-trigger the same question.
+      if (out.time != null) break;
+      let mTime = trimmed.match(/^\s*(\d{1,2})\s*$/);
+      if (mTime) {
+        const h = Number(mTime[1]);
+        if (h >= 0 && h <= 23) {
+          out.time = (h < 10 ? '0' + h : String(h)) + ':00';
+          break;
+        }
+      }
+      // "1900" → 19:00 (3-4 digit compact form).
+      mTime = trimmed.match(/^\s*(\d{1,2})(\d{2})\s*$/);
+      if (mTime) {
+        const h = Number(mTime[1]);
+        const min = Number(mTime[2]);
+        if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+          out.time = (h < 10 ? '0' + h : String(h)) + ':' + (min < 10 ? '0' + min : String(min));
+        }
+      }
+      break;
+    }
+    case 'date':
+      // The parser already covers all the natural-language forms for
+      // dates ("mâine", "vineri", "1 iunie", "15.06"), so a bare-answer
+      // reply that isn't already handled by the parser would itself be
+      // ambiguous (e.g. "5" — is that the day, or did the operator
+      // intend it as a number?). We let the dialog re-ask in that case.
+      break;
+  }
+  return out;
+}
+
+// Map "missing fields" → the single next field we will ask about. Used
+// both when persisting the draft (so the next message can be interpreted
+// in context) and when the dialog continues.
+function nextFieldFor(draft: ParsedReservation): DraftField | null {
+  const m = missingFields(draft);
+  if (m.includes('date')) return 'date';
+  if (m.includes('time')) return 'time';
+  if (m.includes('party_size')) return 'party_size';
+  if (m.includes('phone')) return 'phone';
+  if (m.includes('first_name')) return 'first_name';
+  return null;
+}
+
+async function clearConversationDraft(
+  supabase: any,
+  telegramUserId: number,
+  tenantId: string,
+  intent: string,
+): Promise<void> {
+  await supabase
+    .from('hepy_conversation_state')
+    .delete()
+    .eq('telegram_user_id', telegramUserId)
+    .eq('tenant_id', tenantId)
+    .eq('intent', intent);
+}
+
+// Try to commit the booking with the current parsed state. Returns either
+// a success message (booking row inserted) or an "ask next field" message
+// if the draft is incomplete. Caller is responsible for the audit-log row
+// on success and for clearing the draft when done.
+async function tryCommitReservation(
+  supabase: any,
+  tenantId: string,
+  partySizeMax: number,
+  draft: ParsedReservation,
+  copy: ReservationCopy,
+): Promise<
+  | { kind: 'ok'; tokenShort: string; whenLocal: string }
+  | { kind: 'rejected'; message: string }
+  | { kind: 'incomplete'; nextAsk: string }
+> {
+  const missing = missingFields(draft);
+  if (missing.includes('date')) return { kind: 'incomplete', nextAsk: copy.askDate };
+  if (missing.includes('time')) return { kind: 'incomplete', nextAsk: copy.askTime };
+  if (missing.includes('party_size')) return { kind: 'incomplete', nextAsk: copy.askPartySize };
+  if (missing.includes('phone')) return { kind: 'incomplete', nextAsk: copy.askPhone };
+  if (missing.includes('first_name')) return { kind: 'incomplete', nextAsk: copy.askName };
+
+  // Light client-side validation that mirrors fn_reservation_request guards.
+  // The RPC is the authoritative gate, but we fail fast here for the common
+  // user errors (bad time format, party_size cap).
+  if (!draft.party_size || draft.party_size < 1 || draft.party_size > partySizeMax) {
+    return {
+      kind: 'rejected',
+      message: `Pentru un grup mai mare de ${partySizeMax} sunați direct restaurantul.`,
+    };
+  }
+
+  const isoUtc = bucharestLocalToUtcIso(draft.date!, draft.time!);
+  if (!isoUtc) {
+    return { kind: 'rejected', message: 'Data sau ora nu pot fi interpretate.' };
+  }
+
+  const { data: rpcResult, error } = await supabase.rpc('fn_reservation_request', {
+    p_tenant_id: tenantId,
+    p_first_name: draft.first_name!,
+    p_phone: draft.phone!,
+    p_email: null,
+    p_party_size: draft.party_size,
+    p_requested_at: isoUtc,
+    p_notes: 'Creată prin Hepy Telegram',
+    p_table_id: null,
+  });
+  if (error) {
+    return { kind: 'rejected', message: 'Eroare temporară. Reîncercați.' };
+  }
+  const row = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+  if (!row || row.status === 'REJECTED') {
+    return { kind: 'rejected', message: row?.message ?? 'Rezervarea nu a putut fi acceptată.' };
+  }
+
+  return {
+    kind: 'ok',
+    tokenShort: String(row.public_track_token).slice(0, 8),
+    whenLocal: fmtBucharestForDisplay(isoUtc),
+  };
+}
+
+async function handleReservaCommand(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  telegramUserId: number,
+  args: string,
+  mode: 'slash' | 'continuation' = 'slash',
+): Promise<{ text: string; status: string }> {
+  const locale = await getTenantLocale(supabase, tenant.tenant_id);
+  const copy = RESERVATION_COPY[locale];
+
+  const settings = await reservationsEnabled(supabase, tenant.tenant_id);
+  if (!settings.enabled) {
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)}</b>\n${copy.disabledLong}`,
+      status: 'RESERVATION_DISABLED',
+    };
+  }
+
+  // Rate limit BEFORE we burn any work.
+  const rl = await checkReservationRateLimit(supabase, telegramUserId);
+  if (!rl.ok) {
+    return { text: copy.rateLimited(rl.recentCount), status: 'RATE_LIMITED' };
+  }
+
+  // Codex P2 (round 7): a fresh `/rezerva <args>` slash command must
+  // NOT silently pull missing fields from a stale draft — the operator
+  // intends a new booking. Continuation mode (free-text reply via the
+  // dispatcher) is the only path that should merge with the prior
+  // draft. Bare `/rezerva` with no args still consults the prior draft
+  // so it can resume an interrupted dialog.
+  const priorRow = await loadConversationDraftWithMeta(
+    supabase,
+    telegramUserId,
+    tenant.tenant_id,
+    'reserva',
+  );
+  const isFreshSlash = mode === 'slash' && args.trim().length > 0;
+  if (isFreshSlash && priorRow) {
+    await clearConversationDraft(supabase, telegramUserId, tenant.tenant_id, 'reserva');
+  }
+  const prior = isFreshSlash ? null : priorRow?.payload ?? null;
+  const fresh = parseReservation(args ?? '');
+  const merged: ParsedReservation = {
+    date: fresh.date ?? prior?.date ?? null,
+    time: fresh.time ?? prior?.time ?? null,
+    party_size: fresh.party_size ?? prior?.party_size ?? null,
+    phone: fresh.phone ?? prior?.phone ?? null,
+    first_name: fresh.first_name ?? prior?.first_name ?? null,
+    notes: fresh.notes ?? prior?.notes ?? null,
+  };
+
+  // Codex P2 (re-review on 9e50997): if the parser left a field null and
+  // we previously asked for that exact field, try to interpret the raw
+  // reply as a bare answer. Order mirrors the question order in
+  // tryCommitReservation so we never misclassify (e.g. "4" while we
+  // were asking the date is rejected).
+  // Round-7: bare-answer interpretation only applies in continuation
+  // mode — a fresh slash command intentionally ignores the prior
+  // next_field hint along with the rest of the stale draft.
+  const bareAnswerHint = isFreshSlash ? null : priorRow?.next_field ?? null;
+  const draft: ParsedReservation = applyBareAnswer(merged, args ?? '', bareAnswerHint);
+
+  // If the operator typed bare `/rezerva` with NO prior draft AND no args,
+  // show the help block before starting the dialog. Avoids surprising
+  // the user with an immediate "what date?" question.
+  //
+  // Codex P2: we MUST persist the empty draft here, otherwise the
+  // non-slash continuation path (which is gated on
+  // loadConversationDraft() returning a row) will never route the user's
+  // first reply ("mâine") back into the booking flow — the reply would
+  // fall through to the regex intent classifier, get NONE, and the user
+  // would receive the generic "Hepy nu a înțeles" reply instead.
+  if (!prior && !args.trim()) {
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+      'date',
+    );
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)} — rezervare nouă</b>\n${copy.oneLinerHelp}\n\n${copy.askDate}`,
+      status: 'RESERVATION_DIALOG_START',
+    };
+  }
+
+  const result = await tryCommitReservation(
+    supabase,
+    tenant.tenant_id,
+    settings.partySizeMax,
+    draft,
+    copy,
+  );
+
+  if (result.kind === 'incomplete') {
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+      nextFieldFor(draft),
+    );
+    return { text: result.nextAsk, status: 'RESERVATION_INCOMPLETE' };
+  }
+
+  if (result.kind === 'rejected') {
+    // Keep the draft so the user can retry without losing fields. Don't
+    // overwrite next_field — the user already saw a question; if they
+    // come back with a one-liner the merge path handles it.
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+      nextFieldFor(draft),
+    );
+    return { text: copy.bookingFailed(result.message), status: 'RESERVATION_REJECTED' };
+  }
+
+  await clearConversationDraft(supabase, telegramUserId, tenant.tenant_id, 'reserva');
+
+  // Audit
+  try {
+    await supabase.from('audit_log').insert({
+      tenant_id: tenant.tenant_id,
+      action: 'hepy_reservation_created',
+      entity_type: 'hepy_reservation',
+      entity_id: result.tokenShort,
+      metadata: {
+        telegram_user_id: telegramUserId,
+        party_size: draft.party_size,
+        when: result.whenLocal,
+        first_name: draft.first_name,
+        phone_suffix: draft.phone?.slice(-4) ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn('hepy_reservation_created audit fail', (e as Error)?.message);
+  }
+
+  return {
+    text: copy.bookingOk(
+      result.tokenShort,
+      result.whenLocal,
+      draft.party_size!,
+      draft.first_name!,
+    ),
+    status: 'RESERVATION_OK',
+  };
+}
+
+async function handleRezervariList(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+): Promise<{ text: string; status: string }> {
+  const locale = await getTenantLocale(supabase, tenant.tenant_id);
+  const copy = RESERVATION_COPY[locale];
+
+  const settings = await reservationsEnabled(supabase, tenant.tenant_id);
+  if (!settings.enabled) {
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)}</b>\n${copy.disabledShort}`,
+      status: 'RESERVATION_DISABLED',
+    };
+  }
+
+  const now = new Date().toISOString();
+  const in14d = new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString();
+  const { data: rows } = await supabase
+    .from('reservations')
+    .select('public_track_token, customer_first_name, customer_phone, party_size, requested_at, status, notes')
+    .eq('tenant_id', tenant.tenant_id)
+    .in('status', ['REQUESTED', 'CONFIRMED'])
+    .gte('requested_at', now)
+    .lte('requested_at', in14d)
+    .order('requested_at', { ascending: true })
+    .limit(20);
+
+  try {
+    await supabase.from('audit_log').insert({
+      tenant_id: tenant.tenant_id,
+      action: 'hepy_reservation_listed',
+      entity_type: 'hepy_reservation',
+      entity_id: 'list',
+      metadata: { returned: rows?.length ?? 0 },
+    });
+  } catch (_e) {
+    // best-effort
+  }
+
+  if (!rows || rows.length === 0) {
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)} — ${escapeHtml(copy.listHeader)}</b>\n${copy.listEmpty}`,
+      status: 'OK',
+    };
+  }
+
+  const lines = [`<b>📅 ${escapeHtml(tenant.name)} — ${escapeHtml(copy.listHeader)}</b>`];
+  for (const r of rows) {
+    const when = fmtBucharestForDisplay(r.requested_at);
+    const tok = String(r.public_track_token).slice(0, 8);
+    const flag = r.status === 'CONFIRMED' ? '✅' : '⏳';
+    lines.push(
+      `${flag} <code>${escapeHtml(tok)}</code> · ${escapeHtml(when)} · ${r.party_size} pers · ${escapeHtml(r.customer_first_name)}`,
+    );
+  }
+  lines.push(`\n<i>Anulează: <code>/anuleaza_rezervare &lt;token&gt;</code></i>`);
+  return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
+}
+
+async function handleAnuleazaRezervare(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  telegramUserId: number,
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const locale = await getTenantLocale(supabase, tenant.tenant_id);
+  const copy = RESERVATION_COPY[locale];
+
+  // Codex P2: stay consistent with /rezerva and /rezervari — if the
+  // tenant has reservations turned off, refuse the cancel request too.
+  // Otherwise an OWNER could still mutate reservation rows for a feature
+  // that the documentation says is disabled, which violates the
+  // default-enabled rule for the reservation write intents.
+  const settings = await reservationsEnabled(supabase, tenant.tenant_id);
+  if (!settings.enabled) {
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)}</b>\n${copy.disabledShort}`,
+      status: 'RESERVATION_DISABLED',
+    };
+  }
+
+  const tokenArg = args.trim().toLowerCase();
+  // Accept either an 8-hex prefix or a full uuid. Block anything else.
+  if (!/^[0-9a-f]{8,}(-[0-9a-f]+)*$/.test(tokenArg)) {
+    return { text: copy.cancelInvalidToken, status: 'ERR' };
+  }
+
+  // Codex P2 (re-review on 9e50997): PostgREST does not support a cast
+  // in a horizontal `ilike` filter ("public_track_token::text" → 400).
+  // Instead, fetch the cancellable reservations (REQUESTED/CONFIRMED
+  // only) for the tenant and prefix-match in app code. RLS + the
+  // tenant_id filter ensure cross-tenant isolation.
+  //
+  // Codex P2 (round 6): scope the query by status (the only rows that
+  // can be cancelled) instead of a recency window + 200-row page —
+  // those filters could exclude a far-future booking on a high-volume
+  // tenant. Restricting to ACTIVE statuses keeps the result set small
+  // enough that the 1000-row PostgREST default limit is sufficient
+  // headroom (typical tenant: 5-50 active reservations).
+  const { data: rowsRaw } = await supabase
+    .from('reservations')
+    .select('id, public_track_token, status')
+    .eq('tenant_id', tenant.tenant_id)
+    .in('status', ['REQUESTED', 'CONFIRMED']);
+  const matches = ((rowsRaw ?? []) as Array<{ id: string; public_track_token: string; status: string }>)
+    .filter((r) => String(r.public_track_token).toLowerCase().startsWith(tokenArg));
+  if (matches.length === 0) {
+    // Fallback probe (small, status != active): check whether the token
+    // matches a recently terminated reservation so we can return the
+    // friendlier "already cancelled" message instead of a generic
+    // "not found". Bounded by recency to keep the page small.
+    const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const { data: terminatedRaw } = await supabase
+      .from('reservations')
+      .select('public_track_token, status')
+      .eq('tenant_id', tenant.tenant_id)
+      .in('status', ['CANCELLED', 'COMPLETED', 'NOSHOW', 'REJECTED'])
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    const terminated = ((terminatedRaw ?? []) as Array<{ public_track_token: string; status: string }>)
+      .find((r) => String(r.public_track_token).toLowerCase().startsWith(tokenArg));
+    if (terminated) {
+      return { text: copy.cancelAlreadyCancelled, status: 'NOOP' };
+    }
+    return { text: copy.cancelNotFound, status: 'NOT_FOUND' };
+  }
+  if (matches.length > 1) {
+    return {
+      text: 'Token ambiguu — folosiți un prefix mai lung (cel puțin 12 caractere).',
+      status: 'AMBIGUOUS',
+    };
+  }
+  const r = matches[0];
+
+  // Codex P2 (round 9): guard the update with the same active-status
+  // predicate as the lookup. Without it, a concurrent status transition
+  // (e.g. the admin dashboard marking COMPLETED at the same instant)
+  // could be silently overwritten by our CANCELLED. With the predicate
+  // we get a 0-row update on a race and surface the friendly
+  // "already cancelled / completed" message instead.
+  const { data: updated, error: updErr } = await supabase
+    .from('reservations')
+    .update({ status: 'CANCELLED', rejection_reason: 'Anulată prin Hepy Telegram' })
+    .eq('id', r.id)
+    .in('status', ['REQUESTED', 'CONFIRMED'])
+    .select('id');
+  if (updErr) {
+    return { text: 'Eroare temporară. Reîncercați.', status: 'ERR' };
+  }
+  if (!updated || (updated as Array<{ id: string }>).length === 0) {
+    // Lost the race — another process moved the row out of the active
+    // statuses between our lookup and update.
+    return { text: copy.cancelAlreadyCancelled, status: 'NOOP' };
+  }
+
+  try {
+    await supabase.from('audit_log').insert({
+      tenant_id: tenant.tenant_id,
+      action: 'hepy_reservation_cancelled',
+      entity_type: 'hepy_reservation',
+      entity_id: r.id,
+      metadata: {
+        telegram_user_id: telegramUserId,
+        token_prefix: String(r.public_track_token).slice(0, 8),
+      },
+    });
+  } catch (_e) {
+    // best-effort
+  }
+
+  return {
+    text: copy.cancelOk(String(r.public_track_token).slice(0, 8)),
+    status: 'OK',
+  };
+}
+
 async function handleCommand(
   supabase: any, ghToken: string, vercelToken: string, anthropicKey: string,
   cmd: string, args: string, chatId: number, auth: ChatAuth, telegramUsername?: string
@@ -820,6 +1613,12 @@ Comenzi rapide:
 /comenzi — comenzile de astăzi
 /vanzari — încasările de astăzi
 /stoc — pozițiile sub prag
+
+Rezervări:
+/rezerva — rezervare nouă (vă voi întreba pas cu pas, sau scrieți totul într-un mesaj)
+/rezervari — următoarele 14 zile
+/anuleaza_rezervare &lt;token&gt; — anulează după token
+
 /help — acest ecran
 
 Pentru a deconecta acest cont, accesați
@@ -878,6 +1677,18 @@ Comenzi auxiliare:
     if (cmd === '/comenzi') return await ownerOrdersToday(supabase, tenant);
     if (cmd === '/vanzari') return await ownerSalesToday(supabase, tenant);
     return await ownerLowStock(supabase, tenant);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Hepy reservation booking — OWNER-only write intents. Operator
+  // (Iulian) can also use them after /tenant <slug> for testing.
+  // ────────────────────────────────────────────────────────────
+  if (cmd === '/rezerva' || cmd === '/rezervari' || cmd === '/anuleaza_rezervare') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    if (cmd === '/rezerva') return await handleReservaCommand(supabase, tenant, chatId, args);
+    if (cmd === '/rezervari') return await handleRezervariList(supabase, tenant);
+    return await handleAnuleazaRezervare(supabase, tenant, chatId, args);
   }
 
   // ────────────────────────────────────────────────────────────
@@ -1227,6 +2038,28 @@ Deno.serve(async (req: Request) => {
     // Owners only ever hit the intent router (owner-forbidden ops commands
     // are handled inside handleCommand).
     if (!trimmed.startsWith('/')) {
+      // 0) Reservation dialog continuation. If the user has an active
+      //    /rezerva draft for the bound tenant (TTL 10 min), interpret
+      //    this free-text message as the answer to the question we just
+      //    asked. We dispatch through handleReservaCommand which merges
+      //    the new fields with the saved draft and either commits or
+      //    asks the next question.
+      const tenantForDraft = await getActiveTenant(supabase, chatId, auth);
+      if (tenantForDraft) {
+        const draft = await loadConversationDraft(supabase, chatId, tenantForDraft.tenant_id, 'reserva');
+        if (draft) {
+          const r = await handleReservaCommand(supabase, tenantForDraft, chatId, trimmed, 'continuation');
+          await tgSend(tgToken, chatId, r.text, msg.message_id);
+          setMetadata({ hepy: true, intent: 'rezerva:continue', role: auth?.kind ?? 'anon' });
+          EdgeRuntime.waitUntil(logCommand(supabase, {
+            chat_id: chatId, message_id: msg.message_id, username: tgUsername,
+            command: 'hepy:rezerva', args: trimmed.slice(0, 200), result_summary: r.text.slice(0, 200),
+            status: r.status, duration_ms: Date.now() - start,
+          }));
+          return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+
       // 1) Regex classifier (zero cost)
       let cls = detectIntentRegex(trimmed);
       let usedLLM = false;
@@ -1280,7 +2113,7 @@ Deno.serve(async (req: Request) => {
 
     const result = await handleCommand(supabase, ghToken, vercelToken, anthropicKey, cmd, args, chatId, auth, tgUsername);
     await tgSend(tgToken, chatId, result.text, msg.message_id, result.keyboard);
-    if (cmd === '/tenant' || cmd === '/comenzi' || cmd === '/vanzari' || cmd === '/stoc' || (cmd === '/help' && args.trim().toLowerCase() === 'hepy') || (cmd === '/status' && args.trim().toLowerCase() === 'hepy')) {
+    if (cmd === '/tenant' || cmd === '/comenzi' || cmd === '/vanzari' || cmd === '/stoc' || cmd === '/rezerva' || cmd === '/rezervari' || cmd === '/anuleaza_rezervare' || (cmd === '/help' && args.trim().toLowerCase() === 'hepy') || (cmd === '/status' && args.trim().toLowerCase() === 'hepy')) {
       setMetadata({ hepy: true, intent: cmd.slice(1) + (args ? ':' + args.trim().toLowerCase() : ''), role: auth?.kind ?? 'anon' });
     }
     EdgeRuntime.waitUntil(logCommand(supabase, {
