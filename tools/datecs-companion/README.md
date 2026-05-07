@@ -44,15 +44,16 @@ integration-bus → integration_events queue
 integration-dispatcher (Edge Function, every 30s)
    │
    │  POST  https://<random>.trycloudflare.com/print
-   │  Authorization: Bearer <COMPANION_TOKEN>
    │  X-HIR-Signature: <HMAC-SHA256 over body>
+   │  X-HIR-Event: order.status_changed
+   │  X-HIR-Test-Mode: 0|1
    │  body: { event, test_mode, order, delivered_at }
    ▼
 Cloudflare Tunnel (cloudflared) on tenant PC
    │
    ▼
 Express on localhost:7890
-   │ verifies bearer + HMAC
+   │ verifies HMAC signature
    │ builds DatecsReceiptProgram
    │ frames each step into FiscalNet-2 packet
    ▼
@@ -195,8 +196,7 @@ provider is configured for the tenant.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `auth_required` (401) | Bearer mismatch | Check `COMPANION_TOKEN` matches the secret you saved in HIR admin |
-| `bad_signature` (403) | HMAC mismatch | Check `HIR_WEBHOOK_SECRET` matches the secret in HIR admin |
+| `bad_signature` (403) | HMAC mismatch | Check `HIR_WEBHOOK_SECRET` matches the secret you saved in HIR admin → Integrări → Custom |
 | `empty_program` (422) | Order has only 0-RON lines | Expected — companion refuses to print empty receipts |
 | `print_failed` → `Error: Resource temporarily unavailable` | Wrong `DATECS_SERIAL_PATH` | Run `node list-ports.js` again |
 | Companion gets the request but printer doesn't print | Wrong baud rate | Try 9600, 19200, 38400, 115200 |
@@ -209,11 +209,13 @@ provider is configured for the tenant.
 
 - The companion is **default-off**. Without a running cloudflared process
   the printer is unreachable from the internet.
-- The `/print` endpoint requires **both** a bearer token AND a valid
-  HMAC-SHA256 signature on the body. Either alone is rejected.
-- The bearer / secret is shared between HIR's `webhook_secret` (32-hex)
-  and the companion's `COMPANION_TOKEN` + `HIR_WEBHOOK_SECRET`. In V1
-  they are intentionally the same string to minimize operator setup.
+- The `/print` endpoint requires a valid **HMAC-SHA256** signature on
+  the request body in the `X-HIR-Signature` header. Requests without
+  it (or with a wrong signature) are rejected with `403 bad_signature`.
+- The shared secret lives in HIR's integrations admin (the "Secret
+  webhook (HMAC)" field) and in the companion's `HIR_WEBHOOK_SECRET`
+  env. They MUST be identical. HIR generates a 32-hex UUID with the
+  "Generează" button; paste the same value into the companion `.env`.
 - HIR's existing **SSRF guard** stays intact: only HTTPS public hosts
   are accepted, internal/private IPs are blocked. A tunnel URL is
   genuinely public, so the guard does its job without modification.

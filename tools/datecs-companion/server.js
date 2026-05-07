@@ -34,7 +34,13 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 // -------- Config (env-driven, no file persistence) --------
 
 const PORT = Number.parseInt(process.env.COMPANION_HTTP_PORT ?? '7890', 10);
-const COMPANION_TOKEN = process.env.COMPANION_TOKEN ?? '';
+// HMAC-SHA256 secret shared with HIR's Custom-webhook integration.
+// HIR's existing dispatcher does NOT send an Authorization: Bearer
+// header (only X-HIR-Signature + X-HIR-Event + X-HIR-Test-Mode +
+// content-type), so the HMAC is the only auth signal we get. That's
+// fine — HMAC over the body with a 32-hex secret is strong enough,
+// and stays in sync with the contract documented at
+// packages/integration-core/src/adapters/custom.ts.
 const HIR_WEBHOOK_SECRET = process.env.HIR_WEBHOOK_SECRET ?? '';
 const SERIAL_PATH = process.env.DATECS_SERIAL_PATH ?? '';
 const SERIAL_BAUD = Number.parseInt(process.env.DATECS_SERIAL_BAUD ?? '115200', 10);
@@ -47,12 +53,8 @@ const DRY_RUN = process.env.DATECS_DRY_RUN === '1';
 // alcohol-only or have non-standard VAT.
 const DEFAULT_VAT = (process.env.DATECS_DEFAULT_VAT_GROUP ?? 'B').toUpperCase();
 
-if (!COMPANION_TOKEN) {
-  console.error('[companion] COMPANION_TOKEN env is required (shared with HIR webhook_secret holder)');
-  process.exit(2);
-}
 if (!HIR_WEBHOOK_SECRET) {
-  console.error('[companion] HIR_WEBHOOK_SECRET env is required (must match the secret in HIR admin → Integrări)');
+  console.error('[companion] HIR_WEBHOOK_SECRET env is required (must match the webhook secret in HIR admin → Integrări → Custom)');
   process.exit(2);
 }
 if (!DRY_RUN && !SERIAL_PATH) {
@@ -336,15 +338,6 @@ app.use(
   }),
 );
 
-function tokenMatches(headerValue) {
-  if (!headerValue || typeof headerValue !== 'string') return false;
-  const got = headerValue.startsWith('Bearer ') ? headerValue.slice(7) : headerValue;
-  const a = Buffer.from(got);
-  const b = Buffer.from(COMPANION_TOKEN);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 function signatureMatches(rawBody, signature) {
   if (!signature || typeof signature !== 'string') return false;
   const expected = createHmac('sha256', HIR_WEBHOOK_SECRET).update(rawBody).digest('hex');
@@ -365,10 +358,10 @@ app.get('/healthz', (_req, res) => {
 });
 
 app.post('/print', async (req, res) => {
-  // Auth.
-  if (!tokenMatches(req.get('authorization') ?? '')) {
-    return res.status(401).json({ ok: false, error: 'auth_required' });
-  }
+  // Auth: HMAC-SHA256 over raw body using the shared HIR webhook
+  // secret. HIR's dispatcher does NOT send an Authorization header
+  // (only X-HIR-Signature + X-HIR-Event + X-HIR-Test-Mode), so the
+  // signature is the only auth signal — and it's strong enough.
   const sig = req.get('x-hir-signature') ?? req.get('X-HIR-Signature');
   if (!signatureMatches(req.rawBody ?? Buffer.from(''), sig ?? '')) {
     return res.status(403).json({ ok: false, error: 'bad_signature' });
