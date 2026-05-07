@@ -198,10 +198,17 @@ function costUsdOf(input: number, output: number): number {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function checkDailyCap(supabase: any, tenantId: string): Promise<{ count: number; capped: boolean }> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Codex P2 (PR #354 round 1): exclude already-capped rows from the
+  // count. Otherwise a user who keeps retrying after seeing the cap
+  // message keeps adding 'capped' rows that themselves extend the
+  // lockout window beyond the 24h sliding window for paid attempts.
+  // We only count attempts that actually reached the agent — 'ok' or
+  // 'failed' (Anthropic upstream error after the request was issued).
   const { count, error } = await supabase
     .from('menu_agent_invocations')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
+    .in('outcome', ['ok', 'failed'])
     .gte('created_at', since);
   if (error) {
     console.warn('[menu-agent] checkDailyCap failed:', error.message);
