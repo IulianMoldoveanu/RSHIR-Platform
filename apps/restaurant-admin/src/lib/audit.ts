@@ -101,6 +101,7 @@ export type AuditAction =
   | 'hepy.telegram_unbound'
   | 'branding.theme_previewed'
   | 'branding.theme_applied'
+  | 'pre_orders.settings_updated'
   | 'voice.settings_updated'
   | 'voice.token_set'
   | 'voice.token_cleared'
