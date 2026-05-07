@@ -1,4 +1,134 @@
-# Demo Seed — FOISORUL A
+# Demo Seed
+
+This directory contains two complementary seeding tools:
+
+1. **FOISORUL A** (real tenant pre-existing on prod) — populates `/dashboard`
+   and `/fleet` for that one slug with 30 days of activity. Files:
+   `seed-foisorul-a.mjs`, `cleanup-foisorul-a.mjs`. See [FOISORUL A](#foisorul-a) below.
+2. **Segment sandbox tenants** (4 brand-new `demo-*` tenants) — one per
+   restaurant segment for sales demos. Tenants are created if missing,
+   populated, and cleanly removable. See [Segment demos](#segment-demos) below.
+
+The two paths never collide: the segment scripts hard-refuse to operate on the
+slug `foisorul-a`, and the FOISORUL A scripts hard-refuse to operate on any
+slug other than `foisorul-a`.
+
+---
+
+## Segment demos
+
+Four sandbox tenants designed for the București sales tour 2026-05-12+.
+Each represents a defendable Romanian restaurant segment per
+`HIR-Realistic-Volume-Model-2026-05-08.md`:
+
+| Script | Tenant slug | City | Ord/day | AOV (RON) | Couriers | Reservations | Pre-orders |
+|---|---|---|---|---|---|---|---|
+| `pizzerie-mica.mjs` | `demo-pizzerie-mica` | Brașov | 25 | 65 | 1 | – | – |
+| `fast-food-activ.mjs` | `demo-fast-food-activ` | București | 100 | 40 | 3 | – | – |
+| `restaurant-familial.mjs` | `demo-restaurant-familial` | Brașov | 30 | 90 | 2 | yes | – |
+| `cofetarie.mjs` | `demo-cofetarie` | Cluj | 20 | 70 | 0 | – | 60% |
+
+### What each demo shows
+
+- **Pizzerie mică** — typical "vecin de cartier" with 1 active courier,
+  Brașov 5 km zone, 15-item menu. Anti-Glovo pitch: pizza chain at 30%
+  commission vs HIR at 1+1 RON.
+- **Fast-food activ** — high-volume shaorma operator (București, 100 ord/day,
+  3 couriers, 30-item menu). Anti-aggregator pitch: 3 RON/livrare HIR vs
+  ~17-25 RON/livrare via Bolt/Glovo at AOV 40 RON.
+- **Restaurant familial** — classic full-service restaurant (60-item menu,
+  reservations enabled, mid AOV 90 RON, 2 couriers). Pitch: HIR is one tool
+  for delivery + table reservations + KDS, no Wolt/Glovo.
+- **Cofetărie** — patiserie with 60% pre-orders (torturi, evenimente),
+  no own couriers — uses HIR Direct on demand. Cluj-zoned. Pitch: cofetărie
+  surface for pre-orders + checkout cu plată, fără comision per livrare la
+  ridicarea în magazin.
+
+### Run all 4
+
+```sh
+node scripts/demo-seed/seed-all-segments.mjs
+```
+
+This invokes the 4 scripts sequentially. Idempotent — re-running is safe.
+
+### Run one segment
+
+```sh
+node scripts/demo-seed/pizzerie-mica.mjs
+node scripts/demo-seed/fast-food-activ.mjs
+node scripts/demo-seed/restaurant-familial.mjs
+node scripts/demo-seed/cofetarie.mjs
+```
+
+Common flags:
+
+- `--dry-run` — print SQL only, no DB writes
+- `--reset` — wipe the segment tenant first (FK-safe), then reseed
+- `--allow-prod` — required when `HIR_ENV=production` (defensive double-check)
+
+### Cleanup
+
+Remove all 4 demo tenants + their data (real tenants untouched):
+
+```sh
+node scripts/demo-seed/cleanup-all-segments.mjs --dry-run   # preview
+node scripts/demo-seed/cleanup-all-segments.mjs             # actual
+```
+
+The cleanup matches by `slug LIKE 'demo-%'` AND `settings ->> 'demo_seed' = true` —
+both must be true, defensive against accidentally cleaning a real tenant.
+
+### After seeding — what to expect
+
+Per segment demo:
+
+- **Admin orders list** populated with 30 days of orders, mix of statuses,
+  realistic peak hours (lunch 12-14, dinner 19-22, weekend +30%).
+- **Dashboard KPIs** — 30-day revenue, AOV, orders/day chart match the
+  segment's defendable numbers.
+- **Reviews** ~20% of delivered: 60% positive 4-5 stars, 30% neutral 3 stars,
+  10% negative 1-2 stars (gives demo-able "how to respond to criticism" UX).
+- **Courier app** — for segments with couriers (3 of 4), each courier has
+  ~20 historical shifts + courier_orders aligned with restaurant_orders.
+- **Inventory** — not pre-populated (different feature, not in this lane).
+
+### Limitations
+
+- These scripts **DO NOT** create OWNER auth.users for the demo tenants.
+  To log in as one of the demo tenants, an OWNER must be added manually
+  (`tenant_members` row with `role='OWNER'` linked to your existing auth.user).
+  This is intentional — keeps demo seeds non-destructive of auth state.
+- Couriers are inserted into `auth.users` with bcrypt-hashed dummy passwords;
+  they cannot log in (by design — they're for showing data on the courier
+  view, not for end-to-end app testing).
+- Pre-order items in cofetărie are tagged via `notes` only; the tenant's
+  `settings.preorder_enabled` flag is **not** set automatically (different
+  feature, separate UI flow).
+
+### Safety guardrails (built-in)
+
+- Refuses to run if tenant slug is `foisorul-a` (real tenant).
+- Refuses to run if `HIR_ENV=production` without `--allow-prod`.
+- Every demo tenant slug **must** start with `demo-` (validated at script
+  start; non-conforming slug aborts with exit code 2).
+- Every demo customer email matches `%@hir-demo.ro`; every demo courier phone
+  starts with `+4070099`; every demo order has `[DEMO_SEED]` notes prefix —
+  cleanup uses these markers exclusively.
+- The cleanup script double-checks `settings ->> 'demo_seed' = true` before
+  deleting any tenant row.
+
+### Required env / secrets
+
+Same as FOISORUL A (read first from env, then `~/.hir/secrets.json`):
+
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_MANAGEMENT_PAT` (or `SUPABASE_ACCESS_TOKEN`)
+
+---
+
+<a name="foisorul-a"></a>
+## FOISORUL A
 
 Idempotent seed + cleanup for the FOISORUL A demo tenant (`slug=foisorul-a`).
 Used to populate `/dashboard` and `/fleet` with realistic-looking 30-day
