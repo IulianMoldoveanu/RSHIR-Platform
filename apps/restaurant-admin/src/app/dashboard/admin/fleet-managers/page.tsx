@@ -26,10 +26,21 @@ type TenantRow = {
   has_secret: boolean;
 };
 
+type FleetManagerTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  note_from_fleet: string | null;
+  note_from_owner: string | null;
+  note_from_fleet_updated_at: string | null;
+  note_from_owner_updated_at: string | null;
+  fm_phone: string | null;
+};
+
 type FleetManagerRow = {
   user_id: string;
   email: string;
-  tenants: { id: string; name: string; slug: string }[];
+  tenants: FleetManagerTenant[];
 };
 
 export default async function FleetManagersPage({
@@ -125,19 +136,29 @@ export default async function FleetManagersPage({
     },
   );
 
-  // ── Existing FLEET_MANAGER memberships, grouped by user ─────
+  // ── Existing FLEET_MANAGER memberships, grouped by user. Pulls the
+  //    pairing-note columns (migration 20260507_010) so the platform
+  //    admin sees both notes inline for triage. Read-only here — edits
+  //    happen from inside the tenant context (OWNER or FM session) at
+  //    /dashboard/settings/team.
   const { data: memberships } = await sb
     .from('tenant_members')
-    .select('user_id, tenant_id')
+    .select(
+      'user_id, tenant_id, note_from_fleet, note_from_owner, note_from_fleet_updated_at, note_from_owner_updated_at, fm_phone',
+    )
     .eq('role', 'FLEET_MANAGER');
 
-  const fmUserIds = Array.from(
-    new Set(
-      ((memberships ?? []) as { user_id: string; tenant_id: string }[]).map(
-        (m) => m.user_id,
-      ),
-    ),
-  );
+  type RawMembership = {
+    user_id: string;
+    tenant_id: string;
+    note_from_fleet: string | null;
+    note_from_owner: string | null;
+    note_from_fleet_updated_at: string | null;
+    note_from_owner_updated_at: string | null;
+    fm_phone: string | null;
+  };
+  const rawMemberships = (memberships ?? []) as RawMembership[];
+  const fmUserIds = Array.from(new Set(rawMemberships.map((m) => m.user_id)));
 
   // Resolve emails for those user_ids via the Auth admin API. Paginate
   // so we don't miss FMs whose accounts fall on a later page once the
@@ -161,13 +182,23 @@ export default async function FleetManagersPage({
 
   const tenantById = new Map(tenants.map((t) => [t.id, t]));
   const fmRows: FleetManagerRow[] = fmUserIds.map((uid) => {
-    const tenantsForUser = (
-      (memberships ?? []) as { user_id: string; tenant_id: string }[]
-    )
+    const tenantsForUser: FleetManagerTenant[] = rawMemberships
       .filter((m) => m.user_id === uid)
-      .map((m) => tenantById.get(m.tenant_id))
-      .filter((t): t is TenantRow => Boolean(t))
-      .map((t) => ({ id: t.id, name: t.name, slug: t.slug }));
+      .map((m) => {
+        const tenant = tenantById.get(m.tenant_id);
+        if (!tenant) return null;
+        return {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          note_from_fleet: m.note_from_fleet,
+          note_from_owner: m.note_from_owner,
+          note_from_fleet_updated_at: m.note_from_fleet_updated_at,
+          note_from_owner_updated_at: m.note_from_owner_updated_at,
+          fm_phone: m.fm_phone,
+        };
+      })
+      .filter((t): t is FleetManagerTenant => Boolean(t));
     return {
       user_id: uid,
       email: emailByUserId.get(uid) ?? '(email indisponibil)',
