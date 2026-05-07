@@ -5,6 +5,7 @@ import { getActiveTenant } from '@/lib/tenant';
 import { nextStatuses, type OrderStatus } from '../status-machine';
 import { markCodOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
+import { FiscalReceiptButton } from './fiscal-receipt-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,6 +126,21 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const allowedNext = nextStatuses(order.status);
   const cancellable = order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
   const trackUrl = publicTrackUrl(order.public_track_token);
+
+  // Probe for an active Custom-webhook provider (e.g. Datecs companion).
+  // We only show the "Tipărește bon fiscal" button when one exists —
+  // otherwise the operator clicks into a dead end. Best-effort: a probe
+  // failure quietly hides the button rather than breaking the page.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminProbe = admin as any;
+  const { data: customProviders } = await adminProbe
+    .from('integration_providers')
+    .select('id')
+    .eq('tenant_id', tenant.id)
+    .eq('provider_key', 'custom')
+    .eq('is_active', true)
+    .limit(1);
+  const hasCustomProvider = Array.isArray(customProviders) && customProviders.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -278,6 +294,13 @@ export default async function OrderDetailPage({ params }: { params: { id: string
               </form>
             )}
           </div>
+
+          {hasCustomProvider && (
+            <div className="rounded-md border border-zinc-200 bg-white p-4">
+              <h2 className="mb-2 text-sm font-semibold text-zinc-900">Bon fiscal</h2>
+              <FiscalReceiptButton orderId={order.id} tenantId={tenant.id} />
+            </div>
+          )}
 
           <div className="rounded-md border border-zinc-200 bg-white p-4">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900">Link tracking public</h2>

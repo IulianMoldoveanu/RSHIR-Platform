@@ -1,0 +1,19 @@
+{
+  "name": "hir-datecs-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local desktop bridge that receives signed HIR webhooks over a public tunnel and prints fiscal receipts on a Datecs FP-700 / FP-2000 / FMP-350 / DP-50 printer over RS-232 or USB. NOT part of the HIR pnpm workspace — install separately on the tenant PC.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "list-ports": "node list-ports.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "serialport": "^12.0.0"
+  }
+}

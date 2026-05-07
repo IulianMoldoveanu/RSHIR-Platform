@@ -118,6 +118,24 @@ function AddProviderForm({
     );
   };
 
+  // "Datecs FP-700 (companion)" preset — pre-fills the Custom-webhook
+  // form with sane defaults for the desktop companion at
+  // tools/datecs-companion. The operator still has to paste the real
+  // tunnel URL (Cloudflare Tunnel / ngrok / Tailscale Funnel) and
+  // copy the generated secret into the companion's .env file.
+  // Defaults to DELIVERED-only because that's the regulatory moment a
+  // bon fiscal must be issued; tenants can enable READY too if they
+  // want a kitchen-side print.
+  const applyDatecsPreset = () => {
+    setDisplayName((prev) => prev || 'Datecs FP-700 (companion)');
+    setWebhookUrl('https://YOUR-TUNNEL-URL/print');
+    setFireOnStatuses(['DELIVERED']);
+    if (webhookSecret.length < 16) {
+      setWebhookSecret(crypto.randomUUID());
+    }
+    setError(null);
+  };
+
   const submit = () => {
     if (!displayName.trim()) {
       setError('Completați numele de afișare.');
@@ -194,6 +212,25 @@ function AddProviderForm({
 
       {isCustom && (
         <>
+          <div className="rounded-md border border-violet-200 bg-violet-50 p-3">
+            <p className="text-xs font-medium text-violet-900">Presetări rapide</p>
+            <p className="mt-1 text-[11px] text-violet-700">
+              Apasă pe o presetare pentru a pre-completa formularul. Schimbi pe urmă URL-ul cu cel real.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={applyDatecsPreset}
+                className="rounded-md border border-violet-300 bg-white px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-100"
+              >
+                Datecs FP-700 (companion)
+              </button>
+            </div>
+            <p className="mt-2 text-[11px] text-violet-700">
+              Pentru imprimanta fiscală Datecs (FP-700, FP-2000, FMP-350, DP-50): rulezi aplicația companion pe PC-ul restaurantului și o expui prin Cloudflare Tunnel / ngrok / Tailscale Funnel. Vezi <code className="text-violet-900">tools/datecs-companion/README.md</code>.
+            </p>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs text-zinc-600" htmlFor="webhook-url">
               URL webhook (HTTPS)
