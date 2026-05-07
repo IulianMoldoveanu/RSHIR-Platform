@@ -51,6 +51,8 @@ export type AuditAction =
   | 'ai_ceo.run_approved'
   | 'ai_ceo.run_rejected'
   | 'ai_ceo.trust_level_updated'
+  | 'menu_agent.proposal_accepted'
+  | 'menu_agent.proposal_dismissed'
   | 'partner.created'
   | 'partner.referral_added'
   | 'partner.referral_attributed'
