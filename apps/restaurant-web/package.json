@@ -9,7 +9,12 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
+    "build:android": "echo 'Run: pnpm build then npx cap sync android. See mobile/README.md'",
+    "build:ios": "echo 'Run: pnpm build then npx cap sync ios. Requires macOS + Xcode. See mobile/README.md'"
   },
   "dependencies": {
     "@hir/delivery-client": "workspace:*",

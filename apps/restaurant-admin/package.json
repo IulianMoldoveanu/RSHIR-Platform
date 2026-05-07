@@ -8,7 +8,12 @@
     "start": "next start -p 3001",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npx cap open android",
+    "cap:ios": "npx cap open ios",
+    "build:android": "echo 'Run: pnpm build then npx cap sync android. See mobile/README.md'",
+    "build:ios": "echo 'Run: pnpm build then npx cap sync ios. Requires macOS + Xcode. See mobile/README.md'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.0",
