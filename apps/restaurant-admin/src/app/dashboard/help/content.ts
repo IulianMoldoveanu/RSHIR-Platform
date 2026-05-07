@@ -41,6 +41,12 @@ export type HelpCategory = {
 };
 
 const UPDATED = '2026-05-05';
+// New batch shipped 2026-05-08 — Lane HELP-CENTER-EXPANSION. Articles
+// referencing recently-merged features (SmartBill PR #316, e-Factura #322,
+// Hepy bot #324/#331, Inventory #334, Reservations #256, GloriaFood #268,
+// reseller program). Existing UPDATED timestamp left untouched per
+// "additive only" mandate.
+const UPDATED_2026_05_08 = '2026-05-08';
 
 export const HELP_CATEGORIES: HelpCategory[] = [
   {
@@ -211,6 +217,256 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         screenshot: '4 carduri KPI cu trend arrows + panou comenzi active',
         cta: { label: 'Vezi Analytics', href: '/dashboard/analytics' },
         updated: UPDATED,
+      },
+      {
+        slug: 'livrare-curier-hir',
+        title: 'Cum activez livrarea cu curier HIR',
+        summary:
+          'Activarea opțiunii „curier HIR" la finalizarea comenzii — distribuție automată către curierii disponibili în zonă.',
+        intro:
+          'HIR oferă livrare prin curieri proprii la tariful de 3 RON pe comandă livrată — fără comision pe valoarea coșului. Activarea durează sub 5 minute și este reversibilă oricând. Distribuția comenzilor este automată: nu trebuie să sunați curierul, sistemul îl alocă pe baza distanței și disponibilității.',
+        steps: [
+          {
+            title: 'Verificați zonele de livrare',
+            body: 'În "Zone livrare" asigurați-vă că aveți cel puțin o zonă activă cu poligon desenat. Fără zonă activă, comenzile cu livrare nu pot fi finalizate.',
+          },
+          {
+            title: 'Activați modul de livrare HIR',
+            body: 'Mergeți în Configurare → Operațiuni și setați modul „Livrare cu curier HIR". Confirmați tariful de 3 RON pe comandă livrată afișat în pagină.',
+          },
+          {
+            title: 'Confirmați programul disponibil',
+            body: 'În același panou stabiliți intervalele orare în care acceptați livrări. În afara acestora, opțiunea „livrare" este ascunsă automat la storefront.',
+          },
+          {
+            title: 'Plasați o comandă de test',
+            body: 'De pe storefront, plasați o comandă de test către o adresă din zona configurată. Verificați că un curier o preia în maxim 10 minute.',
+          },
+        ],
+        outro:
+          'Dacă în 10 minute niciun curier nu preia comanda, sistemul vă alertează automat în dashboard pentru a contacta clientul. Pentru zone cu acoperire redusă putem activa în paralel livrarea proprie — vedeți ghidul „Cum funcționează livrarea proprie".',
+        screenshot: 'Panou Operațiuni cu comutator „Livrare HIR" activ și tariful 3 RON afișat',
+        cta: { label: 'Configurare operațiuni', href: '/dashboard/settings/operations' },
+        related: ['configurare-zone', 'gloriafood-import'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'smartbill-integration',
+        title: 'Cum configurez SmartBill (facturare automată)',
+        summary:
+          'Conectarea contului SmartBill pentru emiterea automată a facturilor fiscale la fiecare comandă livrată.',
+        intro:
+          'Integrarea SmartBill emite automat factură fiscală la trecerea comenzii în status „Livrată". Token-ul API se păstrează criptat în vault-ul Supabase, niciodată în baza de date principală. Funcția este opțională și OWNER-only — restul echipei nu o vede.',
+        steps: [
+          {
+            title: 'Obțineți token-ul API SmartBill',
+            body: 'În contul SmartBill mergeți la Setări → API. Generați un token nou cu permisiunile „Emitere facturi" și copiați-l. Token-ul începe cu „smartbill_" și se afișează o singură dată.',
+          },
+          {
+            title: 'Conectați în HIR',
+            body: 'Deschideți Configurare → SmartBill. Lipiți token-ul, introduceți seria de facturare (ex: HIR) și apăsați „Verifică și salvează". Sistemul face un apel test la SmartBill și confirmă conexiunea.',
+          },
+          {
+            title: 'Alegeți modul de emitere',
+            body: 'Pickup (recomandat): SmartBill ridică datele la fiecare 5 minute prin pg_cron. Push: HIR trimite imediat la trecerea în „Livrată". Test: emite o factură de probă fără să o salveze permanent.',
+          },
+          {
+            title: 'Verificați prima factură',
+            body: 'Plasați o comandă de test, marcați-o „Livrată" și verificați în SmartBill că factura apare în maxim 5 minute. Numărul de factură se loghează în „Jurnal acțiuni".',
+          },
+        ],
+        outro:
+          'Dacă SmartBill returnează eroare la o comandă (token expirat, CUI client invalid), aceasta apare în dashboard cu indicator roșu. Comanda rămâne marcată „Livrată" — factura se poate re-emite manual după corecția datelor.',
+        screenshot: 'Pagină Configurare SmartBill cu input token și status „Conectat" verde',
+        cta: { label: 'Configurare SmartBill', href: '/dashboard/settings/smartbill' },
+        related: ['exporturi-vanzari', 'efactura-anaf'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'efactura-anaf',
+        title: 'Cum activez e-Factura ANAF',
+        summary:
+          'Conectare la SPV ANAF prin OAuth pentru transmiterea automată a facturilor fiscale către e-Factura.',
+        intro:
+          'De la 1 iulie 2024 toate facturile B2B din România trebuie transmise la ANAF prin sistemul e-Factura în maxim 5 zile lucrătoare. HIR automatizează transmiterea — wizard-ul self-serve durează 5–7 minute și nu necesită cunoștințe tehnice.',
+        steps: [
+          {
+            title: 'Verificați prerechizitele',
+            body: 'Aveți nevoie de: certificat digital calificat (DSC) instalat pe calculator și cont SPV ANAF activ. Dacă nu aveți, wizard-ul vă indică pașii de obținere — durata oficială este 7–10 zile lucrătoare.',
+          },
+          {
+            title: 'Lansați wizard-ul',
+            body: 'Configurare → e-Factura ANAF → „Începe configurarea". Sunteți redirectat la portalul ANAF pentru autorizare OAuth — login cu DSC-ul atașat la USB.',
+          },
+          {
+            title: 'Acordați permisiunile',
+            body: 'Pe ecranul ANAF, autorizați aplicația HIR pentru transmitere e-Factura. Sunteți redirectat înapoi în HIR cu confirmarea „Conectat".',
+          },
+          {
+            title: 'Setați transmiterea automată',
+            body: 'În același panou activați „Transmitere automată la livrare". HIR trimite factura la ANAF în maxim 60 secunde după ce SmartBill a emis-o. Status-ul (TRANSMIS / VALIDAT / RESPINS) se actualizează în „Jurnal acțiuni".',
+          },
+        ],
+        outro:
+          'Tokenul ANAF expiră la 90 zile și se reînnoiește automat în background. Dacă reînnoirea eșuează, primiți alertă în dashboard și un ghid de re-autorizare în 2 click-uri.',
+        screenshot: 'Wizard e-Factura cu 4 pași și progress bar verde',
+        cta: { label: 'Configurare e-Factura', href: '/dashboard/settings/efactura' },
+        related: ['smartbill-integration', 'exporturi-vanzari'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'hepy-telegram-bot',
+        title: 'Cum funcționează Hepy (botul Telegram)',
+        summary:
+          'Asistentul Telegram pentru proprietari: comenzi noi, rezervări, KPI-uri și acțiuni rapide direct din chat.',
+        intro:
+          'Hepy este botul oficial HIR pe Telegram (handle @MasterHIRbot, nume afișat „Hepi"). Vă trimite notificări la fiecare comandă, vă lasă să confirmați/anulați rezervări direct din chat și răspunde la întrebări simple despre KPI-uri. Activarea durează sub 2 minute.',
+        steps: [
+          {
+            title: 'Deschideți botul',
+            body: 'Pe telefon, căutați în Telegram „@MasterHIRbot" și apăsați „Start". Botul răspunde cu un cod de pairing valabil 10 minute.',
+          },
+          {
+            title: 'Asociați contul',
+            body: 'În HIR mergeți la Configurare → Hepy. Lipiți codul primit pe Telegram și apăsați „Asociază". Botul confirmă: „Salut, contul vostru pentru <restaurant> este conectat".',
+          },
+          {
+            title: 'Activați notificările dorite',
+            body: 'În același panou bifați tipurile de mesaje: comenzi noi, rezervări noi, alerte stoc redus, KPI zilnic la ora 9. Recomandăm minimum „comenzi noi" + „rezervări noi".',
+          },
+          {
+            title: 'Folosiți comenzile rapide',
+            body: 'În chat scrieți: /comenzi (lista de azi), /rezerva (creare rezervare nouă), /rezervari (rezervările zilei), /anuleaza_rezervare (urmat de cod), /kpi (sinteză zilnică).',
+          },
+        ],
+        outro:
+          'Un cont HIR poate avea mai mulți utilizatori Telegram conectați — util când proprietarul și managerul vor amândoi notificări. Dezactivarea unui utilizator se face din același panou, fără afectarea celorlalți.',
+        screenshot: 'Conversație Telegram cu Hepy: comandă nouă + butoane „Confirmă" / „Anulează"',
+        cta: { label: 'Configurare Hepy', href: '/dashboard/settings/hepy' },
+        related: ['notificari-push'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'inventar-tracking',
+        title: 'Cum activez urmărirea inventarului',
+        summary:
+          'Activarea modulului opțional de stocuri: scădere automată la livrare, alerte stoc redus, jurnal mișcări.',
+        intro:
+          'Modulul de inventar este opțional, OWNER-only și complet reversibil. Când este activ, sistemul scade stocul automat la fiecare comandă livrată și vă alertează când un produs ajunge sub pragul minim. Restaurantele care nu au nevoie de stocuri pot lăsa modulul oprit — nu schimbă nimic în restul aplicației.',
+        steps: [
+          {
+            title: 'Activați modulul',
+            body: 'Mergeți la Configurare → Inventar. Apăsați comutatorul „Urmărire stoc". Apare un avertisment scurt: „Atenție, după activare comenzile livrate vor reduce stocul produselor". Confirmați.',
+          },
+          {
+            title: 'Setați stoc inițial',
+            body: 'Mergeți la „Inventar" în meniul lateral. Pentru fiecare produs introduceți: stoc curent, prag de alertă, unitate de măsură (buc / kg / l). Pentru produse fără stoc fix (ex: meniu zilnic) lăsați necompletat.',
+          },
+          {
+            title: 'Verificați jurnalul mișcărilor',
+            body: 'Tab-ul „Mișcări" listează fiecare scădere/mărire de stoc cu actor (sistem la livrare, OWNER la ajustare manuală) și timestamp. Util pentru reconciliere săptămânală.',
+          },
+          {
+            title: 'Reglați pragurile de alertă',
+            body: 'Când un produs ajunge sub prag, primiți notificare push + Hepy (dacă e activ). Pragul recomandat: 2× consumul mediu zilnic, ca să aveți timp de reaprovizionare.',
+          },
+        ],
+        outro:
+          'Dezactivarea modulului oprește scăderile automate dar păstrează istoricul mișcărilor. La reactivare, stocurile sunt cele de la momentul opririi — nu se recalculează retroactiv.',
+        screenshot: 'Pagină Inventar cu listă produse, coloană „Stoc" și badge roșu „Sub prag"',
+        cta: { label: 'Activare inventar', href: '/dashboard/settings/inventory' },
+        related: ['kpi-dashboard'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'rezervari-program',
+        title: 'Cum configurez programul rezervărilor',
+        summary:
+          'Definirea planului de mese, a intervalelor disponibile și a regulilor de capacitate pentru rezervări online.',
+        intro:
+          'Modulul de rezervări permite clienților să rezerve o masă direct din storefront sau din Telegram (prin Hepy). Configurarea durează 10–15 minute și se face o singură dată. După aceea, rezervările apar automat în „Rezervări" și pe ecranul KDS.',
+        steps: [
+          {
+            title: 'Desenați planul de mese',
+            body: 'Mergeți la Rezervări → „Plan de mese". Adăugați mesele cu nume (ex: „Masa 1", „Terasa A"), capacitate (număr persoane) și locație opțională (interior / terasă / fumători). Recomandăm 8–20 mese per restaurant.',
+          },
+          {
+            title: 'Setați intervalele orare',
+            body: 'În tab-ul „Program" definiți zilele și orele în care acceptați rezervări. Puteți seta intervale diferite pentru zile lucrătoare vs. weekend. Sloturile sunt de 30 minute implicit.',
+          },
+          {
+            title: 'Reguli de capacitate',
+            body: 'Bifați „Permite suprapuneri" dacă mesele se eliberează rapid (sub 90 min). Setați „Buffer între rezervări" la 15 minute pentru servicii lente sau 0 pentru bistro-uri.',
+          },
+          {
+            title: 'Testați din storefront',
+            body: 'De pe storefront-ul restaurantului, deschideți „Rezervă o masă". Verificați că vedeți doar sloturile libere și că o rezervare reușită apare în „Rezervări" în maxim 5 secunde.',
+          },
+        ],
+        outro:
+          'Hepy preia automat rezervări prin /rezerva — clienții care vă urmăresc pe Telegram pot rezerva direct din chat. Anularile se fac cu /anuleaza_rezervare urmat de codul rezervării.',
+        screenshot: 'Plan de mese cu 12 mese colorate și panou intervale orare',
+        cta: { label: 'Plan mese', href: '/dashboard/reservations/table-plan' },
+        related: ['hepy-telegram-bot'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'plati-card-status',
+        title: 'Cum primesc plăți cu cardul (în pregătire)',
+        summary:
+          'Status: în pregătire — în curs de negociere PSP. Lansare estimată iunie 2026.',
+        intro:
+          'Plățile cu cardul sunt în curs de finalizare cu doi procesatori români (Netopia Payments și Viva Wallet). Negocierea vizează un comision merchant cât mai apropiat de costul real (~1%) și split automat între restaurant, curier și HIR. Lansare estimată: iunie 2026.',
+        steps: [
+          {
+            title: 'Stadiu actual',
+            body: 'Outreach trimis 8 mai 2026 către sales@netopia-payments.com și sales-ro@viva.com. Răspuns așteptat în 5–10 zile lucrătoare. În paralel evaluăm Stripe ca opțiune de rezervă.',
+          },
+          {
+            title: 'Ce înseamnă pentru dumneavoastră',
+            body: 'În prezent acceptați plata la livrare (cash + card cu POS-ul propriu). După lansare, clienții vor putea plăti online la checkout, banii ajung automat în contul restaurantului (săptămânal) iar comisionul curierului se reține tot automat.',
+          },
+          {
+            title: 'Pregătire',
+            body: 'Pentru a fi pregătit, asigurați-vă că aveți: CUI valid, cont bancar pe firmă, IBAN confirmat. Aceste date se introduc o singură dată după lansare și activarea durează ~3 zile (KYC PSP).',
+          },
+        ],
+        outro:
+          'Vă vom anunța prin Hepy + email cu 7 zile înainte de lansare. Activarea va fi opt-in — restaurantele care preferă să rămână pe „cash la livrare" pot continua fără modificări.',
+        related: ['comisioane-program'],
+        updated: UPDATED_2026_05_08,
+      },
+      {
+        slug: 'agregatori-gloriafood-shutdown',
+        title: 'Cum mă pregătesc de închiderea GloriaFood (30 aprilie 2027)',
+        summary:
+          'Plan de migrare în 4 pași — de la GloriaFood activ la storefront propriu HIR + agregatori opționali.',
+        intro:
+          'GloriaFood se închide oficial pe 30 aprilie 2027. Restaurantele care folosesc GloriaFood ca singură sursă de comenzi online riscă pierderi de venit dacă nu migrează la timp. HIR oferă migrare în mai puțin de o oră, păstrând meniul, imaginile și comenzile recente. Agregatorii (Wolt / Glovo / Tazz) rămân opționali — comisionul lor de 25–30% pe valoarea comenzii face ca un storefront propriu să fie net mai rentabil.',
+        steps: [
+          {
+            title: 'Migrați meniul în HIR (~5 min)',
+            body: 'Folosiți importatorul GloriaFood (vedeți ghidul dedicat). Meniul, modificatoarele și ultimele 100 comenzi se transferă automat. Master Key-ul se folosește o singură dată și nu se păstrează.',
+          },
+          {
+            title: 'Activați storefront-ul HIR (~10 min)',
+            body: 'Configurați zonele de livrare, programul și activați „Mergi LIVE". Storefront-ul devine accesibil la subdomeniul restaurantului, fără comision pe valoarea comenzii — doar 3 RON per livrare.',
+          },
+          {
+            title: 'Redirecționați traficul (~ progresiv)',
+            body: 'În Google Business, pe Facebook și pe site-ul propriu, înlocuiți link-ul GloriaFood cu link-ul storefront-ului HIR. Recomandăm migrarea în 2–4 săptămâni înainte de 30 aprilie 2027 pentru a evita pierderi de comenzi.',
+          },
+          {
+            title: 'Decideți strategia agregatorilor',
+            body: 'Wolt / Glovo / Tazz / Foodpanda rămân utili pentru descoperire (clienți noi care nu vă cunosc) dar nu ca singură sursă. Recomandare: 70% comenzi prin storefront propriu (3 RON livrare), 30% prin agregatori (rezervă vârfuri și awareness).',
+          },
+        ],
+        outro:
+          'Pentru analiza concretă a economiei (cu volumul dumneavoastră actual), folosiți calculatorul ROI de pe pagina /pricing. Un restaurant cu 1.500 comenzi/lună economisește în medie 9.000–12.000 RON/lună prin reducerea dependenței de agregatori.',
+        screenshot: 'Banner /migrate-from-gloriafood cu numărătoare inversă până la 30 aprilie 2027',
+        cta: { label: 'Importator GloriaFood', href: '/migrate-from-gloriafood' },
+        related: ['gloriafood-import', 'comisioane-program'],
+        updated: UPDATED_2026_05_08,
       },
     ],
   },
@@ -481,6 +737,37 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           'Materialele se descarcă din /affiliate (login partener obligatoriu). Pentru personalizări speciale, contactați support@hiraisolutions.ro.',
         cta: { label: 'Deschide galeria', href: '/affiliate' },
         updated: UPDATED,
+      },
+      {
+        slug: 'cum-aduc-restaurante',
+        title: 'Cum aduc alte restaurante în programul reseller',
+        summary:
+          'Ghid practic pentru reselleri: tipuri de prospecți, mesaje de outreach, demo în 15 minute, închiderea cu calculul ROI.',
+        intro:
+          'Programul reseller HIR plătește 25% comision în primul an și 20% recurent — pe taxa flat de 3 RON per livrare. La un restaurant cu 1.500 livrări/lună înseamnă 1.125 RON/lună în primul an, apoi 900 RON/lună recurent. Cu 5 restaurante active, venitul lunar trece de 4.500 RON.',
+        steps: [
+          {
+            title: 'Identificați prospecți buni',
+            body: 'Restaurantele cu volum 500+ livrări/lună prin agregatori (Wolt / Glovo / Tazz) sunt cele mai potrivite. Comisionul lor de 25–30% pe valoarea comenzii este durerea principală — HIR rezolvă exact această durere. Catalizator strategic: GloriaFood se închide pe 30 aprilie 2027.',
+          },
+          {
+            title: 'Mesaj de outreach scurt',
+            body: 'Pe WhatsApp / LinkedIn / Facebook DM, deschideți cu o întrebare simplă: „Câți bani plătești lună de lună la Wolt / Glovo în comisioane?". Apoi: „Avem o alternativă la 3 RON flat per livrare — îți arăt în 15 minute?". Evitați text-uri lungi.',
+          },
+          {
+            title: 'Demo în 15 minute',
+            body: 'Pregătiți un cont demo pe HIR (puteți cere unul de la support@hiraisolutions.ro). Arătați: 1) storefront live al unui restaurant pilot, 2) dashboard-ul cu KPI-uri, 3) calculatorul ROI de pe /pricing cu cifrele lor reale. Atât.',
+          },
+          {
+            title: 'Închiderea',
+            body: 'La sfârșitul demo-ului, treceți la calculatorul ROI și introduceți volumul lor lunar. Rezultatul: economia anuală vs. agregatori. Întrebare de închidere: „Vrei să dăm drumul la onboarding chiar acum? Durează 30 de minute". Trimiteți link-ul /signup cu codul vostru de referal.',
+          },
+        ],
+        outro:
+          'Codul de referal se aplică automat la toate livrările restaurantelor pe care le aduceți. Plățile se virează săptămânal prin Stripe Connect. Materiale de prezentare (logo, banner-e, sales sheet PDF, embed widget) sunt în „Materials gallery".',
+        cta: { label: 'Aplicați ca partener', href: '/parteneriat' },
+        related: ['comisioane-program', 'plati-stripe', 'parteneri-materiale'],
+        updated: UPDATED_2026_05_08,
       },
     ],
   },
