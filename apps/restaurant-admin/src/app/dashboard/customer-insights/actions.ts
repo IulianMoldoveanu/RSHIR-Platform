@@ -40,6 +40,25 @@ function isoWeekLabel(d: Date): string {
   return `${target.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+// ISO 8601 week bounds for a given date — Monday 00:00:00 UTC of the
+// containing week through the following Monday (exclusive).
+//
+// Codex P2 #356: pulling a rolling `Date.now() - 7d` window when the
+// digest is keyed and dedup'd by ISO week label is wrong. Generating on
+// Monday morning would summarise mostly the previous week's data and
+// persist it under the new week label. Using the week's actual start
+// fixes the mismatch.
+function isoWeekBounds(d: Date): { start: Date; end: Date } {
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  const start = new Date(target);
+  start.setUTCDate(target.getUTCDate() - dayNr);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 7);
+  return { start, end };
+}
+
 export type DigestSnapshot = {
   id: string;
   tenant_id: string;
@@ -95,22 +114,28 @@ export async function generateOrGetWeeklyDigest(args: {
     }
   }
 
-  // Pull last 7 days of reviews + chat messages.
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Pull data for the CURRENT ISO week (Monday 00:00 UTC → next Monday).
+  // Using week bounds (not a rolling 7d window) so the digest's data
+  // matches its persistent week label even when generated mid-week.
+  const bounds = isoWeekBounds(new Date());
+  const sinceIso = bounds.start.toISOString();
+  const untilIso = bounds.end.toISOString();
   const [reviewsResp, chatsResp, prevWeekResp] = await Promise.all([
     admin
       .from('restaurant_reviews')
       .select('rating, comment, created_at')
       .eq('tenant_id', args.tenantId)
       .is('hidden_at', null)
-      .gte('created_at', since)
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso)
       .order('created_at', { ascending: false })
       .limit(80),
     admin
       .from('support_messages')
       .select('category, message, created_at')
       .eq('tenant_id', args.tenantId)
-      .gte('created_at', since)
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso)
       .order('created_at', { ascending: false })
       .limit(80),
     fetchPreviousWeekSnapshot(admin, args.tenantId),
@@ -193,19 +218,25 @@ async function fetchWeeklyCounts(
   admin: UntypedSb,
   tenantId: string,
 ): Promise<{ reviews: number; chats: number }> {
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Match the digest's window — current ISO week, not rolling 7d. See
+  // isoWeekBounds + Codex P2 fix in #356.
+  const bounds = isoWeekBounds(new Date());
+  const sinceIso = bounds.start.toISOString();
+  const untilIso = bounds.end.toISOString();
   const [r, c] = await Promise.all([
     admin
       .from('restaurant_reviews')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
       .is('hidden_at', null)
-      .gte('created_at', since),
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso),
     admin
       .from('support_messages')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenantId)
-      .gte('created_at', since),
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso),
   ]);
   return { reviews: r.count ?? 0, chats: c.count ?? 0 };
 }
@@ -214,8 +245,14 @@ async function fetchPreviousWeekSnapshot(
   admin: UntypedSb,
   tenantId: string,
 ): Promise<{ avgRating: number | null; reviewCount: number } | null> {
-  const start = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const end = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Previous full ISO week — Monday-to-Monday immediately before the
+  // current week. Mirrors the digest's window so trend comparisons line
+  // up with calendar weeks instead of rolling 7d slices.
+  const currentBounds = isoWeekBounds(new Date());
+  const prevStart = new Date(currentBounds.start);
+  prevStart.setUTCDate(currentBounds.start.getUTCDate() - 7);
+  const start = prevStart.toISOString();
+  const end = currentBounds.start.toISOString();
   const { data, error } = await admin
     .from('restaurant_reviews')
     .select('rating')

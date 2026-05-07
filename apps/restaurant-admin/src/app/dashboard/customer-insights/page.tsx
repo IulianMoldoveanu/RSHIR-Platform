@@ -35,6 +35,20 @@ function isoWeekLabel(d: Date): string {
   return `${target.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
+// Bounds for the current ISO week — used here to count "what feeds the
+// digest right now" so the OWNER-visible counts line up with what the
+// generate action will summarise. See actions.ts for the same logic.
+function isoWeekBounds(d: Date): { start: Date; end: Date } {
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  const start = new Date(target);
+  start.setUTCDate(target.getUTCDate() - dayNr);
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 7);
+  return { start, end };
+}
+
 function trendIcon(trend?: string) {
   if (trend === 'improving') return <TrendingUp className="h-4 w-4 text-emerald-600" aria-hidden />;
   if (trend === 'declining') return <TrendingDown className="h-4 w-4 text-rose-600" aria-hidden />;
@@ -72,22 +86,27 @@ export default async function CustomerInsightsPage() {
     .limit(1)
     .maybeSingle();
 
-  // Counts from the actual underlying data — what Hepy would summarise if
-  // we ran the digest right now. Used for the "based on N reviews" line
-  // and the empty-state CTA.
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Counts for the CURRENT ISO week — what Hepy would summarise if we
+  // ran the digest right now. Same window the action uses so counts +
+  // digest stay in sync. Used for the "based on N reviews" line and the
+  // empty-state CTA.
+  const bounds = isoWeekBounds(new Date());
+  const sinceIso = bounds.start.toISOString();
+  const untilIso = bounds.end.toISOString();
   const [reviewsCountResp, chatCountResp] = await Promise.all([
     admin
       .from('restaurant_reviews')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenant.id)
       .is('hidden_at', null)
-      .gte('created_at', since),
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso),
     adminAny
       .from('support_messages')
       .select('id', { count: 'exact', head: true })
       .eq('tenant_id', tenant.id)
-      .gte('created_at', since),
+      .gte('created_at', sinceIso)
+      .lt('created_at', untilIso),
   ]);
   const reviewCount = reviewsCountResp.count ?? 0;
   const chatCount = chatCountResp.count ?? 0;
