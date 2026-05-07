@@ -87,9 +87,14 @@ function isFiniteNumber(v: unknown): v is number {
 }
 
 function clampNumber(v: unknown, min: number, max: number): number | null {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
-  if (!Number.isFinite(n) || n < min || n > max) return null;
-  return n;
+  // Codex P2 (PR #364 round 6): require an actual JSON number, not a
+  // numeric string. Anthropic emits properly-typed numbers — accepting
+  // "45.65" here would let a string reach the output payload while the
+  // admin mirror schemas + downstream renderers expect number. We do
+  // the strict check at this single chokepoint so all callers (lat,
+  // lng, hour, est_orders_per_day, etc.) get the same guarantee.
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) return null;
+  return v;
 }
 
 function isUuid(v: unknown): v is string {

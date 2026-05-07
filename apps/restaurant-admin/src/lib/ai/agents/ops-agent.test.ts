@@ -363,6 +363,44 @@ describe('ops-agent / ops.suggest_delivery_zones', () => {
     expect(result.message).toMatch(/needs valid polygon OR radius\+center/);
   });
 
+  test('string-numeric guard: rejects zone with stringified lat/lng', async () => {
+    // Codex P2 (PR #364 round 6) regression test.
+    const state = defaultState();
+    state.addresses = Array.from({ length: 6 }).map((_, i) => ({
+      id: `addr-${i}`,
+      latitude: 45.65 + i * 0.005,
+      longitude: 25.6 + i * 0.005,
+    }));
+    state.orders = state.addresses.map((a) => ({ delivery_address_id: a.id }));
+    stubAnthropic({
+      proposed_zones: [
+        {
+          name: 'Stringly-typed Zone',
+          polygon: null,
+          radius_km: 3.0,
+          // Strings instead of numbers — must be rejected after the
+          // round-6 tightening of clampNumber.
+          center: { lat: '45.65', lng: '25.61' },
+          justification: 'X',
+          est_orders_per_day: 1.0,
+        },
+      ],
+      notes: '',
+    });
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.suggest_delivery_zones',
+      payload: {},
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toBe('handler_threw');
+    expect(result.message).toMatch(/needs valid polygon OR radius\+center/);
+  });
+
   test('polygon validation: rejects zone with empty polygon {type:Polygon} no coords', async () => {
     // Codex P2 (PR #364 round 3) regression test.
     const state = defaultState();
