@@ -592,12 +592,27 @@ function validateZonesShape(obj: unknown): { proposed_zones: unknown[]; notes: s
     if (!nonEmptyString(zr.justification, 400)) throw new Error('anthropic_invalid_shape: zone.justification');
     if (clampNumber(zr.est_orders_per_day, 0, 10000) === null)
       throw new Error('anthropic_invalid_shape: zone.est_orders_per_day');
-    // Codex P2 (PR #364 round 2): when radius mode, also require center
-    // to be {lat: number, lng: number} with finite values in valid ranges
-    // — otherwise `{radius_km:3, center:{}}` slips through and the admin
-    // mirror's Zod schema (which expects numeric coords) + downstream
-    // map rendering reject it after the row is already in the result.
-    const hasPoly = !!zr.polygon && typeof zr.polygon === 'object';
+    // Codex P2 (PR #364 round 2 + 3): require structural validation on
+    // BOTH branches (polygon and radius+center). Otherwise `{}`,
+    // `{type:'Polygon'}` without coordinates, or `{radius_km:3, center:{}}`
+    // would slip through, while the admin mirror's Zod schema and the
+    // map-rendering UI both expect real numeric coords. Validate inline.
+    let hasPoly = false;
+    if (zr.polygon && typeof zr.polygon === 'object') {
+      const poly = zr.polygon as Record<string, unknown>;
+      // Must be {type:'Polygon', coordinates: [[[lng,lat], ...], ...]} per GeoJSON.
+      if (poly.type === 'Polygon' && Array.isArray(poly.coordinates) && poly.coordinates.length > 0) {
+        const ring = poly.coordinates[0];
+        if (Array.isArray(ring) && ring.length >= 3) {
+          // Sample the first 8 vertices; full-ring validation is the UI's job.
+          const sampleOk = ring.slice(0, 8).every((pt: unknown) => {
+            if (!Array.isArray(pt) || pt.length < 2) return false;
+            return clampNumber(pt[0], -180, 180) !== null && clampNumber(pt[1], -90, 90) !== null;
+          });
+          hasPoly = sampleOk;
+        }
+      }
+    }
     let hasRadius = false;
     if (clampNumber(zr.radius_km, 0.01, 50) !== null && zr.center && typeof zr.center === 'object') {
       const c = zr.center as Record<string, unknown>;
@@ -605,7 +620,8 @@ function validateZonesShape(obj: unknown): { proposed_zones: unknown[]; notes: s
       const lng = clampNumber(c.lng, -180, 180);
       hasRadius = lat !== null && lng !== null;
     }
-    if (!hasPoly && !hasRadius) throw new Error('anthropic_invalid_shape: zone needs polygon OR radius+center{lat,lng}');
+    if (!hasPoly && !hasRadius)
+      throw new Error('anthropic_invalid_shape: zone needs valid polygon OR radius+center{lat,lng}');
   }
   return { proposed_zones: arr, notes };
 }
