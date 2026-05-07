@@ -49,6 +49,13 @@ import {
   missingFields,
   type ParsedReservation,
 } from '../_shared/reservation-parser.ts';
+import { dispatchIntent } from '../_shared/master-orchestrator.ts';
+import { registerMenuAgentIntents } from '../_shared/menu-agent.ts';
+
+// Cold-start: register Menu Agent intents on the orchestrator registry.
+// Idempotent — registerIntent ignores duplicates. Sprint 12 ships these
+// three; future sub-agents register the same way.
+registerMenuAgentIntents();
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
@@ -1684,6 +1691,219 @@ async function handleAnuleazaRezervare(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Menu Agent — Sprint 12 commands. Each parses Telegram args, calls
+// dispatchIntent() on the orchestrator, and renders the agent's RO
+// summary back to the user. Errors surfaced inline so the OWNER sees
+// what to fix without checking server logs.
+// ─────────────────────────────────────────────────────────────────────
+
+const MENU_USAGE = {
+  propune:
+    'Folosire: <code>/menu_propune &lt;descriere produs&gt;</code>\nExemplu: <code>/menu_propune cheesecake de afine cu blat de biscuiți, porție 180g</code>',
+  oprime:
+    'Folosire: <code>/menu_oprime &lt;nume produs&gt; [pentru &lt;ore&gt;h]</code>\nExemplu: <code>/menu_oprime salata caesar pentru 6h</code>',
+  promo:
+    'Folosire: <code>/menu_promo &lt;nume produs&gt; — &lt;brief&gt;</code>\nExemplu: <code>/menu_promo pizza margherita — week-end 25% reducere vinerea-duminica</code>',
+} as const;
+
+// Resolve a user-typed item name to a uuid for the active tenant. Uses
+// case-insensitive prefix match. Returns the first hit, or null when no
+// match. Bounded to 50 rows — typical tenant has 30-150 menu items.
+async function resolveMenuItem(
+  supabase: any,
+  tenantId: string,
+  query: string,
+): Promise<{ id: string; name: string; price_ron: number } | null> {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  // Case-insensitive ILIKE; the menu items table is already indexed on
+  // (tenant_id, sort_order) so a small filtered scan is cheap.
+  const { data: rows } = await supabase
+    .from('restaurant_menu_items')
+    .select('id, name, price_ron')
+    .eq('tenant_id', tenantId)
+    .ilike('name', `%${q.replace(/[%_]/g, '\\$&')}%`)
+    .limit(10);
+  if (!rows || rows.length === 0) return null;
+  // Prefer exact case-insensitive match if available.
+  const exact = (rows as Array<{ id: string; name: string; price_ron: number }>).find(
+    (r) => r.name.toLowerCase() === q,
+  );
+  if (exact) return exact;
+  return rows[0] as { id: string; name: string; price_ron: number };
+}
+
+// Tries to extract an "until" duration from the trailing text. Accepts
+// "pentru 6h", "pentru 2 zile", "pana joi" (latter ignored — defaults to
+// 24h). Returns ISO timestamp.
+function parseUntilHint(text: string): string {
+  const m = text.match(/pentru\s+(\d+)\s*(h|ore|zi|zile)/i);
+  if (m) {
+    const n = parseInt(m[1]!, 10);
+    const unit = m[2]!.toLowerCase();
+    const hours = unit.startsWith('zi') ? n * 24 : n;
+    return new Date(Date.now() + hours * 3600 * 1000).toISOString();
+  }
+  // Default: 24h
+  return new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+}
+
+async function handleMenuPropune(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const seed = args.trim();
+  if (!seed || seed.length < 5) {
+    return { text: MENU_USAGE.propune, status: 'OK' };
+  }
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.propose_new_item',
+    payload: { seed },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    if (result.error === 'handler_threw' && /credit balance|anthropic_401|anthropic_402|missing_api_key/.test(result.message)) {
+      return { text: '⚠️ Cheia Anthropic nu este configurată sau creditul este epuizat.', status: 'ERR' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare necunoscută')}`, status: 'ERR' };
+  }
+  // EXECUTED branch (readOnly: true → always EXECUTED).
+  if (result.state === 'EXECUTED') {
+    const data = result.data as { proposalId: string | null; payload: { name: string; price_ron: number; category_hint: string }; rationale: string };
+    const lines = [
+      `<b>✨ Hepy a propus un produs nou</b>`,
+      `Nume: <b>${escapeHtml(data.payload.name)}</b>`,
+      `Preț sugerat: <b>${data.payload.price_ron.toFixed(2)} RON</b>`,
+      `Categorie: ${escapeHtml(data.payload.category_hint)}`,
+      ``,
+      `<i>${escapeHtml(data.rationale)}</i>`,
+      ``,
+      `Acceptă/respinge propunerea pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: `Propunere salvată ca DRAFT — verificați în pagina <b>${escapeHtml(tenant.name)}</b> / Meniu / Sugestii Hepy.`, status: 'OK' };
+}
+
+async function handleMenuOprime(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const trimmed = args.trim();
+  if (!trimmed) return { text: MENU_USAGE.oprime, status: 'OK' };
+
+  // Strip the "pentru Xh" hint if present, leaving just the item name.
+  const itemNameQuery = trimmed.replace(/\s+pentru\s+\d+\s*(h|ore|zi|zile).*$/i, '').trim();
+  if (!itemNameQuery) return { text: MENU_USAGE.oprime, status: 'OK' };
+
+  const item = await resolveMenuItem(supabase, tenant.tenant_id, itemNameQuery);
+  if (!item) {
+    return {
+      text: `❌ Nu am găsit produsul "<code>${escapeHtml(itemNameQuery)}</code>" în meniu. Verificați numele sau folosiți pagina <b>Meniu</b> pentru a-l găsi.`,
+      status: 'OK',
+    };
+  }
+  const until_iso = parseUntilHint(trimmed);
+  const reasonMatch = trimmed.match(/motiv\s*[:\-]\s*(.+)$/i);
+  const reason = reasonMatch?.[1]?.trim() ?? '';
+
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.mark_sold_out',
+    payload: { item_id: item.id, item_name: item.name, reason, until_iso },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare')}`, status: 'ERR' };
+  }
+  if (result.state === 'EXECUTED') {
+    const data = result.data as { proposalId: string | null; payload: { item_name: string; customer_facing_reason: string; until_iso: string } };
+    const lines = [
+      `<b>🚫 Marcaj epuizat — DRAFT</b>`,
+      `Produs: <b>${escapeHtml(data.payload.item_name)}</b>`,
+      `Până la: <b>${escapeHtml(data.payload.until_iso)}</b>`,
+      ``,
+      `<i>Mesaj pentru client:</i> ${escapeHtml(data.payload.customer_facing_reason)}`,
+      ``,
+      `Acceptă/respinge pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: 'Marcaj salvat ca DRAFT.', status: 'OK' };
+}
+
+async function handleMenuPromo(
+  supabase: any,
+  tenant: { tenant_id: string; name: string },
+  args: string,
+): Promise<{ text: string; status: string }> {
+  const trimmed = args.trim();
+  if (!trimmed) return { text: MENU_USAGE.promo, status: 'OK' };
+
+  // Split on em/en dash or "—" or "-" first occurrence, with "<itemName> — <brief>" shape.
+  const splitMatch = trimmed.match(/^(.+?)\s*[—–\-]\s*(.+)$/);
+  if (!splitMatch) {
+    return { text: MENU_USAGE.promo, status: 'OK' };
+  }
+  const itemNameQuery = splitMatch[1]!.trim();
+  const brief = splitMatch[2]!.trim();
+  if (!itemNameQuery || !brief) return { text: MENU_USAGE.promo, status: 'OK' };
+
+  const item = await resolveMenuItem(supabase, tenant.tenant_id, itemNameQuery);
+  if (!item) {
+    return {
+      text: `❌ Nu am găsit produsul "<code>${escapeHtml(itemNameQuery)}</code>" în meniu.`,
+      status: 'OK',
+    };
+  }
+
+  const result = await dispatchIntent(supabase, {
+    tenantId: tenant.tenant_id,
+    channel: 'telegram',
+    intent: 'menu.draft_promo',
+    payload: {
+      item_id: item.id,
+      item_name: item.name,
+      item_price_ron: item.price_ron,
+      brief,
+    },
+  });
+  if (!result.ok) {
+    if (result.error === 'handler_threw' && /daily_cap_reached/.test(result.message)) {
+      return { text: '⚠️ Limita zilnică de 5 sugestii Hepy a fost atinsă. Încercați mâine.', status: 'OK' };
+    }
+    return { text: `❌ ${escapeHtml(result.message ?? 'eroare')}`, status: 'ERR' };
+  }
+  if (result.state === 'EXECUTED') {
+    const data = result.data as {
+      proposalId: string | null;
+      payload: { item_name: string; discount_pct: number; headline: string; body: string; valid_from: string; valid_to: string };
+    };
+    const lines = [
+      `<b>🎯 Propunere promoție — DRAFT</b>`,
+      `<b>${escapeHtml(data.payload.headline)}</b>`,
+      `Produs: ${escapeHtml(data.payload.item_name)} — <b>−${data.payload.discount_pct}%</b>`,
+      `Valabilitate: ${escapeHtml(data.payload.valid_from)} → ${escapeHtml(data.payload.valid_to)}`,
+      ``,
+      `<i>${escapeHtml(data.payload.body)}</i>`,
+      ``,
+      `Acceptă/respinge pe pagina <b>Meniu → Sugestii Hepy</b>.`,
+    ];
+    return { text: lines.join('\n'), status: 'OK' };
+  }
+  return { text: 'Propunere de promoție salvată ca DRAFT.', status: 'OK' };
+}
+
 async function handleCommand(
   supabase: any, ghToken: string, vercelToken: string, anthropicKey: string,
   cmd: string, args: string, chatId: number, auth: ChatAuth, telegramUsername?: string
@@ -1748,6 +1968,11 @@ Rezervări:
 /rezerva — rezervare nouă (vă voi întreba pas cu pas, sau scrieți totul într-un mesaj)
 /rezervari — următoarele 14 zile
 /anuleaza_rezervare &lt;token&gt; — anulează după token
+
+Sugestii Hepy pentru meniu (DRAFT — aprobați la Meniu / Sugestii Hepy):
+/menu_propune &lt;descriere produs&gt; — propunere produs nou
+/menu_oprime &lt;nume produs&gt; [pentru Xh] — marcaj epuizat temporar
+/menu_promo &lt;nume produs&gt; — &lt;brief&gt; — propunere promoție
 
 /help — acest ecran
 
@@ -1827,6 +2052,19 @@ Comenzi auxiliare:
     if (cmd === '/rezerva') return await handleReservaCommand(supabase, tenant, chatId, args);
     if (cmd === '/rezervari') return await handleRezervariList(supabase, tenant);
     return await handleAnuleazaRezervare(supabase, tenant, chatId, args);
+  }
+
+  // ────────────────────────────────────────────────────────────
+  // Menu Agent — OWNER + operator. Dispatches via Master Orchestrator.
+  // Sprint 12: proposals stay in DRAFT; OWNER reviews under "Sugestii
+  // Hepy" on /dashboard/menu. No live menu mutations.
+  // ────────────────────────────────────────────────────────────
+  if (cmd === '/menu_propune' || cmd === '/menu_oprime' || cmd === '/menu_promo') {
+    const tenant = await getActiveTenant(supabase, chatId, auth);
+    if (!tenant) return { text: TENANT_HINT, status: 'NEEDS_TENANT' };
+    if (cmd === '/menu_propune') return await handleMenuPropune(supabase, tenant, args);
+    if (cmd === '/menu_oprime') return await handleMenuOprime(supabase, tenant, args);
+    return await handleMenuPromo(supabase, tenant, args);
   }
 
   // ────────────────────────────────────────────────────────────

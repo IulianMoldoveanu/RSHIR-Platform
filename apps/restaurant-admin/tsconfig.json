@@ -4,6 +4,11 @@
     "jsx": "preserve",
     "noEmit": true,
     "allowJs": true,
+    // Enables `import 'foo.ts'` typecheck for the Deno-side _shared/*
+    // files the master-orchestrator + menu-agent vitest suites import
+    // directly. Safe because noEmit=true means tsc never produces JS.
+    // Next.js bundler ignores this flag.
+    "allowImportingTsExtensions": true,
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]
