@@ -164,7 +164,11 @@ export async function createTenantWithOwner(
       { tenant_id: tenantId, user_id: caller.id, role: 'OWNER' },
     ]);
   if (ownerMemberErr) {
-    await admin.from('tenants').delete().eq('id', tenantId);
+    // Lane BACKUP-DR-AUDIT (2026-05-08): direct DELETE on public.tenants
+    // is now blocked by trg_tenants_prevent_unguarded_delete. Use the
+    // sanctioned rollback RPC which sets hir.allow_tenant_delete=true
+    // locally inside its SECURITY DEFINER body.
+    await admin.rpc('hir_delete_tenant_rollback', { p_tenant_id: tenantId });
     await admin.auth.admin.deleteUser(ownerUserId);
     console.error('[admin/onboard] tenant_members insert failed', ownerMemberErr.message);
     return { ok: false, error: ownerMemberErr.message, code: 'member_failed' };

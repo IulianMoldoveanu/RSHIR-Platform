@@ -1,0 +1,22 @@
+name: Backup Verify Daily
+on:
+  schedule:
+    # 06:05 UTC = 09:05 Europe/Bucharest (08:05 in winter). Iulian's
+    # morning alert window so any "backup stale" Telegram lands while he
+    # is starting work.
+    - cron: '5 6 * * *'
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backup-verify-daily Edge Function
+        run: |
+          curl -X POST 'https://qfmeojeipncuxeltnvab.supabase.co/functions/v1/backup-verify-daily' \
+            -H "X-Backup-Verify-Token: $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --fail --silent --show-error --max-time 30
+        env:
+          TOKEN: ${{ secrets.BACKUP_VERIFY_TOKEN }}

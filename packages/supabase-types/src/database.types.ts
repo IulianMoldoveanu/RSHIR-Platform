@@ -977,6 +977,10 @@ export type Database = {
         Args: { p_customer_id: string }
         Returns: undefined
       }
+      hir_delete_tenant_rollback: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       is_tenant_member: { Args: { t_id: string }; Returns: boolean }
       is_tenant_owner: { Args: { t_id: string }; Returns: boolean }
       submit_order_review: {
