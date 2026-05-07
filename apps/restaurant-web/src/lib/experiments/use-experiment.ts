@@ -21,10 +21,14 @@ const KEY_PREFIX = 'hir-exp:';
 type UseExperimentArgs = {
   experimentKey: string;
   subjectId: string;
-  // Variant resolved server-side and passed in as a prop. When provided,
-  // it wins over any cached value and is written through to localStorage
-  // for the next navigation. Pass null when the server has no opinion
-  // (experiment inactive / missing) — the hook then returns null too.
+  // Variant resolved server-side and passed in as a prop. Three states:
+  //   - string  → server picked this variant; hook persists + replays it.
+  //   - null    → server consulted the registry and the experiment is
+  //               INACTIVE / MISSING. Hook returns null AND clears any
+  //               stale cache so a deactivated experiment stops leaking
+  //               last-session assignments. (Codex review #359 P2.)
+  //   - undefined → server has no opinion this render (e.g. fully-static
+  //                 page that never queried). Hook falls back to cache.
   serverVariant?: string | null;
 };
 
@@ -70,25 +74,51 @@ function writeCached(
   }
 }
 
+function clearCached(experimentKey: string, subjectId: string): void {
+  if (!experimentKey || !subjectId) return;
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(storageKey(experimentKey, subjectId));
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Returns the active variant string for this subject in this experiment,
  * or null if the experiment is inactive / missing. SSR-safe: returns the
  * same value the server passed in via `serverVariant` until hydration.
  */
 export function useExperiment(args: UseExperimentArgs): string | null {
-  const { experimentKey, subjectId, serverVariant = null } = args;
-  const [variant, setVariant] = useState<string | null>(serverVariant);
+  const { experimentKey, subjectId, serverVariant } = args;
+  // Initial state: trust the server prop verbatim. `undefined` collapses
+  // to `null` so the return type stays `string | null` for callers, but
+  // we still distinguish "server says null" from "server has no opinion"
+  // via the prop itself in the effect below.
+  const [variant, setVariant] = useState<string | null>(
+    serverVariant ?? null,
+  );
 
   useEffect(() => {
     if (!experimentKey || !subjectId) return;
-    if (serverVariant) {
+    if (typeof serverVariant === 'string' && serverVariant.length > 0) {
       // Server has the freshest opinion — trust it and persist.
       writeCached(experimentKey, subjectId, serverVariant);
       setVariant(serverVariant);
       return;
     }
-    // No server opinion this render — try cache for stickiness across
-    // soft navigations on a static page.
+    if (serverVariant === null) {
+      // Server EXPLICITLY says inactive/missing. Clear any cached
+      // assignment so a previously-active experiment stops leaking after
+      // operators deactivate it. (Codex review #359 P2.)
+      clearCached(experimentKey, subjectId);
+      setVariant(null);
+      return;
+    }
+    // serverVariant === undefined — caller has no server opinion this
+    // render (e.g. fully-static page). Fall back to cache for stickiness
+    // across soft navigations.
     const cached = readCached(experimentKey, subjectId);
     if (cached) setVariant(cached);
   }, [experimentKey, subjectId, serverVariant]);
