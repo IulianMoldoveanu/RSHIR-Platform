@@ -106,26 +106,54 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/kds', label: 'Ecran bucătărie (KDS)' },
       ],
     },
+    // QW3 (UIUX audit 2026-05-08): split Configurare into 4 themed
+    // sub-groups so the 14-leaf flat accordion stops failing the "30-second
+    // test". Audit log moves out to its own top-level entry — it's an
+    // observability surface, not really a setting. Order inside each
+    // sub-group preserves the original sidebar order so muscle memory holds.
     {
       label: 'Configurare',
       icon: 'settings' as const,
       items: [
-        { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
-        { href: '/dashboard/settings/presentation', label: 'Pagină de prezentare' },
-        { href: '/dashboard/settings/domain', label: 'Domeniu' },
-        { href: '/dashboard/settings/seo', label: 'SEO' },
-        { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
-        { href: '/dashboard/settings/payments', label: 'Plăți & facturare' },
-        { href: '/dashboard/settings/exports', label: 'Export contabilitate' },
-        { href: '/dashboard/settings/smartbill', label: 'SmartBill (facturare)' },
-        { href: '/dashboard/settings/efactura', label: 'ANAF e-Factura' },
-        { href: '/dashboard/settings/integrations', label: 'Integrări' },
-        { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
-        { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
-        { href: '/dashboard/settings/inventory', label: 'Stocuri (Premium)' },
-        { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
+        {
+          label: 'Identitate',
+          items: [
+            { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
+            { href: '/dashboard/settings/presentation', label: 'Pagină de prezentare' },
+            { href: '/dashboard/settings/domain', label: 'Domeniu' },
+            { href: '/dashboard/settings/seo', label: 'SEO' },
+          ],
+        },
+        {
+          label: 'Operațiuni',
+          items: [
+            { href: '/dashboard/settings/payments', label: 'Plăți & facturare' },
+            { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
+          ],
+        },
+        {
+          label: 'Contabilitate',
+          items: [
+            { href: '/dashboard/settings/exports', label: 'Export contabilitate' },
+            { href: '/dashboard/settings/smartbill', label: 'SmartBill (facturare)' },
+            { href: '/dashboard/settings/efactura', label: 'ANAF e-Factura' },
+          ],
+        },
+        {
+          label: 'Integrări',
+          items: [
+            { href: '/dashboard/settings/integrations', label: 'Integrări' },
+            { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
+            {
+              href: '/dashboard/settings/aggregator-intake',
+              label: 'Preluare comenzi (Glovo/Wolt/Bolt)',
+            },
+            { href: '/dashboard/settings/inventory', label: 'Stocuri (Premium)' },
+          ],
+        },
       ],
     },
+    { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni', icon: 'sliders' as const },
     { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
     ...(isPlatformAdmin
       ? [
