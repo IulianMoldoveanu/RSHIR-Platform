@@ -143,15 +143,18 @@ function parseDate(t: string, now: Date): string | null {
   const today = bucharestNow(now);
 
   // Relative — checked first because they're cheap and unambiguous.
+  // Codex P2 (round 8): "day after tomorrow" must be checked BEFORE
+  // "tomorrow" because the latter is a substring; otherwise the parser
+  // returns +1 day for an English "day after tomorrow" phrase.
   if (/\b(azi|astazi|today)\b/.test(t)) {
     return fmtDate(today.y, today.m, today.d);
   }
-  if (/\b(maine|tomorrow)\b/.test(t)) {
-    const r = addDaysUtc(today.y, today.m, today.d, 1);
-    return fmtDate(r.y, r.m, r.d);
-  }
   if (/\b(poimaine|day\s+after\s+tomorrow)\b/.test(t)) {
     const r = addDaysUtc(today.y, today.m, today.d, 2);
+    return fmtDate(r.y, r.m, r.d);
+  }
+  if (/\b(maine|tomorrow)\b/.test(t)) {
+    const r = addDaysUtc(today.y, today.m, today.d, 1);
     return fmtDate(r.y, r.m, r.d);
   }
 

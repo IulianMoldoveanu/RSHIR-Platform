@@ -920,6 +920,23 @@ async function reservationsEnabled(
 // into a UTC ISO string. Bucharest is UTC+2 in winter and UTC+3 in DST
 // (last Sunday of March → last Sunday of October). We use the standard
 // DST rule rather than Intl since Deno's Intl is not stable for this.
+// Codex P2 (round 8): EU DST transitions happen at 01:00 UTC, NOT at
+// UTC midnight. Concretely:
+//   - Last Sunday of March: 01:00 UTC → clocks jump from 03:00 local to
+//     04:00 local (UTC+2 → UTC+3).
+//   - Last Sunday of October: 01:00 UTC → clocks fall from 04:00 local
+//     to 03:00 local (UTC+3 → UTC+2).
+// Using midnight as the boundary mis-classifies the 1-hour window
+// between local midnight and the transition (e.g. 2026-03-29 01:30
+// Bucharest is still UTC+2, but a midnight-boundary check would treat
+// it as UTC+3 and produce a wrong UTC instant).
+function lastSundayDstBoundaryUtc(year: number, monthIdx: number): Date {
+  const last = new Date(Date.UTC(year, monthIdx + 1, 0));
+  const lastDow = last.getUTCDay();
+  // EU rule: transition at 01:00 UTC.
+  return new Date(Date.UTC(year, monthIdx, last.getUTCDate() - lastDow, 1, 0, 0));
+}
+
 function bucharestLocalToUtcIso(date: string, time: string): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   const t = /^(\d{2}):(\d{2})$/.exec(time);
@@ -930,21 +947,16 @@ function bucharestLocalToUtcIso(date: string, time: string): string | null {
   const hh = Number(t[1]);
   const mm = Number(t[2]);
 
-  // EU DST: last Sunday of March 03:00 local → last Sunday of October 04:00 local.
-  function lastSundayUtc(year: number, monthIdx: number): Date {
-    // Last day of month
-    const last = new Date(Date.UTC(year, monthIdx + 1, 0));
-    const lastDow = last.getUTCDay();
-    const lastSundayDay = last.getUTCDate() - lastDow;
-    return new Date(Date.UTC(year, monthIdx, lastSundayDay));
-  }
-  const dstStart = lastSundayUtc(y, 2); // March
-  const dstEnd = lastSundayUtc(y, 9);   // October
-  // Naive UTC of the local time
-  const naiveUtc = new Date(Date.UTC(y, mo - 1, d, hh, mm));
-  const inDst = naiveUtc >= dstStart && naiveUtc < dstEnd;
+  const dstStart = lastSundayDstBoundaryUtc(y, 2); // March, 01:00 UTC
+  const dstEnd = lastSundayDstBoundaryUtc(y, 9);   // October, 01:00 UTC
+  // Probe with the WINTER offset first to decide whether we're in DST.
+  // (We check the "naive UTC" as if it were UTC+2; if that lands inside
+  // the DST window, we redo with UTC+3 — this avoids a chicken-and-egg
+  // around the boundary hour.)
+  const winterUtc = new Date(Date.UTC(y, mo - 1, d, hh - 2, mm));
+  const inDst = winterUtc >= dstStart && winterUtc < dstEnd;
   const offsetH = inDst ? 3 : 2;
-  return new Date(naiveUtc.getTime() - offsetH * 3600 * 1000).toISOString();
+  return new Date(Date.UTC(y, mo - 1, d, hh - offsetH, mm)).toISOString();
 }
 
 function fmtBucharestForDisplay(iso: string): string {
@@ -952,13 +964,8 @@ function fmtBucharestForDisplay(iso: string): string {
   // calculation above to avoid pulling in Intl.
   const utc = new Date(iso);
   const y = utc.getUTCFullYear();
-  function lastSundayUtc(year: number, monthIdx: number): Date {
-    const last = new Date(Date.UTC(year, monthIdx + 1, 0));
-    const lastDow = last.getUTCDay();
-    return new Date(Date.UTC(year, monthIdx, last.getUTCDate() - lastDow));
-  }
-  const dstStart = lastSundayUtc(y, 2);
-  const dstEnd = lastSundayUtc(y, 9);
+  const dstStart = lastSundayDstBoundaryUtc(y, 2);
+  const dstEnd = lastSundayDstBoundaryUtc(y, 9);
   const inDst = utc >= dstStart && utc < dstEnd;
   const offsetH = inDst ? 3 : 2;
   const local = new Date(utc.getTime() + offsetH * 3600 * 1000);

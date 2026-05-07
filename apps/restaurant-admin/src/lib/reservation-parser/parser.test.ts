@@ -48,6 +48,11 @@ describe('parseReservation — date', () => {
     expect(P('book a table tomorrow at 7pm').date).toBe('2026-05-14');
   });
 
+  it('parses "day after tomorrow" (Codex round 8)', () => {
+    // Must NOT match the trailing "tomorrow" first.
+    expect(P('book a table day after tomorrow at 7pm').date).toBe('2026-05-15');
+  });
+
   it('parses weekday "vineri"', () => {
     // NOW is Wed 2026-05-13. Vineri = Friday = 2026-05-15.
     expect(P('rezerva vineri la 19:00').date).toBe('2026-05-15');
