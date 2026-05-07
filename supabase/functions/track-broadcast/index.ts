@@ -23,6 +23,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { withRunLog } from '../_shared/log.ts';
 
 type Body = { order_id: string; tenant_id: string; status: string };
 
@@ -49,6 +50,7 @@ const HANDLED = new Set([
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
+  return withRunLog('track-broadcast', async ({ setMetadata }) => {
   // Constant-time secret-header check (matches notify-customer-status pattern).
   const expected = Deno.env.get('HIR_NOTIFY_SECRET');
   if (!expected) return json(500, { error: 'secret_not_configured' });
@@ -67,6 +69,7 @@ Deno.serve(async (req: Request) => {
   if (!isUuid(body.order_id) || !isUuid(body.tenant_id) || typeof body.status !== 'string') {
     return json(400, { error: 'invalid_body' });
   }
+  setMetadata({ tenant_id: body.tenant_id, order_id: body.order_id, status: body.status });
   if (!HANDLED.has(body.status)) {
     return json(200, { ok: true, skipped: 'status_not_handled', status: body.status });
   }
@@ -155,4 +158,5 @@ Deno.serve(async (req: Request) => {
   }
 
   return json(200, { ok: true, status: body.status, token_short: order.public_track_token.slice(0, 8) });
+  });
 });
