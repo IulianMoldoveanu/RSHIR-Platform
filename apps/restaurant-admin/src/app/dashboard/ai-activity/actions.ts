@@ -119,10 +119,25 @@ export async function revertAgentRun(
   return { ok: true, runId: existing.id };
 }
 
-// OWNER-only: approve a PROPOSED row (state -> EXECUTED). Sprint 12 ships
-// the state transition; the agent that proposed must re-pick the row up
-// to actually apply the side effect. UI exposes Approve as a primary
-// action when state == PROPOSED.
+// OWNER-only: approve a PROPOSED row.
+//
+// CRITICAL — Sprint 12/13 scope split (Codex P1 on PR #341 commit
+// af651c0):
+//   The Sprint 12 dispatcher splits handlers into plan() + execute()
+//   and the gate writes a PROPOSED row WITHOUT calling execute(). To
+//   keep the surface honest, Approve does NOT flip state to EXECUTED —
+//   that would mark the action as applied even though no side effect
+//   ran. Instead Approve only stamps `approved_by` + `approved_at` on
+//   the PROPOSED row. A Sprint 13 worker picks up rows where
+//   `state='PROPOSED' AND approved_at IS NOT NULL` and runs the
+//   handler's execute() phase, then transitions the state to EXECUTED.
+//
+//   For Sprint 12 the registry has zero non-readOnly intents wired
+//   through dispatchIntent(); the existing Telegram /comenzi /vreme
+//   etc. continue to hard-route. So no PROPOSED row can land today
+//   with a real side effect waiting. The Approve UI flow exists only
+//   so the schema + UX are exercised end-to-end before Sprint 13 turns
+//   it on for real write agents.
 const approveSchema = z.object({ runId: z.string().uuid() });
 
 export async function approveProposedRun(
@@ -148,18 +163,22 @@ export async function approveProposedRun(
   const sb = admin as any;
   const { data: existing, error: readErr } = await sb
     .from('copilot_agent_runs')
-    .select('id, restaurant_id, state')
+    .select('id, restaurant_id, state, approved_at')
     .eq('id', parsed.data.runId)
     .maybeSingle();
   if (readErr) return { ok: false, error: 'read_failed' };
   if (!existing) return { ok: false, error: 'not_found' };
   if (existing.restaurant_id !== expectedTenantId) return { ok: false, error: 'tenant_mismatch' };
   if (existing.state !== 'PROPOSED') return { ok: false, error: 'not_proposed' };
+  if (existing.approved_at) return { ok: false, error: 'already_approved' };
 
   const now = new Date().toISOString();
+  // INTENTIONAL: state stays 'PROPOSED'. Only stamp approval. Sprint 13
+  // worker is the one that flips state to EXECUTED after running the
+  // handler's execute() phase against the saved payload.
   const { error } = await sb
     .from('copilot_agent_runs')
-    .update({ state: 'EXECUTED', approved_by: user.id, approved_at: now })
+    .update({ approved_by: user.id, approved_at: now })
     .eq('id', existing.id);
   if (error) return { ok: false, error: 'update_failed' };
 

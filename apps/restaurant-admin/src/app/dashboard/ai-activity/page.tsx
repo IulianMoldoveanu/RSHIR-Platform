@@ -93,12 +93,17 @@ export default async function AiActivityPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <StateBadge state={row.state} />
+                    {row.awaitingExecute && (
+                      <span className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                        Aprobat — în așteptarea execuției
+                      </span>
+                    )}
                     <span className="text-[11px] font-mono text-zinc-500">{row.actionType ?? '—'}</span>
                   </div>
                   <p className="mt-1 truncate text-zinc-900">{row.summary ?? '(fără rezumat)'}</p>
                   <p className="text-[11px] text-zinc-500">{formatDateTime(row.createdAt)}</p>
                 </div>
-                {isOwner && (
+                {isOwner && !row.awaitingExecute && (
                   <RunActions
                     tenantId={tenant.id}
                     runId={row.id}

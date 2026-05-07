@@ -26,6 +26,11 @@ export type AgentRunRow = {
   // the row is EXECUTED, not yet reverted, has a non-empty pre_state, and
   // is < 24h old.
   canRevert: boolean;
+  // True when the row is PROPOSED + approved_at is set. Sprint 12 stops
+  // here; Sprint 13 worker picks up these rows and runs execute(). UI
+  // shows "Aprobat, în așteptarea execuției" so the OWNER doesn't think
+  // the side effect already happened.
+  awaitingExecute: boolean;
 };
 
 const REVERT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -89,6 +94,7 @@ export async function listAgentRuns(
         pre_state: row.pre_state,
         created_at: row.created_at ?? null,
       }),
+      awaitingExecute: row.state === 'PROPOSED' && Boolean(row.approved_at),
     }));
   } catch (err) {
     console.warn('[ai-activity] listAgentRuns threw:', (err as Error).message);
