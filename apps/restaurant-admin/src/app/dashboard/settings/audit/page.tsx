@@ -27,6 +27,14 @@ const ACTION_LABELS: Record<string, string> = {
   'integration.api_key_created': 'Cheie API creată',
   'integration.api_key_revoked': 'Cheie API revocată',
   'ai_ceo.brief_schedule_updated': 'Orar brief AI CEO actualizat',
+  'inventory.item_created': 'Ingredient creat',
+  'inventory.item_updated': 'Ingredient actualizat',
+  'inventory.item_deleted': 'Ingredient șters',
+  'inventory.recipe_linked': 'Rețetă legată',
+  'inventory.recipe_unlinked': 'Rețetă dezlegată',
+  'inventory.manual_adjustment': 'Ajustare manuală stoc',
+  'inventory.feature_toggled_on': 'Modul stocuri activat',
+  'inventory.feature_toggled_off': 'Modul stocuri dezactivat',
 };
 
 const ENTITY_LABELS: Record<string, string> = {

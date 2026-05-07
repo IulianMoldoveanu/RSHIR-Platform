@@ -9,6 +9,7 @@
 import Link from 'next/link';
 import {
   Bot,
+  Box,
   Building2,
   ClipboardList,
   CreditCard,
@@ -26,6 +27,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { getCurrentTenantDomain } from '@/app/api/domains/shared';
 import { getLoyaltySettings } from '@/lib/loyalty';
+import { isInventoryEnabled } from '@/lib/inventory';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +57,7 @@ export default async function SettingsLandingPage() {
   // Lane THEMES (2026-05-06): also fetch template_slug so the new
   // "Temă vizuală" card can show the active vertical template.
   const admin = createAdminClient();
-  const [tenantRow, domainInfo, loyalty] = await Promise.all([
+  const [tenantRow, domainInfo, loyalty, inventoryEnabled] = await Promise.all([
     (admin.from('tenants') as unknown as {
       select: (s: string) => {
         eq: (col: string, v: string) => {
@@ -70,6 +72,7 @@ export default async function SettingsLandingPage() {
       .maybeSingle(),
     getCurrentTenantDomain(tenant.id),
     getLoyaltySettings(tenant.id),
+    isInventoryEnabled(tenant.id),
   ]);
 
   const settings = (tenantRow.data?.settings as Record<string, unknown> | null) ?? {};
@@ -161,6 +164,15 @@ export default async function SettingsLandingPage() {
       title: 'Program și pickup',
       description: 'Orar, ridicare la sediu și opțiuni de livrare.',
       icon: Building2,
+    },
+    {
+      href: '/dashboard/settings/inventory',
+      title: 'Stocuri (Premium)',
+      description: 'Activați urmărirea stocurilor și decrementarea automată la livrare.',
+      icon: Box,
+      status: inventoryEnabled
+        ? { label: 'Activ', tone: 'ok' }
+        : { label: 'Inactiv', tone: 'muted' },
     },
     {
       href: '/dashboard/settings/team',

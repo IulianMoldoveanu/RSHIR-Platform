@@ -39,6 +39,27 @@ export type Supplier = {
   phone: string | null;
 };
 
+export type MovementReason =
+  | 'ORDER_DELIVERED'
+  | 'MANUAL_ADJUST'
+  | 'PURCHASE_RECEIVED'
+  | 'WASTE'
+  | 'INITIAL_STOCK';
+
+export type InventoryMovement = {
+  id: string;
+  tenant_id: string;
+  inventory_item_id: string;
+  delta: number;
+  reason: MovementReason;
+  order_id: string | null;
+  actor_user_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  inventory_item_name?: string | null;
+  inventory_item_unit?: InventoryUnit | null;
+};
+
 /**
  * Reads the inventory_enabled feature flag from tenants.feature_flags JSONB.
  * Tenants opt in to Premium inventory features per-tenant. Falsy result =
@@ -127,6 +148,110 @@ export async function listSuppliers(tenantId: string): Promise<Supplier[]> {
  * on the item-detail page). Filters out items already linked to this
  * inventory item — caller passes already-linked menu_item_ids.
  */
+/**
+ * Latest inventory_movements rows for the tenant. Supports optional reason
+ * filter and item filter. Always ordered desc by created_at, capped to
+ * `limit` (default 100). Joins inventory_items to surface name + unit so
+ * the ledger UI does not have to do a second round-trip.
+ */
+export async function listMovements(
+  tenantId: string,
+  opts: {
+    reason?: MovementReason | null;
+    inventoryItemId?: string | null;
+    limit?: number;
+  } = {},
+): Promise<InventoryMovement[]> {
+  const admin = createAdminClient();
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = (admin as any).from('inventory_movements')
+    .select(
+      'id, tenant_id, inventory_item_id, delta, reason, order_id, actor_user_id, metadata, created_at, inventory_items!inner(name, unit)',
+    )
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (opts.reason) q = q.eq('reason', opts.reason);
+  if (opts.inventoryItemId) q = q.eq('inventory_item_id', opts.inventoryItemId);
+  const { data, error } = await q;
+  if (error) throw new Error(`Inventory movements list failed: ${error.message}`);
+  return ((data ?? []) as Array<
+    InventoryMovement & { inventory_items?: { name: string; unit: InventoryUnit } | null }
+  >).map((row) => ({
+    id: row.id,
+    tenant_id: row.tenant_id,
+    inventory_item_id: row.inventory_item_id,
+    delta: Number(row.delta),
+    reason: row.reason,
+    order_id: row.order_id,
+    actor_user_id: row.actor_user_id,
+    metadata: row.metadata,
+    created_at: row.created_at,
+    inventory_item_name: row.inventory_items?.name ?? null,
+    inventory_item_unit: row.inventory_items?.unit ?? null,
+  }));
+}
+
+/**
+ * Counts movements for the tenant. Used on the OWNER toggle page so the
+ * user sees impact ("X mișcări înregistrate") before disabling the module.
+ * Uses head: true / count: 'exact' for an O(1) count.
+ */
+export async function countMovements(tenantId: string): Promise<number> {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count, error } = await (admin as any).from('inventory_movements')
+    .select('id', { head: true, count: 'exact' })
+    .eq('tenant_id', tenantId);
+  if (error) {
+    console.error('[inventory] count movements failed:', error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Counts inventory_items rows for the tenant. Used in the OWNER toggle
+ * page so OWNERs see how many ingredients are tracked before disabling.
+ */
+export async function countInventoryItems(tenantId: string): Promise<number> {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count, error } = await (admin as any).from('inventory_items')
+    .select('id', { head: true, count: 'exact' })
+    .eq('tenant_id', tenantId);
+  if (error) {
+    console.error('[inventory] count items failed:', error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+/**
+ * Flips tenants.feature_flags.inventory_enabled. Caller MUST have already
+ * verified OWNER role. Preserves existing flag keys; only mutates this one.
+ */
+export async function setInventoryEnabled(
+  tenantId: string,
+  enabled: boolean,
+): Promise<void> {
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: row, error: readErr } = await (admin.from('tenants') as any)
+    .select('feature_flags')
+    .eq('id', tenantId)
+    .maybeSingle();
+  if (readErr) throw new Error(`Read feature_flags failed: ${readErr.message}`);
+  const current = ((row?.feature_flags as Record<string, unknown> | null) ?? {});
+  const next = { ...current, inventory_enabled: enabled };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: writeErr } = await (admin.from('tenants') as any)
+    .update({ feature_flags: next })
+    .eq('id', tenantId);
+  if (writeErr) throw new Error(`Write feature_flags failed: ${writeErr.message}`);
+}
+
 export async function listLinkableMenuItems(
   tenantId: string,
   excludeMenuItemIds: string[] = [],

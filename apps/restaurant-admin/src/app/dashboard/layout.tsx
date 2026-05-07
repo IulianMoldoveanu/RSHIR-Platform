@@ -122,6 +122,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/integrations', label: 'Integrări' },
         { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
         { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
+        { href: '/dashboard/settings/inventory', label: 'Stocuri (Premium)' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
       ],
     },
