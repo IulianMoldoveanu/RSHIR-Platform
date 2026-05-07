@@ -10,6 +10,11 @@ import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
+import {
+  clearSavedAddress,
+  readSavedAddress,
+  writeSavedAddress,
+} from '@/lib/cart/saved-address';
 
 type Fulfillment = 'DELIVERY' | 'PICKUP';
 
@@ -225,6 +230,47 @@ export function CheckoutClient(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // QW7 (UIUX audit 2026-05-08) — saved-address pre-fill from localStorage.
+  // Server-side `prefill` from the customer-cookie path takes precedence;
+  // localStorage only fills the gap for guests who weren't recognized
+  // (cleared cookies, incognito, fresh device). Read once on mount.
+  // Tenant-scoped key prevents cross-tenant address leak.
+  //
+  // Codex review #346 (P2): `city` is initialized to default 'Brașov' so a
+  // naïve `if (!city)` guard would never apply the saved city for a
+  // returning customer whose saved address is outside Brașov; the
+  // subsequent geocode/quote would then run against the wrong city. Fix:
+  // apply the saved city unconditionally whenever we apply the saved
+  // line1 (we're already gated on `!prefill?.line1 && !line1`, so server
+  // prefill still wins). Postal code is similarly always restored from
+  // the saved entry when present.
+  const [hasSavedAddress, setHasSavedAddress] = useState(false);
+  useEffect(() => {
+    const saved = readSavedAddress(props.tenantId);
+    if (!saved) return;
+    setHasSavedAddress(true);
+    if (!prefill?.line1 && !line1) {
+      setLine1(saved.line1);
+      if (saved.city) setCity(saved.city);
+      if (saved.postalCode) setPostalCode(saved.postalCode);
+    }
+    // Run once on mount; downstream state setters intentionally not in deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.tenantId]);
+
+  function handleClearSavedAddress() {
+    clearSavedAddress(props.tenantId);
+    setHasSavedAddress(false);
+    setLine1('');
+    setAptBlock('');
+    setAptStair('');
+    setAptFloor('');
+    setAptUnit('');
+    setPostalCode('');
+    setCoords(null);
+    setCoordsForText('');
+  }
+
   const cartTotal = useMemo(() => {
     if (!cart) return 0;
     return cart.items.reduce((s, l) => {
@@ -413,6 +459,16 @@ export function CheckoutClient(props: {
       // /checkout/cancel landing offers a return-to-menu link.
       sessionStorage.removeItem(CART_STORAGE_KEY);
       writeStoredPromo(null);
+      // QW7 — persist the address used for this successful intent so the
+      // next visit (cookie-stripped or new device) pre-fills automatically.
+      // PICKUP orders skip this since the customer didn't enter an address.
+      if (fulfillment === 'DELIVERY') {
+        writeSavedAddress(props.tenantId, {
+          line1: line1.trim(),
+          city: city.trim(),
+          postalCode: postalCode.trim(),
+        });
+      }
 
       if (response.paymentMethod === 'COD') {
         // COD orders skip Stripe entirely. Order is already PENDING in the
@@ -629,6 +685,23 @@ export function CheckoutClient(props: {
 
         {fulfillment === 'DELIVERY' ? (
           <Section title={t(locale, 'checkout.section_delivery')}>
+            {/* QW7 — saved-address chip. Visible only when localStorage
+                returned a usable address; clicking 'Folosește altă adresă'
+                clears the saved entry and resets the address fields. */}
+            {hasSavedAddress && line1.trim() ? (
+              <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                  {t(locale, 'checkout.saved_address_chip')}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearSavedAddress}
+                  className="text-xs font-medium text-zinc-600 underline-offset-2 hover:text-zinc-900 hover:underline"
+                >
+                  {t(locale, 'checkout.saved_address_clear')}
+                </button>
+              </div>
+            ) : null}
             <Field label={t(locale, 'checkout.field_street')}>
               <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
             </Field>
