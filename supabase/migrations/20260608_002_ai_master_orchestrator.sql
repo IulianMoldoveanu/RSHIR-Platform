@@ -10,11 +10,18 @@
 --  1. Lifecycle columns on `copilot_agent_runs` so a single ledger can
 --     represent PROPOSED -> EXECUTED -> REVERTED|REJECTED transitions, plus
 --     a `parent_run_id` for revert chains.
---  2. New `agent_trust_calibration` table — per-tenant × per-agent ×
+--  2. New `tenant_agent_trust` table — per-tenant × per-agent ×
 --     per-action-category trust level (PROPOSE_ONLY / AUTO_REVERSIBLE /
 --     AUTO_FULL). Replaces the simpler `tenants.ai_trust_level` enum
 --     proposal so destructive categories can be locked at PROPOSE_ONLY
 --     even when the operator opts the rest of the agent into AUTO.
+--
+--     We deliberately use a NEW table name (not `agent_trust_calibration`)
+--     because that name is already taken by the feedback-loop / fix-agent
+--     trust table from migration 20260504_005_fix_supervisor.sql, which
+--     has a single-row-per-agent shape (`agent_name` PK, no tenant). The
+--     orchestrator's per-tenant × per-category shape is incompatible.
+--     Pushed back from Codex P1 review on PR #341 (af651c0/4ab5732).
 --
 -- All ALTERs use `add column if not exists`; all CREATEs use
 -- `if not exists`. Re-applying is safe.
@@ -82,10 +89,10 @@ create index if not exists idx_copilot_agent_runs_revert_window
   where state = 'EXECUTED' and reverted_at is null;
 
 -- ---------------------------------------------------------------------------
--- 2. agent_trust_calibration — per-tenant × per-agent × per-category
+-- 2. tenant_agent_trust — per-tenant × per-agent × per-category
 -- ---------------------------------------------------------------------------
 
-create table if not exists public.agent_trust_calibration (
+create table if not exists public.tenant_agent_trust (
   id uuid primary key default gen_random_uuid(),
   restaurant_id uuid not null references public.tenants(id) on delete cascade,
   -- Free-form agent identifier. Known values today: 'master', 'menu',
@@ -109,20 +116,20 @@ create table if not exists public.agent_trust_calibration (
   unique (restaurant_id, agent_name, action_category)
 );
 
-create index if not exists idx_agent_trust_calibration_restaurant
-  on public.agent_trust_calibration (restaurant_id);
+create index if not exists idx_tenant_agent_trust_restaurant
+  on public.tenant_agent_trust (restaurant_id);
 
-alter table public.agent_trust_calibration enable row level security;
+alter table public.tenant_agent_trust enable row level security;
 
-drop policy if exists agent_trust_calibration_member_read on public.agent_trust_calibration;
-create policy agent_trust_calibration_member_read
-  on public.agent_trust_calibration
+drop policy if exists tenant_agent_trust_member_read on public.tenant_agent_trust;
+create policy tenant_agent_trust_member_read
+  on public.tenant_agent_trust
   for select
   to authenticated
   using (
     exists (
       select 1 from public.tenant_members tm
-       where tm.tenant_id = agent_trust_calibration.restaurant_id
+       where tm.tenant_id = tenant_agent_trust.restaurant_id
          and tm.user_id   = auth.uid()
     )
   );

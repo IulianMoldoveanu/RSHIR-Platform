@@ -270,7 +270,7 @@ function makeMockSupabase(state: MockSb) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return {
     from(table: string) {
-      if (table === 'agent_trust_calibration') {
+      if (table === 'tenant_agent_trust') {
         return {
           select: () => ({
             eq: (_c: string, _v: string) => ({

@@ -18,7 +18,7 @@ const updateSchema = z.object({
   trustLevel: z.enum(['PROPOSE_ONLY', 'AUTO_REVERSIBLE', 'AUTO_FULL']),
 });
 
-// OWNER-only. Upserts a row in `agent_trust_calibration`. The DB-level
+// OWNER-only. Upserts a row in `tenant_agent_trust`. The DB-level
 // `is_destructive` flag is set from TRUST_CATEGORIES on first insert and
 // not touched on update — flipping a category to destructive is a code
 // change, not a per-tenant override.
@@ -61,7 +61,7 @@ export async function updateTrustLevel(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
   const { error } = await sb
-    .from('agent_trust_calibration')
+    .from('tenant_agent_trust')
     .upsert(
       {
         restaurant_id: expectedTenantId,
@@ -82,7 +82,7 @@ export async function updateTrustLevel(
     tenantId: expectedTenantId,
     actorUserId: user.id,
     action: 'ai_ceo.trust_level_updated',
-    entityType: 'agent_trust_calibration',
+    entityType: 'tenant_agent_trust',
     metadata: {
       agent: parsed.data.agent,
       category: parsed.data.category,

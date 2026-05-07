@@ -21,7 +21,7 @@
 // Goals:
 //  - Single dispatch surface across channels (telegram | web | voice).
 //  - Trust-level gate: every intent declares an action_category; the
-//    dispatcher consults `agent_trust_calibration` per tenant and either
+//    dispatcher consults `tenant_agent_trust` per tenant and either
 //    EXECUTEs immediately, PROPOSEs (writes a PROPOSED ledger row owners
 //    must approve) or rejects.
 //  - Audit-by-default: every dispatch writes a row to `copilot_agent_runs`
@@ -202,7 +202,7 @@ export function clearRegistryForTesting(): void {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function resolveTrust(supabase: any, tenantId: string, agent: AgentName, actionCategory: string): Promise<TrustLevel> {
   const { data, error } = await supabase
-    .from('agent_trust_calibration')
+    .from('tenant_agent_trust')
     .select('trust_level, is_destructive')
     .eq('restaurant_id', tenantId)
     .eq('agent_name', agent)

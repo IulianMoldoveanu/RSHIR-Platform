@@ -118,7 +118,7 @@ export async function listTrustRows(tenantId: string): Promise<TrustRow[]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
     const { data, error } = await admin
-      .from('agent_trust_calibration')
+      .from('tenant_agent_trust')
       .select(
         'id, agent_name, action_category, trust_level, is_destructive, approval_count, rejection_count, last_recalibrated_at',
       )
