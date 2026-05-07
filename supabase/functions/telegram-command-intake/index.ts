@@ -1451,21 +1451,42 @@ async function handleAnuleazaRezervare(
 
   // Codex P2 (re-review on 9e50997): PostgREST does not support a cast
   // in a horizontal `ilike` filter ("public_track_token::text" → 400).
-  // Instead, fetch the recent active reservations for the tenant
-  // (already a tiny set — typically <50 over the 14-day list window)
-  // and prefix-match in app code. RLS + the tenant_id filter still
-  // ensure cross-tenant isolation.
-  const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+  // Instead, fetch the cancellable reservations (REQUESTED/CONFIRMED
+  // only) for the tenant and prefix-match in app code. RLS + the
+  // tenant_id filter ensure cross-tenant isolation.
+  //
+  // Codex P2 (round 6): scope the query by status (the only rows that
+  // can be cancelled) instead of a recency window + 200-row page —
+  // those filters could exclude a far-future booking on a high-volume
+  // tenant. Restricting to ACTIVE statuses keeps the result set small
+  // enough that the 1000-row PostgREST default limit is sufficient
+  // headroom (typical tenant: 5-50 active reservations).
   const { data: rowsRaw } = await supabase
     .from('reservations')
-    .select('id, public_track_token, status, requested_at')
+    .select('id, public_track_token, status')
     .eq('tenant_id', tenant.tenant_id)
-    .gte('requested_at', since)
-    .order('requested_at', { ascending: false })
-    .limit(200);
+    .in('status', ['REQUESTED', 'CONFIRMED']);
   const matches = ((rowsRaw ?? []) as Array<{ id: string; public_track_token: string; status: string }>)
     .filter((r) => String(r.public_track_token).toLowerCase().startsWith(tokenArg));
   if (matches.length === 0) {
+    // Fallback probe (small, status != active): check whether the token
+    // matches a recently terminated reservation so we can return the
+    // friendlier "already cancelled" message instead of a generic
+    // "not found". Bounded by recency to keep the page small.
+    const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const { data: terminatedRaw } = await supabase
+      .from('reservations')
+      .select('public_track_token, status')
+      .eq('tenant_id', tenant.tenant_id)
+      .in('status', ['CANCELLED', 'COMPLETED', 'NOSHOW', 'REJECTED'])
+      .gte('updated_at', since)
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    const terminated = ((terminatedRaw ?? []) as Array<{ public_track_token: string; status: string }>)
+      .find((r) => String(r.public_track_token).toLowerCase().startsWith(tokenArg));
+    if (terminated) {
+      return { text: copy.cancelAlreadyCancelled, status: 'NOOP' };
+    }
     return { text: copy.cancelNotFound, status: 'NOT_FOUND' };
   }
   if (matches.length > 1) {
@@ -1475,9 +1496,6 @@ async function handleAnuleazaRezervare(
     };
   }
   const r = matches[0];
-  if (['CANCELLED', 'COMPLETED', 'NOSHOW', 'REJECTED'].includes(r.status)) {
-    return { text: copy.cancelAlreadyCancelled, status: 'NOOP' };
-  }
 
   const { error: updErr } = await supabase
     .from('reservations')
