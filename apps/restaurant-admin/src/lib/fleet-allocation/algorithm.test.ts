@@ -177,6 +177,9 @@ describe('recommendAllocations — edge cases', () => {
     const out = recommendAllocations({ fleets, restaurants });
     expect(out.recommendations[0].reason).toBe('no_fleet_in_city');
     expect(out.uncovered_city_ids).toContain(CITY_BV);
+    // Codex P2 #333 round 2: needs_new_fleet must fire when a city has no
+    // eligible fleet at all, not only when capacity is exhausted.
+    expect(out.needs_new_fleet).toBe(true);
   });
 
   it('skips fleets with zero capacity', () => {

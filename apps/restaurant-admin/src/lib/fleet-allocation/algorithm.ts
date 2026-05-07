@@ -328,9 +328,15 @@ export function recommendAllocations(input: AllocationInput): AllocationOutput {
     });
   }
 
+  // Codex P2 #333 round 2: needs_new_fleet must also fire when a city has
+  // NO eligible fleet at all (`no_fleet_in_city`). The original guard only
+  // looked at `no_capacity`, which would let admin workflows miss the
+  // simplest expansion signal — "Brașov has 5 restaurants, zero fleets".
   return {
     recommendations,
-    needs_new_fleet: recommendations.some((r) => r.reason === 'no_capacity'),
+    needs_new_fleet:
+      recommendations.some((r) => r.reason === 'no_capacity') ||
+      uncoveredCities.size > 0,
     uncovered_city_ids: Array.from(uncoveredCities),
     config_used: config,
   };

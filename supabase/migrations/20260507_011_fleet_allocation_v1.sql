@@ -268,6 +268,11 @@ alter table public.fleet_demand_estimates        enable row level security;
 alter table public.fleet_strikes                 enable row level security;
 
 -- ── fleet_zones ────────────────────────────────────────────────────────
+-- V1: platform admin (service_role) is the single source of truth for
+-- zone capacity inputs (capacity_courier_count + target_orders_per_hour
+-- feed the allocation algorithm). Letting fleet OWNERs mutate those would
+-- let a fleet game its own utilization. Read-only for fleet OWNER; writes
+-- via service_role only. (Codex P2 #333 round 2 — was for-all policy.)
 drop policy if exists fleet_zones_owner_read on public.fleet_zones;
 create policy fleet_zones_owner_read on public.fleet_zones
   for select to authenticated
@@ -275,29 +280,25 @@ create policy fleet_zones_owner_read on public.fleet_zones
     fleet_id in (select id from public.courier_fleets where owner_user_id = auth.uid())
   );
 
+-- Drop the prior round-1 write policy that granted INSERT/UPDATE/DELETE to
+-- fleet OWNERs. (No-op when migration runs fresh; idempotent re-apply path.)
 drop policy if exists fleet_zones_owner_write on public.fleet_zones;
-create policy fleet_zones_owner_write on public.fleet_zones
-  for all to authenticated
-  using (
-    fleet_id in (select id from public.courier_fleets where owner_user_id = auth.uid())
-  )
-  with check (
-    fleet_id in (select id from public.courier_fleets where owner_user_id = auth.uid())
-  );
 
 -- ── fleet_restaurant_assignments ───────────────────────────────────────
--- Restaurant OWNER: read row where their tenant is the restaurant_tenant_id.
+-- Codex P1 #333 round 2: restaurant OWNERs can NOT read this row directly.
+-- The row exposes fleet_id, which joins against courier_fleets (which has
+-- a permissive public_read RLS policy from 20260428_002 for branding) —
+-- letting a restaurant OWNER learn the fleet identity. That contradicts
+-- the confidentiality contract that merchants only ever see "curier HIR".
+--
+-- V1 surface: restaurant OWNERs see assignment STATUS through a sanitized
+-- view (planned in PR1b — `v_restaurant_dispatch_status`) that strips
+-- fleet_id and surfaces role + status + last_strike_at only. Until that
+-- view ships, default-deny is the safe state — no production code path
+-- reads fra rows from a restaurant-OWNER session yet.
+--
+-- Fleet OWNER: read own rows is fine (their own identity is not a leak).
 drop policy if exists fra_restaurant_owner_read on public.fleet_restaurant_assignments;
-create policy fra_restaurant_owner_read on public.fleet_restaurant_assignments
-  for select to authenticated
-  using (
-    restaurant_tenant_id in (
-      select tenant_id from public.tenant_members
-       where user_id = auth.uid() and role = 'OWNER'
-    )
-  );
-
--- Fleet OWNER: read row where their fleet is the fleet_id.
 drop policy if exists fra_fleet_owner_read on public.fleet_restaurant_assignments;
 create policy fra_fleet_owner_read on public.fleet_restaurant_assignments
   for select to authenticated
@@ -343,17 +344,12 @@ create policy fleet_strikes_fleet_owner_read on public.fleet_strikes
     fleet_id in (select id from public.courier_fleets where owner_user_id = auth.uid())
   );
 
--- Restaurant OWNER: read strikes against their tenant (so they see why a
--- fallback kicked in).
+-- Restaurant OWNER: NO direct read on fleet_strikes either. Same reasoning
+-- as fra_restaurant_owner_read above — a strike row carries fleet_id and
+-- the owner could join against courier_fleets to learn the fleet identity.
+-- PR1b will surface restaurant-side strike COUNTS (not rows) via the same
+-- sanitized view as assignment status. Default-deny for now.
 drop policy if exists fleet_strikes_restaurant_owner_read on public.fleet_strikes;
-create policy fleet_strikes_restaurant_owner_read on public.fleet_strikes
-  for select to authenticated
-  using (
-    restaurant_tenant_id in (
-      select tenant_id from public.tenant_members
-       where user_id = auth.uid() and role = 'OWNER'
-    )
-  );
 
 -- ────────────────────────────────────────────────────────────────────────
 -- 7. updated_at maintenance trigger (mirrors pattern in 20260606_004
