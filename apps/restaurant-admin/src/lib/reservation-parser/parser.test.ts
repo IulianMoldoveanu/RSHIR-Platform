@@ -277,6 +277,51 @@ describe('parseReservation — robustness', () => {
   });
 });
 
+describe('parseReservation — Codex P2 round 4 fixes', () => {
+  it('does NOT extract party_size from a date "pentru 1.06"', () => {
+    // This used to silently become party_size=1 because the generic
+    // "pentru <number>" form caught the day component of a DD.MM date.
+    const r = P('rezerva pentru 1.06 la 19:00, telefon 0712345678, nume Iulian');
+    expect(r.date).toBe('2026-06-01');
+    expect(r.party_size).toBeNull();
+  });
+
+  it('still extracts party_size when a guest noun is present after "pentru"', () => {
+    const r = P('rezerva pentru 5 persoane la 19:00');
+    expect(r.party_size).toBe(5);
+  });
+
+  it('rejects calendar-impossible 31.02', () => {
+    expect(P('rezerva 31.02 la 19:00').date).toBeNull();
+  });
+
+  it('rejects calendar-impossible 30.02', () => {
+    expect(P('rezerva 30.02 la 19:00').date).toBeNull();
+  });
+
+  it('rejects 32.05 (out of day range)', () => {
+    // The day-range regex caps at [12]\d|3[01] (= max 31), so 32 will not
+    // match the date pattern at all and the parser falls through to null.
+    expect(P('rezerva 32.05 la 19:00').date).toBeNull();
+  });
+
+  it('rejects 31.04 (April has 30 days)', () => {
+    expect(P('rezerva 31.04 la 19:00').date).toBeNull();
+  });
+
+  it('still accepts 31.05 (May has 31 days)', () => {
+    expect(P('rezerva 31.05 la 19:00').date).toBe('2026-05-31');
+  });
+
+  it('rejects 29.02 in non-leap year (2027)', () => {
+    expect(P('rezerva 29.02.2027 la 19:00').date).toBeNull();
+  });
+
+  it('accepts 29.02 in leap year (2028)', () => {
+    expect(P('rezerva 29.02.2028 la 19:00').date).toBe('2028-02-29');
+  });
+});
+
 describe('parseReservation — DST boundary (Codex P2 round 3)', () => {
   // Winter (January 2026): Bucharest = UTC+2. UTC 21:30 → Bucharest 23:30,
   // still the same calendar day. A naïve +3h offset would push it to

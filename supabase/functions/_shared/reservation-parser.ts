@@ -171,10 +171,26 @@ function parseDate(t: string, now: Date): string | null {
     }
   }
 
+  // Codex P2 (round 4): validate that (year, month, day) actually round-
+  // trips through Date.UTC unchanged. Without this, "31.02" becomes a
+  // March-3 reservation because Date.UTC silently rolls overflow days.
+  const isRealCalendarDate = (y: number, mo: number, d: number): boolean => {
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return (
+      dt.getUTCFullYear() === y &&
+      dt.getUTCMonth() === mo - 1 &&
+      dt.getUTCDate() === d
+    );
+  };
+
   // YYYY-MM-DD
   let m = t.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
   if (m) {
-    return fmtDate(Number(m[1]), Number(m[2]), Number(m[3]));
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (!isRealCalendarDate(y, mo, d)) return null;
+    return fmtDate(y, mo, d);
   }
 
   // DD.MM(.YYYY) / DD/MM(/YYYY) / DD-MM(-YYYY)
@@ -185,11 +201,15 @@ function parseDate(t: string, now: Date): string | null {
     const month = Number(m[2]);
     let year = m[3] ? Number(m[3]) : today.y;
     if (year < 100) year += 2000;
+    if (!isRealCalendarDate(year, month, day)) return null;
     // If the resulting date is in the past with no explicit year, roll to next year.
     if (!m[3]) {
       const candidate = new Date(Date.UTC(year, month - 1, day));
       const todayUtc = new Date(Date.UTC(today.y, today.m - 1, today.d));
-      if (candidate.getTime() < todayUtc.getTime()) year += 1;
+      if (candidate.getTime() < todayUtc.getTime()) {
+        year += 1;
+        if (!isRealCalendarDate(year, month, day)) return null;
+      }
     }
     return fmtDate(year, month, day);
   }
@@ -200,10 +220,14 @@ function parseDate(t: string, now: Date): string | null {
     const day = Number(m[1]);
     const month = RO_MONTHS[m[2]];
     let year = m[3] ? Number(m[3]) : today.y;
+    if (!isRealCalendarDate(year, month, day)) return null;
     if (!m[3]) {
       const candidate = new Date(Date.UTC(year, month - 1, day));
       const todayUtc = new Date(Date.UTC(today.y, today.m - 1, today.d));
-      if (candidate.getTime() < todayUtc.getTime()) year += 1;
+      if (candidate.getTime() < todayUtc.getTime()) {
+        year += 1;
+        if (!isRealCalendarDate(year, month, day)) return null;
+      }
     }
     return fmtDate(year, month, day);
   }
@@ -212,10 +236,14 @@ function parseDate(t: string, now: Date): string | null {
     const day = Number(m[2]);
     const month = RO_MONTHS[m[1]];
     let year = m[3] ? Number(m[3]) : today.y;
+    if (!isRealCalendarDate(year, month, day)) return null;
     if (!m[3]) {
       const candidate = new Date(Date.UTC(year, month - 1, day));
       const todayUtc = new Date(Date.UTC(today.y, today.m - 1, today.d));
-      if (candidate.getTime() < todayUtc.getTime()) year += 1;
+      if (candidate.getTime() < todayUtc.getTime()) {
+        year += 1;
+        if (!isRealCalendarDate(year, month, day)) return null;
+      }
     }
     return fmtDate(year, month, day);
   }
@@ -296,11 +324,29 @@ const RO_NUMBER_WORDS: Record<string, number> = {
 };
 
 function parsePartySize(t: string): number | null {
-  // "pentru 4 persoane" / "for 4 people" / "4 persoane" / "masa de 6"
-  let m = t.match(/\b(?:pentru|for|masa\s+de|table\s+for|de)\s+(\d{1,3})\b/);
+  // Codex P2 (round 4): "pentru 1.06" (= "for June 1") used to match the
+  // generic "pentru <number>" form and silently book a 1-person table.
+  // Now we require either:
+  //   - a guest noun (persoane/people/etc.) anywhere — keyword form, OR
+  //   - the "masa de N" / "table for N" idiom which is unambiguous, OR
+  //   - "pentru N persoane" with the noun explicitly present
+  // A bare "pentru N" is no longer enough; the parser falls through to
+  // null and the dialog asks the operator explicitly.
+
+  // "masa de 8" / "table for 8" — unambiguous idiom, no noun required.
+  let m = t.match(/\b(?:masa\s+de|table\s+for)\s+(\d{1,3})\b/);
   if (m) return Number(m[1]);
+
+  // "pentru 4 persoane" / "for 6 people" / "pentru 4 oameni" — a guest noun
+  // must appear within the same clause (we require it within ~25 chars of
+  // the number to avoid pulling the noun from a later sentence).
+  m = t.match(/\b(?:pentru|for)\s+(\d{1,3})\s{0,3}(?:persoane|persoana|pers|people|person|guests|oameni)\b/);
+  if (m) return Number(m[1]);
+
+  // "4 persoane" / "6 people" — noun-suffix form.
   m = t.match(/\b(\d{1,3})\s*(?:persoane|persoana|pers|people|person|guests|oameni)\b/);
   if (m) return Number(m[1]);
+
   // word numbers
   for (const [w, n] of Object.entries(RO_NUMBER_WORDS)) {
     const re = new RegExp(`\\b(?:pentru|for|masa\\s+de|table\\s+for|de)\\s+${w}\\b|\\b${w}\\s*(?:persoane|persoana|people|person|guests)\\b`);
