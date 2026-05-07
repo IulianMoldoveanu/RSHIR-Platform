@@ -15,8 +15,19 @@ export type SavedAddress = {
   postalCode: string;
 };
 
-function isBrowser(): boolean {
-  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+// Codex review #347 P2: simply checking `typeof window.localStorage !==
+// 'undefined'` doesn't shield us from third-party-iframe contexts where
+// merely accessing the property throws `SecurityError` (we run the
+// storefront in embed mode by design — `isEmbedMode`). Wrap every probe
+// in try/catch so any access failure is treated as "no storage" — reads
+// return null, writes/clears no-op silently.
+function getStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function keyFor(tenantId: string): string {
@@ -34,9 +45,11 @@ function isValid(v: unknown): v is SavedAddress {
 }
 
 export function readSavedAddress(tenantId: string): SavedAddress | null {
-  if (!isBrowser() || !tenantId) return null;
+  if (!tenantId) return null;
+  const storage = getStorage();
+  if (!storage) return null;
   try {
-    const raw = window.localStorage.getItem(keyFor(tenantId));
+    const raw = storage.getItem(keyFor(tenantId));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!isValid(parsed)) return null;
@@ -48,10 +61,12 @@ export function readSavedAddress(tenantId: string): SavedAddress | null {
 }
 
 export function writeSavedAddress(tenantId: string, addr: SavedAddress): void {
-  if (!isBrowser() || !tenantId) return;
+  if (!tenantId) return;
   if (!addr.line1.trim() || !addr.city.trim()) return;
+  const storage = getStorage();
+  if (!storage) return;
   try {
-    window.localStorage.setItem(
+    storage.setItem(
       keyFor(tenantId),
       JSON.stringify({
         line1: addr.line1.trim(),
@@ -65,9 +80,11 @@ export function writeSavedAddress(tenantId: string, addr: SavedAddress): void {
 }
 
 export function clearSavedAddress(tenantId: string): void {
-  if (!isBrowser() || !tenantId) return;
+  if (!tenantId) return;
+  const storage = getStorage();
+  if (!storage) return;
   try {
-    window.localStorage.removeItem(keyFor(tenantId));
+    storage.removeItem(keyFor(tenantId));
   } catch {
     /* ignore */
   }
