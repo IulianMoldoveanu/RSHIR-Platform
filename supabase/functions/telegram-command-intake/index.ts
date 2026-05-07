@@ -1223,6 +1223,7 @@ async function handleReservaCommand(
   tenant: { tenant_id: string; name: string },
   telegramUserId: number,
   args: string,
+  mode: 'slash' | 'continuation' = 'slash',
 ): Promise<{ text: string; status: string }> {
   const locale = await getTenantLocale(supabase, tenant.tenant_id);
   const copy = RESERVATION_COPY[locale];
@@ -1241,18 +1242,23 @@ async function handleReservaCommand(
     return { text: copy.rateLimited(rl.recentCount), status: 'RATE_LIMITED' };
   }
 
-  // Merge any prior draft with the new fields parsed from this message.
-  // We also load the prior "next_field" hint so we can interpret bare
-  // answers (e.g. "4" while the bot is asking the party size, or
-  // "Iulian" while it's asking the customer name) — the rule-based
-  // parser otherwise needs explicit keywords ("4 persoane", "nume Iulian").
+  // Codex P2 (round 7): a fresh `/rezerva <args>` slash command must
+  // NOT silently pull missing fields from a stale draft — the operator
+  // intends a new booking. Continuation mode (free-text reply via the
+  // dispatcher) is the only path that should merge with the prior
+  // draft. Bare `/rezerva` with no args still consults the prior draft
+  // so it can resume an interrupted dialog.
   const priorRow = await loadConversationDraftWithMeta(
     supabase,
     telegramUserId,
     tenant.tenant_id,
     'reserva',
   );
-  const prior = priorRow?.payload ?? null;
+  const isFreshSlash = mode === 'slash' && args.trim().length > 0;
+  if (isFreshSlash && priorRow) {
+    await clearConversationDraft(supabase, telegramUserId, tenant.tenant_id, 'reserva');
+  }
+  const prior = isFreshSlash ? null : priorRow?.payload ?? null;
   const fresh = parseReservation(args ?? '');
   const merged: ParsedReservation = {
     date: fresh.date ?? prior?.date ?? null,
@@ -1268,7 +1274,11 @@ async function handleReservaCommand(
   // reply as a bare answer. Order mirrors the question order in
   // tryCommitReservation so we never misclassify (e.g. "4" while we
   // were asking the date is rejected).
-  const draft: ParsedReservation = applyBareAnswer(merged, args ?? '', priorRow?.next_field ?? null);
+  // Round-7: bare-answer interpretation only applies in continuation
+  // mode — a fresh slash command intentionally ignores the prior
+  // next_field hint along with the rest of the stale draft.
+  const bareAnswerHint = isFreshSlash ? null : priorRow?.next_field ?? null;
+  const draft: ParsedReservation = applyBareAnswer(merged, args ?? '', bareAnswerHint);
 
   // If the operator typed bare `/rezerva` with NO prior draft AND no args,
   // show the help block before starting the dialog. Avoids surprising
@@ -2018,7 +2028,7 @@ Deno.serve(async (req: Request) => {
       if (tenantForDraft) {
         const draft = await loadConversationDraft(supabase, chatId, tenantForDraft.tenant_id, 'reserva');
         if (draft) {
-          const r = await handleReservaCommand(supabase, tenantForDraft, chatId, trimmed);
+          const r = await handleReservaCommand(supabase, tenantForDraft, chatId, trimmed, 'continuation');
           await tgSend(tgToken, chatId, r.text, msg.message_id);
           setMetadata({ hepy: true, intent: 'rezerva:continue', role: auth?.kind ?? 'anon' });
           EdgeRuntime.waitUntil(logCommand(supabase, {
