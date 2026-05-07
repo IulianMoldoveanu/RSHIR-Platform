@@ -164,22 +164,36 @@ If the import goes wrong (e.g. all prices are off by a factor of 100,
 all categories ended up under "Necategorisit", or the operator
 reports "this isn't my menu"):
 
-1. **Identify the import.** Query
-   `select * from gloriafood_import_runs
-    where tenant_id = '<TENANT_UUID>'
-    order by started_at desc limit 5;`
-   to find the offending run's `started_at`.
+1. **Identify the import.** Query the audit log:
+   ```sql
+   select created_at, actor_user_id, metadata
+     from audit_log
+     where tenant_id = '<TENANT_UUID>'
+       and action = 'menu.gloriafood_import'
+     order by created_at desc
+     limit 5;
+   ```
+   Each row carries `metadata.categories_created`,
+   `metadata.items_created`, and `metadata.flagged_count`. Use the
+   row's `created_at` as your rollback timestamp.
+
+   > **Note.** The `gloriafood_import_runs` table from migration
+   > `20260505_002_gloriafood_imports.sql` is currently **not
+   > written to** by `commitGloriaFoodImport` — it is reserved for a
+   > future writer that will store per-run progress. Use `audit_log`
+   > today.
+
 2. **Identify the rows it created.** Categories + items inserted by
-   the run have `created_at` very close to `gloriafood_import_runs.
-   started_at`. Use a window of `started_at ± 30s`.
+   the run have `created_at` very close to the audit-log
+   `created_at`. Use a window of `created_at ± 30s`.
 3. **Soft-delete the rows.**
    ```sql
    update restaurant_menu_items
      set is_available = false
      where tenant_id = '<TENANT_UUID>'
        and created_at between
-         '<started_at>'::timestamptz - interval '30 seconds'
-         and '<started_at>'::timestamptz + interval '30 seconds';
+         '<audit_log_created_at>'::timestamptz - interval '30 seconds'
+         and '<audit_log_created_at>'::timestamptz + interval '30 seconds';
    ```
 4. **(If safe) Hard-delete.** Only do this if the operator has not yet
    taken any orders against the imported menu. Otherwise retain rows
