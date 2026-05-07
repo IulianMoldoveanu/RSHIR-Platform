@@ -4,9 +4,24 @@ import { AnalyticsClient } from './analytics-client';
 
 export const revalidate = 300; // 5 min cache.
 
-export default async function AnalyticsPage() {
+// QW10 — accepts `?range=7|30|90` to seed the client's preset selection
+// from the URL on first render. Anything else falls back to 30. The client
+// keeps the URL in sync via history.replaceState so back/refresh works.
+function parseRange(value: string | string[] | undefined): 7 | 30 | 90 {
+  const v = Array.isArray(value) ? value[0] : value;
+  if (v === '7') return 7;
+  if (v === '90') return 90;
+  return 30;
+}
+
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams?: { range?: string };
+}) {
   const { tenant } = await getActiveTenant();
   const data = await loadAnalytics(tenant.id);
+  const initialRange = parseRange(searchParams?.range);
 
   const hasOrders =
     data.daily.length > 0 ||
@@ -24,7 +39,7 @@ export default async function AnalyticsPage() {
         </p>
       </div>
 
-      <AnalyticsClient data={data} hasOrders={hasOrders} />
+      <AnalyticsClient data={data} hasOrders={hasOrders} initialRange={initialRange} />
     </div>
   );
 }

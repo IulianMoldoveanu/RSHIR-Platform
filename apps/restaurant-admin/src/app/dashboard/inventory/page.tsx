@@ -17,28 +17,48 @@ function fmtQty(n: number, unit: string): string {
   return `${trimmed.replace('.', ',')} ${unit}`;
 }
 
-export default async function InventoryListPage() {
+export default async function InventoryListPage({
+  searchParams,
+}: {
+  searchParams?: { filter?: string };
+}) {
   const { tenant } = await getActiveTenant();
   if (!(await isInventoryEnabled(tenant.id))) {
     return <InventoryUpsell />;
   }
 
-  const [items, suppliers] = await Promise.all([
+  const [allItems, suppliers] = await Promise.all([
     listInventoryItems(tenant.id),
     listSuppliers(tenant.id),
   ]);
 
-  const lowStock = items.filter((i) => i.current_stock <= i.reorder_threshold && i.reorder_threshold > 0);
+  // QW9 (UIUX audit 2026-05-08) — `?filter=low` deep-link from the home
+  // dashboard low-stock pill. When set, hide the create-form + show only
+  // rows where current_stock is at or below the reorder threshold.
+  const lowOnly = searchParams?.filter === 'low';
+  const lowStock = allItems.filter((i) => i.current_stock <= i.reorder_threshold && i.reorder_threshold > 0);
+  const items = lowOnly ? lowStock : allItems;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Stocuri</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            {lowOnly ? 'Stocuri pe terminate' : 'Stocuri'}
+          </h1>
           <p className="mt-1 text-sm text-zinc-600">
-            {items.length === 0
-              ? 'Niciun ingredient adăugat încă.'
-              : `${items.length} ingredient${items.length === 1 ? '' : 'e'} urmărit${items.length === 1 ? '' : 'e'}.`}
+            {lowOnly ? (
+              <>
+                {lowStock.length} ingredient{lowStock.length === 1 ? '' : 'e'} sub prag.{' '}
+                <Link href="/dashboard/inventory" className="font-medium text-purple-700 hover:underline">
+                  Vezi toate stocurile →
+                </Link>
+              </>
+            ) : items.length === 0 ? (
+              'Niciun ingredient adăugat încă.'
+            ) : (
+              `${items.length} ingredient${items.length === 1 ? '' : 'e'} urmărit${items.length === 1 ? '' : 'e'}.`
+            )}
           </p>
         </div>
         <Link
@@ -63,21 +83,31 @@ export default async function InventoryListPage() {
         </div>
       ) : null}
 
-      <section className="mt-6 rounded-2xl border border-zinc-200 bg-white">
-        <header className="border-b border-zinc-200 px-5 py-4">
-          <h2 className="text-sm font-medium text-zinc-900">Adăugați ingredient</h2>
-        </header>
-        <div className="p-5">
-          <CreateItemForm suppliers={suppliers} />
-        </div>
-      </section>
+      {!lowOnly && (
+        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white">
+          <header className="border-b border-zinc-200 px-5 py-4">
+            <h2 className="text-sm font-medium text-zinc-900">Adăugați ingredient</h2>
+          </header>
+          <div className="p-5">
+            <CreateItemForm suppliers={suppliers} />
+          </div>
+        </section>
+      )}
 
       {items.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center">
           <Package className="mx-auto h-7 w-7 text-zinc-400" aria-hidden />
-          <p className="mt-3 text-sm font-medium text-zinc-900">Nicio intrare în stoc</p>
+          <p className="mt-3 text-sm font-medium text-zinc-900">
+            {lowOnly ? 'Niciun stoc sub prag.' : 'Nicio intrare în stoc'}
+          </p>
           <p className="mt-1 text-sm text-zinc-600">
-            Adăugați primul ingredient cu formularul de mai sus.
+            {lowOnly ? (
+              <Link href="/dashboard/inventory" className="font-medium text-purple-700 hover:underline">
+                Vezi toate stocurile →
+              </Link>
+            ) : (
+              'Adăugați primul ingredient cu formularul de mai sus.'
+            )}
           </p>
         </div>
       ) : (
