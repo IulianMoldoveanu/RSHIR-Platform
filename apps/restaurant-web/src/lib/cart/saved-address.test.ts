@@ -163,3 +163,47 @@ describe('SSR safety', () => {
     ).not.toThrow();
   });
 });
+
+describe('iframe / hardened-privacy safety (Codex review #347 P2)', () => {
+  it('readSavedAddress returns null when window.localStorage throws SecurityError', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).window = {
+      get localStorage(): Storage {
+        const err = new Error('Access denied for this document');
+        err.name = 'SecurityError';
+        throw err;
+      },
+    };
+    expect(readSavedAddress(TENANT_A)).toBeNull();
+  });
+
+  it('writeSavedAddress is a no-op when accessing localStorage throws', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).window = {
+      get localStorage(): Storage {
+        const err = new Error('blocked');
+        err.name = 'SecurityError';
+        throw err;
+      },
+    };
+    expect(() =>
+      writeSavedAddress(TENANT_A, {
+        line1: 'A1',
+        city: 'Brașov',
+        postalCode: '500001',
+      }),
+    ).not.toThrow();
+  });
+
+  it('clearSavedAddress is a no-op when accessing localStorage throws', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).window = {
+      get localStorage(): Storage {
+        const err = new Error('blocked');
+        err.name = 'SecurityError';
+        throw err;
+      },
+    };
+    expect(() => clearSavedAddress(TENANT_A)).not.toThrow();
+  });
+});
