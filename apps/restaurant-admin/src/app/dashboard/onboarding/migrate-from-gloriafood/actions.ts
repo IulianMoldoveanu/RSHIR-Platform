@@ -6,131 +6,17 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import {
+  parseGloriaFoodCsvText,
+  type ParseResult,
+  type ParsedItem,
+} from '@/lib/gloriafood/parser';
 
-// GloriaFood's "Export menu" feature produces a CSV with rows representing
-// every menu line item. The exact columns differ slightly between exports,
-// but the canonical set is:
-//   Category, Item, Description, Price, Image URL, Variant, Variant Price
-//
-// We accept either lowercase or capitalized headers, with or without
-// underscores. We also accept Romanian header variants ("Categorie",
-// "Produs", "Descriere", "Pret") since some operators relabel before export.
+// GloriaFood CSV parser logic lives in `@/lib/gloriafood/parser` (pure,
+// no auth/DB) so it can be unit-tested under vitest. This action wraps
+// that parser with auth + tenant scope.
 
-type Headers = Record<string, number>;
-
-const HEADER_ALIASES: Record<string, string[]> = {
-  category: ['category', 'category_name', 'categorie', 'cat'],
-  name: ['item', 'item_name', 'name', 'product', 'produs', 'nume'],
-  description: ['description', 'descriere', 'desc'],
-  price: ['price', 'pret', 'pret_ron', 'price_ron'],
-  image_url: ['image', 'image_url', 'imagine'],
-};
-
-function normalize(h: string): string {
-  return h.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^\w]/g, '');
-}
-
-function detectHeaders(headerRow: string[]): Headers {
-  const map: Headers = {};
-  headerRow.forEach((raw, idx) => {
-    const norm = normalize(raw);
-    for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
-      if (aliases.includes(norm) && map[canonical] === undefined) {
-        map[canonical] = idx;
-      }
-    }
-  });
-  return map;
-}
-
-// Tiny RFC-4180-ish CSV parser. Avoids pulling a dependency for one use site.
-// Handles quoted fields, embedded commas, escaped quotes ("").
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let cur: string[] = [];
-  let field = '';
-  let inQuotes = false;
-  let i = 0;
-
-  while (i < text.length) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"' && text[i + 1] === '"') {
-        field += '"';
-        i += 2;
-        continue;
-      }
-      if (ch === '"') {
-        inQuotes = false;
-        i += 1;
-        continue;
-      }
-      field += ch;
-      i += 1;
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      i += 1;
-      continue;
-    }
-    if (ch === ',' || ch === ';') {
-      cur.push(field);
-      field = '';
-      i += 1;
-      continue;
-    }
-    if (ch === '\r') {
-      i += 1;
-      continue;
-    }
-    if (ch === '\n') {
-      cur.push(field);
-      rows.push(cur);
-      cur = [];
-      field = '';
-      i += 1;
-      continue;
-    }
-    field += ch;
-    i += 1;
-  }
-  if (field.length > 0 || cur.length > 0) {
-    cur.push(field);
-    rows.push(cur);
-  }
-  return rows.filter((r) => r.some((c) => c.trim().length > 0));
-}
-
-function parsePrice(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const cleaned = raw
-    .trim()
-    .replace(/\s/g, '')
-    .replace(/RON|LEI|lei|ron/g, '')
-    .replace(',', '.');
-  const n = Number.parseFloat(cleaned);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100) / 100;
-}
-
-export type ParsedItem = {
-  category: string;
-  name: string;
-  description: string;
-  price_ron: number;
-  flagged: string | null; // null = clean; string = warning reason
-  external_id?: string; // GloriaFood item id for idempotent re-import (Master Key path only)
-};
-
-export type ParseResult =
-  | {
-      ok: true;
-      itemCount: number;
-      categoryCount: number;
-      items: ParsedItem[];
-    }
-  | { ok: false; error: string };
+export type { ParsedItem, ParseResult };
 
 export async function parseGloriaFoodCsv(
   expectedTenantId: string,
@@ -148,60 +34,7 @@ export async function parseGloriaFoodCsv(
   }
   await assertTenantMember(user.id, tenant.id);
 
-  if (!csvText || csvText.trim().length === 0) {
-    return { ok: false, error: 'CSV gol.' };
-  }
-  if (csvText.length > 5 * 1024 * 1024) {
-    return { ok: false, error: 'CSV depășește 5 MB.' };
-  }
-
-  const rows = parseCsv(csvText);
-  if (rows.length < 2) {
-    return { ok: false, error: 'CSV trebuie să aibă header + cel puțin un rând.' };
-  }
-
-  const headers = detectHeaders(rows[0]);
-  if (headers.name === undefined || headers.price === undefined) {
-    return {
-      ok: false,
-      error:
-        'CSV-ul trebuie să conțină cel puțin coloanele "Item Name" și "Price". Verifică că ai exportat din GloriaFood folosind opțiunea "Export menu".',
-    };
-  }
-
-  const items: ParsedItem[] = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const name = (row[headers.name] ?? '').trim();
-    const priceRaw = row[headers.price];
-    const price = parsePrice(priceRaw);
-
-    if (name.length === 0) continue; // skip blank rows
-    let flagged: string | null = null;
-    if (price === null) flagged = 'Preț neidentificabil — verifică manual';
-    if (name.length > 200) flagged = 'Numele depășește 200 caractere';
-
-    items.push({
-      category:
-        headers.category !== undefined
-          ? (row[headers.category] ?? 'Necategorisit').trim() || 'Necategorisit'
-          : 'Necategorisit',
-      name: name.slice(0, 200),
-      description:
-        headers.description !== undefined
-          ? (row[headers.description] ?? '').trim().slice(0, 1000)
-          : '',
-      price_ron: price ?? 0,
-      flagged,
-    });
-  }
-
-  if (items.length === 0) {
-    return { ok: false, error: 'Niciun produs valid găsit în CSV.' };
-  }
-
-  const categoryCount = new Set(items.map((i) => i.category)).size;
-  return { ok: true, itemCount: items.length, categoryCount, items };
+  return parseGloriaFoodCsvText(csvText);
 }
 
 const commitSchema = z.object({
@@ -520,6 +353,6 @@ export async function parseGloriaFoodMasterKey(
   }
 
   const categoryCount = new Set(items.map((i) => i.category)).size;
-  return { ok: true, itemCount: items.length, categoryCount, items };
+  return { ok: true, itemCount: items.length, categoryCount, items, warnings: [] };
 }
 
