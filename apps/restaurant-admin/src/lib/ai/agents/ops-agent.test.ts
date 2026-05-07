@@ -39,7 +39,7 @@ type MockState = {
   forcedCapCount: number;
   // rows returned by each table query (only the fields we use)
   zones: Array<{ name: string; polygon: unknown }>;
-  orders: Array<{ delivery_address_id?: string | null; courier_user_id?: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown }>;
+  orders: Array<{ delivery_address_id?: string | null; courier_user_id?: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown; review_reminder_sent_at?: string | null }>;
   addresses: Array<{ id: string; latitude: number | null; longitude: number | null }>;
   shifts: Array<{ started_at: string; ended_at: string | null }>;
   // Couriers who served this tenant (via courier_orders.assigned_courier_user_id).
@@ -105,28 +105,28 @@ function makeMockSupabase(state: MockState) {
         };
       }
       if (table === 'restaurant_orders') {
-        return {
-          select: () => ({
-            eq: (_col?: string, _val?: unknown) => ({
-              gte: () => ({
-                not: () => ({
-                  limit: async () => ({ data: state.orders, error: null }),
-                }),
-                limit: async () => ({ data: state.orders, error: null }),
-                eq: () => ({
-                  gte: () => ({
-                    limit: async () => ({ data: state.orders, error: null }),
-                  }),
-                }),
-              }),
-              eq: () => ({
-                gte: () => ({
-                  limit: async () => ({ data: state.orders, error: null }),
-                }),
-              }),
-            }),
-          }),
+        // Build a recursive proxy: every chain step returns the same
+        // chainable, except `.limit()` resolves to the data. Lets us
+        // support any combination of .eq()/.gte()/.is()/.not() calls
+        // (the round-7 fix added a new .is(review_reminder_sent_at, null)
+        // step that the older nested-builder couldn't model).
+        type Chainable = {
+          eq: (...a: unknown[]) => Chainable;
+          gte: (...a: unknown[]) => Chainable;
+          is: (...a: unknown[]) => Chainable;
+          not: (...a: unknown[]) => Chainable;
+          in: (...a: unknown[]) => Chainable;
+          limit: (...a: unknown[]) => Promise<{ data: typeof state.orders; error: null }>;
         };
+        const chain: Chainable = {
+          eq: () => chain,
+          gte: () => chain,
+          is: () => chain,
+          not: () => chain,
+          in: () => chain,
+          limit: async () => ({ data: state.orders, error: null }),
+        };
+        return { select: () => chain };
       }
       if (table === 'customer_addresses') {
         return {

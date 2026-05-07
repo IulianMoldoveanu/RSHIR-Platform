@@ -528,6 +528,18 @@ async function fetchScheduleHeatmap(
 // Per-item fulfilment span over the last 7d. PROXY documented at file
 // header — this is end-to-end span (created_at → updated_at on DELIVERED),
 // not pure kitchen prep. Returned as [{id, name, count, avg_min, p95_min}].
+//
+// Codex P2 (PR #364 round 7): the touch_updated_at trigger on
+// restaurant_orders bumps updated_at on any UPDATE, including the
+// review-reminder cron (20260430_002_review_reminder.sql) which
+// stamps review_reminder_sent_at 24h+ after delivery. To keep the
+// proxy meaningful we exclude orders whose `review_reminder_sent_at`
+// is non-null (their updated_at no longer represents fulfilment) and
+// tighten the per-row sanity cap to 180 minutes (3h) — anything
+// beyond that is almost certainly a stuck-status row or a post-
+// delivery edit, not real fulfilment. We surface a clearer note in
+// the `notes` field of the result so the OWNER understands the
+// metric's scope.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchItemFulfilmentTimes(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -537,9 +549,10 @@ async function fetchItemFulfilmentTimes(
   const since = new Date(Date.now() - BOTTLENECKS_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const { data: orders, error: ordErr } = await supabase
     .from('restaurant_orders')
-    .select('items, created_at, updated_at')
+    .select('items, created_at, updated_at, review_reminder_sent_at')
     .eq('tenant_id', tenantId)
     .eq('status', 'DELIVERED')
+    .is('review_reminder_sent_at', null)
     .gte('created_at', since)
     .limit(2000);
   if (ordErr) {
@@ -556,8 +569,10 @@ async function fetchItemFulfilmentTimes(
     const updated = new Date(r.updated_at).getTime();
     if (!Number.isFinite(created) || !Number.isFinite(updated) || updated <= created) continue;
     const minutes = (updated - created) / 60000;
-    // Sanity: discard >6h spans (bad data, app crash, manual re-status).
-    if (minutes > 360) continue;
+    // Sanity: discard >3h spans. Beyond that the row is almost certainly
+    // a stuck-status order or a post-delivery edit (manager note, refund
+    // adjustment) and not real fulfilment. Round-7 tightening from 6h.
+    if (minutes > 180) continue;
     const items = Array.isArray(r.items) ? r.items : [];
     for (const it of items) {
       if (!it || typeof it !== 'object') continue;
