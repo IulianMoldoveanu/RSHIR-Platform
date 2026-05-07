@@ -227,46 +227,31 @@ export async function manualAdjustStockAction(
     });
     const admin = createAdminClient();
 
-    // Verify the item belongs to this tenant. The composite tenant FK on
-    // inventory_movements would catch a cross-tenant write at insert time,
-    // but the inventory_items.current_stock UPDATE below is a separate
-    // statement and we'd rather fail fast with a clean error.
+    // Atomic ledger insert + current_stock increment via the
+    // fn_inventory_manual_adjust RPC (migration 20260507_012). Replaces
+    // the previous SELECT-then-UPDATE which could race with the
+    // DELIVERED trigger or a concurrent manual adjust and silently
+    // diverge current_stock from sum(movements.delta). Codex PR #334 P2.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: itemRow, error: itemErr } = await (admin as any).from('inventory_items')
-      .select('id, current_stock')
-      .eq('tenant_id', tenantId)
-      .eq('id', parsed.inventory_item_id)
-      .maybeSingle();
-    if (itemErr) return { ok: false, error: itemErr.message };
-    if (!itemRow) return { ok: false, error: 'Ingredient inexistent pentru acest restaurant.' };
-
-    // 1. Append movement ledger row.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: moveErr } = await (admin as any).from('inventory_movements')
-      .insert({
-        tenant_id: tenantId,
-        inventory_item_id: parsed.inventory_item_id,
-        delta: parsed.delta,
-        reason: 'MANUAL_ADJUST',
-        actor_user_id: userId,
-        metadata: { note: parsed.reason_note },
-      });
-    if (moveErr) return { ok: false, error: moveErr.message };
-
-    // 2. Update current_stock. We avoid a SELECT-then-UPDATE race by
-    //    delegating arithmetic to a SQL update of `current_stock + delta`
-    //    via a secondary call — supabase-js cannot express raw expressions
-    //    in update(), so we compute on the client. Race with the trigger
-    //    is acceptable because both paths write monotonic deltas;
-    //    the ledger remains the source of truth and current_stock can
-    //    be reconciled from sum(delta) if it ever drifts.
-    const newStock = Number(itemRow.current_stock) + parsed.delta;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updErr } = await (admin as any).from('inventory_items')
-      .update({ current_stock: newStock, updated_at: new Date().toISOString() })
-      .eq('tenant_id', tenantId)
-      .eq('id', parsed.inventory_item_id);
-    if (updErr) return { ok: false, error: updErr.message };
+    const { error: rpcErr } = await (admin as any).rpc('fn_inventory_manual_adjust', {
+      p_tenant_id: tenantId,
+      p_item_id: parsed.inventory_item_id,
+      p_delta: parsed.delta,
+      p_note: parsed.reason_note,
+      p_actor_user: userId,
+    });
+    if (rpcErr) {
+      // Postgres P0002 (no rows updated → item missing for this tenant)
+      // and 22023 (delta=0) surface as user-friendly errors.
+      const code = (rpcErr as { code?: string }).code;
+      if (code === 'P0002') {
+        return { ok: false, error: 'Ingredient inexistent pentru acest restaurant.' };
+      }
+      if (code === '22023') {
+        return { ok: false, error: 'Delta trebuie să fie un număr nenul.' };
+      }
+      return { ok: false, error: rpcErr.message };
+    }
 
     await logAudit({
       tenantId,
