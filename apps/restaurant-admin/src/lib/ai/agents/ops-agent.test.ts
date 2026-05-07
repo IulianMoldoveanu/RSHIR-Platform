@@ -1,0 +1,514 @@
+// Ops Agent — Sprint 14 unit tests.
+//
+// Coverage map (per lane brief: 1 test per intent + mirror parity):
+//   1. Mirror parity: OPS_INTENT_NAMES matches the Deno-side registration.
+//   2. ops.suggest_delivery_zones: end-to-end via dispatchIntent — mock
+//      Supabase + Anthropic, assert result shape.
+//   3. ops.optimize_courier_schedule: end-to-end via dispatchIntent —
+//      mock Supabase + Anthropic, assert result shape.
+//   4. ops.flag_kitchen_bottlenecks: end-to-end via dispatchIntent —
+//      mock Supabase + Anthropic, assert result shape + id-hallucination
+//      guard (returned id must be in input set).
+//   5. Daily cap: 10 EXECUTED rows in copilot_agent_runs blocks the 11th.
+//
+// We don't hit the live Anthropic API. We stub fetch via setFetchForTesting
+// and inject a fake Deno.env so getApiKey() returns 'sk-test'.
+
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import {
+  dispatchIntent,
+  clearRegistryForTesting,
+} from '../../../../../../supabase/functions/_shared/master-orchestrator';
+import {
+  registerOpsAgentIntents,
+  setFetchForTesting,
+} from '../../../../../../supabase/functions/_shared/ops-agent';
+import {
+  OPS_INTENT_NAMES,
+  proposedZoneSchema,
+  scheduleSlotSchema,
+  bottleneckRowSchema,
+} from './ops-agent';
+
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
+
+type MockState = {
+  // count returned by copilot_agent_runs cap check
+  forcedCapCount: number;
+  // rows returned by each table query (only the fields we use)
+  zones: Array<{ name: string; polygon: unknown }>;
+  orders: Array<{ delivery_address_id: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown }>;
+  addresses: Array<{ id: string; latitude: number | null; longitude: number | null }>;
+  shifts: Array<{ started_at: string; ended_at: string | null }>;
+  fleetManagerCount: number;
+  ledgerInsertId: string;
+};
+
+function defaultState(): MockState {
+  return {
+    forcedCapCount: 0,
+    zones: [],
+    orders: [],
+    addresses: [],
+    shifts: [],
+    fleetManagerCount: 0,
+    ledgerInsertId: '11111111-1111-1111-1111-111111111111',
+  };
+}
+
+function makeMockSupabase(state: MockState) {
+  // Each .from() returns a chainable object that supports the subset of
+  // supabase-js used by ops-agent.ts. We treat all `.eq()` / `.in()` /
+  // `.gte()` / `.not()` calls as identity passthroughs and resolve at the
+  // terminal call (`.select(..., {head}).gte()` for counts, plain promise
+  // for data).
+  return {
+    from: (table: string) => {
+      if (table === 'copilot_agent_runs') {
+        return {
+          select: (_cols: string, opts?: { count?: string; head?: boolean }) => {
+            if (opts?.head) {
+              // Cap-check chain: 4 .eq() then .gte()
+              return {
+                eq: () => ({
+                  eq: () => ({
+                    eq: () => ({
+                      gte: async () => ({ count: state.forcedCapCount, error: null }),
+                    }),
+                  }),
+                }),
+              };
+            }
+            return { eq: () => ({ eq: () => ({ eq: () => ({ gte: async () => ({ data: [], error: null }) }) }) }) };
+          },
+          insert: () => ({
+            select: () => ({
+              maybeSingle: async () => ({ data: { id: state.ledgerInsertId }, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'delivery_zones') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                limit: async () => ({ data: state.zones, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'restaurant_orders') {
+        return {
+          select: () => ({
+            eq: (_col?: string, _val?: unknown) => ({
+              gte: () => ({
+                not: () => ({
+                  limit: async () => ({ data: state.orders, error: null }),
+                }),
+                limit: async () => ({ data: state.orders, error: null }),
+                eq: () => ({
+                  gte: () => ({
+                    limit: async () => ({ data: state.orders, error: null }),
+                  }),
+                }),
+              }),
+              eq: () => ({
+                gte: () => ({
+                  limit: async () => ({ data: state.orders, error: null }),
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'customer_addresses') {
+        return {
+          select: () => ({
+            in: () => ({
+              not: () => ({
+                not: async () => ({ data: state.addresses, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'courier_shifts') {
+        return {
+          select: () => ({
+            gte: () => ({
+              limit: async () => ({ data: state.shifts, error: null }),
+            }),
+          }),
+        };
+      }
+      if (table === 'tenant_members') {
+        return {
+          select: (_cols: string, opts?: { count?: string; head?: boolean }) => ({
+            eq: () => ({
+              eq: async () => {
+                if (opts?.head) return { count: state.fleetManagerCount, error: null };
+                return { data: [], error: null };
+              },
+            }),
+          }),
+        };
+      }
+      // tenant_agent_trust never reached — ops intents are readOnly.
+      throw new Error(`unexpected table: ${table}`);
+    },
+  };
+}
+
+function stubAnthropic(payload: Record<string, unknown>, tokens = { input: 1200, output: 600 }) {
+  setFetchForTesting(async () =>
+    new Response(
+      JSON.stringify({
+        content: [{ type: 'text', text: JSON.stringify(payload) }],
+        usage: { input_tokens: tokens.input, output_tokens: tokens.output },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ),
+  );
+}
+
+beforeEach(() => {
+  clearRegistryForTesting();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).Deno = { env: { get: () => 'sk-test' } };
+});
+
+afterEach(() => {
+  setFetchForTesting(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (globalThis as any).Deno;
+});
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('ops-agent / mirror parity', () => {
+  test('OPS_INTENT_NAMES has the 3 expected intents', () => {
+    expect(OPS_INTENT_NAMES).toEqual([
+      'ops.suggest_delivery_zones',
+      'ops.optimize_courier_schedule',
+      'ops.flag_kitchen_bottlenecks',
+    ]);
+  });
+
+  test('Zod schemas accept valid rows + reject obvious violations', () => {
+    expect(
+      proposedZoneSchema.safeParse({
+        name: 'Tractorul-Nord',
+        radius_km: 3.5,
+        center: { lat: 45.66, lng: 25.61 },
+        justification: '12 comenzi în zonă neacoperite.',
+        est_orders_per_day: 2.4,
+      }).success,
+    ).toBe(true);
+    expect(
+      scheduleSlotSchema.safeParse({
+        day_of_week: 5,
+        hour: 19,
+        recommended_couriers: 3,
+        current_avg: 1.2,
+        gap: 1.8,
+      }).success,
+    ).toBe(true);
+    expect(
+      scheduleSlotSchema.safeParse({
+        day_of_week: 7, // out of range
+        hour: 19,
+        recommended_couriers: 3,
+        current_avg: 1.2,
+        gap: 1.8,
+      }).success,
+    ).toBe(false);
+    expect(
+      bottleneckRowSchema.safeParse({
+        menu_item_id: '11111111-1111-1111-1111-111111111111',
+        name: 'Pizza',
+        avg_prep_min: 35,
+        target_prep_min: 22,
+        p95_prep_min: 58,
+        suggestion: 'Pre-porționați aluatul.',
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('ops-agent / ops.suggest_delivery_zones', () => {
+  test('end-to-end: returns proposed_zones from Anthropic JSON', async () => {
+    const state = defaultState();
+    state.zones = [{ name: 'Centru', polygon: { type: 'Polygon', coordinates: [[[25.6, 45.65], [25.62, 45.65], [25.62, 45.67], [25.6, 45.67], [25.6, 45.65]]] } }];
+    // 6 geocoded orders (over the 5-point minimum)
+    state.addresses = Array.from({ length: 6 }).map((_, i) => ({
+      id: `addr-${i}`,
+      latitude: 45.65 + i * 0.005,
+      longitude: 25.6 + i * 0.005,
+    }));
+    state.orders = state.addresses.map((a) => ({ delivery_address_id: a.id }));
+
+    stubAnthropic({
+      proposed_zones: [
+        {
+          name: 'Tractorul-Nord',
+          polygon: null,
+          radius_km: 3.5,
+          center: { lat: 45.68, lng: 25.62 },
+          justification: '12 comenzi în zonă neacoperite de Centru.',
+          est_orders_per_day: 2.4,
+        },
+      ],
+      notes: '',
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.suggest_delivery_zones',
+      payload: {},
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.state !== 'EXECUTED') throw new Error('expected EXECUTED');
+    const data = result.data as { kind: string; proposed_zones: unknown[]; notes: string };
+    expect(data.kind).toBe('suggest_delivery_zones');
+    expect(data.proposed_zones).toHaveLength(1);
+    expect((data.proposed_zones[0] as { name: string }).name).toBe('Tractorul-Nord');
+  });
+
+  test('returns empty when fewer than 5 geocoded orders (no Anthropic call)', async () => {
+    const state = defaultState();
+    state.addresses = [{ id: 'addr-0', latitude: 45.65, longitude: 25.6 }];
+    state.orders = [{ delivery_address_id: 'addr-0' }];
+    // No fetch stub — assert we didn't call Anthropic.
+    setFetchForTesting(async () => {
+      throw new Error('Anthropic should not be called for cold-start tenant');
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.suggest_delivery_zones',
+      payload: {},
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.state !== 'EXECUTED') throw new Error('expected EXECUTED');
+    const data = result.data as { proposed_zones: unknown[]; notes: string };
+    expect(data.proposed_zones).toHaveLength(0);
+    expect(data.notes).toMatch(/Sub 5 comenzi/);
+  });
+});
+
+describe('ops-agent / ops.optimize_courier_schedule', () => {
+  test('end-to-end: returns schedule slots from Anthropic JSON', async () => {
+    const state = defaultState();
+    // 30 orders across 14 days, all on Friday 19:00 UTC.
+    state.orders = Array.from({ length: 30 }).map(() => ({
+      delivery_address_id: null,
+      created_at: '2026-05-02T19:30:00.000Z',
+    }));
+    state.shifts = [
+      { started_at: '2026-05-02T18:00:00.000Z', ended_at: '2026-05-02T22:00:00.000Z' },
+    ];
+    state.fleetManagerCount = 1;
+
+    stubAnthropic({
+      schedule: [
+        {
+          day_of_week: 5,
+          hour: 19,
+          recommended_couriers: 3,
+          current_avg: 1.0,
+          gap: 2.0,
+        },
+      ],
+      summary: 'Ora de vârf vineri 19:00 are nevoie de 2 curieri suplimentari.',
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.optimize_courier_schedule',
+      payload: {},
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.state !== 'EXECUTED') throw new Error('expected EXECUTED');
+    const data = result.data as { kind: string; schedule: unknown[]; summary: string };
+    expect(data.kind).toBe('optimize_courier_schedule');
+    expect(data.schedule).toHaveLength(1);
+    expect((data.schedule[0] as { hour: number }).hour).toBe(19);
+  });
+});
+
+describe('ops-agent / ops.flag_kitchen_bottlenecks', () => {
+  test('end-to-end: returns bottlenecks; rejects hallucinated item_id', async () => {
+    const state = defaultState();
+    const itemA = '33333333-3333-3333-3333-333333333333';
+    const itemB = '44444444-4444-4444-4444-444444444444';
+    // 6 DELIVERED orders, 3 with itemA (slow ~30 min), 3 with itemB (fast ~15 min)
+    const slowSpan = (mins: number) => ({
+      delivery_address_id: null,
+      status: 'DELIVERED',
+      created_at: '2026-05-05T12:00:00.000Z',
+      updated_at: new Date(new Date('2026-05-05T12:00:00.000Z').getTime() + mins * 60000).toISOString(),
+      items: [{ id: itemA, name: 'Pizza Slow' }],
+    });
+    const fastSpan = (mins: number) => ({
+      delivery_address_id: null,
+      status: 'DELIVERED',
+      created_at: '2026-05-05T12:00:00.000Z',
+      updated_at: new Date(new Date('2026-05-05T12:00:00.000Z').getTime() + mins * 60000).toISOString(),
+      items: [{ id: itemB, name: 'Salad Fast' }],
+    });
+    state.orders = [
+      slowSpan(28),
+      slowSpan(32),
+      slowSpan(40),
+      fastSpan(12),
+      fastSpan(15),
+      fastSpan(18),
+    ];
+
+    stubAnthropic({
+      bottlenecks: [
+        {
+          menu_item_id: itemA,
+          name: 'Pizza Slow',
+          avg_prep_min: 33.3,
+          target_prep_min: 22.0,
+          p95_prep_min: 40.0,
+          suggestion: 'Pre-porționați aluatul în orele de vârf.',
+        },
+      ],
+      notes: '',
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.flag_kitchen_bottlenecks',
+      payload: {},
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.state !== 'EXECUTED') throw new Error('expected EXECUTED');
+    const data = result.data as { kind: string; bottlenecks: unknown[] };
+    expect(data.kind).toBe('flag_kitchen_bottlenecks');
+    expect(data.bottlenecks).toHaveLength(1);
+    expect((data.bottlenecks[0] as { menu_item_id: string }).menu_item_id).toBe(itemA);
+  });
+
+  test('hallucination guard: rejects bottleneck with id not in input set', async () => {
+    const state = defaultState();
+    const realId = '33333333-3333-3333-3333-333333333333';
+    const fakeId = '99999999-9999-9999-9999-999999999999';
+    state.orders = [
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:30:00.000Z',
+        items: [{ id: realId, name: 'Pizza' }],
+      },
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:35:00.000Z',
+        items: [{ id: realId, name: 'Pizza' }],
+      },
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:40:00.000Z',
+        items: [{ id: realId, name: 'Pizza' }],
+      },
+      // need a 2nd item for the >=2 items branch
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:15:00.000Z',
+        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+      },
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:18:00.000Z',
+        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+      },
+      {
+        delivery_address_id: null,
+        status: 'DELIVERED',
+        created_at: '2026-05-05T12:00:00.000Z',
+        updated_at: '2026-05-05T12:20:00.000Z',
+        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+      },
+    ];
+
+    stubAnthropic({
+      bottlenecks: [
+        {
+          menu_item_id: fakeId, // hallucinated
+          name: 'Phantom',
+          avg_prep_min: 99.0,
+          target_prep_min: 22.0,
+          p95_prep_min: 120.0,
+          suggestion: 'X',
+        },
+      ],
+      notes: '',
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.flag_kitchen_bottlenecks',
+      payload: {},
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toBe('handler_threw');
+    expect(result.message).toMatch(/anthropic_item_id_mismatch/);
+  });
+});
+
+describe('ops-agent / daily cap', () => {
+  test('11th invocation within 24h is blocked (daily_cap_reached)', async () => {
+    const state = defaultState();
+    state.forcedCapCount = 10; // already at cap
+
+    setFetchForTesting(async () => {
+      throw new Error('Anthropic should not be called when capped');
+    });
+
+    registerOpsAgentIntents();
+    const supabase = makeMockSupabase(state);
+    const result = await dispatchIntent(supabase, {
+      tenantId: '22222222-2222-2222-2222-222222222222',
+      channel: 'web',
+      intent: 'ops.suggest_delivery_zones',
+      payload: {},
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.error).toBe('handler_threw');
+    expect(result.message).toMatch(/daily_cap_reached/);
+  });
+});
