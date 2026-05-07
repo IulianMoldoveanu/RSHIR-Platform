@@ -18,10 +18,21 @@ type TenantRow = {
   has_secret: boolean;
 };
 
+type FleetManagerTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  note_from_fleet: string | null;
+  note_from_owner: string | null;
+  note_from_fleet_updated_at: string | null;
+  note_from_owner_updated_at: string | null;
+  fm_phone: string | null;
+};
+
 type FleetManagerRow = {
   user_id: string;
   email: string;
-  tenants: { id: string; name: string; slug: string }[];
+  tenants: FleetManagerTenant[];
 };
 
 type CityOption = { slug: string; name: string };
@@ -219,24 +230,31 @@ function FleetManagerAssignSection({
                   {fm.tenants.length === 1 ? '' : 'e'}
                 </span>
               </div>
-              <ul className="mt-2 flex flex-wrap gap-2">
+              <ul className="mt-2 flex flex-col gap-2">
                 {fm.tenants.map((t) => (
                   <li
                     key={t.id}
-                    className="inline-flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-700"
+                    className="rounded-md border border-zinc-300 bg-white p-2"
                   >
-                    {t.name}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleRemove(fm.user_id, t.id, fm.email, t.name)
-                      }
-                      className="text-rose-600 hover:text-rose-800"
-                      title="Elimină asocierea"
-                      aria-label={`Elimină ${fm.email} de la ${t.name}`}
-                    >
-                      ×
-                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-zinc-800">
+                        {t.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRemove(fm.user_id, t.id, fm.email, t.name)
+                        }
+                        className="text-xs text-rose-600 hover:text-rose-800"
+                        title="Elimină asocierea"
+                        aria-label={`Elimină ${fm.email} de la ${t.name}`}
+                      >
+                        Elimină
+                      </button>
+                    </div>
+                    {(t.note_from_fleet || t.note_from_owner || t.fm_phone) && (
+                      <PairingNoteSummary tenant={t} />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -425,5 +443,68 @@ function ExternalDispatchTenantRow({ tenant }: { tenant: TenantRow }) {
         </div>
       )}
     </li>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Read-only inline summary of pairing notes for a (FM × tenant) pair.
+// Platform-admin context — surfaces both notes for triage. Editing the
+// notes happens from inside the tenant context (OWNER or FM session)
+// at /dashboard/settings/team.
+// ────────────────────────────────────────────────────────────
+
+function formatTs(ts: string | null): string | null {
+  if (!ts) return null;
+  try {
+    return new Intl.DateTimeFormat('ro-RO', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(new Date(ts));
+  } catch {
+    return null;
+  }
+}
+
+function PairingNoteSummary({ tenant }: { tenant: FleetManagerTenant }) {
+  const fleetTs = formatTs(tenant.note_from_fleet_updated_at);
+  const ownerTs = formatTs(tenant.note_from_owner_updated_at);
+  return (
+    <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+      <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
+        <p className="font-semibold uppercase tracking-wide text-zinc-500">
+          Notă manager
+        </p>
+        {tenant.note_from_fleet ? (
+          <p className="mt-1 whitespace-pre-wrap text-zinc-800">
+            {tenant.note_from_fleet}
+          </p>
+        ) : (
+          <p className="mt-1 text-zinc-500">—</p>
+        )}
+        {fleetTs && (
+          <p className="mt-1 text-[10px] text-zinc-400">{fleetTs}</p>
+        )}
+        {tenant.fm_phone && (
+          <p className="mt-1 text-[11px] text-zinc-600">
+            Telefon: <span className="font-mono">{tenant.fm_phone}</span>
+          </p>
+        )}
+      </div>
+      <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
+        <p className="font-semibold uppercase tracking-wide text-zinc-500">
+          Notă OWNER
+        </p>
+        {tenant.note_from_owner ? (
+          <p className="mt-1 whitespace-pre-wrap text-zinc-800">
+            {tenant.note_from_owner}
+          </p>
+        ) : (
+          <p className="mt-1 text-zinc-500">—</p>
+        )}
+        {ownerTs && (
+          <p className="mt-1 text-[10px] text-zinc-400">{ownerTs}</p>
+        )}
+      </div>
+    </div>
   );
 }
