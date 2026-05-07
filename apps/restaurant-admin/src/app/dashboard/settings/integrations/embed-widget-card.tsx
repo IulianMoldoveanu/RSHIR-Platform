@@ -7,7 +7,8 @@
 // real slug + brand color. Client interaction (copy button) is delegated
 // to `EmbedSnippetCopy`.
 
-import { ExternalLink } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { EmbedSnippetCopy } from './embed-snippet-copy';
 
@@ -72,15 +73,24 @@ export async function EmbedWidgetCard({ tenantId, tenantSlug }: Props) {
         {' '}și <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">data-position</code>.
       </p>
 
-      <a
-        href={docsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 self-start rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-      >
-        Vezi tutorial complet
-        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-      </a>
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          href="/dashboard/settings/embed"
+          className="inline-flex items-center gap-1.5 rounded-md bg-purple-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-purple-700"
+        >
+          Configurare avansată
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+        <a
+          href={docsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+        >
+          Documentație
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+      </div>
     </section>
   );
 }
