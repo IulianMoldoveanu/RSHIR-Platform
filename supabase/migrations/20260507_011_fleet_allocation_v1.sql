@@ -63,7 +63,18 @@ comment on column public.courier_fleets.webhook_url is
   'Internal-only. Required when delivery_app=''external''. HMAC-signed POST endpoint for outbound dispatch. Different from per-tenant external_dispatch_webhook_url.';
 
 comment on column public.courier_fleets.webhook_secret is
-  'Internal-only. HMAC-SHA256 shared secret. Required when delivery_app=''external''.';
+  'Internal-only. HMAC-SHA256 shared secret. Required when delivery_app=''external''. Service-role only via column-level REVOKE below — never exposed to authenticated/anon despite courier_fleets_public_read RLS policy.';
+
+-- Column-level REVOKE on webhook_secret. courier_fleets has a permissive
+-- `courier_fleets_public_read` policy from 20260428_002 (every authenticated
+-- user can SELECT row branding fields like name + brand_color + logo_url).
+-- That policy stays — but the new secret column must NOT leak through it.
+-- Same defense-in-depth pattern as 20260505_006_revoke_courier_secrets.sql
+-- (Codex P1 #333 review on this PR). webhook_url stays readable: it's an
+-- HTTPS URL, not an auth token, and can be useful for fleet OWNERs to see
+-- their own routing target. The HMAC secret is the only thing that needs
+-- service-role-only access.
+revoke select (webhook_secret) on public.courier_fleets from authenticated, anon;
 
 -- ────────────────────────────────────────────────────────────────────────
 -- 2. fleet_zones — operational zones a fleet covers
