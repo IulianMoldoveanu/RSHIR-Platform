@@ -18,6 +18,8 @@ type AppRow = {
   reviewer_notes: string | null;
   partner_id: string | null;
   referrer: string | null;
+  also_fleet_manager: boolean;
+  network_description: string | null;
 };
 
 const AUDIENCE_LABELS: Record<string, string> = {
@@ -110,13 +112,30 @@ function ApplicationCard({ app }: { app: AppRow }) {
             <Field label="Mărime audiență" value={app.audience_size ? app.audience_size.toLocaleString('ro-RO') : '—'} />
             <Field label="Canale" value={app.channels.join(', ') || '—'} />
             <Field label="Bounty proiectat" value={`${projectedBounty} RON / restaurant`} />
+            <Field
+              label="Operează flotă proprie?"
+              value={app.also_fleet_manager ? 'Da — fleet-manager + reseller (2× leverage)' : 'Nu'}
+            />
           </dl>
+          {app.also_fleet_manager ? (
+            <div className="mt-3 rounded-md border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-xs text-[#3730A3]">
+              ⚡ Self-declarat fleet-manager. Prioritizează în outreach — pitch separat pentru capacitate de livrare.
+            </div>
+          ) : null}
           <div className="mt-4">
             <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Pitch</div>
             <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-[#E2E8F0] bg-white p-3 text-sm leading-relaxed">
               {app.pitch}
             </p>
           </div>
+          {app.network_description ? (
+            <div className="mt-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Despre rețea</div>
+              <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-[#E2E8F0] bg-white p-3 text-sm leading-relaxed">
+                {app.network_description}
+              </p>
+            </div>
+          ) : null}
 
           {app.status === 'PENDING' ? (
             <>

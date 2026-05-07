@@ -115,8 +115,25 @@ export async function updatePartnerNotificationSettings(input: {
   on_tenant_went_live: boolean;
   on_tenant_churned: boolean;
 }): Promise<PartnerActionResult> {
-  const guard = await requireActivePartner();
-  if ('error' in guard) return { ok: false, error: guard.error };
+  // Codex P2 fix: PENDING partners must be able to save opt-outs too —
+  // notably on_application_approved (the one that matters before approval
+  // is dispatched). /partner-portal admits PENDING in layout + page, so
+  // we mirror that here instead of using the ACTIVE-only guard.
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Unauthentificat.' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminLookup = createAdminClient() as any;
+  const { data: partnerRow, error: lookupErr } = await adminLookup
+    .from('partners')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .in('status', ['PENDING', 'ACTIVE'])
+    .maybeSingle();
+  if (lookupErr) return { ok: false, error: `Eroare la verificarea partenerului: ${lookupErr.message}` };
+  if (!partnerRow) return { ok: false, error: 'Nu ești asociat unui cont de partener.' };
+  const guard = { userId: user.id, partner: { id: String(partnerRow.id), name: String(partnerRow.name) } };
 
   // Whitelist the 3 keys we expose in the UI; future keys (e.g.
   // on_commission_paid) stay at PR1 defaults until a UI ships.
