@@ -94,6 +94,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       ],
     },
     { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
+    { href: '/dashboard/ai-activity', label: 'Jurnal AI' },
     {
       label: 'Operațiuni',
       icon: 'sliders' as const,
@@ -124,6 +125,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
         { href: '/dashboard/settings/inventory', label: 'Stocuri (Premium)' },
         { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
+        { href: '/dashboard/settings/ai-trust', label: 'Încredere AI' },
       ],
     },
     { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
