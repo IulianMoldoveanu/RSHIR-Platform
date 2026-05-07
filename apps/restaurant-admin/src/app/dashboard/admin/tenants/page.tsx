@@ -164,26 +164,23 @@ export default async function PlatformAdminTenantsPage({
   // ── 3b) Most recent order timestamp per tenant — UNBOUNDED window so
   // tenants whose latest non-cancelled order is older than 7 days still
   // surface a real "Ultima comandă" instead of "fără comenzi" (Codex P2 #2,
-  // PR #291). One small query per tenant, run in parallel; with ≤50 tenants
-  // this is bounded and faster than a giant scan + JS dedup.
+  // PR #291). Lane NATIONAL-SCALE-HARDENING (2026-05-08): replaced N+1
+  // (one query per tenant via Promise.all) with a single SELECT against
+  // public.v_last_order_per_tenant. The view does a single GROUP BY scan
+  // backed by the (tenant_id, created_at desc) index, so cost is O(1)
+  // round-trips instead of O(tenants). Critical at 100-tenant target
+  // for EOY 2026.
   const lastOrderByTenant = new Map<string, string>();
   if (tenantIds.length > 0) {
-    const lookups = await Promise.all(
-      tenantIds.map(async (tid) => {
-        const { data } = await sb
-          .from('restaurant_orders')
-          .select('tenant_id, created_at')
-          .eq('tenant_id', tid)
-          .neq('status', 'CANCELLED')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        return data && data.length > 0
-          ? { tenant_id: data[0].tenant_id as string, created_at: data[0].created_at as string }
-          : null;
-      }),
-    );
-    for (const r of lookups) {
-      if (r) lastOrderByTenant.set(r.tenant_id, r.created_at);
+    const { data: lastOrderRows } = await sb
+      .from('v_last_order_per_tenant')
+      .select('tenant_id, last_order_at')
+      .in('tenant_id', tenantIds);
+    for (const r of (lastOrderRows ?? []) as {
+      tenant_id: string;
+      last_order_at: string | null;
+    }[]) {
+      if (r.last_order_at) lastOrderByTenant.set(r.tenant_id, r.last_order_at);
     }
   }
 
