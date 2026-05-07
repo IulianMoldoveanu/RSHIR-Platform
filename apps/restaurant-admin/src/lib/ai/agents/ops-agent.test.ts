@@ -42,6 +42,8 @@ type MockState = {
   orders: Array<{ delivery_address_id: string | null; created_at?: string; updated_at?: string; status?: string; items?: unknown }>;
   addresses: Array<{ id: string; latitude: number | null; longitude: number | null }>;
   shifts: Array<{ started_at: string; ended_at: string | null }>;
+  // Couriers who served this tenant (via courier_orders.assigned_courier_user_id).
+  tenantCourierIds: Array<{ assigned_courier_user_id: string | null }>;
   fleetManagerCount: number;
   ledgerInsertId: string;
 };
@@ -53,6 +55,7 @@ function defaultState(): MockState {
     orders: [],
     addresses: [],
     shifts: [],
+    tenantCourierIds: [],
     fleetManagerCount: 0,
     ledgerInsertId: '11111111-1111-1111-1111-111111111111',
   };
@@ -137,10 +140,27 @@ function makeMockSupabase(state: MockState) {
         };
       }
       if (table === 'courier_shifts') {
+        // PR #364 round 1: now scoped via .in('courier_user_id', [...]) before .gte().
         return {
           select: () => ({
-            gte: () => ({
-              limit: async () => ({ data: state.shifts, error: null }),
+            in: () => ({
+              gte: () => ({
+                limit: async () => ({ data: state.shifts, error: null }),
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === 'courier_orders') {
+        // Used to derive the per-tenant courier id set for shift scoping.
+        return {
+          select: () => ({
+            eq: () => ({
+              gte: () => ({
+                not: () => ({
+                  limit: async () => ({ data: state.tenantCourierIds, error: null }),
+                }),
+              }),
             }),
           }),
         };
@@ -311,13 +331,20 @@ describe('ops-agent / ops.suggest_delivery_zones', () => {
 describe('ops-agent / ops.optimize_courier_schedule', () => {
   test('end-to-end: returns schedule slots from Anthropic JSON', async () => {
     const state = defaultState();
-    // 30 orders across 14 days, all on Friday 19:00 UTC.
+    // 30 orders all at Friday 2026-05-01 19:30 Europe/Bucharest (= 16:30 UTC
+    // during DST). The local-time bucketer should land them in dow=5
+    // (Friday) hour=19 — proving the Codex-fix.
     state.orders = Array.from({ length: 30 }).map(() => ({
       delivery_address_id: null,
-      created_at: '2026-05-02T19:30:00.000Z',
+      created_at: '2026-05-01T16:30:00.000Z',
     }));
+    // Tenant has one courier; its shift covers the 16-19h UTC window
+    // (= 19-22h Europe/Bucharest local).
+    state.tenantCourierIds = [
+      { assigned_courier_user_id: '88888888-8888-8888-8888-888888888888' },
+    ];
     state.shifts = [
-      { started_at: '2026-05-02T18:00:00.000Z', ended_at: '2026-05-02T22:00:00.000Z' },
+      { started_at: '2026-05-01T15:00:00.000Z', ended_at: '2026-05-01T19:00:00.000Z' },
     ];
     state.fleetManagerCount = 1;
 
@@ -362,14 +389,14 @@ describe('ops-agent / ops.flag_kitchen_bottlenecks', () => {
       status: 'DELIVERED',
       created_at: '2026-05-05T12:00:00.000Z',
       updated_at: new Date(new Date('2026-05-05T12:00:00.000Z').getTime() + mins * 60000).toISOString(),
-      items: [{ id: itemA, name: 'Pizza Slow' }],
+      items: [{ itemId: itemA, name: 'Pizza Slow' }],
     });
     const fastSpan = (mins: number) => ({
       delivery_address_id: null,
       status: 'DELIVERED',
       created_at: '2026-05-05T12:00:00.000Z',
       updated_at: new Date(new Date('2026-05-05T12:00:00.000Z').getTime() + mins * 60000).toISOString(),
-      items: [{ id: itemB, name: 'Salad Fast' }],
+      items: [{ itemId: itemB, name: 'Salad Fast' }],
     });
     state.orders = [
       slowSpan(28),
@@ -420,21 +447,21 @@ describe('ops-agent / ops.flag_kitchen_bottlenecks', () => {
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:30:00.000Z',
-        items: [{ id: realId, name: 'Pizza' }],
+        items: [{ itemId: realId, name: 'Pizza' }],
       },
       {
         delivery_address_id: null,
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:35:00.000Z',
-        items: [{ id: realId, name: 'Pizza' }],
+        items: [{ itemId: realId, name: 'Pizza' }],
       },
       {
         delivery_address_id: null,
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:40:00.000Z',
-        items: [{ id: realId, name: 'Pizza' }],
+        items: [{ itemId: realId, name: 'Pizza' }],
       },
       // need a 2nd item for the >=2 items branch
       {
@@ -442,21 +469,21 @@ describe('ops-agent / ops.flag_kitchen_bottlenecks', () => {
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:15:00.000Z',
-        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+        items: [{ itemId: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
       },
       {
         delivery_address_id: null,
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:18:00.000Z',
-        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+        items: [{ itemId: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
       },
       {
         delivery_address_id: null,
         status: 'DELIVERED',
         created_at: '2026-05-05T12:00:00.000Z',
         updated_at: '2026-05-05T12:20:00.000Z',
-        items: [{ id: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
+        items: [{ itemId: '55555555-5555-5555-5555-555555555555', name: 'Salad' }],
       },
     ];
 

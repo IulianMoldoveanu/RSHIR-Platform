@@ -97,6 +97,66 @@ function isUuid(v: unknown): v is string {
 }
 
 // ---------------------------------------------------------------------------
+// Local-time bucketing — Codex P2 (PR #364 round 1). The schedule prompt
+// describes `hour` as Europe/Bucharest local; Postgres timestamptz returns
+// UTC. We use Intl.DateTimeFormat to derive RO-local components, which
+// handles DST transitions correctly without us shipping a tz database.
+// ---------------------------------------------------------------------------
+
+const LOCAL_TZ = 'Europe/Bucharest';
+
+// Lazy-init shared formatter (Deno + Node both support this; Edge runtime
+// has full ICU). Format string yields year-month-day-weekday-hour parts.
+const _localFmt = new Intl.DateTimeFormat('en-US', {
+  timeZone: LOCAL_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  hour12: false,
+  weekday: 'short',
+});
+
+const _weekdayToDow: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function bucketToLocalParts(d: Date): { dow: number | null; hour: number | null; dateKey: string | null } {
+  if (!Number.isFinite(d.getTime())) return { dow: null, hour: null, dateKey: null };
+  const parts = _localFmt.formatToParts(d);
+  let weekday = '';
+  let year = '';
+  let month = '';
+  let day = '';
+  let hour = '';
+  for (const p of parts) {
+    if (p.type === 'weekday') weekday = p.value;
+    else if (p.type === 'year') year = p.value;
+    else if (p.type === 'month') month = p.value;
+    else if (p.type === 'day') day = p.value;
+    else if (p.type === 'hour') hour = p.value;
+  }
+  const dow = _weekdayToDow[weekday] ?? null;
+  const hourNum = hour ? Number(hour) % 24 : null; // some locales return 24:00
+  if (dow === null || hourNum === null || !year || !month || !day) {
+    return { dow: null, hour: null, dateKey: null };
+  }
+  return { dow, hour: hourNum, dateKey: `${year}-${month}-${day}` };
+}
+
+function bucketToLocal(iso: string): { dow: number | null; hour: number | null } {
+  const d = new Date(iso);
+  const parts = bucketToLocalParts(d);
+  return { dow: parts.dow, hour: parts.hour };
+}
+
+// ---------------------------------------------------------------------------
 // Anthropic client (raw fetch, Deno-friendly) — same shape as menu-agent.ts
 // ---------------------------------------------------------------------------
 
@@ -285,11 +345,15 @@ async function fetchScheduleHeatmap(
   if (ordErr) {
     console.warn('[ops-agent] fetchScheduleHeatmap orders failed:', ordErr.message);
   }
+  // Codex P2 (PR #364 round 1): bucket in Europe/Bucharest local time, not
+  // UTC. Postgres stores timestamptz in UTC; if we used getUTCDay()/getUTCHours()
+  // a 19:00 RO local peak would land in the 16:00 (or 17:00 during DST) UTC
+  // bucket, and the schedule prompt — which says "hour is local Europe/Bucharest"
+  // — would mislead the model into recommending couriers 2-3 hours early.
   const orderBuckets: Map<string, number> = new Map();
   for (const o of orders ?? []) {
-    const d = new Date((o as { created_at: string }).created_at);
-    const dow = d.getUTCDay(); // 0=Sun..6=Sat (UTC; close-enough for hourly rough planning)
-    const hour = d.getUTCHours();
+    const { dow, hour } = bucketToLocal((o as { created_at: string }).created_at);
+    if (dow === null || hour === null) continue;
     const k = `${dow}:${hour}`;
     orderBuckets.set(k, (orderBuckets.get(k) ?? 0) + 1);
   }
@@ -302,40 +366,77 @@ async function fetchScheduleHeatmap(
   // Courier capacity: courier_shifts started/ended over the same window.
   // We count "online courier-hours" per (dow, hour) bucket and divide by
   // the number of distinct calendar days that overlapped that bucket.
-  const { data: shifts, error: shiftsErr } = await supabase
-    .from('courier_shifts')
-    .select('started_at, ended_at')
-    .gte('started_at', since)
+  //
+  // Codex P2 (PR #364 round 1): scope shifts to couriers who actually
+  // served THIS tenant. courier_shifts has no direct tenant_id; the link
+  // is via courier_orders.assigned_courier_user_id where source_tenant_id
+  // = $tenantId. Without this filter we'd count every fleet's shifts and
+  // recommend under-staffing for tenants whose actual courier roster is
+  // small. We collect the relevant courier user IDs from the same 14d
+  // window — couriers who served at least one order for this tenant.
+  const { data: tenantOrders, error: tenantOrdersErr } = await supabase
+    .from('courier_orders')
+    .select('assigned_courier_user_id')
+    .eq('source_tenant_id', tenantId)
+    .gte('created_at', since)
+    .not('assigned_courier_user_id', 'is', null)
     .limit(5000);
-  if (shiftsErr) {
-    console.warn('[ops-agent] fetchScheduleHeatmap shifts failed:', shiftsErr.message);
+  if (tenantOrdersErr) {
+    console.warn('[ops-agent] fetchScheduleHeatmap tenant courier ids failed:', tenantOrdersErr.message);
   }
+  const tenantCourierIds = Array.from(
+    new Set(
+      (tenantOrders ?? [])
+        .map((r: { assigned_courier_user_id: string | null }) => r.assigned_courier_user_id)
+        .filter((x: string | null): x is string => !!x),
+    ),
+  );
+
   type Hist = { sumHours: number; days: Set<string> };
   const courierBuckets: Map<string, Hist> = new Map();
-  for (const s of shifts ?? []) {
-    const start = new Date((s as { started_at: string }).started_at);
-    const endRaw = (s as { ended_at: string | null }).ended_at;
-    const end = endRaw ? new Date(endRaw) : new Date();
-    if (!Number.isFinite(start.getTime()) || end <= start) continue;
-    // Walk the shift hour-by-hour. Cap at 24 h to keep this loop bounded
-    // (defensive: a stuck ONLINE shift could otherwise run for days).
-    let cursor = new Date(start.getTime());
-    let safety = 0;
-    while (cursor < end && safety < 24) {
-      const dow = cursor.getUTCDay();
-      const hour = cursor.getUTCHours();
-      const k = `${dow}:${hour}`;
-      const dayKey = cursor.toISOString().slice(0, 10);
-      const next = new Date(cursor.getTime() + 60 * 60 * 1000);
-      const sliceEnd = next < end ? next : end;
-      const portionMs = sliceEnd.getTime() - cursor.getTime();
-      const portionHours = portionMs / (60 * 60 * 1000);
-      const cur = courierBuckets.get(k) ?? { sumHours: 0, days: new Set<string>() };
-      cur.sumHours += portionHours;
-      cur.days.add(dayKey);
-      courierBuckets.set(k, cur);
-      cursor = next;
-      safety += 1;
+  // If no courier ever served this tenant in the window, we can't compute
+  // capacity — skip the shifts query entirely (and avoid leaking other
+  // fleets' data). The handler will report current_avg=0 which is correct.
+  if (tenantCourierIds.length > 0) {
+    const { data: shifts, error: shiftsErr } = await supabase
+      .from('courier_shifts')
+      .select('started_at, ended_at')
+      .in('courier_user_id', tenantCourierIds)
+      .gte('started_at', since)
+      .limit(5000);
+    if (shiftsErr) {
+      console.warn('[ops-agent] fetchScheduleHeatmap shifts failed:', shiftsErr.message);
+    }
+    for (const s of shifts ?? []) {
+      const start = new Date((s as { started_at: string }).started_at);
+      const endRaw = (s as { ended_at: string | null }).ended_at;
+      const end = endRaw ? new Date(endRaw) : new Date();
+      if (!Number.isFinite(start.getTime()) || end <= start) continue;
+      // Walk the shift hour-by-hour. Cap at 24 h to keep this loop bounded
+      // (defensive: a stuck ONLINE shift could otherwise run for days).
+      let cursor = new Date(start.getTime());
+      let safety = 0;
+      while (cursor < end && safety < 24) {
+        // Same Europe/Bucharest local-time bucketing as orders above
+        // (Codex P2 PR #364 round 1).
+        const { dow, hour, dateKey } = bucketToLocalParts(cursor);
+        if (dow === null || hour === null || dateKey === null) {
+          cursor = new Date(cursor.getTime() + 60 * 60 * 1000);
+          safety += 1;
+          continue;
+        }
+        const k = `${dow}:${hour}`;
+        const next = new Date(cursor.getTime() + 60 * 60 * 1000);
+        const sliceEnd = next < end ? next : end;
+        const portionMs = sliceEnd.getTime() - cursor.getTime();
+        const portionHours = portionMs / (60 * 60 * 1000);
+        const cur = courierBuckets.get(k) ?? { sumHours: 0, days: new Set<string>() };
+        cur.sumHours += portionHours;
+        cur.days.add(dateKey);
+        courierBuckets.set(k, cur);
+        cursor = next;
+        safety += 1;
+      }
     }
   }
   const courierAvg: Array<{ dow: number; hour: number; avg_couriers: number }> = [];
@@ -399,14 +500,19 @@ async function fetchItemFulfilmentTimes(
     const items = Array.isArray(r.items) ? r.items : [];
     for (const it of items) {
       if (!it || typeof it !== 'object') continue;
-      const x = it as { id?: unknown; name?: unknown };
-      const id = isUuid(x.id) ? x.id : null;
+      // Codex P2 (PR #364 round 1): real storefront orders persist
+      // PricedLineItem with `itemId` (camelCase) — see
+      // apps/restaurant-web/src/app/api/checkout/pricing.ts. Earlier
+      // versions / external API rows may use `id`. Read both, prefer
+      // itemId when present.
+      const x = it as { itemId?: unknown; id?: unknown; name?: unknown };
+      const candidateId = isUuid(x.itemId) ? x.itemId : isUuid(x.id) ? x.id : null;
       const name = nonEmptyString(x.name, 200);
-      if (!id || !name) continue;
-      const cur = acc.get(id) ?? { spans: [], name };
+      if (!candidateId || !name) continue;
+      const cur = acc.get(candidateId) ?? { spans: [], name };
       cur.spans.push(minutes);
       // First non-empty name wins (item rename across orders is rare).
-      acc.set(id, cur);
+      acc.set(candidateId, cur);
     }
   }
 
