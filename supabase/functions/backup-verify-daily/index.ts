@@ -138,9 +138,20 @@ async function loadPriorState(): Promise<{ last_kind: string | null; last_alerte
   }
 }
 
-async function persistState(verdict: Verdict, alerted: boolean): Promise<void> {
+async function persistState(
+  verdict: Verdict,
+  alerted: boolean,
+  priorAlertedAt: string | null,
+): Promise<void> {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return;
   const now = new Date().toISOString();
+  // CRITICAL (Codex P2 on PR #349): with `Prefer: resolution=merge-duplicates`
+  // the upsert overwrites every key in the body. If we send
+  // `last_alerted_at: null` whenever we did NOT alert this run, day 1
+  // alerts (sets ts), day 2 suppresses and clears it, day 3 alerts
+  // again — breaking the 7-day de-dupe documented for free_no_backups.
+  // Preserve the prior timestamp when this run did not alert.
+  const lastAlertedAt = alerted ? now : priorAlertedAt;
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/backup_verify_state`, {
       method: 'POST',
@@ -154,7 +165,7 @@ async function persistState(verdict: Verdict, alerted: boolean): Promise<void> {
         id: 'singleton',
         last_kind: verdict.kind,
         last_checked_at: now,
-        last_alerted_at: alerted ? now : null,
+        last_alerted_at: lastAlertedAt,
       }),
     });
   } catch {
@@ -290,7 +301,7 @@ Deno.serve(async (req) => {
       alerted = await tg(prefix + formatVerdict(verdict));
     }
 
-    await persistState(verdict, alerted);
+    await persistState(verdict, alerted, prior.last_alerted_at);
 
     const httpStatus = verdict.kind === 'mgmt_api_error' ? 200 : 200;
     return new Response(
