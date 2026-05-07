@@ -48,3 +48,12 @@ jobs:
 
       - name: Test (all workspaces)
         run: pnpm -r --if-present test
+
+      # Warning-only i18n parity check. Reports RO↔EN dictionary drift in
+      # the storefront so we catch regressions early, but does NOT fail CI
+      # while we're still translating. Flip to `--strict` (or remove
+      # `continue-on-error`) once parity is enforced. See
+      # `scripts/i18n-parity-check.mjs`.
+      - name: i18n parity (warning-only)
+        continue-on-error: true
+        run: node scripts/i18n-parity-check.mjs
