@@ -17,11 +17,17 @@ export default async function KdsPage() {
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 
-  const { data, error } = await admin
+  // Pre-orders (is_pre_order=true) are scheduled for future dates and must
+  // NOT appear on the live KDS today — they live on /dashboard/pre-orders.
+  // The .or() form tolerates legacy rows where the column is null
+  // (pre-migration) by accepting either null OR false.
+  const { data, error } = await (admin
     .from('restaurant_orders')
     .select('id, status, items, notes, delivery_address_id, created_at, updated_at')
     .eq('tenant_id', tenant.id)
     .in('status', KDS_STATUSES)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .or('is_pre_order.is.null,is_pre_order.eq.false') as any)
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw new Error(error.message);
