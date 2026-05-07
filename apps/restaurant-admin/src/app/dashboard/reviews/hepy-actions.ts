@@ -234,11 +234,27 @@ export async function dismissReviewReplyDraft(args: {
 
   const admin = createAdminClient() as unknown as UntypedSb;
   const draft = await loadDraftById(args.draftId, args.tenantId);
+
+  // Codex P2 #356: never overwrite a POSTED row with DISMISSED. The UI
+  // surfaces an "Închide" button on already-posted drafts (so the OWNER
+  // can collapse the panel after publishing) and the legacy code wrote
+  // a misleading "dismissed" audit entry + lost the posted status. The
+  // client now treats POSTED collapse as local-only; the server still
+  // hard-stops here so a malicious or stale request cannot regress the
+  // status either.
+  if (draft.status === 'POSTED') {
+    return; // no-op, no audit row
+  }
+  if (draft.status === 'DISMISSED') {
+    return; // already dismissed; idempotent
+  }
+
   await admin
     .from('cs_agent_responses')
     .update({ status: 'DISMISSED' } as never)
     .eq('id', args.draftId)
-    .eq('tenant_id', args.tenantId);
+    .eq('tenant_id', args.tenantId)
+    .in('status', ['DRAFT', 'SELECTED']); // belt-and-braces against races
 
   await logAudit({
     tenantId: args.tenantId,
@@ -246,7 +262,7 @@ export async function dismissReviewReplyDraft(args: {
     action: 'cs_response_dismissed',
     entityType: 'review',
     entityId: draft.source_id ?? args.draftId,
-    metadata: { intent: draft.intent },
+    metadata: { intent: draft.intent, prior_status: draft.status },
   });
 
   revalidatePath('/dashboard/reviews');

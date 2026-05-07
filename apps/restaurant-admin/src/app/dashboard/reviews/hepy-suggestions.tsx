@@ -117,6 +117,16 @@ export function HepySuggestions({ reviewId, rating, comment, tenantId, existingD
 
   function dismiss() {
     if (!draft) return;
+    // Codex P2 #356: a POSTED draft must not be dismissed — that would
+    // overwrite a real action with "user closed the suggestion". For
+    // POSTED rows we just collapse the panel locally; the server-side
+    // `dismissReviewReplyDraft` also hard-rejects POSTED as defense in
+    // depth, but treating it client-side keeps the UI honest and avoids
+    // a no-op round-trip.
+    if (draft.status === 'POSTED') {
+      setOpen(false);
+      return;
+    }
     setError(null);
     start(async () => {
       try {
