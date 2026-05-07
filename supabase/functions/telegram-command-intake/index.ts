@@ -1142,7 +1142,21 @@ async function handleReservaCommand(
   // If the operator typed bare `/rezerva` with NO prior draft AND no args,
   // show the help block before starting the dialog. Avoids surprising
   // the user with an immediate "what date?" question.
+  //
+  // Codex P2: we MUST persist the empty draft here, otherwise the
+  // non-slash continuation path (which is gated on
+  // loadConversationDraft() returning a row) will never route the user's
+  // first reply ("mâine") back into the booking flow — the reply would
+  // fall through to the regex intent classifier, get NONE, and the user
+  // would receive the generic "Hepy nu a înțeles" reply instead.
   if (!prior && !args.trim()) {
+    await saveConversationDraft(
+      supabase,
+      telegramUserId,
+      tenant.tenant_id,
+      'reserva',
+      draft,
+    );
     return {
       text: `<b>📅 ${escapeHtml(tenant.name)} — rezervare nouă</b>\n${copy.oneLinerHelp}\n\n${copy.askDate}`,
       status: 'RESERVATION_DIALOG_START',
@@ -1267,6 +1281,19 @@ async function handleAnuleazaRezervare(
 ): Promise<{ text: string; status: string }> {
   const locale = await getTenantLocale(supabase, tenant.tenant_id);
   const copy = RESERVATION_COPY[locale];
+
+  // Codex P2: stay consistent with /rezerva and /rezervari — if the
+  // tenant has reservations turned off, refuse the cancel request too.
+  // Otherwise an OWNER could still mutate reservation rows for a feature
+  // that the documentation says is disabled, which violates the
+  // default-enabled rule for the reservation write intents.
+  const settings = await reservationsEnabled(supabase, tenant.tenant_id);
+  if (!settings.enabled) {
+    return {
+      text: `<b>📅 ${escapeHtml(tenant.name)}</b>\n${copy.disabledShort}`,
+      status: 'RESERVATION_DISABLED',
+    };
+  }
 
   const tokenArg = args.trim().toLowerCase();
   // Accept either an 8-hex prefix or a full uuid. Block anything else.
