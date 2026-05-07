@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { createManualEvent, importManualEventsCsv, deleteEvent } from './actions';
 import type { CityRow, CityEventRow } from './page';
 
-const TYPE_LABEL: Record<string, string> = {
+const TYPE_LABEL = {
   concert: 'Concert',
   festival: 'Festival',
   sport: 'Sport',
@@ -21,7 +21,8 @@ const TYPE_LABEL: Record<string, string> = {
   exhibition: 'Expoziție',
   holiday: 'Sărbătoare',
   other: 'Altul',
-};
+} as const;
+type EventType = keyof typeof TYPE_LABEL;
 
 const SOURCE_LABEL: Record<string, string> = {
   eventbrite: 'Eventbrite',
@@ -65,7 +66,7 @@ export function CitiesEventsClient({ cities, events }: Props) {
 
   // Manual single-event form state
   const [eventName, setEventName] = useState('');
-  const [eventType, setEventType] = useState<keyof typeof TYPE_LABEL>('concert');
+  const [eventType, setEventType] = useState<EventType>('concert');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [venueName, setVenueName] = useState('');
@@ -214,7 +215,7 @@ export function CitiesEventsClient({ cities, events }: Props) {
             <label className="block text-xs text-zinc-600">Tip</label>
             <select
               value={eventType}
-              onChange={(e) => setEventType(e.target.value as keyof typeof TYPE_LABEL)}
+              onChange={(e) => setEventType(e.target.value as EventType)}
               className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
             >
               {Object.entries(TYPE_LABEL).map(([k, v]) => (
@@ -341,7 +342,7 @@ export function CitiesEventsClient({ cities, events }: Props) {
                   </p>
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                     <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-700">
-                      {TYPE_LABEL[e.event_type] ?? e.event_type}
+                      {(TYPE_LABEL as Record<string, string>)[e.event_type] ?? e.event_type}
                     </span>
                     <span
                       className={`rounded-full px-2 py-0.5 ring-1 ring-inset ${
