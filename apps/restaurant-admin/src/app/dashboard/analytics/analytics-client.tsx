@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
+import { filterDailyByRange, type RangePreset } from '@/lib/uiux-quickwins';
 import type { AnalyticsData, DailyRow, TopItemRow, PeakRow, ReviewsBlock } from './types';
 
 const HeatmapMap = dynamic(() => import('./heatmap-map').then((m) => m.HeatmapMap), {
@@ -204,10 +206,96 @@ function ReviewsCard({ reviews }: { reviews: ReviewsBlock }) {
 type Props = {
   data: AnalyticsData;
   hasOrders: boolean;
+  // QW10: initial range preset, sourced server-side from `?range=` query param.
+  initialRange?: RangePreset;
 };
 
-export function AnalyticsClient({ data, hasOrders }: Props) {
+// QW10 (UIUX audit 2026-05-08) — date-range presets.
+//
+// Server returns up to 90 days of daily rows; the client narrows the daily
+// chart + KPI grid to the active preset. URL is updated via history.replaceState
+// so refresh keeps the choice without forcing a full re-fetch.
+
+const RANGE_PRESETS: Array<{ value: RangePreset; label: string }> = [
+  { value: 7, label: '7 zile' },
+  { value: 30, label: '30 zile' },
+  { value: 90, label: '90 zile' },
+];
+
+function isRangePreset(v: unknown): v is RangePreset {
+  return v === 7 || v === 30 || v === 90;
+}
+
+function RangePresets({
+  active,
+  onChange,
+}: {
+  active: RangePreset;
+  onChange: (next: RangePreset) => void;
+}) {
+  return (
+    <nav
+      aria-label="Interval analytics"
+      className="inline-flex items-center gap-1 rounded-md bg-zinc-100 p-1 text-xs"
+    >
+      {RANGE_PRESETS.map((p) => {
+        const isActive = p.value === active;
+        return (
+          <button
+            type="button"
+            key={p.value}
+            onClick={() => onChange(p.value)}
+            aria-pressed={isActive}
+            className={
+              'rounded px-3 py-1.5 font-medium transition-colors ' +
+              (isActive
+                ? 'bg-white text-zinc-900 shadow-sm'
+                : 'text-zinc-600 hover:text-zinc-900')
+            }
+          >
+            {p.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function AnalyticsClient({ data, hasOrders, initialRange = 30 }: Props) {
   const { kpis, daily, topItems, peakHours, heatmap, reviews } = data;
+  const [range, setRange] = useState<RangePreset>(
+    isRangePreset(initialRange) ? initialRange : 30,
+  );
+
+  // Mirror the active preset into the URL so browser back / page refresh
+  // keeps the choice. We use replaceState (not router.replace) to avoid the
+  // full server re-fetch — the client filter is enough since the server
+  // already sent 90 days.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (range === 30 && !url.searchParams.has('range')) return;
+    url.searchParams.set('range', String(range));
+    window.history.replaceState(null, '', url.toString());
+  }, [range]);
+
+  const handleRangeChange = useCallback((next: RangePreset) => {
+    setRange(next);
+  }, []);
+
+  const dailyForRange = useMemo(
+    () => filterDailyByRange(daily, range, Date.now()),
+    [daily, range],
+  );
+  const rangeRevenue = useMemo(
+    () => dailyForRange.reduce((s, d) => s + d.revenue, 0),
+    [dailyForRange],
+  );
+  const rangeOrders = useMemo(
+    () => dailyForRange.reduce((s, d) => s + d.order_count, 0),
+    [dailyForRange],
+  );
+  const rangeAvgOrderValue = rangeOrders === 0 ? 0 : rangeRevenue / rangeOrders;
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,22 +307,33 @@ export function AnalyticsClient({ data, hasOrders }: Props) {
         />
       ) : null}
 
-      {/* KPI grid */}
+      {/* QW10 — range presets */}
+      <div className="flex items-center justify-between gap-3">
+        <RangePresets active={range} onChange={handleRangeChange} />
+        <span className="text-xs text-zinc-500">
+          {dailyForRange.length} {dailyForRange.length === 1 ? 'zi' : 'zile'} cu date
+        </span>
+      </div>
+
+      {/* KPI grid — first three cards stay fixed; last reflects active range */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Venit azi" value={RON(kpis.todayRevenue)} />
         <KpiCard label="Venit săptămână" value={RON(kpis.weekRevenue)} />
-        <KpiCard label="Venit 30 zile" value={RON(kpis.monthRevenue)} />
-        <KpiCard label="Valoare medie comandă (30z)" value={RON(kpis.avgOrderValue30d)} />
+        <KpiCard label={`Venit ${range} zile`} value={RON(rangeRevenue)} />
+        <KpiCard
+          label={`Valoare medie comandă (${range}z)`}
+          value={RON(rangeAvgOrderValue)}
+        />
       </div>
 
       {/* Daily revenue */}
       <ChartCard
-        title="Venit zilnic (ultimele 30 zile)"
-        empty={daily.length === 0}
+        title={`Venit zilnic (ultimele ${range} zile)`}
+        empty={dailyForRange.length === 0}
         onExport={() =>
           downloadCsv(
             'venit-zilnic.csv',
-            daily.map((d: DailyRow) => ({
+            dailyForRange.map((d: DailyRow) => ({
               day: d.day,
               revenue: d.revenue.toFixed(2),
               order_count: d.order_count,
@@ -243,13 +342,13 @@ export function AnalyticsClient({ data, hasOrders }: Props) {
           )
         }
       >
-        {daily.length === 0 ? (
+        {dailyForRange.length === 0 ? (
           <EmptyState
             title="Niciun venit înregistrat"
             description="Graficul va apărea după prima comandă plătită."
           />
         ) : (
-          <RevenueLineChart daily={daily} />
+          <RevenueLineChart daily={dailyForRange} />
         )}
       </ChartCard>
 

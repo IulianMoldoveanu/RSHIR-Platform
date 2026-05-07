@@ -3,6 +3,7 @@ import { Receipt } from 'lucide-react';
 import { EmptyState } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
+import { ticketAgingClass } from '@/lib/uiux-quickwins';
 import { OrdersRealtime } from './orders-realtime';
 import type { OrderStatus } from './status-machine';
 
@@ -303,8 +304,13 @@ export default async function OrdersPage({
                     // heading already announces the state). Show it only when
                     // the user is on "Toate" so mixed states are scannable.
                     const showPill = filter === 'all';
+                    const agingClass = ticketAgingClass(
+                      o.status,
+                      new Date(o.created_at).getTime(),
+                      Date.now(),
+                    );
                     return (
-                      <li key={o.id} className="text-sm">
+                      <li key={o.id} className={`border-l-4 text-sm ${agingClass}`}>
                         <Link
                           href={`/dashboard/orders/${o.id}`}
                           className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 sm:gap-4"

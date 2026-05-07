@@ -79,12 +79,19 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
   weekStart.setUTCDate(weekStart.getUTCDate() - 6);
   const monthStart = new Date(today);
   monthStart.setUTCDate(monthStart.getUTCDate() - 29);
+  // QW10 (UIUX audit 2026-05-08): keep up to 90 days of daily rows so the
+  // client-side range presets (7 / 30 / 90) can re-slice without a server
+  // round-trip. KPI cards still fix on 30-day windows for the "Venit lună"
+  // headline; charts are now client-controlled.
+  const ninetyStart = new Date(today);
+  ninetyStart.setUTCDate(ninetyStart.getUTCDate() - 89);
 
   const todayRevenue = daily.find((d) => d.day === todayKey)?.revenue ?? 0;
   const weekRevenue = daily
     .filter((d) => new Date(d.day) >= weekStart)
     .reduce((s, d) => s + d.revenue, 0);
   const last30 = daily.filter((d) => new Date(d.day) >= monthStart);
+  const last90 = daily.filter((d) => new Date(d.day) >= ninetyStart);
   const monthRevenue = last30.reduce((s, d) => s + d.revenue, 0);
   const monthOrders = last30.reduce((s, d) => s + d.order_count, 0);
   const avgOrderValue30d = monthOrders === 0 ? 0 : monthRevenue / monthOrders;
@@ -104,7 +111,9 @@ export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
       monthRevenue,
       avgOrderValue30d,
     },
-    daily: last30, // Charts only need the last-30-day slice.
+    // QW10 — return up to 90 days; client filters by range preset. Charts
+    // narrow to 7 / 30 / 90 day slices via `<RangePresets>` in the client.
+    daily: last90,
     topItems,
     peakHours,
     heatmap,

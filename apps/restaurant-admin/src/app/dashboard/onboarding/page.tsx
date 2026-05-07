@@ -11,6 +11,11 @@ type Step = {
   key: StepKey;
   title: string;
   description: string;
+  // QW1 (UIUX audit 2026-05-08): per-step time anchor. Value is locale-neutral
+  // (digit + abbreviated unit) so it works in both RO and EN without
+  // translation. GloriaFood publishes the same "~15 min total" anchor on
+  // their onboarding — we ship a per-step breakdown that adds up to ~10 min.
+  eta: string;
   links: { href: string; label: string }[];
 };
 
@@ -19,6 +24,7 @@ const STEPS: Step[] = [
     key: 'menu_added',
     title: 'Adaugă produsele',
     description: 'Construiește meniul manual sau importă-l rapid dintr-o poză.',
+    eta: '~3 min',
     links: [
       { href: '/dashboard/menu', label: 'Deschide meniul' },
       { href: '/dashboard/menu/import', label: 'Import din poză' },
@@ -28,12 +34,14 @@ const STEPS: Step[] = [
     key: 'hours_set',
     title: 'Setează programul',
     description: 'Definește orele de funcționare pentru fiecare zi a săptămânii.',
+    eta: '~2 min',
     links: [{ href: '/dashboard/settings/operations', label: 'Configurează programul' }],
   },
   {
     key: 'zones_set',
     title: 'Definește zona de livrare',
     description: 'Trasează zonele pe hartă și configurează pragurile de preț.',
+    eta: '~5 min',
     links: [{ href: '/dashboard/zones', label: 'Configurează zonele' }],
   },
   {
@@ -41,6 +49,7 @@ const STEPS: Step[] = [
     title: 'Activează comenzile',
     description:
       'Pornește primirea de comenzi. Vei putea oricând să pui restaurantul pe pauză din Operațiuni.',
+    eta: '~30 sec',
     links: [{ href: '/dashboard/settings/domain', label: 'Atașează domeniu (opțional)' }],
   },
 ];
@@ -103,7 +112,12 @@ function StepRow({
       </div>
       <div className="flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-semibold text-zinc-900">{step.title}</h3>
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h3 className="text-sm font-semibold text-zinc-900">{step.title}</h3>
+            <span className="text-xs font-normal text-zinc-500" aria-label="Timp estimat">
+              {step.eta}
+            </span>
+          </div>
           <p className="text-sm text-zinc-600">{step.description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
