@@ -1,7 +1,17 @@
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, LifeBuoy, Mail, Phone } from 'lucide-react';
+import { ChevronRight, HelpCircle, LifeBuoy, Mail, MessageCircle, Phone } from 'lucide-react';
 import { HELP_CATEGORIES, getAllTopics } from './content';
 import { HelpSearch, type SearchTopic } from './help-search';
+
+// QW6 (UIUX audit 2026-05-08) — Hepy bot deep-link.
+//
+// Bot username is configurable via NEXT_PUBLIC_HEPY_BOT_USERNAME with the
+// same default the /dashboard/settings/hepy server action uses, so the two
+// surfaces stay in lockstep. Deep link uses the `start` param so Telegram
+// opens directly into the bot conversation; a generic `help` argument
+// signals the user came in from the help center (safe to log; no PII).
+const HEPY_BOT_USERNAME = process.env.NEXT_PUBLIC_HEPY_BOT_USERNAME ?? 'MasterHIRbot';
+const HEPY_DEEP_LINK = `https://t.me/${HEPY_BOT_USERNAME}?start=help`;
 
 export const metadata = {
   title: 'Centru de ajutor · HIR',
@@ -51,6 +61,35 @@ export default function HelpIndexPage() {
           la suport. Toate articolele sunt actualizate la 2026-05-05.
         </p>
       </header>
+
+      {/* QW6 — bot CTA above the search box. Mobile users can DM Hepy
+          directly from help; desktop users stay on the help index but get
+          a fast-path for "I'd rather just ask". */}
+      <a
+        href={HEPY_DEEP_LINK}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex items-start gap-3 rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 via-white to-white p-4 transition-shadow hover:shadow-sm"
+      >
+        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-purple-600 text-white">
+          <MessageCircle className="h-4 w-4" aria-hidden />
+        </span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="text-sm font-semibold text-zinc-900">
+            Întreabă-mă pe Telegram (Hepy)
+          </p>
+          <p className="text-xs text-zinc-600">
+            Răspuns instant pentru întrebări rapide despre comenzi, stocuri sau rapoarte.
+            Deschideți chat-ul direct cu botul.
+          </p>
+        </div>
+        <span
+          aria-hidden
+          className="ml-auto self-center text-xs font-medium text-purple-700 group-hover:text-purple-900"
+        >
+          Deschide →
+        </span>
+      </a>
 
       <HelpSearch topics={searchIndex} />
 
