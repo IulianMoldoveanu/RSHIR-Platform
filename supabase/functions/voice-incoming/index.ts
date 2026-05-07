@@ -28,9 +28,23 @@
 //
 // Wrapped in withRunLog so failed calls surface in
 // /dashboard/admin/observability/function-runs.
+//
+// CRITICAL: Twilio voice webhooks have a hard 15-second response limit
+// (https://www.twilio.com/docs/usage/webhooks/webhooks-connection-overrides).
+// Whisper transcription on a 30–60s caller recording can take 5–30s,
+// blowing the budget. Pattern: return TwiML IMMEDIATELY and offload the
+// heavy work (download recording, Whisper, dispatch, persist) to
+// `EdgeRuntime.waitUntil` so it runs after the response is sent. The
+// caller hears a generic acknowledgement; the call log fills in async.
+// Codex P1 catch on PR #360 review.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { withRunLog } from '../_shared/log.ts';
+
+// Deno extension: tells the runtime to keep the worker alive until the
+// promise resolves, even though the HTTP response was already returned.
+// Supabase Edge Functions expose this from the standard Deno runtime.
+declare const EdgeRuntime: { waitUntil: (p: Promise<unknown>) => void };
 
 // -------- Helpers --------
 
@@ -331,90 +345,154 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // -------- RECORDING-FINISHED stage: transcribe + dispatch --------
+    // -------- RECORDING-FINISHED stage: ack immediately, process async --------
+    //
+    // Twilio's 15s budget makes synchronous Whisper + dispatch unsafe
+    // (Codex P1, PR #360). We return a generic acknowledgement TwiML
+    // right away and run the heavy work in `EdgeRuntime.waitUntil` so
+    // the caller never waits.
 
-    // OpenAI key is OPTIONAL — if absent, we still record the call but
-    // skip transcription. The admin UI will surface the recording URL so
-    // the operator can replay it manually.
-    const openAiKey = await readVaultSecret(
-      supabase,
-      `voice_openai_key_${tenant.id}`,
+    const accountSid = String(voiceSettings.twilio_account_sid ?? '');
+    const ackResponse =
+      'Mulțumim pentru mesaj. Cineva de la restaurant vă va contacta în scurt timp.';
+    const responseSafe = escapeXml(ackResponse);
+    const twimlResponse = twiml(
+      `<Say voice="Polly.Carmen" language="ro-RO">${responseSafe}</Say><Hangup/>`,
     );
-    let transcript: string | null = null;
-    let durationSeconds: number | null = recordingDuration
-      ? Number.parseInt(recordingDuration, 10) || null
-      : null;
-    let intent: string | null = null;
-    let response = 'Mulțumim pentru mesaj. Restaurantul îl va asculta în scurt timp.';
-    let finalStatus: 'processed' | 'failed' = 'processed';
-    const errorTrace: string[] = [];
 
-    if (openAiKey) {
-      try {
-        const accountSid = String(voiceSettings.twilio_account_sid ?? '');
-        if (!accountSid) {
-          throw new Error('account_sid_missing');
-        }
-        const t = await transcribeAudio({
-          recordingUrl,
-          twilioAccountSid: accountSid,
-          twilioAuthToken: authToken,
-          openAiKey,
-        });
-        transcript = t.text;
-        if (t.durationSeconds !== null) durationSeconds = t.durationSeconds;
-        intent = matchIntent(transcript);
-        if (intent) {
-          const dispatchResult = await dispatchToOrchestrator({
-            supabase,
-            tenantId: tenant.id,
-            intent,
-            transcript,
-          });
-          if ('error' in dispatchResult) {
-            errorTrace.push(`dispatch_${dispatchResult.error}`);
-            finalStatus = 'failed';
-          } else {
-            response = dispatchResult.summary;
-          }
-        } else {
-          response =
-            'Mulțumim pentru mesaj. Cineva de la restaurant vă va contacta în scurt timp.';
-        }
-      } catch (e) {
-        errorTrace.push((e as Error).message);
-        finalStatus = 'failed';
-      }
-    } else {
-      errorTrace.push('openai_key_missing');
-    }
-
-    // Persist final state. Use upsert to merge with the 'received' row.
-    await supabase.from('voice_calls').upsert(
-      {
-        tenant_id: tenant.id,
-        twilio_call_sid: callSid,
-        from_number: fromNumber,
-        to_number: toNumber,
-        transcript,
-        intent,
-        response,
-        duration_seconds: durationSeconds,
-        status: finalStatus,
-        metadata: errorTrace.length > 0 ? { errors: errorTrace } : null,
-      },
-      { onConflict: 'twilio_call_sid' },
+    // Schedule async post-processing. Failures here are logged + recorded
+    // on the voice_calls row but never break the caller's TwiML response.
+    EdgeRuntime.waitUntil(
+      processRecordingAsync({
+        supabase,
+        tenantId: tenant.id,
+        callSid,
+        fromNumber,
+        toNumber,
+        recordingUrl,
+        recordingDurationSeconds: recordingDuration
+          ? Number.parseInt(recordingDuration, 10) || null
+          : null,
+        accountSid,
+        authToken,
+      }),
     );
 
     setMetadata({
-      intent: intent ?? 'none',
-      transcript_chars: transcript?.length ?? 0,
-      final_status: finalStatus,
+      stage_done: 'recording_acked_async_dispatched',
     });
 
-    const responseSafe = escapeXml(response);
-    return twiml(
-      `<Say voice="Polly.Carmen" language="ro-RO">${responseSafe}</Say><Hangup/>`,
-    );
+    return twimlResponse;
   });
 });
+
+// -------- Async post-processing (runs after TwiML is returned) --------
+//
+// Three outcomes recorded on the voice_calls row:
+//   - status='processed' + transcript + intent + response: orchestrator
+//     handler accepted the dispatch.
+//   - status='processed' + transcript but no intent: free-text message,
+//     no handler matched. The operator reads the transcript manually.
+//     This is the COMMON case at skeleton stage.
+//   - status='failed' + metadata.errors: one of the upstream calls
+//     (Twilio recording fetch, Whisper, dispatcher) threw. Operator
+//     sees the error in the call-log UI.
+
+type ProcessRecordingArgs = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  tenantId: string;
+  callSid: string;
+  fromNumber: string;
+  toNumber: string;
+  recordingUrl: string;
+  recordingDurationSeconds: number | null;
+  accountSid: string;
+  authToken: string;
+};
+
+async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> {
+  const errorTrace: string[] = [];
+  let transcript: string | null = null;
+  let durationSeconds: number | null = args.recordingDurationSeconds;
+  let intent: string | null = null;
+  let response: string | null = null;
+  let finalStatus: 'processed' | 'failed' = 'processed';
+
+  // OpenAI key is OPTIONAL — without it, we still record the call but
+  // skip transcription. The admin UI will surface the recording URL so
+  // the operator can replay it manually.
+  const openAiKey = await readVaultSecret(
+    args.supabase,
+    `voice_openai_key_${args.tenantId}`,
+  );
+
+  if (!openAiKey) {
+    errorTrace.push('openai_key_missing');
+  } else if (!args.accountSid) {
+    errorTrace.push('account_sid_missing');
+    finalStatus = 'failed';
+  } else {
+    try {
+      const t = await transcribeAudio({
+        recordingUrl: args.recordingUrl,
+        twilioAccountSid: args.accountSid,
+        twilioAuthToken: args.authToken,
+        openAiKey,
+      });
+      transcript = t.text;
+      if (t.durationSeconds !== null) durationSeconds = t.durationSeconds;
+      intent = matchIntent(transcript);
+      if (intent) {
+        const dispatchResult = await dispatchToOrchestrator({
+          supabase: args.supabase,
+          tenantId: args.tenantId,
+          intent,
+          transcript,
+        });
+        if ('error' in dispatchResult) {
+          // Codex P2 catch (PR #360): at skeleton stage, NO production
+          // handlers are registered for the voice intents (KNOWN_INTENTS
+          // is documentation; registerIntent() calls land in Sprint 14).
+          // Treat unknown_intent as the manual-fallback path — the
+          // transcript still gets saved, the operator reads it. Real
+          // dispatcher errors (handler_threw, invalid_payload) still log
+          // as failed.
+          if (dispatchResult.error === 'unknown_intent') {
+            errorTrace.push('intent_not_yet_registered_manual_fallback');
+            // Keep finalStatus='processed' and clear intent so the
+            // operator UI doesn't show a half-resolved match.
+            intent = null;
+          } else {
+            errorTrace.push(`dispatch_${dispatchResult.error}`);
+            finalStatus = 'failed';
+          }
+        } else {
+          response =
+            typeof (dispatchResult as { summary?: string }).summary === 'string'
+              ? (dispatchResult as { summary: string }).summary
+              : null;
+        }
+      }
+    } catch (e) {
+      errorTrace.push((e as Error).message);
+      finalStatus = 'failed';
+    }
+  }
+
+  await args.supabase.from('voice_calls').upsert(
+    {
+      tenant_id: args.tenantId,
+      twilio_call_sid: args.callSid,
+      from_number: args.fromNumber,
+      to_number: args.toNumber,
+      transcript,
+      intent,
+      response,
+      duration_seconds: durationSeconds,
+      status: finalStatus,
+      metadata: errorTrace.length > 0 ? { errors: errorTrace } : null,
+    },
+    { onConflict: 'twilio_call_sid' },
+  );
+}
