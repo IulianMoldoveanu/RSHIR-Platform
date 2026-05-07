@@ -69,14 +69,23 @@ begin
   end if;
 
   for v_item in select * from jsonb_array_elements(coalesce(NEW.items, '[]'::jsonb)) loop
-    -- Defensive parsing: cast id and qty safely.
+    -- Defensive parsing. The line-item shape varies by code path:
+    --   - Primary checkout (apps/restaurant-web .../checkout/intent/route.ts
+    --     line 241) persists `q.lineItems` shape: {itemId, quantity, ...}.
+    --   - Older / aggregator-import / seed paths use {id, qty, ...}.
+    -- Support both, mirroring the coalesce pattern established in
+    -- 20260425_200_analytics_views.sql and 20260504_006_growth_agent.sql.
     begin
-      v_menu_item_id := (v_item->>'id')::uuid;
+      v_menu_item_id := coalesce(v_item->>'itemId', v_item->>'item_id', v_item->>'id')::uuid;
     exception when others then
       continue;
     end;
     begin
-      v_qty := coalesce((v_item->>'qty')::numeric, 0);
+      v_qty := coalesce(
+        (v_item->>'quantity')::numeric,
+        (v_item->>'qty')::numeric,
+        0
+      );
     exception when others then
       v_qty := 0;
     end;
