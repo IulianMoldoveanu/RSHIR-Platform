@@ -6,7 +6,10 @@ export type RestaurantTemplateSlug =
   | 'asian'
   | 'fine-dining'
   | 'bistro'
-  | 'romanian-traditional';
+  | 'romanian-traditional'
+  | 'modern-minimal'
+  | 'warm-bistro'
+  | 'bold-urban';
 
 export type LocalizedString = {
   ro: string;
@@ -24,7 +27,7 @@ export type RestaurantTemplate = {
     logo_letter_bg: string; // hex for the "letter avatar" fallback
   };
   typography: {
-    heading_font: 'inter' | 'playfair' | 'space-grotesk' | 'fraunces';
+    heading_font: 'inter' | 'playfair' | 'space-grotesk' | 'fraunces' | 'oswald';
     body_font: 'inter' | 'space-grotesk';
   };
   suggested_categories: Array<{

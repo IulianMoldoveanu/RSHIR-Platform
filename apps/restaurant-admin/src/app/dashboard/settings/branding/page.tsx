@@ -11,6 +11,9 @@ const TEMPLATE_LABEL: Record<string, string> = {
   'fine-dining': 'Fine Dining',
   bistro: 'Bistro',
   'romanian-traditional': 'Tradițional românesc',
+  'modern-minimal': 'Modern Minimal',
+  'warm-bistro': 'Bistro Cald',
+  'bold-urban': 'Urban Bold',
 };
 
 export const dynamic = 'force-dynamic';
@@ -77,7 +80,7 @@ export default async function BrandingSettingsPage() {
       />
 
       <Link
-        href="/dashboard/settings/branding/template"
+        href="/dashboard/settings/storefront/theme"
         className="group flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-colors hover:border-purple-300 hover:bg-zinc-50"
       >
         <span className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-100">
@@ -97,7 +100,7 @@ export default async function BrandingSettingsPage() {
             )}
           </span>
           <span className="text-xs text-zinc-600">
-            Paletă și fonturi predefinite în funcție de tipul restaurantului.
+            8 teme disponibile — wizard cu previzualizare live.
           </span>
         </span>
         <ChevronRight className="h-4 w-4 flex-none text-zinc-400 group-hover:text-purple-600" aria-hidden />

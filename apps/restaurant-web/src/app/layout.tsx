@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Playfair_Display, Space_Grotesk, Fraunces } from 'next/font/google';
+import { Inter, Oswald, Playfair_Display, Space_Grotesk, Fraunces } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { t } from '@/lib/i18n';
@@ -43,6 +43,14 @@ const spaceGrotesk = Space_Grotesk({
 const fraunces = Fraunces({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-fraunces',
+  display: 'swap',
+});
+// Bold Urban style theme (2026-05-07): Oswald condensed for high-impact
+// street-food / urban headings. Same instantiation-at-module-scope constraint
+// as the other next/font fonts above.
+const oswald = Oswald({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-oswald',
   display: 'swap',
 });
 
@@ -93,6 +101,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     playfair.variable,
     spaceGrotesk.variable,
     fraunces.variable,
+    oswald.variable,
   ].join(' ');
   return (
     <html lang={locale} className={fontVars}>

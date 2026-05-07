@@ -7,4 +7,7 @@ export {
   fineDining,
   bistro,
   romanianTraditional,
+  modernMinimal,
+  warmBistro,
+  boldUrban,
 } from './templates';

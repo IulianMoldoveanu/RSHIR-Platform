@@ -76,14 +76,16 @@ export default async function SettingsLandingPage() {
   const branding = (settings.branding as Record<string, unknown> | undefined) ?? {};
   const hasLogo = typeof branding.logo_url === 'string' && branding.logo_url.length > 0;
   const templateSlug = tenantRow.data?.template_slug ?? null;
-  // Display labels for the 5 templates — kept inline (4 entries, no need
-  // for a shared lookup table). Romanian formal copy.
+  // Display labels for all 8 templates (5 vertical + 3 style themes).
   const TEMPLATE_LABEL: Record<string, string> = {
     italian: 'Italian',
     asian: 'Asian',
     'fine-dining': 'Fine Dining',
     bistro: 'Bistro',
     'romanian-traditional': 'Tradițional românesc',
+    'modern-minimal': 'Modern Minimal',
+    'warm-bistro': 'Bistro Cald',
+    'bold-urban': 'Urban Bold',
   };
 
   const domainLabel = domainInfo.domain
@@ -103,9 +105,9 @@ export default async function SettingsLandingPage() {
         : { label: 'Logo lipsește', tone: 'warn' },
     },
     {
-      href: '/dashboard/settings/branding/template',
+      href: '/dashboard/settings/storefront/theme',
       title: 'Temă vizuală',
-      description: 'Paletă de culori și fonturi predefinite pentru tipul de restaurant.',
+      description: 'Wizard: alegeți dintre 8 teme, previzualizați live și aplicați cu un click.',
       icon: Palette,
       status: templateSlug
         ? { label: TEMPLATE_LABEL[templateSlug] ?? 'Temă activă', tone: 'ok' }
