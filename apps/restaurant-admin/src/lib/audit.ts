@@ -101,8 +101,20 @@ export type AuditAction =
   | 'inventory.feature_toggled_off'
   | 'hepy.telegram_connect_link_generated'
   | 'hepy.telegram_unbound'
+  | 'whatsapp.connect_link_generated'
+  | 'whatsapp.unbound'
+  | 'whatsapp.message_received'
+  | 'whatsapp.message_sent'
+  | 'whatsapp.owner_bound'
   | 'branding.theme_previewed'
-  | 'branding.theme_applied';
+  | 'branding.theme_applied'
+  | 'pre_orders.settings_updated'
+  | 'voice.settings_updated'
+  | 'voice.token_set'
+  | 'voice.token_cleared'
+  | 'voice.call_received'
+  | 'voice.intent_dispatched'
+  | 'voice.response_sent';
 
 export async function logAudit(args: {
   tenantId: string;

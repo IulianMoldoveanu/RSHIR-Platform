@@ -219,6 +219,14 @@ export default async function OrdersPage({
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false })
       .limit(50);
+    // Pre-orders (is_pre_order=true) live on /dashboard/pre-orders. They
+    // share the restaurant_orders table but must NOT pollute the live queue
+    // or KDS — a cake scheduled for next week would otherwise sit as PENDING
+    // and trick staff into starting it today. The .or() form tolerates legacy
+    // rows where the column is null (pre-migration) by accepting either
+    // null OR false.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    q = (q as any).or('is_pre_order.is.null,is_pre_order.eq.false');
     if (filter === 'active') {
       q = q.in('status', ACTIVE_STATUSES);
     } else if (filter === 'today') {
