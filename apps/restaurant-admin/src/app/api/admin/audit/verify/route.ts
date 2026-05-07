@@ -16,6 +16,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -48,6 +49,17 @@ async function isPlatformAdmin(): Promise<{ ok: true; email: string } | { ok: fa
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF defense: cookie-authed PLATFORM_ADMIN endpoint — refuse cross-origin
+  // POSTs even if the operator is logged in. assertSameOrigin matches the
+  // existing pattern in /api/zones, /api/domains, etc.
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json(
+      { error: 'forbidden_origin', reason: origin.reason },
+      { status: 403 },
+    );
+  }
+
   const auth = await isPlatformAdmin();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.status === 401 ? 'unauthorized' : 'forbidden' }, { status: auth.status });
