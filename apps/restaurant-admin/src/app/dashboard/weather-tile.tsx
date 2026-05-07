@@ -27,17 +27,33 @@ async function resolveTenantCitySlug(tenantId: string): Promise<string | null> {
   const admin = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
-  const { data, error } = await sb
+
+  // Codex P2 (round 1) — do NOT embed via `cities:city_id(slug)`: the
+  // alias-only syntax leaves PostgREST searching for a relation literally
+  // called `city_id` (no such FK constraint name; the canonical name is
+  // `tenants_city_id_fkey`), the embed errors, and the fallback path
+  // would silently activate even for properly-bound tenants. Two cheap
+  // queries are clearer and match the pattern already used by
+  // `lib/cities.ts > listActiveCities`.
+  const { data: trow, error: trowErr } = await sb
     .from('tenants')
-    .select('city_id, settings, cities:city_id(slug)')
+    .select('city_id, settings')
     .eq('id', tenantId)
     .maybeSingle();
-  if (error || !data) return null;
-  // Prefer the FK-joined city slug when present.
-  const fkSlug = (data.cities as { slug?: string } | null)?.slug;
-  if (fkSlug) return fkSlug;
+  if (trowErr || !trow) return null;
+
+  // Prefer the FK city when present.
+  if (trow.city_id) {
+    const { data: city } = await sb
+      .from('cities')
+      .select('slug')
+      .eq('id', trow.city_id)
+      .maybeSingle();
+    if (city?.slug) return city.slug as string;
+  }
+
   // Fall back to free-text settings.city normalized to a slug-ish key.
-  const free = (data.settings as { city?: unknown } | null)?.city;
+  const free = (trow.settings as { city?: unknown } | null)?.city;
   if (typeof free === 'string' && free.trim()) {
     return free
       .trim()

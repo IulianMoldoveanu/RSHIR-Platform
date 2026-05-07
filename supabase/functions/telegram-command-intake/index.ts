@@ -814,16 +814,26 @@ async function ownerWeather(
   if (namedArg) {
     citySlug = _vremeNormalize(namedArg);
   } else {
+    // Codex P2 (round 1) — same embed-aliasing footgun as weather-tile.tsx.
+    // Resolve the FK city via two cheap queries instead of relying on
+    // PostgREST relation auto-detection.
     const { data: trow } = await supabase
       .from('tenants')
-      .select('city_id, settings, cities:city_id(slug, name)')
+      .select('city_id, settings')
       .eq('id', tenant.tenant_id)
       .maybeSingle();
-    const fk = (trow?.cities as { slug?: string; name?: string } | null) ?? null;
-    if (fk?.slug) {
-      citySlug = fk.slug;
-      cityName = fk.name ?? null;
-    } else {
+    if (trow?.city_id) {
+      const { data: fkCity } = await supabase
+        .from('cities')
+        .select('slug, name')
+        .eq('id', trow.city_id)
+        .maybeSingle();
+      if (fkCity?.slug) {
+        citySlug = fkCity.slug as string;
+        cityName = (fkCity.name as string | null) ?? null;
+      }
+    }
+    if (!citySlug) {
       const free = (trow?.settings as { city?: unknown } | null)?.city;
       if (typeof free === 'string' && free.trim()) {
         citySlug = _vremeNormalize(free);
