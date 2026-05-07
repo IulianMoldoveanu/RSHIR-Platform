@@ -235,6 +235,15 @@ export function CheckoutClient(props: {
   // localStorage only fills the gap for guests who weren't recognized
   // (cleared cookies, incognito, fresh device). Read once on mount.
   // Tenant-scoped key prevents cross-tenant address leak.
+  //
+  // Codex review #346 (P2): `city` is initialized to default 'Brașov' so a
+  // naïve `if (!city)` guard would never apply the saved city for a
+  // returning customer whose saved address is outside Brașov; the
+  // subsequent geocode/quote would then run against the wrong city. Fix:
+  // apply the saved city unconditionally whenever we apply the saved
+  // line1 (we're already gated on `!prefill?.line1 && !line1`, so server
+  // prefill still wins). Postal code is similarly always restored from
+  // the saved entry when present.
   const [hasSavedAddress, setHasSavedAddress] = useState(false);
   useEffect(() => {
     const saved = readSavedAddress(props.tenantId);
@@ -242,8 +251,8 @@ export function CheckoutClient(props: {
     setHasSavedAddress(true);
     if (!prefill?.line1 && !line1) {
       setLine1(saved.line1);
-      if (!city) setCity(saved.city);
-      if (saved.postalCode && !postalCode) setPostalCode(saved.postalCode);
+      if (saved.city) setCity(saved.city);
+      if (saved.postalCode) setPostalCode(saved.postalCode);
     }
     // Run once on mount; downstream state setters intentionally not in deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
