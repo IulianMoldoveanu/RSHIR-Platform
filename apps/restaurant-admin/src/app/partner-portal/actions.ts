@@ -102,3 +102,66 @@ export async function updatePartnerProfile(input: {
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
+
+// ────────────────────────────────────────────────────────────
+// PR3: updatePartnerNotificationSettings
+// 3 boolean toggles persisted into partners.notification_settings (jsonb).
+// Defaults from PR1 migration: all true except churn (we keep that default
+// honest — partners who explicitly toggled it ON before should not be reset).
+// ────────────────────────────────────────────────────────────
+
+export async function updatePartnerNotificationSettings(input: {
+  on_application_approved: boolean;
+  on_tenant_went_live: boolean;
+  on_tenant_churned: boolean;
+}): Promise<PartnerActionResult> {
+  // Codex P2 fix: PENDING partners must be able to save opt-outs too —
+  // notably on_application_approved (the one that matters before approval
+  // is dispatched). /partner-portal admits PENDING in layout + page, so
+  // we mirror that here instead of using the ACTIVE-only guard.
+  const supabase = createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'Unauthentificat.' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const adminLookup = createAdminClient() as any;
+  const { data: partnerRow, error: lookupErr } = await adminLookup
+    .from('partners')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .in('status', ['PENDING', 'ACTIVE'])
+    .maybeSingle();
+  if (lookupErr) return { ok: false, error: `Eroare la verificarea partenerului: ${lookupErr.message}` };
+  if (!partnerRow) return { ok: false, error: 'Nu ești asociat unui cont de partener.' };
+  const guard = { userId: user.id, partner: { id: String(partnerRow.id), name: String(partnerRow.name) } };
+
+  // Whitelist the 3 keys we expose in the UI; future keys (e.g.
+  // on_commission_paid) stay at PR1 defaults until a UI ships.
+  const settings = {
+    on_application_approved: !!input.on_application_approved,
+    on_tenant_went_live: !!input.on_tenant_went_live,
+    on_tenant_churned: !!input.on_tenant_churned,
+    on_commission_paid: true, // pinned — future toggle
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const { error } = await admin
+    .from('partners')
+    .update({ notification_settings: settings, updated_at: new Date().toISOString() })
+    .eq('id', guard.partner.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    tenantId: '00000000-0000-0000-0000-000000000000',
+    actorUserId: guard.userId,
+    action: 'partner.notification_settings_updated',
+    entityType: 'partner',
+    entityId: guard.partner.id,
+    metadata: settings,
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}

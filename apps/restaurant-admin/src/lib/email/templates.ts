@@ -90,3 +90,114 @@ export function affiliateApprovedEmail(
   });
   return { subject, html, text };
 }
+
+// ────────────────────────────────────────────────────────────
+// PR3 — partner lifecycle notifications
+// ────────────────────────────────────────────────────────────
+// Two events the partner cares about beyond initial approval:
+//   1) tenant they referred just went LIVE (first delivered order) —
+//      celebratory + sets the recurring-commission expectation.
+//   2) tenant they referred churned — neutral, factual, includes optional
+//      reason so the partner knows whether to follow up or move on.
+// Both templates respect the partner.notification_settings opt-out (gate
+// lives in apps/restaurant-admin/src/lib/email/partner-notify.ts).
+
+export type TenantWentLiveInput = {
+  partnerName: string;
+  tenantName: string;
+  estimatedMonthlyRon: number;
+  dashboardUrl: string;
+};
+
+export function tenantWentLiveEmail(
+  input: TenantWentLiveInput,
+): { subject: string; html: string; text: string } {
+  const subject = `${input.tenantName} este LIVE pe HIR — comision activ`;
+  const preheader = `Estimat ~${input.estimatedMonthlyRon} RON/lună din comision recurent.`;
+  const text = [
+    `Bună ziua, ${input.partnerName},`,
+    '',
+    `Restaurantul ${input.tenantName}, pe care l-ați adus în HIR, are prima comandă livrată — este oficial LIVE.`,
+    '',
+    `Estimare comision recurent: ~${input.estimatedMonthlyRon} RON/lună (la volumul curent al primelor zile).`,
+    'Cifra se actualizează automat în dashboard pe măsură ce volumul lor crește.',
+    '',
+    `Dashboard: ${input.dashboardUrl}`,
+    '',
+    'Mulțumim pentru recomandare.',
+    '',
+    '— Echipa HIR',
+  ].join('\n');
+
+  const bodyHtml = `
+    <h1 style="font-size:20px;margin:0 0 12px;color:#18181b">Restaurant LIVE — comision activ</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46">
+      Bună ziua, <strong>${escapeHtml(input.partnerName)}</strong>. Restaurantul
+      <strong>${escapeHtml(input.tenantName)}</strong>, pe care l-ați adus în HIR, are
+      prima comandă livrată — este oficial LIVE.
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:16px 0;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px">
+      <tr>
+        <td style="padding:14px 18px">
+          <p style="margin:0 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#047857;font-weight:600">Comision lunar estimat</p>
+          <p style="margin:0;font-size:22px;font-weight:700;color:#047857">~${input.estimatedMonthlyRon} RON/lună</p>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:8px 0 16px;font-size:14px;line-height:1.5;color:#3f3f46">
+      Cifra se actualizează automat în dashboard pe măsură ce volumul lor crește.
+    </p>
+    ${renderButton({ href: input.dashboardUrl, label: 'Deschide dashboard-ul', brandColor: HIR_PLATFORM_BRAND.brandColor })}
+    <p style="margin:24px 0 0;font-size:13px;color:#71717a;line-height:1.5">
+      Mulțumim pentru recomandare.
+    </p>
+  `;
+  const html = renderEmail({ brand: HIR_PLATFORM_BRAND, preheader, title: subject, bodyHtml });
+  return { subject, html, text };
+}
+
+export type TenantChurnedInput = {
+  partnerName: string;
+  tenantName: string;
+  reason: string | null;
+  dashboardUrl: string;
+};
+
+export function tenantChurnedEmail(
+  input: TenantChurnedInput,
+): { subject: string; html: string; text: string } {
+  const subject = `${input.tenantName} a încheiat colaborarea cu HIR`;
+  const reasonLine = input.reason ? `Motiv: ${input.reason}` : 'Motivul nu este specificat.';
+  const preheader = reasonLine.slice(0, 140);
+  const text = [
+    `Bună ziua, ${input.partnerName},`,
+    '',
+    `Restaurantul ${input.tenantName}, pe care l-ați adus, a încheiat colaborarea cu HIR.`,
+    reasonLine,
+    '',
+    'Comisionul recurent pentru acest restaurant nu va mai acumula. Comisioanele deja câștigate rămân plătibile conform graficului trimestrial.',
+    '',
+    `Dashboard: ${input.dashboardUrl}`,
+    '',
+    '— Echipa HIR',
+  ].join('\n');
+
+  const bodyHtml = `
+    <h1 style="font-size:20px;margin:0 0 12px;color:#18181b">Restaurant încheiat</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3f3f46">
+      Bună ziua, <strong>${escapeHtml(input.partnerName)}</strong>. Restaurantul
+      <strong>${escapeHtml(input.tenantName)}</strong>, pe care l-ați adus, a încheiat
+      colaborarea cu HIR.
+    </p>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#52525b">
+      ${escapeHtml(reasonLine)}
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#3f3f46">
+      Comisionul recurent pentru acest restaurant nu va mai acumula. Comisioanele deja
+      câștigate rămân plătibile conform graficului trimestrial.
+    </p>
+    ${renderButton({ href: input.dashboardUrl, label: 'Deschide dashboard-ul', brandColor: HIR_PLATFORM_BRAND.brandColor })}
+  `;
+  const html = renderEmail({ brand: HIR_PLATFORM_BRAND, preheader, title: subject, bodyHtml });
+  return { subject, html, text };
+}

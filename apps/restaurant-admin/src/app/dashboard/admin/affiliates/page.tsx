@@ -24,6 +24,10 @@ type AppRow = {
   reviewer_notes: string | null;
   partner_id: string | null;
   referrer: string | null;
+  // PR3 — surfaced to reviewer so the new signup fields actually
+  // affect the workflow they were added for.
+  also_fleet_manager: boolean;
+  network_description: string | null;
 };
 
 export default async function AffiliatesPage({
@@ -53,7 +57,7 @@ export default async function AffiliatesPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: rowsRaw } = await (admin as any)
     .from('affiliate_applications')
-    .select('id, full_name, email, phone, audience_type, audience_size, channels, pitch, status, created_at, reviewed_at, reviewer_notes, partner_id, referrer')
+    .select('id, full_name, email, phone, audience_type, audience_size, channels, pitch, status, created_at, reviewed_at, reviewer_notes, partner_id, referrer, also_fleet_manager, network_description')
     .eq('status', status)
     .order('created_at', { ascending: false })
     .limit(100);
