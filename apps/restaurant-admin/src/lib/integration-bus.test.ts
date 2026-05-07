@@ -15,20 +15,37 @@ type ProviderRow = {
   config: Record<string, unknown>;
 };
 
+type HydratedOrder = {
+  id: string;
+  status: string;
+  payment_method: 'CARD' | 'COD' | null;
+  payment_status: string;
+  subtotal_ron: number;
+  delivery_fee_ron: number;
+  total_ron: number;
+  items: Array<{ name: string; qty?: number; quantity?: number; priceRon?: number }>;
+  notes: string | null;
+  customer: { first_name: string | null; phone: string | null } | null;
+  address: { line1: string | null; city: string | null } | null;
+};
+
 const state: {
   providers: ProviderRow[];
   customCountLastHour: number;
   inserts: Array<Array<Record<string, unknown>>>;
+  orderRow: HydratedOrder | null;
 } = {
   providers: [],
   customCountLastHour: 0,
   inserts: [],
+  orderRow: null,
 };
 
 function reset() {
   state.providers = [];
   state.customCountLastHour = 0;
   state.inserts = [];
+  state.orderRow = null;
 }
 
 vi.mock('./supabase/admin', () => ({
@@ -65,6 +82,19 @@ vi.mock('./supabase/admin', () => ({
       if (table === 'audit_log') {
         return {
           insert: (_row: Record<string, unknown>) => Promise.resolve({ error: null }),
+        };
+      }
+      if (table === 'restaurant_orders') {
+        // hydrateOrderPayload — only fires on Custom adapters with empty payload.
+        return {
+          select: (_cols: string) => ({
+            eq: (_c1: string, _v1: string) => ({
+              eq: (_c2: string, _v2: string) => ({
+                maybeSingle: () =>
+                  Promise.resolve({ data: state.orderRow, error: null }),
+              }),
+            }),
+          }),
         };
       }
       return {
@@ -226,6 +256,161 @@ describe('dispatchOrderEvent — Custom rate limit', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await dispatchOrderEvent('t1', 'created', SAMPLE_PAYLOAD as any);
     expect(state.inserts).toHaveLength(1);
+  });
+});
+
+describe('dispatchOrderEvent — Custom payload hydration', () => {
+  // Status-only dispatches (e.g. updateOrderStatus → DELIVERED) send
+  // an empty payload. Custom adapters (Datecs companion, etc.) need
+  // the full order to print a receipt — bus must hydrate from DB
+  // before enqueueing. Mock/Freya/iiko keep their existing empty-
+  // payload contract.
+
+  const FULL_ORDER: HydratedOrder = {
+    id: 'o1',
+    status: 'DELIVERED',
+    payment_method: 'COD',
+    payment_status: 'UNPAID',
+    subtotal_ron: 51,
+    delivery_fee_ron: 10,
+    total_ron: 61,
+    items: [
+      { name: 'Pizza', qty: 1, priceRon: 35 },
+      { name: 'Cola', quantity: 2, priceRon: 8 },
+    ],
+    notes: 'Lasă la portar',
+    customer: { first_name: 'Iulian', phone: '+40700000001' },
+    address: { line1: 'Str. Foișorului 1', city: 'Brașov' },
+  };
+
+  it('hydrates Custom payload when caller passes empty items+totals', async () => {
+    state.providers = [
+      { provider_key: 'custom', config: { fire_on_statuses: ['DELIVERED'] } },
+    ];
+    state.orderRow = FULL_ORDER;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await dispatchOrderEvent('t1', 'status_changed', {
+      orderId: 'o1',
+      source: 'INTERNAL_STOREFRONT',
+      status: 'DELIVERED',
+      items: [],
+      totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+      customer: { firstName: '', phone: '' },
+      dropoff: null,
+      notes: null,
+    } as any);
+    expect(state.inserts).toHaveLength(1);
+    const enqueued = state.inserts[0]?.[0];
+    expect(enqueued?.provider_key).toBe('custom');
+    const payload = enqueued?.payload as Record<string, unknown>;
+    expect(Array.isArray(payload.items)).toBe(true);
+    expect((payload.items as unknown[]).length).toBe(2);
+    expect((payload.totals as { totalRon: number }).totalRon).toBe(61);
+    expect(payload.paymentMethod).toBe('COD');
+  });
+
+  it('does NOT hydrate when caller already provided full payload', async () => {
+    state.providers = [
+      { provider_key: 'custom', config: { fire_on_statuses: ['NEW'] } },
+    ];
+    state.orderRow = null; // would error if hydration tried to read
+    const fullPayload = {
+      orderId: 'o1',
+      source: 'INTERNAL_STOREFRONT',
+      status: 'NEW',
+      items: [{ name: 'Pizza', qty: 1, priceRon: 35 }],
+      totals: { subtotalRon: 35, deliveryFeeRon: 0, totalRon: 35 },
+      customer: { firstName: 'Iulian', phone: '+40' },
+      dropoff: null,
+      notes: null,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await dispatchOrderEvent('t1', 'created', fullPayload as any);
+    expect(state.inserts).toHaveLength(1);
+    const payload = state.inserts[0]?.[0]?.payload as Record<string, unknown>;
+    expect((payload.items as unknown[]).length).toBe(1);
+  });
+
+  it('does NOT hydrate for non-Custom providers (Mock keeps empty-payload contract)', async () => {
+    state.providers = [{ provider_key: 'mock', config: {} }];
+    state.orderRow = null; // would error if hydration tried to read
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await dispatchOrderEvent('t1', 'status_changed', {
+      orderId: 'o1',
+      source: 'INTERNAL_STOREFRONT',
+      status: 'DELIVERED',
+      items: [],
+      totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+      customer: { firstName: '', phone: '' },
+      dropoff: null,
+      notes: null,
+    } as any);
+    expect(state.inserts).toHaveLength(1);
+    const payload = state.inserts[0]?.[0]?.payload as Record<string, unknown>;
+    // Mock keeps empty payload (existing contract).
+    expect((payload.items as unknown[]).length).toBe(0);
+  });
+
+  it('hydration failure leaves Custom payload as-is (best-effort, never throws)', async () => {
+    state.providers = [
+      { provider_key: 'custom', config: { fire_on_statuses: ['DELIVERED'] } },
+    ];
+    state.orderRow = null; // hydrate returns null → fall back to original empty payload
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await dispatchOrderEvent('t1', 'status_changed', {
+      orderId: 'o1',
+      source: 'INTERNAL_STOREFRONT',
+      status: 'DELIVERED',
+      items: [],
+      totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+      customer: { firstName: '', phone: '' },
+      dropoff: null,
+      notes: null,
+    } as any);
+    // Event still enqueued — never throws on hydrate failure.
+    expect(state.inserts).toHaveLength(1);
+  });
+
+  it('hydrates only ONCE even with multiple Custom providers', async () => {
+    let hydrateCalls = 0;
+    state.providers = [
+      { provider_key: 'custom', config: { fire_on_statuses: ['DELIVERED'] } },
+      { provider_key: 'custom', config: { fire_on_statuses: ['DELIVERED'] } },
+    ];
+    state.orderRow = FULL_ORDER;
+    // Wrap maybeSingle to count calls. Re-mock just for this test.
+    const realFn = state.orderRow;
+    Object.defineProperty(state, 'orderRow', {
+      configurable: true,
+      get() {
+        hydrateCalls += 1;
+        return realFn;
+      },
+    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await dispatchOrderEvent('t1', 'status_changed', {
+        orderId: 'o1',
+        source: 'INTERNAL_STOREFRONT',
+        status: 'DELIVERED',
+        items: [],
+        totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+        customer: { firstName: '', phone: '' },
+        dropoff: null,
+        notes: null,
+      } as any);
+      expect(state.inserts).toHaveLength(1);
+      // Two rows enqueued (one per Custom provider) but only ONE DB read.
+      expect(state.inserts[0]).toHaveLength(2);
+      expect(hydrateCalls).toBe(1);
+    } finally {
+      // Restore plain data property for next test.
+      Object.defineProperty(state, 'orderRow', {
+        configurable: true,
+        writable: true,
+        value: null,
+      });
+    }
   });
 });
 

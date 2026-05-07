@@ -10,6 +10,7 @@ export type AuditAction =
   | 'order.status_changed'
   | 'order.cancelled'
   | 'order.cod_marked_paid'
+  | 'order.fiscal_receipt_reprint_requested'
   | 'branding.logo_uploaded'
   | 'branding.cover_uploaded'
   | 'branding.color_changed'

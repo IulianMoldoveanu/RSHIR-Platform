@@ -106,6 +106,99 @@ function customStatusFilterPasses(
   return true;
 }
 
+// Custom-webhook adapters (Datecs companion, generic HTTPS endpoints)
+// need the FULL order payload to render a fiscal receipt or render
+// the body. Some HIR call sites (order-finalize.ts, status changes)
+// dispatch order.status_changed with an empty payload because vendor
+// adapters (mock/freya/iiko) already have the order from order.created.
+// Custom adapters don't have that luxury — the receiver may have
+// never seen NEW. We hydrate from DB at the bus level when:
+//   - the event is dispatched to a Custom provider, AND
+//   - the caller-provided payload is empty (items=[] AND totalRon=0).
+// Mirrors apps/restaurant-admin/src/lib/integration-bus.ts.
+async function hydrateOrderPayload(
+  tenantId: string,
+  orderId: string,
+  fallbackStatus: string,
+): Promise<Record<string, unknown> | null> {
+  const admin = getSupabaseAdmin();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  const { data, error } = await sb
+    .from('restaurant_orders')
+    .select(
+      'id, status, payment_method, payment_status, ' +
+        'subtotal_ron, delivery_fee_ron, total_ron, items, notes, ' +
+        'customer:customers(first_name, phone), ' +
+        'address:customer_addresses!delivery_address_id(line1, city)',
+    )
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error || !data) {
+    console.error(
+      '[integration-bus] hydrate failed',
+      { tenantId, orderId },
+      error?.message ?? 'not_found',
+    );
+    return null;
+  }
+  type LineItem = {
+    name?: string;
+    qty?: number;
+    quantity?: number;
+    priceRon?: number;
+    price_ron?: number;
+    unit_price_ron?: number;
+    lineTotalRon?: number;
+    line_total_ron?: number;
+  };
+  const rawItems = Array.isArray(data.items) ? (data.items as LineItem[]) : [];
+  return {
+    orderId: data.id,
+    source: 'INTERNAL_STOREFRONT',
+    status: (data.status as string) ?? fallbackStatus,
+    items: rawItems.map((i) => {
+      const qty = Number(i.qty ?? i.quantity ?? 1);
+      const lineTotalRaw = i.lineTotalRon ?? i.line_total_ron;
+      const out: { name: string; qty: number; priceRon: number; lineTotalRon?: number } = {
+        name: i.name ?? 'Produs',
+        qty,
+        priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
+      };
+      if (typeof lineTotalRaw === 'number' && Number.isFinite(lineTotalRaw)) {
+        out.lineTotalRon = Number(lineTotalRaw);
+      }
+      return out;
+    }),
+    totals: {
+      subtotalRon: Number(data.subtotal_ron ?? 0),
+      deliveryFeeRon: Number(data.delivery_fee_ron ?? 0),
+      totalRon: Number(data.total_ron ?? 0),
+    },
+    customer: {
+      firstName: (data.customer?.first_name as string | null) ?? '',
+      phone: (data.customer?.phone as string | null) ?? '',
+    },
+    dropoff: data.address
+      ? {
+          line1: (data.address.line1 as string | null) ?? '',
+          city: (data.address.city as string | null) ?? '',
+        }
+      : null,
+    notes: (data.notes as string | null) ?? null,
+    paymentMethod: (data.payment_method as 'CARD' | 'COD' | null) ?? null,
+  };
+}
+
+function isEmptyOrderPayload(p: Record<string, unknown>): boolean {
+  const items = p.items;
+  const totals = p.totals as Record<string, unknown> | undefined;
+  const itemsEmpty = !Array.isArray(items) || items.length === 0;
+  const totalRon = Number((totals?.totalRon as number | undefined) ?? 0);
+  return itemsEmpty && totalRon === 0;
+}
+
 async function enqueue(rows: EventRow[]): Promise<void> {
   if (rows.length === 0) return;
   try {
@@ -149,6 +242,22 @@ export async function dispatchOrderEvent(
 
   const eventType = `order.${event}`;
   const payloadObj = payload as unknown as Record<string, unknown>;
+
+  const orderId =
+    typeof payloadObj.orderId === 'string' ? payloadObj.orderId : null;
+  const fallbackStatus =
+    typeof payloadObj.status === 'string' ? payloadObj.status : '';
+  let customPayload: Record<string, unknown> = payloadObj;
+  let customPayloadComputed = false;
+  const ensureCustomPayload = async (): Promise<Record<string, unknown>> => {
+    if (customPayloadComputed) return customPayload;
+    customPayloadComputed = true;
+    if (!orderId || !isEmptyOrderPayload(payloadObj)) return customPayload;
+    const hydrated = await hydrateOrderPayload(tenantId, orderId, fallbackStatus);
+    if (hydrated) customPayload = hydrated;
+    return customPayload;
+  };
+
   const eligible: EventRow[] = [];
   for (const p of providers) {
     if (p.provider_key === 'custom') {
@@ -160,6 +269,14 @@ export async function dispatchOrderEvent(
         });
         continue;
       }
+      const cp = await ensureCustomPayload();
+      eligible.push({
+        tenant_id: tenantId,
+        provider_key: p.provider_key,
+        event_type: eventType,
+        payload: cp,
+      });
+      continue;
     }
     eligible.push({
       tenant_id: tenantId,

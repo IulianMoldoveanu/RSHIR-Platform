@@ -1,0 +1,20 @@
+# Tenant-side env (contains shared bearer + HMAC secret matching HIR admin).
+.env
+.env.local
+
+# Node
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log

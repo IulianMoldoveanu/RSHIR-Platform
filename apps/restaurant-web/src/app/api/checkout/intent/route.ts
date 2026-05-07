@@ -356,6 +356,10 @@ export async function POST(req: NextRequest) {
       name: li.name,
       qty: li.quantity,
       priceRon: Number(li.priceRon),
+      // Adjusted line total (base + modifiers, × qty) — fiscal-printer
+      // adapters need this to reconcile against `totals.totalRon` when
+      // a promo or loyalty discount applies. Other adapters ignore.
+      lineTotalRon: Number(li.lineTotalRon),
       modifiers: li.modifiers.map((m) => m.name),
     })),
     totals: {

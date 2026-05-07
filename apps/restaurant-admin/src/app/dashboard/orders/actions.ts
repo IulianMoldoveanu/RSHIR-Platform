@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
 import { logAudit } from '@/lib/audit';
-import { dispatchOrderEvent } from '@/lib/integration-bus';
+import { dispatchOrderEvent, probeCustomDispatchEligibility } from '@/lib/integration-bus';
 import { awardLoyaltyForDeliveredOrder } from '@/lib/loyalty';
 import {
   dispatchToExternalFleet,
@@ -330,4 +330,167 @@ export async function cancelOrder(
 
   revalidatePath('/dashboard/orders');
   revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+// ────────────────────────────────────────────────────────────
+// printFiscalReceipt — manually re-dispatch an order through any
+// active Custom-webhook adapter so the desktop companion (e.g.
+// tools/datecs-companion) re-prints the bon fiscal.
+//
+// Used when the receipt didn't print on the automatic DELIVERED hook
+// (paper out, printer offline, network blip). Re-uses the existing
+// dispatchOrderEvent pipeline → goes through the same status filter,
+// rate limit, queue, retry, and audit log as automatic dispatch. No
+// direct adapter call from the UI.
+//
+// Member-gated (not OWNER-only) — operators reprint receipts dozens
+// of times a day in real kitchens; OWNER-gating that is operational
+// friction. Audit log captures who clicked.
+//
+// Returns { ok, queued: boolean, reason?: string } so the client can
+// distinguish "queued for print" from "no Custom provider configured"
+// without throwing.
+// ────────────────────────────────────────────────────────────
+
+export type PrintFiscalReceiptResult =
+  | { ok: true; queued: true }
+  | { ok: true; queued: false; reason: 'no_custom_provider' | 'status_filtered_out' | 'rate_limited' }
+  | { ok: false; error: string };
+
+export async function printFiscalReceipt(
+  orderId: string,
+  expectedTenantId: string,
+): Promise<PrintFiscalReceiptResult> {
+  let tenantId: string;
+  let userId: string;
+  try {
+    const guard = await requireTenant(expectedTenantId);
+    tenantId = guard.tenantId;
+    userId = guard.userId;
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // Load order with the same shape fireExternalDispatch uses, plus
+  // payment_method / payment_status / status / total_ron breakdown
+  // so the receipt builder can derive cash-vs-card and the line totals.
+  const { data: order, error: orderErr } = await sb
+    .from('restaurant_orders')
+    .select(
+      'id, tenant_id, status, payment_method, payment_status, ' +
+        'subtotal_ron, delivery_fee_ron, total_ron, items, notes, ' +
+        'customer:customers(first_name, phone), ' +
+        'address:customer_addresses!delivery_address_id(line1, city)',
+    )
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (orderErr) return { ok: false, error: orderErr.message };
+  if (!order) return { ok: false, error: 'Comanda nu a fost găsită.' };
+
+  type LineItem = {
+    name?: string;
+    quantity?: number;
+    qty?: number;
+    priceRon?: number;
+    price_ron?: number;
+    unit_price_ron?: number;
+    lineTotalRon?: number;
+    line_total_ron?: number;
+  };
+  const rawItems = Array.isArray(order.items) ? (order.items as LineItem[]) : [];
+
+  // Build the OrderPayload shape integration-core expects. Mirror the
+  // priceRon-then-fallbacks pattern from fireExternalDispatch so the
+  // receipt has a non-zero unit price for older items. Also pass the
+  // adjusted `lineTotalRon` when present so the Datecs receipt builder
+  // can reconcile against the order total when modifiers / promos
+  // were applied.
+  const payload = {
+    orderId: order.id as string,
+    source: 'MANUAL_ADMIN' as const,
+    status: order.status as string,
+    items: rawItems.map((i) => {
+      const qty = Number(i.qty ?? i.quantity ?? 1);
+      const lineTotalRaw = i.lineTotalRon ?? i.line_total_ron;
+      const out: { name: string; qty: number; priceRon: number; lineTotalRon?: number } = {
+        name: i.name ?? 'Produs',
+        qty,
+        priceRon: Number(i.priceRon ?? i.price_ron ?? i.unit_price_ron ?? 0),
+      };
+      if (typeof lineTotalRaw === 'number' && Number.isFinite(lineTotalRaw)) {
+        out.lineTotalRon = Number(lineTotalRaw);
+      }
+      return out;
+    }),
+    totals: {
+      subtotalRon: Number(order.subtotal_ron ?? 0),
+      deliveryFeeRon: Number(order.delivery_fee_ron ?? 0),
+      totalRon: Number(order.total_ron ?? 0),
+    },
+    customer: {
+      firstName: (order.customer?.first_name as string | null) ?? '',
+      phone: (order.customer?.phone as string | null) ?? '',
+    },
+    dropoff: order.address
+      ? {
+          line1: (order.address.line1 as string | null) ?? '',
+          city: (order.address.city as string | null) ?? '',
+        }
+      : null,
+    notes: (order.notes as string | null) ?? null,
+    // Pass-through so the companion can derive cash-vs-card without a
+    // second DB lookup. The Custom envelope already strips internal
+    // flags (see customAdapter.stripInternalFlags) — paymentMethod is
+    // not internal; it's part of the public order shape. Companion
+    // reads `order.paymentMethod` from the envelope.
+    paymentMethod: (order.payment_method as 'CARD' | 'COD' | null) ?? null,
+  };
+
+  // Pre-flight eligibility probe — the manual reprint button must
+  // tell the operator the truth. Without this check, the bus would
+  // silently drop the event when (a) no Custom provider is configured,
+  // (b) the operator's status filter excludes the current status (e.g.
+  // they enabled DELIVERED-only and the order is PREPARING), or
+  // (c) the per-tenant hourly cap is hit. UI would show "Trimis" while
+  // nothing actually printed.
+  const eligibility = await probeCustomDispatchEligibility(
+    tenantId,
+    'order.status_changed',
+    { status: payload.status },
+  );
+  if (eligibility === 'no_custom') {
+    return { ok: true, queued: false, reason: 'no_custom_provider' };
+  }
+  if (eligibility === 'filtered_out') {
+    return { ok: true, queued: false, reason: 'status_filtered_out' };
+  }
+  if (eligibility === 'rate_limited') {
+    return { ok: true, queued: false, reason: 'rate_limited' };
+  }
+
+  // Eligible — dispatch through the existing bus path. Queue + retry
+  // handle transient failures from the companion.
+  await dispatchOrderEvent(
+    tenantId,
+    'status_changed',
+    payload as unknown as Parameters<typeof dispatchOrderEvent>[2],
+  );
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.fiscal_receipt_reprint_requested',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: { status_at_reprint: order.status },
+  });
+
+  revalidatePath(`/dashboard/orders/${orderId}`);
+
+  return { ok: true, queued: true };
 }

@@ -41,7 +41,20 @@ export type OrderPayload = {
   items: Array<{
     name: string;
     qty: number;
+    /**
+     * Base unit price (menu price BEFORE modifiers). Kept as a stable
+     * field so existing adapters (mock/freya/iiko/posnet) keep working.
+     */
     priceRon: number;
+    /**
+     * Optional final line total in RON: `roundRon(unitPriceWithModifiers
+     * × qty)`. Producers (checkout/intent + bus hydration + admin
+     * reprint action) populate this so adapters that need to print a
+     * receipt where line subtotal must match payment (Datecs fiscal
+     * printer) can avoid the modifier/promo skew. Adapters that don't
+     * care can keep ignoring it.
+     */
+    lineTotalRon?: number;
     modifiers?: string[];
   }>;
   totals: {
