@@ -100,7 +100,12 @@ export type AuditAction =
   | 'hepy.telegram_connect_link_generated'
   | 'hepy.telegram_unbound'
   | 'branding.theme_previewed'
-  | 'branding.theme_applied';
+  | 'branding.theme_applied'
+  // CS Agent — Sprint 14
+  | 'cs_response_generated'
+  | 'cs_response_posted'
+  | 'cs_response_dismissed'
+  | 'cs_complaint_template_used';
 
 export async function logAudit(args: {
   tenantId: string;

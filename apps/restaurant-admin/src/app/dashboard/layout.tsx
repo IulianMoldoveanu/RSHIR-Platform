@@ -90,6 +90,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/promos', label: 'Coduri reducere' },
         { href: '/dashboard/marketing/newsletter', label: 'Newsletter' },
         { href: '/dashboard/reviews', label: 'Recenzii' },
+        { href: '/dashboard/customer-insights', label: 'Insights clienți' },
         { href: '/dashboard/analytics', label: 'Analytics' },
       ],
     },
