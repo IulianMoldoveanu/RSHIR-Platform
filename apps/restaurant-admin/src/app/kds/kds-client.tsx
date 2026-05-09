@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { resolveSourceDisplay, type OrderSource } from '@/lib/order-source-display';
 import { updateOrderStatus } from '../dashboard/orders/actions';
 import type { OrderStatus } from '../dashboard/orders/status-machine';
 
 export type KdsOrder = {
   id: string;
   status: OrderStatus;
+  source: OrderSource | null;
   items: unknown;
   notes: string | null;
   delivery_address_id: string | null;
@@ -462,11 +464,21 @@ function OrderCard({
       }
     >
       <header className="flex items-center justify-between gap-3">
-        <div className="flex items-baseline gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-mono text-base text-zinc-400">#{shortId(order.id)}</span>
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs uppercase tracking-wide text-zinc-300">
             {fulfillment === 'pickup' ? 'Ridicare' : 'Livrare'}
           </span>
+          {order.source && order.source !== 'INTERNAL_STOREFRONT' && (() => {
+            const display = resolveSourceDisplay(order.source, 'dark');
+            return (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${display.badgeClass}`}
+              >
+                {display.label}
+              </span>
+            );
+          })()}
           <span className="text-xs text-zinc-500">{STATUS_LABEL_RO[order.status]}</span>
         </div>
         <div className="flex items-center gap-3">
