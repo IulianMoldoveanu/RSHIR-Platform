@@ -127,10 +127,12 @@ jobs:
           npx cap sync android
 
       - name: Write google-services.json
-        if: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON != '' }}
+        env:
+          GSJ: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}
+        if: env.GSJ != ''
         working-directory: apps/restaurant-admin
         run: |
-          echo '${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          printf '%s' "$GSJ" > android/app/google-services.json
 
       - name: Build debug APK
         working-directory: apps/restaurant-admin/android
@@ -200,10 +202,12 @@ jobs:
           npx cap sync android
 
       - name: Write google-services.json
-        if: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON != '' }}
+        env:
+          GSJ: ${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}
+        if: env.GSJ != ''
         working-directory: apps/restaurant-admin
         run: |
-          echo '${{ secrets.ADMIN_GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+          printf '%s' "$GSJ" > android/app/google-services.json
 
       - name: Decode keystore
         if: ${{ env.HAS_KEYSTORE == 'true' }}
