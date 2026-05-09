@@ -116,7 +116,7 @@ export async function listTenantsByCity(
 
   // 1. Canonical match via city_id.
   const { data: byFk, error: fkErr } = await sb
-    .from('tenants')
+    .from('v_tenants_storefront')
     .select('id, slug, name, custom_domain, settings, created_at')
     .eq('status', 'ACTIVE')
     .eq('city_id', city.id)
@@ -132,7 +132,7 @@ export async function listTenantsByCity(
   let legacyRows: TenantCardRow[] = [];
   if (remaining > 0) {
     const { data: byText, error: textErr } = await sb
-      .from('tenants')
+      .from('v_tenants_storefront')
       .select('id, slug, name, custom_domain, settings, created_at')
       .eq('status', 'ACTIVE')
       .is('city_id', null)
@@ -170,12 +170,12 @@ export async function countActiveTenantsForCity(city: CityRow): Promise<number> 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
   const { count: fkCount } = await sb
-    .from('tenants')
+    .from('v_tenants_storefront')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'ACTIVE')
     .eq('city_id', city.id);
   const { count: textCount } = await sb
-    .from('tenants')
+    .from('v_tenants_storefront')
     .select('id', { count: 'exact', head: true })
     .eq('status', 'ACTIVE')
     .is('city_id', null)

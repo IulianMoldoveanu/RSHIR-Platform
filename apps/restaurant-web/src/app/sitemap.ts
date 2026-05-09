@@ -99,8 +99,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Per-active-tenant landing entry. Crawl daily-ish (changefreq weekly)
   // because menu + hours + prices change frequently. lastMod from
   // tenants.updated_at — bumped on any settings/menu mutation.
+  // Reads through v_tenants_storefront (anon-safe projection of tenants).
   const { data: tenants } = await supabase
-    .from('tenants')
+    .from('v_tenants_storefront')
     .select('slug, custom_domain, updated_at')
     .eq('status', 'ACTIVE');
 

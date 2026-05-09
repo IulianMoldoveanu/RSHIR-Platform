@@ -23,7 +23,7 @@ export default async function NotFound() {
     try {
       const supabase = getSupabase();
       const { data } = await supabase
-        .from('tenants')
+        .from('v_tenants_storefront')
         .select('slug, name')
         .order('name')
         .limit(20);
