@@ -53,10 +53,12 @@ as
     -- Sanitised settings: strip internal/operational keys.
     -- Keys explicitly stripped:
     --   cod_caen, cui, reg_com, legal_company, legal_address,
-    --   legal_postal_code  -> fiscal/legal entity registry data
-    --   contact_email                -> avoid owner email enumeration
+    --   legal_postal_code            -> fiscal/legal entity registry data
     --   email_notifications_enabled, onboarding, pause_reason
     --                                -> operational state
+    -- contact_email is INTENTIONALLY KEPT — it powers the per-tenant
+    -- /privacy page (GDPR DPO contact, Codex P2 catch on PR #382).
+    -- Tenants who don't want it published simply don't configure it.
     -- Everything else (branding, theme, presentation_*, business_hours,
     -- min_order_ron, etc.) is kept since storefront UI reads them.
     coalesce(settings, '{}'::jsonb)
@@ -66,7 +68,6 @@ as
       - 'legal_company'
       - 'legal_address'
       - 'legal_postal_code'
-      - 'contact_email'
       - 'email_notifications_enabled'
       - 'onboarding'
       - 'pause_reason'
