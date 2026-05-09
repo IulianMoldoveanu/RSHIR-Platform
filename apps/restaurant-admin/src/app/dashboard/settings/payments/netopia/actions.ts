@@ -6,11 +6,11 @@
 // enforces this; we double-check here because server actions are independent
 // callable surfaces.
 //
-// API key handling: stored in api_key_encrypted column. V1 stores plaintext
-// in a column named *_encrypted as a placeholder — a follow-up PR wires
-// pgsodium / Vault encryption once Iulian decides which approach to use
-// (matches the SmartBill API token pattern, which uses Supabase Vault).
-// TODO(V2): swap to vault.create_secret + vault.decrypted_secrets read.
+// API key handling: stored in Supabase Vault via the
+// public.hir_write_vault_secret SECURITY DEFINER helper (service-role only).
+// The psp_credentials row only stores `api_key_vault_name`, the vault
+// lookup key. Read path lives in the checkout intent route via
+// public.hir_read_vault_secret. Mirrors the SmartBill precedent.
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
@@ -54,10 +54,18 @@ export async function saveNetopiaConfig(input: SaveInput): Promise<SaveResult> {
         opts: { onConflict: string },
       ) => Promise<{ error: unknown }>;
     };
+    rpc: (
+      fn: string,
+      args: Record<string, unknown>,
+    ) => Promise<{ error: unknown }>;
   };
 
-  // Build the upsert payload. Only include api_key_encrypted when a new
-  // key was provided — empty string means "keep existing".
+  // Per-tenant deterministic vault name. Mirrors SmartBill pattern.
+  const vaultName = `psp_netopia_api_key__${tenant.id}`;
+
+  // Build the upsert payload. Only set api_key_vault_name when a new key
+  // was provided — empty string means "keep existing", in which case we
+  // also do NOT touch the vault entry.
   const row: Record<string, unknown> = {
     tenant_id: tenant.id,
     provider: 'netopia',
@@ -69,7 +77,16 @@ export async function saveNetopiaConfig(input: SaveInput): Promise<SaveResult> {
     updated_at: new Date().toISOString(),
   };
   if (input.apiKey) {
-    row.api_key_encrypted = input.apiKey;
+    // Write to Vault FIRST so a row never points to a missing secret.
+    const { error: vaultErr } = await sb.rpc('hir_write_vault_secret', {
+      secret_name: vaultName,
+      secret_value: input.apiKey,
+      secret_description: `Netopia API key for tenant ${tenant.id}`,
+    });
+    if (vaultErr) {
+      return { ok: false, error: 'vault_write_failed' };
+    }
+    row.api_key_vault_name = vaultName;
   }
 
   const { error } = await sb
