@@ -29,7 +29,11 @@ describe('assertSameOrigin', () => {
   });
 
   afterEach(() => {
-    process.env.ALLOWED_ORIGINS = ORIGINAL;
+    if (ORIGINAL === undefined) {
+      delete process.env.ALLOWED_ORIGINS;
+    } else {
+      process.env.ALLOWED_ORIGINS = ORIGINAL;
+    }
   });
 
   it('accepts a request whose Origin matches the allow-list', () => {
