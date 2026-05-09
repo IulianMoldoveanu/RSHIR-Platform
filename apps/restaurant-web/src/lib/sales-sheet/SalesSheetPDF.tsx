@@ -322,15 +322,15 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
     <Document
       title="HIR Restaurant Suite — Fișă de prezentare"
       author="HIR Restaurant Suite"
-      creator="hir.ro"
-      producer="hir.ro"
+      creator={process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}
+      producer={process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}
     >
       <Page size="A4" style={styles.page}>
         {/* Hero */}
         <View style={styles.hero}>
           <Text style={styles.brand}>HIR RESTAURANT SUITE</Text>
           <Text style={styles.heroTitle}>
-            Platforma de comenzi care nu îți ia comision din vânzări.
+            Soluția de comenzi care nu îți ia comision din vânzări.
           </Text>
           <Text style={styles.heroSub}>
             3 RON flat per livrare. White-label per restaurant. Datele
@@ -422,7 +422,7 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
           <View style={styles.contactBlock}>
             <Text style={styles.contactStrong}>Iulian Moldoveanu — Founder, HIR</Text>
             <Text>iulianm698@gmail.com</Text>
-            <Text>hir.ro</Text>
+            <Text>{process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}</Text>
           </View>
           <View>
             <Text style={styles.ts}>Date generate la {fmtTimestamp(stats.generatedAt)}</Text>

@@ -69,7 +69,7 @@ export async function notifyRestaurantOfNewReservation(
     '',
     `Acceptați sau respingeți rezervarea: ${input.adminLink}`,
     '',
-    '— HIR · hir.ro',
+    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -139,7 +139,7 @@ export async function notifyCustomerOfReservationRequest(
     'Mulțumim,',
     `Echipa ${input.tenantName}`,
     '',
-    '— HIR · hir.ro',
+    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   const trackHtml = input.trackUrl

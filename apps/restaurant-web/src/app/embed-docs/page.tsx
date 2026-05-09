@@ -181,10 +181,10 @@ export default function EmbedDocsPage() {
           <p className="mt-1 text-sm text-zinc-600">
             Aveți nevoie de ajutor cu instalarea? Scrieți-ne la{' '}
             <a
-              href="mailto:contact@hir.ro"
+              href={`mailto:contact@${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`}
               className="font-medium text-purple-700 hover:text-purple-800"
             >
-              contact@hir.ro
+              {`contact@${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`}
             </a>{' '}
             și instalăm widget-ul împreună cu echipa dumneavoastră tehnică.
           </p>

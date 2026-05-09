@@ -117,7 +117,8 @@ async function fireReservationEmails(
   // Build the public storefront /rezervari/track/[token] URL using the
   // same base used elsewhere for storefront deep-links.
   const storefrontBase =
-    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hir.ro';
+    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ??
+    `https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`;
   const trackUrl = `${storefrontBase.replace(/\/$/, '')}/rezervari/track/${trackToken}`;
 
   const customerEmail =

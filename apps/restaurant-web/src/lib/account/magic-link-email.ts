@@ -71,7 +71,7 @@ export function magicLinkEmail(args: {
     '',
     'Dacă nu dumneavoastră ați cerut acest link, ignorați e-mailul.',
     '',
-    '— HIR · hir.ro',
+    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   return { subject, html, text };
