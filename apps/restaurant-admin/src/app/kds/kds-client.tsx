@@ -49,12 +49,23 @@ const AUTO_PRINT_PRINTED_SS_KEY_PREFIX = 'kds-auto-print-printed';
 // Cap the persisted printed-IDs set so an always-on KDS tab doesn't grow unbounded.
 const AUTO_PRINT_PRINTED_MAX = 500;
 
+// Persistent alarm: re-chime every 30s while any PENDING/CONFIRMED order
+// remains unacknowledged. Distinct softer single-tone chime so staff can tell
+// "this is a reminder, not a new order".
+const ALARM_REPEAT_MS = 30 * 1000;
+const ALARM_ACK_SS_KEY_PREFIX = 'kds-alarm-acked';
+const ALARM_STATUSES_NEEDING_ACK: ReadonlySet<OrderStatus> = new Set(['PENDING', 'CONFIRMED']);
+
 function autoPrintLsKey(tenantId: string): string {
   return `${AUTO_PRINT_LS_KEY_PREFIX}:${tenantId}`;
 }
 
 function autoPrintPrintedKey(tenantId: string): string {
   return `${AUTO_PRINT_PRINTED_SS_KEY_PREFIX}:${tenantId}`;
+}
+
+function alarmAckKey(tenantId: string): string {
+  return `${ALARM_ACK_SS_KEY_PREFIX}:${tenantId}`;
 }
 
 function shortId(id: string): string {
@@ -130,6 +141,14 @@ export function KdsClient({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastChimeRef = useRef<number>(0);
 
+  // Persistent-alarm acknowledged set (per-tab session, hydrated from
+  // sessionStorage so a tab reload doesn't re-alarm orders the operator
+  // already saw moments before — but a fresh tab open re-alarms by design,
+  // so an orphan KDS tab doesn't go silent for long-PENDING orders).
+  // We use state (not just a ref) so the OrderCard re-renders when the
+  // operator clicks "Văzut" and the button collapses to a passive state.
+  const [acknowledgedIds, setAcknowledgedIds] = useState<Set<string>>(() => new Set());
+
   // Auto-print state (additive, opt-in, persisted in localStorage per tenant).
   const [autoPrintEnabled, setAutoPrintEnabled] = useState<boolean>(false);
   const [autoPrintCount, setAutoPrintCount] = useState<number>(0);
@@ -173,6 +192,76 @@ export function KdsClient({
       /* best-effort */
     }
   }, [autoPrintEnabled, tenantId]);
+
+  // Hydrate acknowledged-order IDs from sessionStorage so a tab reload mid-shift
+  // doesn't re-alarm the same orders the operator already ack'd seconds ago.
+  // Per-tenant key so tenant-switching doesn't bleed state.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.sessionStorage.getItem(alarmAckKey(tenantId));
+      if (raw) {
+        const arr: unknown = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          setAcknowledgedIds(new Set(arr.filter((x): x is string => typeof x === 'string')));
+        }
+      }
+    } catch {
+      /* sessionStorage may be unavailable */
+    }
+  }, [tenantId]);
+
+  // Persist acknowledged IDs whenever the set changes. Cap at 500 so a
+  // long-running tab can't grow unbounded.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      let arr = Array.from(acknowledgedIds);
+      if (arr.length > 500) arr = arr.slice(arr.length - 500);
+      window.sessionStorage.setItem(alarmAckKey(tenantId), JSON.stringify(arr));
+    } catch {
+      /* best-effort */
+    }
+  }, [acknowledgedIds, tenantId]);
+
+  // Persistent alarm: every 30s, scan currently-VISIBLE orders for any
+  // PENDING/CONFIRMED that has not been acknowledged. If at least one exists,
+  // play a softer single-tone reminder chime. Stops on its own when every
+  // such order is either ack'd or has moved to PREPARING+. The 3s cooldown
+  // shared with new-order chime keeps a freshly-arrived order from
+  // double-chiming with the alarm tick.
+  //
+  // Codex P2 fix (round 1): respect the active fulfillment filter — when the
+  // operator narrows the board to "Livrare" or "Ridicare", an unacknowledged
+  // order from the OTHER fulfillment type would still re-chime forever
+  // because its card (and the "Văzut" button) is hidden by the filter, so
+  // the operator has no way to silence it. The predicate below mirrors the
+  // `visible` memo so alarm + UI agree on what counts as "rendered now".
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const needsAck = initialOrders.some(
+        (o) =>
+          ALARM_STATUSES_NEEDING_ACK.has(o.status) &&
+          !acknowledgedIds.has(o.id) &&
+          (filter === 'all' || fulfillmentOf(o) === filter),
+      );
+      if (!needsAck) return;
+      const t = Date.now();
+      if (t - lastChimeRef.current < CHIME_COOLDOWN_MS) return;
+      lastChimeRef.current = t;
+      playReminderChime(audioCtxRef);
+    }, ALARM_REPEAT_MS);
+    return () => window.clearInterval(id);
+  }, [initialOrders, acknowledgedIds, filter]);
+
+  function acknowledgeOrder(orderId: string): void {
+    setAcknowledgedIds((prev) => {
+      if (prev.has(orderId)) return prev;
+      const next = new Set(prev);
+      next.add(orderId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!tenantId) return;
@@ -285,8 +374,24 @@ export function KdsClient({
       </header>
 
       <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
-        <Column title="ÎN LUCRU" orders={left} now={now} router={router} tenantId={tenantId} />
-        <Column title="GATA" orders={right} now={now} router={router} tenantId={tenantId} />
+        <Column
+          title="ÎN LUCRU"
+          orders={left}
+          now={now}
+          router={router}
+          tenantId={tenantId}
+          acknowledgedIds={acknowledgedIds}
+          onAcknowledge={acknowledgeOrder}
+        />
+        <Column
+          title="GATA"
+          orders={right}
+          now={now}
+          router={router}
+          tenantId={tenantId}
+          acknowledgedIds={acknowledgedIds}
+          onAcknowledge={acknowledgeOrder}
+        />
       </div>
     </div>
   );
@@ -395,12 +500,16 @@ function Column({
   now,
   router,
   tenantId,
+  acknowledgedIds,
+  onAcknowledge,
 }: {
   title: string;
   orders: KdsOrder[];
   now: number;
   router: ReturnType<typeof useRouter>;
   tenantId: string;
+  acknowledgedIds: Set<string>;
+  onAcknowledge: (orderId: string) => void;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -414,7 +523,15 @@ function Column({
       ) : (
         <ul className="flex flex-col gap-3">
           {orders.map((o) => (
-            <OrderCard key={o.id} order={o} now={now} router={router} tenantId={tenantId} />
+            <OrderCard
+              key={o.id}
+              order={o}
+              now={now}
+              router={router}
+              tenantId={tenantId}
+              acknowledged={acknowledgedIds.has(o.id)}
+              onAcknowledge={onAcknowledge}
+            />
           ))}
         </ul>
       )}
@@ -427,11 +544,15 @@ function OrderCard({
   now,
   router,
   tenantId,
+  acknowledged,
+  onAcknowledge,
 }: {
   order: KdsOrder;
   now: number;
   router: ReturnType<typeof useRouter>;
   tenantId: string;
+  acknowledged: boolean;
+  onAcknowledge: (orderId: string) => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -440,6 +561,7 @@ function OrderCard({
   const items = itemsOf(order);
   const next = nextForwardForKds(order.status);
   const isStale = now - new Date(order.updated_at).getTime() > STALE_MS;
+  const needsAck = ALARM_STATUSES_NEEDING_ACK.has(order.status) && !acknowledged;
 
   const onAdvance = () => {
     if (!next) return;
@@ -517,6 +639,18 @@ function OrderCard({
 
       <footer className="flex flex-wrap items-center justify-between gap-2">
         {error && <span className="text-xs text-rose-400">{error}</span>}
+        {needsAck && (
+          <button
+            type="button"
+            onClick={() => onAcknowledge(order.id)}
+            title="Oprește chime-ul de reamintire pentru această comandă (se reia automat dacă schimbi tab-ul / reîncarci pagina)."
+            aria-label="Marchează ca văzut — oprește alarma"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-800/60 px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-800"
+          >
+            <EyeIcon />
+            Văzut
+          </button>
+        )}
         {next ? (
           <button
             type="button"
@@ -579,6 +713,54 @@ function spawnPrintIframe(orderId: string): void {
     }, AUTO_PRINT_IFRAME_TTL_MS);
   } catch {
     /* best-effort — auto-print is a convenience, never block the KDS */
+  }
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+// Softer single-tone reminder, intentionally distinct from the new-order
+// 2-tone chime so staff can tell "this is a reminder, not a new order".
+function playReminderChime(audioCtxRef: { current: AudioContext | null }) {
+  try {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    let ctx = audioCtxRef.current;
+    if (!ctx) {
+      ctx = new Ctor();
+      audioCtxRef.current = ctx;
+    }
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  } catch {
+    /* best-effort */
   }
 }
 
