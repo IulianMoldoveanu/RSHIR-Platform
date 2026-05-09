@@ -23,7 +23,7 @@ export default async function KdsPage() {
   // (pre-migration) by accepting either null OR false.
   const { data, error } = await (admin
     .from('restaurant_orders')
-    .select('id, status, items, notes, delivery_address_id, created_at, updated_at')
+    .select('id, status, source, items, notes, delivery_address_id, created_at, updated_at')
     .eq('tenant_id', tenant.id)
     .in('status', KDS_STATUSES)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
