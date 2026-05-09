@@ -761,6 +761,15 @@ export const dictionaries = {
       dsr_title: 'Cere-ți datele sau ștergerea lor',
       dsr_body: 'Folosește linkul de urmărire al comenzii (token-ul UUID din /track/{token}) împreună cu emailul sau telefonul folosit la comandă pentru a-ți exporta sau șterge datele. Apelurile sunt POST către /api/customer/data-export și /api/customer/data-delete.',
     },
+    preOrder: {
+      disabled_title: 'Pre-comenzi',
+      disabled_body: 'Pre-comenzile online nu sunt încă disponibile pentru acest restaurant.',
+      back_to_menu: 'Înapoi la meniu',
+      back_to_menu_arrow: '← Înapoi la meniu',
+      title: 'Pre-comandă',
+      at_restaurant: 'la',
+      description: 'Adăugați produsele în coș de pe pagina principală, apoi alegeți data și ora la care doriți comanda. Restaurantul vă va contacta pentru confirmare și plată.',
+    },
   },
   en: {
     notFound: {
@@ -1511,6 +1520,15 @@ export const dictionaries = {
       contact_body_template: 'For requests email {tenantEmail} or, for GDPR-specific matters, {dpoEmail}.',
       dsr_title: 'Export or delete your data',
       dsr_body: 'Use the tracking link of your order (the UUID token from /track/{token}) together with the email or phone used on the order to export or delete your data. Endpoints: POST /api/customer/data-export and POST /api/customer/data-delete.',
+    },
+    preOrder: {
+      disabled_title: 'Pre-orders',
+      disabled_body: 'Online pre-orders are not yet available for this restaurant.',
+      back_to_menu: 'Back to menu',
+      back_to_menu_arrow: '← Back to menu',
+      title: 'Pre-order',
+      at_restaurant: 'at',
+      description: 'Add items from the main menu, then choose a date and time. The restaurant will contact you to confirm and arrange payment.',
     },
   },
 } as const;
