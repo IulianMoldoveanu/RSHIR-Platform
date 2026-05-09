@@ -224,16 +224,26 @@ export function KdsClient({
     }
   }, [acknowledgedIds, tenantId]);
 
-  // Persistent alarm: every 30s, scan currently-rendered orders for any
+  // Persistent alarm: every 30s, scan currently-VISIBLE orders for any
   // PENDING/CONFIRMED that has not been acknowledged. If at least one exists,
   // play a softer single-tone reminder chime. Stops on its own when every
   // such order is either ack'd or has moved to PREPARING+. The 3s cooldown
   // shared with new-order chime keeps a freshly-arrived order from
   // double-chiming with the alarm tick.
+  //
+  // Codex P2 fix (round 1): respect the active fulfillment filter — when the
+  // operator narrows the board to "Livrare" or "Ridicare", an unacknowledged
+  // order from the OTHER fulfillment type would still re-chime forever
+  // because its card (and the "Văzut" button) is hidden by the filter, so
+  // the operator has no way to silence it. The predicate below mirrors the
+  // `visible` memo so alarm + UI agree on what counts as "rendered now".
   useEffect(() => {
     const id = window.setInterval(() => {
       const needsAck = initialOrders.some(
-        (o) => ALARM_STATUSES_NEEDING_ACK.has(o.status) && !acknowledgedIds.has(o.id),
+        (o) =>
+          ALARM_STATUSES_NEEDING_ACK.has(o.status) &&
+          !acknowledgedIds.has(o.id) &&
+          (filter === 'all' || fulfillmentOf(o) === filter),
       );
       if (!needsAck) return;
       const t = Date.now();
@@ -242,7 +252,7 @@ export function KdsClient({
       playReminderChime(audioCtxRef);
     }, ALARM_REPEAT_MS);
     return () => window.clearInterval(id);
-  }, [initialOrders, acknowledgedIds]);
+  }, [initialOrders, acknowledgedIds, filter]);
 
   function acknowledgeOrder(orderId: string): void {
     setAcknowledgedIds((prev) => {
