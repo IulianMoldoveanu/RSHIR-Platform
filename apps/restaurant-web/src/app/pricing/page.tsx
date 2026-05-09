@@ -21,15 +21,15 @@ const PRICING_URL = PRIMARY_DOMAIN
   : 'https://hir-restaurant-web.vercel.app/pricing';
 
 const OG_IMAGE = marketingOgImageUrl({
-  title: 'Tarife — 3 RON / livrare flat',
-  subtitle: 'Fără abonament. Fără procent. Plată lunară pe factură SRL.',
+  title: 'Tarife — 2 lei pe comandă',
+  subtitle: 'Fără abonament. Fără procent. Fără setup.',
   variant: 'pricing',
 });
 
 export const metadata: Metadata = {
   title: 'Tarife — HIR Restaurant Suite',
   description:
-    'Tier 1: 3 RON / livrare flat. Tier 2: cost real curier + 3 RON pentru lanțuri și volum mare. Fără abonament, fără procent. Plată lunară pe factură SRL.',
+    '2 lei pe comandă. Un singur plan. Fără abonament, fără procent, fără setup. Instalare gratuită pentru primele 50 de restaurante.',
   alternates: {
     canonical: PRICING_URL,
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Tarife — HIR Restaurant Suite',
     description:
-      'Plătești doar pentru comenzile livrate. 3 RON / livrare. Fără surprize.',
+      'Plătești doar pentru comenzile livrate. 2 lei pe comandă. Fără surprize.',
     type: 'website',
     locale: 'ro_RO',
     images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Tarife HIR' }],
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Tarife — HIR Restaurant Suite',
-    description: 'Plătești doar pentru comenzile livrate. 3 RON / livrare.',
+    description: 'Plătești doar pentru comenzile livrate. 2 lei pe comandă.',
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
@@ -61,8 +61,8 @@ type CompareRow = {
 
 const COMPARE: CompareRow[] = [
   {
-    feature: 'Cost per comandă livrată',
-    hir: { good: true, label: '3 RON flat' },
+    feature: 'Cost per comandă',
+    hir: { good: true, label: '2 lei flat' },
     glovo: { good: false, label: '~30%' },
     wolt: { good: false, label: '~25-30%' },
     gloriafood: { good: true, label: '0% (dar fără livrare)' },
@@ -87,13 +87,6 @@ const COMPARE: CompareRow[] = [
     glovo: { good: false, label: 'Marketplace' },
     wolt: { good: false, label: 'Marketplace' },
     gloriafood: { good: true, label: 'Restaurant' },
-  },
-  {
-    feature: 'AI dedicat tenantului',
-    hir: { good: true, label: 'Da' },
-    glovo: { good: false, label: 'Nu' },
-    wolt: { good: false, label: 'Nu' },
-    gloriafood: { good: false, label: 'Nu' },
   },
   {
     feature: 'CRM + loyalty + reviews',
@@ -127,61 +120,71 @@ export default function PricingPage() {
             Tarife
           </div>
           <h1 className="max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">
-            Plătești doar comenzile livrate. <span className="text-[#4F46E5]">3 RON.</span>
+            Plătești doar comenzile livrate. <span className="text-[#4F46E5]">2 lei.</span>
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#475569]">
-            Fără abonament. Fără setup. Fără procent. Două tipuri de tarife — alegi
-            după volumul și logistica restaurantului tău.
+            Fără abonament. Fără setup. Fără procent. Un singur tarif, simplu —
+            2 lei pe comandă, indiferent de valoarea coșului.
           </p>
         </div>
       </section>
 
-      {/* Pricing cards */}
+      {/* Pricing card — single tier */}
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <div className="grid gap-6 md:grid-cols-2">
           <PriceCard
-            tag="TIER 1 · STANDARD"
+            tag="SINGURUL PLAN"
             title="HIR Direct"
-            price="3 RON"
-            priceSub="/ comandă livrată"
-            description="Pentru restaurantul mediu — folosește curierul HIR (propriu sau din rețeaua HIR) sau curierul tău."
+            price="2 lei"
+            priceSub="/ comandă"
+            description="Pentru orice restaurant — folosește curierul HIR (propriu sau din rețeaua HIR) sau curierul tău."
             included={[
               'Curier HIR (propriu sau din rețeaua HIR)',
               'Storefront white-label cu brand propriu',
               'Importer GloriaFood inclus',
               'CRM + loyalty + reviews + rezervări',
-              'AI dedicat (analytics + sugestii zilnice)',
+              'Asistent zilnic cu sugestii pentru vânzări',
               'Notificări push + sunet pe dashboard',
-              'Plăți Stripe (card) + cash la livrare',
+              'Plăți card + cash la livrare',
               'Subdomeniu inclus sau domeniu propriu',
               'Suport tehnic prin email + telefon',
+              'Implementare gratuită pentru primele 50 restaurante',
+              '30 zile fără cost',
+              'Fără abonament. Fără setup.',
             ]}
-            cta={{ href: '/migrate-from-gloriafood', label: 'Începe migrarea' }}
+            cta={{ href: '/contact', label: 'Sună-mă echipa HIR' }}
             accent
           />
-          <PriceCard
-            tag="TIER 2 · ENTERPRISE"
-            title="Passthrough + 3 RON"
-            price="cost real + 3 RON"
-            priceSub="/ comandă livrată"
-            description="Pentru lanțuri sau restaurante cu volum mare și propria logistică. Plătești costul real al curierului + 3 RON fee platformă."
-            included={[
-              'Toate funcționalitățile Tier 1',
-              'Cost transport real al curierului tău',
-              '+ 3 RON fee platformă HIR',
-              'Dashboard dedicat operatorilor HIR',
-              'KPI agregat pe curier / restaurant',
-              'Suport multi-restaurant pentru lanțuri',
-              'API custom + webhook configurabil',
-              'Manager de cont dedicat',
-              'Negociere directă termeni',
-            ]}
-            cta={{ href: '/contact', label: 'Discută cu echipa' }}
-          />
+          <div className="flex flex-col justify-center rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-7">
+            <h3 className="text-lg font-semibold text-[#0F172A]">Simplu ca în piață</h3>
+            <p className="mt-3 text-sm leading-relaxed text-[#475569]">
+              Plătești 2 lei pentru fiecare comandă livrată. La 30 de comenzi pe zi,
+              costul HIR e 60 lei/zi. Glovo/Wolt îți rețineau ~500–700 lei/zi pe
+              același volum.
+            </p>
+            <dl className="mt-6 space-y-3">
+              <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
+                <dt className="text-[#475569]">30 comenzi × 80 lei bon mediu</dt>
+                <dd className="font-semibold text-[#0F172A]">2.400 RON/zi rulaj</dd>
+              </div>
+              <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
+                <dt className="text-[#475569]">Comision Glovo ~25%</dt>
+                <dd className="font-semibold text-red-600">−600 RON/zi</dd>
+              </div>
+              <div className="flex justify-between pb-3 text-sm">
+                <dt className="text-[#475569]">Cost HIR (30 × 2 lei)</dt>
+                <dd className="font-semibold text-emerald-700">60 RON/zi</dd>
+              </div>
+            </dl>
+            <p className="mt-4 text-xs text-[#94A3B8]">
+              Economie estimată: ~540 RON/zi față de Glovo (la 30 comenzi × 80 lei).
+              Calculele variază după volumul și bonul tău mediu real.
+            </p>
+          </div>
         </div>
 
         <p className="mt-8 text-xs text-[#94A3B8]">
-          * Toate tarifele exclud TVA. Plata se face lunar pe factură SRL la sfârșitul
+          * Tarifele exclud TVA. Plata se face lunar pe factură SRL la sfârșitul
           fiecărei luni calendaristice. Fără minim, fără angajament — plătești doar
           comenzile efectiv livrate.
         </p>
@@ -240,12 +243,12 @@ export default function PricingPage() {
         <h2 className="text-2xl font-semibold tracking-tight">Întrebări frecvente</h2>
         <div className="mt-8 divide-y divide-[#E2E8F0]">
           <Faq q="Există abonament sau setup fee?">
-            Nu. Plătești doar 3 RON / comandă livrată. Fără setup, fără abonament,
+            Nu. Plătești doar 2 lei pe comandă. Fără setup, fără abonament,
             fără minim de comenzi. Dacă într-o lună nu ai livrări, plătești 0 RON.
           </Faq>
           <Faq q="Există procent din valoarea comenzii?">
-            Niciodată. 3 RON e flat — la o comandă de 50 RON plătești 3 RON, la o
-            comandă de 500 RON tot 3 RON.
+            Niciodată. 2 lei e flat — la o comandă de 50 RON plătești 2 lei, la o
+            comandă de 500 RON tot 2 lei.
           </Faq>
           <Faq q="Cum se face plata?">
             Lunar, pe factură SRL emisă de HIR &amp; BUILD YOUR DREAMS S.R.L. la
@@ -256,12 +259,12 @@ export default function PricingPage() {
             niciun markup. Vezi exact ce iei pe transferul lunar.
           </Faq>
           <Faq q="Pot folosi curierul meu existent?">
-            Da. Dacă ai deja echipă proprie de livrare, intri în Tier 2 (passthrough + 3 RON) și
-            îți facturezi singur clientul transportul.
+            Da. Dacă ai deja echipă proprie de livrare, o folosești în continuare —
+            plătești 2 lei/comandă pentru HIR, costul curierului tău rămâne al tău.
           </Faq>
-          <Faq q="Există minim de comenzi pentru a folosi platforma?">
+          <Faq q="Există minim de comenzi pentru a folosi HIR?">
             Nu. Funcționează din prima comandă. Dacă luna asta livrezi 10 comenzi,
-            plătești 30 RON. Atât.
+            plătești 20 RON. Atât.
           </Faq>
         </div>
       </section>
@@ -276,21 +279,21 @@ export default function PricingPage() {
             Gata să faceți primul pas?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-[#CBD5E1] md:text-base">
-            Migrare în 5 minute, fără angajament. Începeți cu prima comandă —
-            plătiți doar dacă livrați.
+            Implementare gratuită pentru primele 50 de restaurante. 30 zile fără cost.
+            Plătești 2 lei pe comandă, doar dacă livrezi.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
-              href="/migrate-from-gloriafood"
+              href="/contact"
               className="inline-flex items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
             >
-              Începe migrarea
+              Sună-mă echipa HIR
             </Link>
             <Link
-              href="/contact"
+              href="/migrate-from-gloriafood"
               className="inline-flex items-center justify-center rounded-md border border-white/20 bg-transparent px-5 py-3 text-sm font-medium text-white hover:bg-white/5"
             >
-              Vorbește cu un consultant
+              Încep singur — 30 zile gratis
             </Link>
           </div>
         </div>
