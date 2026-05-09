@@ -69,7 +69,7 @@ export function MarketingHeader({
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
           <Link
-            href="/affiliate"
+            href="/parteneriat/inscriere"
             className="hidden rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] sm:inline-flex"
           >
             {t(currentLocale, 'marketing.shell.cta_become_partner')}
@@ -139,8 +139,7 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
           <FooterCol
             title={t(currentLocale, 'marketing.shell.footer_col_partners')}
             links={[
-              { href: '/affiliate', label: t(currentLocale, 'marketing.shell.footer_link_affiliate') },
-              { href: '/reseller', label: t(currentLocale, 'marketing.shell.footer_link_reseller') },
+              { href: '/parteneriat/inscriere', label: t(currentLocale, 'marketing.shell.footer_link_reseller') },
               { href: '/contact', label: t(currentLocale, 'marketing.shell.footer_link_contact') },
               { href: '/press', label: t(currentLocale, 'marketing.shell.footer_link_press') },
             ]}

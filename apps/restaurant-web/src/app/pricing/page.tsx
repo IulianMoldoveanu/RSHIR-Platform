@@ -149,7 +149,6 @@ export default function PricingPage() {
               'Subdomeniu inclus sau domeniu propriu',
               'Suport tehnic prin email + telefon',
               'Implementare gratuită pentru primele 50 restaurante',
-              '30 zile fără cost',
               'Fără abonament. Fără setup.',
             ]}
             cta={{ href: '/contact', label: 'Sună-mă echipa HIR' }}
@@ -279,8 +278,8 @@ export default function PricingPage() {
             Gata să faceți primul pas?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-[#CBD5E1] md:text-base">
-            Implementare gratuită pentru primele 50 de restaurante. 30 zile fără cost.
-            Plătești 2 lei pe comandă, doar dacă livrezi.
+            Implementare gratuită pentru primele 50 de restaurante.
+            Plătești 2 lei pe comandă, doar dacă livrezi. Fără card.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
@@ -293,7 +292,7 @@ export default function PricingPage() {
               href="/migrate-from-gloriafood"
               className="inline-flex items-center justify-center rounded-md border border-white/20 bg-transparent px-5 py-3 text-sm font-medium text-white hover:bg-white/5"
             >
-              Încep singur — 30 zile gratis
+              Încep singur — fără card
             </Link>
           </div>
         </div>

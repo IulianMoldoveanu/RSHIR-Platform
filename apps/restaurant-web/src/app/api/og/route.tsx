@@ -8,7 +8,7 @@
 //
 // Lane Q already shipped sitemap + Organization/WebSite/BreadcrumbList
 // JSON-LD on the canonical host. This route closes the social-preview gap
-// for /, /pricing, /features, /affiliate, /parteneriat/inscriere,
+// for /, /pricing, /features, /parteneriat/inscriere,
 // /case-studies/foisorul-a, /migrate-from-gloriafood, /contact.
 //
 // We intentionally accept arbitrary `title` strings up to 120 chars and

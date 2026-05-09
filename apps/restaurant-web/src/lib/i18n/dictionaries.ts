@@ -423,7 +423,7 @@ export const dictionaries = {
         compare_gloriafood: 'GloriaFood',
         compare_aggregators: 'Wolt / Glovo',
         compare_pricing: 'Comision comenzi',
-        compare_pricing_hir: '3 RON / comandă',
+        compare_pricing_hir: '2 lei / comandă',
         compare_pricing_gf: 'Gratuit (limitat)',
         compare_pricing_agg: '25–30% comision',
         compare_courier: 'Curier propriu sau partener',
@@ -465,7 +465,7 @@ export const dictionaries = {
         for_restaurants_title: 'Pentru restaurante',
         for_restaurants_bullet_1: 'Importăm meniul în 5 minute (CSV sau URL)',
         for_restaurants_bullet_2: 'Continui cu comenzile online fără pierdere de clienți',
-        for_restaurants_bullet_3: 'Plătești 3 RON / comandă, nu 30% comision',
+        for_restaurants_bullet_3: 'Plătești 2 lei pe comandă, nu 30% comision',
         for_restaurants_cta: 'Migrează gratuit',
         for_resellers_title: 'Pentru parteneri GloriaFood',
         for_resellers_intro: 'Ești partener GloriaFood? Te invităm în programul nostru de afiliere.',
@@ -534,7 +534,6 @@ export const dictionaries = {
         footer_link_case_studies: 'Studiu de caz',
         footer_link_status: 'Status serviciu',
         footer_link_cities: 'Orașe acoperite',
-        footer_link_affiliate: 'Program Afiliați',
         footer_link_reseller: 'Program Reseleri',
         footer_link_contact: 'Contact comercial',
         footer_link_press: 'Press kit',
@@ -598,7 +597,7 @@ export const dictionaries = {
         hero_body:
           '2 lei pe comandă. Atât. Fără abonament. Instalare gratuită pentru primele 50 de restaurante.',
         cta_signup: 'Sună-mă echipa HIR',
-        cta_partner: 'Încep singur — 30 zile gratis',
+        cta_partner: 'Încep singur — fără card',
         cta_case_study: 'Vezi studiul de caz →',
         stat_pricing_label: 'Tarif comandă',
         stat_pricing_value: '2 lei',
@@ -673,7 +672,7 @@ export const dictionaries = {
         final_cta_body:
           'Înscrieți restaurantul în 5 minute. Importăm meniul GloriaFood automat și sunteți live azi.',
         final_cta_signup: 'Sună-mă echipa HIR',
-        final_cta_consultant: 'Încep singur — 30 zile gratis',
+        final_cta_consultant: 'Încep singur — fără card',
         aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR scapi de cele 3 terminale.',
         aggregator_body:
           'Restaurantele moderne primesc câte un terminal Android proprietar de la fiecare aplicație. HIR îți unifică totul: comenzile directe vin pe ecranul tău, plătești 2 lei/comandă în loc de 25% comision.',
@@ -717,7 +716,7 @@ export const dictionaries = {
         group2_title: 'Pentru curieri',
         group2_intro:
           'Aplicația de curier inclusă: dispatch, hartă, GPS, dovadă livrare.',
-        item_courier_pricing_title: 'Curier HIR la 3 RON / livrare',
+        item_courier_pricing_title: 'Curier HIR la 2 lei pe comandă',
         item_courier_pricing_body:
           'Tarif flat indiferent de valoarea comenzii. Fără procent, fără peak fees. Susțineți direct rețeaua HIR de curieri (proprii sau ai HIR).',
         item_courier_map_title: 'Hartă + GPS în timp real',
@@ -1194,7 +1193,7 @@ export const dictionaries = {
         compare_gloriafood: 'GloriaFood',
         compare_aggregators: 'Wolt / Glovo',
         compare_pricing: 'Order commission',
-        compare_pricing_hir: '3 RON / order',
+        compare_pricing_hir: '2 lei / order',
         compare_pricing_gf: 'Free (limited)',
         compare_pricing_agg: '25–30% commission',
         compare_courier: 'Own or partner courier',
@@ -1236,7 +1235,7 @@ export const dictionaries = {
         for_restaurants_title: 'For restaurants',
         for_restaurants_bullet_1: 'We import your menu in 5 minutes (CSV or URL)',
         for_restaurants_bullet_2: 'Keep online orders running with no customer loss',
-        for_restaurants_bullet_3: 'Pay 3 RON per order, not 30% commission',
+        for_restaurants_bullet_3: 'Pay 2 lei per order, not 30% commission',
         for_restaurants_cta: 'Migrate for free',
         for_resellers_title: 'For GloriaFood partners',
         for_resellers_intro: "Are you a GloriaFood reseller? Join our affiliate programme.",
@@ -1302,7 +1301,6 @@ export const dictionaries = {
         footer_link_case_studies: 'Case study',
         footer_link_status: 'Platform status',
         footer_link_cities: 'Cities we cover',
-        footer_link_affiliate: 'Affiliate programme',
         footer_link_reseller: 'Reseller programme',
         footer_link_contact: 'Sales contact',
         footer_link_press: 'Press kit',
@@ -1363,7 +1361,7 @@ export const dictionaries = {
         hero_body:
           '2 lei per order. That is all. No subscription. Free setup for the first 50 restaurants.',
         cta_signup: 'Call me — HIR team',
-        cta_partner: 'Start on my own — 30 days free',
+        cta_partner: 'Start on my own — no card needed',
         cta_case_study: 'Read the case study →',
         stat_pricing_label: 'Order fee',
         stat_pricing_value: '2 lei',
@@ -1438,7 +1436,7 @@ export const dictionaries = {
         final_cta_body:
           'Sign up your restaurant in 5 minutes. We import your GloriaFood menu automatically and you go live today.',
         final_cta_signup: 'Call me — HIR team',
-        final_cta_consultant: 'Start on my own — 30 days free',
+        final_cta_consultant: 'Start on my own — no card needed',
         aggregator_title: 'Glovo, Wolt, Bolt? With HIR you get rid of the 3 terminals.',
         aggregator_body:
           'Modern restaurants receive a separate Android terminal from each app. HIR unifies everything: direct orders come to your screen, you pay 2 lei/order instead of 25% commission.',
@@ -1482,7 +1480,7 @@ export const dictionaries = {
         group2_title: 'For couriers',
         group2_intro:
           'The included courier app: dispatch, map, GPS, proof of delivery.',
-        item_courier_pricing_title: 'HIR courier at 3 RON / delivery',
+        item_courier_pricing_title: 'HIR courier at 2 lei per order',
         item_courier_pricing_body:
           'Flat fare regardless of order value. No percentage, no peak fees. You back the HIR courier network directly (your own courier or HIR couriers).',
         item_courier_map_title: 'Map + real-time GPS',
