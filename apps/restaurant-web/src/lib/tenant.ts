@@ -301,16 +301,20 @@ export async function resolveTenantFromHost(): Promise<{
     ? h.get('x-hir-tenant-override')?.toLowerCase() ?? null
     : null;
 
+  // Storefront resolver reads through `v_tenants_storefront` — the
+  // anon-safe projection that strips fiscal/legal subkeys and excludes
+  // external_dispatch_secret. Internal callers use the underlying
+  // tenants table via service-role admin client.
   if (overrideSlug) {
-    row = (await supabase.from('tenants').select(SELECT).eq('slug', overrideSlug).maybeSingle())
+    row = (await supabase.from('v_tenants_storefront').select(SELECT).eq('slug', overrideSlug).maybeSingle())
       .data as TenantRow | null;
   } else if (subSlug) {
-    row = (await supabase.from('tenants').select(SELECT).eq('slug', subSlug).maybeSingle())
+    row = (await supabase.from('v_tenants_storefront').select(SELECT).eq('slug', subSlug).maybeSingle())
       .data as TenantRow | null;
   } else if (host) {
     row = (
       await supabase
-        .from('tenants')
+        .from('v_tenants_storefront')
         .select(SELECT)
         .eq('custom_domain', host)
         .eq('domain_status', 'ACTIVE')
