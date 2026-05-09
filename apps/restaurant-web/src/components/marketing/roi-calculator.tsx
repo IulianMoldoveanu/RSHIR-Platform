@@ -18,13 +18,13 @@
 
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Calculator, Clock, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, Calculator, Clock, TrendingUp } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 
 const DAYS_PER_MONTH = 30;
+const AGGREGATOR_FEE = 0.25; // hardcoded 25% — Glovo/Wolt/Bolt benchmark RO 2026
 const DIRECT_CONVERSION_RATE = 0.3; // industry benchmark — 30 % of aggregator volume convertible to direct
 const MANUAL_HOURS_PER_WEEK_BASE = 6; // base savings — manual order ops, menu sync, reconciliation
-const HEPY_REVENUE_UPLIFT = 0.15; // indicative AI growth uplift on direct channel
 
 const formatRon = (value: number): string => {
   // RO style: thousands separator = ".", decimal separator = ","
@@ -163,30 +163,25 @@ function ResultCard({ icon, label, value, unit, accent }: ResultCardProps) {
 
 export function RoiCalculator() {
   const [ordersPerDay, setOrdersPerDay] = useState(30);
-  const [orderValue, setOrderValue] = useState(60);
-  const [aggregatorShare, setAggregatorShare] = useState(70); // %
-  const [aggregatorFee, setAggregatorFee] = useState(30); // %
+  const [orderValue, setOrderValue] = useState(80);
 
   const results = useMemo(() => {
     const monthlyOrders = ordersPerDay * DAYS_PER_MONTH;
     const monthlyVolume = monthlyOrders * orderValue;
-    const aggregatorVolume = monthlyVolume * (aggregatorShare / 100);
-    const aggregatorCost = aggregatorVolume * (aggregatorFee / 100);
-    const convertedVolume = aggregatorVolume * DIRECT_CONVERSION_RATE;
-    const convertedSavings = convertedVolume * (aggregatorFee / 100);
+    // Assume all orders currently go through aggregators (conservative calculator)
+    const aggregatorCost = monthlyVolume * AGGREGATOR_FEE;
+    const convertedSavings = monthlyVolume * AGGREGATOR_FEE * DIRECT_CONVERSION_RATE;
     // Manual hours: ~24 h / month base, scaled gently by order volume above 30 / day.
     const volumeFactor = Math.max(1, ordersPerDay / 30);
     const manualHoursSaved =
       MANUAL_HOURS_PER_WEEK_BASE * 4 * Math.min(volumeFactor, 3);
-    const hepyUplift = monthlyVolume * HEPY_REVENUE_UPLIFT;
     return {
       monthlyVolume,
       aggregatorCost,
       convertedSavings,
       manualHoursSaved,
-      hepyUplift,
     };
-  }, [ordersPerDay, orderValue, aggregatorShare, aggregatorFee]);
+  }, [ordersPerDay, orderValue]);
 
   return (
     <section
@@ -230,32 +225,15 @@ export function RoiCalculator() {
               label="Valoare medie pe comandă"
               hint="Valoarea medie a unei comenzi, fără TVA, în RON."
               min={20}
-              max={150}
-              step={1}
+              max={200}
+              step={5}
               unit="RON"
               value={orderValue}
               onChange={setOrderValue}
             />
-            <SliderInput
-              label="Procent comenzi prin agregator"
-              hint="Cât din volum vine acum prin Glovo, Wolt, Tazz sau FoodPanda."
-              min={0}
-              max={100}
-              step={1}
-              unit="%"
-              value={aggregatorShare}
-              onChange={setAggregatorShare}
-            />
-            <SliderInput
-              label="Comision actual agregator"
-              hint="Comisionul mediu reținut de agregator din valoarea comenzii."
-              min={20}
-              max={35}
-              step={1}
-              unit="%"
-              value={aggregatorFee}
-              onChange={setAggregatorFee}
-            />
+            <p className="text-xs leading-relaxed text-[#94A3B8]">
+              Comision agregator: 25% (medie Glovo/Wolt/Bolt România 2026).
+            </p>
           </div>
 
           {/* Outputs */}
@@ -264,43 +242,35 @@ export function RoiCalculator() {
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
               label="Volum lunar"
               value={`${formatRon(results.monthlyVolume)} RON`}
-              unit="rulaj total estimat (toate canalele)"
+              unit="rulaj total estimat"
             />
             <ResultCard
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
-              label="Cost lunar agregator"
+              label="Cost lunar agregator (25%)"
               value={`${formatRon(results.aggregatorCost)} RON`}
-              unit="comisioane reținute de agregatori în prezent"
+              unit="comisioane reținute de Glovo/Wolt/Bolt acum"
             />
             <ResultCard
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
               label="Economie estimată"
               value={`${formatRon(results.convertedSavings)} RON / lună`}
-              unit="dacă convertiți 30% din volum la canalul direct"
+              unit="dacă convertiți 30% din volum la canalul direct HIR"
               accent
             />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <ResultCard
-                icon={<Clock className="h-4 w-4" aria-hidden />}
-                label="Ore manuale economisite"
-                value={`${formatHours(results.manualHoursSaved)} ore / lună`}
-                unit="gestiune comenzi + sync meniu + reconciliere"
-              />
-              <ResultCard
-                icon={<Sparkles className="h-4 w-4" aria-hidden />}
-                label="Bonus AI Hepy"
-                value={`+${formatRon(results.hepyUplift)} RON`}
-                unit="referință: +15% revenue prin recomandări AI"
-              />
-            </div>
+            <ResultCard
+              icon={<Clock className="h-4 w-4" aria-hidden />}
+              label="Ore manuale economisite"
+              value={`${formatHours(results.manualHoursSaved)} ore / lună`}
+              unit="gestiune comenzi + sync meniu + reconciliere"
+            />
           </div>
         </div>
 
         <p className="mt-8 max-w-3xl text-xs leading-relaxed text-[#94A3B8]">
-          * Estimări bazate pe benchmark-uri industrie (rata medie de conversie
-          la canalul direct ~30%, ore manuale ~24h/lună). Rezultatele variază
-          în funcție de specificul restaurantului dumneavoastră, locație și
-          mix de produse. Cifrele nu reprezintă o garanție contractuală.
+          * Estimări bazate pe benchmark-uri industrie (comision agregator 25%,
+          rata medie de conversie la direct ~30%, ore manuale ~24h/lună). Rezultatele
+          variază în funcție de volumul și specificul restaurantului dumneavoastră.
+          Cifrele nu reprezintă o garanție contractuală.
         </p>
 
         <div className="mt-10 flex flex-col items-start gap-4 rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-6 sm:flex-row sm:items-center sm:justify-between">
