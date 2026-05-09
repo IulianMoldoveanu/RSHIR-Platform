@@ -35,7 +35,11 @@ export const runtime = 'edge';
 function buildOrigin(): string {
   const hdrs = headers();
   const proto = hdrs.get('x-forwarded-proto') ?? 'https';
-  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'hir.ro';
+  const host =
+    hdrs.get('x-forwarded-host') ??
+    hdrs.get('host') ??
+    process.env.NEXT_PUBLIC_PRIMARY_DOMAIN ??
+    'hirforyou.ro';
   return `${proto}://${host}`;
 }
 

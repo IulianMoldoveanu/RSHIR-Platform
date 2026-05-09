@@ -109,7 +109,7 @@ describe('renderEmail', () => {
   it('always carries the HIR platform footer', () => {
     const html = renderEmail(baseInput);
     expect(html).toContain('Trimis prin');
-    expect(html).toContain('hir.ro');
+    expect(html).toContain('hirforyou.ro');
   });
 
   it('stays well under the Gmail 102 KB clip limit', () => {

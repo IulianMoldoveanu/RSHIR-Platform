@@ -110,7 +110,7 @@ export function renderEmail(input: EmailLayoutInput): string {
             </tr>
             <tr>
               <td style="padding:14px 24px 18px;background:#fafafa;border-top:1px solid #e4e4e7;font-size:11px;color:#a1a1aa;text-align:center;line-height:1.5">
-                Trimis prin <strong style="color:#71717a">HIR</strong> · <a href="https://hir.ro" style="color:#a1a1aa;text-decoration:none">hir.ro</a>
+                Trimis prin <strong style="color:#71717a">HIR</strong> · <a href="https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}" style="color:#a1a1aa;text-decoration:none">${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}</a>
                 ${unsubscribeRow}
               </td>
             </tr>

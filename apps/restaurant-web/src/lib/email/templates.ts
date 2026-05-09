@@ -40,7 +40,7 @@ export function affiliatePendingEmail(
     'Pentru întrebări, răspundeți la acest e-mail.',
     '',
     '— Echipa HIR',
-    'https://hir.ro',
+    `https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   const bodyHtml = `
@@ -105,7 +105,7 @@ export function affiliateApprovedEmail(
     'Pentru întrebări, răspundeți la acest e-mail.',
     '',
     '— Echipa HIR',
-    'https://hir.ro',
+    `https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   const bodyHtml = `

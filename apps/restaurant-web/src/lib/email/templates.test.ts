@@ -34,8 +34,8 @@ describe('affiliatePendingEmail', () => {
   });
 
   it('always renders the HIR platform footer', () => {
-    expect(result.html).toContain('hir.ro');
-    expect(result.text).toContain('hir.ro');
+    expect(result.html).toContain('hirforyou.ro');
+    expect(result.text).toContain('hirforyou.ro');
   });
 });
 

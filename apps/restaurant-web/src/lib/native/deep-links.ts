@@ -32,8 +32,15 @@ export function resolveDeepLink(url: string): string | null {
       if (host === 'track' && slug) return `/track/${encodeURIComponent(slug)}`;
     }
 
-    // Universal links: https://hir.ro/r/{slug} or https://hir.ro/track/{token}
-    if (parsed.hostname.endsWith('hir.ro') || parsed.hostname.endsWith('hiraisolutions.ro')) {
+    // Universal links: https://hirforyou.ro/r/{slug} or https://hirforyou.ro/track/{token}
+    if (
+      parsed.hostname.endsWith('hir.ro') ||
+      parsed.hostname.endsWith('hiraisolutions.ro') ||
+      parsed.hostname.endsWith('hirforyou.ro') ||
+      (typeof process !== 'undefined' &&
+        process.env.NEXT_PUBLIC_PRIMARY_DOMAIN &&
+        parsed.hostname.endsWith(process.env.NEXT_PUBLIC_PRIMARY_DOMAIN))
+    ) {
       const parts = parsed.pathname.split('/').filter(Boolean);
       if (parts[0] === 'r' && parts[1]) return `/r/${encodeURIComponent(parts[1])}`;
       if (parts[0] === 'track' && parts[1]) return `/track/${encodeURIComponent(parts[1])}`;

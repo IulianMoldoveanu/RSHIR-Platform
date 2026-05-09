@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 
-const SNIPPET = `<script src="https://hir.ro/embed.js"
+const PRIMARY_DOMAIN =
+  process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro';
+const SNIPPET = `<script src="https://${PRIMARY_DOMAIN}/embed.js"
   data-tenant="restaurantul-meu"
   data-color="#FF6B35"
   data-position="bottom-right"

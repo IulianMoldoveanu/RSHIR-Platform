@@ -43,7 +43,7 @@ export function confirmationEmail(input: ConfirmEmailInput): { subject: string; 
     '',
     'Dacă nu dumneavoastră ați cerut acest abonament, ignorați e-mailul.',
     '',
-    '— HIR · hir.ro',
+    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
   return { subject, html, text };
 }
@@ -98,7 +98,7 @@ export function welcomeEmail(input: WelcomeEmailInput): { subject: string; html:
     storefrontUrl ? `\nComandă: ${storefrontUrl}` : '',
     '',
     `Dezabonare: ${unsubscribeUrl}`,
-    '— HIR · hir.ro',
+    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ]
     .filter(Boolean)
     .join('\n');
