@@ -27,7 +27,15 @@ import {
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { metaDescriptionFor } from '@/lib/seo';
-import { canonicalBaseUrl } from '@/lib/seo-marketing';
+import {
+  canonicalBaseUrl,
+  organizationJsonLd,
+  websiteJsonLd,
+  localBusinessJsonLd,
+  softwareApplicationJsonLd,
+  faqPageJsonLd,
+} from '@/lib/seo-marketing';
+import { MobileStickyCta } from '@/components/marketing/mobile-sticky-cta';
 import { headers } from 'next/headers';
 import { buildRestaurantJsonLd, buildMenuJsonLd } from '@/lib/seo/jsonld-helpers';
 import { SocialShare } from '@/components/storefront/social-share';
@@ -39,15 +47,14 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
   if (!tenant) {
     // Lane H marketing landing — only on canonical hosts with no tenant.
-    // Lane EN-I18N (2026-05-05): title + description now resolve from
-    // `marketing.home.*` so the SERP snippet matches the language of the
-    // visitor's locale cookie / Accept-Language preference.
-    const title = t(locale, 'marketing.home.page_title');
-    const description = t(locale, 'marketing.home.page_description');
-    // Lane EN-I18N PR D — language alternates. Same URL serves both
-    // locales (cookie-based locale, no /en or /ro prefix), so emit
-    // self-referencing alternates so search engines index a single URL
-    // and pick the right rendering via `Vary: Cookie`.
+    // SEO audit 2026-05-10 #1 — RO is the only canonical metadata language
+    // for hirforyou.ro homepage. Visitor toggles to EN remain available via
+    // the in-page locale switcher cookie, but the SERP snippet, OpenGraph
+    // locale, and `<html lang>` are pinned to RO so Google indexes a single
+    // canonical RO version and avoids hreflang split-content penalties.
+    // Tenant storefronts (else branch below) continue to use `getLocale()`.
+    const title = t('ro', 'marketing.home.page_title');
+    const description = t('ro', 'marketing.home.page_description');
     const host =
       (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
     const url = `${canonicalBaseUrl(host)}/`;
@@ -56,14 +63,14 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       alternates: {
         canonical: url,
-        languages: { 'ro-RO': url, en: url, 'x-default': url },
+        languages: { 'ro-RO': url, 'x-default': url },
       },
       openGraph: {
         title,
         description,
         url,
         type: 'website',
-        locale: locale === 'en' ? 'en_GB' : 'ro_RO',
+        locale: 'ro_RO',
       },
       twitter: {
         card: 'summary_large_image',
@@ -112,9 +119,69 @@ export default async function StorefrontHomePage() {
   // Tenant subdomains and custom domains continue to render the storefront
   // menu unchanged.
   if (!tenant) {
-    // Lane EN-I18N (2026-05-05) — pass the resolved locale into the
-    // marketing landing so its chrome + body renders RO/EN per cookie.
-    return <MarketingHome currentLocale={getLocale()} />;
+    // SEO audit 2026-05-10 #1 — marketing landing is pinned to RO.
+    // hirforyou.ro targets RO restaurant patrons, so the canonical
+    // homepage indexed by Google is RO-only. EN remains accessible via
+    // the locale cookie + alternate marketing pages but the homepage
+    // body is no longer Accept-Language-driven.
+    //
+    // SEO audit 2026-05-10 #4 — Organization, WebSite, LocalBusiness,
+    // SoftwareApplication, FAQPage JSON-LD are surfaced on the homepage
+    // for rich SERP results.
+    //
+    // SEO audit 2026-05-10 #5 — `MobileStickyCta` adds the bottom-fixed
+    // call/whatsapp/demo bar visible only on viewports < md.
+    const host =
+      (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
+    const baseUrl = canonicalBaseUrl(host);
+    const homepageFaq = [
+      {
+        question: 'Cât costă HIRforYOU?',
+        answer:
+          '2 lei per comandă livrată. Fără abonament, fără comision procentual din valoarea coșului.',
+      },
+      {
+        question: 'Cum mă mut de pe GloriaFood pe HIRforYOU?',
+        answer:
+          'Echipa noastră preia meniul și butonul de comandă, înlocuiește integrarea actuală în 24-48 de ore. Migrarea este GRATUITĂ pentru primele 50 de restaurante.',
+      },
+      {
+        question: 'Ce diferență față de Glovo / Wolt / Bolt?',
+        answer:
+          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți 2 lei pe comandă, nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
+      },
+      {
+        question: 'AI-ul vorbește română?',
+        answer:
+          'Da. Modelele sunt configurate pentru română formală (dumneavoastră), cu suport pentru EN dacă restaurantul preferă.',
+      },
+    ];
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationJsonLd(baseUrl)) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(websiteJsonLd(baseUrl)) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(localBusinessJsonLd(baseUrl)) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareApplicationJsonLd(baseUrl)) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(faqPageJsonLd(homepageFaq)) }}
+        />
+        <MarketingHome currentLocale="ro" />
+        <MobileStickyCta />
+      </>
+    );
   }
 
   const locale = getLocale();

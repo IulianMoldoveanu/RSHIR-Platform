@@ -20,6 +20,7 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/features', priority: 0.8 },
   { path: '/pricing', priority: 0.8 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
+  { path: '/alternativa-gloriafood-romania', priority: 0.9 },
   { path: '/case-studies/foisorul-a', priority: 0.6 },
   { path: '/parteneriat/inscriere', priority: 0.7 },
   { path: '/contact', priority: 0.4 },
@@ -135,6 +136,83 @@ export function websiteJsonLd(baseUrl: string) {
       target: `${baseUrl}/?q={search_term_string}`,
       'query-input': 'required name=search_term_string',
     },
+  };
+}
+
+// JSON-LD: LocalBusiness — Romania-focused SaaS provider, used on `/`
+// and any page where local SERP intent (city + business type) matters.
+// Per ChatGPT SEO audit 2026-05-10. We're a software vendor, not a
+// brick-and-mortar restaurant, so address points to Brașov office.
+export function localBusinessJsonLd(baseUrl: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    '@id': `${baseUrl}/#localbusiness`,
+    name: 'HIRforYOU',
+    image: `${baseUrl}/logo.svg`,
+    url: baseUrl,
+    telephone: '+40743700916',
+    email: 'office@hirforyou.ro',
+    priceRange: '2 RON / comandă',
+    address: {
+      '@type': 'PostalAddress',
+      addressCountry: 'RO',
+      addressLocality: 'Brașov',
+      addressRegion: 'BV',
+    },
+    areaServed: {
+      '@type': 'Country',
+      name: 'Romania',
+    },
+    sameAs: [
+      'https://www.linkedin.com/company/hirforyou',
+      'https://www.facebook.com/hirforyou',
+    ],
+  };
+}
+
+// JSON-LD: SoftwareApplication — surfaces HIR as a SaaS in Google's
+// software-app rich result panels. Per ChatGPT SEO audit 2026-05-10.
+export function softwareApplicationJsonLd(baseUrl: string) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'HIRforYOU',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web, iOS, Android',
+    url: baseUrl,
+    description:
+      'Platformă românească de comenzi online pentru restaurante: site propriu, KDS, livrare, AI, fără comision procentual.',
+    offers: {
+      '@type': 'Offer',
+      price: '2',
+      priceCurrency: 'RON',
+      description: '2 RON per comandă livrată — fără comision procentual',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'HIRforYOU',
+      url: baseUrl,
+    },
+  };
+}
+
+// JSON-LD: FAQPage. Caller passes [{ q, a }] pairs; we wrap them in the
+// Schema.org Question/Answer shape. Per ChatGPT SEO audit 2026-05-10 —
+// surface FAQ rich results on `/`, `/pricing`, `/migrate-from-gloriafood`,
+// and the new `/alternativa-gloriafood-romania`.
+export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: string }>) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: items.map((it) => ({
+      '@type': 'Question',
+      name: it.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: it.answer,
+      },
+    })),
   };
 }
 
