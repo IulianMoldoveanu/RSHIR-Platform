@@ -38,7 +38,7 @@ type AdminWithPartners = {
 async function requireActivePartner(): Promise<
   { userId: string; partner: PartnerRow } | { error: string }
 > {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -120,7 +120,7 @@ export async function updatePartnerNotificationSettings(input: {
   // notably on_application_approved (the one that matters before approval
   // is dispatched). /partner-portal admits PENDING in layout + page, so
   // we mirror that here instead of using the ACTIVE-only guard.
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'Unauthentificat.' };
 
@@ -180,7 +180,7 @@ export async function updatePartnerNotificationSettings(input: {
 
 export async function updatePartnerBranding(input: LandingPatch): Promise<PartnerActionResult> {
   // Custom guard: include PENDING + ACTIVE (mirrors layout/page admission).
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

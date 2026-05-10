@@ -35,7 +35,7 @@ export async function saveTablePlan(raw: unknown): Promise<SavePlanResult> {
     }
     const { tenantId, showToCustomers, tables } = parsed.data;
 
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

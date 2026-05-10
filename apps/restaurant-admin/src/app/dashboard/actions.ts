@@ -8,7 +8,7 @@ export async function selectTenantAction(formData: FormData) {
   const tenantId = String(formData.get('tenantId') ?? '');
   if (!tenantId) return;
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -16,7 +16,8 @@ export async function selectTenantAction(formData: FormData) {
 
   await assertTenantMember(user.id, tenantId);
 
-  cookies().set(TENANT_COOKIE, tenantId, {
+  const cookieStore = await cookies();
+  cookieStore.set(TENANT_COOKIE, tenantId, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
@@ -27,8 +28,9 @@ export async function selectTenantAction(formData: FormData) {
 }
 
 export async function logoutAction() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   await supabase.auth.signOut();
-  cookies().delete(TENANT_COOKIE);
+  const cookieStore = await cookies();
+  cookieStore.delete(TENANT_COOKIE);
   redirect('/login');
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 // Top-level error boundary for the courier app (catches login / register /
@@ -47,12 +48,12 @@ export default function CourierError({
             <RefreshCw className="h-4 w-4" aria-hidden />
             Reîncearcă
           </button>
-          <a
+          <Link
             href="/dashboard/orders"
             className="inline-flex h-11 items-center rounded-xl border border-zinc-700 bg-zinc-900 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
           >
             Înapoi la comenzi
-          </a>
+          </Link>
         </div>
       </div>
     </main>

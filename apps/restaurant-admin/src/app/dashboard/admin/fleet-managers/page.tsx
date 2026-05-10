@@ -43,12 +43,13 @@ type FleetManagerRow = {
   tenants: FleetManagerTenant[];
 };
 
-export default async function FleetManagersPage({
-  searchParams,
-}: {
-  searchParams?: { city?: string };
-}) {
-  const supabase = createServerClient();
+export default async function FleetManagersPage(
+  props: {
+    searchParams?: Promise<{ city?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

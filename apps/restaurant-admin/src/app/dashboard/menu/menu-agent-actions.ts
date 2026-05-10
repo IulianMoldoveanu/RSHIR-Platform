@@ -42,7 +42,7 @@ async function decideProposal(
   auditAction: AuditAction,
 ): Promise<ActionResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

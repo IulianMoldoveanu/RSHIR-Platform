@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export default async function PlatformAdminOnboardPage() {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

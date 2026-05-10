@@ -38,11 +38,12 @@ const REASON_LABELS_SHORT: Record<MovementReason, string> = {
   INITIAL_STOCK: 'Stoc inițial',
 };
 
-export default async function InventoryItemDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function InventoryItemDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const { tenant } = await getActiveTenant();
   if (!(await isInventoryEnabled(tenant.id))) {
     return <InventoryUpsell />;

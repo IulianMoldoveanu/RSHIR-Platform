@@ -14,11 +14,12 @@ function parseRange(value: string | string[] | undefined): 7 | 30 | 90 {
   return 30;
 }
 
-export default async function AnalyticsPage({
-  searchParams,
-}: {
-  searchParams?: { range?: string };
-}) {
+export default async function AnalyticsPage(
+  props: {
+    searchParams?: Promise<{ range?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { tenant } = await getActiveTenant();
   const data = await loadAnalytics(tenant.id);
   const initialRange = parseRange(searchParams?.range);

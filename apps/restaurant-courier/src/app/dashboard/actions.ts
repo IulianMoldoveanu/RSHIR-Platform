@@ -128,13 +128,13 @@ async function notifySubscriber(
 }
 
 export async function logoutAction() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   await supabase.auth.signOut();
   redirect('/login');
 }
 
 async function requireUserId(): Promise<string> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

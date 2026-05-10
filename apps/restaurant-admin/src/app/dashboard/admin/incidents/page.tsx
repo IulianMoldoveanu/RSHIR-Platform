@@ -43,7 +43,7 @@ export type IncidentLogRow = {
 const PAGE_LIMIT = 30;
 
 export default async function AdminIncidentsPage() {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

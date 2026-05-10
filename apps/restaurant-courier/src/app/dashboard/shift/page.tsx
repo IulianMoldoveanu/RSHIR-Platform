@@ -12,7 +12,7 @@ type ShiftRow = { id: string; started_at: string };
 type DeliveredRow = { delivery_fee_ron: number | null; updated_at: string };
 
 export default async function ShiftPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

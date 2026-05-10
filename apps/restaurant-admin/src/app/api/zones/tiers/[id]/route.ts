@@ -14,7 +14,8 @@ const updateTierSchema = z
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No fields to update' });
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const origin = assertSameOrigin(req);
   if (!origin.ok) {
     return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
@@ -95,7 +96,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ tier: row });
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const origin = assertSameOrigin(req);
   if (!origin.ok) {
     return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });

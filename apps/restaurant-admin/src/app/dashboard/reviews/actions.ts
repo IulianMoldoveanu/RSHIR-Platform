@@ -15,7 +15,7 @@ export async function toggleReviewHidden(
   expectedTenantId: string,
 ): Promise<void> {
   if (!expectedTenantId) throw new Error('missing_tenant_id');
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

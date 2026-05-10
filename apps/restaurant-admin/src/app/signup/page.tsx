@@ -2,11 +2,12 @@ import { SignupForm } from './signup-form';
 
 export const dynamic = 'force-dynamic';
 
-export default function SignupPage({
-  searchParams,
-}: {
-  searchParams: { ref?: string };
-}) {
+export default async function SignupPage(
+  props: {
+    searchParams: Promise<{ ref?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const ref = typeof searchParams.ref === 'string' ? searchParams.ref.trim().toLowerCase() : undefined;
 
   return (

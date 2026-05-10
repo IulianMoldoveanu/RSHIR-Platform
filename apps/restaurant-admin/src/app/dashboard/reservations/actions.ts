@@ -31,7 +31,7 @@ const settingsSchema = z.object({
 export type ResvActionResult = { ok: true } | { ok: false; error: string };
 
 async function authorize(expectedTenantId: string) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

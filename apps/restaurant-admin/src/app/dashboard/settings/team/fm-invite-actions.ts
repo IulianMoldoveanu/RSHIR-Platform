@@ -260,7 +260,7 @@ export async function acceptFleetManagerInvite(
     return { ok: false, error: 'invalid_token' };
   }
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -27,7 +27,7 @@ export async function openTenantAsPlatformAdmin(formData: FormData): Promise<voi
   const tenantId = String(formData.get('tenantId') ?? '');
   if (!tenantId) throw new Error('missing_tenant_id');
 
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();
@@ -46,7 +46,8 @@ export async function openTenantAsPlatformAdmin(formData: FormData): Promise<voi
   if (error) throw new Error(error.message);
   if (!data) throw new Error('tenant_not_found');
 
-  cookies().set(TENANT_COOKIE, tenantId, {
+  const cookieStore = await cookies();
+  cookieStore.set(TENANT_COOKIE, tenantId, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
@@ -70,7 +71,7 @@ export async function setTenantCity(args: {
     return { ok: false, error: 'invalid_input' };
   }
 
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();
@@ -141,7 +142,7 @@ export async function setTenantStatus(args: {
     return { ok: false, error: 'invalid_status' };
   }
 
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

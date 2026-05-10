@@ -196,9 +196,10 @@ function startOfTodayIso(): string {
 export default async function OrdersPage({
   searchParams,
 }: {
-  searchParams?: { filter?: string };
+  searchParams?: Promise<{ filter?: string }>;
 }) {
-  const filter = parseFilter(searchParams?.filter);
+  const sp = await searchParams;
+  const filter = parseFilter(sp?.filter);
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 

@@ -18,7 +18,7 @@ export async function markResolvedAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!/^[0-9a-f-]{36}$/i.test(id)) return;
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -10,11 +10,12 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export function generateMetadata({
-  params,
-}: {
-  params: { category: string; slug: string };
-}) {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ category: string; slug: string }>;
+  }
+) {
+  const params = await props.params;
   const found = findTopic(params.slug);
   if (!found) return { title: 'Articol indisponibil · HIR' };
   return {
@@ -23,11 +24,12 @@ export function generateMetadata({
   };
 }
 
-export default function HelpTopicPage({
-  params,
-}: {
-  params: { category: string; slug: string };
-}) {
+export default async function HelpTopicPage(
+  props: {
+    params: Promise<{ category: string; slug: string }>;
+  }
+) {
+  const params = await props.params;
   const found = findTopic(params.slug);
   if (!found || found.category.slug !== params.category) {
     notFound();

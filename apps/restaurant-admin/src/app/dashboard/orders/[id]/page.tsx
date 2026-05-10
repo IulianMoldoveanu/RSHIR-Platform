@@ -58,7 +58,8 @@ function publicTrackUrl(token: string): string {
   return `${base.replace(/\/$/, '')}/track/${token}`;
 }
 
-export default async function OrderDetailPage({ params }: { params: { id: string } }) {
+export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 

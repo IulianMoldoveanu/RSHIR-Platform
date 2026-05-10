@@ -37,7 +37,7 @@ const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/av
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

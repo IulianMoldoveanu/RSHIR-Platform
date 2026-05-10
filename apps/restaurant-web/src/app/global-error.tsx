@@ -110,6 +110,8 @@ export default function GlobalError({
               >
                 Reîncearcă
               </button>
+              {/* global-error renders outside the App Router layout (root <html>+<body>), so next/link is not available here. Plain anchor is correct. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/"
                 style={{

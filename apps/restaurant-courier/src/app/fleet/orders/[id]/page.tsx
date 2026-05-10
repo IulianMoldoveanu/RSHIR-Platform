@@ -35,11 +35,12 @@ function osmLink(lat: number | null, lng: number | null): string | null {
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=17/${lat}/${lng}`;
 }
 
-export default async function FleetOrderDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function FleetOrderDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const fleet = await requireFleetManager();
   const admin = createAdminClient();
 

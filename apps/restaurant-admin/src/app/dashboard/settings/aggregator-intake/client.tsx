@@ -4,6 +4,7 @@
 // Client UI for the aggregator-intake setup wizard.
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { Check, Copy } from 'lucide-react';
 import { disableIntake, enableIntake } from './actions';
 
@@ -153,12 +154,12 @@ export function AggregatorIntakeClient({
           <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
             <strong>Test rapid:</strong> trimiteți un email de pe contul restaurantului către{' '}
             <code className="font-mono">{aliasAddress}</code> și verificați{' '}
-            <a
+            <Link
               href="/dashboard/orders/aggregator-inbox"
               className="font-medium text-amber-900 underline underline-offset-2"
             >
               Inbox preluare email
-            </a>{' '}
+            </Link>{' '}
             în 1-2 minute. Emailurile fără sursă recunoscută apar ca „Ignorat”, dar sosirea lor
             confirmă că redirectul funcționează.
           </div>

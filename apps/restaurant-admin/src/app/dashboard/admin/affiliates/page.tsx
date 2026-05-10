@@ -30,12 +30,13 @@ type AppRow = {
   network_description: string | null;
 };
 
-export default async function AffiliatesPage({
-  searchParams,
-}: {
-  searchParams: { status?: string };
-}) {
-  const supa = createServerClient();
+export default async function AffiliatesPage(
+  props: {
+    searchParams: Promise<{ status?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supa = await createServerClient();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect('/login?next=/dashboard/admin/affiliates');
 

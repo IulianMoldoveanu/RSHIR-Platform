@@ -43,7 +43,7 @@ const manualAdjustSchema = z.object({
 });
 
 async function requireGatedTenant(): Promise<{ userId: string; tenantId: string }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

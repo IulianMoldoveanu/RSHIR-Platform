@@ -23,7 +23,7 @@ export async function parseGloriaFoodCsv(
   csvText: string,
 ): Promise<ParseResult> {
   // Auth check first.
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -66,7 +66,7 @@ export async function commitGloriaFoodImport(
   rawInput: unknown,
 ): Promise<CommitResult> {
   // Auth + tenant scope.
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -260,7 +260,7 @@ export async function parseGloriaFoodMasterKey(
   expectedTenantId: string,
   masterKey: string,
 ): Promise<ParseResult> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

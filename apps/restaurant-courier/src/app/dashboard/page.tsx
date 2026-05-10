@@ -42,7 +42,7 @@ const STATUS_LABEL: Record<string, string> = {
 // Active orders surface as a stacked card list at the top so the rider can
 // jump straight to the next stage without losing the map context.
 export default async function DashboardHome() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -52,11 +52,12 @@ function fmtDelta(delta: number, unit: string | null): string {
   return `${sign}${trimmed.replace('.', ',')}${unit ? ` ${unit}` : ''}`;
 }
 
-export default async function InventoryMovementsPage({
-  searchParams,
-}: {
-  searchParams?: { reason?: string };
-}) {
+export default async function InventoryMovementsPage(
+  props: {
+    searchParams?: Promise<{ reason?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { tenant } = await getActiveTenant();
   if (!(await isInventoryEnabled(tenant.id))) {
     return <InventoryUpsell />;

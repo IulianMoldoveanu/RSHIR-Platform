@@ -25,7 +25,7 @@ export type LoyaltyActionResult =
 export async function updateLoyaltySettings(
   raw: unknown,
 ): Promise<LoyaltyActionResult> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

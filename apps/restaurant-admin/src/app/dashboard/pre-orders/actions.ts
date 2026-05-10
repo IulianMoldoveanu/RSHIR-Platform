@@ -37,7 +37,7 @@ export async function savePreOrderSettings(
   input: SavePreOrderSettingsInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const auth = await authenticateApiKey(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
   const query = admin
     .from('courier_orders')
     .select('id, source_order_id, source_tenant_id, status, public_track_token, created_at, updated_at')
-    .eq('id', ctx.params.id);
+    .eq('id', (await ctx.params).id);
 
   // Tenant-scoped: an HIR tenant can only see its own orders. External API
   // keys can only see orders posted with that key (no tenant id).

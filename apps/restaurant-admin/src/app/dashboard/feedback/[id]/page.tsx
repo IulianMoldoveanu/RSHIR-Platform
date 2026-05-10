@@ -32,12 +32,13 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: 'Respins',
 };
 
-export default async function FeedbackDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const supabase = createServerClient();
+export default async function FeedbackDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

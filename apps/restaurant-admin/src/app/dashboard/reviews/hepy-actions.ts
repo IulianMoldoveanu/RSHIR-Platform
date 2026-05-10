@@ -56,7 +56,7 @@ export async function generateReviewReplyDraft(args: {
 }): Promise<DraftSnapshot> {
   if (!args.reviewId || !args.tenantId) throw new Error('missing_args');
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -141,7 +141,7 @@ export async function selectReviewReplyOption(args: {
   selectedOption: number;
 }): Promise<DraftSnapshot> {
   if (args.selectedOption < 0 || args.selectedOption > 2) throw new Error('invalid_option');
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -171,7 +171,7 @@ export async function markReviewReplyPosted(args: {
   if (!args.finalText || args.finalText.trim().length < 10) {
     throw new Error('Textul răspunsului este prea scurt.');
   }
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -223,7 +223,7 @@ export async function dismissReviewReplyDraft(args: {
   draftId: string;
   tenantId: string;
 }): Promise<void> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

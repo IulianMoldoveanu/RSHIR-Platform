@@ -74,7 +74,7 @@ export async function generateOrGetWeeklyDigest(args: {
   tenantId: string;
   forceRefresh?: boolean;
 }): Promise<DigestSnapshot> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

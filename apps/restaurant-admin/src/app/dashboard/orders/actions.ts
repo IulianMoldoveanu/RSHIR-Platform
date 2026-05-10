@@ -18,7 +18,7 @@ import {
 // tab race — same pattern as RSHIR-26 M-3 for operations / onboarding).
 async function requireTenant(expectedTenantId: string): Promise<{ userId: string; tenantId: string }> {
   if (!expectedTenantId) throw new Error('missing_tenant_id');
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

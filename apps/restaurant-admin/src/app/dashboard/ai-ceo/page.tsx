@@ -68,7 +68,7 @@ export default async function AiCeoPage() {
   // record without the email field on every page.
   let viewerEmail: string | null = null;
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const { data } = await supabase.auth.getUser();
     viewerEmail = data.user?.email ?? null;
   } catch {

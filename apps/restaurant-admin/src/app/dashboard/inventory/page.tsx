@@ -20,8 +20,9 @@ function fmtQty(n: number, unit: string): string {
 export default async function InventoryListPage({
   searchParams,
 }: {
-  searchParams?: { filter?: string };
+  searchParams?: Promise<{ filter?: string }>;
 }) {
+  const sp = await searchParams;
   const { tenant } = await getActiveTenant();
   if (!(await isInventoryEnabled(tenant.id))) {
     return <InventoryUpsell />;
@@ -35,7 +36,7 @@ export default async function InventoryListPage({
   // QW9 (UIUX audit 2026-05-08) — `?filter=low` deep-link from the home
   // dashboard low-stock pill. When set, hide the create-form + show only
   // rows where current_stock is at or below the reorder threshold.
-  const lowOnly = searchParams?.filter === 'low';
+  const lowOnly = sp?.filter === 'low';
   const lowStock = allItems.filter((i) => i.current_stock <= i.reorder_threshold && i.reorder_threshold > 0);
   const items = lowOnly ? lowStock : allItems;
 

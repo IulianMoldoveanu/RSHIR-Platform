@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function PromosPage() {
   const { tenant } = await getActiveTenant();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   const { data } = await supabase
     .from('promo_codes')

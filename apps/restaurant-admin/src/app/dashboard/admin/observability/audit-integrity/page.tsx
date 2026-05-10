@@ -31,7 +31,7 @@ function timeAgo(iso: string): string {
 }
 
 export default async function AuditIntegrityPage() {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

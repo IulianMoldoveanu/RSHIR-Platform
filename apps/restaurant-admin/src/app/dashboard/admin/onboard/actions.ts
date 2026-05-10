@@ -65,7 +65,7 @@ export async function createTenantWithOwner(
   input: CreateTenantInput,
 ): Promise<CreateTenantResult> {
   // ── Auth + platform-admin gate ──────────────────────────────
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user: caller },
   } = await supa.auth.getUser();
@@ -222,7 +222,7 @@ export async function switchToTenantAction(formData: FormData): Promise<void> {
   const tenantId = String(formData.get('tenantId') ?? '');
   if (!tenantId) throw new Error('missing_tenant_id');
 
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();
@@ -241,7 +241,8 @@ export async function switchToTenantAction(formData: FormData): Promise<void> {
   if (error) throw new Error(error.message);
   if (!data) throw new Error('not_a_member');
 
-  cookies().set(TENANT_COOKIE, tenantId, {
+  const cookieStore = await cookies();
+  cookieStore.set(TENANT_COOKIE, tenantId, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',

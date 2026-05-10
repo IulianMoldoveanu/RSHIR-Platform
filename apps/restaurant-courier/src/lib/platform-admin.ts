@@ -7,7 +7,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function requirePlatformAdmin(): Promise<{ userId: string }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -28,7 +28,7 @@ export async function requirePlatformAdmin(): Promise<{ userId: string }> {
 
 /** Same check but returns a result instead of redirecting — use in server actions. */
 export async function checkPlatformAdmin(): Promise<{ userId: string } | { error: string }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

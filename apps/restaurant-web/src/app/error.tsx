@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { RefreshCw } from 'lucide-react';
 
 // Top-level error boundary for the storefront/marketing app. Catches any
@@ -50,12 +51,12 @@ export default function StorefrontError({
             <RefreshCw className="h-4 w-4" aria-hidden />
             Reîncearcă
           </button>
-          <a
+          <Link
             href="/"
             className="inline-flex h-10 items-center rounded-md border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
           >
             Înapoi la HIR
-          </a>
+          </Link>
           <a
             href="mailto:office@hirforyou.ro?subject=Eroare%20HIR"
             className="inline-flex h-10 items-center rounded-md border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 const CANCELLABLE = ['CREATED', 'OFFERED', 'ACCEPTED'];
 
-export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const auth = await authenticateApiKey(req);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
   const lookup = admin
     .from('courier_orders')
     .select('id, source_tenant_id, status')
-    .eq('id', ctx.params.id);
+    .eq('id', (await ctx.params).id);
   if (auth.ctx.hirTenantId) {
     lookup.eq('source_tenant_id', auth.ctx.hirTenantId);
   } else {
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, ctx: { params: { id: string } }) {
   const { data, error } = await admin
     .from('courier_orders')
     .update({ status: 'CANCELLED', updated_at: new Date().toISOString() })
-    .eq('id', ctx.params.id)
+    .eq('id', (await ctx.params).id)
     .select('id, source_order_id, status, public_track_token, created_at, updated_at')
     .single();
 
