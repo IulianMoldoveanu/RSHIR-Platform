@@ -3,19 +3,25 @@
 // the shape of the work is fundamentally different (intent → capture →
 // refund → webhook reconciliation, vs POS push/pull).
 //
-// First adapter: Netopia (RO). Future: Viva, Stripe (already wired
-// directly in restaurant-web; will be wrapped behind this contract once a
-// second non-Stripe provider lands).
+// Multi-gateway support (Lane PSP-MULTIGATES-V1, 2026-05-10):
+//   - 'netopia'        — RO marketplace primary; commercial config pending
+//   - 'stripe_connect' — fallback/demo only, request-queue-gated onboarding
+//   - 'viva'           — RO marketplace alternative; awaiting commercial config
+//
+// Iulian directive 2026-05-10: "implement only PSP abstraction and split-
+// payment-ready architecture. Stripe Connect is fallback/demo only.
+// Primary target remains Viva/Netopia marketplace once commercial config
+// arrives."
 
-export type PspProviderKey = 'netopia';
+export type PspProviderKey = 'netopia' | 'stripe_connect' | 'viva';
 
 /**
  * Operating mode per tenant. Picked at onboarding.
  *
- * - MARKETPLACE — HIR is master merchant on Netopia, tenants are
- *   sub-merchants. Split payment automated. Requires Netopia commercial
- *   agreement.
- * - STANDARD — Each tenant has its own Netopia merchant credentials. HIR
+ * - MARKETPLACE — HIR is master merchant on the gateway, tenants are
+ *   sub-merchants. Split payment automated. Requires commercial agreement
+ *   with the gateway (Netopia/Viva/Stripe Connect).
+ * - STANDARD — Each tenant has its own merchant credentials. HIR
  *   dispatches per-tenant payment intents only; commission collected via
  *   a separate billing run. Works with no partnership at all.
  */
@@ -23,14 +29,27 @@ export type PspMode = 'MARKETPLACE' | 'STANDARD';
 
 export type PspCredentials = {
   mode: PspMode;
-  /** Netopia signature (merchant id). Required in both modes. */
+  /**
+   * Provider-specific merchant identifier.
+   *   - Netopia: signature (merchant id)
+   *   - Stripe Connect: platform account id (read from env, not per-tenant)
+   *   - Viva: merchant id
+   * Required in both modes.
+   */
   signature: string;
   /**
-   * Decrypted API key. Loaded server-side from psp_credentials.api_key_encrypted
+   * Decrypted API key. Loaded server-side from Vault (per-tenant secret name)
    * via the admin client. Never echoed to the merchant UI.
+   * For Stripe Connect this is the platform-level secret key (sk_test_* /
+   * sk_live_*), read from env at the route layer — not stored per-tenant.
    */
   apiKey: string;
-  /** MARKETPLACE only. Per-tenant sub-merchant id assigned by Netopia. */
+  /**
+   * MARKETPLACE only. Per-tenant sub-merchant id assigned by the gateway.
+   *   - Netopia: sub-merchant id
+   *   - Stripe Connect: connected account id (acct_*)
+   *   - Viva: child merchant id
+   */
   subMerchantId?: string;
   live: boolean;
 };
@@ -47,9 +66,9 @@ export type PspIntentInput = {
     firstName: string;
     phone: string;
   };
-  /** Where Netopia redirects the customer after card authorization. */
+  /** Where the gateway redirects the customer after card authorization. */
   returnUrl: string;
-  /** Netopia server-to-server webhook target. */
+  /** Server-to-server webhook target for the gateway. */
   notifyUrl: string;
 };
 
@@ -96,6 +115,20 @@ export type PspContext = {
   log: (level: 'info' | 'warn' | 'error', msg: string, meta?: Record<string, unknown>) => void;
 };
 
+/**
+ * Per-tenant payout status snapshot. Polled by admin UI; not used in the
+ * critical path. Numbers are minor-units (bani for RON, cents for
+ * cross-currency; gateway-native).
+ */
+export type PspPayoutStatus = {
+  /** Funds held by the gateway, not yet paid out to the merchant. */
+  pendingBani: number;
+  /** Most recent successful payout, or null if none yet. */
+  lastPayoutAt: Date | null;
+  /** Next scheduled payout, or null if not predictable. */
+  nextPayoutAt: Date | null;
+};
+
 export interface PspAdapter {
   readonly providerKey: PspProviderKey;
 
@@ -108,4 +141,18 @@ export interface PspAdapter {
     rawBody: string,
     headers: Record<string, string>,
   ): Promise<PspWebhookEvent>;
+
+  /**
+   * Read pending balance + payout schedule for a tenant. Returns zeros /
+   * nulls when not configured or unsupported by the gateway.
+   */
+  getPayoutStatus(ctx: PspContext, tenantId: string): Promise<PspPayoutStatus>;
+
+  /**
+   * Onboarding redirect URL for KYC, when the gateway exposes a self-serve
+   * flow. Returns `null` when onboarding is request-queue-gated (e.g. the
+   * existing `stripe_onboarding_requests` human-approval flow). Callers MUST
+   * fall back to the request-queue UX when this returns null.
+   */
+  onboardingUrl(ctx: PspContext, tenantId: string): Promise<string | null>;
 }
