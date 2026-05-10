@@ -12,11 +12,6 @@ export async function loginAsTestCourier(page: Page): Promise<void> {
   await page.getByLabel('Parola').fill(E2E_COURIER_PASSWORD);
   await page.getByRole('button', { name: /intr|conect|continuă/i }).click();
   await page.waitForURL((url) => url.pathname.startsWith('/dashboard'), { timeout: 30_000 });
-  // Wait for the dashboard to finish hydrating. Without this, the first
-  // assertion after login frequently times out on cold-compiled CI runs
-  // because the server-rendered HTML hasn't yet replaced the route's
-  // loading skeleton.
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 }
 
 /**
