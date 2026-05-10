@@ -14,7 +14,7 @@ function isPreviewHost(host: string): boolean {
 
 export default async function NotFound() {
   const locale = getLocale();
-  const h = headers();
+  const h = await headers();
   const host = (h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '').toLowerCase();
   const isPreview = isPreviewHost(host);
 

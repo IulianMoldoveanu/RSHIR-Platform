@@ -41,7 +41,7 @@ function tenantNameFrom(row: LookupRow): string {
 async function signOutAndStay(formData: FormData): Promise<void> {
   'use server';
   const token = String(formData.get('token') ?? '');
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   await supabase.auth.signOut();
   redirect(`/login?next=${encodeURIComponent(`/invite/fm/${token}`)}`);
 }
@@ -55,7 +55,7 @@ async function acceptAndRedirect(formData: FormData): Promise<void> {
   }
   // Set the active tenant to the freshly-accepted one so /dashboard
   // lands in the right context immediately.
-  cookies().set({
+  (await cookies()).set({
     name: TENANT_COOKIE,
     value: result.tenant_id,
     path: '/',
@@ -65,13 +65,14 @@ async function acceptAndRedirect(formData: FormData): Promise<void> {
   redirect('/dashboard');
 }
 
-export default async function FmInviteAcceptPage({
-  params,
-  searchParams,
-}: {
-  params: { token: string };
-  searchParams: { err?: string };
-}) {
+export default async function FmInviteAcceptPage(
+  props: {
+    params: Promise<{ token: string }>;
+    searchParams: Promise<{ err?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const token = params.token;
   if (!token || token.length < 16) {
     return <ExpiredOrInvalid reason="invalid_token" />;
@@ -79,7 +80,7 @@ export default async function FmInviteAcceptPage({
 
   // Auth check: middleware should already have redirected, but if a
   // server component renders before that we double-check here.
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

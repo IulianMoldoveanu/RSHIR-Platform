@@ -112,7 +112,7 @@ export async function previewTheme(
   // Set a short-lived cookie so the preview iframe knows to use the preview
   // slug instead of the live template_slug. httpOnly=false so the client
   // can clear it when the wizard closes.
-  const jar = cookies();
+  const jar = await cookies();
   jar.set('hir-theme-preview', expectedTenantId, {
     maxAge: 60 * 30, // 30 min
     path: '/',
@@ -173,7 +173,7 @@ export async function applyTheme(
   if (error) return { ok: false, error: 'db_error', detail: error.message };
 
   // Clear preview cookie.
-  const jar = cookies();
+  const jar = await cookies();
   jar.set('hir-theme-preview', '', { maxAge: 0, path: '/' });
 
   await logAudit({

@@ -29,7 +29,7 @@ export async function revertAgentRun(
 ): Promise<RevertResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -145,7 +145,7 @@ export async function approveProposedRun(
   raw: { runId: string },
 ): Promise<RevertResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -198,7 +198,7 @@ export async function rejectProposedRun(
   raw: { runId: string; reason?: string },
 ): Promise<RevertResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

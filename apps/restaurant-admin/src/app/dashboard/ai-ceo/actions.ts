@@ -25,7 +25,7 @@ export async function updateBriefSchedule(
 ): Promise<UpdateBriefScheduleResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -99,7 +99,7 @@ export async function setSuggestionStatus(
 ): Promise<SetSuggestionStatusResult> {
   if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
 
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

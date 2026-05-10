@@ -56,11 +56,12 @@ function rangeStart(days: number): Date {
   return d;
 }
 
-export default async function FleetOrdersHistoryPage({
-  searchParams,
-}: {
-  searchParams: { days?: string; courier?: string; tenant?: string };
-}) {
+export default async function FleetOrdersHistoryPage(
+  props: {
+    searchParams: Promise<{ days?: string; courier?: string; tenant?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const fleet = await requireFleetManager();
   const admin = createAdminClient();
 

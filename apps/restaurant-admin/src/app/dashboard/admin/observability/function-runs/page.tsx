@@ -89,7 +89,7 @@ function aggregate(rows: Row[]): Aggregate[] {
 }
 
 export default async function FunctionRunsPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

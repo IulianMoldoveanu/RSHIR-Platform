@@ -105,7 +105,7 @@ function fmtDate(iso: string): string {
 // ────────────────────────────────────────────────────────────
 
 export default async function PartnerPortalPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

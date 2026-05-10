@@ -105,11 +105,12 @@ function StatusBlock({ status, reason }: { status: ReservationStatus; reason: st
   );
 }
 
-export default async function ReservationTrackPage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default async function ReservationTrackPage(
+  props: {
+    params: Promise<{ token: string }>;
+  }
+) {
+  const params = await props.params;
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 

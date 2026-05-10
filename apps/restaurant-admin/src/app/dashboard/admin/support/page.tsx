@@ -30,12 +30,13 @@ function isStatus(v: string | undefined): v is Status {
   return typeof v === 'string' && (STATUSES as readonly string[]).includes(v);
 }
 
-export default async function SupportInboxPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; category?: string };
-}) {
-  const supa = createServerClient();
+export default async function SupportInboxPage(
+  props: {
+    searchParams: Promise<{ status?: string; category?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const supa = await createServerClient();
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect('/login?next=/dashboard/admin/support');
 

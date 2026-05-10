@@ -35,7 +35,7 @@ type Mismatch = {
 };
 
 async function isPlatformAdmin(): Promise<{ ok: true; email: string } | { ok: false; status: number }> {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

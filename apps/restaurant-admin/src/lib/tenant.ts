@@ -157,7 +157,7 @@ export async function getActiveTenant(): Promise<{
    */
   isPlatformAdminMode: boolean;
 }> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -185,7 +185,8 @@ export async function getActiveTenant(): Promise<{
     throw new Error('User is not a member of any restaurant.');
   }
 
-  const cookieTenantId = cookies().get(TENANT_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const cookieTenantId = cookieStore.get(TENANT_COOKIE)?.value;
   const tenant =
     memberTenants.find((t) => t.id === cookieTenantId) ?? memberTenants[0];
 

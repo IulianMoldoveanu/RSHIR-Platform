@@ -52,7 +52,7 @@ function hashIp(ip: string): string {
 
 async function trackVisit(partnerId: string): Promise<void> {
   try {
-    const h = headers();
+    const h = await headers();
     const fwd = h.get('x-forwarded-for') ?? '';
     const ip = fwd.split(',')[0].trim() || h.get('x-real-ip') || '0.0.0.0';
     const ua = h.get('user-agent') ?? '';
@@ -73,11 +73,12 @@ async function trackVisit(partnerId: string): Promise<void> {
   }
 }
 
-export default async function ResellerLandingPage({
-  params,
-}: {
-  params: { code: string };
-}) {
+export default async function ResellerLandingPage(
+  props: {
+    params: Promise<{ code: string }>;
+  }
+) {
+  const params = await props.params;
   const code = (params.code ?? '').trim().toUpperCase();
   if (!/^[A-Z0-9]{4,32}$/.test(code)) notFound();
 
@@ -130,7 +131,7 @@ export default async function ResellerLandingPage({
     : DEFAULT_LANDING.accent_color;
 
   // Locale: pick from Accept-Language; pick the matching tagline if present.
-  const acceptLanguage = headers().get('accept-language');
+  const acceptLanguage = (await headers()).get('accept-language');
   const locale = pickLocale(acceptLanguage);
   const safeTagline = pickTagline(locale, merged.tagline_ro, merged.tagline_en);
 
@@ -183,11 +184,11 @@ export default async function ResellerLandingPage({
       >
         {safeLogo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
+          (<img
             src={safeLogo}
             alt={partner.name}
             style={{ height: 40, width: 'auto', objectFit: 'contain' }}
-          />
+          />)
         ) : (
           <div
             aria-hidden
@@ -207,7 +208,6 @@ export default async function ResellerLandingPage({
           {t.recommended_by} <strong style={{ color: '#0f172a' }}>{partner.name}</strong>
         </div>
       </header>
-
       <section style={{ maxWidth: 920, margin: '0 auto', padding: '40px 24px 64px' }}>
         <h1
           style={{
@@ -281,7 +281,6 @@ export default async function ResellerLandingPage({
           </div>
         ) : null}
       </section>
-
       {/* MANDATORY footer per Brand Bible reseller agreement. Do NOT remove. */}
       <footer
         data-hir-powered-by
@@ -312,7 +311,8 @@ export default async function ResellerLandingPage({
   );
 }
 
-export async function generateMetadata({ params }: { params: { code: string } }) {
+export async function generateMetadata(props: { params: Promise<{ code: string }> }) {
+  const params = await props.params;
   const code = (params.code ?? '').toUpperCase();
   return {
     title: `HIRforYOU — ${code}`,

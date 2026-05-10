@@ -19,7 +19,7 @@ export async function toggleInventoryEnabledAction(
   formData: FormData,
 ): Promise<{ ok: true; enabled: boolean } | { ok: false; error: string }> {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();

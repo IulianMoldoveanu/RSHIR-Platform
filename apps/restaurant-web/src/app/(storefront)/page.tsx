@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
     // self-referencing alternates so search engines index a single URL
     // and pick the right rendering via `Vary: Cookie`.
     const host =
-      headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+      (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
     const url = `${canonicalBaseUrl(host)}/`;
     return {
       title,
@@ -252,9 +252,7 @@ export default async function StorefrontHomePage() {
             : 0
         }
       />
-
       <FreeDeliveryProgress thresholdRon={freeDeliveryThresholdRon} locale={locale} />
-
       {closed && banner && (
         <div className="mx-auto mt-3 max-w-2xl px-4">
           <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -293,13 +291,11 @@ export default async function StorefrontHomePage() {
           </div>
         </div>
       )}
-
       {reorderItems.length > 0 && !closed && (
         <div className="mx-auto max-w-2xl">
           <ReorderRail items={reorderItems} locale={locale} />
         </div>
       )}
-
       {menu.length === 0 ? (
         <div className="mx-auto mt-10 max-w-2xl px-4">
           <EmptyState
@@ -313,7 +309,6 @@ export default async function StorefrontHomePage() {
       ) : (
         <MenuList categories={menu} locale={locale} />
       )}
-
       {menu.length > 0 && (
         <section className="mx-auto mt-8 max-w-2xl px-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
@@ -335,7 +330,6 @@ export default async function StorefrontHomePage() {
           />
         </section>
       )}
-
       <NewsletterPopup brandColor={brandColor} locale={locale} />
     </main>
   );

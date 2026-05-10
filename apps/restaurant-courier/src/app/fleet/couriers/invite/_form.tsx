@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bike, Car, Check, Loader2, Truck } from 'lucide-react';
 import { inviteCourierToFleetAction } from '../../actions';
@@ -51,12 +52,12 @@ export function InviteCourierForm() {
               >
                 Invită alt curier
               </button>
-              <a
+              <Link
                 href="/fleet/couriers"
                 className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
               >
                 Vezi roster
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -38,7 +38,7 @@ async function getPlatformAdmin(): Promise<
   | { ok: true; userId: string; email: string }
   | { ok: false; error: string; code: 'forbidden' }
 > {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

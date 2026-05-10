@@ -30,7 +30,7 @@ type FleetRow = {
 };
 
 export async function requireFleetManager(): Promise<FleetContext> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -61,7 +61,7 @@ export async function requireFleetManager(): Promise<FleetContext> {
 
 /** Soft variant for server actions — returns null instead of redirecting. */
 export async function getFleetManagerContext(): Promise<FleetContext | null> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

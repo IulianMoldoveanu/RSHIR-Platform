@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import {
   CONSENT_COOKIE,
@@ -10,7 +10,7 @@ import {
 export function getConsent(req?: NextRequest): ConsentRecord | null {
   const raw = req
     ? req.cookies.get(CONSENT_COOKIE)?.value
-    : cookies().get(CONSENT_COOKIE)?.value;
+    : (cookies() as unknown as UnsafeUnwrappedCookies).get(CONSENT_COOKIE)?.value;
   const record = parseConsent(raw);
   if (!record) return null;
   // Expired records are treated as "no consent yet" so the banner re-appears

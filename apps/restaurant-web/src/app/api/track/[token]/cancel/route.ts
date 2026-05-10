@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 const paramsSchema = z.object({ token: z.string().uuid() });
 
-export async function POST(req: NextRequest, ctx: { params: { token: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   // Token-only auth — a leaked or guessed token + scripted POST could
   // enumerate cancellable orders. 10 cancels per IP per minute is plenty
   // for a real customer (one order, one click) and shuts the door on
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, ctx: { params: { token: string } })
     );
   }
 
-  const parsed = paramsSchema.safeParse(ctx.params);
+  const parsed = paramsSchema.safeParse((await ctx.params));
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   }

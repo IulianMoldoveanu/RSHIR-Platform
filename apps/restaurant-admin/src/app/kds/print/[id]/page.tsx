@@ -38,7 +38,8 @@ function formatRon(n: number | string | null | undefined): string {
   return `${Number(n ?? 0).toFixed(2)} RON`;
 }
 
-export default async function PrintReceiptPage({ params }: { params: { id: string } }) {
+export default async function PrintReceiptPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 

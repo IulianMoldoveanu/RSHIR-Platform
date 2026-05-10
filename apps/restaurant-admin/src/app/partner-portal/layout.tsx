@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 // tenant membership — a partner is NOT a tenant member.
 
 export default async function PartnerPortalLayout({ children }: { children: ReactNode }) {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

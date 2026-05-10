@@ -58,8 +58,9 @@ type OrderDetail = {
   updated_at: string | null;
 };
 
-export default async function OrderDetailPage({ params }: { params: { id: string } }) {
-  const supabase = createServerClient();
+export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

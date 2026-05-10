@@ -51,7 +51,7 @@ type AuthOk = { ok: true; userId: string; email: string };
 type AuthErr = { ok: false; status: number };
 
 async function isPlatformAdmin(): Promise<AuthOk | AuthErr> {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

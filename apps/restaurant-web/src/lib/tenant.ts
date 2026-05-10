@@ -1,4 +1,4 @@
-import { headers } from 'next/headers';
+import { headers, type UnsafeUnwrappedHeaders } from 'next/headers';
 import type { Json } from '@hir/supabase-types';
 import { getTemplate, type RestaurantTemplate } from '@hir/restaurant-templates';
 import { getSupabase } from './supabase';
@@ -284,7 +284,7 @@ export async function resolveTenantFromHost(): Promise<{
   host: string;
   slug: string;
 }> {
-  const h = headers();
+  const h = await headers();
   const rawHost = h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
   const host = rawHost.toLowerCase();
   const subSlug = subdomainSlug(host);
@@ -341,7 +341,7 @@ export async function resolveTenantFromHost(): Promise<{
 }
 
 export function tenantBaseUrl(): string {
-  const h = headers();
+  const h = (headers() as unknown as UnsafeUnwrappedHeaders);
   const hostWithPort =
     h.get('x-hir-host-with-port') ?? h.get('host') ?? h.get('x-hir-host') ?? '';
   const hostNoPort = hostWithPort.split(':')[0];

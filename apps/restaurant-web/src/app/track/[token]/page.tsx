@@ -8,7 +8,8 @@ import { readCustomerCookie } from '@/lib/customer-recognition';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TrackPage({ params }: { params: { token: string } }) {
+export default async function TrackPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const parsed = z.string().uuid().safeParse(params.token);
   if (!parsed.success) notFound();
   const locale = getLocale();

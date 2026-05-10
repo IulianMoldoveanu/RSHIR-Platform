@@ -51,11 +51,12 @@ function ActiveSkeleton() {
   );
 }
 
-export default async function DashboardOverviewPage({
-  searchParams,
-}: {
-  searchParams: { skipOnboarding?: string };
-}) {
+export default async function DashboardOverviewPage(
+  props: {
+    searchParams: Promise<{ skipOnboarding?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const active = await getActiveTenant();
   if (active.isPlatformAdminMode) {
     redirect('/dashboard/admin/tenants');

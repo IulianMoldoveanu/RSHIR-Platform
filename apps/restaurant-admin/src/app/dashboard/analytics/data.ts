@@ -15,7 +15,7 @@ import type {
 // limits the result to the caller's tenant rows; we additionally filter by
 // tenant_id to enforce single-tenant scope when the user is in many tenants.)
 export async function loadAnalytics(tenantId: string): Promise<AnalyticsData> {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const sb = supabase as unknown as {
     from: (table: string) => {
       select: (cols: string) => {

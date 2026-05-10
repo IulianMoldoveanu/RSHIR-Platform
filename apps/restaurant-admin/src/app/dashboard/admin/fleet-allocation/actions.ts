@@ -42,7 +42,7 @@ const PLATFORM_SENTINEL_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 async function requirePlatformAdmin(): Promise<
   { userId: string; email: string } | { error: string }
 > {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

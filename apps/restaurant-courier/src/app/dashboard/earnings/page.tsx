@@ -30,7 +30,7 @@ type DeliveredRow = {
  *     pilot.
  */
 export default async function EarningsPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

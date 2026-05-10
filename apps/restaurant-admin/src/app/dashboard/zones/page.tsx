@@ -12,7 +12,7 @@ type TenantLocationSettings = {
 
 export default async function ZonesPage() {
   const { tenant } = await getActiveTenant();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   let zones: Zone[] = [];
   let tiers: Tier[] = [];

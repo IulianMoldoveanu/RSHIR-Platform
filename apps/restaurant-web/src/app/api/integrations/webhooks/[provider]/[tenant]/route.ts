@@ -58,8 +58,9 @@ async function auditWebhookReceived(
 
 export async function POST(
   req: Request,
-  { params }: { params: { provider: string; tenant: string } },
+  props: { params: Promise<{ provider: string; tenant: string }> }
 ) {
+  const params = await props.params;
   const { provider, tenant } = params;
   if (!KNOWN_PROVIDERS.includes(provider as ProviderKey) || !UUID_RE.test(tenant)) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });

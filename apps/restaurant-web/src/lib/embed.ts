@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers';
+import { cookies, headers, type UnsafeUnwrappedCookies, type UnsafeUnwrappedHeaders } from 'next/headers';
 
 /**
  * Lane Y5 (2026-05-05) — embed-mode detector for server components.
@@ -13,9 +13,9 @@ import { cookies, headers } from 'next/headers';
  *   - inject a small `parent.postMessage` script on checkout success
  */
 export function isEmbedMode(): boolean {
-  const headerFlag = headers().get('x-hir-embed') === '1';
+  const headerFlag = (headers() as unknown as UnsafeUnwrappedHeaders).get('x-hir-embed') === '1';
   if (headerFlag) return true;
   // Fallback for routes/edge cases where middleware might not have run
   // (e.g. static assets); cookie is the source of truth either way.
-  return cookies().get('hir_embed')?.value === '1';
+  return (cookies() as unknown as UnsafeUnwrappedCookies).get('hir_embed')?.value === '1';
 }

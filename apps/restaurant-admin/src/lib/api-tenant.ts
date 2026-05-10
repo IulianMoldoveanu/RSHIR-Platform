@@ -6,7 +6,7 @@ export type ApiAuthSuccess = {
   ok: true;
   userId: string;
   tenantId: string;
-  supabase: ReturnType<typeof createServerClient>;
+  supabase: Awaited<ReturnType<typeof createServerClient>>;
 };
 
 export type ApiAuthFailure = {
@@ -21,7 +21,7 @@ export async function requireTenantAuth(): Promise<ApiAuthSuccess | ApiAuthFailu
       ok: true,
       userId: user.id,
       tenantId: tenant.id,
-      supabase: createServerClient(),
+      supabase: await createServerClient(),
     };
   } catch (e) {
     return {

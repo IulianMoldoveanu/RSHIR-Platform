@@ -41,7 +41,7 @@ function statusLabel(s: SubscriberRow['status']): { label: string; cls: string }
 
 export default async function NewsletterPage() {
   const { tenant } = await getActiveTenant();
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Types package not yet regenerated for newsletter_subscribers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

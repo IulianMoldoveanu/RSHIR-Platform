@@ -10,7 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const REVALIDATE = '/dashboard/admin/support';
 
 async function requirePlatformAdmin(): Promise<{ userId: string; email: string } | { error: string }> {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const { data: { user } } = await supa.auth.getUser();
   if (!user?.email) return { error: 'Nu sunteți autentificat.' };
   const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')

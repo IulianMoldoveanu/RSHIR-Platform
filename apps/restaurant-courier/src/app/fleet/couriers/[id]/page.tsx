@@ -95,11 +95,12 @@ function formatDuration(ms: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export default async function FleetCourierDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function FleetCourierDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const fleet = await requireFleetManager();
   const admin = createAdminClient();
 

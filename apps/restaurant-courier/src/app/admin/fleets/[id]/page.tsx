@@ -38,11 +38,12 @@ type ApiKeyRow = {
   created_at: string;
 };
 
-export default async function FleetDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function FleetDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   await requirePlatformAdmin();
 
   const admin = createAdminClient();

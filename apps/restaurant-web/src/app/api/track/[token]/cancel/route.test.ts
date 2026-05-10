@@ -71,7 +71,7 @@ describe('POST /api/track/[token]/cancel', () => {
 
   it('returns 429 when rate-limited', async () => {
     checkLimitMock.mockReturnValue({ ok: false, retryAfterSec: 60 });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('60');
     const json = (await res.json()) as { error: string };
@@ -80,7 +80,7 @@ describe('POST /api/track/[token]/cancel', () => {
   });
 
   it('returns 400 invalid_token for malformed UUID', async () => {
-    const res = await POST(makeReq(), { params: { token: 'not-a-uuid' } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: 'not-a-uuid' }) });
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('invalid_token');
@@ -89,7 +89,7 @@ describe('POST /api/track/[token]/cancel', () => {
 
   it('returns 404 not_found when token does not match any order', async () => {
     orderSelectMock.mockReturnValue({ data: null, error: null });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(404);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('not_found');
@@ -106,7 +106,7 @@ describe('POST /api/track/[token]/cancel', () => {
       },
       error: null,
     });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(409);
     const json = (await res.json()) as { error: string; status: string };
     expect(json.error).toBe('invalid_state');
@@ -124,7 +124,7 @@ describe('POST /api/track/[token]/cancel', () => {
       },
       error: null,
     });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(409);
     expect(orderUpdateMock).not.toHaveBeenCalled();
   });
@@ -140,7 +140,7 @@ describe('POST /api/track/[token]/cancel', () => {
       error: null,
     });
     orderUpdateMock.mockReturnValue({ error: null });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean; status: string };
     expect(json).toEqual({ ok: true, status: 'CANCELLED' });
@@ -183,7 +183,7 @@ describe('POST /api/track/[token]/cancel', () => {
       error: null,
     });
     orderUpdateMock.mockReturnValue({ error: { message: 'race-loss' } });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(500);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('cancel_failed');
@@ -203,7 +203,7 @@ describe('POST /api/track/[token]/cancel', () => {
       error: null,
     });
     orderUpdateMock.mockReturnValue({ error: { message: 'race-loss' } });
-    await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(bus.dispatchOrderEvent).not.toHaveBeenCalled();
   });
 });

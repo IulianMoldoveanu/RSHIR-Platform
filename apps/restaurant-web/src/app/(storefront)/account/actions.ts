@@ -119,7 +119,7 @@ export async function repeatOrder(orderId: string): Promise<void> {
 
   if (cartItems.length === 0) redirect('/account');
 
-  cookies().set({
+  (await cookies()).set({
     name: cartBootstrapCookieName(tenant.id),
     value: JSON.stringify({ items: cartItems }),
     maxAge: CART_BOOTSTRAP_COOKIE_MAX_AGE_SECONDS,

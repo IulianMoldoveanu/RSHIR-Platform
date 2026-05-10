@@ -10,7 +10,7 @@ import { ShiftTimer } from './shift-timer';
  * Rendered server-side and revalidated by parent route's `force-dynamic`.
  */
 export async function EarningsBar() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

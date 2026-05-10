@@ -51,9 +51,9 @@ function normalizeCity(raw: string | undefined): string {
 export default async function PlatformAdminTenantsPage({
   searchParams,
 }: {
-  searchParams?: SearchParams;
+  searchParams?: Promise<SearchParams>;
 }) {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();
@@ -73,16 +73,19 @@ export default async function PlatformAdminTenantsPage({
     );
   }
 
+  // Next 15: searchParams is async — resolve once.
+  const sp = await searchParams;
+
   // ── Parse search params (defensive — no client-side filtering) ──
-  const cityFilter = normalizeCity(searchParams?.city);
-  const statusFilterRaw = (searchParams?.status ?? '').toLowerCase();
+  const cityFilter = normalizeCity(sp?.city);
+  const statusFilterRaw = (sp?.status ?? '').toLowerCase();
   const statusFilter: StatusFilter =
     statusFilterRaw === 'live' ||
     statusFilterRaw === 'onboarding' ||
     statusFilterRaw === 'suspended'
       ? statusFilterRaw
       : 'all';
-  const sortRaw = (searchParams?.sort ?? '').toLowerCase();
+  const sortRaw = (sp?.sort ?? '').toLowerCase();
   const sort: SortKey =
     sortRaw === 'name' || sortRaw === 'created' ? sortRaw : 'last_order';
 

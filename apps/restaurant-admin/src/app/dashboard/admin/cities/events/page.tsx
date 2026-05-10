@@ -37,7 +37,7 @@ export type CityEventRow = {
 const PAGE_LIMIT = 200;
 
 export default async function AdminCitiesEventsPage() {
-  const supa = createServerClient();
+  const supa = await createServerClient();
   const {
     data: { user },
   } = await supa.auth.getUser();

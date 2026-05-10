@@ -21,7 +21,7 @@ const REVALIDATE = '/dashboard/admin/partners';
 async function requirePlatformAdmin(): Promise<
   { userId: string; email: string } | { error: string }
 > {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
