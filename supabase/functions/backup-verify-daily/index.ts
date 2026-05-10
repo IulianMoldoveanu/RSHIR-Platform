@@ -19,7 +19,10 @@
 // Env required:
 //   SUPABASE_URL              (auto-injected)
 //   SUPABASE_SERVICE_ROLE_KEY (auto-injected)
-//   SUPABASE_MGMT_PAT         (set manually by Iulian — see runbook §9)
+//   HIR_MGMT_PAT              (renamed from SUPABASE_MGMT_PAT 2026-05-10 —
+//                              Supabase Mgmt API rejects secrets prefixed
+//                              `SUPABASE_*`; auto-set by repo automation
+//                              via Mgmt API)
 //   SUPABASE_PROJECT_REF      (defaults to qfmeojeipncuxeltnvab)
 //   SUPABASE_ORG_ID           (defaults to zhzvlbpsbpyyfaywhwjg)
 //   TELEGRAM_BOT_TOKEN        (already set, shared with health-monitor)
@@ -28,7 +31,7 @@
 
 import { withRunLog } from '../_shared/log.ts';
 
-const SUPABASE_MGMT_PAT = Deno.env.get('SUPABASE_MGMT_PAT') ?? '';
+const HIR_MGMT_PAT = Deno.env.get('HIR_MGMT_PAT') ?? '';
 const SUPABASE_PROJECT_REF = Deno.env.get('SUPABASE_PROJECT_REF') ?? 'qfmeojeipncuxeltnvab';
 const SUPABASE_ORG_ID = Deno.env.get('SUPABASE_ORG_ID') ?? 'zhzvlbpsbpyyfaywhwjg';
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? '';
@@ -82,7 +85,7 @@ async function fetchOrgPlan(): Promise<string> {
   try {
     const r = await fetchWithTimeout(
       `https://api.supabase.com/v1/organizations/${SUPABASE_ORG_ID}`,
-      { headers: { Authorization: `Bearer ${SUPABASE_MGMT_PAT}` } },
+      { headers: { Authorization: `Bearer ${HIR_MGMT_PAT}` } },
       MGMT_TIMEOUT_MS,
     );
     if (!r.ok) return 'unknown';
@@ -97,7 +100,7 @@ async function fetchBackupState(): Promise<{ status: number; body: BackupApiResp
   try {
     const r = await fetchWithTimeout(
       `https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/backups`,
-      { headers: { Authorization: `Bearer ${SUPABASE_MGMT_PAT}` } },
+      { headers: { Authorization: `Bearer ${HIR_MGMT_PAT}` } },
       MGMT_TIMEOUT_MS,
     );
     if (!r.ok) {
@@ -201,9 +204,9 @@ function formatVerdict(v: Verdict): string {
     case 'stale':
       return `🔴 <b>BACKUP STALE</b>\nplan=<code>${v.plan}</code>\nlast_backup=<code>${v.lastBackupAt}</code>\nage=<b>${v.ageHours.toFixed(1)}h</b> (threshold ${STALE_THRESHOLD_HOURS}h)\nRunbook: <code>docs/runbooks/BACKUP_DR_RUNBOOK.md §2.1</code>.`;
     case 'mgmt_api_error':
-      return `🔴 <b>BACKUP CHECK FAILED</b>\nstatus=<code>${v.status ?? 'timeout'}</code>\n${v.message}\nRetrying tomorrow. If recurrent, rotate SUPABASE_MGMT_PAT.`;
+      return `🔴 <b>BACKUP CHECK FAILED</b>\nstatus=<code>${v.status ?? 'timeout'}</code>\n${v.message}\nRetrying tomorrow. If recurrent, rotate HIR_MGMT_PAT.`;
     case 'no_pat':
-      return `⚠️ <b>BACKUP CHECK NO-OP</b>\nSUPABASE_MGMT_PAT secret not set on the function. See runbook §9 step 2.`;
+      return `⚠️ <b>BACKUP CHECK NO-OP</b>\nHIR_MGMT_PAT secret not set on the function. See runbook §9 step 2.`;
   }
 }
 
@@ -218,7 +221,7 @@ Deno.serve(async (req) => {
   return withRunLog('backup-verify-daily', async ({ setMetadata }) => {
     let verdict: Verdict;
 
-    if (!SUPABASE_MGMT_PAT) {
+    if (!HIR_MGMT_PAT) {
       verdict = { kind: 'no_pat' };
     } else {
       const [plan, backupRes] = await Promise.all([fetchOrgPlan(), fetchBackupState()]);
