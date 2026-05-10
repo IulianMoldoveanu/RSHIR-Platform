@@ -27,7 +27,12 @@ test.describe('Login + shift toggle', () => {
   test('start + end shift writes one ONLINE row then closes it', async ({ page }) => {
     await loginAsTestCourier(page);
 
-    await holdSwipeButton(page, /pornește tura|start/i);
+    // Match the actual SwipeButton label. The aria-label is set to the
+    // `label` prop value passed in DashboardHome — currently
+    // "→ Glisează pentru a porni tura" (NOT "Pornește tura"). Accept
+    // both spellings + the EN fallback so a future copy change doesn't
+    // re-flake the suite.
+    await holdSwipeButton(page, /glisează|porni tura|pornește tura|start/i);
 
     // The shift action redirects + revalidates; wait for the online indicator.
     await expect(page.getByText(/online/i).first()).toBeVisible({ timeout: 15_000 });
