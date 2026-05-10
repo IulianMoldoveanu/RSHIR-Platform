@@ -232,7 +232,8 @@ export function RoiCalculator() {
               onChange={setOrderValue}
             />
             <p className="text-xs leading-relaxed text-[#94A3B8]">
-              Comision agregator: ~30% (medie Glovo/Wolt/Bolt România 2026).
+              Comision agregator: tipic 25-30% (medie Glovo/Wolt/Bolt România 2026 — variază în
+              funcție de contractul fiecărui restaurant).
             </p>
           </div>
 
@@ -246,7 +247,7 @@ export function RoiCalculator() {
             />
             <ResultCard
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
-              label="Cost lunar agregator (~30%)"
+              label="Cost lunar agregator (estimat)"
               value={`${formatRon(results.aggregatorCost)} RON`}
               unit="comisioane reținute de Glovo/Wolt/Bolt acum"
             />
@@ -267,10 +268,10 @@ export function RoiCalculator() {
         </div>
 
         <p className="mt-8 max-w-3xl text-xs leading-relaxed text-[#94A3B8]">
-          * Estimări bazate pe benchmark-uri industrie (comision agregator ~30%,
-          rata medie de conversie la direct ~30%, ore manuale ~24h/lună). Rezultatele
-          variază în funcție de volumul și specificul restaurantului dumneavoastră.
-          Cifrele nu reprezintă o garanție contractuală.
+          * Estimări bazate pe benchmark-uri industrie (comision agregator tipic 25-30% — variază
+          în funcție de contractul fiecărui restaurant cu Glovo/Wolt/Bolt; rata medie de conversie
+          la direct ~30%; ore manuale ~24h/lună). Rezultatele variază în funcție de volumul și
+          specificul restaurantului dumneavoastră. Cifrele nu reprezintă o garanție contractuală.
         </p>
 
         <div className="mt-10 flex flex-col items-start gap-4 rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-6 sm:flex-row sm:items-center sm:justify-between">

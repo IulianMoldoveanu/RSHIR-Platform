@@ -63,8 +63,8 @@ const COMPARE: CompareRow[] = [
   {
     feature: 'Cost per comandă',
     hir: { good: true, label: '2 lei flat' },
-    glovo: { good: false, label: '~30%' },
-    wolt: { good: false, label: '~30%' },
+    glovo: { good: false, label: 'tipic 25-30%' },
+    wolt: { good: false, label: 'tipic 25-30%' },
     gloriafood: { good: true, label: '0% (dar fără livrare)' },
   },
   {
@@ -157,9 +157,9 @@ export default function PricingPage() {
           <div className="flex flex-col justify-center rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-7">
             <h3 className="text-lg font-semibold text-[#0F172A]">Simplu ca în piață</h3>
             <p className="mt-3 text-sm leading-relaxed text-[#475569]">
-              Plătești 2 lei pentru fiecare comandă livrată. La 30 de comenzi pe zi,
-              costul HIR e 60 lei/zi. Glovo/Wolt îți rețineau ~720 lei/zi pe
-              același volum.
+              Plătești 2 lei pentru fiecare comandă livrată. La 30 de comenzi pe zi, costul HIR e
+              60 lei/zi. Glovo/Wolt rețin estimativ 600-720 lei/zi la același volum, în funcție de
+              contractul fiecărui restaurant.
             </p>
             <dl className="mt-6 space-y-3">
               <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
@@ -167,8 +167,8 @@ export default function PricingPage() {
                 <dd className="font-semibold text-[#0F172A]">2.400 RON/zi rulaj</dd>
               </div>
               <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
-                <dt className="text-[#475569]">Comision Glovo ~30%</dt>
-                <dd className="font-semibold text-red-600">−720 RON/zi</dd>
+                <dt className="text-[#475569]">Comision Glovo tipic 25-30%</dt>
+                <dd className="font-semibold text-red-600">−600 până la −720 RON/zi</dd>
               </div>
               <div className="flex justify-between pb-3 text-sm">
                 <dt className="text-[#475569]">Cost HIR (30 × 2 lei)</dt>
