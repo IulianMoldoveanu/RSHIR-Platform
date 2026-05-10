@@ -129,7 +129,7 @@ export default function GlobalError({
                 Înapoi la HIR
               </a>
               <a
-                href="mailto:contact@hiraisolutions.ro?subject=Eroare%20HIR"
+                href="mailto:office@hirforyou.ro?subject=Eroare%20HIR"
                 style={{
                   display: 'inline-flex',
                   height: '2.5rem',

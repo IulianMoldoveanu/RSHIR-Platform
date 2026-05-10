@@ -49,11 +49,11 @@ export function buildArticleJsonLd(input: ArticleJsonLdInput) {
     dateModified: input.dateModified ?? input.datePublished,
     author: {
       '@type': 'Organization',
-      name: input.authorName ?? 'HIR Restaurant Suite',
+      name: input.authorName ?? 'HIRforYOU',
     },
     publisher: {
       '@type': 'Organization',
-      name: input.publisherName ?? 'HIR Restaurant Suite',
+      name: input.publisherName ?? 'HIRforYOU',
       logo: input.publisherLogoUrl
         ? { '@type': 'ImageObject', url: input.publisherLogoUrl }
         : undefined,

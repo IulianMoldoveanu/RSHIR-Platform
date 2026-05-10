@@ -191,7 +191,7 @@ export default function MigrateFromGloriaFoodPage({
       {/* ── Nav bar ───────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-20 border-b border-zinc-100 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <span className="text-base font-bold tracking-tight text-violet-700">HIR Restaurant</span>
+          <span className="text-base font-bold tracking-tight text-violet-700">HIRforYOU</span>
           <a
             href="#forms"
             className="rounded-full bg-violet-700 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-violet-800"
@@ -235,6 +235,12 @@ export default function MigrateFromGloriaFoodPage({
             >
               {t(locale, 'marketing.migrate.cta_reseller')}
             </a>
+          </div>
+
+          {/* Lane SITE-COPY-V2 (2026-05-10) — surface "implementare gratuită" promo. */}
+          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-emerald-500/95 px-4 py-2 text-sm font-bold text-white shadow-lg">
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            <span>Migrare GRATUITĂ + IMPLEMENTARE GRATUITĂ — primele 50 restaurante</span>
           </div>
         </div>
       </section>
@@ -374,7 +380,7 @@ export default function MigrateFromGloriaFoodPage({
           <a href="/privacy" className="underline hover:text-zinc-700">
             {t(locale, 'marketing.migrate.footer_gdpr')}
           </a>
-          <a href="mailto:contact@hiraisolutions.ro" className="underline hover:text-zinc-700">
+          <a href="mailto:office@hirforyou.ro" className="underline hover:text-zinc-700">
             {t(locale, 'marketing.migrate.footer_contact')}
           </a>
         </div>

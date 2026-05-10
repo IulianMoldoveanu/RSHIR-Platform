@@ -27,7 +27,7 @@ const OG_IMAGE = marketingOgImageUrl({
 });
 
 export const metadata: Metadata = {
-  title: 'Tarife — HIR Restaurant Suite',
+  title: 'Tarife — HIRforYOU',
   description:
     '2 lei pe comandă. Un singur plan. Fără abonament, fără procent, fără setup. Instalare gratuită pentru primele 50 de restaurante.',
   alternates: {
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
   },
   openGraph: {
-    title: 'Tarife — HIR Restaurant Suite',
+    title: 'Tarife — HIRforYOU',
     description:
       'Plătești doar pentru comenzile livrate. 2 lei pe comandă. Fără surprize.',
     type: 'website',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Tarife — HIR Restaurant Suite',
+    title: 'Tarife — HIRforYOU',
     description: 'Plătești doar pentru comenzile livrate. 2 lei pe comandă.',
     images: [OG_IMAGE],
   },
@@ -64,7 +64,7 @@ const COMPARE: CompareRow[] = [
     feature: 'Cost per comandă',
     hir: { good: true, label: '2 lei flat' },
     glovo: { good: false, label: '~30%' },
-    wolt: { good: false, label: '~25-30%' },
+    wolt: { good: false, label: '~30%' },
     gloriafood: { good: true, label: '0% (dar fără livrare)' },
   },
   {
@@ -138,6 +138,7 @@ export default function PricingPage() {
             price="2 lei"
             priceSub="/ comandă"
             description="Pentru orice restaurant — folosește curierul HIR (propriu sau din rețeaua HIR) sau curierul tău."
+            badge="Implementare gratuită — primele 50 restaurante"
             included={[
               'Curier HIR (propriu sau din rețeaua HIR)',
               'Storefront white-label cu brand propriu',
@@ -148,17 +149,16 @@ export default function PricingPage() {
               'Plăți card + cash la livrare',
               'Subdomeniu inclus sau domeniu propriu',
               'Suport tehnic prin email + telefon',
-              'Implementare gratuită pentru primele 50 restaurante',
               'Fără abonament. Fără setup.',
             ]}
-            cta={{ href: '/contact', label: 'Sună-mă echipa HIR' }}
+            cta={{ href: '/contact', label: 'Sună Echipa HIR' }}
             accent
           />
           <div className="flex flex-col justify-center rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-7">
             <h3 className="text-lg font-semibold text-[#0F172A]">Simplu ca în piață</h3>
             <p className="mt-3 text-sm leading-relaxed text-[#475569]">
               Plătești 2 lei pentru fiecare comandă livrată. La 30 de comenzi pe zi,
-              costul HIR e 60 lei/zi. Glovo/Wolt îți rețineau ~500–700 lei/zi pe
+              costul HIR e 60 lei/zi. Glovo/Wolt îți rețineau ~720 lei/zi pe
               același volum.
             </p>
             <dl className="mt-6 space-y-3">
@@ -167,8 +167,8 @@ export default function PricingPage() {
                 <dd className="font-semibold text-[#0F172A]">2.400 RON/zi rulaj</dd>
               </div>
               <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
-                <dt className="text-[#475569]">Comision Glovo ~25%</dt>
-                <dd className="font-semibold text-red-600">−600 RON/zi</dd>
+                <dt className="text-[#475569]">Comision Glovo ~30%</dt>
+                <dd className="font-semibold text-red-600">−720 RON/zi</dd>
               </div>
               <div className="flex justify-between pb-3 text-sm">
                 <dt className="text-[#475569]">Cost HIR (30 × 2 lei)</dt>
@@ -176,7 +176,7 @@ export default function PricingPage() {
               </div>
             </dl>
             <p className="mt-4 text-xs text-[#94A3B8]">
-              Economie estimată: ~540 RON/zi față de Glovo (la 30 comenzi × 80 lei).
+              Economie estimată: ~660 RON/zi față de Glovo (la 30 comenzi × 80 lei).
               Calculele variază după volumul și bonul tău mediu real.
             </p>
           </div>
@@ -286,7 +286,7 @@ export default function PricingPage() {
               href="/contact"
               className="inline-flex items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
             >
-              Sună-mă echipa HIR
+              Sună Echipa HIR
             </Link>
             <Link
               href="/migrate-from-gloriafood"
@@ -328,6 +328,7 @@ function PriceCard({
   price,
   priceSub,
   description,
+  badge,
   included,
   cta,
   accent,
@@ -337,6 +338,7 @@ function PriceCard({
   price: string;
   priceSub: string;
   description: string;
+  badge?: string;
   included: string[];
   cta: { href: string; label: string };
   accent?: boolean;
@@ -360,6 +362,14 @@ function PriceCard({
         {price}
       </div>
       <div className="mt-1 text-xs text-[#94A3B8]">{priceSub}</div>
+      {badge && (
+        <div className="mt-4">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+            {badge}
+          </span>
+        </div>
+      )}
       <p className="mt-4 text-sm leading-relaxed text-[#475569]">{description}</p>
 
       <ul className="mt-6 space-y-2.5 text-sm text-[#475569]">

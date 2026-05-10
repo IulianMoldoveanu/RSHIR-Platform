@@ -33,17 +33,17 @@ const PRESS_URL = `${CANONICAL_BASE}/press`;
 
 const OG_IMAGE = marketingOgImageUrl({
   title: 'HIR Press Kit',
-  subtitle: 'Logo, culori, screenshot-uri și fapte despre HIR Restaurant Suite.',
+  subtitle: 'Logo, culori, screenshot-uri și fapte despre HIRforYOU.',
 });
 
 export const metadata: Metadata = {
-  title: 'Press Kit — HIR Restaurant Suite',
+  title: 'Press Kit — HIRforYOU',
   description:
-    'Materiale presă HIR Restaurant Suite: logo, culori brand, screenshot-uri produs, fapte despre companie și contact.',
+    'Materiale presă HIRforYOU: logo, culori brand, screenshot-uri produs, fapte despre companie și contact.',
   openGraph: {
-    title: 'Press Kit — HIR Restaurant Suite',
+    title: 'Press Kit — HIRforYOU',
     description:
-      'Materiale presă HIR Restaurant Suite: logo, culori brand, screenshot-uri și contact.',
+      'Materiale presă HIRforYOU: logo, culori brand, screenshot-uri și contact.',
     type: 'website',
     locale: 'ro_RO',
     url: PRESS_URL,
@@ -51,12 +51,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Press Kit — HIR Restaurant Suite',
+    title: 'Press Kit — HIRforYOU',
     description:
-      'Materiale presă HIR Restaurant Suite: logo, culori, screenshot-uri și contact.',
+      'Materiale presă HIRforYOU: logo, culori, screenshot-uri și contact.',
     images: [OG_IMAGE],
   },
-  robots: { index: true, follow: true },
+  // Lane SITE-COPY-V2 (2026-05-10) — page hidden from indexing until brand
+  // assets ship. URL still resolves for direct access.
+  robots: { index: false, follow: false },
   // Lane EN-I18N PR D — same URL serves both locales (cookie-based).
   alternates: {
     canonical: PRESS_URL,
@@ -111,11 +113,11 @@ export default function PressPage() {
               Despre HIR (RO)
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#0F172A]">
-              <strong>HIR Restaurant Suite</strong> este platforma all-in-one
+              <strong>HIRforYOU</strong> este platforma all-in-one
               pentru restaurante din România: storefront pentru clienți, panou
               de administrare, aplicație de curier și rețea de livrare —
               construite să înlocuiască Wolt, Glovo și GloriaFood la un
-              cost previzibil de <strong>3 RON pe livrare</strong>, fără
+              cost previzibil de <strong>2 lei pe comandă</strong>, fără
               comisioane procentuale. Lansat în Brașov, scalează la nivel
               național printr-o rețea de afiliați și manageri de flotă.
             </p>
@@ -125,11 +127,11 @@ export default function PressPage() {
               About HIR (EN)
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#0F172A]">
-              <strong>HIR Restaurant Suite</strong> is the all-in-one platform
+              <strong>HIRforYOU</strong> is the all-in-one platform
               for Romanian restaurants: customer storefront, admin dashboard,
               courier app and delivery network — built to replace Wolt, Glovo
               and GloriaFood at a flat{' '}
-              <strong>3 RON per delivery</strong> cost, with no percentage
+              <strong>2 lei per order</strong> cost, with no percentage
               commission. Launched in Brașov, scaling nationally through an
               affiliate and fleet-manager network.
             </p>
@@ -141,7 +143,7 @@ export default function PressPage() {
           <FactCard label="Fondator" value="Iulian Moldoveanu" />
           <FactCard label="Sediu" value="Brașov, România" />
           <FactCard label="Lansare pilot" value="2026" />
-          <FactCard label="Tarif livrare" value="3 RON / comandă" />
+          <FactCard label="Tarif livrare" value="2 lei / comandă" />
         </div>
       </section>
 
@@ -208,10 +210,10 @@ export default function PressPage() {
             Capturi reprezentative din suita HIR. Pentru rezoluții mai mari sau
             screenshot-uri specifice, scrie-ne la{' '}
             <a
-              href="mailto:contact@hiraisolutions.ro"
+              href="mailto:office@hirforyou.ro"
               className="font-medium text-[#4F46E5] hover:text-[#4338CA]"
             >
-              contact@hiraisolutions.ro
+              office@hirforyou.ro
             </a>
             .
           </p>
@@ -285,7 +287,7 @@ export default function PressPage() {
           <ul className="mt-7 space-y-4 text-sm">
             <li>
               <a
-                href="mailto:contact@hiraisolutions.ro?subject=Solicitare%20pres%C4%83%20HIR"
+                href="mailto:office@hirforyou.ro?subject=Solicitare%20pres%C4%83%20HIR"
                 className="inline-flex items-center gap-3 rounded-md border border-[#E2E8F0] bg-white px-4 py-3 transition-colors hover:bg-[#F8FAFC]"
               >
                 <span className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-md bg-[#EEF2FF] text-[#4F46E5]">
@@ -296,7 +298,7 @@ export default function PressPage() {
                     Email principal
                   </span>
                   <span className="block text-sm font-medium text-[#0F172A]">
-                    contact@hiraisolutions.ro
+                    office@hirforyou.ro
                   </span>
                 </span>
               </a>
@@ -417,7 +419,7 @@ function renderLogoSvg(variant: 'light' | 'dark' | 'wordmark'): string {
   const wordFill = variant === 'dark' ? '#FFFFFF' : '#0F172A';
   const subFill = variant === 'dark' ? '#C7D2FE' : '#475569';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" width="270" height="60" role="img" aria-label="HIR Restaurant Suite"><rect x="0" y="8" width="64" height="64" rx="14" fill="${glyphFill}"/><text x="32" y="56" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="40" font-weight="700" fill="${variant === 'dark' ? '#0F172A' : '#FFFFFF'}">H</text><text x="80" y="44" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" fill="${wordFill}" letter-spacing="-0.8">HIR</text><text x="80" y="68" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="500" fill="${subFill}">Restaurant Suite</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" width="270" height="60" role="img" aria-label="HIRforYOU"><rect x="0" y="8" width="64" height="64" rx="14" fill="${glyphFill}"/><text x="32" y="56" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="40" font-weight="700" fill="${variant === 'dark' ? '#0F172A' : '#FFFFFF'}">H</text><text x="80" y="44" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" fill="${wordFill}" letter-spacing="-0.8">HIR</text><text x="80" y="68" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="500" fill="${subFill}">Restaurant Suite</text></svg>`;
 }
 
 // Placeholder SVG for product screenshots until real captures land.

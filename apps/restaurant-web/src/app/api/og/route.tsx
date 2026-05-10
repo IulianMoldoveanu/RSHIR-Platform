@@ -113,13 +113,13 @@ function variantLabel(variant: Variant): string {
     case 'partner': return 'Partener';
     case 'migrate': return 'Migrare';
     case 'default':
-    default: return 'HIR Restaurant Suite';
+    default: return 'HIRforYOU';
   }
 }
 
 export async function GET(req: NextRequest): Promise<Response> {
   const { searchParams } = new URL(req.url);
-  const title = clamp(searchParams.get('title'), 120) || 'HIR Restaurant Suite';
+  const title = clamp(searchParams.get('title'), 120) || 'HIRforYOU';
   const subtitle = clamp(searchParams.get('subtitle'), 160);
   const rawVariant = (searchParams.get('variant') ?? 'default').toLowerCase();
   const variant: Variant = (
@@ -184,7 +184,7 @@ export async function GET(req: NextRequest): Promise<Response> {
               letterSpacing: '-0.01em',
             }}
           >
-            HIR Restaurant Suite
+            HIRforYOU
           </div>
         </div>
 
@@ -239,8 +239,8 @@ export async function GET(req: NextRequest): Promise<Response> {
             color: subtitleColor,
           }}
         >
-          <div>hiraisolutions.ro</div>
-          <div style={{ fontWeight: 600, color: accent }}>3 RON / livrare - zero comision</div>
+          <div>hirforyou.ro</div>
+          <div style={{ fontWeight: 600, color: accent }}>2 lei / comandă · zero comision</div>
         </div>
       </div>
     ),
@@ -262,7 +262,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     // 200 with a short cache so a transient failure auto-recovers on the
     // next deploy without poisoning the CDN.
     console.error('[og] render failed:', (err as Error)?.message);
-    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="1200" height="630" fill="#0F172A"/><text x="600" y="315" font-family="sans-serif" font-size="48" font-weight="700" fill="#F8FAFC" text-anchor="middle" dominant-baseline="middle">HIR Restaurant Suite</text></svg>`;
+    const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630"><rect width="1200" height="630" fill="#0F172A"/><text x="600" y="315" font-family="sans-serif" font-size="64" font-weight="700" fill="#F8FAFC" text-anchor="middle" dominant-baseline="middle">HIRforYOU</text></svg>`;
     return new Response(fallbackSvg, {
       status: 200,
       headers: {

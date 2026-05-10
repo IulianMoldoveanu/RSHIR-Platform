@@ -57,7 +57,7 @@ export default function StorefrontError({
             Înapoi la HIR
           </a>
           <a
-            href="mailto:contact@hiraisolutions.ro?subject=Eroare%20HIR"
+            href="mailto:office@hirforyou.ro?subject=Eroare%20HIR"
             className="inline-flex h-10 items-center rounded-md border border-[#E2E8F0] bg-white px-4 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
           >
             Suport

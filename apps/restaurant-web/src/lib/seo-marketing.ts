@@ -23,7 +23,8 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/case-studies/foisorul-a', priority: 0.6 },
   { path: '/parteneriat/inscriere', priority: 0.7 },
   { path: '/contact', priority: 0.4 },
-  { path: '/press', priority: 0.4 },
+  // Lane SITE-COPY-V2 (2026-05-10) — /press + /status removed from sitemap
+  // (still resolve at their URLs but not indexed by crawlers).
   { path: '/privacy', priority: 0.3 },
 ];
 
@@ -92,23 +93,24 @@ export function marketingOgImageUrl(input: {
   return `${base}/api/og?${params.toString()}`;
 }
 
-// JSON-LD: HIR Organization. Used on `/` (Lane H homepage).
+// JSON-LD: HIRforYOU Organization. Used on `/` (Lane H homepage).
 export function organizationJsonLd(baseUrl: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'HIR Restaurant Suite',
+    name: 'HIRforYOU',
     url: baseUrl,
     logo: `${baseUrl}/logo.svg`,
     sameAs: [
-      'https://www.linkedin.com/company/hir-restaurant-suite',
-      'https://www.facebook.com/hirrestaurantsuite',
+      'https://www.linkedin.com/company/hirforyou',
+      'https://www.facebook.com/hirforyou',
     ],
     contactPoint: [
       {
         '@type': 'ContactPoint',
         contactType: 'sales',
-        email: 'iulianm698@gmail.com',
+        email: 'office@hirforyou.ro',
+        telephone: '+40743700916',
         areaServed: 'RO',
         availableLanguage: ['ro', 'en'],
       },
@@ -121,7 +123,7 @@ export function websiteJsonLd(baseUrl: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    name: 'HIR Restaurant Suite',
+    name: 'HIRforYOU',
     url: baseUrl,
     potentialAction: {
       '@type': 'SearchAction',
