@@ -77,7 +77,9 @@ export default async function PlatformAdminTenantsPage({
   const cityFilter = normalizeCity(searchParams?.city);
   const statusFilterRaw = (searchParams?.status ?? '').toLowerCase();
   const statusFilter: StatusFilter =
-    statusFilterRaw === 'live' || statusFilterRaw === 'onboarding'
+    statusFilterRaw === 'live' ||
+    statusFilterRaw === 'onboarding' ||
+    statusFilterRaw === 'suspended'
       ? statusFilterRaw
       : 'all';
   const sortRaw = (searchParams?.sort ?? '').toLowerCase();
@@ -329,8 +331,17 @@ export default async function PlatformAdminTenantsPage({
       rows = rows.filter((r) => r.citySlug === cityFilter);
     }
   }
-  if (statusFilter === 'live') rows = rows.filter((r) => r.isLive);
-  if (statusFilter === 'onboarding') rows = rows.filter((r) => !r.isLive);
+  // Status filter:
+  //   - 'live'        → went_live + tenants.status != SUSPENDED
+  //   - 'onboarding'  → not yet went_live AND not SUSPENDED
+  //   - 'suspended'   → tenants.status == SUSPENDED (regardless of went_live)
+  if (statusFilter === 'live') {
+    rows = rows.filter((r) => r.isLive && r.tenantStatus !== 'SUSPENDED');
+  } else if (statusFilter === 'onboarding') {
+    rows = rows.filter((r) => !r.isLive && r.tenantStatus !== 'SUSPENDED');
+  } else if (statusFilter === 'suspended') {
+    rows = rows.filter((r) => r.tenantStatus === 'SUSPENDED');
+  }
 
   // ── Apply server-side sort ──
   if (sort === 'name') {

@@ -78,10 +78,10 @@ export default async function AffiliatesPage({
       <div className="mx-auto max-w-5xl px-6 py-10">
         <header className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Admin · Affiliate program</div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Aplicații afiliați</h1>
+            <div className="text-xs font-medium uppercase tracking-wide text-[#475569]">Admin · Program reseller</div>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Aplicații reseller</h1>
             <p className="mt-2 text-sm text-[#475569]">
-              Aprobă, respinge sau marchează spam. La aprobare se generează automat <code>partners.code</code> și se trimite email cu codul + link dashboard.
+              Aprobă, respinge sau marchează spam. La aprobare se generează automat codul de partener și se trimite email cu codul + link dashboard.
             </p>
           </div>
           <a

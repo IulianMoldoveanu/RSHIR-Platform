@@ -123,3 +123,71 @@ export async function setTenantCity(args: {
   revalidatePath('/dashboard/admin/tenants');
   return { ok: true, cityName: city.name };
 }
+
+// Lane ADMIN-POLISH-V1: Suspend / reactivate a tenant from the platform-admin
+// list. Toggle between `tenants.status = 'ACTIVE'` and `'SUSPENDED'`. The
+// `'ONBOARDING'` state is intentionally untouched — onboarding tenants haven't
+// gone live yet and shouldn't be auto-flipped to ACTIVE through this action.
+//
+// Audit-logged via `tenant.suspended` / `tenant.reactivated`. No schema
+// migration: the status enum already includes SUSPENDED (initial migration
+// 20260425_000_initial.sql).
+export async function setTenantStatus(args: {
+  tenantId: string;
+  next: 'ACTIVE' | 'SUSPENDED';
+}): Promise<{ ok: true; status: 'ACTIVE' | 'SUSPENDED' } | { ok: false; error: string }> {
+  if (!args.tenantId) return { ok: false, error: 'invalid_input' };
+  if (args.next !== 'ACTIVE' && args.next !== 'SUSPENDED') {
+    return { ok: false, error: 'invalid_status' };
+  }
+
+  const supa = createServerClient();
+  const {
+    data: { user },
+  } = await supa.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  if (!isPlatformAdmin(user.email)) return { ok: false, error: 'forbidden' };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // Read current status — refuse to flip ONBOARDING → SUSPENDED through this
+  // path. ONBOARDING tenants need to be progressed via the wizard first.
+  const { data: tenant, error: tErr } = await sb
+    .from('tenants')
+    .select('id, name, status')
+    .eq('id', args.tenantId)
+    .maybeSingle();
+  if (tErr) return { ok: false, error: tErr.message };
+  if (!tenant) return { ok: false, error: 'tenant_not_found' };
+  if (tenant.status === 'ONBOARDING') {
+    return { ok: false, error: 'tenant_in_onboarding' };
+  }
+  if (tenant.status === args.next) {
+    // Idempotent — re-clicking the same action is a no-op, not an error.
+    return { ok: true, status: args.next };
+  }
+
+  const { error: wErr } = await sb
+    .from('tenants')
+    .update({ status: args.next })
+    .eq('id', args.tenantId);
+  if (wErr) return { ok: false, error: wErr.message };
+
+  void logAudit({
+    tenantId: args.tenantId,
+    actorUserId: user.id,
+    action: args.next === 'SUSPENDED' ? 'tenant.suspended' : 'tenant.reactivated',
+    entityType: 'tenant',
+    entityId: args.tenantId,
+    metadata: {
+      previous_status: tenant.status,
+      new_status: args.next,
+      tenant_name: tenant.name,
+    },
+  });
+
+  revalidatePath('/dashboard/admin/tenants');
+  return { ok: true, status: args.next };
+}

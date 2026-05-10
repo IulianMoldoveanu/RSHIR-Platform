@@ -6,10 +6,16 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition, type ChangeEvent } from 'react';
-import { openTenantAsPlatformAdmin, setTenantCity } from './actions';
+import { openTenantAsPlatformAdmin, setTenantCity, setTenantStatus } from './actions';
 
-export type StatusFilter = 'all' | 'live' | 'onboarding';
+export type StatusFilter = 'all' | 'live' | 'onboarding' | 'suspended';
 export type SortKey = 'last_order' | 'name' | 'created';
+
+// Estimated MRR per tenant: orders 7d × 30/7 (project to month) × 2 RON
+// (single-tier pricing locked 2026-05-09). Returned as integer RON.
+function estimatedMrrRon(orders7d: number): number {
+  return Math.round((orders7d * 30 / 7) * 2);
+}
 
 export type TenantListRow = {
   id: string;
@@ -139,6 +145,7 @@ export function TenantsListClient({
               <option value="all">Toate</option>
               <option value="live">Doar LIVE</option>
               <option value="onboarding">Doar în configurare</option>
+              <option value="suspended">Doar suspendate</option>
             </select>
           </label>
 
@@ -195,7 +202,7 @@ export function TenantsListClient({
                     <div className="truncate font-medium text-zinc-900">{r.name}</div>
                     <div className="truncate text-xs text-zinc-500">/{r.slug}</div>
                   </div>
-                  <StatusPill isLive={r.isLive} />
+                  <StatusPill isLive={r.isLive} tenantStatus={r.tenantStatus} />
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-y-2 text-xs">
                   <dt className="text-zinc-500">Oraș</dt>
@@ -208,18 +215,33 @@ export function TenantsListClient({
                   <dd className="text-zinc-900">
                     {r.orders7d > 0 ? `${r.orders7d}` : '0'}
                   </dd>
+                  <dt className="text-zinc-500">MRR est.</dt>
+                  <dd className="text-zinc-900">
+                    {r.orders7d > 0
+                      ? `${estimatedMrrRon(r.orders7d).toLocaleString('ro-RO')} RON`
+                      : '—'}
+                  </dd>
                   <dt className="text-zinc-500">Ultima comandă</dt>
                   <dd className="text-zinc-900">{relativeTimeRO(r.lastOrderAt)}</dd>
                 </dl>
                 <IntegrationBadges badges={r.integrationBadges} />
-                <div className="mt-3 flex items-center gap-3 border-t border-zinc-100 pt-2 text-xs">
-                  <OpenTenantButton tenantId={r.id} />
-                  <Link
-                    href={`/dashboard/admin/fleet-managers`}
-                    className="text-zinc-600 hover:underline"
-                  >
-                    FM
-                  </Link>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-zinc-100 pt-2 text-xs">
+                  <div className="flex items-center gap-3">
+                    <OpenTenantButton tenantId={r.id} />
+                    <Link
+                      href={`/dashboard/admin/fleet-managers`}
+                      className="text-zinc-600 hover:underline"
+                    >
+                      FM
+                    </Link>
+                  </div>
+                  {r.tenantStatus !== 'ONBOARDING' && (
+                    <SuspendToggleButton
+                      tenantId={r.id}
+                      tenantName={r.name}
+                      isSuspended={r.tenantStatus === 'SUSPENDED'}
+                    />
+                  )}
                 </div>
               </li>
             ))}
@@ -236,6 +258,12 @@ export function TenantsListClient({
                   <th className="px-3 py-2 text-left font-medium">FM</th>
                   <th className="px-3 py-2 text-left font-medium">Integrări</th>
                   <th className="px-3 py-2 text-right font-medium">Comenzi 7z</th>
+                  <th
+                    className="px-3 py-2 text-right font-medium"
+                    title="Estimare MRR pe baza comenzilor ultimelor 7 zile × 30/7 × 2 RON/comandă (preț HIR locked 2026-05-09)"
+                  >
+                    MRR est.
+                  </th>
                   <th className="px-3 py-2 text-left font-medium">Ultima comandă</th>
                   <th className="px-3 py-2 text-right font-medium">Acțiuni</th>
                 </tr>
@@ -251,7 +279,7 @@ export function TenantsListClient({
                       <CityCell row={r} cities={cities} />
                     </td>
                     <td className="px-3 py-2.5 align-top">
-                      <StatusPill isLive={r.isLive} />
+                      <StatusPill isLive={r.isLive} tenantStatus={r.tenantStatus} />
                     </td>
                     <td className="px-3 py-2.5 align-top text-zinc-700">
                       {r.fmCount > 0 ? r.fmCount : <span className="text-zinc-400">—</span>}
@@ -262,11 +290,29 @@ export function TenantsListClient({
                     <td className="px-3 py-2.5 align-top text-right tabular-nums text-zinc-900">
                       {r.orders7d}
                     </td>
+                    <td className="px-3 py-2.5 align-top text-right tabular-nums text-zinc-700">
+                      {r.orders7d > 0 ? (
+                        <span title="Estimare bazată pe comenzile ultimelor 7 zile">
+                          {estimatedMrrRon(r.orders7d).toLocaleString('ro-RO')} RON
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 align-top text-xs text-zinc-600">
                       {relativeTimeRO(r.lastOrderAt)}
                     </td>
                     <td className="px-3 py-2.5 align-top text-right">
-                      <OpenTenantButton tenantId={r.id} />
+                      <div className="flex flex-col items-end gap-1">
+                        <OpenTenantButton tenantId={r.id} />
+                        {r.tenantStatus !== 'ONBOARDING' && (
+                          <SuspendToggleButton
+                            tenantId={r.id}
+                            tenantName={r.name}
+                            isSuspended={r.tenantStatus === 'SUSPENDED'}
+                          />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -303,7 +349,15 @@ function OpenTenantButton({ tenantId }: { tenantId: string }) {
   );
 }
 
-function StatusPill({ isLive }: { isLive: boolean }) {
+function StatusPill({ isLive, tenantStatus }: { isLive: boolean; tenantStatus: string }) {
+  if (tenantStatus === 'SUSPENDED') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+        Suspendat
+      </span>
+    );
+  }
   if (isLive) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
@@ -316,6 +370,59 @@ function StatusPill({ isLive }: { isLive: boolean }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
       <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
       În configurare
+    </span>
+  );
+}
+
+// Suspend / reactivate button. Shows a confirm() dialog (RO copy) before
+// firing the server action so a slip-of-the-mouse doesn't drop a live tenant.
+// Idempotent server-side, so a double-click is harmless.
+function SuspendToggleButton({
+  tenantId,
+  tenantName,
+  isSuspended,
+}: {
+  tenantId: string;
+  tenantName: string;
+  isSuspended: boolean;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function onClick() {
+    const next = isSuspended ? 'ACTIVE' : 'SUSPENDED';
+    const message = isSuspended
+      ? `Reactivați restaurantul „${tenantName}"? Storefront-ul va redeveni accesibil clienților.`
+      : `Suspendați restaurantul „${tenantName}"? Storefront-ul va deveni inaccesibil pentru clienți, iar comenzile noi vor fi blocate.`;
+    if (typeof window !== 'undefined' && !window.confirm(message)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await setTenantStatus({ tenantId, next });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className={
+          isSuspended
+            ? 'text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50'
+            : 'text-xs font-medium text-rose-700 hover:underline disabled:opacity-50'
+        }
+        aria-label={isSuspended ? 'Reactivează tenant' : 'Suspendă tenant'}
+      >
+        {pending ? '…' : isSuspended ? 'Reactivează' : 'Suspendă'}
+      </button>
+      {error && <span className="text-[10px] text-rose-600">{error}</span>}
     </span>
   );
 }
