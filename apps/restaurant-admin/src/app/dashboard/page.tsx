@@ -56,7 +56,11 @@ export default async function DashboardOverviewPage({
 }: {
   searchParams: { skipOnboarding?: string };
 }) {
-  const { tenant } = await getActiveTenant();
+  const active = await getActiveTenant();
+  if (active.isPlatformAdminMode) {
+    redirect('/dashboard/admin/tenants');
+  }
+  const { tenant } = active;
 
   if (searchParams?.skipOnboarding !== '1') {
     const state = await computeOnboardingState(tenant.id);

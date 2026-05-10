@@ -52,15 +52,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </main>
     );
   }
-  const { user, tenant, tenants } = active;
+  const { user, tenant, tenants, isPlatformAdminMode } = active;
   let onboarding: Awaited<ReturnType<typeof computeOnboardingState>>;
-  try {
-    onboarding = await computeOnboardingState(tenant.id);
-  } catch (err) {
-    console.error('[dashboard/layout] onboarding probe failed:', (err as Error).message);
-    onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: false, completed_at: null };
+  if (isPlatformAdminMode) {
+    onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: true, completed_at: null };
+  } else {
+    try {
+      onboarding = await computeOnboardingState(tenant.id);
+    } catch (err) {
+      console.error('[dashboard/layout] onboarding probe failed:', (err as Error).message);
+      onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: false, completed_at: null };
+    }
   }
-  const storefrontUrl = tenantStorefrontUrl(tenant.slug);
+  const storefrontUrl = isPlatformAdminMode ? null : tenantStorefrontUrl(tenant.slug);
 
   const isPlatformAdmin = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
     .split(',')
@@ -68,7 +72,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .filter(Boolean)
     .includes((user.email ?? '').toLowerCase());
 
-  const navEntries: SidebarEntry[] = [
+  // Tenant-scoped nav (Comenzi / Meniu / Marketing / etc). Hidden in
+  // platform-admin-only mode so Iulian doesn't see a fake "Foișorul A"
+  // shell when he hasn't been onboarded as a member of any restaurant.
+  const tenantNavEntries: SidebarEntry[] = isPlatformAdminMode ? [] : [
     ...(onboarding.went_live
       ? []
       : [
@@ -164,61 +171,67 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     },
     { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni', icon: 'sliders' as const },
     { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
-    ...(isPlatformAdmin
-      ? [
-          {
-            href: '/dashboard/admin/tenants',
-            label: 'Toate restaurantele',
-            icon: 'users' as const,
-          },
-          {
-            href: '/dashboard/admin/onboard',
-            label: '+ Tenant nou',
-            icon: 'rocket' as const,
-          },
-          {
-            href: '/dashboard/admin/partners',
-            label: 'Parteneri',
-            icon: 'users' as const,
-          },
-          {
-            href: '/dashboard/admin/fleet-managers',
-            label: 'Fleet managers',
-            icon: 'users' as const,
-          },
-          {
-            href: '/dashboard/admin/fleet-allocation',
-            label: 'Alocare flote',
-            icon: 'sliders' as const,
-          },
-          {
-            href: '/dashboard/feedback',
-            label: 'Feedback vendori',
-            icon: 'megaphone' as const,
-          },
-          {
-            href: '/dashboard/admin/system',
-            label: 'Sentry · sistem',
-            icon: 'settings' as const,
-          },
-          {
-            href: '/dashboard/admin/incidents',
-            label: 'Incidente /status',
-            icon: 'megaphone' as const,
-          },
-          {
-            href: '/dashboard/admin/observability/materialized-views',
-            label: 'Vizualizări materializate',
-            icon: 'settings' as const,
-          },
-          {
-            href: '/dashboard/admin/observability/function-runs',
-            label: 'Edge Functions',
-            icon: 'settings' as const,
-          },
-        ]
-      : []),
   ];
+
+  const adminNavEntries: SidebarEntry[] = isPlatformAdmin
+    ? [
+        ...(isPlatformAdminMode
+          ? [{ href: '/dashboard/admin/tenants', label: 'Acasă (platformă)', icon: 'layoutDashboard' as const }]
+          : []),
+        {
+          href: '/dashboard/admin/tenants',
+          label: 'Toate restaurantele',
+          icon: 'users' as const,
+        },
+        {
+          href: '/dashboard/admin/onboard',
+          label: '+ Tenant nou',
+          icon: 'rocket' as const,
+        },
+        {
+          href: '/dashboard/admin/partners',
+          label: 'Parteneri',
+          icon: 'users' as const,
+        },
+        {
+          href: '/dashboard/admin/fleet-managers',
+          label: 'Fleet managers',
+          icon: 'users' as const,
+        },
+        {
+          href: '/dashboard/admin/fleet-allocation',
+          label: 'Alocare flote',
+          icon: 'sliders' as const,
+        },
+        {
+          href: '/dashboard/feedback',
+          label: 'Feedback vendori',
+          icon: 'megaphone' as const,
+        },
+        {
+          href: '/dashboard/admin/system',
+          label: 'Sentry · sistem',
+          icon: 'settings' as const,
+        },
+        {
+          href: '/dashboard/admin/incidents',
+          label: 'Incidente /status',
+          icon: 'megaphone' as const,
+        },
+        {
+          href: '/dashboard/admin/observability/materialized-views',
+          label: 'Vizualizări materializate',
+          icon: 'settings' as const,
+        },
+        {
+          href: '/dashboard/admin/observability/function-runs',
+          label: 'Edge Functions',
+          icon: 'settings' as const,
+        },
+      ]
+    : [];
+
+  const navEntries: SidebarEntry[] = [...tenantNavEntries, ...adminNavEntries];
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
@@ -234,18 +247,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <header className="flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <MobileSidebar entries={navEntries} />
-            <TenantSelector tenants={tenants} activeTenantId={tenant.id} />
+            {isPlatformAdminMode ? (
+              <span className="inline-flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-purple-500" aria-hidden />
+                Platformă HIR · admin
+              </span>
+            ) : (
+              <TenantSelector tenants={tenants} activeTenantId={tenant.id} />
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-500">
-            <a
-              href={storefrontUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              <span className="hidden sm:inline">Vezi storefront</span>
-            </a>
+            {storefrontUrl ? (
+              <a
+                href={storefrontUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden sm:inline">Vezi storefront</span>
+              </a>
+            ) : null}
             <span className="hidden md:inline">{user.email}</span>
             <form action={logoutAction}>
               <button type="submit" className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100">
@@ -257,7 +279,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
       </div>
       <PwaInstallPrompt />
-      <FeedbackFab tenantId={tenant.id} />
+      {isPlatformAdminMode ? null : <FeedbackFab tenantId={tenant.id} />}
       <CmdKPalette />
     </div>
   );
