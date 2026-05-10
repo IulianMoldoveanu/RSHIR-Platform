@@ -80,7 +80,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
 
   it('returns 404 for an unknown provider', async () => {
     const res = await POST(makeReq(), {
-      params: { provider: 'totally-fake', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'totally-fake', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(404);
     expect(providerSelectMock).not.toHaveBeenCalled();
@@ -88,7 +88,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
 
   it('returns 404 when tenant param is not a UUID', async () => {
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: 'not-a-uuid' },
+      params: Promise.resolve({ provider: 'mock', tenant: 'not-a-uuid' }),
     });
     expect(res.status).toBe(404);
     expect(providerSelectMock).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
   it('returns 404 when (tenant, provider) row is missing', async () => {
     providerSelectMock.mockReturnValue({ data: null, error: null });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(404);
     expect(verifyWebhookMock).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
       error: null,
     });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(404);
     expect(verifyWebhookMock).not.toHaveBeenCalled();
@@ -121,7 +121,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
       error: { message: 'sensitive postgres detail' },
     });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(500);
     const json = (await res.json()) as { error: string };
@@ -134,7 +134,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
   it('returns 401 when adapter.verifyWebhook returns null (bad signature)', async () => {
     verifyWebhookMock.mockResolvedValue(null);
     const res = await POST(makeReq('{"foo":"bar"}'), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(401);
     expect(orderUpdateMock).not.toHaveBeenCalled();
@@ -148,7 +148,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
       status: 'CONFIRMED',
     });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(200);
 
@@ -184,7 +184,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
       payload: { orderId: ORDER_ID, source: 'EXTERNAL_API' },
     });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(202);
     const json = (await res.json()) as { ok: boolean; accepted: boolean };
@@ -205,7 +205,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
     });
     orderUpdateMock.mockReturnValue({ error: { message: 'fk violation' } });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     // The router logs and continues — POS retries are not a 500 problem
     // for HIR. But the audit row still fires so the operator can see it.
@@ -223,7 +223,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
     // is invoked with the URL-derived tenant.
     await POST(
       makeReq(JSON.stringify({ tenant_id: 'attacker-tenant', orderId: ORDER_ID })),
-      { params: { provider: 'mock', tenant: TENANT_ID } },
+      { params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }) },
     );
     const [ctx] = verifyWebhookMock.mock.calls[0];
     expect((ctx as { tenantId: string }).tenantId).toBe(TENANT_ID);
@@ -234,7 +234,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
       kind: 'something.new',
     });
     const res = await POST(makeReq(), {
-      params: { provider: 'mock', tenant: TENANT_ID },
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
     });
     expect(res.status).toBe(200);
   });

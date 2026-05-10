@@ -35,7 +35,7 @@ const SUBSCRIBABLE_STATUSES = new Set([
   'IN_DELIVERY',
 ]);
 
-export async function POST(req: NextRequest, ctx: { params: { token: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
   const rl = checkLimit(`track-push-sub:${clientIp(req)}`, { capacity: 10, refillPerSec: 1 / 6 });
   if (!rl.ok) {
     return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, ctx: { params: { token: string } })
     );
   }
 
-  const parsed = paramsSchema.safeParse(ctx.params);
+  const parsed = paramsSchema.safeParse((await ctx.params));
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   }

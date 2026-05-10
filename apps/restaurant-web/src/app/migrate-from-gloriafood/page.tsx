@@ -176,11 +176,12 @@ function Cell({ good, label }: { good: boolean; label: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
-export default function MigrateFromGloriaFoodPage({
-  searchParams,
-}: {
-  searchParams: Record<string, string | string[] | undefined>;
-}) {
+export default async function MigrateFromGloriaFoodPage(
+  props: {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const locale = getLocale();
   const refCode = typeof searchParams.ref === 'string' ? searchParams.ref : '';
   const days = daysUntilShutdown();

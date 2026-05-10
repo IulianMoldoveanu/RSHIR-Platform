@@ -73,7 +73,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
 
   it('returns 429 when rate-limited', async () => {
     checkLimitMock.mockReturnValue({ ok: false, retryAfterSec: 60 });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('60');
     const json = (await res.json()) as { error: string };
@@ -82,7 +82,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
   });
 
   it('returns 400 invalid_token for non-UUID token', async () => {
-    const res = await POST(makeReq(), { params: { token: 'not-a-uuid' } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: 'not-a-uuid' }) });
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('invalid_token');
@@ -91,7 +91,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
 
   it('returns 404 not_found when token does not match any order', async () => {
     orderSelectSingleMock.mockReturnValue({ data: null, error: null });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(404);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('not_found');
@@ -103,7 +103,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
       data: { id: 'order-1', tenant_id: 'tenant-1', status: 'DELIVERED' },
       error: null,
     });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(409);
     const json = (await res.json()) as { error: string; status: string };
     expect(json.error).toBe('order_not_active');
@@ -116,7 +116,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
       data: { id: 'order-1', tenant_id: 'tenant-1', status: 'CANCELLED' },
       error: null,
     });
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(409);
     expect(upsertMock).not.toHaveBeenCalled();
   });
@@ -127,7 +127,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
       error: null,
     });
 
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(200);
     const json = (await res.json()) as { ok: boolean };
     expect(json).toEqual({ ok: true });
@@ -149,7 +149,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
   it('returns 400 invalid_body when endpoint is not a URL', async () => {
     const res = await POST(
       makeReq({ endpoint: 'not-a-url', keys: VALID_BODY.keys }),
-      { params: { token: VALID_TOKEN } },
+      { params: Promise.resolve({ token: VALID_TOKEN }) },
     );
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
@@ -160,7 +160,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
   it('returns 400 invalid_body when keys are missing', async () => {
     const res = await POST(
       makeReq({ endpoint: 'https://push.example.com/abc' }),
-      { params: { token: VALID_TOKEN } },
+      { params: Promise.resolve({ token: VALID_TOKEN }) },
     );
     expect(res.status).toBe(400);
     const json = (await res.json()) as { error: string };
@@ -174,7 +174,7 @@ describe('POST /api/track/[token]/push/subscribe', () => {
     });
     upsertMock.mockReturnValue({ error: { message: 'constraint violation' } });
 
-    const res = await POST(makeReq(), { params: { token: VALID_TOKEN } });
+    const res = await POST(makeReq(), { params: Promise.resolve({ token: VALID_TOKEN }) });
     expect(res.status).toBe(500);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('subscribe_failed');

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { headers } from 'next/headers';
+import { headers, type UnsafeUnwrappedHeaders } from 'next/headers';
 import { tenantBaseUrl } from '@/lib/tenant';
 import { canonicalBaseUrl, isCanonicalHost } from '@/lib/seo-marketing';
 
@@ -7,8 +7,8 @@ export const dynamic = 'force-dynamic';
 
 export default function robots(): MetadataRoute.Robots {
   const host =
-    headers().get('x-hir-host') ??
-    headers().get('host')?.split(':')[0] ??
+    (headers() as unknown as UnsafeUnwrappedHeaders).get('x-hir-host') ??
+    (headers() as unknown as UnsafeUnwrappedHeaders).get('host')?.split(':')[0] ??
     '';
 
   // On the marketing host, point crawlers at the canonical base; on tenant

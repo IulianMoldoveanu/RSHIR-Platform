@@ -27,13 +27,13 @@
  * widget bugfix lands within an hour even if merchants don't redeploy.
  */
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { headers, type UnsafeUnwrappedHeaders } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 function buildOrigin(): string {
-  const hdrs = headers();
+  const hdrs = (headers() as unknown as UnsafeUnwrappedHeaders);
   const proto = hdrs.get('x-forwarded-proto') ?? 'https';
   const host =
     hdrs.get('x-forwarded-host') ??

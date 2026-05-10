@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
     (tenant.settings as TenantSettings).about_short ||
     (config.aboutLong ? config.aboutLong.slice(0, 200) : `Povestea ${tenant.name} pe HIR.`);
   const host =
-    headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+    (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
   const url = `${canonicalBaseUrl(host)}/poveste`;
   const { coverUrl } = brandingFor(tenant.settings as TenantSettings);
 
@@ -148,7 +148,6 @@ export default async function PovestePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(restaurantJsonLd) }}
       />
-
       {/* HERO */}
       <section className="relative">
         <div
@@ -161,14 +160,14 @@ export default async function PovestePage() {
         >
           {coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
+            (<img
               src={coverUrl}
               alt=""
               className="h-full w-full object-cover"
               loading="eager"
               fetchPriority="high"
               decoding="async"
-            />
+            />)
           ) : null}
           {coverUrl ? (
             <div
@@ -186,7 +185,7 @@ export default async function PovestePage() {
           <div className="flex flex-col items-center gap-4 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-zinc-100 sm:p-8">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
+              (<img
                 src={logoUrl}
                 alt={tenant.name}
                 width={96}
@@ -194,7 +193,7 @@ export default async function PovestePage() {
                 className="h-20 w-20 rounded-2xl object-cover ring-1 ring-zinc-200 sm:h-24 sm:w-24"
                 loading="eager"
                 decoding="async"
-              />
+              />)
             ) : (
               <div
                 className="flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-semibold text-white sm:h-24 sm:w-24"
@@ -223,7 +222,6 @@ export default async function PovestePage() {
           </div>
         </div>
       </section>
-
       {/* DESPRE NOI */}
       <section className="mx-auto mt-12 max-w-2xl px-4 sm:mt-16 sm:px-6">
         <h2
@@ -240,7 +238,6 @@ export default async function PovestePage() {
           </p>
         )}
       </section>
-
       {/* GALERIE */}
       {config.gallery.length > 0 ? (
         <section className="mx-auto mt-14 max-w-5xl px-4 sm:mt-20 sm:px-6">
@@ -253,7 +250,6 @@ export default async function PovestePage() {
           <PresentationGallery items={config.gallery} />
         </section>
       ) : null}
-
       {/* ECHIPA */}
       {config.team.length > 0 ? (
         <section className="mx-auto mt-14 max-w-4xl px-4 sm:mt-20 sm:px-6">
@@ -271,7 +267,7 @@ export default async function PovestePage() {
               >
                 {member.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  (<img
                     src={member.photo_url}
                     alt={member.name}
                     width={96}
@@ -279,7 +275,7 @@ export default async function PovestePage() {
                     className="h-20 w-20 rounded-full object-cover ring-1 ring-zinc-200"
                     loading="lazy"
                     decoding="async"
-                  />
+                  />)
                 ) : (
                   <div
                     className="flex h-20 w-20 items-center justify-center rounded-full text-lg font-semibold text-white"
@@ -300,7 +296,6 @@ export default async function PovestePage() {
           </ul>
         </section>
       ) : null}
-
       {/* VIDEO */}
       {videoSrc ? (
         <section className="mx-auto mt-14 max-w-4xl px-4 sm:mt-20 sm:px-6">
@@ -322,7 +317,6 @@ export default async function PovestePage() {
           </div>
         </section>
       ) : null}
-
       {/* SOCIAL */}
       {showSocials ? (
         <section className="mx-auto mt-14 max-w-3xl px-4 text-center sm:mt-20 sm:px-6">
@@ -388,7 +382,6 @@ export default async function PovestePage() {
           </ul>
         </section>
       ) : null}
-
       {/* FOOTER CTA */}
       <section className="mx-auto mt-16 max-w-3xl px-4 sm:mt-24 sm:px-6">
         <div

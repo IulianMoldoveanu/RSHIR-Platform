@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
     subtitle: t(locale, 'marketing.features.og_subtitle'),
   });
   const host =
-    headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+    (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
   const url = `${canonicalBaseUrl(host)}/features`;
   return {
     title,

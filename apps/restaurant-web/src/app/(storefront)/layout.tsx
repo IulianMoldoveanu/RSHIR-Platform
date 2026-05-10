@@ -33,7 +33,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   // admin wizard's previewTheme server action), use theme_preview_slug
   // from settings instead of the live template_slug. Regular visitors
   // never have this cookie, so the guard keeps previews admin-only.
-  const jar = cookies();
+  const jar = await cookies();
   const previewCookie = jar.get('hir-theme-preview')?.value ?? null;
   const isPreviewSession = previewCookie === tenant.id;
   const effectiveTemplateSlug = isPreviewSession

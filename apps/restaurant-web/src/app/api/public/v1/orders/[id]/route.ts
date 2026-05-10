@@ -10,10 +10,8 @@ import { authenticateBearerKey } from '../../auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function GET(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const authed = await authenticateBearerKey(req.headers.get('authorization'));
   if (!authed) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

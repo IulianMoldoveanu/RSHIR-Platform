@@ -14,11 +14,12 @@ import { getLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CheckoutSuccessPage({
-  searchParams,
-}: {
-  searchParams: { order_id?: string; token?: string };
-}) {
+export default async function CheckoutSuccessPage(
+  props: {
+    searchParams: Promise<{ order_id?: string; token?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 

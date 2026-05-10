@@ -58,14 +58,15 @@ const NEW_BADGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 // >50 → paginate when we ever ship a city that big).
 const TENANT_CAP = 50;
 
-type Params = { params: { citySlug: string } };
+type Params = { params: Promise<{ citySlug: string }> };
 
 export async function generateStaticParams() {
   const cities = await listActiveCities();
   return cities.map((c) => ({ citySlug: c.slug }));
 }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+export async function generateMetadata(props: Params): Promise<Metadata> {
+  const params = await props.params;
   const locale = getLocale();
   const city = await getCityBySlug(params.citySlug);
   if (!city) {
@@ -136,7 +137,8 @@ function tenantLocalBusinessJsonLd(input: {
   };
 }
 
-export default async function CityLandingPage({ params }: Params) {
+export default async function CityLandingPage(props: Params) {
+  const params = await props.params;
   const currentLocale = getLocale();
   const city = await getCityBySlug(params.citySlug);
   if (!city) {
@@ -145,7 +147,7 @@ export default async function CityLandingPage({ params }: Params) {
 
   const tenants = await listTenantsByCity(city, TENANT_CAP);
   const host =
-    headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+    (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
   const baseUrl = canonicalBaseUrl(host);
 
   const breadcrumb = breadcrumbJsonLd(baseUrl, [
@@ -285,12 +287,12 @@ function TenantCard({
             // External logos served from Supabase Storage. <img> is fine
             // here — these are listing-card thumbnails, no LCP hot path.
             // eslint-disable-next-line @next/next/no-img-element
-            <img
+            (<img
               src={logoUrl}
               alt=""
               loading="lazy"
               className="h-14 w-14 flex-none rounded-xl object-cover ring-1 ring-[#E2E8F0]"
-            />
+            />)
           ) : (
             <div
               className="flex h-14 w-14 flex-none items-center justify-center rounded-xl text-base font-semibold text-white"

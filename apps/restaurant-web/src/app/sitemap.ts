@@ -69,8 +69,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Emit marketing pages + 1 entry per ACTIVE tenant landing so search
   // engines crawl every live restaurant from a single sitemap submission.
   const host =
-    headers().get('x-hir-host') ??
-    headers().get('host')?.split(':')[0] ??
+    (await headers()).get('x-hir-host') ??
+    (await headers()).get('host')?.split(':')[0] ??
     '';
   if (!isCanonicalHost(host)) {
     // Unknown host (e.g. raw IP, preview branch URL) — return empty rather

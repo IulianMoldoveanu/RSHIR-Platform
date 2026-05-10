@@ -17,8 +17,8 @@ const bodySchema = z.object({
 // public_track_token" — same trust model as the GET endpoint. The DB function
 // enforces status=DELIVERED and a single review per order; we still
 // rate-limit by IP because the route is unauthenticated.
-export async function POST(req: NextRequest, ctx: { params: { token: string } }) {
-  const params = paramsSchema.safeParse(ctx.params);
+export async function POST(req: NextRequest, ctx: { params: Promise<{ token: string }> }) {
+  const params = paramsSchema.safeParse((await ctx.params));
   if (!params.success) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   }

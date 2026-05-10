@@ -30,11 +30,12 @@ async function loadItem(slug: string) {
   return { tenant, item };
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const locale = getLocale();
   const loaded = await loadItem(params.slug);
   if (!loaded) return { title: t(locale, 'meta.item_not_found') };
@@ -76,7 +77,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function ItemPage({ params }: { params: { slug: string } }) {
+export default async function ItemPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const locale = getLocale();
   const loaded = await loadItem(params.slug);
   if (!loaded) notFound();
@@ -122,7 +124,7 @@ export default async function ItemPage({ params }: { params: { slug: string } })
         <div className="relative h-72 w-full overflow-hidden bg-zinc-100 sm:h-96">
           {item.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
+            (<img
               src={item.image_url}
               alt={item.name}
               width={1200}
@@ -130,7 +132,7 @@ export default async function ItemPage({ params }: { params: { slug: string } })
               className="h-full w-full object-cover"
               loading="eager"
               fetchPriority="high"
-            />
+            />)
           ) : (
             <div className="flex h-full items-center justify-center text-zinc-300">
               <UtensilsCrossed className="h-16 w-16" aria-hidden />
@@ -152,7 +154,6 @@ export default async function ItemPage({ params }: { params: { slug: string } })
           <ChevronLeft className="h-5 w-5" />
         </Link>
       </div>
-
       <div className="mx-auto max-w-2xl px-4 pt-5">
         <p className="text-xs uppercase tracking-widest text-zinc-500">{tenant.name}</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900">{item.name}</h1>

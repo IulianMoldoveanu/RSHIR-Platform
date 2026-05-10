@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 import { getConsent } from './consent.server';
 
@@ -22,7 +22,7 @@ export function cartBootstrapCookieName(tenantId: string): string {
  * Returns the customer.id (UUID) if present and well-formed.
  */
 export function readCustomerCookie(tenantId: string): string | null {
-  const v = cookies().get(customerCookieName(tenantId))?.value;
+  const v = (cookies() as unknown as UnsafeUnwrappedCookies).get(customerCookieName(tenantId))?.value;
   return v && UUID_RE.test(v) ? v : null;
 }
 

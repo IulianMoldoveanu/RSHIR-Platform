@@ -17,8 +17,8 @@ const paramsSchema = z.object({ token: z.string().uuid() });
  * remaps snake_case to camelCase. See
  * supabase/migrations/20260506_008_get_public_order_redact.sql.
  */
-export async function GET(_req: Request, ctx: { params: { token: string } }) {
-  const parsed = paramsSchema.safeParse(ctx.params);
+export async function GET(_req: Request, ctx: { params: Promise<{ token: string }> }) {
+  const parsed = paramsSchema.safeParse((await ctx.params));
   if (!parsed.success) {
     return NextResponse.json({ error: 'invalid_token' }, { status: 400 });
   }

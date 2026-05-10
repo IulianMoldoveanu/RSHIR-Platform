@@ -84,7 +84,7 @@ export default async function OraseIndexPage() {
   // from any canonical alias, but breadcrumb URLs always point at the
   // configured PRIMARY_DOMAIN so social previews are stable.
   const host =
-    headers().get('x-hir-host') ?? headers().get('host')?.split(':')[0] ?? '';
+    (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
   const baseUrl = canonicalBaseUrl(host);
 
   const breadcrumb = breadcrumbJsonLd(baseUrl, [
