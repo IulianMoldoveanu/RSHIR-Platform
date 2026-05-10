@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Oswald, Playfair_Display, Space_Grotesk, Fraunces } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { t } from '@/lib/i18n';
+import { headers } from 'next/headers';
+import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+import { isCanonicalHost } from '@/lib/seo-marketing';
 import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import { SupportPanel } from '@/components/support/support-panel';
@@ -79,8 +81,23 @@ function supabaseHost(): string | null {
 // `@hir_solutions` once the account is registered.
 const TWITTER_SITE = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
 
+// SEO audit 2026-05-10 follow-up — when serving the marketing host
+// (hirforyou.ro / www / Vercel canonical), pin locale to RO so the
+// `<html lang>` attribute and root metadata stay consistent with the
+// MarketingHome content (which already pins to RO per #398). Tenant
+// hosts (`*.hirforyou.ro` or custom domains) continue to honor cookie
+// + Accept-Language so EN customers see the EN storefront chrome.
+async function rootLocale(): Promise<Locale> {
+  const host =
+    (await headers()).get('x-hir-host') ??
+    (await headers()).get('host')?.split(':')[0] ??
+    '';
+  if (isCanonicalHost(host)) return 'ro';
+  return getLocale();
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await rootLocale();
   return {
     title: t(locale, 'meta.default_title'),
     description: t(locale, 'meta.default_description'),
@@ -89,8 +106,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = getLocale();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await rootLocale();
   const supaHost = supabaseHost();
   // Lane Y5 — suppress the "install HIR" PWA prompt when rendered inside
   // an embed iframe; merchants don't want HIR install prompts on their
