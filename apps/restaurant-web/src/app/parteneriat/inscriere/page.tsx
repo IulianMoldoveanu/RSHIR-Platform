@@ -25,9 +25,9 @@ const OG_IMAGE = marketingOgImageUrl({
 });
 
 export const metadata: Metadata = {
-  title: 'Devino reseller HIRforYOU — comision 25% Y1 / 20% recurring',
+  title: 'Devino reseller HIRforYOU — termeni preferențiali pentru reseleri activi',
   description:
-    'Înscrie-te ca reseller HIRforYOU și primește instant codul tău de referral + linkul personal. Comision 25% în primul an + 20% recurring din MRR-ul fiecărui restaurant adus prin link.',
+    'Înscrie-te ca reseller HIRforYOU și primește instant codul tău de referral + linkul personal. Programul de revenue share (25% Y1 / 20% recurring) este în roll-out activ — termenii finali se confirmă la aprobarea echipei și semnarea contractului.',
   openGraph: {
     title: 'Devino reseller HIRforYOU',
     description:
@@ -70,9 +70,9 @@ export default function PartnerSignupPage() {
             comisionului.
           </p>
           <div className="mt-6 inline-flex flex-wrap items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-            <span>Comision: 25% în primul an</span>
+            <span>Program reseller: 25% Y1 · 20% recurring</span>
             <span aria-hidden className="text-emerald-300">·</span>
-            <span>20% recurring după 12 luni</span>
+            <span className="font-normal text-emerald-600">termeni finali la aprobare</span>
           </div>
         </div>
       </section>
@@ -87,13 +87,13 @@ export default function PartnerSignupPage() {
           />
           <Step
             n="2"
-            title="Primești codul HIR-XXXXXX"
-            body="După aprobare, primești codul tău de referral (format HIR-XXXXXX) și linkul /r/<COD> cu butoane share."
+            title="Primești codul tău de referral"
+            body="După aprobare, primești codul tău unic de referral și linkul /r/<COD> cu butoane share — îl folosești instant pentru WhatsApp, Telegram sau email."
           />
           <Step
             n="3"
-            title="Câștigi 25% Y1 / 20% recurring"
-            body="Pentru fiecare restaurant adus prin linkul tău primești 25% din MRR în primul an și 20% recurring după aceea."
+            title="Termeni preferențiali pentru reseleri activi"
+            body="După aprobare și semnarea contractului de parteneriat, echipa HIRforYOU îți confirmă termenii finali — programul țintă este 25% în primul an și 20% recurring din MRR-ul restaurantelor aduse."
           />
         </div>
       </section>
@@ -103,12 +103,17 @@ export default function PartnerSignupPage() {
         <div className="rounded-lg border border-[#E2E8F0] bg-white p-6">
           <h2 className="text-lg font-semibold text-[#0F172A]">Cum funcționează</h2>
           <ul className="mt-4 space-y-2.5 text-sm text-[#475569]">
-            <li><strong className="text-[#0F172A]">Comision:</strong> 25% din MRR în primii 12 luni, 20% recurring după.</li>
+            <li><strong className="text-[#0F172A]">Comision:</strong> 25% din MRR în primii 12 luni, 20% recurring după (termenii finali confirmați la semnarea contractului).</li>
             <li><strong className="text-[#0F172A]">Plată:</strong> trimestrial, pe factură PFA / SRL (necesar CIF).</li>
-            <li><strong className="text-[#0F172A]">Aprobare:</strong> review manual în 24h de la submit, apoi activăm codul HIR-XXXXXX.</li>
+            <li><strong className="text-[#0F172A]">Aprobare:</strong> review manual în 24h de la submit, apoi activăm codul tău de referral.</li>
             <li><strong className="text-[#0F172A]">Materiale:</strong> deck PDF de prezentare, link <a href="/migrate-from-gloriafood" className="text-[#4F46E5] hover:underline">/migrate-from-gloriafood</a> ca leadgen tool, studii de caz live (<a href="/case-studies/foisorul-a" className="text-[#4F46E5] hover:underline">Foișorul A</a>).</li>
             <li><strong className="text-[#0F172A]">Suport:</strong> răspundem direct, nu printr-un call center.</li>
           </ul>
+          <p className="mt-4 text-xs leading-relaxed text-[#94A3B8]">
+            Notă: Programul de revenue share recurring este în roll-out activ. Resellerii aprobați
+            în această etapă semnează un contract individualizat cu echipa HIRforYOU; termenii
+            preliminari (25% Y1 / 20% recurring) sunt referința de bază a programului.
+          </p>
         </div>
       </section>
 
