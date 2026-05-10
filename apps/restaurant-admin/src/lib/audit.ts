@@ -78,6 +78,8 @@ export type AuditAction =
   | 'tenant.external_dispatch_configured'
   | 'tenant.city_assigned'
   | 'tenant.presentation_updated'
+  | 'tenant.suspended'
+  | 'tenant.reactivated'
   | 'fiscal.settings_updated'
   | 'fiscal.export_generated'
   | 'smartbill.settings_updated'
