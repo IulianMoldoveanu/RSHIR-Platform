@@ -83,27 +83,16 @@ async function ensureTestFleet(): Promise<string> {
   const explicit = process.env.E2E_FLEET_ID;
   if (explicit) return explicit;
 
-  // 2026-05-10 fix: previously we created an `e2e-test-fleet` here, but
-  // any non-`hir-default` slug puts the courier in Mode C (fleet-managed)
-  // per `lib/rider-mode.ts`. Mode C hides the "Comenzi disponibile" open
-  // orders list — so 02-accept-deliver could never see the seeded
-  // unassigned order. Pin the test courier to the platform-default fleet
-  // so the suite exercises the Mode-A solo-rider claim flow that the
-  // tests are written against. Test orders carry an `e2e-` external_ref
-  // and are deleted in afterEach; brief visibility (<30s) to prod
-  // couriers on the default fleet is acceptable.
-  const { data: defaultFleet } = await adminSupabase
+  const { data: existing } = await adminSupabase
     .from('courier_fleets')
     .select('id')
-    .eq('slug', 'hir-default')
+    .eq('slug', 'e2e-test-fleet')
     .maybeSingle();
-  if (defaultFleet?.id) return defaultFleet.id as string;
+  if (existing?.id) return existing.id as string;
 
-  // Fallback: hir-default missing (test environment without seed). Create
-  // a brand-new fleet that ALSO uses slug `hir-default` to keep Mode A.
   const { data: created, error } = await adminSupabase
     .from('courier_fleets')
-    .insert({ name: 'HIR Default Fleet', slug: 'hir-default' })
+    .insert({ name: 'E2E Test Fleet', slug: 'e2e-test-fleet' })
     .select('id')
     .single();
   if (error) throw error;
