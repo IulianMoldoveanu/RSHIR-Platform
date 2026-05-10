@@ -673,11 +673,11 @@ export const dictionaries = {
           'Înscrieți restaurantul în 5 minute. Importăm meniul GloriaFood automat și sunteți live azi.',
         final_cta_signup: 'Sună Echipa HIR',
         final_cta_consultant: 'Încep singur — fără card',
-        aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR scapi de cele 3 terminale.',
+        aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR ai propriul canal.',
         aggregator_body:
-          'Restaurantele moderne primesc câte un terminal Android proprietar de la fiecare aplicație. HIR îți unifică totul: comenzile directe vin pe ecranul tău, plătești 2 lei/comandă în loc de ~30% comision.',
+          'Aplicațiile de delivery îți iau ~30% din fiecare comandă și nu îți dau datele clienților. Cu HIR ai propriul site, propria bază de clienți și plătești 2 lei/comandă în loc de comision procentual.',
         aggregator_sub:
-          'Comenzile Glovo/Wolt/Bolt le poți adăuga manual pe HIR (sursă vizibilă pe KDS) — opțional, până le scoți complet.',
+          'Treci treptat de pe Glovo/Wolt/Bolt pe canalul tău direct — clienții fideli rămân la tine, marja crește vizibil de la prima lună.',
       },
       // /features page body — full bilingual coverage.
       features: {
@@ -1437,11 +1437,11 @@ export const dictionaries = {
           'Sign up your restaurant in 5 minutes. We import your GloriaFood menu automatically and you go live today.',
         final_cta_signup: 'Call HIR Team',
         final_cta_consultant: 'Start on my own — no card needed',
-        aggregator_title: 'Glovo, Wolt, Bolt? With HIR you get rid of the 3 terminals.',
+        aggregator_title: 'Glovo, Wolt, Bolt? With HIR you have your own channel.',
         aggregator_body:
-          'Modern restaurants receive a separate Android terminal from each app. HIR unifies everything: direct orders come to your screen, you pay 2 lei/order instead of ~30% commission.',
+          'Delivery apps take ~30% per order and lock you out of customer data. With HIR you get your own site, your own customer database, and pay 2 lei/order instead of a percentage commission.',
         aggregator_sub:
-          'Glovo/Wolt/Bolt orders can be added manually on HIR (source visible on KDS) — optionally, until you drop them entirely.',
+          'Move gradually from Glovo/Wolt/Bolt to your own direct channel — loyal customers stay with you, margins improve from the first month.',
       },
       // /features page body — full bilingual coverage.
       features: {
