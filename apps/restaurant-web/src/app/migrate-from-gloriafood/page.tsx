@@ -15,7 +15,7 @@ function daysUntilShutdown(): number {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = getLocale();
-  const url = 'https://hiraisolutions.ro/migrate-from-gloriafood';
+  const url = `https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}/migrate-from-gloriafood`;
   const ogImage = marketingOgImageUrl({
     title: t(locale, 'marketing.migrate.og_title'),
     subtitle: t(locale, 'marketing.migrate.page_description'),
