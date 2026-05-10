@@ -10,7 +10,7 @@ export function HirFooter() {
       </div>
       <p className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 leading-relaxed">
         <a
-          href={brandUrl || 'https://hiraisolutions.ro'}
+          href={brandUrl || 'https://hirforyou.ro'}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-zinc-500 transition-colors hover:text-zinc-800"

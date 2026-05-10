@@ -23,7 +23,7 @@ const OG_IMAGE = marketingOgImageUrl({
 });
 
 export const metadata: Metadata = {
-  title: 'Contact — HIR Restaurant Suite',
+  title: 'Contact — HIRforYOU',
   description:
     'Vorbește cu echipa HIR. Pentru restaurante, flote și parteneri. Email, telefon, formular direct.',
   alternates: {
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     languages: { 'ro-RO': CONTACT_URL, en: CONTACT_URL, 'x-default': CONTACT_URL },
   },
   openGraph: {
-    title: 'Contact — HIR Restaurant Suite',
+    title: 'Contact — HIRforYOU',
     description: 'Vorbește cu echipa HIR. Răspuns în 24 de ore lucrătoare.',
     type: 'website',
     locale: 'ro_RO',
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Contact — HIR Restaurant Suite',
+    title: 'Contact — HIRforYOU',
     description: 'Răspuns în 24 de ore lucrătoare.',
     images: [OG_IMAGE],
   },
@@ -67,6 +67,22 @@ export default function ContactPage() {
             Răspundem în 24 de ore lucrătoare. Pentru demo live, programăm un apel
             de 20 de minute în care îți arătăm platforma pe contul tău real.
           </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href="tel:+40743700916"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+            >
+              <Phone className="h-4 w-4" aria-hidden />
+              Sună acum: +40 743 700 916
+            </a>
+            <a
+              href="mailto:office@hirforyou.ro"
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+            >
+              <Mail className="h-4 w-4" aria-hidden />
+              office@hirforyou.ro
+            </a>
+          </div>
         </div>
       </section>
 
@@ -79,15 +95,16 @@ export default function ContactPage() {
             </p>
             <ul className="mt-7 space-y-5 text-sm">
               <ContactRow
-                icon={<Mail className="h-4 w-4" />}
-                label="Email"
-                value="contact@hiraisolutions.ro"
-                href="mailto:contact@hiraisolutions.ro"
-              />
-              <ContactRow
                 icon={<Phone className="h-4 w-4" />}
                 label="Telefon"
-                value="+40 (rezervat la formular)"
+                value="+40 743 700 916"
+                href="tel:+40743700916"
+              />
+              <ContactRow
+                icon={<Mail className="h-4 w-4" />}
+                label="Email"
+                value="office@hirforyou.ro"
+                href="mailto:office@hirforyou.ro"
               />
               <ContactRow
                 icon={<MapPin className="h-4 w-4" />}

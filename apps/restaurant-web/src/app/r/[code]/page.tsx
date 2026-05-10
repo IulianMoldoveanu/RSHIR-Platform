@@ -34,9 +34,9 @@ type PartnerRow = {
 };
 
 const DEFAULT_LANDING = {
-  headline: 'HIR — soluția de comenzi online pentru restaurante',
+  headline: 'HIRforYOU — soluția de comenzi online pentru restaurante',
   blurb:
-    'Plătești doar 3 RON / livrare. Fără abonament. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
+    'Plătești doar 2 lei / comandă. Fără abonament. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
   cta_url: '/migrate-from-gloriafood',
   accent_color: '#0f766e',
 };
@@ -315,8 +315,8 @@ export default async function ResellerLandingPage({
 export async function generateMetadata({ params }: { params: { code: string } }) {
   const code = (params.code ?? '').toUpperCase();
   return {
-    title: `HIR Restaurant — ${code}`,
-    description: 'Soluția de comenzi online pentru restaurante. 3 RON/livrare, fără abonament.',
+    title: `HIRforYOU — ${code}`,
+    description: 'Soluția de comenzi online pentru restaurante. 2 lei/comandă, fără abonament.',
     robots: { index: false, follow: false },
   };
 }

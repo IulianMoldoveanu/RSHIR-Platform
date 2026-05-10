@@ -269,8 +269,8 @@ function AudienceBlock({ audience }: { audience: SalesSheetAudience }) {
           Conduci o flotă de curieri? Câștigă 25% Y1 + 20% recurring.
         </Text>
         <Text style={styles.audienceBody}>
-          Fiecare restaurant adus pe HIR plătește 3 RON / livrare. Tu primești
-          25% din comisionul HIR în primul an și 20% recurring după aceea.
+          Fiecare restaurant adus pe HIRforYOU plătește 2 lei / comandă. Tu
+          primești 25% din MRR în primul an și 20% recurring după aceea.
           Curierii flotei tale primesc dispatch direct prin aplicația HIR
           Curier — fără app nou de instalat. Plată trimestrial pe factură SRL.
         </Text>
@@ -289,24 +289,23 @@ function AudienceBlock({ audience }: { audience: SalesSheetAudience }) {
           Importăm meniul tău de pe GloriaFood, Glovo sau orice PDF / poză.
           Primești pagina ta de comenzi cu logo + brand propriu, fără
           cross-promote la concurenți. Datele clienților rămân la tine — CRM,
-          SMS, email, loyalty. Plătești 3 RON / livrare și atât.
+          SMS, email, loyalty. Plătești 2 lei / comandă și atât.
         </Text>
       </View>
     );
   }
 
-  // reseller — quick ROI calculator. 5 restaurante × 800 ord/lună × 3 RON × 25%.
+  // reseller — quick ROI calculator. 5 restaurante × 800 ord/lună × 2 lei × 25%.
   return (
     <View style={styles.audience}>
       <Text style={styles.audienceTag}>PENTRU RESELLERI</Text>
       <Text style={styles.audienceTitle}>
-        Calcul rapid: 5 restaurante = 3.000 RON / lună revenue share.
+        Calcul rapid: 25% Y1 din MRR-ul restaurantelor aduse.
       </Text>
       <Text style={styles.audienceBody}>
-        5 restaurante × 800 comenzi / lună × 3 RON HIR × 25% comision = 3.000
-        RON / lună revenue share recurent. La 20 de restaurante înseamnă
-        12.000 RON / lună. Plata trimestrial pe factură PFA / SRL. Fără
-        upfront, fără target obligatoriu, fără exclusivitate.
+        Pentru fiecare restaurant adus prin linkul tău, primești 25% din MRR
+        în primul an și 20% recurring după aceea. Plata trimestrial pe factură
+        PFA / SRL. Fără upfront, fără target obligatoriu, fără exclusivitate.
       </Text>
     </View>
   );
@@ -320,20 +319,20 @@ export type SalesSheetProps = {
 export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
   return (
     <Document
-      title="HIR Restaurant Suite — Fișă de prezentare"
-      author="HIR Restaurant Suite"
+      title="HIRforYOU — Fișă de prezentare"
+      author="HIRforYOU"
       creator={process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}
       producer={process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}
     >
       <Page size="A4" style={styles.page}>
         {/* Hero */}
         <View style={styles.hero}>
-          <Text style={styles.brand}>HIR RESTAURANT SUITE</Text>
+          <Text style={styles.brand}>HIRforYOU</Text>
           <Text style={styles.heroTitle}>
             Soluția de comenzi care nu îți ia comision din vânzări.
           </Text>
           <Text style={styles.heroSub}>
-            3 RON flat per livrare. White-label per restaurant. Datele
+            2 lei flat per comandă. White-label per restaurant. Datele
             clientului rămân la tine. Construit în România.
           </Text>
         </View>
@@ -368,7 +367,7 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
           </View>
           <View style={styles.tr}>
             <Text style={styles.tdFirst}>Comision din vânzare</Text>
-            <Text style={styles.tdHir}>0% (3 RON / livrare flat)</Text>
+            <Text style={styles.tdHir}>0% (2 lei / comandă flat)</Text>
             <Text style={styles.td}>~30%</Text>
             <Text style={styles.td}>~50 EUR / lună abonament</Text>
           </View>
@@ -396,20 +395,21 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
         <Text style={styles.sectionTitle}>Prețuri</Text>
         <View style={styles.pricingRow}>
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingTag}>TIER 1</Text>
-            <Text style={styles.pricingTitle}>3 RON / livrare</Text>
+            <Text style={styles.pricingTag}>SINGURUL PLAN</Text>
+            <Text style={styles.pricingTitle}>2 lei / comandă</Text>
             <Text style={styles.pricingBody}>
-              Tarif flat per comandă livrată. Restaurantul livrează cu propria
-              flotă sau cu un curier desemnat. Fără abonament, fără setup fee.
+              Tarif flat per comandă livrată. Restaurantul folosește curier
+              propriu, curier HIR sau rețeaua HIR de curieri. Fără abonament,
+              fără setup fee, fără procent din valoare.
             </Text>
           </View>
           <View style={styles.pricingCard}>
-            <Text style={styles.pricingTag}>TIER 2</Text>
-            <Text style={styles.pricingTitle}>Cost curier + 3 RON HIR</Text>
+            <Text style={styles.pricingTag}>BONUS PRIMELE 50</Text>
+            <Text style={styles.pricingTitle}>Implementare GRATUITĂ</Text>
             <Text style={styles.pricingBody}>
-              HIR alocă curier (HIR Direct sau prin rețeaua de parteneri).
-              Restaurantul plătește costul curierului plus 3 RON HIR / livrare.
-              Fără surpriză, fără markup ascuns.
+              Pentru primele 50 de restaurante onboarded: implementare,
+              migrare GloriaFood și configurare curier — toate gratuite. Plătești
+              doar 2 lei pe comanda livrată, începând cu prima livrare.
             </Text>
           </View>
         </View>
@@ -420,8 +420,8 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
         {/* Footer: contact + ts */}
         <View style={styles.footerRow}>
           <View style={styles.contactBlock}>
-            <Text style={styles.contactStrong}>Iulian Moldoveanu — Founder, HIR</Text>
-            <Text>iulianm698@gmail.com</Text>
+            <Text style={styles.contactStrong}>Iulian Moldoveanu — Founder, HIRforYOU</Text>
+            <Text>office@hirforyou.ro · +40 743 700 916</Text>
             <Text>{process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}</Text>
           </View>
           <View>

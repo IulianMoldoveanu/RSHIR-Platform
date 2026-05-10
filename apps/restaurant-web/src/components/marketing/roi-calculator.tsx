@@ -22,7 +22,7 @@ import { ArrowRight, Calculator, Clock, TrendingUp } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 
 const DAYS_PER_MONTH = 30;
-const AGGREGATOR_FEE = 0.25; // hardcoded 25% — Glovo/Wolt/Bolt benchmark RO 2026
+const AGGREGATOR_FEE = 0.30; // hardcoded ~30% — Glovo/Wolt/Bolt benchmark RO 2026
 const DIRECT_CONVERSION_RATE = 0.3; // industry benchmark — 30 % of aggregator volume convertible to direct
 const MANUAL_HOURS_PER_WEEK_BASE = 6; // base savings — manual order ops, menu sync, reconciliation
 
@@ -232,7 +232,7 @@ export function RoiCalculator() {
               onChange={setOrderValue}
             />
             <p className="text-xs leading-relaxed text-[#94A3B8]">
-              Comision agregator: 25% (medie Glovo/Wolt/Bolt România 2026).
+              Comision agregator: ~30% (medie Glovo/Wolt/Bolt România 2026).
             </p>
           </div>
 
@@ -246,7 +246,7 @@ export function RoiCalculator() {
             />
             <ResultCard
               icon={<TrendingUp className="h-4 w-4" aria-hidden />}
-              label="Cost lunar agregator (25%)"
+              label="Cost lunar agregator (~30%)"
               value={`${formatRon(results.aggregatorCost)} RON`}
               unit="comisioane reținute de Glovo/Wolt/Bolt acum"
             />
@@ -267,7 +267,7 @@ export function RoiCalculator() {
         </div>
 
         <p className="mt-8 max-w-3xl text-xs leading-relaxed text-[#94A3B8]">
-          * Estimări bazate pe benchmark-uri industrie (comision agregator 25%,
+          * Estimări bazate pe benchmark-uri industrie (comision agregator ~30%,
           rata medie de conversie la direct ~30%, ore manuale ~24h/lună). Rezultatele
           variază în funcție de volumul și specificul restaurantului dumneavoastră.
           Cifrele nu reprezintă o garanție contractuală.

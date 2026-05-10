@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     type: 'article',
     locale: 'ro_RO',
     publishedTime: ARTICLE_PUBLISHED,
-    authors: ['HIR Restaurant Suite'],
+    authors: ['HIRforYOU'],
     images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Foișorul A — studiu de caz HIR' }],
   },
   twitter: {
@@ -111,7 +111,7 @@ export default function FoisorulACaseStudyPage() {
           <dl className="mt-12 grid gap-6 border-t border-[#F1F5F9] pt-8 sm:grid-cols-4">
             <Stat label="Produse migrate" value="158" />
             <Stat label="Timp migrare" value="< 5 min" />
-            <Stat label="Tarif comandă" value="3 RON" />
+            <Stat label="Tarif comandă" value="2 lei" />
             <Stat label="Date client" value="100%" sub="rămân la restaurant" />
           </dl>
         </div>
@@ -127,20 +127,20 @@ export default function FoisorulACaseStudyPage() {
 
         <Section
           eyebrow="Provocare"
-          title="GloriaFood se închide în 2027. Marketplace-urile iau 25-30%."
+          title="GloriaFood se închide în 2027. Marketplace-urile iau ~30%."
           body={`Oracle a anunțat oficial retragerea GloriaFood pe 30 aprilie 2027. Foișorul A trebuia să găsească o alternativă care:`}
           bullets={[
             'Importă rapid meniul de 158 de produse cu opțiuni complexe',
             'Permite brand propriu (white-label) — fără concurenți afișați alături',
             'Are livrare proprie cu cost predictibil, nu procent din valoare',
             'Păstrează datele clienților la restaurant',
-            'Costă mai puțin de 25-30% pe care le ia un Glovo / Wolt',
+            'Costă mai puțin de ~30% pe care le ia un Glovo / Wolt',
           ]}
         />
 
         <Section
           eyebrow="Soluție"
-          title="HIR Tier 1: 3 RON / livrare flat, white-label, importer GloriaFood."
+          title="HIRforYOU: 2 lei / comandă flat, white-label, importer GloriaFood."
           body={`Pe 03.05.2026 am pornit migrarea. Patronul Foișorul A a introdus cheia GloriaFood în panou, iar HIR a importat automat:`}
           bullets={[
             'Toate cele 158 de produse cu denumire, descriere, preț',
@@ -152,7 +152,7 @@ export default function FoisorulACaseStudyPage() {
             <p className="mt-4 text-sm leading-relaxed text-[#475569]">
               În mai puțin de 5 minute, storefront-ul Foișorul A era live cu logo
               propriu, culoare proprie și un subdomeniu HIR. Comenzile încep să
-              vină prin platforma HIR, livrate cu curier HIR la 3 RON / livrare flat.
+              vină prin platforma HIR, livrate cu curier HIR la 2 lei / comandă flat.
             </p>
           }
         />
@@ -171,7 +171,7 @@ export default function FoisorulACaseStudyPage() {
             Ce a primit Foișorul A
           </h2>
           <p className="mt-3 max-w-2xl text-sm text-[#475569]">
-            Inclus în tariful de 3 RON / livrare. Fără setup, fără abonament.
+            Inclus în tariful de 2 lei / comandă. Fără setup, fără abonament.
           </p>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -197,7 +197,7 @@ export default function FoisorulACaseStudyPage() {
             />
             <Deliverable
               icon={<CheckCircle2 className="h-5 w-5" />}
-              title="Livrare HIR la 3 RON flat"
+              title="Livrare HIR la 2 lei flat"
               body="Curier propriu sau prin rețeaua HIR de curieri. Tarif fix indiferent de valoare."
             />
             <Deliverable

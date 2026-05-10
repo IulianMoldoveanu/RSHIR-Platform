@@ -133,7 +133,9 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
               // city directory in the product column so SEO crawlers find
               // /orase from every marketing page.
               { href: '/orase', label: t(currentLocale, 'marketing.shell.footer_link_cities') },
-              { href: '/status', label: t(currentLocale, 'marketing.shell.footer_link_status') },
+              // Lane SITE-COPY-V2 (2026-05-10) — /status hidden from public
+              // footer + sitemap until Iulian decides on credibility play.
+              // Page still resolves at the URL for admin direct access.
             ]}
           />
           <FooterCol
@@ -141,7 +143,9 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             links={[
               { href: '/parteneriat/inscriere', label: t(currentLocale, 'marketing.shell.footer_link_reseller') },
               { href: '/contact', label: t(currentLocale, 'marketing.shell.footer_link_contact') },
-              { href: '/press', label: t(currentLocale, 'marketing.shell.footer_link_press') },
+              // Lane SITE-COPY-V2 (2026-05-10) — /press hidden from public
+              // footer + sitemap until brand assets ship. Page still
+              // resolves at the URL for direct access.
             ]}
           />
           <FooterCol
@@ -157,12 +161,19 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
           <p>
             {t(currentLocale, 'marketing.shell.footer_copyright_template', { year })}
           </p>
-          <p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <a
-              href="mailto:contact@hiraisolutions.ro"
+              href="mailto:office@hirforyou.ro"
               className="hover:text-[#0F172A]"
             >
-              contact@hiraisolutions.ro
+              office@hirforyou.ro
+            </a>
+            <span aria-hidden className="text-[#CBD5E1]">·</span>
+            <a
+              href="tel:+40743700916"
+              className="hover:text-[#0F172A]"
+            >
+              +40 743 700 916
             </a>
           </p>
         </div>

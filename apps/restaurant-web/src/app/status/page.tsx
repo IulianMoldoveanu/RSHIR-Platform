@@ -36,7 +36,7 @@ const STATUS_URL = PRIMARY_DOMAIN
   : 'https://hir-restaurant-web.vercel.app/status';
 
 export const metadata: Metadata = {
-  title: 'Status platformă — HIR Restaurant Suite',
+  title: 'Status platformă — HIRforYOU',
   description:
     'Status în timp real al platformei HIR: storefront, admin, aplicație curier. Uptime 90 zile + incidente recente.',
   alternates: {
@@ -44,15 +44,15 @@ export const metadata: Metadata = {
     languages: { 'ro-RO': STATUS_URL, en: STATUS_URL, 'x-default': STATUS_URL },
   },
   openGraph: {
-    title: 'Status HIR Restaurant Suite',
+    title: 'Status HIRforYOU',
     description: 'Disponibilitate platformă în timp real + incidente.',
     type: 'website',
     locale: 'ro_RO',
   },
-  // Indexable by default — fleet managers and restaurant owners searching
-  // "HIR uptime" should find this. Add `noindex` to the page meta block
-  // below if Iulian later decides credibility play isn't needed.
-  robots: { index: true, follow: true },
+  // Lane SITE-COPY-V2 (2026-05-10) — page hidden from public indexing
+  // (kept admin-only). URL still resolves for direct access from the
+  // platform admin dashboard.
+  robots: { index: false, follow: false },
 };
 
 function fmtDateTime(iso: string): string {
@@ -89,7 +89,7 @@ export default async function StatusPage() {
             Status platformă
           </h1>
           <p className="mt-2 text-sm text-[#475569]">
-            Disponibilitatea în timp real a serviciilor HIR Restaurant Suite. Datele se
+            Disponibilitatea în timp real a serviciilor HIRforYOU. Datele se
             actualizează la fiecare 5 minute.
           </p>
         </header>

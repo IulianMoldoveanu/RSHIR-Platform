@@ -97,10 +97,10 @@ export function ContactForm() {
           Echipa HIR revine pe email în 24 de ore lucrătoare. Pentru urgențe ne poți
           scrie la{' '}
           <a
-            href="mailto:contact@hiraisolutions.ro"
+            href="mailto:office@hirforyou.ro"
             className="font-medium underline"
           >
-            contact@hiraisolutions.ro
+            office@hirforyou.ro
           </a>
           .
         </p>

@@ -425,7 +425,7 @@ export const dictionaries = {
         compare_pricing: 'Comision comenzi',
         compare_pricing_hir: '2 lei / comandă',
         compare_pricing_gf: 'Gratuit (limitat)',
-        compare_pricing_agg: '25–30% comision',
+        compare_pricing_agg: '~30% comision',
         compare_courier: 'Curier propriu sau partener',
         compare_courier_hir: 'Da — rețea națională',
         compare_courier_gf: 'Nu',
@@ -503,7 +503,7 @@ export const dictionaries = {
         faq_q3: 'Funcționează în țara mea?',
         faq_a3: 'Da pentru toate țările UE. Pentru curieri, depinde de locație — întreabă-ne.',
         faq_q4: 'Care e diferența față de Wolt/Glovo?',
-        faq_a4: 'HIR e SOFTWARE-ul tău, nu un agregator care îți ia 25–30%. Tu păstrezi clientul.',
+        faq_a4: 'HIR e SOFTWARE-ul tău, nu un agregator care îți ia ~30%. Tu păstrezi clientul.',
         footer_legal: 'HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293 · Sânpetru, Brașov',
         footer_gdpr: 'Politica GDPR',
         footer_contact: 'Contact',
@@ -513,7 +513,7 @@ export const dictionaries = {
       // /status, /case-studies/*, /embed-docs, /migrate-from-gloriafood).
       // Locale switcher pill is rendered unconditionally inside the header.
       shell: {
-        brand_name: 'HIR Restaurant Suite',
+        brand_name: 'HIRforYOU',
         nav_home: 'Acasă',
         nav_features: 'Funcționalități',
         nav_pricing: 'Tarife',
@@ -548,7 +548,7 @@ export const dictionaries = {
       // Brașov" and serves both as a public listing and as a reseller
       // demo URL ("vezi cum apare restaurantul tău în Brașov").
       cities: {
-        index_page_title: 'Orașe acoperite — HIR Restaurant Suite',
+        index_page_title: 'Orașe acoperite — HIRforYOU',
         index_page_description:
           'Restaurante și livrări HIR în orașele acoperite din România. Comandă online direct de la restaurant, fără agregator între dumneavoastră și client.',
         index_hero_eyebrow: 'Acoperire națională',
@@ -586,7 +586,7 @@ export const dictionaries = {
       // Homepage body (rendered at `/` on the canonical host when no tenant
       // is resolved). High-funnel — full bilingual coverage.
       home: {
-        page_title: 'HIR Restaurant Suite — Comenzile tale. 2 lei pe comandă.',
+        page_title: 'HIRforYOU — Comenzile tale. 2 lei pe comandă.',
         page_description:
           'Comenzi online cu storefront white-label, livrare proprie HIR la 2 lei pe comandă, importer GloriaFood și CRM. Construit în România pentru restaurante.',
         hero_badge:
@@ -596,12 +596,12 @@ export const dictionaries = {
         hero_title_post: '',
         hero_body:
           '2 lei pe comandă. Atât. Fără abonament. Instalare gratuită pentru primele 50 de restaurante.',
-        cta_signup: 'Sună-mă echipa HIR',
+        cta_signup: 'Sună Echipa HIR',
         cta_partner: 'Încep singur — fără card',
         cta_case_study: 'Vezi studiul de caz →',
         stat_pricing_label: 'Tarif comandă',
         stat_pricing_value: '2 lei',
-        stat_pricing_sub: 'vs ~25% comision Glovo/Wolt/Bolt',
+        stat_pricing_sub: 'vs ~30% comision Glovo/Wolt/Bolt',
         stat_importer_label: 'Importer GloriaFood',
         stat_importer_value: '<5 min',
         stat_importer_sub: 'meniu, comenzi, clienți migrate',
@@ -637,7 +637,7 @@ export const dictionaries = {
         pricing_card1_p3: 'Importer GloriaFood inclus',
         pricing_card1_p4: 'CRM + loyalty + reviews inclus',
         pricing_card1_p5: 'Fără abonament, fără setup fee',
-        pricing_card1_cta: 'Sună-mă echipa HIR',
+        pricing_card1_cta: 'Sună Echipa HIR',
         pricing_card2_tag: '',
         pricing_card2_title: '',
         pricing_card2_price: '',
@@ -671,17 +671,17 @@ export const dictionaries = {
         final_cta_title: 'Gata să luați controlul comenzilor?',
         final_cta_body:
           'Înscrieți restaurantul în 5 minute. Importăm meniul GloriaFood automat și sunteți live azi.',
-        final_cta_signup: 'Sună-mă echipa HIR',
+        final_cta_signup: 'Sună Echipa HIR',
         final_cta_consultant: 'Încep singur — fără card',
         aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR scapi de cele 3 terminale.',
         aggregator_body:
-          'Restaurantele moderne primesc câte un terminal Android proprietar de la fiecare aplicație. HIR îți unifică totul: comenzile directe vin pe ecranul tău, plătești 2 lei/comandă în loc de 25% comision.',
+          'Restaurantele moderne primesc câte un terminal Android proprietar de la fiecare aplicație. HIR îți unifică totul: comenzile directe vin pe ecranul tău, plătești 2 lei/comandă în loc de ~30% comision.',
         aggregator_sub:
           'Comenzile Glovo/Wolt/Bolt le poți adăuga manual pe HIR (sursă vizibilă pe KDS) — opțional, până le scoți complet.',
       },
       // /features page body — full bilingual coverage.
       features: {
-        page_title: 'Funcționalități — HIR Restaurant Suite',
+        page_title: 'Funcționalități — HIRforYOU',
         page_description:
           'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări, dashboard pentru operatori HIR — tot ce-ți trebuie.',
         og_title: 'Funcționalități — tot ce-ți trebuie',
@@ -1195,7 +1195,7 @@ export const dictionaries = {
         compare_pricing: 'Order commission',
         compare_pricing_hir: '2 lei / order',
         compare_pricing_gf: 'Free (limited)',
-        compare_pricing_agg: '25–30% commission',
+        compare_pricing_agg: '~30% commission',
         compare_courier: 'Own or partner courier',
         compare_courier_hir: 'Yes — national network',
         compare_courier_gf: 'No',
@@ -1273,14 +1273,14 @@ export const dictionaries = {
         faq_q3: 'Does it work in my country?',
         faq_a3: 'Yes for all EU countries. For couriers, it depends on location — ask us.',
         faq_q4: 'What is the difference from Wolt/Glovo?',
-        faq_a4: 'HIR is YOUR software, not an aggregator taking 25–30%. You keep the customer.',
+        faq_a4: 'HIR is YOUR software, not an aggregator taking ~30%. You keep the customer.',
         footer_legal: 'HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293 · Sânpetru, Brașov',
         footer_gdpr: 'GDPR policy',
         footer_contact: 'Contact',
       },
       // Lane EN-I18N (2026-05-05) — chrome shared across every marketing page.
       shell: {
-        brand_name: 'HIR Restaurant Suite',
+        brand_name: 'HIRforYOU',
         nav_home: 'Home',
         nav_features: 'Features',
         nav_pricing: 'Pricing',
@@ -1313,7 +1313,7 @@ export const dictionaries = {
       // and /orase/[slug]. The URL stays Romanian (`/orase/brasov`) since
       // the locale is cookie-based, not path-based.
       cities: {
-        index_page_title: 'Cities we cover — HIR Restaurant Suite',
+        index_page_title: 'Cities we cover — HIRforYOU',
         index_page_description:
           'HIR restaurants and deliveries across the Romanian cities we cover. Order online directly from the restaurant, with no aggregator between you and the merchant.',
         index_hero_eyebrow: 'National coverage',
@@ -1350,7 +1350,7 @@ export const dictionaries = {
       },
       // Homepage body — full bilingual coverage.
       home: {
-        page_title: 'HIR Restaurant Suite — Your orders. 2 lei per order.',
+        page_title: 'HIRforYOU — Your orders. 2 lei per order.',
         page_description:
           'Online orders with a white-label storefront, in-house HIR delivery at 2 lei per order, GloriaFood importer and CRM. Built in Romania for restaurants.',
         hero_badge:
@@ -1360,12 +1360,12 @@ export const dictionaries = {
         hero_title_post: '',
         hero_body:
           '2 lei per order. That is all. No subscription. Free setup for the first 50 restaurants.',
-        cta_signup: 'Call me — HIR team',
+        cta_signup: 'Call HIR Team',
         cta_partner: 'Start on my own — no card needed',
         cta_case_study: 'Read the case study →',
         stat_pricing_label: 'Order fee',
         stat_pricing_value: '2 lei',
-        stat_pricing_sub: 'vs ~25% Glovo/Wolt/Bolt commission',
+        stat_pricing_sub: 'vs ~30% Glovo/Wolt/Bolt commission',
         stat_importer_label: 'GloriaFood importer',
         stat_importer_value: '<5 min',
         stat_importer_sub: 'menu, orders, customers migrated',
@@ -1401,7 +1401,7 @@ export const dictionaries = {
         pricing_card1_p3: 'GloriaFood importer included',
         pricing_card1_p4: 'CRM + loyalty + reviews included',
         pricing_card1_p5: 'No subscription, no setup fee',
-        pricing_card1_cta: 'Call me — HIR team',
+        pricing_card1_cta: 'Call HIR Team',
         pricing_card2_tag: '',
         pricing_card2_title: '',
         pricing_card2_price: '',
@@ -1435,17 +1435,17 @@ export const dictionaries = {
         final_cta_title: 'Ready to take control of your orders?',
         final_cta_body:
           'Sign up your restaurant in 5 minutes. We import your GloriaFood menu automatically and you go live today.',
-        final_cta_signup: 'Call me — HIR team',
+        final_cta_signup: 'Call HIR Team',
         final_cta_consultant: 'Start on my own — no card needed',
         aggregator_title: 'Glovo, Wolt, Bolt? With HIR you get rid of the 3 terminals.',
         aggregator_body:
-          'Modern restaurants receive a separate Android terminal from each app. HIR unifies everything: direct orders come to your screen, you pay 2 lei/order instead of 25% commission.',
+          'Modern restaurants receive a separate Android terminal from each app. HIR unifies everything: direct orders come to your screen, you pay 2 lei/order instead of ~30% commission.',
         aggregator_sub:
           'Glovo/Wolt/Bolt orders can be added manually on HIR (source visible on KDS) — optionally, until you drop them entirely.',
       },
       // /features page body — full bilingual coverage.
       features: {
-        page_title: 'Features — HIR Restaurant Suite',
+        page_title: 'Features — HIRforYOU',
         page_description:
           'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations, HIR operator dashboard — everything you need.',
         og_title: 'Features — everything you need',
