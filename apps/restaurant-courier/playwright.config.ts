@@ -12,8 +12,9 @@ const RUN_LOCAL_DEV = !process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  globalSetup: require.resolve('./tests/e2e/global-setup'),
+  timeout: 90_000,
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

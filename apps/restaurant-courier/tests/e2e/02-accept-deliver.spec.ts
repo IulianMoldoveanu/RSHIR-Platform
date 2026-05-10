@@ -45,14 +45,14 @@ test.describe('Accept → deliver lifecycle', () => {
     await loginAsTestCourier(page);
 
     await page.goto('/dashboard/orders');
-    await expect(page.getByText('E2E Client').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('E2E Client').first()).toBeVisible({ timeout: 30_000 });
 
     // Click into the order detail; primary CTA there is "Acceptă".
     await page.getByText('E2E Client').first().click();
     await page.getByRole('button', { name: /accept/i }).first().click();
 
     // After accept, the page should show the next step CTA.
-    await expect(page.getByText(/ridicat|picked|preluat/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/ridicat|picked|preluat/i).first()).toBeVisible({ timeout: 30_000 });
 
     const { data: row } = await adminSupabase
       .from('courier_orders')

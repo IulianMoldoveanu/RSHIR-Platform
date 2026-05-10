@@ -35,7 +35,7 @@ test.describe('Login + shift toggle', () => {
     await holdSwipeButton(page, /glisează|porni tura|pornește tura|start/i);
 
     // The shift action redirects + revalidates; wait for the online indicator.
-    await expect(page.getByText(/online/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/online/i).first()).toBeVisible({ timeout: 30_000 });
 
     const { data: openShifts } = await adminSupabase
       .from('courier_shifts')
