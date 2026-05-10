@@ -18,6 +18,7 @@ import type {
   PspContext,
   PspIntentInput,
   PspIntentResult,
+  PspPayoutStatus,
   PspWebhookEvent,
 } from './contract';
 
@@ -78,6 +79,19 @@ export const netopiaAdapter: PspAdapter = {
       hasSignature: Boolean(headers['x-netopia-signature']),
     });
 
+    return null;
+  },
+
+  // V2 wires real Netopia balance + payout schedule once commercial config
+  // arrives. Until then return zeros so admin UI renders without throwing.
+  async getPayoutStatus(_ctx: PspContext, _tenantId: string): Promise<PspPayoutStatus> {
+    return { pendingBani: 0, lastPayoutAt: null, nextPayoutAt: null };
+  },
+
+  // Netopia onboarding is handled via the platform-admin queue (manual
+  // approval after Iulian closes commercial agreement). Return null so the
+  // admin UI defers to the existing request-queue UX.
+  async onboardingUrl(_ctx: PspContext, _tenantId: string): Promise<string | null> {
     return null;
   },
 };

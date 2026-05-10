@@ -2,7 +2,14 @@
 // Stripe Connect requires platform-level setup (HIR holds the platform account),
 // so owners cannot self-configure directly. This page collects intent + business
 // details and queues them in stripe_onboarding_requests for the platform team.
+//
+// Lane PSP-MULTIGATES-V1 (2026-05-10): added a multi-gateway status surface
+// listing all supported providers (Netopia, Stripe Connect, Viva). The
+// existing Stripe Connect request UX is preserved unchanged — Iulian's
+// human-gated approval flow stays. Viva is greyed out until commercial
+// config arrives.
 
+import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { PaymentsClient } from './payments-client';
@@ -112,6 +119,53 @@ export default async function PaymentsSettingsPage() {
         </div>
       </section>
 
+      {/* Gateway picker — multi-PSP status surface (Lane PSP-MULTIGATES-V1) */}
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">
+          Procesatori de plată disponibili
+        </h2>
+        <p className="mt-1 text-xs text-zinc-600">
+          HIR suportă mai mulți procesatori de carduri. Activarea se face în
+          colaborare cu echipa HIR pentru fiecare procesator în parte.
+        </p>
+        <div className="mt-4 flex flex-col gap-3">
+          <GatewayRow
+            name="Netopia"
+            description="Carduri emise în România. Procesator local recomandat pentru clientela din RO."
+            status={netopiaActive ? 'Activ' : 'Disponibil'}
+            tone={netopiaActive ? 'emerald' : 'zinc'}
+            actionHref="/dashboard/settings/payments/netopia"
+            actionLabel="Configurați"
+            disabled={role !== 'OWNER'}
+          />
+          <GatewayRow
+            name="Stripe Connect"
+            description="Carduri internaționale (Visa, Mastercard, Apple Pay, Google Pay). Configurare aprobată manual de echipa HIR."
+            status={
+              stripeActive
+                ? 'Activ'
+                : stripeStatus === 'PENDING'
+                  ? 'În așteptare'
+                  : 'Cerere necesară'
+            }
+            tone={stripeActive ? 'emerald' : stripeStatus === 'PENDING' ? 'amber' : 'zinc'}
+            actionHref={null}
+            actionLabel={null}
+            disabled={role !== 'OWNER'}
+          />
+          <GatewayRow
+            name="Viva Wallet"
+            description="Procesator alternativ pentru carduri RO și internaționale. În curs de configurare comercială."
+            status="Disponibil în curând"
+            tone="zinc"
+            actionHref={null}
+            actionLabel={null}
+            disabled
+            comingSoon
+          />
+        </div>
+      </section>
+
       {/* Cash / delivery fee info */}
       <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">
@@ -149,16 +203,14 @@ export default async function PaymentsSettingsPage() {
         defaultBusinessName={tenant.name}
       />
 
-      {/* Multi-gateway note */}
+      {/* Contact note */}
       <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-5">
         <h2 className="text-sm font-semibold text-zinc-900">
-          Despre gateway-urile suportate
+          Aveți nevoie de ajutor?
         </h2>
         <p className="mt-2 text-sm text-zinc-700">
-          HIR suportă <strong>Stripe</strong> (carduri internaționale),{' '}
-          <strong>Netopia</strong> (carduri RO) și plata cash. Selectarea
-          gateway-urilor active se face în colaborare cu echipa HIR — ne scrieți
-          la{' '}
+          Pentru întrebări despre configurarea procesatorilor sau comisioane,
+          ne scrieți la{' '}
           <a
             href="mailto:contact@hiraisolutions.ro"
             className="font-medium text-purple-700 underline-offset-2 hover:underline"
@@ -168,6 +220,60 @@ export default async function PaymentsSettingsPage() {
           sau folosiți butonul de feedback din colțul ecranului.
         </p>
       </section>
+    </div>
+  );
+}
+
+function GatewayRow({
+  name,
+  description,
+  status,
+  tone,
+  actionHref,
+  actionLabel,
+  disabled,
+  comingSoon,
+}: {
+  name: string;
+  description: string;
+  status: string;
+  tone: 'emerald' | 'amber' | 'zinc';
+  actionHref: string | null;
+  actionLabel: string | null;
+  disabled?: boolean;
+  comingSoon?: boolean;
+}) {
+  const badgeClasses =
+    tone === 'emerald'
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      : tone === 'amber'
+        ? 'bg-amber-50 text-amber-800 border-amber-200'
+        : 'bg-zinc-100 text-zinc-600 border-zinc-200';
+  return (
+    <div
+      className={`rounded-lg border p-4 transition-colors ${
+        comingSoon ? 'border-zinc-200 bg-zinc-50 opacity-70' : 'border-zinc-200 bg-white'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-zinc-900">{name}</span>
+          <span
+            className={`rounded-full border px-2 py-0.5 text-xs font-medium ${badgeClasses}`}
+          >
+            {status}
+          </span>
+        </div>
+        {actionHref && actionLabel && !disabled && (
+          <Link
+            href={actionHref}
+            className="text-xs font-medium text-purple-700 hover:underline"
+          >
+            {actionLabel} →
+          </Link>
+        )}
+      </div>
+      <p className="mt-1.5 text-xs text-zinc-600">{description}</p>
     </div>
   );
 }
