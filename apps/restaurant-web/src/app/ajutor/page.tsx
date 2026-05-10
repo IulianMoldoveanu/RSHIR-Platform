@@ -57,11 +57,11 @@ const FAQS: Faq[] = [
   },
   {
     q: 'Pot returna comanda?',
-    a: 'Pentru produse alimentare returul nu este posibil odată livrate, conform legii. Dacă produsul ajunge deteriorat sau greșit, refuzați-l la curier și sunați imediat restaurantul. Vom emite refund după validare.',
+    a: 'Pentru produse alimentare returul nu este posibil odată livrate, conform legii. Dacă produsul ajunge deteriorat sau greșit, refuzați-l la curier și sunați imediat restaurantul. Vom emite rambursarea după validare.',
   },
   {
     q: 'Datele mele personale sunt în siguranță?',
-    a: 'Da. Stocăm doar datele necesare pentru livrare (nume, telefon, adresă, email). Nu vindem date către terți. Puteți cere ștergerea contului oricând trimițând email la suport@hirforyou.ro. Pentru detalii vedeți Politica de confidențialitate.',
+    a: 'Da. Stocăm doar datele necesare pentru livrare (nume, telefon, adresă, email). Nu vindem date către terți. Puteți cere ștergerea contului oricând trimițând email la office@hirforyou.ro. Pentru detalii vedeți Politica de confidențialitate.',
   },
 ];
 
@@ -122,19 +122,19 @@ export default function HelpPublicPage() {
           </p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <a
-              href="tel:+40212040000"
+              href="tel:+40743700916"
               className="flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#0F172A] transition-colors hover:border-emerald-300 hover:bg-white"
             >
               <Phone className="h-4 w-4 flex-none text-emerald-500" aria-hidden />
-              <span className="flex-1 truncate">+40 21 204 0000</span>
+              <span className="flex-1 truncate">+40 743 700 916</span>
               <span className="text-[10px] text-[#94A3B8]">L–V 09–18</span>
             </a>
             <a
-              href="mailto:suport@hirforyou.ro"
+              href="mailto:office@hirforyou.ro"
               className="flex items-center gap-2.5 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#0F172A] transition-colors hover:border-[#C7D2FE] hover:bg-white"
             >
               <Mail className="h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
-              <span className="flex-1 truncate">suport@hirforyou.ro</span>
+              <span className="flex-1 truncate">office@hirforyou.ro</span>
             </a>
           </div>
           <p className="mt-4 text-xs text-[#94A3B8]">
