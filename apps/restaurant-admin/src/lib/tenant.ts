@@ -122,6 +122,26 @@ export async function listMemberTenants(userId: string): Promise<TenantSummary[]
  * Reads `selected_tenant_id` cookie and returns the active tenant if the user
  * is a member. Falls back to the first membership when no cookie is set.
  */
+function isPlatformAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(email.toLowerCase());
+}
+
+async function listAllActiveTenants(): Promise<TenantSummary[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('tenants')
+    .select('id, name, slug')
+    .eq('status', 'ACTIVE')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Failed to load tenants: ${error.message}`);
+  return (data ?? []) as TenantSummary[];
+}
+
 export async function getActiveTenant(): Promise<{
   user: { id: string; email: string | null };
   tenant: TenantSummary;
@@ -133,7 +153,17 @@ export async function getActiveTenant(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthenticated.');
 
-  const tenants = await listMemberTenants(user.id);
+  let tenants = await listMemberTenants(user.id);
+
+  // Platform admins (allow-list via HIR_PLATFORM_ADMIN_EMAILS) can land in
+  // the dashboard without being members of any tenant — they read all
+  // ACTIVE tenants so the TenantSelector + admin pages have something to
+  // bind to. Admin-only sub-routes still re-check the allow-list, so this
+  // does not widen write access.
+  if (tenants.length === 0 && isPlatformAdminEmail(user.email)) {
+    tenants = await listAllActiveTenants();
+  }
+
   if (tenants.length === 0) throw new Error('User is not a member of any restaurant.');
 
   const cookieTenantId = cookies().get(TENANT_COOKIE)?.value;
