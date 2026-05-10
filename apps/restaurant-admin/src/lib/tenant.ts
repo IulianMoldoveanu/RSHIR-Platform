@@ -146,6 +146,16 @@ export async function getActiveTenant(): Promise<{
   user: { id: string; email: string | null };
   tenant: TenantSummary;
   tenants: TenantSummary[];
+  /**
+   * True when the caller is on HIR_PLATFORM_ADMIN_EMAILS *and* has zero
+   * tenant_members rows. They are in "platform admin only" mode: the
+   * dashboard chrome should hide tenant-scoped nav (Comenzi/Meniu/etc),
+   * skip the tenant selector, and the /dashboard root should bounce to
+   * /dashboard/admin/tenants. The `tenant` field is a sentinel so the
+   * existing layout types still hold; do NOT treat it as the user's own
+   * restaurant.
+   */
+  isPlatformAdminMode: boolean;
 }> {
   const supabase = createServerClient();
   const {
@@ -153,26 +163,36 @@ export async function getActiveTenant(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthenticated.');
 
-  let tenants = await listMemberTenants(user.id);
+  const memberTenants = await listMemberTenants(user.id);
 
-  // Platform admins (allow-list via HIR_PLATFORM_ADMIN_EMAILS) can land in
-  // the dashboard without being members of any tenant — they read all
-  // ACTIVE tenants so the TenantSelector + admin pages have something to
-  // bind to. Admin-only sub-routes still re-check the allow-list, so this
-  // does not widen write access.
-  if (tenants.length === 0 && isPlatformAdminEmail(user.email)) {
-    tenants = await listAllActiveTenants();
+  // Platform admins (allow-list via HIR_PLATFORM_ADMIN_EMAILS) without
+  // any membership row land here. We expose a sentinel tenant so the
+  // existing layout types hold, and surface `isPlatformAdminMode` so the
+  // chrome can render an admin-only shell instead of a tenant dashboard.
+  if (memberTenants.length === 0 && isPlatformAdminEmail(user.email)) {
+    const all = await listAllActiveTenants();
+    const sentinel: TenantSummary =
+      all[0] ?? { id: '00000000-0000-0000-0000-000000000000', name: '—', slug: '—' };
+    return {
+      user: { id: user.id, email: user.email ?? null },
+      tenant: sentinel,
+      tenants: [],
+      isPlatformAdminMode: true,
+    };
   }
 
-  if (tenants.length === 0) throw new Error('User is not a member of any restaurant.');
+  if (memberTenants.length === 0) {
+    throw new Error('User is not a member of any restaurant.');
+  }
 
   const cookieTenantId = cookies().get(TENANT_COOKIE)?.value;
   const tenant =
-    tenants.find((t) => t.id === cookieTenantId) ?? tenants[0];
+    memberTenants.find((t) => t.id === cookieTenantId) ?? memberTenants[0];
 
   return {
     user: { id: user.id, email: user.email ?? null },
     tenant,
-    tenants,
+    tenants: memberTenants,
+    isPlatformAdminMode: false,
   };
 }
