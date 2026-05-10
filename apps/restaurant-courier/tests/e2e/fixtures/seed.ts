@@ -86,7 +86,7 @@ async function ensureTestFleet(): Promise<string> {
   const { data: existing } = await adminSupabase
     .from('courier_fleets')
     .select('id')
-    .eq('name', 'E2E Test Fleet')
+    .eq('slug', 'e2e-test-fleet')
     .maybeSingle();
   if (existing?.id) return existing.id as string;
 
@@ -140,12 +140,12 @@ export async function cleanupOrder(orderId: string): Promise<void> {
 
 /**
  * End an active shift if the seeded courier left one open from a prior
- * flake. Idempotent: deletes ONLINE rows for this courier.
+ * flake. Idempotent: closes ONLINE rows for this courier AND deletes any
+ * stale ones to guarantee a clean state before each test. The previous
+ * UPDATE-only version left rows in the table that interacted poorly with
+ * concurrent inserts during retry passes; deleting all shifts for this
+ * synthetic test courier is safe — no production user shares this email.
  */
 export async function endAnyOpenShift(userId: string): Promise<void> {
-  await adminSupabase
-    .from('courier_shifts')
-    .update({ status: 'ENDED', ended_at: new Date().toISOString() })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
+  await adminSupabase.from('courier_shifts').delete().eq('courier_user_id', userId);
 }
