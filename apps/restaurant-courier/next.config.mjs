@@ -14,6 +14,23 @@ const nextConfig = {
     // are all in the courier critical path.
     optimizePackageImports: ['lucide-react', 'framer-motion', '@hir/ui'],
   },
+  // Security headers — added 2026-05-10 per overnight audit P1.
+  // Courier needs geolocation (live tracking) + microphone (voice notes
+  // future). DENY framing — courier authenticated session must not be
+  // embeddable.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(self)' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -17,6 +17,22 @@ const nextConfig = {
     // rewrite drops unused chart types from initial bundle.
     optimizePackageImports: ['lucide-react', 'recharts', '@hir/ui'],
   },
+  // Security headers — added 2026-05-10 per overnight audit P1.
+  // Admin uses DENY (no embedding ever) — clickjacking risk highest here
+  // (authenticated session with platform-admin write access).
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'geolocation=(), camera=(), microphone=()' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
