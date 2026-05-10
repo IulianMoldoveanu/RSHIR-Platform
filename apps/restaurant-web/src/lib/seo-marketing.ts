@@ -28,7 +28,15 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/privacy', priority: 0.3 },
 ];
 
-export const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
+// Lane BUG-HUNT-V1 (2026-05-10) — `hirforyou.ro` is the locked official
+// brand domain (per 2026-05-09 PIVOT). When NEXT_PUBLIC_PRIMARY_DOMAIN
+// isn't set on Vercel (currently the case in production for restaurant-web),
+// canonical URLs were defaulting to `hir-restaurant-web.vercel.app` — a
+// silent SEO disaster + dead `<slug>.lvh.me` tenant card links on
+// /orase/<city>. Hardcoded brand fallback fixes both without requiring an
+// env-var redeploy.
+export const PRIMARY_DOMAIN =
+  process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro';
 
 // Canonical host = the apex (no subdomain) on the configured primary domain,
 // OR a Vercel auto-generated production URL. Used by sitemap.ts + robots.ts
@@ -36,7 +44,7 @@ export const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
 export function isCanonicalHost(host: string): boolean {
   const h = host.toLowerCase();
   if (!h) return false;
-  // Apex of the configured primary domain (e.g. `hiraisolutions.ro`).
+  // Apex of the configured primary domain (`hirforyou.ro`).
   if (PRIMARY_DOMAIN && h === PRIMARY_DOMAIN) return true;
   // Vercel canonical production URL for the web app.
   if (h === 'hir-restaurant-web.vercel.app') return true;
@@ -54,20 +62,19 @@ export function canonicalBaseUrl(currentHost: string): string {
     const proto = currentHost === 'localhost' ? 'http' : 'https';
     return `${proto}://${currentHost}`;
   }
-  if (PRIMARY_DOMAIN) return `https://${PRIMARY_DOMAIN}`;
-  return 'https://hir-restaurant-web.vercel.app';
+  return `https://${PRIMARY_DOMAIN}`;
 }
 
 // Build absolute URL for a tenant's primary host:
 //   - custom_domain when set (verified status checked at lookup time)
-//   - else `<slug>.<NEXT_PUBLIC_PRIMARY_DOMAIN>` when configured
-//   - else fallback to `<slug>.lvh.me` for local dev
+//   - else `<slug>.<PRIMARY_DOMAIN>` (defaults to `hirforyou.ro` per the
+//     hardcoded brand fallback above; previously fell back to `lvh.me`
+//     which broke production tenant cards on /orase/<city>).
 export function tenantCanonicalUrl(
   tenant: Pick<ResolvedTenant, 'slug' | 'custom_domain'>,
 ): string {
   if (tenant.custom_domain) return `https://${tenant.custom_domain}`;
-  if (PRIMARY_DOMAIN) return `https://${tenant.slug}.${PRIMARY_DOMAIN}`;
-  return `http://${tenant.slug}.lvh.me`;
+  return `https://${tenant.slug}.${PRIMARY_DOMAIN}`;
 }
 
 // Lane SEO+ (2026-05-05) — build the absolute URL of the dynamic OG image
@@ -83,9 +90,7 @@ export function marketingOgImageUrl(input: {
   subtitle?: string;
   variant?: 'default' | 'pricing' | 'case-study' | 'partner' | 'migrate';
 }): string {
-  const base = PRIMARY_DOMAIN
-    ? `https://${PRIMARY_DOMAIN}`
-    : 'https://hir-restaurant-web.vercel.app';
+  const base = `https://${PRIMARY_DOMAIN}`;
   const params = new URLSearchParams();
   params.set('title', input.title);
   if (input.subtitle) params.set('subtitle', input.subtitle);
