@@ -100,14 +100,14 @@ export default function ContactPage() {
                 Pentru parteneri
               </h3>
               <p className="mt-2 text-sm text-[#475569]">
-                Ești manager de flotă, agenție sau consultant? Folosește formularul
-                de afiliat dedicat:
+                Ești manager de flotă, agenție sau consultant? Aplică pentru
+                programul de reseleri (25% comision primul an):
               </p>
               <a
-                href="/affiliate"
+                href="/parteneriat/inscriere"
                 className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
               >
-                Aplică pentru program afiliat →
+                Aplică pentru programul de reseleri →
               </a>
             </div>
           </div>

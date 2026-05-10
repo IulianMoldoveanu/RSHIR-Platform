@@ -22,7 +22,8 @@ export default function robots(): MetadataRoute.Robots {
         // `/` covers all marketing pages on the canonical host AND the
         // storefront homepage on tenant hosts. `/m/`, `/bio` are
         // tenant-only; `/features`, `/pricing`, `/migrate-from-gloriafood`,
-        // `/case-studies/`, `/affiliate`, `/contact` are marketing-only.
+        // `/case-studies/`, `/parteneriat/inscriere`, `/contact` are
+        // marketing-only.
         allow: [
           '/',
           '/m/',
@@ -32,7 +33,7 @@ export default function robots(): MetadataRoute.Robots {
           '/pricing',
           '/migrate-from-gloriafood',
           '/case-studies/',
-          '/affiliate',
+          '/parteneriat/inscriere',
           '/contact',
         ],
         // PII/transactional surfaces never get indexed.

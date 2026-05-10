@@ -227,7 +227,7 @@ export default async function CityLandingPage({ params }: Params) {
             }}
           >
             <Link
-              href="/affiliate"
+              href="/parteneriat/inscriere"
               className="text-sm font-medium text-purple-700 underline-offset-4 hover:underline"
             >
               {t(currentLocale, 'marketing.cities.city_empty_cta_partner')}
