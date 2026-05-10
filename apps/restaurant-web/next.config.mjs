@@ -25,6 +25,26 @@ const nextConfig = {
     // the library — measurable LCP/TBT improvement on slow connections.
     optimizePackageImports: ['lucide-react', 'framer-motion', 'date-fns', '@hir/ui'],
   },
+  // Security headers — added 2026-05-10 per overnight audit P1. CSP deferred
+  // until we inventory all 3rd-party origins (Stripe/Vercel/Sentry/Supabase/
+  // Resend); these 4 close clickjacking + MIME sniff + referer leak +
+  // permission policy gaps without that inventory.
+  // SAMEORIGIN (not DENY) on storefront because the embed widget renders
+  // under ?embed=1 in iframes on merchant sites — DENY would break the
+  // widget product.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=()' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
