@@ -10,7 +10,7 @@ import { useState } from 'react';
 
 const TOPICS = [
   { v: 'restaurant', l: 'Sunt patron / manager de restaurant' },
-  { v: 'reseller', l: 'Sunt manager flotă / partener / reseler' },
+  { v: 'reseller', l: 'Sunt manager flotă / partener / reseller' },
   { v: 'other', l: 'Altceva (general)' },
 ];
 

@@ -138,7 +138,7 @@ export default function PricingPage() {
             price="2 lei"
             priceSub="/ comandă"
             description="Pentru orice restaurant — folosește curierul HIR (propriu sau din rețeaua HIR) sau curierul tău."
-            badge="Implementare gratuită — primele 50 restaurante"
+            badge="Implementare gratuită — primele 50 de restaurante"
             included={[
               'Curier HIR (propriu sau din rețeaua HIR)',
               'Storefront white-label cu brand propriu',
@@ -151,7 +151,7 @@ export default function PricingPage() {
               'Suport tehnic prin email + telefon',
               'Fără abonament. Fără setup.',
             ]}
-            cta={{ href: '/contact', label: 'Sună Echipa HIR' }}
+            cta={{ href: '/contact', label: 'Sunați echipa HIR' }}
             accent
           />
           <div className="flex flex-col justify-center rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-7">
@@ -286,7 +286,7 @@ export default function PricingPage() {
               href="/contact"
               className="inline-flex items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
             >
-              Sună Echipa HIR
+              Sunați echipa HIR
             </Link>
             <Link
               href="/migrate-from-gloriafood"

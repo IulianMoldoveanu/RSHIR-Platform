@@ -240,7 +240,7 @@ export default function MigrateFromGloriaFoodPage({
           {/* Lane SITE-COPY-V2 (2026-05-10) — surface "implementare gratuită" promo. */}
           <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-emerald-500/95 px-4 py-2 text-sm font-bold text-white shadow-lg">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
-            <span>Migrare GRATUITĂ + IMPLEMENTARE GRATUITĂ — primele 50 restaurante</span>
+            <span>Migrare GRATUITĂ + IMPLEMENTARE GRATUITĂ — primele 50 de restaurante</span>
           </div>
         </div>
       </section>

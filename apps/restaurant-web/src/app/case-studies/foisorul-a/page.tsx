@@ -29,14 +29,14 @@ const ARTICLE_PUBLISHED = '2026-05-03T12:00:00+03:00';
 
 const OG_IMAGE = marketingOgImageUrl({
   title: 'Foișorul A — primul restaurant HIR live',
-  subtitle: '158 produse migrate din GloriaFood în sub 5 minute. Brașov · 03.05.2026.',
+  subtitle: '158 de produse migrate din GloriaFood în sub 5 minute. Brașov · 03.05.2026.',
   variant: 'case-study',
 });
 
 export const metadata: Metadata = {
   title: 'Foișorul A — primul restaurant HIR live | Studiu de caz',
   description:
-    'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 produse importate în <5 minute, storefront white-label live, livrare proprie HIR.',
+    'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 de produse importate în <5 minute, storefront white-label live, livrare proprie HIR.',
   // Lane EN-I18N PR D — same URL serves both locales (cookie-based).
   alternates: {
     canonical: ARTICLE_URL,
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Foișorul A — primul restaurant HIR live',
-    description: '158 produse migrate din GloriaFood în sub 5 minute.',
+    description: '158 de produse migrate din GloriaFood în sub 5 minute.',
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
@@ -67,7 +67,7 @@ export default function FoisorulACaseStudyPage() {
   const articleJsonLd = buildArticleJsonLd({
     headline: 'Foișorul A — primul restaurant HIR live',
     description:
-      'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 produse importate în sub 5 minute, storefront white-label live, livrare proprie HIR.',
+      'Restaurant tradițional românesc din Brașov, migrat din GloriaFood pe 03.05.2026. 158 de produse importate în sub 5 minute, storefront white-label live, livrare proprie HIR.',
     url: ARTICLE_URL,
     imageUrl: OG_IMAGE,
     datePublished: ARTICLE_PUBLISHED,
@@ -178,7 +178,7 @@ export default function FoisorulACaseStudyPage() {
             <Deliverable
               icon={<Database className="h-5 w-5" />}
               title="Meniu complet importat"
-              body="158 produse, categorii, opțiuni, imagini — totul automat din GloriaFood."
+              body="158 de produse, categorii, opțiuni, imagini — totul automat din GloriaFood."
             />
             <Deliverable
               icon={<Package className="h-5 w-5" />}
