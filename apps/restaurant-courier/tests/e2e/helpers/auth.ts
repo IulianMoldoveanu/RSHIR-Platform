@@ -20,11 +20,13 @@ export async function loginAsTestCourier(page: Page): Promise<void> {
  * synthesising a drag gesture.
  */
 export async function holdSwipeButton(page: Page, labelMatch: RegExp): Promise<void> {
-  // The button living inside the SwipeButton track has no accessible name;
-  // grab it by aria-label or by being inside the visible track text.
-  const track = page.locator('[role="button"], button').filter({ hasText: labelMatch }).first();
-  const handle = track.locator('button').first();
-  const target = (await handle.count()) > 0 ? handle : track;
+  // SwipeButton renders the label inside a sibling <div>, not the
+  // <button> handle itself. The handle carries the label only via
+  // aria-label, so match `getByRole('button', { name })` rather than
+  // a hasText filter that looks at descendant text (there is none —
+  // the button only contains a ChevronRight icon).
+  const target = page.getByRole('button', { name: labelMatch }).first();
+  await target.waitFor({ state: 'visible', timeout: 30_000 });
   await target.scrollIntoViewIfNeeded();
   const box = await target.boundingBox();
   if (!box) throw new Error('Swipe handle not measurable');
