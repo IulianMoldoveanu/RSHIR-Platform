@@ -13,15 +13,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
-
-function isPlatformAdmin(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return allow.includes(email.toLowerCase());
-}
+import { isPlatformAdminEmail as isPlatformAdmin } from '@/lib/auth/platform-admin';
 
 export async function openTenantAsPlatformAdmin(formData: FormData): Promise<void> {
   const tenantId = String(formData.get('tenantId') ?? '');

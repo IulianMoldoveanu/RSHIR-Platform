@@ -9,6 +9,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,11 +117,7 @@ export default async function SystemPage() {
 
   if (!user?.email) redirect('/login');
 
-  const allowList = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allowList.includes(user.email.toLowerCase())) {
+  if (!isPlatformAdminEmail(user.email)) {
     return (
       <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
         Acces interzis: această pagină este rezervată administratorilor HIR.

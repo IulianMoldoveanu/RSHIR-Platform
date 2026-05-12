@@ -11,6 +11,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { listActiveCities, type CityRow } from '@/lib/cities';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { TenantsListClient, type TenantListRow, type SortKey, type StatusFilter } from './client';
 
 export const runtime = 'nodejs';
@@ -59,12 +60,7 @@ export default async function PlatformAdminTenantsPage({
   } = await supa.auth.getUser();
   if (!user) redirect('/login?next=/dashboard/admin/tenants');
 
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!user.email || !allow.includes(user.email.toLowerCase())) {
+  if (!isPlatformAdminEmail(user.email)) {
     return (
       <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
         Acces interzis: această pagină este rezervată administratorilor de

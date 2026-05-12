@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
@@ -66,11 +67,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
   const storefrontUrl = isPlatformAdminMode ? null : tenantStorefrontUrl(tenant.slug);
 
-  const isPlatformAdmin = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-    .includes((user.email ?? '').toLowerCase());
+  const isPlatformAdmin = isPlatformAdminEmail(user.email);
 
   // Tenant-scoped nav (Comenzi / Meniu / Marketing / etc). Hidden in
   // platform-admin-only mode so Iulian doesn't see a fake "Foișorul A"

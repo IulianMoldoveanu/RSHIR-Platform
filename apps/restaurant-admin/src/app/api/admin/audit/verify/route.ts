@@ -14,9 +14,9 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,20 +34,6 @@ type Mismatch = {
   prev_hash: string | null;
 };
 
-async function isPlatformAdmin(): Promise<{ ok: true; email: string } | { ok: false; status: number }> {
-  const supa = await createServerClient();
-  const {
-    data: { user },
-  } = await supa.auth.getUser();
-  if (!user?.email) return { ok: false, status: 401 };
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allow.includes(user.email.toLowerCase())) return { ok: false, status: 403 };
-  return { ok: true, email: user.email };
-}
-
 export async function POST(req: NextRequest) {
   // CSRF defense: cookie-authed PLATFORM_ADMIN endpoint — refuse cross-origin
   // POSTs even if the operator is logged in. assertSameOrigin matches the
@@ -60,9 +46,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const auth = await isPlatformAdmin();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) {
-    return NextResponse.json({ error: auth.status === 401 ? 'unauthorized' : 'forbidden' }, { status: auth.status });
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const json = await req.json().catch(() => ({}));
