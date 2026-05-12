@@ -21,6 +21,7 @@
   "dependencies": {
     "@hir/supabase-types": "workspace:*",
     "@hir/ui": "workspace:*",
+    "@sentry/nextjs": "^10.53.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",
     "framer-motion": "^12.38.0",
