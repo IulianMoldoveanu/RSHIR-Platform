@@ -41,6 +41,16 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=()' },
+          // HSTS with includeSubDomains + preload so hirforyou.ro qualifies
+          // for the HSTS preload list (https://hstspreload.org). Vercel's
+          // edge auto-adds these flags on *.vercel.app but NOT on custom
+          // domains — explicit set here closes the gap. 2y max-age matches
+          // Vercel's own posture; both subdomain + preload are required
+          // for browser preload list eligibility.
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
         ],
       },
     ];
