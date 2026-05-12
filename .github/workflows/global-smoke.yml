@@ -1,0 +1,92 @@
+# Global production smoke E2E.
+#
+# Runs against LIVE Vercel deployments — no dev server, no DB writes.
+# Verifies the critical paths each user touches: marketing site,
+# tenant storefront, admin login surface, courier login surface,
+# version + manifest endpoints.
+#
+# Triggers:
+#   - push to main          → catch regressions the moment they ship
+#   - schedule every 6h     → catch DNS / Vercel / Supabase outages
+#   - workflow_dispatch     → manual re-run
+#
+# Failure routing: Telegram alert via existing health-monitor wiring
+# (set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID secrets to enable; the
+# notify step is a no-op when secrets are absent).
+
+name: Global Smoke E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'e2e/global-smoke/**'
+      - '.github/workflows/global-smoke.yml'
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: global-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Production smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Overridable via workflow_dispatch inputs or repo variables.
+      E2E_WEB_BASE_URL: ${{ vars.E2E_WEB_BASE_URL || 'https://hirforyou.ro' }}
+      E2E_ADMIN_BASE_URL: ${{ vars.E2E_ADMIN_BASE_URL || 'https://hir-restaurant-admin.vercel.app' }}
+      E2E_COURIER_BASE_URL: ${{ vars.E2E_COURIER_BASE_URL || 'https://hir-restaurant-courier.vercel.app' }}
+      E2E_TENANT_STOREFRONT: ${{ vars.E2E_TENANT_STOREFRONT || 'https://hir-restaurant-web.vercel.app/foisorul-a' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: e2e/global-smoke
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run global smoke
+        working-directory: e2e/global-smoke
+        run: pnpm test:e2e:global
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-smoke-report
+          path: e2e/global-smoke/playwright-report/
+          retention-days: 7
+
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets unset; skipping notification."
+            exit 0
+          fi
+          MSG="🔴 Global smoke FAILED on \`${{ github.ref_name }}\` @ ${{ github.sha }}
+          Run: $RUN_URL"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "parse_mode=Markdown" \
+            -d "text=${MSG}" || true
