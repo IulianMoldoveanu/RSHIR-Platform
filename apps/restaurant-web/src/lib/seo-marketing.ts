@@ -27,6 +27,10 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   // Lane SITE-COPY-V2 (2026-05-10) — /press + /status removed from sitemap
   // (still resolve at their URLs but not indexed by crawlers).
   { path: '/privacy', priority: 0.3 },
+  // Lane TERMS-SKELETON-V1 (2026-05-12) — skeleton page with operator
+  // placeholders is live; sitemap entry stays low priority until the final
+  // legal text lands.
+  { path: '/terms', priority: 0.3 },
 ];
 
 // Lane BUG-HUNT-V1 (2026-05-10) — `hirforyou.ro` is the locked official
