@@ -19,6 +19,10 @@ name: Global Smoke E2E
 on:
   push:
     branches: [main]
+  pull_request:
+    paths:
+      - 'e2e/global-smoke/**'
+      - '.github/workflows/global-smoke.yml'
   schedule:
     - cron: '0 */6 * * *'
   workflow_dispatch:
