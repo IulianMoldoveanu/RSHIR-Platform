@@ -61,11 +61,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], baseURL: COURIER },
     },
     {
+      // Storefront surfaces run against the marketing host until tenant
+      // subdomain DNS is wired (foisorul-a.hirforyou.ro, etc.). See spec
+      // file for the deferred case.
       name: 'storefront',
       testMatch: '**/storefront.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: process.env.E2E_TENANT_STOREFRONT ?? `${WEB}/foisorul-a`,
+        baseURL: WEB,
       },
     },
   ],

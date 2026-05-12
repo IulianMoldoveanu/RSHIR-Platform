@@ -7,7 +7,10 @@ test.describe('Marketing site (hirforyou.ro)', () => {
     // Brand strip — the visible HIR brand must appear somewhere above the fold.
     await expect(page.getByRole('heading').first()).toBeVisible();
     // Pricing CTA is the primary conversion anchor on the homepage.
-    await expect(page.getByRole('link', { name: /pre[țt]uri|pricing/i }).first()).toBeVisible();
+    // Live copy uses "Tarife"; accept the historic "Prețuri" + EN fallback.
+    await expect(
+      page.getByRole('link', { name: /tarif|pre[țt]uri|pricing/i }).first(),
+    ).toBeVisible();
   });
 
   test('/pricing loads and shows the 2 lei/comandă tier', async ({ page }) => {

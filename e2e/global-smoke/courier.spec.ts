@@ -20,12 +20,28 @@ test.describe('Courier PWA', () => {
     }
   });
 
-  test('PWA manifest.json is served with required keys', async ({ request }) => {
-    const res = await request.get('/manifest.json');
-    expect(res.status()).toBe(200);
-    const body = await res.json();
+  test('PWA manifest is served with required keys', async ({ request }) => {
+    // Next.js' app-router default route is `/manifest.webmanifest`; older
+    // builds use `/manifest.json`. Try the modern path first, fall back to
+    // the legacy one before declaring the PWA broken.
+    const candidates = ['/manifest.webmanifest', '/manifest.json'];
+    let lastStatus = 0;
+    let body: Record<string, unknown> | null = null;
+    for (const path of candidates) {
+      const res = await request.get(path);
+      lastStatus = res.status();
+      if (lastStatus === 200) {
+        try {
+          body = (await res.json()) as Record<string, unknown>;
+          break;
+        } catch {
+          // wrong content-type — try next candidate
+        }
+      }
+    }
+    expect(body, `manifest not served at any of ${candidates.join(', ')} (last status ${lastStatus})`).not.toBeNull();
     expect(body).toHaveProperty('name');
     expect(body).toHaveProperty('icons');
-    expect(Array.isArray(body.icons)).toBe(true);
+    expect(Array.isArray((body as { icons?: unknown }).icons)).toBe(true);
   });
 });
