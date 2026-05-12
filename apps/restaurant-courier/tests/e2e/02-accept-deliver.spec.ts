@@ -6,9 +6,9 @@ import {
   endAnyOpenShift,
   adminSupabase,
 } from './fixtures/seed';
-import { loginAsTestCourier } from './helpers/auth';
+import { loginAsTestCourier, holdSwipeButton } from './helpers/auth';
 
-test.describe('Accept → deliver lifecycle', () => {
+test.describe('Pickup lifecycle', () => {
   let userId: string;
   let fleetId: string;
   let orderId: string;
@@ -18,9 +18,21 @@ test.describe('Accept → deliver lifecycle', () => {
     userId = seeded.userId;
     fleetId = seeded.fleetId;
     await endAnyOpenShift(userId);
-    // Seed an unassigned CREATED order so the courier can claim it.
+    // Pre-assign the order to the test courier in ACCEPTED state. The seeded
+    // courier joins `e2e-test-fleet`, which puts them in Mode C — that mode
+    // hides the "Comenzi disponibile" section entirely (riders are dispatched
+    // by their fleet manager, not via self-claim). To keep the test
+    // environment-agnostic, we skip the accept step and exercise only the
+    // ACCEPTED → PICKED_UP transition, which is identical across all modes.
     const order = await seedOrder(fleetId);
     orderId = order.orderId;
+    await adminSupabase
+      .from('courier_orders')
+      .update({
+        status: 'ACCEPTED',
+        assigned_courier_user_id: userId,
+      })
+      .eq('id', orderId);
     // Open a shift directly so the test focuses on the order lifecycle, not
     // the swipe-to-start UX (covered by 01-login-shift.spec.ts).
     await adminSupabase.from('courier_shifts').insert({
@@ -37,31 +49,22 @@ test.describe('Accept → deliver lifecycle', () => {
     await endAnyOpenShift(userId);
   });
 
-  // The accept → picked-up → delivered flow drives photo upload at the
-  // delivered step which needs a real file picker. Until we wire a stubbed
-  // proof URL, this test verifies only the accept + pickup path so it
-  // produces value without flakiness from the file dialog.
-  // FIXME(courier-e2e): the seeded courier is in `e2e-test-fleet`, which
-  // puts them in Mode C (fleet-managed) per `lib/rider-mode.ts`. Mode C
-  // hides the "Comenzi disponibile" section, so an unassigned CREATED
-  // order never surfaces. To unbreak this test we either need to (a)
-  // pin the test courier to the platform-default fleet (Mode A), which
-  // would require the test environment to clearly differ from prod
-  // visibility, or (b) seed the order already assigned to the courier
-  // and exercise only the picked-up transition. Tracking with the rest
-  // of the courier-e2e debug session.
-  test.skip('courier can claim an open order and mark picked up', async ({ page }) => {
+  test('courier can mark a pre-assigned order as picked up', async ({ page }) => {
     await loginAsTestCourier(page);
 
+    // The order is in ACCEPTED state and assigned to this courier, so it
+    // appears in the "Comenzile mele" section on the orders list.
     await page.goto('/dashboard/orders');
     await expect(page.getByText('E2E Client').first()).toBeVisible({ timeout: 30_000 });
-
-    // Click into the order detail; primary CTA there is "Acceptă".
     await page.getByText('E2E Client').first().click();
-    await page.getByRole('button', { name: /accept/i }).first().click();
 
-    // After accept, the page should show the next step CTA.
-    await expect(page.getByText(/ridicat|picked|preluat/i).first()).toBeVisible({ timeout: 30_000 });
+    // Order detail page: with status=ACCEPTED + isMine=true, OrderActions
+    // renders the pickup swipe button. Swipe it to fire markPickedUpAction.
+    await holdSwipeButton(page, /Glisează pentru a confirma ridicare/i);
+
+    // After the action, the page revalidates and the status chip flips to
+    // "Ridicată". Verify both UI + DB to lock the transition.
+    await expect(page.getByText(/Ridicată/i).first()).toBeVisible({ timeout: 30_000 });
 
     const { data: row } = await adminSupabase
       .from('courier_orders')
@@ -69,6 +72,6 @@ test.describe('Accept → deliver lifecycle', () => {
       .eq('id', orderId)
       .maybeSingle();
     expect(row?.assigned_courier_user_id).toBe(userId);
-    expect(['ACCEPTED', 'PICKED_UP']).toContain(row?.status as string);
+    expect(row?.status).toBe('PICKED_UP');
   });
 });
