@@ -1,0 +1,17 @@
+{
+  "name": "@hir/e2e-global-smoke",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production smoke E2E — hits live web + admin + courier critical paths in <60s; runs on every push to main and on a 6h schedule.",
+  "scripts": {
+    "test:e2e:global": "playwright test --config=playwright.config.ts",
+    "test:e2e:global:ui": "playwright test --config=playwright.config.ts --ui",
+    "e2e:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/node": "^22.9.1",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.6.3"
+  }
+}
