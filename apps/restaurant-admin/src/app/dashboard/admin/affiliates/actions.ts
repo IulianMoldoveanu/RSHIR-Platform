@@ -7,10 +7,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { sendPartnerNotification } from '@/lib/email/partner-notify';
+import { requirePlatformAdmin as requirePlatformAdminShared } from '@/lib/auth/platform-admin';
 
 const REVALIDATE = '/dashboard/admin/affiliates';
 const DEFAULT_BOUNTY_RON = 300;
@@ -36,13 +36,11 @@ function randomCode(): string {
 }
 
 async function requirePlatformAdmin(): Promise<{ userId: string; email: string } | { error: string }> {
-  const supa = await createServerClient();
-  const { data: { user } } = await supa.auth.getUser();
-  if (!user?.email) return { error: 'Unauthentificat.' };
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (!allow.includes(user.email.toLowerCase())) return { error: 'Acces interzis.' };
-  return { userId: user.id, email: user.email };
+  const r = await requirePlatformAdminShared();
+  if (!r.ok) {
+    return { error: r.status === 401 ? 'Unauthentificat.' : 'Acces interzis.' };
+  }
+  return { userId: r.userId, email: r.email };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

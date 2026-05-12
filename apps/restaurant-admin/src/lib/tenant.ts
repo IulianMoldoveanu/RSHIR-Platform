@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createServerClient } from './supabase/server';
 import { createAdminClient } from './supabase/admin';
+import { isPlatformAdminEmail } from './auth/platform-admin';
 
 export const TENANT_COOKIE = 'selected_tenant_id';
 
@@ -122,15 +123,6 @@ export async function listMemberTenants(userId: string): Promise<TenantSummary[]
  * Reads `selected_tenant_id` cookie and returns the active tenant if the user
  * is a member. Falls back to the first membership when no cookie is set.
  */
-function isPlatformAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-    .includes(email.toLowerCase());
-}
-
 async function listAllActiveTenants(): Promise<TenantSummary[]> {
   const admin = createAdminClient();
   const { data, error } = await admin

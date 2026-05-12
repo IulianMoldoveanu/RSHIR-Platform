@@ -7,10 +7,10 @@
 // the audit helper accepts null-ish tenantId gracefully (swallows errors).
 
 import { revalidatePath } from 'next/cache';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { buildLandingPatch, type LandingPatch } from '@/lib/partner-landing/validators';
+import { requirePlatformAdmin as requirePlatformAdminShared } from '@/lib/auth/platform-admin';
 
 const REVALIDATE = '/dashboard/admin/partners';
 
@@ -21,22 +21,15 @@ const REVALIDATE = '/dashboard/admin/partners';
 async function requirePlatformAdmin(): Promise<
   { userId: string; email: string } | { error: string }
 > {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return { error: 'Unauthentificat.' };
-
-  const allowList = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!allowList.includes(user.email.toLowerCase())) {
-    return { error: 'Acces interzis: nu ești administrator de platformă.' };
+  const r = await requirePlatformAdminShared();
+  if (!r.ok) {
+    return {
+      error: r.status === 401
+        ? 'Unauthentificat.'
+        : 'Acces interzis: nu ești administrator de platformă.',
+    };
   }
-
-  return { userId: user.id, email: user.email };
+  return { userId: r.userId, email: r.email };
 }
 
 // ────────────────────────────────────────────────────────────

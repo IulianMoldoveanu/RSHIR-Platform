@@ -14,9 +14,9 @@
 // editor + demand_estimates entry forms ship in PR1c/PR1d.
 
 import { revalidatePath } from 'next/cache';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { requirePlatformAdmin as requirePlatformAdminShared } from '@/lib/auth/platform-admin';
 import {
   recommendAllocations,
   type AllocationOutput,
@@ -42,22 +42,15 @@ const PLATFORM_SENTINEL_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 async function requirePlatformAdmin(): Promise<
   { userId: string; email: string } | { error: string }
 > {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return { error: 'Neautentificat.' };
-
-  const allowList = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!allowList.includes(user.email.toLowerCase())) {
-    return { error: 'Acces interzis: nu sunteți administrator de platformă.' };
+  const r = await requirePlatformAdminShared();
+  if (!r.ok) {
+    return {
+      error: r.status === 401
+        ? 'Neautentificat.'
+        : 'Acces interzis: nu sunteți administrator de platformă.',
+    };
   }
-
-  return { userId: user.id, email: user.email };
+  return { userId: r.userId, email: r.email };
 }
 
 export type AssignmentActionResult =

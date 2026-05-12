@@ -5,14 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-function isPlatformAdmin(email: string | null | undefined): boolean {
-  const allowList = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return !!email && allowList.includes(email.toLowerCase());
-}
+import { isPlatformAdminEmail as isPlatformAdmin } from '@/lib/auth/platform-admin';
 
 export async function markResolvedAction(formData: FormData) {
   const id = String(formData.get('id') ?? '');

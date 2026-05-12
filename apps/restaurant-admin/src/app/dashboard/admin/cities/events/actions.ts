@@ -15,8 +15,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { randomUUID } from 'node:crypto';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
 
 const VALID_TYPES = [
   'concert',
@@ -38,19 +38,15 @@ async function getPlatformAdmin(): Promise<
   | { ok: true; userId: string; email: string }
   | { ok: false; error: string; code: 'forbidden' }
 > {
-  const supa = await createServerClient();
-  const {
-    data: { user },
-  } = await supa.auth.getUser();
-  if (!user?.email) return { ok: false, error: 'Nu sunteți autentificat.', code: 'forbidden' };
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allow.includes(user.email.toLowerCase())) {
-    return { ok: false, error: 'Acces interzis.', code: 'forbidden' };
+  const r = await requirePlatformAdmin();
+  if (!r.ok) {
+    return {
+      ok: false,
+      error: r.status === 401 ? 'Nu sunteți autentificat.' : 'Acces interzis.',
+      code: 'forbidden',
+    };
   }
-  return { ok: true, userId: user.id, email: user.email };
+  return { ok: true, userId: r.userId, email: r.email };
 }
 
 function trimOrNull(raw: unknown, max: number): string | null {

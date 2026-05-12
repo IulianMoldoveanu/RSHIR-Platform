@@ -25,12 +25,12 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
-import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from '@/lib/email/resend';
 import { supportReplyEmail } from '@/lib/email/support-reply';
 import { HIR_PLATFORM_BRAND, type EmailBrand } from '@/lib/email/layout';
 import { assertSameOrigin } from '@/lib/origin-check';
+import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,23 +47,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   OTHER: 'Altceva',
 };
 
-type AuthOk = { ok: true; userId: string; email: string };
-type AuthErr = { ok: false; status: number };
-
-async function isPlatformAdmin(): Promise<AuthOk | AuthErr> {
-  const supa = await createServerClient();
-  const {
-    data: { user },
-  } = await supa.auth.getUser();
-  if (!user?.email) return { ok: false, status: 401 };
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allow.includes(user.email.toLowerCase())) return { ok: false, status: 403 };
-  return { ok: true, userId: user.id, email: user.email };
-}
-
 export async function POST(req: NextRequest) {
   // CSRF defense: cookie-authed PLATFORM_ADMIN endpoint that sends emails to
   // arbitrary customer addresses on success — refuse cross-origin POSTs even
@@ -77,12 +60,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const auth = await isPlatformAdmin();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) {
-    return NextResponse.json(
-      { error: auth.status === 401 ? 'unauthorized' : 'forbidden' },
-      { status: auth.status },
-    );
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const json = await req.json().catch(() => ({}));
@@ -219,12 +199,9 @@ export async function POST(req: NextRequest) {
 // GET /api/admin/support/reply?messageId=uuid
 // Returns the reply thread for a given message, newest last (chronological).
 export async function GET(req: NextRequest) {
-  const auth = await isPlatformAdmin();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) {
-    return NextResponse.json(
-      { error: auth.status === 401 ? 'unauthorized' : 'forbidden' },
-      { status: auth.status },
-    );
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const messageId = req.nextUrl.searchParams.get('messageId');
   const idCheck = z.string().uuid().safeParse(messageId);

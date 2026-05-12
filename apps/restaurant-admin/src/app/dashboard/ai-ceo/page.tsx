@@ -11,17 +11,9 @@ import {
 } from '@/lib/ai-ceo/queries';
 import { getAiAvailability } from '@/lib/ai-availability';
 import { AiUnavailableNotice } from '@/components/ai/ai-unavailable-notice';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { BriefScheduleEditor } from './brief-schedule-editor';
 import { SuggestionsList } from './suggestions-list';
-
-function isPlatformAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return allow.includes(email.toLowerCase());
-}
 
 export const dynamic = 'force-dynamic';
 

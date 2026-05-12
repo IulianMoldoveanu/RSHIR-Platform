@@ -19,6 +19,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -39,15 +40,6 @@ export type CreateTenantResult =
       storefrontUrl: string;
     }
   | { ok: false; error: string; code?: 'forbidden' | 'invalid' | 'slug_taken' | 'email_taken' | 'auth_failed' | 'tenant_failed' | 'member_failed' };
-
-function isPlatformAdmin(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return allow.includes(email.toLowerCase());
-}
 
 // 16-char base64url, ~96 bits of entropy. Caller shows it once in the
 // success card; the patron rotates via /reset-password later.
@@ -70,7 +62,7 @@ export async function createTenantWithOwner(
     data: { user: caller },
   } = await supa.auth.getUser();
   if (!caller) return { ok: false, error: 'Not signed in.', code: 'forbidden' };
-  if (!isPlatformAdmin(caller.email)) {
+  if (!isPlatformAdminEmail(caller.email)) {
     return { ok: false, error: 'Doar administratorii platformei pot crea tenanți noi.', code: 'forbidden' };
   }
 
@@ -227,7 +219,7 @@ export async function switchToTenantAction(formData: FormData): Promise<void> {
     data: { user },
   } = await supa.auth.getUser();
   if (!user) throw new Error('unauthenticated');
-  if (!isPlatformAdmin(user.email)) throw new Error('forbidden');
+  if (!isPlatformAdminEmail(user.email)) throw new Error('forbidden');
 
   // Verify membership — admin client because we just inserted the row above
   // and the cookie session may not have refreshed yet.

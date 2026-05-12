@@ -6,6 +6,7 @@
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,9 +32,7 @@ export default async function AffiliateStatsPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect('/login?next=/dashboard/admin/affiliates/stats');
 
-  const allow = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
-  if (!user.email || !allow.includes(user.email.toLowerCase())) {
+  if (!isPlatformAdminEmail(user.email)) {
     return (
       <main className="min-h-screen bg-[#FAFAFA] p-10 text-[#0F172A]">
         <div className="mx-auto max-w-2xl">

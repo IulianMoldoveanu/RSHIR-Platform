@@ -13,6 +13,7 @@
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { loadGridData } from '@/lib/fleet-allocation/queries';
 import { FleetAllocationClient } from './fleet-allocation-client';
 
@@ -26,12 +27,7 @@ export default async function FleetAllocationPage() {
   } = await supabase.auth.getUser();
   if (!user?.email) redirect('/login?next=/dashboard/admin/fleet-allocation');
 
-  const allowList = (process.env.HIR_PLATFORM_ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!allowList.includes(user.email.toLowerCase())) {
+  if (!isPlatformAdminEmail(user.email)) {
     return (
       <main className="min-h-screen bg-zinc-50 p-10">
         <div className="mx-auto max-w-2xl rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
