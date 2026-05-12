@@ -152,11 +152,13 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             title={t(currentLocale, 'marketing.shell.footer_col_legal')}
             links={[
               { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
-              // Lane FOOTER-POLISH-V1 (2026-05-10) — `/terms` route nu există
-              // încă; ascundem link-ul din footer până când pagina este
-              // publicată. `/cookies` re-pointat la aliasul existent
-              // `/politica-cookies` (același conținut), fix 404 din footerul
-              // live de pe hirforyou.ro.
+              // Lane TERMS-SKELETON-V1 (2026-05-12) — `/terms` reintrodus
+              // în footer ca skeleton cu placeholder-uri; operatorul (Iulian)
+              // completează textul final după revizuirea juridică.
+              { href: '/terms', label: t(currentLocale, 'marketing.shell.footer_link_terms') },
+              // `/cookies` re-pointat la aliasul existent `/politica-cookies`
+              // (același conținut), fix 404 din footerul live de pe
+              // hirforyou.ro (Lane FOOTER-POLISH-V1, 2026-05-10).
               { href: '/politica-cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
             ]}
           />

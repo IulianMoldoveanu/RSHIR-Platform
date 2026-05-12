@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
           '/m/',
           '/bio',
           '/privacy',
+          '/terms',
           '/features',
           '/pricing',
           '/migrate-from-gloriafood',

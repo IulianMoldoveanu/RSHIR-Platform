@@ -765,6 +765,25 @@ export const dictionaries = {
       dsr_title: 'Cere-ți datele sau ștergerea lor',
       dsr_body: 'Folosește linkul de urmărire al comenzii (token-ul UUID din /track/{token}) împreună cu emailul sau telefonul folosit la comandă pentru a-ți exporta sau șterge datele. Apelurile sunt POST către /api/customer/data-export și /api/customer/data-delete.',
     },
+    // Lane TERMS-SKELETON-V1 (2026-05-12) — section titles + meta for the
+    // `/terms` page. Body copy is intentionally NOT translated here: the page
+    // renders a `[PLACEHOLDER]` marker until the operator publishes the
+    // reviewed legal text. Keep keys parallel between RO/EN so a future
+    // diff against the final copy is straightforward.
+    terms: {
+      title: 'Termeni și Condiții | HIR for You',
+      meta_description:
+        'Termenii și condițiile de utilizare ai platformei HIRforYOU. Document în pregătire — versiunea finală va fi publicată după revizuirea juridică.',
+      last_updated_template: 'Ultima actualizare: {date}',
+      section_definitions_title: '1. Definiții',
+      section_acceptance_title: '2. Acceptarea termenilor',
+      section_services_title: '3. Servicii oferite',
+      section_accounts_title: '4. Cont și conturi de utilizator',
+      section_billing_title: '5. Plăți și facturare',
+      section_rights_title: '6. Drepturi și obligații',
+      section_liability_title: '7. Limitarea răspunderii',
+      section_termination_title: '8. Modificări și reziliere',
+    },
     preOrder: {
       disabled_title: 'Pre-comenzi',
       disabled_body: 'Pre-comenzile online nu sunt încă disponibile pentru acest restaurant.',
@@ -1528,6 +1547,20 @@ export const dictionaries = {
       contact_body_template: 'For requests email {tenantEmail} or, for GDPR-specific matters, {dpoEmail}.',
       dsr_title: 'Export or delete your data',
       dsr_body: 'Use the tracking link of your order (the UUID token from /track/{token}) together with the email or phone used on the order to export or delete your data. Endpoints: POST /api/customer/data-export and POST /api/customer/data-delete.',
+    },
+    terms: {
+      title: 'Terms of Service | HIR for You',
+      meta_description:
+        'Terms and conditions for using the HIRforYOU platform. Document in preparation — the final version will be published after legal review.',
+      last_updated_template: 'Last updated: {date}',
+      section_definitions_title: '1. Definitions',
+      section_acceptance_title: '2. Acceptance of terms',
+      section_services_title: '3. Services provided',
+      section_accounts_title: '4. Accounts and user access',
+      section_billing_title: '5. Payments and billing',
+      section_rights_title: '6. Rights and obligations',
+      section_liability_title: '7. Limitation of liability',
+      section_termination_title: '8. Changes and termination',
     },
     preOrder: {
       disabled_title: 'Pre-orders',
