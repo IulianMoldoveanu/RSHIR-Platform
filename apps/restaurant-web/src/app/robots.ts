@@ -34,6 +34,8 @@ export default function robots(): MetadataRoute.Robots {
           '/pricing',
           '/migrate-from-gloriafood',
           '/case-studies/',
+          '/demo',
+          '/parteneri',
           '/parteneriat/inscriere',
           '/contact',
         ],

@@ -22,6 +22,14 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   { path: '/alternativa-gloriafood-romania', priority: 0.9 },
   { path: '/case-studies/foisorul-a', priority: 0.6 },
+  // Lane DEMO-LANDING-V1 (2026-05-12) — paid-ads + reseller-link landing
+  // optimized for 60-second decision. Indexable so direct organic
+  // discoveries also land here.
+  { path: '/demo', priority: 0.8 },
+  // Lane PARTENERI-LANDING-V1 (2026-05-12) — top-of-funnel reseller
+  // landing with revenue calculator + FAQ. Funnels into
+  // /parteneriat/inscriere for the actual signup.
+  { path: '/parteneri', priority: 0.7 },
   { path: '/parteneriat/inscriere', priority: 0.7 },
   { path: '/contact', priority: 0.4 },
   // Lane SITE-COPY-V2 (2026-05-10) — /press + /status removed from sitemap
