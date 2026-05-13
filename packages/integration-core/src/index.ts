@@ -55,3 +55,19 @@ export { netopiaAdapter } from './payment/netopia';
 export { stripeConnectAdapter } from './payment/stripe-connect';
 export { vivaAdapter } from './payment/viva';
 export { getPspAdapter, isPspProviderImplemented } from './payment/registry';
+
+// Aggregator KDS unification — Glovo / Wolt / Bolt Food adapters.
+// 3-tier architecture: official API (Wolt now, Glovo/Bolt after partnership),
+// HIR Companion Android app (NotificationListener bridge), Print intercept
+// (Star CloudPRNT / ESC-POS). See 2026-05-12-STRATEGIC-MEGA-PLAN.md §4.
+export type {
+  AggregatorAdapter,
+  AggregatorCapabilities,
+  AggregatorContext,
+  AggregatorCredentials,
+  AggregatorOrderEvent,
+  AggregatorProviderKey,
+  AggregatorSourceSubtype,
+} from './aggregator';
+export { woltAdapter, printInterceptAdapter } from './aggregator';
+export type { PrintInterceptEnvelope } from './aggregator';
