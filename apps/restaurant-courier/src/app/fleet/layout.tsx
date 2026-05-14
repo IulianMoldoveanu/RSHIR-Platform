@@ -5,6 +5,7 @@ import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { FleetNewOrderAlert } from './fleet-new-order-alert';
 import { FleetShortcuts } from './fleet-shortcuts';
+import { OfflineBanner } from '@/components/offline-banner';
 
 const NAV = [
   { href: '/fleet', label: 'Privire', icon: LayoutDashboard },
@@ -60,6 +61,8 @@ export default async function FleetLayout({ children }: { children: ReactNode })
           </form>
         </div>
       </header>
+
+      <OfflineBanner />
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
