@@ -3,6 +3,7 @@ import { Banknote, ChevronLeft, Inbox } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { resolveTenantNames } from '@/lib/tenant-names';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,16 +23,6 @@ type HistoryRow = {
 };
 
 type CourierRow = { user_id: string; full_name: string | null };
-
-const STATUS_TONE: Record<string, string> = {
-  DELIVERED: 'bg-emerald-500/10 text-emerald-300',
-  CANCELLED: 'bg-zinc-800 text-zinc-400',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};
 
 const RANGE_OPTIONS = [
   { days: 1, label: '24 ore' },
@@ -395,11 +386,7 @@ function HistoryItem({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[order.status] ?? 'bg-zinc-800 text-zinc-300'}`}
-              >
-                {STATUS_LABEL[order.status] ?? order.status}
-              </span>
+              <OrderStatusBadge status={order.status} />
               {tenantName ? (
                 <span
                   className="max-w-[140px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-200"
