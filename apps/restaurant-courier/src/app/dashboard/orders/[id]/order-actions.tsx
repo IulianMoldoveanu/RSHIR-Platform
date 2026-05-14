@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Banknote } from 'lucide-react';
+import { Banknote, Info } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
@@ -58,15 +58,35 @@ export function OrderActions({
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
   const [cashConfirmed, setCashConfirmed] = useState(false);
 
-  const { mode } = useRiderMode();
-  const acceptLabel =
-    mode === 'C'
-      ? '→ Glisează pentru a confirma'
-      : '→ Glisează pentru a accepta';
+  const { mode, fleetName } = useRiderMode();
+  const acceptLabel = '→ Glisează pentru a accepta';
 
   const isDeliveryPhase = isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT');
   const isCashOnDelivery = paymentMethod === 'COD';
   const cashAmountLabel = totalRon != null ? `${Number(totalRon).toFixed(2)} RON` : 'suma datorată';
+
+  // Mode-C riders are dispatched by an external fleet manager (Bringo,
+  // Bolt-Fleet, internal partner) and perform pickup/deliver actions in
+  // *their* app — not here. Per decision_courier_three_modes.md, the
+  // HIR Curier surface for Mode-C is read-only: status visibility only,
+  // never a swipe-to-confirm, because firing one of these server actions
+  // would split state between the two apps. Show a static info card so
+  // the rider isn't left wondering why there's no button.
+  if (mode === 'C') {
+    return (
+      <div className="flex items-start gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+        <div className="flex-1">
+          <p className="font-medium text-zinc-200">Vizualizare read-only</p>
+          <p className="mt-0.5 text-xs text-zinc-400">
+            {fleetName
+              ? `Folosește aplicația flotei "${fleetName}" pentru a actualiza starea comenzii.`
+              : 'Folosește aplicația flotei tale pentru a actualiza starea comenzii.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   function handlePharmaComplete(urls: { delivery?: string; id?: string; prescription?: string }) {
     setPharmaOk(true);
