@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWebhook, notifyPharmaCallback } from '@/lib/webhook';
 import { logAudit } from '@/lib/audit';
+import { withRunLog } from '@/lib/with-run-log';
 
 const GEOFENCE_WARN_METERS = 200;
 
@@ -282,23 +283,29 @@ export async function forceEndShiftAction(
 
 export async function markPickedUpAction(orderId: string) {
   const userId = await requireUserId();
-  const admin = createAdminClient();
-  // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`, a
-  // courier could revert a DELIVERED or CANCELLED order back to PICKED_UP
-  // and re-fire the webhook to subscribers. The atomic UPDATE filters the
-  // row out cleanly when the status doesn't match — `maybeSingle()` returns
-  // null and the notify call is skipped.
-  const { data } = await admin
-    .from('courier_orders')
-    .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
-    .eq('id', orderId)
-    .eq('assigned_courier_user_id', userId)
-    .in('status', ['ACCEPTED'])
-    .select('id')
-    .maybeSingle();
-  if (data) await notifySubscriber(orderId, 'PICKED_UP', userId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  revalidatePath('/dashboard/orders');
+  return withRunLog(
+    'courier.markPickedUp',
+    { courier_user_id: userId, order_id: orderId },
+    async () => {
+      const admin = createAdminClient();
+      // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`,
+      // a courier could revert a DELIVERED or CANCELLED order back to
+      // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
+      // filters the row out cleanly when the status doesn't match —
+      // `maybeSingle()` returns null and the notify call is skipped.
+      const { data } = await admin
+        .from('courier_orders')
+        .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
+        .eq('id', orderId)
+        .eq('assigned_courier_user_id', userId)
+        .in('status', ['ACCEPTED'])
+        .select('id')
+        .maybeSingle();
+      if (data) await notifySubscriber(orderId, 'PICKED_UP', userId);
+      revalidatePath(`/dashboard/orders/${orderId}`);
+      revalidatePath('/dashboard/orders');
+    },
+  );
 }
 
 // Validates the proof URL points at our own courier-proofs storage bucket.
@@ -327,58 +334,70 @@ export async function markDeliveredAction(
   pharmaProofs?: { idUrl?: string; prescriptionUrl?: string },
 ) {
   const userId = await requireUserId();
-  const admin = createAdminClient();
-  const update: Record<string, unknown> = {
-    status: 'DELIVERED',
-    updated_at: new Date().toISOString(),
-  };
-  if (proofUrl && isAllowedProofUrl(proofUrl)) {
-    update.delivered_proof_url = proofUrl;
-    update.delivered_proof_taken_at = new Date().toISOString();
-  }
-  // Pharma orders: persist id + prescription proofs (migration 010) when
-  // present and host-allowlisted. Previously these uploads landed in
-  // storage but the URLs were lost, so post-delivery dispute resolution
-  // had no record. Now they're forward-only on the order row.
-  if (pharmaProofs?.idUrl && isAllowedProofUrl(pharmaProofs.idUrl)) {
-    update.delivered_proof_id_url = pharmaProofs.idUrl;
-  }
-  if (pharmaProofs?.prescriptionUrl && isAllowedProofUrl(pharmaProofs.prescriptionUrl)) {
-    update.delivered_proof_prescription_url = pharmaProofs.prescriptionUrl;
-  }
-  // State-machine guard (audit P0): only orders currently in PICKED_UP or
-  // IN_TRANSIT may transition to DELIVERED. Without this, a courier with an
-  // ACCEPTED order could swipe to deliver and skip the pickup leg entirely.
-  const { data } = await admin
-    .from('courier_orders')
-    .update(update)
-    .eq('id', orderId)
-    .eq('assigned_courier_user_id', userId)
-    .in('status', ['PICKED_UP', 'IN_TRANSIT'])
-    .select('id, payment_method, total_ron')
-    .maybeSingle();
-  if (data) {
-    // For cash-on-delivery orders, log the courier-confirmed cash collection
-    // as an audit event. Settlement reconciliation reads this trail to verify
-    // expected cash deposits per courier per shift.
-    const row = data as { id: string; payment_method: 'CARD' | 'COD' | null; total_ron: number | null };
-    if (row.payment_method === 'COD' && cashCollected) {
-      await logAudit({
-        actorUserId: userId,
-        action: 'order.cash_collected',
-        entityType: 'courier_order',
-        entityId: row.id,
-        metadata: {
-          total_ron: row.total_ron,
-          confirmed_at: new Date().toISOString(),
-        },
-      });
-    }
-    await assertDeliveryGeofence(admin, userId, orderId);
-    await notifySubscriber(orderId, 'DELIVERED', userId);
-  }
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  revalidatePath('/dashboard/orders');
+  return withRunLog(
+    'courier.markDelivered',
+    {
+      courier_user_id: userId,
+      order_id: orderId,
+      has_proof: !!proofUrl,
+      cash_collected: cashCollected ?? false,
+      has_pharma_proofs: !!(pharmaProofs?.idUrl || pharmaProofs?.prescriptionUrl),
+    },
+    async () => {
+      const admin = createAdminClient();
+      const update: Record<string, unknown> = {
+        status: 'DELIVERED',
+        updated_at: new Date().toISOString(),
+      };
+      if (proofUrl && isAllowedProofUrl(proofUrl)) {
+        update.delivered_proof_url = proofUrl;
+        update.delivered_proof_taken_at = new Date().toISOString();
+      }
+      // Pharma orders: persist id + prescription proofs (migration 010) when
+      // present and host-allowlisted. Previously these uploads landed in
+      // storage but the URLs were lost, so post-delivery dispute resolution
+      // had no record. Now they're forward-only on the order row.
+      if (pharmaProofs?.idUrl && isAllowedProofUrl(pharmaProofs.idUrl)) {
+        update.delivered_proof_id_url = pharmaProofs.idUrl;
+      }
+      if (pharmaProofs?.prescriptionUrl && isAllowedProofUrl(pharmaProofs.prescriptionUrl)) {
+        update.delivered_proof_prescription_url = pharmaProofs.prescriptionUrl;
+      }
+      // State-machine guard (audit P0): only orders currently in PICKED_UP or
+      // IN_TRANSIT may transition to DELIVERED. Without this, a courier with an
+      // ACCEPTED order could swipe to deliver and skip the pickup leg entirely.
+      const { data } = await admin
+        .from('courier_orders')
+        .update(update)
+        .eq('id', orderId)
+        .eq('assigned_courier_user_id', userId)
+        .in('status', ['PICKED_UP', 'IN_TRANSIT'])
+        .select('id, payment_method, total_ron')
+        .maybeSingle();
+      if (data) {
+        // For cash-on-delivery orders, log the courier-confirmed cash
+        // collection as an audit event. Settlement reconciliation reads this
+        // trail to verify expected cash deposits per courier per shift.
+        const row = data as { id: string; payment_method: 'CARD' | 'COD' | null; total_ron: number | null };
+        if (row.payment_method === 'COD' && cashCollected) {
+          await logAudit({
+            actorUserId: userId,
+            action: 'order.cash_collected',
+            entityType: 'courier_order',
+            entityId: row.id,
+            metadata: {
+              total_ron: row.total_ron,
+              confirmed_at: new Date().toISOString(),
+            },
+          });
+        }
+        await assertDeliveryGeofence(admin, userId, orderId);
+        await notifySubscriber(orderId, 'DELIVERED', userId);
+      }
+      revalidatePath(`/dashboard/orders/${orderId}`);
+      revalidatePath('/dashboard/orders');
+    },
+  );
 }
 
 export async function refreshOrdersAction() {
@@ -489,39 +508,45 @@ export async function updateAvatarUrlAction(url: string | null): Promise<void> {
 
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
-  const admin = createAdminClient();
+  return withRunLog(
+    'courier.acceptOrder',
+    { courier_user_id: userId, order_id: orderId },
+    async () => {
+      const admin = createAdminClient();
 
-  // Defense-in-depth fleet match: SELECT-side RLS already filters orders to
-  // the courier's own fleet on the read path, but `admin` is service-role
-  // and bypasses RLS. Without an explicit fleet check here, a courier who
-  // somehow learns an orderId in a different fleet (UUIDv4 makes this
-  // infeasible to brute-force, but defense-in-depth is cheap) could
-  // hijack the assignment. Resolve the courier's fleet first and gate
-  // the UPDATE on `fleet_id` matching.
-  const { data: profile } = await admin
-    .from('courier_profiles')
-    .select('fleet_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (!profile) return; // not a courier — silent no-op preserves prior contract
-  const fleetId = (profile as { fleet_id: string }).fleet_id;
+      // Defense-in-depth fleet match: SELECT-side RLS already filters orders to
+      // the courier's own fleet on the read path, but `admin` is service-role
+      // and bypasses RLS. Without an explicit fleet check here, a courier who
+      // somehow learns an orderId in a different fleet (UUIDv4 makes this
+      // infeasible to brute-force, but defense-in-depth is cheap) could
+      // hijack the assignment. Resolve the courier's fleet first and gate
+      // the UPDATE on `fleet_id` matching.
+      const { data: profile } = await admin
+        .from('courier_profiles')
+        .select('fleet_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (!profile) return; // not a courier — silent no-op preserves prior contract
+      const fleetId = (profile as { fleet_id: string }).fleet_id;
 
-  // Only accept if currently CREATED or OFFERED, unassigned, AND the order
-  // belongs to the courier's fleet.
-  const { data } = await admin
-    .from('courier_orders')
-    .update({
-      status: 'ACCEPTED',
-      assigned_courier_user_id: userId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', orderId)
-    .eq('fleet_id', fleetId)
-    .in('status', ['CREATED', 'OFFERED'])
-    .is('assigned_courier_user_id', null)
-    .select('id')
-    .maybeSingle();
-  if (data) await notifySubscriber(orderId, 'ACCEPTED', userId);
-  revalidatePath(`/dashboard/orders/${orderId}`);
-  revalidatePath('/dashboard/orders');
+      // Only accept if currently CREATED or OFFERED, unassigned, AND the order
+      // belongs to the courier's fleet.
+      const { data } = await admin
+        .from('courier_orders')
+        .update({
+          status: 'ACCEPTED',
+          assigned_courier_user_id: userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .eq('fleet_id', fleetId)
+        .in('status', ['CREATED', 'OFFERED'])
+        .is('assigned_courier_user_id', null)
+        .select('id')
+        .maybeSingle();
+      if (data) await notifySubscriber(orderId, 'ACCEPTED', userId);
+      revalidatePath(`/dashboard/orders/${orderId}`);
+      revalidatePath('/dashboard/orders');
+    },
+  );
 }
