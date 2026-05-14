@@ -6,6 +6,7 @@ import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { RiderMap } from '@/components/rider-map';
 import { VerticalBadge } from '@/components/vertical-badge';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,12 +30,6 @@ type ActiveOrderRow = {
   dropoff_line1: string | null;
   customer_first_name: string | null;
   updated_at: string | null;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
 };
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
@@ -162,9 +157,7 @@ export default async function DashboardHome() {
               >
                 {idx + 1}
               </span>
-              <span className="rounded-full bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                {STATUS_LABEL[o.status] ?? o.status}
-              </span>
+              <OrderStatusBadge status={o.status} />
               {o.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
               <span className="min-w-0 flex-1 truncate">
                 {o.customer_first_name ?? o.dropoff_line1 ?? 'Comandă'}
