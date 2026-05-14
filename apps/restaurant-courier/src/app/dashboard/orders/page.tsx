@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { TenantBadge } from '@/components/tenant-badge';
 import { refreshOrdersAction } from '../actions';
 import { OrdersRealtime } from './orders-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
@@ -24,12 +25,13 @@ type OrderRow = {
   total_ron: number | null;
   delivery_fee_ron: number | null;
   created_at: string;
+  source_tenant_id: string | null;
 };
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
 
 const ORDER_COLUMNS =
-  'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at';
+  'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at, source_tenant_id';
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -116,6 +118,32 @@ export default async function OrdersPage() {
   const fleetId =
     (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
 
+  // Mode B riders see orders from multiple tenants — surface the
+  // restaurant/pharmacy name on each card so they can distinguish
+  // "Foișorul A" from "Pizza Diavola" before tapping. One lookup, batched
+  // across both lists. Resolved tenant names only — Mode A/C riders get
+  // an empty map and the badge component renders nothing.
+  const tenantNameById = new Map<string, string>();
+  if (riderMode.mode === 'B') {
+    const tenantIds = Array.from(
+      new Set(
+        [...assigned, ...open]
+          .map((o) => o.source_tenant_id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    if (tenantIds.length > 0) {
+      const { data: tenantRows } = await admin
+        .from('tenants')
+        .select('id, name')
+        .in('id', tenantIds);
+      for (const row of (tenantRows ?? []) as Array<{ id: string; name: string | null }>) {
+        if (row.name) tenantNameById.set(row.id, row.name);
+      }
+    }
+  }
+  const isModeB = riderMode.mode === 'B';
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <OrdersRealtime
@@ -147,7 +175,12 @@ export default async function OrdersPage() {
         ) : (
           <ul className="flex flex-col gap-3">
             {assigned.map((o, idx) => (
-              <OrderListItem key={o.id} order={o} seqNumber={idx + 1} />
+              <OrderListItem
+                key={o.id}
+                order={o}
+                seqNumber={idx + 1}
+                tenantName={isModeB ? tenantNameById.get(o.source_tenant_id ?? '') ?? null : null}
+              />
             ))}
           </ul>
         )}
@@ -164,7 +197,11 @@ export default async function OrdersPage() {
           ) : (
             <ul className="flex flex-col gap-3">
               {open.map((o) => (
-                <OrderListItem key={o.id} order={o} />
+                <OrderListItem
+                  key={o.id}
+                  order={o}
+                  tenantName={isModeB ? tenantNameById.get(o.source_tenant_id ?? '') ?? null : null}
+                />
               ))}
             </ul>
           )}
@@ -218,7 +255,19 @@ function Empty({
   );
 }
 
-function OrderListItem({ order, seqNumber }: { order: OrderRow; seqNumber?: number }) {
+function OrderListItem({
+  order,
+  seqNumber,
+  tenantName,
+}: {
+  order: OrderRow;
+  seqNumber?: number;
+  // Mode B only — populated when the rider has memberships across
+  // 2+ tenants and therefore needs the source restaurant/pharmacy name
+  // surfaced on each card. Null on Mode A/C; <TenantBadge> renders
+  // nothing for null.
+  tenantName?: string | null;
+}) {
   const hasRoute =
     order.pickup_lat != null &&
     order.pickup_lng != null &&
@@ -256,6 +305,7 @@ function OrderListItem({ order, seqNumber }: { order: OrderRow; seqNumber?: numb
               {order.customer_first_name ?? 'Client'}
             </p>
             <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
+            <TenantBadge name={tenantName ?? null} />
           </div>
           <OrderStatusBadge status={order.status} />
         </div>
