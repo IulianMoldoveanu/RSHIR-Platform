@@ -10,6 +10,7 @@ import { PushBootstrap } from '@/components/push-bootstrap';
 import { LocationTracker } from '@/components/location-tracker';
 import { ProofSync } from '@/components/proof-sync';
 import { OfflineBanner } from '@/components/offline-banner';
+import { BatterySaverBadge } from '@/components/battery-saver-badge';
 import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
@@ -141,6 +142,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </header>
 
         <OfflineBanner />
+        <BatterySaverBadge />
         <PushBootstrap />
         <LocationTracker enabled={isOnline} onFix={updateCourierLocationAction} />
         <ProofSync />
