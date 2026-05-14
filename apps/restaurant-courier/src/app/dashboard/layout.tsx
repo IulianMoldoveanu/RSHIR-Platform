@@ -88,9 +88,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               ) : (
                 <span
                   aria-hidden
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500 text-xs font-bold text-white"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold text-white"
+                  // Default violet matches the rest of the app accent; a
+                  // tenant-supplied accent color overrides ONLY this square
+                  // so Mode-A riders see their employer's color in the
+                  // header without the rest of the UI being repainted.
+                  style={{
+                    background: tenantBrand?.accentColor ?? 'rgb(139, 92, 246)',
+                  }}
                 >
-                  H
+                  {(tenantBrand?.name ?? 'H').slice(0, 1).toUpperCase()}
                 </span>
               )}
               <span className="text-sm font-semibold tracking-tight text-zinc-100">
@@ -188,7 +195,29 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   );
 }
 
-type TenantBrand = { name: string | null; logoUrl: string | null };
+type TenantBrand = {
+  name: string | null;
+  logoUrl: string | null;
+  /**
+   * Tenant-owned accent color (hex string `#rrggbb` or `#rgb`). Applied to
+   * the header logo fallback square only — we deliberately don't repaint
+   * the whole UI in tenant colors because the rider's swipe gestures rely
+   * on a single, learned violet accent across all surfaces. The header
+   * square is the visible "you are working for X today" cue.
+   */
+  accentColor: string | null;
+};
+
+// Conservative hex-color sanitizer. Rejects any non-#rgb/#rrggbb shape so
+// a malformed `tenants.settings.branding.accent_color` can't inject CSS or
+// fall through as a raw word. Returns null on reject so the caller falls
+// back to the default violet.
+function sanitizeAccentColor(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) return null;
+  return trimmed;
+}
 
 // Cheap one-shot lookup: rider's single tenant_members row → tenants.settings.
 // Returns null if the rider has 0 or >1 memberships, or the tenant has no
@@ -227,9 +256,10 @@ async function loadTenantBrand(
       typeof settings.public_name === 'string' && settings.public_name.length > 0
         ? settings.public_name
         : null;
+    const accentColor = sanitizeAccentColor(branding.accent_color);
 
-    if (!logoUrl && !publicName) return null;
-    return { name: publicName, logoUrl };
+    if (!logoUrl && !publicName && !accentColor) return null;
+    return { name: publicName, logoUrl, accentColor };
   } catch {
     return null;
   }
