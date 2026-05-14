@@ -1,13 +1,16 @@
 import { Check } from 'lucide-react';
+import { STATUS_LABEL_RO } from './order-status-badge';
 
 /**
  * Vertical state-machine timeline for a courier order. Mirrors the
  * `courier_orders.status` enum stages relevant to the courier's flow.
+ * Labels are pulled from the shared STATUS_LABEL_RO source so the
+ * timeline never drifts from the pill rendered on list + detail pages.
  *
- *   OFFERED → "Ofertată"
+ *   OFFERED → "Oferită"
  *   ACCEPTED → "Acceptată"
  *   PICKED_UP → "Ridicată"
- *   IN_TRANSIT → "În drum"
+ *   IN_TRANSIT → "În livrare"
  *   DELIVERED → "Livrată"
  *
  * Past stages: solid purple line + check. Current: pulsing dot. Future: muted.
@@ -17,11 +20,11 @@ import { Check } from 'lucide-react';
  * as a separate banner by the parent, not a stage.
  */
 const STAGES = [
-  { key: 'OFFERED', label: 'Ofertată' },
-  { key: 'ACCEPTED', label: 'Acceptată' },
-  { key: 'PICKED_UP', label: 'Ridicată' },
-  { key: 'IN_TRANSIT', label: 'În drum' },
-  { key: 'DELIVERED', label: 'Livrată' },
+  { key: 'OFFERED', label: STATUS_LABEL_RO.OFFERED },
+  { key: 'ACCEPTED', label: STATUS_LABEL_RO.ACCEPTED },
+  { key: 'PICKED_UP', label: STATUS_LABEL_RO.PICKED_UP },
+  { key: 'IN_TRANSIT', label: STATUS_LABEL_RO.IN_TRANSIT },
+  { key: 'DELIVERED', label: STATUS_LABEL_RO.DELIVERED },
 ] as const;
 
 type StageKey = (typeof STAGES)[number]['key'];
