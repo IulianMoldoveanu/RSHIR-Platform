@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -33,4 +35,23 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrap with Sentry only when env hints at upload + DSN are present.
+// Source-map upload + project resolution rely on SENTRY_AUTH_TOKEN +
+// SENTRY_ORG + SENTRY_PROJECT — without them we still want Sentry SDK
+// loaded at runtime (errors reported via DSN) but skip the build-time
+// upload phase to avoid noisy CI warnings on PR previews.
+const sentryWebpackOptions = {
+  // SENTRY_ORG/PROJECT are picked up from env by withSentryConfig when
+  // SENTRY_AUTH_TOKEN is set. We pass `silent` and `disableLogger` so
+  // builds without the upload token stay quiet.
+  silent: !process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  disableLogger: true,
+  // The default tunnel route hides /sentry-* requests from ad-blockers.
+  // We keep it on so client error reporting stays alive even for users
+  // with aggressive privacy extensions.
+  tunnelRoute: '/monitoring',
+};
+
+export default withSentryConfig(nextConfig, sentryWebpackOptions);
