@@ -14,12 +14,20 @@ import { OrderStatusBadge } from '@/components/order-status-badge';
 // the GloriaFood prep-time soft SLA Iulian uses for the Brașov pilot.
 const SLA_BREACH_MINUTES = 6;
 
+// Soft-warning threshold — half the SLA budget. At this point the row
+// drifts to a muted amber tint so the dispatcher notices it *before* it
+// goes red. Avoids the "fine → on fire" cliff the audit flagged.
+const SLA_WARN_MINUTES = 3;
+
 // Order in ACCEPTED state for ≥10 minutes without progressing to PICKED_UP
 // suggests the rider is stuck — phone died, got distracted, restaurant
 // took too long. The pill nudges the manager to follow up before the
 // customer calls. ACCEPTED's `updated_at` is the timestamp the rider
 // hit Accept, so age-since-update is the right signal here.
 const STALL_PICKUP_MINUTES = 10;
+
+// Soft-warning threshold for stalled pickups — same half-budget pattern.
+const STALL_WARN_MINUTES = 5;
 
 export type DispatchOrder = {
   id: string;
@@ -81,9 +89,12 @@ export function OrderRow({
   const isAssigned = order.assigned_courier_user_id !== null;
   const canUnassign = order.status === 'ACCEPTED';
 
-  // SLA breach signal: red badge if order has been waiting unassigned
-  // for ≥SLA_BREACH_MINUTES. Renders only on the unassigned-rows path.
+  // SLA aging signal: row card-bg drifts neutral → amber-soft → red as
+  // the unassigned order ages. Three discrete tiers (not a CSS gradient)
+  // because Tailwind utility classes can't interpolate per-row and the
+  // dispatcher's eye locks faster on tiers than on a smooth ramp.
   const ageMin = Math.floor((Date.now() - new Date(order.created_at).getTime()) / 60_000);
+  const slaWarning = !isAssigned && ageMin >= SLA_WARN_MINUTES && ageMin < SLA_BREACH_MINUTES;
   const slaBreached = !isAssigned && ageMin >= SLA_BREACH_MINUTES;
 
   // Stalled-pickup signal: assigned + ACCEPTED for too long without the
@@ -94,6 +105,9 @@ export function OrderRow({
     order.status === 'ACCEPTED' && order.updated_at
       ? Math.floor((Date.now() - new Date(order.updated_at).getTime()) / 60_000)
       : 0;
+  const stallWarning =
+    isAssigned && order.status === 'ACCEPTED'
+      && stallMin >= STALL_WARN_MINUTES && stallMin < STALL_PICKUP_MINUTES;
   const stalled = isAssigned && order.status === 'ACCEPTED' && stallMin >= STALL_PICKUP_MINUTES;
 
   function handleAssign(courierUserId: string) {
@@ -147,7 +161,9 @@ export function OrderRow({
           ? 'border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20'
           : stalled
             ? 'border-amber-600/40 bg-amber-500/5 ring-1 ring-amber-500/20'
-            : 'border-zinc-800 bg-zinc-950'
+            : slaWarning || stallWarning
+              ? 'border-amber-500/25 bg-amber-500/[0.03]'
+              : 'border-zinc-800 bg-zinc-950'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
