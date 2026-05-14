@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchCourier, type DispatchOrder } from '../_row';
 import { OrderStatusBadge, STATUS_LABEL_RO } from '@/components/order-status-badge';
+import { AuditTimeline } from './audit-timeline';
 
 export const dynamic = 'force-dynamic';
 
@@ -301,6 +302,11 @@ export default async function FleetOrderDetailPage(
           <OrderRow order={order} couriers={annotated} courierName={null} />
         </ul>
       </section>
+
+      {/* Audit timeline — covers events not visible in the status bar
+          (cash collected, geofence warnings, manual reassignments, cancellations).
+          Per F2 plan: dispatcher needs the audit trail in-page, not via SQL. */}
+      <AuditTimeline orderId={order.id} />
 
       {deliveredProofSignedUrl ? (
         <section className="rounded-2xl border border-emerald-700/30 bg-zinc-900 p-5">
