@@ -27,12 +27,12 @@ test.describe('Pickup lifecycle', () => {
     // the list — the swipe then fires markPickedUpAction on the wrong
     // orderId and this test's DB assertion fails silently.
     await cleanupAssignedOrdersForCourier(userId);
-    // Pre-assign the order to the test courier in ACCEPTED state. The seeded
-    // courier joins `e2e-test-fleet`, which puts them in Mode C — that mode
-    // hides the "Comenzi disponibile" section entirely (riders are dispatched
-    // by their fleet manager, not via self-claim). To keep the test
-    // environment-agnostic, we skip the accept step and exercise only the
-    // ACCEPTED → PICKED_UP transition, which is identical across all modes.
+    // Pre-assign the order to the test courier in ACCEPTED state. The
+    // seeded courier joins the platform-default fleet (Mode A), so the
+    // accept/pickup/deliver swipes render normally. We skip the accept
+    // step and exercise only the ACCEPTED → PICKED_UP transition because
+    // it's the most isolated lifecycle hop — no dependency on the
+    // realtime claim race that 03 covers.
     //
     // Customer name carries a per-run token so the list-page locator can
     // pin this exact order even when concurrent runs share the courier.
