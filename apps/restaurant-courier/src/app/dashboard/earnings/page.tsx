@@ -181,8 +181,19 @@ export default async function EarningsPage() {
           Ultimele livrări
         </h2>
         {recent.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-8 text-center text-sm text-zinc-500">
-            Nu ai livrări înregistrate luna aceasta.
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
+            <p className="text-sm font-medium text-zinc-200">
+              Nu ai livrări înregistrate luna aceasta
+            </p>
+            <p className="text-xs text-zinc-500">
+              Câștigurile apar aici imediat ce marchezi prima livrare.
+            </p>
+            <Link
+              href="/dashboard"
+              className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15"
+            >
+              Pornește o tură
+            </Link>
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
