@@ -13,6 +13,7 @@
 
 import Link from 'next/link';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
+import { ConsumerBadges } from '@/components/legal/consumer-badges';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 
 type NavItem = { href: string; labelKey: TKey };
@@ -151,19 +152,21 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
           <FooterCol
             title={t(currentLocale, 'marketing.shell.footer_col_legal')}
             links={[
-              { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
-              // Lane TERMS-SKELETON-V1 (2026-05-12) — `/terms` reintrodus
-              // în footer ca skeleton cu placeholder-uri; operatorul (Iulian)
-              // completează textul final după revizuirea juridică.
               { href: '/terms', label: t(currentLocale, 'marketing.shell.footer_link_terms') },
-              // `/cookies` re-pointat la aliasul existent `/politica-cookies`
-              // (același conținut), fix 404 din footerul live de pe
-              // hirforyou.ro (Lane FOOTER-POLISH-V1, 2026-05-10).
+              { href: '/terms/storefront', label: currentLocale === 'en' ? 'Storefront Terms' : 'Termeni Storefront' },
+              { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
               { href: '/politica-cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
+              { href: '/legal/rambursare', label: currentLocale === 'en' ? 'Refund Policy' : 'Politica de rambursare' },
+              { href: '/legal/dpa', label: 'DPA' },
+              { href: '/legal/utilizare-acceptabila', label: currentLocale === 'en' ? 'Acceptable Use' : 'Utilizare acceptabilă' },
+              { href: '/legal/subprocesori', label: currentLocale === 'en' ? 'Sub-processors' : 'Sub-procesatori' },
+              { href: '/legal/companie', label: currentLocale === 'en' ? 'Company details' : 'Companie' },
             ]}
           />
         </div>
-        <div className="mt-10 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
+        {/* SAL + SOL + ANPC pictograms — Ordin ANPC 449/2003 + Reg. (UE) 524/2013. */}
+        <ConsumerBadges variant="light" className="mt-10 border-t border-[#F1F5F9] pt-6" />
+        <div className="mt-6 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
           <p>
             {t(currentLocale, 'marketing.shell.footer_copyright_template', { year })}
           </p>

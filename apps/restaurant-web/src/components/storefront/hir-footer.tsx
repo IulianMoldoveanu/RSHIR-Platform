@@ -1,3 +1,5 @@
+import { ConsumerBadges } from '@/components/legal/consumer-badges';
+
 export function HirFooter() {
   const brandUrl = process.env.NEXT_PUBLIC_BRAND_URL;
   return (
@@ -19,10 +21,31 @@ export function HirFooter() {
         </a>
         <span aria-hidden className="text-zinc-300">·</span>
         <a
+          href="/terms/storefront"
+          className="transition-colors hover:text-zinc-700"
+        >
+          Termeni
+        </a>
+        <span aria-hidden className="text-zinc-300">·</span>
+        <a
+          href="/legal/rambursare"
+          className="transition-colors hover:text-zinc-700"
+        >
+          Rambursare
+        </a>
+        <span aria-hidden className="text-zinc-300">·</span>
+        <a
           href="/privacy"
           className="transition-colors hover:text-zinc-700"
         >
           Confidențialitate
+        </a>
+        <span aria-hidden className="text-zinc-300">·</span>
+        <a
+          href="/politica-cookies"
+          className="transition-colors hover:text-zinc-700"
+        >
+          Cookies
         </a>
         <span aria-hidden className="text-zinc-300">·</span>
         <a
@@ -36,6 +59,8 @@ export function HirFooter() {
           HIR &amp; BUILD YOUR DREAMS S.R.L. · CUI RO46864293
         </span>
       </p>
+      {/* SAL + SOL + ANPC pictograms — Ordin ANPC 449/2003 + Reg. (UE) 524/2013. */}
+      <ConsumerBadges variant="light" className="mt-6 justify-center" />
     </footer>
   );
 }

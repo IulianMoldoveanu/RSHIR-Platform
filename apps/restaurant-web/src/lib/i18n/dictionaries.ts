@@ -390,8 +390,8 @@ export const dictionaries = {
     },
     consent: {
       banner_text: 'Folosim cookie-uri esențiale pentru ca site-ul să funcționeze (coș, limbă, plată). Cu acordul dumneavoastră putem folosi și cookie-uri opționale pentru analiză și marketing.',
-      accept_all: 'Acceptă toate',
-      essential_only: 'Doar esențiale',
+      accept_all: 'Acceptă tot',
+      essential_only: 'Refuză tot',
       customize: 'Personalizează',
       privacy_link: 'Politica de cookies',
       modal_title: 'Preferințe cookie-uri',
@@ -1180,7 +1180,7 @@ export const dictionaries = {
     consent: {
       banner_text: 'We use essential cookies to keep the site working (cart, language, payment). With your consent we may also use optional analytics and marketing cookies.',
       accept_all: 'Accept all',
-      essential_only: 'Essential only',
+      essential_only: 'Reject all',
       customize: 'Customize',
       privacy_link: 'Cookie policy',
       modal_title: 'Cookie preferences',

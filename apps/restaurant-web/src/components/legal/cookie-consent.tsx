@@ -162,11 +162,14 @@ export function CookieConsent({ locale }: { locale: Locale }) {
                 >
                   {t(locale, 'consent.customize')}
                 </button>
+                {/* Refuză tot + Accept tot — visual parity per Legea 506/2004
+                    & EDPB 05/2020: both buttons use the same filled style and
+                    size so neither is nudged over the other. */}
                 <button
                   type="button"
                   onClick={() => save('essential')}
                   disabled={pending}
-                  className="h-10 rounded-full border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+                  className="h-10 rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-60 motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
                 >
                   {t(locale, 'consent.essential_only')}
                 </button>
@@ -174,9 +177,6 @@ export function CookieConsent({ locale }: { locale: Locale }) {
                   type="button"
                   onClick={() => save('all')}
                   disabled={pending}
-                  // autoFocus pulls the user's tab focus into the dialog when
-                  // it mounts so keyboard users can't tab past the banner
-                  // into content they haven't accepted analytics for yet.
                   autoFocus
                   className="h-10 rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:scale-[1.02] hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-60 motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
                 >

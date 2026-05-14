@@ -34,11 +34,17 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/contact', priority: 0.4 },
   // Lane SITE-COPY-V2 (2026-05-10) — /press + /status removed from sitemap
   // (still resolve at their URLs but not indexed by crawlers).
-  { path: '/privacy', priority: 0.3 },
-  // Lane TERMS-SKELETON-V1 (2026-05-12) — skeleton page with operator
-  // placeholders is live; sitemap entry stays low priority until the final
-  // legal text lands.
+  // Lane LEGAL-PACK-V1 (2026-05-13) — RO/EU-compliant pack: T&C B2B + B2C,
+  // Privacy, Cookies, DPA, Refund, AUP, Subprocessors, Company.
   { path: '/terms', priority: 0.3 },
+  { path: '/terms/storefront', priority: 0.3 },
+  { path: '/privacy', priority: 0.3 },
+  { path: '/politica-cookies', priority: 0.3 },
+  { path: '/legal/dpa', priority: 0.2 },
+  { path: '/legal/rambursare', priority: 0.3 },
+  { path: '/legal/utilizare-acceptabila', priority: 0.2 },
+  { path: '/legal/subprocesori', priority: 0.2 },
+  { path: '/legal/companie', priority: 0.3 },
 ];
 
 // Lane BUG-HUNT-V1 (2026-05-10) — `hirforyou.ro` is the locked official
