@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ShiftTimer } from './shift-timer';
+import { EarningsValue } from './earnings-value';
 
 /**
  * Always-visible header pill. Shows today's net earnings, today's delivery
@@ -63,8 +64,7 @@ export async function EarningsBar() {
         {isOnline ? 'Online' : 'Offline'}
       </span>
       <span className="h-3 w-px bg-zinc-800" aria-hidden />
-      <span className="font-semibold text-zinc-100">{earnings.toFixed(2)} RON</span>
-      <span className="text-zinc-500">· {count} {count === 1 ? 'livrare' : 'livrări'}</span>
+      <EarningsValue value={earnings} count={count} />
       {isOnline && shift?.started_at ? <ShiftTimer startedAt={shift.started_at} /> : null}
     </div>
   );
