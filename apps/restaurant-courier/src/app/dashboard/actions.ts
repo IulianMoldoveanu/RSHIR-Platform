@@ -229,68 +229,79 @@ export async function forceEndShiftAction(
   reason: string,
 ): Promise<{ ok: true; cancelled: number } | { ok: false; error: string }> {
   const userId = await requireUserId();
-  const admin = createAdminClient();
 
   const trimmed = (reason ?? '').trim();
   if (trimmed.length < 3 || trimmed.length > 500) {
+    // Pre-validation rejection — not wrapped in withRunLog so we don't
+    // emit a function_runs row for keyboard-mash submissions.
     return { ok: false, error: 'Reason must be 3–500 characters.' };
   }
 
-  // Identify and cancel each non-terminal active order for this courier.
-  // We pull the list first so we can audit + notify per-row; one bulk
-  // UPDATE would lose per-order context.
-  const { data: activeOrders } = await admin
-    .from('courier_orders')
-    .select('id, status')
-    .eq('assigned_courier_user_id', userId)
-    .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-    .select('id, status');
+  return withRunLog(
+    'courier.forceEndShift',
+    // reason_length (not reason itself) — the full reason is in audit_log
+    // per cancelled order, and we'd rather not duplicate user-typed text
+    // in function_runs metadata which is admin-readable in a different
+    // surface.
+    { courier_user_id: userId, reason_length: trimmed.length },
+    async () => {
+      const admin = createAdminClient();
 
-  const rows = (activeOrders ?? []) as Array<{ id: string; status: string }>;
-  let cancelled = 0;
-  for (const row of rows) {
-    const { data: updated } = await admin
-      .from('courier_orders')
-      .update({
-        status: 'CANCELLED',
-        updated_at: new Date().toISOString(),
-        // Persist the courier-cited reason inline (migration 010) so admin
-        // surfaces show it without opening the audit trail.
-        cancellation_reason: `courier_force_end_shift: ${trimmed}`.slice(0, 500),
-      })
-      .eq('id', row.id)
-      .eq('assigned_courier_user_id', userId)
-      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-      .select('id')
-      .maybeSingle();
-    if (updated) {
-      cancelled += 1;
-      await logAudit({
-        actorUserId: userId,
-        action: 'order.force_cancelled_by_courier',
-        entityType: 'courier_order',
-        entityId: row.id,
-        metadata: { previous_status: row.status, reason: trimmed },
-      });
-      await notifySubscriber(row.id, 'CANCELLED', userId);
-    }
-  }
+      // Identify and cancel each non-terminal active order for this courier.
+      // We pull the list first so we can audit + notify per-row; one bulk
+      // UPDATE would lose per-order context.
+      const { data: activeOrders } = await admin
+        .from('courier_orders')
+        .select('id, status')
+        .eq('assigned_courier_user_id', userId)
+        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+        .select('id, status');
 
-  // End the shift (same path as endShiftAction).
-  await admin
-    .from('courier_shifts')
-    .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
-  await admin
-    .from('courier_profiles')
-    .update({ status: 'INACTIVE' })
-    .eq('user_id', userId);
+      const rows = (activeOrders ?? []) as Array<{ id: string; status: string }>;
+      let cancelled = 0;
+      for (const row of rows) {
+        const { data: updated } = await admin
+          .from('courier_orders')
+          .update({
+            status: 'CANCELLED',
+            updated_at: new Date().toISOString(),
+            cancellation_reason: `courier_force_end_shift: ${trimmed}`.slice(0, 500),
+          })
+          .eq('id', row.id)
+          .eq('assigned_courier_user_id', userId)
+          .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+          .select('id')
+          .maybeSingle();
+        if (updated) {
+          cancelled += 1;
+          await logAudit({
+            actorUserId: userId,
+            action: 'order.force_cancelled_by_courier',
+            entityType: 'courier_order',
+            entityId: row.id,
+            metadata: { previous_status: row.status, reason: trimmed },
+          });
+          await notifySubscriber(row.id, 'CANCELLED', userId);
+        }
+      }
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/shift');
-  revalidatePath('/dashboard/orders');
-  return { ok: true, cancelled };
+      // End the shift (same path as endShiftAction).
+      await admin
+        .from('courier_shifts')
+        .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+        .eq('courier_user_id', userId)
+        .eq('status', 'ONLINE');
+      await admin
+        .from('courier_profiles')
+        .update({ status: 'INACTIVE' })
+        .eq('user_id', userId);
+
+      revalidatePath('/dashboard');
+      revalidatePath('/dashboard/shift');
+      revalidatePath('/dashboard/orders');
+      return { ok: true as const, cancelled };
+    },
+  );
 }
 
 export async function markPickedUpAction(orderId: string) {
