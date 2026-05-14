@@ -1,9 +1,95 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const LOCATION_DISMISS_KEY = 'hir.courier.locationPromptDismissedAt';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// Battery-adaptive multipliers. Courier shifts are long (4–12h on
+// average); pushing one GPS fix every 30s on a low battery is the
+// difference between a rider finishing their shift and bricking mid-
+// delivery. Multipliers are intentionally conservative so they barely
+// affect dispatcher visibility under normal conditions, but kick in
+// hard when the device is genuinely low.
+//
+// Thresholds match common phone "low power mode" cutoffs:
+//   <30% → x2 (60s default base) — equivalent to iOS low-power mode
+//   <15% → x4 (120s) — about to die; saving juice trumps GPS fidelity
+//   charging → x1 (no slowdown) regardless of level, since the
+//                rider has compensated power input
+const BATTERY_LOW_LEVEL = 0.3;
+const BATTERY_CRITICAL_LEVEL = 0.15;
+
+// Minimal subset of the Battery Status API we consume. Firefox + many
+// mobile Chromiums still expose `navigator.getBattery()`; desktop
+// Chrome removed it in 2020 but the courier app runs as a PWA on
+// mobile + via Capacitor wrappers, both of which retain the API.
+type BatteryManager = {
+  level: number;
+  charging: boolean;
+  addEventListener: (event: string, handler: () => void) => void;
+  removeEventListener: (event: string, handler: () => void) => void;
+};
+
+type NavigatorWithBattery = Navigator & {
+  getBattery?: () => Promise<BatteryManager>;
+};
+
+type BatterySnapshot = { level: number; charging: boolean } | null;
+
+// Custom hook: subscribes to the Battery API (when available) and
+// returns the current snapshot. Returns null on platforms that don't
+// expose the API — callers fall back to non-adaptive defaults so
+// behaviour never regresses on unsupported browsers.
+function useBatterySnapshot(): BatterySnapshot {
+  const [snapshot, setSnapshot] = useState<BatterySnapshot>(null);
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    const nav = navigator as NavigatorWithBattery;
+    if (typeof nav.getBattery !== 'function') return;
+
+    let mounted = true;
+    let battery: BatteryManager | null = null;
+
+    const onChange = () => {
+      if (!mounted || !battery) return;
+      setSnapshot({ level: battery.level, charging: battery.charging });
+    };
+
+    nav
+      .getBattery()
+      .then((b) => {
+        if (!mounted) return;
+        battery = b;
+        setSnapshot({ level: b.level, charging: b.charging });
+        b.addEventListener('levelchange', onChange);
+        b.addEventListener('chargingchange', onChange);
+      })
+      .catch(() => {
+        // Some browsers reject for permissions reasons; degrade silently.
+      });
+
+    return () => {
+      mounted = false;
+      if (battery) {
+        battery.removeEventListener('levelchange', onChange);
+        battery.removeEventListener('chargingchange', onChange);
+      }
+    };
+  }, []);
+
+  return snapshot;
+}
+
+// Apply the multiplier to the base interval. Pure function for unit-
+// test friendliness if/when we add coverage. Charging skips slowdown.
+function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): number {
+  if (!battery || battery.charging) return baseMs;
+  if (battery.level <= BATTERY_CRITICAL_LEVEL) return baseMs * 4;
+  if (battery.level <= BATTERY_LOW_LEVEL) return baseMs * 2;
+  return baseMs;
+}
 
 /**
  * Watches the courier's geolocation while the dashboard is open and
@@ -43,6 +129,13 @@ type Props = {
 export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) {
   const lastSentAtRef = useRef<number>(0);
   const watchIdRef = useRef<number | null>(null);
+  const battery = useBatterySnapshot();
+
+  // Effective interval reacts to battery state. The watchPosition handler
+  // reads the ref, not a closure, so a charging→discharging transition
+  // takes effect on the very next fix without re-creating the watch.
+  const effectiveIntervalRef = useRef<number>(intervalMs);
+  effectiveIntervalRef.current = adaptiveIntervalMs(intervalMs, battery);
 
   useEffect(() => {
     if (!enabled) {
@@ -66,7 +159,10 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         const now = Date.now();
-        if (now - lastSentAtRef.current < intervalMs) return;
+        // Read the live interval — adaptive on battery state — instead of
+        // a stale closure capture, so the watch doesn't need to be torn
+        // down and re-created every time the battery level changes.
+        if (now - lastSentAtRef.current < effectiveIntervalRef.current) return;
         lastSentAtRef.current = now;
         // Best-effort; never throw inside the callback (would kill the watch).
         Promise.resolve(onFix(pos.coords.latitude, pos.coords.longitude)).catch((err) => {
@@ -96,7 +192,19 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         watchIdRef.current = null;
       }
     };
-  }, [enabled, intervalMs, onFix]);
+    // Only re-create the watch when `enabled` flips or `onFix` rotates.
+    // Battery changes are absorbed via the ref above so the watch keeps
+    // streaming uninterrupted.
+  }, [enabled, onFix]);
 
   return null;
 }
+
+// Export the helpers so a future battery-saver UI badge (rider sees
+// "Mod economisire baterie activ" when the throttle kicks in) can read
+// the same multipliers without re-deriving them.
+export const __INTERNAL_FOR_TESTING = {
+  adaptiveIntervalMs,
+  BATTERY_LOW_LEVEL,
+  BATTERY_CRITICAL_LEVEL,
+};
