@@ -145,63 +145,75 @@ async function requireUserId(): Promise<string> {
 
 export async function startShiftAction() {
   const userId = await requireUserId();
-  const admin = createAdminClient();
+  return withRunLog(
+    'courier.startShift',
+    { courier_user_id: userId },
+    async () => {
+      const admin = createAdminClient();
 
-  // SUSPENDED riders cannot start a shift. The fleet manager's
-  // suspendCourierAction sets profile.status='SUSPENDED' and ends the
-  // current shift; without this guard a suspended rider could just tap
-  // "Pornește tura" and reset themselves to ACTIVE, defeating the lockout.
-  const { data: profileRow } = await admin
-    .from('courier_profiles')
-    .select('status')
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (profileRow && (profileRow as { status: string }).status === 'SUSPENDED') {
-    // Silent no-op — surfacing an error toast here would require client
-    // changes for every caller. The dashboard already renders a
-    // "Suspendat" badge from the same column, which is the visible signal.
-    return;
-  }
+      // SUSPENDED riders cannot start a shift. The fleet manager's
+      // suspendCourierAction sets profile.status='SUSPENDED' and ends the
+      // current shift; without this guard a suspended rider could just tap
+      // "Pornește tura" and reset themselves to ACTIVE, defeating the lockout.
+      const { data: profileRow } = await admin
+        .from('courier_profiles')
+        .select('status')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (profileRow && (profileRow as { status: string }).status === 'SUSPENDED') {
+        // Silent no-op — surfacing an error toast here would require client
+        // changes for every caller. The dashboard already renders a
+        // "Suspendat" badge from the same column, which is the visible signal.
+        return;
+      }
 
-  // End any other ONLINE shift first (defensive — should be unique by index).
-  await admin
-    .from('courier_shifts')
-    .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
+      // End any other ONLINE shift first (defensive — should be unique by index).
+      await admin
+        .from('courier_shifts')
+        .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+        .eq('courier_user_id', userId)
+        .eq('status', 'ONLINE');
 
-  await admin.from('courier_shifts').insert({
-    courier_user_id: userId,
-    started_at: new Date().toISOString(),
-    status: 'ONLINE',
-  });
+      await admin.from('courier_shifts').insert({
+        courier_user_id: userId,
+        started_at: new Date().toISOString(),
+        status: 'ONLINE',
+      });
 
-  await admin
-    .from('courier_profiles')
-    .update({ status: 'ACTIVE' })
-    .eq('user_id', userId);
+      await admin
+        .from('courier_profiles')
+        .update({ status: 'ACTIVE' })
+        .eq('user_id', userId);
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/shift');
+      revalidatePath('/dashboard');
+      revalidatePath('/dashboard/shift');
+    },
+  );
 }
 
 export async function endShiftAction() {
   const userId = await requireUserId();
-  const admin = createAdminClient();
+  return withRunLog(
+    'courier.endShift',
+    { courier_user_id: userId },
+    async () => {
+      const admin = createAdminClient();
 
-  await admin
-    .from('courier_shifts')
-    .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
+      await admin
+        .from('courier_shifts')
+        .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+        .eq('courier_user_id', userId)
+        .eq('status', 'ONLINE');
 
-  await admin
-    .from('courier_profiles')
-    .update({ status: 'INACTIVE' })
-    .eq('user_id', userId);
+      await admin
+        .from('courier_profiles')
+        .update({ status: 'INACTIVE' })
+        .eq('user_id', userId);
 
-  revalidatePath('/dashboard');
-  revalidatePath('/dashboard/shift');
+      revalidatePath('/dashboard');
+      revalidatePath('/dashboard/shift');
+    },
+  );
 }
 
 // Audit §3.4 — escape hatch when a courier has stale active orders they will
