@@ -74,25 +74,35 @@ export default async function OrdersPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: assignedData }, { data: openData }, riderMode] = await Promise.all([
-    admin
-      .from('courier_orders')
-      .select(ORDER_COLUMNS)
-      .eq('assigned_courier_user_id', user.id)
-      .in('status', ACTIVE_STATUSES)
-      .order('created_at', { ascending: false }),
-    // Available orders are sorted OLDEST first so couriers naturally pick
-    // the order closest to its SLA breach. Assigned orders above stay
-    // newest-first because the rider already chose them.
-    admin
-      .from('courier_orders')
-      .select(ORDER_COLUMNS)
-      .is('assigned_courier_user_id', null)
-      .in('status', ['CREATED', 'OFFERED'])
-      .order('created_at', { ascending: true })
-      .limit(20),
-    resolveRiderMode(user.id),
-  ]);
+  const [{ data: assignedData }, { data: openData }, riderMode, { data: profileData }] =
+    await Promise.all([
+      admin
+        .from('courier_orders')
+        .select(ORDER_COLUMNS)
+        .eq('assigned_courier_user_id', user.id)
+        .in('status', ACTIVE_STATUSES)
+        .order('created_at', { ascending: false }),
+      // Available orders are sorted OLDEST first so couriers naturally pick
+      // the order closest to its SLA breach. Assigned orders above stay
+      // newest-first because the rider already chose them.
+      admin
+        .from('courier_orders')
+        .select(ORDER_COLUMNS)
+        .is('assigned_courier_user_id', null)
+        .in('status', ['CREATED', 'OFFERED'])
+        .order('created_at', { ascending: true })
+        .limit(20),
+      resolveRiderMode(user.id),
+      // Realtime needs the rider's own fleet_id (always backfilled, even for
+      // Mode A/B on the platform-default fleet) to subscribe to fresh
+      // OFFERED orders. resolveRiderMode returns null for Mode A/B by design,
+      // so we read the column directly here.
+      admin
+        .from('courier_profiles')
+        .select('fleet_id')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ]);
 
   // Sort assigned orders by status priority so the prefix number always
   // reflects what the rider should do next: PICKED_UP first (in transit),
@@ -116,9 +126,16 @@ export default async function OrdersPage() {
   // browse open orders; surfacing the section is a useless affordance.
   const showOpenOrders = riderMode.mode !== 'C';
 
+  const fleetId =
+    (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
+
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <OrdersRealtime courierUserId={user.id} />
+      <OrdersRealtime
+        courierUserId={user.id}
+        fleetId={fleetId}
+        watchFleetOpenOrders={showOpenOrders}
+      />
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-zinc-100">Comenzi</h1>
         <form action={refreshOrdersAction}>
