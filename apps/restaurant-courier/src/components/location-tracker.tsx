@@ -17,8 +17,8 @@ const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 //   <15% → x4 (120s) — about to die; saving juice trumps GPS fidelity
 //   charging → x1 (no slowdown) regardless of level, since the
 //                rider has compensated power input
-const BATTERY_LOW_LEVEL = 0.3;
-const BATTERY_CRITICAL_LEVEL = 0.15;
+export const BATTERY_LOW_LEVEL = 0.3;
+export const BATTERY_CRITICAL_LEVEL = 0.15;
 
 // Minimal subset of the Battery Status API we consume. Firefox + many
 // mobile Chromiums still expose `navigator.getBattery()`; desktop
@@ -35,13 +35,13 @@ type NavigatorWithBattery = Navigator & {
   getBattery?: () => Promise<BatteryManager>;
 };
 
-type BatterySnapshot = { level: number; charging: boolean } | null;
+export type BatterySnapshot = { level: number; charging: boolean } | null;
 
 // Custom hook: subscribes to the Battery API (when available) and
 // returns the current snapshot. Returns null on platforms that don't
 // expose the API — callers fall back to non-adaptive defaults so
 // behaviour never regresses on unsupported browsers.
-function useBatterySnapshot(): BatterySnapshot {
+export function useBatterySnapshot(): BatterySnapshot {
   const [snapshot, setSnapshot] = useState<BatterySnapshot>(null);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ function useBatterySnapshot(): BatterySnapshot {
 
 // Apply the multiplier to the base interval. Pure function for unit-
 // test friendliness if/when we add coverage. Charging skips slowdown.
-function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): number {
+export function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): number {
   if (!battery || battery.charging) return baseMs;
   if (battery.level <= BATTERY_CRITICAL_LEVEL) return baseMs * 4;
   if (battery.level <= BATTERY_LOW_LEVEL) return baseMs * 2;
