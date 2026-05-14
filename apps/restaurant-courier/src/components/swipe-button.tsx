@@ -1,8 +1,21 @@
 'use client';
 
-import { useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
+
+// Tiny haptic helper. Wrapped because navigator.vibrate throws on some
+// iOS WebKit builds when called without a user gesture, and we'd rather
+// degrade silently than crash the swipe. The duration values match the
+// "Material short tap" haptic-pattern budget (15-50ms range).
+function haptic(pattern: number | number[]) {
+  if (typeof navigator === 'undefined' || !navigator.vibrate) return;
+  try {
+    navigator.vibrate(pattern);
+  } catch {
+    /* iOS / locked-down browsers — silent fallback. */
+  }
+}
 
 /**
  * Swipe-to-confirm slider. Wolt Drive / Glovo Drive pattern: prevents
@@ -32,12 +45,32 @@ export function SwipeButton({
   const trackRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const armedRef = useRef(false);
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [holdProgress, setHoldProgress] = useState(false);
 
   // Track fill animates from transparent → solid as the handle moves.
   const fillOpacity = useTransform(x, [0, 200], [0.0, 0.85]);
+
+  // Light haptic tick the first time the drag crosses ~70% — the same
+  // threshold `handleDragEnd` uses to decide whether a release counts as
+  // a confirm. Lets the courier *feel* when they've passed the point of
+  // no return, instead of guessing whether they swiped far enough.
+  useEffect(() => {
+    return x.on('change', (value) => {
+      const trackWidth = trackRef.current?.offsetWidth ?? 0;
+      if (trackWidth === 0) return;
+      const maxTravel = trackWidth - 56 - 8;
+      const threshold = maxTravel * 0.7;
+      if (!armedRef.current && value >= threshold) {
+        armedRef.current = true;
+        haptic(15);
+      } else if (armedRef.current && value < threshold) {
+        armedRef.current = false;
+      }
+    });
+  }, [x]);
 
   const accent = variant === 'success' ? 'rgb(16, 185, 129)' : 'rgb(139, 92, 246)';
   const trackStyle: CSSProperties = {
@@ -46,13 +79,10 @@ export function SwipeButton({
 
   async function runConfirm() {
     if (pending || done) return;
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try {
-        navigator.vibrate(50);
-      } catch {
-        /* some browsers throw on vibrate without a user gesture; ignore. */
-      }
-    }
+    // Two-pulse pattern (commit + acknowledgement) — distinguishable
+    // from the single-tick threshold-cross above, so the courier feels
+    // a clear "fired" cue separate from "approaching threshold".
+    haptic([30, 40, 30]);
     setPending(true);
     try {
       await onConfirm();
@@ -61,6 +91,7 @@ export function SwipeButton({
       animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
       setPending(false);
       setHoldProgress(false);
+      armedRef.current = false;
       // Surfaced to the dashboard error boundary if it bubbles past;
       // log defensively so the courier sees something in dev tools.
       console.error('[swipe-button] action failed', err);
