@@ -9,6 +9,7 @@ import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
 import { LocationTracker } from '@/components/location-tracker';
 import { ProofSync } from '@/components/proof-sync';
+import { OfflineBanner } from '@/components/offline-banner';
 import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
@@ -139,6 +140,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </form>
         </header>
 
+        <OfflineBanner />
         <PushBootstrap />
         <LocationTracker enabled={isOnline} onFix={updateCourierLocationAction} />
         <ProofSync />
