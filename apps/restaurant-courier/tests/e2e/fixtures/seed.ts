@@ -83,6 +83,23 @@ async function ensureTestFleet(): Promise<string> {
   const explicit = process.env.E2E_FLEET_ID;
   if (explicit) return explicit;
 
+  // Prefer the platform-default fleet (slug = 'hir-default') so the seeded
+  // courier resolves to Mode A. lib/rider-mode.ts treats any non-default
+  // fleet membership as Mode C, and Mode-C riders see a read-only order
+  // detail with no swipes — which would break every pickup/deliver test.
+  // The default fleet is created by migration 20260428_002 and present
+  // in every environment, so this lookup never falls through in CI.
+  const { data: defaultFleet } = await adminSupabase
+    .from('courier_fleets')
+    .select('id')
+    .eq('slug', 'hir-default')
+    .maybeSingle();
+  if (defaultFleet?.id) return defaultFleet.id as string;
+
+  // Fallback for very early bootstraps (no default fleet seeded yet).
+  // We keep the old synthetic test fleet so the suite still has *something*
+  // to attach the courier to, accepting that pickup/deliver tests will fail
+  // until the default-fleet migration runs.
   const { data: existing } = await adminSupabase
     .from('courier_fleets')
     .select('id')
