@@ -171,6 +171,13 @@ export default async function OrdersPage() {
             icon={<Inbox className="h-5 w-5" aria-hidden />}
             title="Nicio comandă activă"
             hint="Te anunțăm imediat ce apare o comandă pentru tine."
+            // CTA nudges the rider to the live-map view where they can
+            // see pickups + dropoffs spatially while waiting. Skipped for
+            // Mode-C riders (dispatched externally — map view is read-only
+            // for them and the section above them is enough).
+            {...(showOpenOrders
+              ? { ctaHref: '/dashboard', ctaLabel: 'Vezi harta' }
+              : {})}
           />
         ) : (
           <ul className="flex flex-col gap-3">
@@ -193,6 +200,8 @@ export default async function OrdersPage() {
               icon={<MapPinned className="h-5 w-5" aria-hidden />}
               title="Nicio comandă liberă în zonă"
               hint="Verifică din nou peste câteva minute sau privește harta din pagina principală."
+              ctaHref="/dashboard"
+              ctaLabel="Deschide harta"
             />
           ) : (
             <ul className="flex flex-col gap-3">
@@ -239,10 +248,18 @@ function Empty({
   icon,
   title,
   hint,
+  ctaHref,
+  ctaLabel,
 }: {
   icon: React.ReactNode;
   title: string;
   hint: string;
+  // Optional CTA — renders only when both fields are provided. Keeps
+  // the existing "icon + title + hint" empty state usable in places
+  // where there's no obvious next action (e.g. "we'll notify you when
+  // an order arrives") without forcing a button that does nothing.
+  ctaHref?: string;
+  ctaLabel?: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
@@ -251,6 +268,14 @@ function Empty({
       </span>
       <p className="text-sm font-medium text-zinc-200">{title}</p>
       <p className="text-xs text-zinc-500">{hint}</p>
+      {ctaHref && ctaLabel ? (
+        <Link
+          href={ctaHref}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15"
+        >
+          {ctaLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }
