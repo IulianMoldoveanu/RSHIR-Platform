@@ -11,12 +11,14 @@ import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { TenantBadge } from '@/components/tenant-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
 import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
+import { resolveRiderMode } from '@/lib/rider-mode';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +47,7 @@ type OrderDetail = {
   payment_method: 'CARD' | 'COD' | null;
   assigned_courier_user_id: string | null;
   updated_at: string | null;
+  source_tenant_id: string | null;
 };
 
 export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -56,16 +59,32 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   if (!user) return null;
 
   const admin = createAdminClient();
-  const { data } = await admin
-    .from('courier_orders')
-    .select(
-      'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at',
-    )
-    .eq('id', params.id)
-    .maybeSingle();
+  const [{ data }, riderMode] = await Promise.all([
+    admin
+      .from('courier_orders')
+      .select(
+        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id',
+      )
+      .eq('id', params.id)
+      .maybeSingle(),
+    resolveRiderMode(user.id),
+  ]);
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
+
+  // Mode-B riders see orders from multiple tenants — surface the
+  // source restaurant/pharmacy name in the detail header too, not just
+  // on the list (#428). Single lookup, cached by Next route segment.
+  let tenantName: string | null = null;
+  if (riderMode.mode === 'B' && order.source_tenant_id) {
+    const { data: tenant } = await admin
+      .from('tenants')
+      .select('name')
+      .eq('id', order.source_tenant_id)
+      .maybeSingle();
+    tenantName = (tenant as { name: string | null } | null)?.name ?? null;
+  }
 
   const isMine = order.assigned_courier_user_id === user.id;
   const isAvailable =
@@ -92,9 +111,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         initialStatus={order.status}
       />
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
           <VerticalBadge vertical={vertical} />
+          <TenantBadge name={tenantName} />
         </div>
         <OrderStatusBadge status={order.status} size="md" />
       </div>
