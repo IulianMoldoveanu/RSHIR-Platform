@@ -6,10 +6,23 @@ import { getBrowserSupabase } from '@/lib/supabase/browser';
 
 const REFRESH_THROTTLE_MS = 1500;
 
-// Statuses where an unassigned order is still claimable by any rider in the
-// fleet. Anything outside this set is terminal or already owned by another
-// rider, so seeing the change wouldn't change what THIS rider can act on.
-const CLAIMABLE_STATUSES = new Set(['CREATED', 'OFFERED']);
+// Fleet-wide status transitions that affect the rider's "Comenzi
+// disponibile" list semantics. We refresh on:
+//   - CREATED/OFFERED       : a new claimable order entered the fleet
+//   - ACCEPTED              : someone (possibly another rider) just claimed
+//                              an order — it must disappear from my list
+//   - CANCELLED             : an unassigned order was withdrawn before any
+//                              rider took it — also removes it
+//
+// Excluded from refresh (pure in-flight noise once an order is owned by
+// another courier): PICKED_UP, IN_TRANSIT, DELIVERED, FAILED. None of
+// these change what THIS rider can act on from the open list.
+const OPEN_LIST_RELEVANT_STATUSES = new Set([
+  'CREATED',
+  'OFFERED',
+  'ACCEPTED',
+  'CANCELLED',
+]);
 
 type Props = {
   courierUserId: string;
@@ -25,17 +38,17 @@ type Props = {
 };
 
 // Subscribes to changes on courier_orders rows assigned to this courier
-// AND, when applicable, to newly-offered unassigned orders on the same fleet.
+// AND, when applicable, to open-list-relevant transitions on the same fleet.
 //
-// Before: only assigned orders triggered router.refresh(); fresh OFFERED
-// orders required a manual refresh to appear. That meant the "Comenzi
-// disponibile" list could be stale by minutes — the worst-case operational
-// failure mode on this page.
-//
-// After: we keep the assigned filter (cheap, narrow), and add a second
-// fleet-wide subscription gated on `watchFleetOpenOrders`. The handler
-// rejects payloads that aren't claimable (assigned + non-OFFERED/CREATED)
-// so noise from in-flight orders doesn't churn the page.
+// Two subscriptions:
+//   1. Assigned filter (always): refresh on any change to MY orders.
+//   2. Fleet filter (gated by watchFleetOpenOrders): refresh on
+//      CREATED/OFFERED/ACCEPTED/CANCELLED transitions, regardless of
+//      assignee. ACCEPTED is included so when peer claims an order MY
+//      list drops it immediately — that's the race-condition guard.
+//      In-flight noise (PICKED_UP/IN_TRANSIT/DELIVERED/FAILED on peer
+//      orders) is filtered out in the handler so we don't churn the
+//      page on every map-tick worth of status updates.
 export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }: Props) {
   const router = useRouter();
   const lastRefreshRef = useRef(0);
@@ -65,13 +78,17 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       assigned_courier_user_id?: string | null;
     };
 
-    // Only refresh on fleet events the rider could actually claim. Without
-    // this guard, every PICKED_UP/IN_TRANSIT update on any fleet order would
-    // wake this courier even though it's irrelevant to their open list.
-    const triggerOnClaimable = (payload: { new: OrderRowPayload }) => {
+    // Refresh only on fleet events that change the open-list semantics
+    // (see OPEN_LIST_RELEVANT_STATUSES above). The previous version skipped
+    // ACCEPTED — meaning when another rider claimed an order, MY list would
+    // still show it as "Available" until I manually tapped Actualizează.
+    // That was the worst race-condition UX: two riders could both tap to
+    // accept the same order, then the loser would silently get "already
+    // taken" with no in-app cue. Now every claim transition fans out as a
+    // refresh to peers on the fleet.
+    const triggerOnFleetActivity = (payload: { new: OrderRowPayload }) => {
       const row = payload.new ?? {};
-      if (row.assigned_courier_user_id) return;
-      if (!row.status || !CLAIMABLE_STATUSES.has(row.status)) return;
+      if (!row.status || !OPEN_LIST_RELEVANT_STATUSES.has(row.status)) return;
       triggerRefresh();
     };
 
@@ -99,12 +116,12 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'courier_orders', filter: fleetFilter },
-          triggerOnClaimable,
+          triggerOnFleetActivity,
         )
         .on(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter: fleetFilter },
-          triggerOnClaimable,
+          triggerOnFleetActivity,
         );
     }
 

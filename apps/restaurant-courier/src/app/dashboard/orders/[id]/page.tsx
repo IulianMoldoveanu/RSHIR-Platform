@@ -15,6 +15,7 @@ import { SosButton } from '@/components/sos-button';
 import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
+import { OrderDetailRealtime } from './order-detail-realtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,6 +97,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
+      <OrderDetailRealtime
+        orderId={order.id}
+        viewerId={user.id}
+        initialAssignedTo={order.assigned_courier_user_id}
+        initialStatus={order.status}
+      />
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
