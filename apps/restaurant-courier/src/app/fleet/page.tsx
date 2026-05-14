@@ -14,6 +14,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { FleetLiveMap, type FleetRiderPin } from './fleet-live-map';
 import { FleetOverviewRefresh } from './fleet-overview-refresh';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,24 +46,6 @@ type OrderSnapshot = {
 };
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
-
-const STATUS_TONE: Record<string, string> = {
-  CREATED: 'bg-zinc-800 text-zinc-300',
-  OFFERED: 'bg-amber-500/10 text-amber-300',
-  ACCEPTED: 'bg-violet-500/10 text-violet-300',
-  PICKED_UP: 'bg-sky-500/10 text-sky-300',
-  IN_TRANSIT: 'bg-sky-500/10 text-sky-300',
-  DELIVERED: 'bg-emerald-500/10 text-emerald-300',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  CREATED: 'Nouă',
-  OFFERED: 'Oferită',
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
-  DELIVERED: 'Livrată',
-};
 
 function formatAge(dateIso: string): string {
   const ms = Date.now() - new Date(dateIso).getTime();
@@ -456,11 +439,7 @@ function OrderRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[order.status] ?? 'bg-zinc-800 text-zinc-300'}`}
-              >
-                {STATUS_LABEL[order.status] ?? order.status}
-              </span>
+              <OrderStatusBadge status={order.status} />
               <p className="truncate text-sm font-medium text-zinc-100">
                 {order.customer_first_name ?? 'Client'}
               </p>
