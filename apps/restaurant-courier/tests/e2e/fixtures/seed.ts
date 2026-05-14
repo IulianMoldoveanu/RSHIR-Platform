@@ -100,18 +100,29 @@ async function ensureTestFleet(): Promise<string> {
 }
 
 /**
- * Insert a CREATED order in the courier's fleet. Returns the order id so
- * the test can target it explicitly and clean up afterward.
+ * Insert a CREATED order in the courier's fleet. Returns the order id and
+ * the customer name so the test can target THIS order specifically (a per-
+ * test token is appended so concurrent or sequential E2E runs cannot
+ * collide on getByText('E2E Client').first() when a prior crashed run left
+ * orders behind in the DB).
+ *
+ * `customerName` is overridable so tests that want to assert on a
+ * deterministic string can pass their own; default is a per-call token.
  */
-export async function seedOrder(fleetId: string): Promise<{ orderId: string }> {
+export async function seedOrder(
+  fleetId: string,
+  opts: { customerName?: string } = {},
+): Promise<{ orderId: string; customerName: string }> {
   const trackToken = randomBytes(16).toString('hex');
+  const customerName =
+    opts.customerName ?? `E2E Client ${randomBytes(3).toString('hex')}`;
   const { data, error } = await adminSupabase
     .from('courier_orders')
     .insert({
       fleet_id: fleetId,
       source_type: 'MANUAL',
       vertical: 'restaurant',
-      customer_first_name: 'E2E Client',
+      customer_first_name: customerName,
       customer_phone: '+40700000001',
       pickup_line1: 'Strada Republicii 1, Brașov',
       pickup_lat: 45.6427,
@@ -131,11 +142,30 @@ export async function seedOrder(fleetId: string): Promise<{ orderId: string }> {
     .select('id')
     .single();
   if (error) throw error;
-  return { orderId: data.id as string };
+  return { orderId: data.id as string, customerName };
 }
 
 export async function cleanupOrder(orderId: string): Promise<void> {
   await adminSupabase.from('courier_orders').delete().eq('id', orderId);
+}
+
+/**
+ * Wipe ALL non-terminal courier_orders still assigned to the test courier.
+ * Root cause of the long-standing 02-accept-deliver flake: when a prior
+ * run crashed mid-test, leftover ACCEPTED/PICKED_UP rows stayed assigned
+ * to the same synthetic courier. The next run's `getByText('E2E Client')
+ * .first()` then matched the OLD row in the list, the swipe fired on the
+ * stale orderId, and the assertion against the NEW orderId silently
+ * failed (UI shows "Ridicată" for the stale row; DB row for the new
+ * orderId stays ACCEPTED). Safe to delete unconditionally — the
+ * synthetic test courier is never shared with prod users.
+ */
+export async function cleanupAssignedOrdersForCourier(userId: string): Promise<void> {
+  await adminSupabase
+    .from('courier_orders')
+    .delete()
+    .eq('assigned_courier_user_id', userId)
+    .in('status', ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
 }
 
 /**
