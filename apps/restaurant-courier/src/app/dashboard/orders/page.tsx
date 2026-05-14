@@ -3,6 +3,7 @@ import { Inbox, MapPinned, Navigation, RefreshCw } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 import { refreshOrdersAction } from '../actions';
 import { OrdersRealtime } from './orders-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
@@ -26,20 +27,6 @@ type OrderRow = {
 };
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
-
-// Romanian labels for every status the rider can see on the orders list.
-// Centralized so any future status (CANCELLED_BY_VENDOR, etc.) has one place
-// to land. Falls back to the raw enum when an unknown value sneaks in so
-// the UI never silently swallows it.
-const STATUS_LABEL_RO: Record<string, string> = {
-  CREATED: 'Liberă',
-  OFFERED: 'Oferită',
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};
 
 const ORDER_COLUMNS =
   'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at';
@@ -253,17 +240,7 @@ function OrderListItem({ order, seqNumber }: { order: OrderRow; seqNumber?: numb
             </p>
             <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
           </div>
-          <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              order.status === 'IN_TRANSIT' || order.status === 'PICKED_UP'
-                ? 'border-violet-500/50 bg-violet-500/10 text-violet-300'
-                : order.status === 'ACCEPTED'
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                  : 'border-zinc-700 bg-zinc-950 text-zinc-400'
-            }`}
-          >
-            {STATUS_LABEL_RO[order.status] ?? order.status}
-          </span>
+          <OrderStatusBadge status={order.status} />
         </div>
 
         {/* Route line */}

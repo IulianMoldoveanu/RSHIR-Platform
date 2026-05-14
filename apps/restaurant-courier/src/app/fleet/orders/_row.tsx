@@ -7,6 +7,7 @@ import {
   autoAssignOrderAction,
   unassignOrderAction,
 } from '../actions';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 
 // Order is "stale" once it's been unassigned for ≥6 minutes. Tunable from
 // here when we get telemetry on real SLA pressure — for now this matches
@@ -43,22 +44,6 @@ export type DispatchCourier = {
 };
 
 type DispatchCourierWithStatus = DispatchCourier & { online: boolean };
-
-const STATUS_TONE: Record<string, string> = {
-  CREATED: 'bg-zinc-800 text-zinc-300',
-  OFFERED: 'bg-amber-500/10 text-amber-300',
-  ACCEPTED: 'bg-violet-500/10 text-violet-300',
-  PICKED_UP: 'bg-sky-500/10 text-sky-300',
-  IN_TRANSIT: 'bg-sky-500/10 text-sky-300',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  CREATED: 'Nouă',
-  OFFERED: 'Oferită',
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
-};
 
 const VEHICLE_LABEL: Record<DispatchCourier['vehicle_type'], string> = {
   BIKE: 'Bici',
@@ -180,11 +165,7 @@ export function OrderRow({
                 Curier blocat {stallMin}m
               </span>
             ) : null}
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[order.status] ?? 'bg-zinc-800 text-zinc-300'}`}
-            >
-              {STATUS_LABEL[order.status] ?? order.status}
-            </span>
+            <OrderStatusBadge status={order.status} />
             {tenantName ? (
               <span
                 className="max-w-[140px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-200"
