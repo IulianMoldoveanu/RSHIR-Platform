@@ -10,6 +10,7 @@ import {
 import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
+import { OrderStatusBadge } from '@/components/order-status-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
 import { ActiveOrderTimer } from '@/components/active-order-timer';
@@ -17,19 +18,6 @@ import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 
 export const dynamic = 'force-dynamic';
-
-// Romanian labels for the status chip on the order detail header. Mirrors
-// the lookup in /dashboard/orders/page.tsx (audit P1: previously the chip
-// rendered the raw enum here while the list page used Romanian labels).
-const ORDER_STATUS_RO: Record<string, string> = {
-  CREATED: 'Liberă',
-  OFFERED: 'Oferită',
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};
 
 type PharmaMetadata = {
   requires_id_verification?: boolean;
@@ -101,9 +89,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
           <VerticalBadge vertical={vertical} />
         </div>
-        <span className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
-          {ORDER_STATUS_RO[order.status] ?? order.status}
-        </span>
+        <OrderStatusBadge status={order.status} size="md" />
       </div>
 
       {isMine ? <ActiveOrderTimer status={order.status} since={order.updated_at} /> : null}
