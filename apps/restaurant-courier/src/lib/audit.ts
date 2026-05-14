@@ -38,24 +38,57 @@ async function deriveTenantId(
   admin: ReturnType<typeof createAdminClient>,
   entityType: string | undefined,
   entityId: string | undefined,
-): Promise<string | null> {
-  if (entityType !== 'courier_order' || !entityId) return null;
+): Promise<{ tenantId: string | null; reason: 'derived' | 'pharma' | 'no_tenant' | 'not_courier_order' }>
+{
+  if (entityType !== 'courier_order' || !entityId) {
+    return { tenantId: null, reason: 'not_courier_order' };
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
+  // Single SELECT for the three columns we care about. Cheaper than the
+  // previous two-hop courier_orders → restaurant_orders chain when the
+  // tenant is already on the courier_orders row, AND correctly handles
+  // EXTERNAL_API restaurant orders (which set source_tenant_id but have
+  // no restaurant_order_id).
   const { data: order } = await sb
     .from('courier_orders')
-    .select('restaurant_order_id')
+    .select('source_tenant_id, restaurant_order_id, vertical')
     .eq('id', entityId)
     .maybeSingle();
-  const restaurantOrderId =
-    (order as { restaurant_order_id: string | null } | null)?.restaurant_order_id ?? null;
-  if (!restaurantOrderId) return null;
-  const { data: ro } = await sb
-    .from('restaurant_orders')
-    .select('tenant_id')
-    .eq('id', restaurantOrderId)
-    .maybeSingle();
-  return (ro as { tenant_id: string | null } | null)?.tenant_id ?? null;
+  const row = order as {
+    source_tenant_id: string | null;
+    restaurant_order_id: string | null;
+    vertical: 'restaurant' | 'pharma' | null;
+  } | null;
+  if (!row) return { tenantId: null, reason: 'no_tenant' };
+
+  // Preferred path: tenant is denormalised onto the courier_orders row.
+  // Works for HIR_TENANT + EXTERNAL_API restaurant orders that set it.
+  if (row.source_tenant_id) {
+    return { tenantId: row.source_tenant_id, reason: 'derived' };
+  }
+
+  // Fallback: legacy rows without source_tenant_id but with a restaurant
+  // order link. Most production rows backfill source_tenant_id at insert
+  // time, so this branch is rare — kept for safety on older data.
+  if (row.restaurant_order_id) {
+    const { data: ro } = await sb
+      .from('restaurant_orders')
+      .select('tenant_id')
+      .eq('id', row.restaurant_order_id)
+      .maybeSingle();
+    const tenantId =
+      (ro as { tenant_id: string | null } | null)?.tenant_id ?? null;
+    if (tenantId) return { tenantId, reason: 'derived' };
+  }
+
+  // Pharma orders live on the Neon-side pharma backend; they have no
+  // Supabase tenants(id) to attribute the courier event to. The audit row
+  // is intentionally skipped (no spam in CI logs) but flagged distinctly
+  // so platform observability can still count pharma-side activity.
+  if (row.vertical === 'pharma') return { tenantId: null, reason: 'pharma' };
+
+  return { tenantId: null, reason: 'no_tenant' };
 }
 
 export async function logAudit(args: {
@@ -69,18 +102,33 @@ export async function logAudit(args: {
 }): Promise<void> {
   try {
     const admin = createAdminClient();
-    const tenantId = args.tenantId ?? (await deriveTenantId(admin, args.entityType, args.entityId));
+    let tenantId: string | null = args.tenantId ?? null;
+    let reason: 'derived' | 'pharma' | 'no_tenant' | 'not_courier_order' | 'override' = 'override';
     if (!tenantId) {
-      // No tenant context derivable (e.g. fleet-level event without a
-      // restaurant order, or pharma vertical). Skip the insert + warn so
-      // the action proceeds. NOT a regression — previously the insert ran
-      // with tenant_id: null and crashed against the NOT NULL constraint,
-      // logging the same kind of error.
-      console.warn(
-        '[courier-audit] skipping insert (no tenant context derivable)',
-        args.action,
-        args.entityType,
-        args.entityId,
+      const result = await deriveTenantId(admin, args.entityType, args.entityId);
+      tenantId = result.tenantId;
+      reason = result.reason;
+    }
+    if (!tenantId) {
+      // No tenant context derivable. Three legit reasons:
+      //   pharma            — courier event for a pharma order; tenant lives
+      //                       in Neon, audit row intentionally skipped.
+      //   not_courier_order — fleet-level admin event (no per-tenant scope).
+      //   no_tenant         — restaurant order without source_tenant_id and
+      //                       no restaurant_order_id link; usually a data
+      //                       bug, worth a louder warn.
+      // Pharma + fleet-level are *expected* drops, so log at debug-info
+      // weight — they're not failures, just out-of-scope for audit_log.
+      // Genuine data-bug case keeps a warn so CI surfaces it.
+      const logFn = reason === 'no_tenant' ? console.warn : console.info;
+      logFn(
+        '[courier-audit] skip',
+        JSON.stringify({
+          reason,
+          action: args.action,
+          entityType: args.entityType ?? null,
+          entityId: args.entityId ?? null,
+        }),
       );
       return;
     }
