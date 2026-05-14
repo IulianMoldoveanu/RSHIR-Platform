@@ -4,6 +4,7 @@ import { ChevronLeft, MapPin, Phone, Banknote, Package } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchCourier, type DispatchOrder } from '../_row';
+import { OrderStatusBadge, STATUS_LABEL_RO } from '@/components/order-status-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,16 +17,6 @@ type OrderDetail = DispatchOrder & {
   dropoff_lng: number | null;
   source_type: string | null;
   delivered_proof_url: string | null;
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  CREATED: 'Nouă',
-  OFFERED: 'Oferită',
-  ACCEPTED: 'Acceptată',
-  PICKED_UP: 'Ridicată',
-  IN_TRANSIT: 'În livrare',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
 };
 
 const TIMELINE_STEPS = ['CREATED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED'] as const;
@@ -152,9 +143,7 @@ export default async function FleetOrderDetailPage(
             #{order.id.slice(0, 8)}
           </p>
         </div>
-        <span className="rounded-full border border-zinc-800 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-200">
-          {STATUS_LABEL[order.status] ?? order.status}
-        </span>
+        <OrderStatusBadge status={order.status} size="md" />
       </div>
 
       {/* Timeline */}
@@ -182,7 +171,7 @@ export default async function FleetOrderDetailPage(
                         : 'text-zinc-600'
                   }`}
                 >
-                  {STATUS_LABEL[step]}
+                  {STATUS_LABEL_RO[step]}
                 </span>
               </li>
             );
