@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Banknote,
+  BookOpen,
   Camera,
   ChevronRight,
   Clock,
@@ -126,6 +127,61 @@ export default function HelpPage() {
       </section>
 
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-violet-400" aria-hidden />
+          <h2 className="text-sm font-semibold text-zinc-100">
+            Termeni pe care îi vezi în aplicație
+          </h2>
+        </div>
+        <p className="mb-3 text-[11px] text-zinc-500">
+          Glosar scurt pentru curierii la prima tură. Dacă vezi un cuvânt în
+          ecranele de comandă pe care nu îl recunoști, probabil e aici.
+        </p>
+        <dl className="divide-y divide-zinc-800">
+          <GlossaryTerm
+            term="Dovadă (proof)"
+            def="Poza pe care o faci la livrare. La restaurant e opțională (recomandată pentru contestații). La farmacie e obligatorie: poza la actul de identitate al destinatarului, plus poza la rețetă dacă apare cerută."
+          />
+          <GlossaryTerm
+            term="Rx"
+            def="Prescrierea (rețeta) emisă de medic. Apare doar la comenzile de farmacie cu medicamente eliberate strict pe bază de rețetă."
+          />
+          <GlossaryTerm
+            term="Cash / COD"
+            def="Plată ramburs (cash on delivery). Înainte de a glisa „Livrat”, confirmi că ai încasat suma de la client. Banii rămân la tine — comisionul se ajustează la decontare."
+          />
+          <GlossaryTerm
+            term="Mod A · Curier propriu"
+            def="Tu lucrezi pentru un singur restaurant sau farmacie, în mod direct. Vezi doar comenzile clientului tău; aplicația poate arăta logo-ul lor în antet."
+          />
+          <GlossaryTerm
+            term="Mod B · Multi-vendor"
+            def="Faci livrări pentru mai mulți clienți simultan. Pe fiecare comandă apare numele restaurantului/farmaciei de unde ridici, ca să o recunoști înainte să apeși."
+          />
+          <GlossaryTerm
+            term="Mod C · Flotă coordonată"
+            def="Ești curier într-o flotă care primește comenzile prin altă aplicație. Aplicația HIR îți arată doar starea comenzilor, iar acțiunile (ridicare/livrare) le faci în aplicația flotei tale."
+          />
+          <GlossaryTerm
+            term="Geofence"
+            def="Verificare automată că ești suficient de aproape de adresa de livrare când marchezi „Livrat”. Dacă ești la peste 200m, dispecerul primește un semnal — livrarea NU este blocată, doar însemnată."
+          />
+          <GlossaryTerm
+            term="Tură (shift)"
+            def="Perioada în care ești online și poți primi comenzi. Pornește-o cu swipe pe pagina principală. O poți închide oricând nu ai comandă activă; ce ai livrat rămâne salvat."
+          />
+          <GlossaryTerm
+            term="Dispecer"
+            def="Persoana care coordonează flota din care faci parte. Te poate suna, reasigna o comandă, sau te poate ajuta cu probleme operaționale (vendor nu răspunde, client absent etc)."
+          />
+          <GlossaryTerm
+            term="Decontare (payout)"
+            def="Plata săptămânală a câștigurilor pe contul bancar din profil. Comisionul HIR se scade automat înainte de plată; suma netă apare pe ecranul Câștiguri."
+          />
+        </dl>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <h2 className="mb-3 text-sm font-semibold text-zinc-100">Suport</h2>
         <a
           href="tel:+40212040000"
@@ -197,5 +253,14 @@ function Faq({
       </div>
       <p className="pl-6 text-xs text-zinc-400">{a}</p>
     </li>
+  );
+}
+
+function GlossaryTerm({ term, def }: { term: string; def: string }) {
+  return (
+    <div className="py-2.5 first:pt-0 last:pb-0">
+      <dt className="text-sm font-medium text-zinc-100">{term}</dt>
+      <dd className="mt-0.5 text-xs text-zinc-400">{def}</dd>
+    </div>
   );
 }
