@@ -10,6 +10,8 @@ import { describe, expect, test } from 'vitest';
 import {
   verifyMetaSignature,
   classifySkeletonIntent,
+  decideHandshake,
+  gatePostRequest,
 } from '../../../../../supabase/functions/_shared/whatsapp';
 
 const SECRET = 'test_app_secret_meta_dummy_value';
@@ -108,5 +110,126 @@ describe('classifySkeletonIntent', () => {
   test('is case + whitespace tolerant', () => {
     expect(classifySkeletonIntent('  COMENZI  ').intent).toBe('orders_now');
     expect(classifySkeletonIntent('Ajutor').intent).toBe('help');
+  });
+});
+
+describe('decideHandshake (GET verification)', () => {
+  const TOKEN = 'meta-verify-token-xyz-1234567890';
+
+  test('echoes the challenge on valid handshake', () => {
+    expect(decideHandshake('subscribe', TOKEN, 'challenge-abc', TOKEN)).toBe('challenge-abc');
+  });
+
+  test('returns empty string when challenge omitted but otherwise valid', () => {
+    expect(decideHandshake('subscribe', TOKEN, null, TOKEN)).toBe('');
+  });
+
+  test('rejects when mode is not subscribe', () => {
+    expect(decideHandshake('unsubscribe', TOKEN, 'c', TOKEN)).toBeNull();
+    expect(decideHandshake(null, TOKEN, 'c', TOKEN)).toBeNull();
+  });
+
+  test('rejects when token mismatches', () => {
+    expect(decideHandshake('subscribe', 'wrong', 'c', TOKEN)).toBeNull();
+  });
+
+  test('rejects when expected token is unset (function not configured)', () => {
+    expect(decideHandshake('subscribe', TOKEN, 'c', undefined)).toBeNull();
+    expect(decideHandshake('subscribe', TOKEN, 'c', '')).toBeNull();
+  });
+
+  test('rejects when token has the wrong length (length is mixed into diff)', () => {
+    expect(decideHandshake('subscribe', TOKEN + 'x', 'c', TOKEN)).toBeNull();
+    expect(decideHandshake('subscribe', TOKEN.slice(0, -1), 'c', TOKEN)).toBeNull();
+  });
+});
+
+describe('gatePostRequest (POST gating ladder)', () => {
+  const APP_SECRET = 'test_app_secret_meta_dummy_value';
+  const ACCESS = 'EAAtoken';
+  const PHONE = '1234567890';
+  const BODY = '{"object":"whatsapp_business_account","entry":[]}';
+  const SIG = 'sha256=' + createHmac('sha256', APP_SECRET).update(BODY).digest('hex');
+
+  test('returns 503 disabled when WHATSAPP_ENABLED is not true', async () => {
+    const r = await gatePostRequest({
+      enabled: false,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: BODY,
+      signatureHeader: SIG,
+    });
+    expect(r).toEqual({ status: 503, kind: 'disabled' });
+  });
+
+  test('returns 503 secrets_missing when any of the 3 secrets is unset', async () => {
+    const base = { enabled: true, rawBody: BODY, signatureHeader: SIG };
+    expect(await gatePostRequest({ ...base, appSecret: undefined, accessToken: ACCESS, phoneId: PHONE })).toEqual({ status: 503, kind: 'secrets_missing' });
+    expect(await gatePostRequest({ ...base, appSecret: APP_SECRET, accessToken: undefined, phoneId: PHONE })).toEqual({ status: 503, kind: 'secrets_missing' });
+    expect(await gatePostRequest({ ...base, appSecret: APP_SECRET, accessToken: ACCESS, phoneId: undefined })).toEqual({ status: 503, kind: 'secrets_missing' });
+  });
+
+  test('returns 401 invalid_signature when X-Hub-Signature-256 is missing', async () => {
+    const r = await gatePostRequest({
+      enabled: true,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: BODY,
+      signatureHeader: null,
+    });
+    expect(r).toEqual({ status: 401, kind: 'invalid_signature' });
+  });
+
+  test('returns 401 invalid_signature when signature does not match', async () => {
+    const r = await gatePostRequest({
+      enabled: true,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: BODY,
+      signatureHeader: 'sha256=' + 'a'.repeat(64),
+    });
+    expect(r).toEqual({ status: 401, kind: 'invalid_signature' });
+  });
+
+  test('returns 400 invalid_json when body is signed correctly but malformed', async () => {
+    const malformed = 'not-json{';
+    const sig = 'sha256=' + createHmac('sha256', APP_SECRET).update(malformed).digest('hex');
+    const r = await gatePostRequest({
+      enabled: true,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: malformed,
+      signatureHeader: sig,
+    });
+    expect(r).toEqual({ status: 400, kind: 'invalid_json' });
+  });
+
+  test('returns 200 accepted on a valid signed JSON body', async () => {
+    const r = await gatePostRequest({
+      enabled: true,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: BODY,
+      signatureHeader: SIG,
+    });
+    expect(r).toEqual({ status: 200, kind: 'accepted' });
+  });
+
+  test('gate order: disabled is checked before signature (Meta retries instead of authing)', async () => {
+    // Bad signature but disabled → MUST report disabled, not invalid_signature.
+    const r = await gatePostRequest({
+      enabled: false,
+      appSecret: APP_SECRET,
+      accessToken: ACCESS,
+      phoneId: PHONE,
+      rawBody: BODY,
+      signatureHeader: 'sha256=' + 'b'.repeat(64),
+    });
+    expect(r.kind).toBe('disabled');
   });
 });
