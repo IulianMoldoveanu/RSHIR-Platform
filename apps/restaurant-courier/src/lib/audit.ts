@@ -10,6 +10,7 @@
 // previous silent failure — but no more NOT-NULL constraint noise in
 // CI logs).
 
+import { headers } from 'next/headers';
 import { createAdminClient } from './supabase/admin';
 
 export type CourierAuditAction =
@@ -132,6 +133,30 @@ export async function logAudit(args: {
       );
       return;
     }
+    // Capture IP + UA from request headers. audit_log has no dedicated columns
+    // for these, so they're merged into metadata for forensic use.
+    // headers() is async in Next 15; failures are swallowed — same contract as
+    // the rest of this helper.
+    let ip: string | null = null;
+    let userAgent: string | null = null;
+    try {
+      const h = await headers();
+      ip =
+        h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+        h.get('x-real-ip') ??
+        null;
+      const rawUa = h.get('user-agent');
+      userAgent = rawUa ? rawUa.slice(0, 200) : null;
+    } catch {
+      // Not available (e.g. called from a cron job or test environment).
+    }
+
+    const enrichedMetadata: Record<string, unknown> = {
+      ...(args.metadata ?? {}),
+      ...(ip !== null ? { ip } : {}),
+      ...(userAgent !== null ? { user_agent: userAgent } : {}),
+    };
+
     // audit_log may not be in generated types yet; cast through unknown.
     const sb = admin as unknown as {
       from: (t: string) => {
@@ -144,7 +169,7 @@ export async function logAudit(args: {
       action: args.action,
       entity_type: args.entityType ?? null,
       entity_id: args.entityId ?? null,
-      metadata: args.metadata ?? null,
+      metadata: Object.keys(enrichedMetadata).length > 0 ? enrichedMetadata : null,
     });
     if (error) {
       console.error('[courier-audit] insert failed', args.action, error.message);
