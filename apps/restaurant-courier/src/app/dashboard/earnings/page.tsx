@@ -87,7 +87,9 @@ export default async function EarningsPage() {
   const byDay = new Map<string, { earnings: number; count: number }>();
   for (const row of all) {
     const d = new Date(row.updated_at);
-    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const key = `${d.getFullYear()}-${mm}-${dd}`;
     const acc = byDay.get(key) ?? { earnings: 0, count: 0 };
     acc.earnings += Number(row.delivery_fee_ron) || 0;
     acc.count += 1;
