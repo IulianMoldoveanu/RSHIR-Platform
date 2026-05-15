@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createFleet } from '../actions';
+import { Button } from '@hir/ui';
 
 function toKebab(name: string) {
   return name
@@ -169,22 +170,23 @@ export function NewFleetForm() {
       )}
 
       <div className="flex gap-2 pt-2">
-        <button
+        <Button
           type="button"
           onClick={submit}
           disabled={pending}
-          className="rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+          className="rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white hover:bg-violet-700"
         >
           {pending ? 'Se creează…' : 'Creează flotă'}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={() => router.push('/admin/fleets')}
           disabled={pending}
-          className="rounded-md border border-zinc-700 bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+          className="rounded-md border-zinc-700 bg-zinc-800 px-5 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700"
         >
           Anulează
-        </button>
+        </Button>
       </div>
     </div>
   );

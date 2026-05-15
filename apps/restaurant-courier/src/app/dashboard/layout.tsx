@@ -5,6 +5,7 @@ import { Package, Clock, Wallet, Settings } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logoutAction, updateCourierLocationAction } from './actions';
+import { Button } from '@hir/ui';
 import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
 import { LocationTracker } from '@/components/location-tracker';
@@ -140,12 +141,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           </Link>
 
           <form action={logoutAction}>
-            <button
+            <Button
               type="submit"
-              className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+              variant="outline"
+              size="sm"
+              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             >
               Ieșire
-            </button>
+            </Button>
           </form>
         </header>
 

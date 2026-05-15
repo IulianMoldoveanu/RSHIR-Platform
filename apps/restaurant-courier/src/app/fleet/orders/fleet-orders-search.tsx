@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 const STORAGE_KEY = 'hir.fleet.orders-search';
 export const SEARCH_EVENT = 'hir.fleet.orders-search-changed';
@@ -91,14 +92,16 @@ export function FleetOrdersSearch() {
         aria-label="Caută în comenzi"
       />
       {query ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => setQuery('')}
           aria-label="Șterge căutarea"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+          className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
         >
           <X className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        </Button>
       ) : null}
     </div>
   );

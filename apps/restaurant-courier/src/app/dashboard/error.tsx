@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 // Dashboard route group error boundary. Catches any uncaught throw in a child
 // page (orders / earnings / settings / shift / orders/[id]) so the courier
@@ -35,14 +36,14 @@ export default function DashboardError({
           ref: {error.digest}
         </p>
       ) : null}
-      <button
+      <Button
         type="button"
         onClick={() => reset()}
-        className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600"
+        className="mt-4 gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400"
       >
         <RefreshCw className="h-4 w-4" aria-hidden />
         Reîncarcă pagina
-      </button>
+      </Button>
     </div>
   );
 }

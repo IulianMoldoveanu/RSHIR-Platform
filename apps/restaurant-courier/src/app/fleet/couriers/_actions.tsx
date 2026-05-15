@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Loader2, ShieldOff, ShieldCheck } from 'lucide-react';
 import { reactivateCourierAction, suspendCourierAction } from '../actions';
+import { Button } from '@hir/ui';
 
 type Props = {
   userId: string;
@@ -37,11 +38,11 @@ export function CourierStatusActions({ userId, status }: Props) {
   if (status === 'SUSPENDED') {
     return (
       <div className="flex items-center gap-2">
-        <button
+        <Button
           type="button"
           disabled={pending}
           onClick={handleReactivate}
-          className="inline-flex items-center gap-1 rounded-lg border border-emerald-700/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-60"
+          className="gap-1 rounded-lg border border-emerald-700/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20"
         >
           {pending ? (
             <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
@@ -49,7 +50,7 @@ export function CourierStatusActions({ userId, status }: Props) {
             <ShieldCheck className="h-3 w-3" aria-hidden />
           )}
           Reactivează
-        </button>
+        </Button>
         {error ? <span className="text-[11px] text-red-400">{error}</span> : null}
       </div>
     );
@@ -58,36 +59,39 @@ export function CourierStatusActions({ userId, status }: Props) {
   if (confirmSuspend) {
     return (
       <div className="flex items-center gap-1.5">
-        <button
+        <Button
           type="button"
+          variant="destructive"
           disabled={pending}
           onClick={handleSuspend}
-          className="rounded-lg bg-red-500 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-red-400 disabled:opacity-60"
+          className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
         >
           {pending ? 'Se suspendă…' : 'Confirmă'}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           disabled={pending}
           onClick={() => setConfirmSuspend(false)}
-          className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800"
+          className="rounded-lg border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800"
         >
           Anulează
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={() => setConfirmSuspend(true)}
-        className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-800"
+        className="gap-1 rounded-lg border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-800"
       >
         <ShieldOff className="h-3 w-3" aria-hidden />
         Suspendă
-      </button>
+      </Button>
       {error ? <span className="text-[11px] text-red-400">{error}</span> : null}
     </div>
   );

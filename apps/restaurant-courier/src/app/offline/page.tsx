@@ -1,6 +1,7 @@
 'use client';
 
 import { WifiOff } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 export default function OfflinePage() {
   return (
@@ -16,13 +17,13 @@ export default function OfflinePage() {
         <p className="text-xs text-zinc-500">
           Comanda activă rămâne salvată local — reveniți la aceeași pagină când conexiunea revine.
         </p>
-        <button
+        <Button
           type="button"
           onClick={() => window.location.reload()}
-          className="w-full rounded-xl bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600"
+          className="w-full rounded-xl bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400"
         >
           Reîncearcă
-        </button>
+        </Button>
       </div>
     </main>
   );

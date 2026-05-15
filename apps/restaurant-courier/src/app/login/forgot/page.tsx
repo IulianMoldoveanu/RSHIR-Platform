@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
 import { createBrowserSupabase } from '@hir/supabase-types';
+import { Button } from '@hir/ui';
 
 // Forgot-password flow. Supabase auth.resetPasswordForEmail() emails the
 // user a magic link that lands on /login/reset?type=recovery. The reset
@@ -95,14 +96,14 @@ export default function ForgotPasswordPage() {
               {error ? (
                 <p className="text-xs text-rose-400">{error}</p>
               ) : null}
-              <button
+              <Button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-12 w-full gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 Trimite linkul de resetare
-              </button>
+              </Button>
             </form>
           )}
         </div>

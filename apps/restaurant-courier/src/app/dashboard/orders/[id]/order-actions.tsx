@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Banknote, Info } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
+import { Button } from '@hir/ui';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { useRiderMode } from '@/components/rider-mode-provider';
@@ -218,13 +219,14 @@ function CashCollectedGate({
           <Banknote className="h-4 w-4" aria-hidden />
           Cash încasat: <span className="font-semibold">{amountLabel}</span>
         </span>
-        <button
+        <Button
           type="button"
+          variant="link"
           onClick={onReset}
-          className="text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+          className="h-auto p-0 text-xs text-zinc-400 hover:text-zinc-200"
         >
           Modifică
-        </button>
+        </Button>
       </div>
     );
   }
@@ -244,13 +246,13 @@ function CashCollectedGate({
           </p>
         </div>
       </div>
-      <button
+      <Button
         type="button"
         onClick={onConfirm}
-        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 hover:bg-amber-400 active:bg-amber-600"
+        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 hover:bg-amber-400"
       >
         Da, am încasat {amountLabel}
-      </button>
+      </Button>
     </div>
   );
 }

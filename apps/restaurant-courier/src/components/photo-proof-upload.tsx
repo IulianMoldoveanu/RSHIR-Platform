@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
-import { toast } from '@hir/ui';
+import { toast, Button } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
 
 type SlotState = { file: File | null; preview: string | null; url: string | null };
@@ -157,26 +157,28 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-300">Fotografie pungă livrare (opțional)</span>
           {delivery.preview ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => clearSlot(setDelivery, deliveryRef)}
-              className="inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-300"
+              className="h-auto gap-1 p-0 text-[11px] text-zinc-500 hover:bg-transparent hover:text-zinc-300"
             >
               <X className="h-3 w-3" /> elimină
-            </button>
+            </Button>
           ) : null}
         </div>
         {delivery.preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={delivery.preview} alt="Previzualizare dovadă livrare" className="h-32 w-full rounded-lg object-cover" />
         ) : (
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => pickFile(deliveryRef)}
-            className="flex h-20 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-400 hover:border-violet-500 hover:text-violet-300"
+            className="flex h-20 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-400 hover:border-violet-500 hover:bg-transparent hover:text-violet-300"
           >
             <Camera className="h-4 w-4" /> Fă o fotografie
-          </button>
+          </Button>
         )}
         <input ref={deliveryRef} type="file" accept="image/*" capture="environment" onChange={(e) => { handleChange(e, setDelivery); }} className="hidden" />
         {error ? <p className="mt-2 text-[11px] text-rose-400">{error}</p> : null}
@@ -198,24 +200,25 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
               ✓ Fotografie încărcată
             </p>
           ) : (
-            <button
+            <Button
               type="button"
               disabled={uploading}
               onClick={handleUploadAll}
-              className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+              className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
             >
               {uploading ? 'Se încarcă…' : 'Încarcă fotografia'}
-            </button>
+            </Button>
           )
         ) : (
           // No photo yet — let parent call onComplete with empty urls for optional skip.
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => onComplete({})}
-            className="mt-2 w-full rounded-lg bg-zinc-800 py-1.5 text-xs text-zinc-500 hover:text-zinc-300"
+            className="mt-2 w-full rounded-lg bg-zinc-800 py-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
           >
             Continuă fără fotografie
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -254,14 +257,14 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         ) : null}
       </div>
       {error ? <p className="mt-2 text-[11px] text-rose-400">{error}</p> : null}
-      <button
+      <Button
         type="button"
         disabled={!allDone || uploading}
         onClick={handleUploadAll}
-        className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
       >
         {uploading ? 'Se încarcă…' : 'Trimite documentele'}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -295,24 +298,27 @@ function PhotoSlot({
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={slot.preview} alt={label} className="h-24 w-full rounded-lg object-cover" />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={onClear}
             aria-label={`Elimină ${label}`}
-            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white"
+            className="absolute right-1 top-1 h-6 w-6 rounded-full bg-black/60 text-white hover:bg-black/80"
           >
             <X className="h-3 w-3" />
-          </button>
+          </Button>
         </div>
       ) : (
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={onPick}
-          className="flex h-24 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-zinc-700 text-[10px] text-zinc-500 hover:border-emerald-500/50 hover:text-emerald-400"
+          className="flex h-24 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-zinc-700 text-[10px] text-zinc-500 hover:border-emerald-500/50 hover:bg-transparent hover:text-emerald-400"
         >
           <Camera className="h-4 w-4" />
           Fotografiază
-        </button>
+        </Button>
       )}
       <input ref={inputRef} type="file" accept="image/*" capture="environment" onChange={onChange} className="hidden" />
     </div>

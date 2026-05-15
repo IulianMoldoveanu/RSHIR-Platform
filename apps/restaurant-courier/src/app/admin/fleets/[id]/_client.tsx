@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateFleet, inviteCourier, createFleetApiKey, revokeFleetApiKey } from '../actions';
+import { Button } from '@hir/ui';
 
 type Fleet = {
   id: string;
@@ -72,20 +73,21 @@ function ShowKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void
           {rawKey}
         </pre>
         <div className="mt-4 flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={copy}
             className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
           >
             {copied ? 'Copiat!' : 'Copiază cheia'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={onClose}
-            className="rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700"
+            className="rounded-md border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-300 hover:bg-zinc-700"
           >
             Închide
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -233,14 +235,14 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
         </p>
       )}
 
-      <button
+      <Button
         type="button"
         onClick={submit}
         disabled={pending}
-        className="self-start rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+        className="self-start rounded-md bg-violet-600 px-5 py-2 text-sm font-medium text-white hover:bg-violet-700"
       >
         {pending ? 'Se salvează…' : 'Salvează modificările'}
-      </button>
+      </Button>
     </section>
   );
 }
@@ -278,13 +280,13 @@ function InviteCourierSection({ fleetId, couriers }: { fleetId: string; couriers
           <span className="ml-2 text-xs font-normal text-zinc-500">({couriers.length})</span>
         </h2>
         {!showForm && (
-          <button
+          <Button
             type="button"
             onClick={() => setShowForm(true)}
             className="rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
           >
             Invită curier
-          </button>
+          </Button>
         )}
       </div>
 
@@ -318,22 +320,23 @@ function InviteCourierSection({ fleetId, couriers }: { fleetId: string; couriers
           </div>
           {error && <p className="text-xs text-rose-400">{error}</p>}
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={submit}
               disabled={pending}
-              className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+              className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700"
             >
               {pending ? 'Se invită…' : 'Invită curier'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => { setShowForm(false); setError(null); }}
               disabled={pending}
-              className="rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded-md border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700"
             >
               Anulează
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -432,13 +435,13 @@ function ApiKeysSection({ fleetId, apiKeys }: { fleetId: string; apiKeys: ApiKey
           <span className="ml-2 text-xs font-normal text-zinc-500">({apiKeys.length})</span>
         </h2>
         {!showForm && (
-          <button
+          <Button
             type="button"
             onClick={() => setShowForm(true)}
             className="rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
           >
             Generează cheie nouă
-          </button>
+          </Button>
         )}
       </div>
 
@@ -478,22 +481,23 @@ function ApiKeysSection({ fleetId, apiKeys }: { fleetId: string; apiKeys: ApiKey
           {formError && <p className="text-xs text-rose-400">{formError}</p>}
 
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={submitCreate}
               disabled={pending}
-              className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-50"
+              className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700"
             >
               {pending ? 'Se generează…' : 'Generează cheie'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => { setShowForm(false); setFormError(null); }}
               disabled={pending}
-              className="rounded-md border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded-md border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-700"
             >
               Anulează
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -537,15 +541,16 @@ function ApiKeysSection({ fleetId, apiKeys }: { fleetId: string; apiKeys: ApiKey
                   </td>
                   <td className="px-4 py-3 text-right">
                     {k.is_active && (
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
                         onClick={() => handleRevoke(k.id)}
                         disabled={revokingId === k.id}
-                        className="rounded px-2 py-1 text-xs text-rose-500 hover:bg-rose-950/50 disabled:opacity-50"
+                        className="rounded px-2 py-1 text-xs text-rose-500 hover:bg-rose-950/50"
                         aria-label={`Revocă cheia ${k.label}`}
                       >
                         {revokingId === k.id ? 'Se revocă…' : 'Revocă'}
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>

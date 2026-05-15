@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { PhotoProofUpload } from './photo-proof-upload';
+import { Button } from '@hir/ui';
 
 export type PharmaMetadata = {
   requires_id_verification?: boolean;
@@ -97,10 +98,11 @@ function CheckRow({
   onToggle: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       onClick={onToggle}
-      className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-left hover:border-emerald-500/30"
+      className="flex h-auto w-full items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-left hover:border-emerald-500/30 hover:bg-zinc-950"
     >
       <span
         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
@@ -114,6 +116,6 @@ function CheckRow({
       <span className={`text-sm ${checked ? 'text-emerald-300' : 'text-zinc-300'}`}>
         {label}
       </span>
-    </button>
+    </Button>
   );
 }

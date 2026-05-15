@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { resolveTenantNames } from '@/lib/tenant-names';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { Button } from '@hir/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -228,12 +229,14 @@ export default async function FleetOrdersHistoryPage(
             </option>
           ))}
         </select>
-        <button
+        <Button
           type="submit"
-          className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+          variant="outline"
+          size="sm"
+          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
         >
           Aplică
-        </button>
+        </Button>
         {courierFilter ? (
           <Link
             href={(() => {
@@ -276,12 +279,14 @@ export default async function FleetOrdersHistoryPage(
               </option>
             ))}
           </select>
-          <button
+          <Button
             type="submit"
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+            variant="outline"
+            size="sm"
+            className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
           >
             Aplică
-          </button>
+          </Button>
           {tenantFilter ? (
             <Link
               href={(() => {

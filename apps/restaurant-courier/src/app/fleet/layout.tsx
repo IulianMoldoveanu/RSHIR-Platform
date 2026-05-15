@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { LayoutDashboard, Package, Users, Wallet, Settings as SettingsIcon } from 'lucide-react';
 import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { Button } from '@hir/ui';
 import { FleetNewOrderAlert } from './fleet-new-order-alert';
 import { FleetShortcuts } from './fleet-shortcuts';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -52,12 +53,14 @@ export default async function FleetLayout({ children }: { children: ReactNode })
           <FleetNewOrderAlert fleetId={fleet.fleetId} />
 
           <form action={logoutAction}>
-            <button
+            <Button
               type="submit"
-              className="rounded-md border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+              variant="outline"
+              size="sm"
+              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
             >
               Ieșire
-            </button>
+            </Button>
           </form>
         </div>
       </header>

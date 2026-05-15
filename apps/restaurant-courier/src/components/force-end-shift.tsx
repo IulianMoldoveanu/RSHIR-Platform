@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 const PRESET_REASONS = [
   'Restaurantul nu răspunde / a refuzat comanda',
@@ -71,14 +72,14 @@ export function ForceEndShift({
 
   return (
     <>
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-700/40 bg-rose-950/40 px-3 py-2.5 text-sm font-medium text-rose-200 hover:border-rose-500/60 hover:bg-rose-950/60"
+        className="w-full gap-2 rounded-xl border border-rose-700/40 bg-rose-950/40 px-3 py-2.5 text-sm font-medium text-rose-200 hover:border-rose-500/60 hover:bg-rose-950/60"
       >
         <AlertTriangle className="h-4 w-4" aria-hidden />
         Închide tura forțat
-      </button>
+      </Button>
 
       {open ? (
         <div className="fixed inset-0 z-[1500] flex items-end justify-center bg-black/60 px-3 pb-3 backdrop-blur-sm sm:items-center sm:pb-0">
@@ -97,15 +98,17 @@ export function ForceEndShift({
                   Închide tura forțat
                 </h2>
               </div>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon"
                 onClick={close}
                 disabled={pending}
                 aria-label="Închide"
-                className="text-zinc-500 hover:text-zinc-200 disabled:opacity-40"
+                className="h-7 w-7 text-zinc-500 hover:text-zinc-200"
               >
                 <X className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <p className="mb-3 text-xs text-zinc-400">
@@ -159,23 +162,25 @@ export function ForceEndShift({
             ) : null}
 
             <div className="flex items-center gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={close}
                 disabled={pending}
-                className="flex-1 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
+                className="flex-1 rounded-xl border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-900"
               >
                 Renunță
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={submit}
                 disabled={pending || reason.trim().length < 3}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-500 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex-1 gap-2 rounded-xl px-3 py-2 text-sm font-semibold"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 Confirmă
-              </button>
+              </Button>
             </div>
           </div>
         </div>
