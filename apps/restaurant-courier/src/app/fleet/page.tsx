@@ -188,8 +188,8 @@ export default async function FleetOverviewPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <FleetOverviewRefresh />
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Privire de ansamblu</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Privire de ansamblu</h1>
+        <p className="mt-1 text-sm text-hir-muted-fg">
           Stare flotă în timp real — comenzi, curieri, încasări azi.
         </p>
       </div>
@@ -212,7 +212,7 @@ export default async function FleetOverviewPage() {
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-violet-300" aria-hidden />
-              <h2 className="text-sm font-semibold text-zinc-100">
+              <h2 className="text-sm font-semibold text-hir-fg">
                 Pași pentru a deveni operațional
               </h2>
             </div>
@@ -226,12 +226,12 @@ export default async function FleetOverviewPage() {
                 <span
                   aria-hidden
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    h.done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-800 text-zinc-500'
+                    h.done ? 'bg-emerald-500/20 text-emerald-300' : 'bg-hir-border text-hir-muted-fg'
                   }`}
                 >
                   {h.done ? '✓' : '·'}
                 </span>
-                <span className={h.done ? 'text-zinc-300 line-through' : 'text-zinc-200'}>
+                <span className={h.done ? 'text-hir-muted-fg line-through' : 'text-hir-fg'}>
                   {h.label}
                 </span>
               </li>
@@ -281,8 +281,8 @@ export default async function FleetOverviewPage() {
       {/* Live map — riders' last-known GPS; emerald = online idle, violet = carrying. */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-100">Locații curieri</h2>
-          <p className="text-[11px] text-zinc-500">
+          <h2 className="text-sm font-semibold text-hir-fg">Locații curieri</h2>
+          <p className="text-[11px] text-hir-muted-fg">
             <span className="mr-2 inline-flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
               Liber
@@ -301,11 +301,11 @@ export default async function FleetOverviewPage() {
       </section>
 
       {/* Open orders — red/amber attention bar */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-100">
+          <h2 className="text-sm font-semibold text-hir-fg">
             Comenzi neasignate{' '}
-            <span className="text-zinc-500">({openOrders.length})</span>
+            <span className="text-hir-muted-fg">({openOrders.length})</span>
           </h2>
           <Link
             href="/fleet/orders"
@@ -325,7 +325,7 @@ export default async function FleetOverviewPage() {
             {openOrders.length > 5 ? (
               <Link
                 href="/fleet/orders"
-                className="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-center text-xs font-medium text-zinc-300 hover:bg-zinc-900"
+                className="rounded-xl border border-hir-border bg-zinc-950 px-3 py-2 text-center text-xs font-medium text-hir-muted-fg hover:bg-hir-surface"
               >
                 +{openOrders.length - 5} comenzi · vezi toate
               </Link>
@@ -335,14 +335,14 @@ export default async function FleetOverviewPage() {
       </section>
 
       {/* Active orders */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-100">
-            În curs <span className="text-zinc-500">({activeOrders.length})</span>
+          <h2 className="text-sm font-semibold text-hir-fg">
+            În curs <span className="text-hir-muted-fg">({activeOrders.length})</span>
           </h2>
           <Link
             href="/fleet/orders"
-            className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-200"
+            className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
           >
             Toate
             <ArrowRight className="h-3 w-3" aria-hidden />
@@ -404,20 +404,20 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+    <div className="rounded-2xl border border-hir-border bg-hir-surface p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {icon}
         {label}
       </div>
-      <p className="mt-1 text-xl font-semibold text-zinc-100">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-zinc-500">{hint}</p> : null}
+      <p className="mt-1 text-xl font-semibold text-hir-fg">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] text-hir-muted-fg">{hint}</p> : null}
     </div>
   );
 }
 
 function Empty({ hint }: { hint: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-6 text-center text-xs text-zinc-500">
+    <div className="rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-6 text-center text-xs text-hir-muted-fg">
       {hint}
     </div>
   );
@@ -434,13 +434,13 @@ function OrderRow({
     <li>
       <Link
         href={`/fleet/orders/${order.id}`}
-        className="block rounded-xl border border-zinc-800 bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-zinc-900"
+        className="block rounded-xl border border-hir-border bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-hir-surface"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <OrderStatusBadge status={order.status} />
-              <p className="truncate text-sm font-medium text-zinc-100">
+              <p className="truncate text-sm font-medium text-hir-fg">
                 {order.customer_first_name ?? 'Client'}
               </p>
               {order.delivery_fee_ron != null ? (
@@ -449,16 +449,16 @@ function OrderRow({
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 truncate text-xs text-zinc-500">
+            <p className="mt-1 truncate text-xs text-hir-muted-fg">
               {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
             </p>
             {courierName ? (
-              <p className="mt-1 text-[11px] text-zinc-400">
-                Curier: <span className="text-zinc-200">{courierName}</span>
+              <p className="mt-1 text-[11px] text-hir-muted-fg">
+                Curier: <span className="text-hir-fg">{courierName}</span>
               </p>
             ) : null}
           </div>
-          <span className="text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
+          <span className="text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
         </div>
       </Link>
     </li>
@@ -479,16 +479,16 @@ function QuickLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 hover:border-violet-500/40 hover:bg-zinc-900/70"
+      className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-4 py-3 hover:border-violet-500/40 hover:bg-hir-surface/70"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10 text-violet-300">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-100">{label}</p>
-        <p className="text-xs text-zinc-500">{hint}</p>
+        <p className="text-sm font-medium text-hir-fg">{label}</p>
+        <p className="text-xs text-hir-muted-fg">{hint}</p>
       </div>
-      <ArrowRight className="h-4 w-4 text-zinc-500" aria-hidden />
+      <ArrowRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
     </Link>
   );
 }

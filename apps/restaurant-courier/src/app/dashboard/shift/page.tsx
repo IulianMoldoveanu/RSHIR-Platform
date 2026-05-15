@@ -63,14 +63,14 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-base font-semibold text-zinc-100">Tură</h1>
+          <h1 className="text-base font-semibold text-hir-fg">Tură</h1>
           <span
             className={
               active
                 ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300'
-                : 'inline-flex items-center gap-1.5 rounded-full bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-400'
+                : 'inline-flex items-center gap-1.5 rounded-full bg-hir-border px-2.5 py-1 text-[11px] font-semibold text-hir-muted-fg'
             }
           >
             <span
@@ -83,9 +83,9 @@ export default async function ShiftPage() {
 
         {active ? (
           <>
-            <p className="mb-4 text-sm text-zinc-400">
+            <p className="mb-4 text-sm text-hir-muted-fg">
               Online de la{' '}
-              <strong className="font-semibold text-zinc-100">
+              <strong className="font-semibold text-hir-fg">
                 {new Date(active.started_at).toLocaleTimeString('ro-RO', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -97,7 +97,7 @@ export default async function ShiftPage() {
               onConfirm={endShiftAction}
             />
             {activeOrderCount > 0 ? (
-              <div className="mt-6 border-t border-zinc-800 pt-4">
+              <div className="mt-6 border-t border-hir-border pt-4">
                 <ForceEndShift
                   activeOrderCount={activeOrderCount}
                   onForceEnd={forceEndShiftAction}
@@ -107,7 +107,7 @@ export default async function ShiftPage() {
           </>
         ) : (
           <>
-            <p className="mb-4 text-sm text-zinc-400">
+            <p className="mb-4 text-sm text-hir-muted-fg">
               Pornește tura pentru a primi comenzi.
             </p>
             <SwipeButton
@@ -119,8 +119,8 @@ export default async function ShiftPage() {
       </section>
 
       {stats ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             Statistici tură curentă
           </p>
           <div className="grid grid-cols-3 gap-4 text-center">
@@ -135,7 +135,7 @@ export default async function ShiftPage() {
               value={stats.perHour > 0 ? stats.perHour.toFixed(2) : '—'}
             />
             <Stat
-              icon={<Clock className="h-5 w-5 text-zinc-400" aria-hidden />}
+              icon={<Clock className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
               label="Livrări"
               value={String(stats.count)}
             />
@@ -158,8 +158,8 @@ function Stat({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <span aria-hidden>{icon}</span>
-      <span className="text-base font-bold text-zinc-100">{value}</span>
-      <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-base font-bold text-hir-fg">{value}</span>
+      <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">{label}</span>
     </div>
   );
 }

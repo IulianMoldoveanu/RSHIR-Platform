@@ -44,7 +44,7 @@ export function PharmaChecks({ orderId, pharmaMetadata, onAllSatisfied }: Props)
   }
 
   return (
-    <section className="rounded-2xl border border-emerald-500/20 bg-zinc-900 p-4">
+    <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-4">
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
         Verificări obligatorii
       </p>
@@ -102,13 +102,13 @@ function CheckRow({
       type="button"
       variant="ghost"
       onClick={onToggle}
-      className="flex h-auto w-full items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-left hover:border-emerald-500/30 hover:bg-zinc-950"
+      className="flex h-auto w-full items-start gap-3 rounded-lg border border-hir-border bg-zinc-950 p-3 text-left hover:border-emerald-500/30 hover:bg-zinc-950"
     >
       <span
         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
           checked
             ? 'border-emerald-500 bg-emerald-500 text-white'
-            : 'border-zinc-700 bg-zinc-900'
+            : 'border-hir-border bg-hir-surface'
         }`}
       >
         {checked ? <Check className="h-3 w-3" aria-hidden /> : null}

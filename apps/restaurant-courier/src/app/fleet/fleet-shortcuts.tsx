@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Keyboard } from 'lucide-react';
-import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@hir/ui';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@hir/ui';
 
 type Shortcut = { keys: string; label: string };
 
@@ -123,26 +123,26 @@ export function FleetShortcuts() {
 
   return (
     <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
-      <SheetContent side="bottom" className="bg-zinc-900 border-zinc-800 text-zinc-100">
+      <SheetContent side="bottom" className="bg-hir-surface border-hir-border text-hir-fg">
         <SheetHeader>
-          <SheetTitle className="flex items-center gap-2 text-zinc-100">
+          <SheetTitle className="flex items-center gap-2 text-hir-fg">
             <Keyboard className="h-4 w-4 text-violet-300" aria-hidden />
             Comenzi rapide
           </SheetTitle>
         </SheetHeader>
         <div className="px-5 pb-5">
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-hir-border">
             {SHORTCUTS.map((s) => (
               <li
                 key={s.keys}
                 className="flex items-center justify-between gap-3 py-2 text-sm"
               >
-                <span className="text-zinc-300">{s.label}</span>
+                <span className="text-hir-fg">{s.label}</span>
                 <span className="flex gap-1">
                   {s.keys.split(' ').map((k, i) => (
                     <kbd
                       key={`${s.keys}-${i}`}
-                      className="rounded-md border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-200"
+                      className="rounded-md border border-hir-border bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-hir-fg"
                     >
                       {k}
                     </kbd>
@@ -151,7 +151,7 @@ export function FleetShortcuts() {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[11px] text-zinc-500">
+          <p className="mt-3 text-[11px] text-hir-muted-fg">
             Comenzile rapide sunt dezactivate când scrii într-un câmp.
           </p>
         </div>

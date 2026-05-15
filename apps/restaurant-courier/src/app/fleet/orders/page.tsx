@@ -71,8 +71,8 @@ export default async function FleetOrdersPage() {
       <FleetOrdersRealtime fleetId={fleet.fleetId} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Comenzi flotă</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Comenzi flotă</h1>
+          <p className="mt-1 text-sm text-hir-muted-fg">
             {open.length} neasignate · {active.length} în curs ·{' '}
             {annotatedCouriers.filter((c) => c.online).length} curieri online
             {distinctTenantCount > 1 ? (
@@ -89,7 +89,7 @@ export default async function FleetOrdersPage() {
           <BulkAutoAssignButton openCount={open.length} />
           <Link
             href="/fleet/orders/history"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-xs font-semibold text-hir-fg hover:bg-hir-surface/60"
           >
             <History className="h-3.5 w-3.5" aria-hidden />
             Istoric
@@ -103,7 +103,7 @@ export default async function FleetOrdersPage() {
           matches no rows. id is consumed by the script in that component. */}
       <p
         id="fleet-orders-search-empty"
-        className="hidden rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-3 text-center text-xs text-zinc-500"
+        className="hidden rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-3 text-center text-xs text-hir-muted-fg"
       >
         Nicio comandă nu se potrivește cu căutarea.
       </p>
@@ -152,7 +152,7 @@ export default async function FleetOrdersPage() {
 
       <Link
         href="/fleet"
-        className="text-center text-xs text-zinc-500 hover:text-zinc-300"
+        className="text-center text-xs text-hir-muted-fg hover:text-hir-fg"
       >
         Înapoi la privire
       </Link>
@@ -175,7 +175,7 @@ function Section({
     accent === 'amber' ? 'bg-amber-500/10 text-amber-300' : 'bg-violet-500/10 text-violet-300';
   return (
     <section>
-      <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <h2 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
         {title}
         <span className={`rounded-full px-2 py-0.5 text-[10px] ${accentClass}`}>{count}</span>
       </h2>
@@ -186,7 +186,7 @@ function Section({
 
 function Empty({ icon, hint }: { icon: React.ReactNode; hint: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-xs text-zinc-500">
+    <div className="flex items-center gap-2 rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-5 text-xs text-hir-muted-fg">
       <span aria-hidden>{icon}</span>
       <span>{hint}</span>
     </div>

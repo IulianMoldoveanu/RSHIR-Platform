@@ -148,7 +148,7 @@ export default async function FleetOrderDetailPage(
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <Link
         href="/fleet/orders"
-        className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200"
+        className="inline-flex items-center gap-1 text-xs text-hir-muted-fg hover:text-hir-fg"
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Înapoi la comenzi
@@ -156,10 +156,10 @@ export default async function FleetOrderDetailPage(
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">
+          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
             {order.customer_first_name ?? 'Comandă'}
           </h1>
-          <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-500">
+          <p className="mt-0.5 truncate font-mono text-[11px] text-hir-muted-fg">
             #{order.id.slice(0, 8)}
           </p>
         </div>
@@ -167,11 +167,11 @@ export default async function FleetOrderDetailPage(
       </div>
 
       {/* Timeline */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-        <p className="mb-4 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Progres comandă
         </p>
-        <ul className="grid grid-cols-4 gap-1 text-[10px] text-zinc-400">
+        <ul className="grid grid-cols-4 gap-1 text-[10px] text-hir-muted-fg">
           {TIMELINE_STEPS.map((step, idx) => {
             const reached = idx <= lastReached;
             const isCurrent = idx === lastReached;
@@ -200,11 +200,11 @@ export default async function FleetOrderDetailPage(
       </section>
 
       {/* Pickup */}
-      <section className="rounded-2xl border border-violet-500/20 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-violet-500/20 bg-hir-surface p-5">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
           Ridicare
         </p>
-        <p className="mt-2 text-base font-semibold text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-hir-fg">
           {order.pickup_line1 ?? '—'}
         </p>
         {pickupOsm ? (
@@ -212,7 +212,7 @@ export default async function FleetOrderDetailPage(
             href={pickupOsm}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-2.5 py-1.5 text-xs font-medium text-hir-fg hover:border-violet-500/50 hover:text-violet-300"
           >
             <MapPin className="h-3.5 w-3.5" aria-hidden />
             Vezi pe hartă
@@ -221,21 +221,21 @@ export default async function FleetOrderDetailPage(
       </section>
 
       {/* Dropoff */}
-      <section className="rounded-2xl border border-emerald-500/20 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-5">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
           Livrare
         </p>
-        <p className="mt-2 text-base font-semibold text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-hir-fg">
           {order.dropoff_line1 ?? '—'}
         </p>
-        <p className="mt-1 text-sm text-zinc-400">{order.customer_first_name ?? 'Client'}</p>
+        <p className="mt-1 text-sm text-hir-muted-fg">{order.customer_first_name ?? 'Client'}</p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {dropoffOsm ? (
             <a
               href={dropoffOsm}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-2.5 py-1.5 text-xs font-medium text-hir-fg hover:border-violet-500/50 hover:text-violet-300"
             >
               <MapPin className="h-3.5 w-3.5" aria-hidden />
               Hartă
@@ -244,7 +244,7 @@ export default async function FleetOrderDetailPage(
           {order.customer_phone ? (
             <a
               href={`tel:${order.customer_phone}`}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs font-medium text-zinc-200 hover:border-violet-500/50 hover:text-violet-300"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-2.5 py-1.5 text-xs font-medium text-hir-fg hover:border-violet-500/50 hover:text-violet-300"
             >
               <Phone className="h-3.5 w-3.5" aria-hidden />
               Sună client
@@ -255,14 +255,14 @@ export default async function FleetOrderDetailPage(
 
       {/* Items */}
       {items.length > 0 ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             <Package className="h-3 w-3" aria-hidden /> Produse
           </p>
-          <ul className="space-y-1 text-sm text-zinc-200">
+          <ul className="space-y-1 text-sm text-hir-fg">
             {items.map((it, i) => (
               <li key={i}>
-                <span className="text-zinc-500">{it.quantity}×</span> {it.name}
+                <span className="text-hir-muted-fg">{it.quantity}×</span> {it.name}
               </li>
             ))}
           </ul>
@@ -270,24 +270,24 @@ export default async function FleetOrderDetailPage(
       ) : null}
 
       {/* Payment summary */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-zinc-400">Total</span>
-          <span className="text-base font-semibold text-zinc-100">
+          <span className="text-hir-muted-fg">Total</span>
+          <span className="text-base font-semibold text-hir-fg">
             {order.total_ron != null ? `${Number(order.total_ron).toFixed(2)} RON` : '—'}
           </span>
         </div>
         {order.delivery_fee_ron != null ? (
           <div className="mt-1 flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Taxă livrare</span>
-            <span className="text-zinc-300">
+            <span className="text-hir-muted-fg">Taxă livrare</span>
+            <span className="text-hir-fg">
               {Number(order.delivery_fee_ron).toFixed(2)} RON
             </span>
           </div>
         ) : null}
         <div className="mt-1 flex items-center justify-between text-xs">
-          <span className="text-zinc-500">Plată</span>
-          <span className="text-zinc-300">
+          <span className="text-hir-muted-fg">Plată</span>
+          <span className="text-hir-fg">
             {order.payment_method === 'COD' ? (
               <span className="inline-flex items-center gap-1 text-amber-300">
                 <Banknote className="h-3 w-3" aria-hidden />
@@ -302,12 +302,12 @@ export default async function FleetOrderDetailPage(
 
       {/* Assignment + reassign — reuses the OrderRow assign picker. */}
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
           Curier
         </h2>
         {assignedCourier ? (
-          <p className="mb-2 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100">
-            <span className="text-zinc-500">Asignat: </span>
+          <p className="mb-2 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2 text-sm text-hir-fg">
+            <span className="text-hir-muted-fg">Asignat: </span>
             <span className="font-medium">{assignedCourier.full_name ?? '—'}</span>
             {onlineSet.has(assignedCourier.user_id) ? (
               <span className="ml-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-emerald-300">
@@ -335,7 +335,7 @@ export default async function FleetOrderDetailPage(
       ) : null}
 
       {deliveredProofSignedUrl ? (
-        <section className="rounded-2xl border border-emerald-700/30 bg-zinc-900 p-5">
+        <section className="rounded-2xl border border-emerald-700/30 bg-hir-surface p-5">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
             Dovadă livrare
           </p>
@@ -344,7 +344,7 @@ export default async function FleetOrderDetailPage(
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Deschide dovada livrare în tab nou"
-            className="block overflow-hidden rounded-xl border border-zinc-700 transition hover:border-emerald-600/50"
+            className="block overflow-hidden rounded-xl border border-hir-border transition hover:border-emerald-600/50"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -353,7 +353,7 @@ export default async function FleetOrderDetailPage(
               className="max-h-80 w-full object-cover"
             />
           </a>
-          <p className="mt-2 text-[11px] text-zinc-500">
+          <p className="mt-2 text-[11px] text-hir-muted-fg">
             Apasă imaginea pentru a o deschide complet.
           </p>
         </section>

@@ -20,9 +20,9 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   const fleet = await requireFleetManager();
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+    <div className="flex min-h-screen flex-col bg-zinc-950 text-hir-fg">
       <FleetShortcuts />
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-zinc-950/95 px-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <Link href="/fleet" className="flex items-center gap-2">
             <span
@@ -33,10 +33,10 @@ export default async function FleetLayout({ children }: { children: ReactNode })
               {fleet.name.slice(0, 1).toUpperCase()}
             </span>
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight text-zinc-100">
+              <span className="text-sm font-semibold tracking-tight text-hir-fg">
                 {fleet.name}
               </span>
-              <span className="text-[10px] uppercase tracking-wide text-zinc-500">
+              <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
                 Dispecerat
               </span>
             </div>
@@ -57,7 +57,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
               type="submit"
               variant="outline"
               size="sm"
-              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              className="border-hir-border bg-hir-surface text-hir-fg hover:bg-hir-border"
             >
               Ieșire
             </Button>
@@ -69,7 +69,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hir-border bg-zinc-950/95 backdrop-blur">
         <ul className="mx-auto flex max-w-3xl items-stretch justify-around">
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -77,7 +77,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
               <li key={item.href} className="flex-1">
                 <Link
                   href={item.href}
-                  className="flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-zinc-400 hover:text-violet-400"
+                  className="flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400"
                 >
                   <Icon className="h-5 w-5" aria-hidden />
                   <span>{item.label}</span>

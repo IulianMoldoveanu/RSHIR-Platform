@@ -49,10 +49,10 @@ export function ActiveOrderTimer({ status, since }: { status: string; since: str
   if (!label || !since) return null;
 
   return (
-    <div className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-[11px] text-zinc-300">
-      <Clock className="h-3 w-3 text-zinc-500" aria-hidden />
-      <span className="text-zinc-500">{label}</span>
-      <span className="font-semibold text-zinc-100">{elapsed}</span>
+    <div className="flex items-center gap-2 rounded-full border border-hir-border bg-hir-surface px-3 py-1 text-[11px] text-hir-fg">
+      <Clock className="h-3 w-3 text-hir-muted-fg" aria-hidden />
+      <span className="text-hir-muted-fg">{label}</span>
+      <span className="font-semibold text-hir-fg">{elapsed}</span>
     </div>
   );
 }

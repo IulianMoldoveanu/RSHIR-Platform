@@ -47,14 +47,14 @@ export async function EarningsBar() {
 
   return (
     <div
-      className="flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1 text-[11px]"
+      className="flex items-center gap-2 rounded-full border border-hir-border bg-hir-surface/80 px-3 py-1 text-[11px]"
       aria-label="Sumar tură curentă"
     >
       <span
         className={
           isOnline
             ? 'inline-flex items-center gap-1 text-emerald-400'
-            : 'inline-flex items-center gap-1 text-zinc-500'
+            : 'inline-flex items-center gap-1 text-hir-muted-fg'
         }
       >
         <span
@@ -63,7 +63,7 @@ export async function EarningsBar() {
         />
         {isOnline ? 'Online' : 'Offline'}
       </span>
-      <span className="h-3 w-px bg-zinc-800" aria-hidden />
+      <span className="h-3 w-px bg-hir-border" aria-hidden />
       <EarningsValue value={earnings} count={count} />
       {isOnline && shift?.started_at ? <ShiftTimer startedAt={shift.started_at} /> : null}
     </div>

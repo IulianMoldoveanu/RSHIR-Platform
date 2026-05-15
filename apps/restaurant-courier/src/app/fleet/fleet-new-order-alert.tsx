@@ -128,7 +128,7 @@ export function FleetNewOrderAlert({ fleetId }: { fleetId: string }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
         enabled
           ? 'border-emerald-700/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
-          : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+          : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:bg-hir-border'
       }`}
     >
       {enabled ? (

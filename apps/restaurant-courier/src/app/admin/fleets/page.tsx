@@ -21,7 +21,7 @@ type FleetRow = {
 const TIER_STYLE: Record<string, string> = {
   owner: 'bg-violet-900/60 text-violet-300',
   partner: 'bg-emerald-900/60 text-emerald-300',
-  external: 'bg-zinc-800 text-zinc-400',
+  external: 'bg-hir-border text-hir-muted-fg',
 };
 
 function VerticalBadges({ verticals }: { verticals: string[] }) {
@@ -96,8 +96,8 @@ export default async function FleetsListPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Flote curieri</h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Flote curieri</h1>
+          <p className="mt-0.5 text-sm text-hir-muted-fg">
             {rows.length} {rows.length === 1 ? 'flotă' : 'flote'} înregistrate
           </p>
         </div>
@@ -110,8 +110,8 @@ export default async function FleetsListPage() {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-12 text-center">
-          <p className="text-sm text-zinc-500">Nicio flotă creată încă.</p>
+        <div className="rounded-xl border border-hir-border bg-hir-surface px-6 py-12 text-center">
+          <p className="text-sm text-hir-muted-fg">Nicio flotă creată încă.</p>
           <Link
             href="/admin/fleets/new"
             className="mt-4 inline-block rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white hover:bg-violet-700"
@@ -120,23 +120,23 @@ export default async function FleetsListPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+        <div className="overflow-hidden rounded-xl border border-hir-border bg-hir-surface">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-800">
+            <thead className="border-b border-hir-border">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Slug</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Nume</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Tier</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Verticale</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Curieri</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Slug</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Nume</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Tier</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Verticale</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Curieri</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800">
+            <tbody className="divide-y divide-hir-border">
               {rows.map((fleet) => (
-                <tr key={fleet.id} className="hover:bg-zinc-800/50">
-                  <td className="px-4 py-3 font-mono text-xs text-zinc-400">{fleet.slug}</td>
+                <tr key={fleet.id} className="hover:bg-hir-border/50">
+                  <td className="px-4 py-3 font-mono text-xs text-hir-muted-fg">{fleet.slug}</td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-2">
                       <span
@@ -144,7 +144,7 @@ export default async function FleetsListPage() {
                         className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: fleet.brand_color }}
                       />
-                      <span className="font-medium text-zinc-100">{fleet.name}</span>
+                      <span className="font-medium text-hir-fg">{fleet.name}</span>
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -162,17 +162,17 @@ export default async function FleetsListPage() {
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
                         fleet.is_active
                           ? 'bg-emerald-900/60 text-emerald-300'
-                          : 'bg-zinc-800 text-zinc-500'
+                          : 'bg-hir-border text-hir-muted-fg'
                       }`}
                     >
                       {fleet.is_active ? 'Activ' : 'Inactiv'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-zinc-400">{fleet.courier_count}</td>
+                  <td className="px-4 py-3 text-hir-muted-fg">{fleet.courier_count}</td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/admin/fleets/${fleet.id}`}
-                      className="rounded px-3 py-1.5 text-xs font-medium text-violet-400 hover:bg-zinc-800"
+                      className="rounded px-3 py-1.5 text-xs font-medium text-violet-400 hover:bg-hir-border"
                     >
                       Detalii →
                     </Link>
