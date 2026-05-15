@@ -125,6 +125,16 @@ export function OrderActions({
       { proofUrl, cashCollected, pharmaProofs },
       () => deliveredAction(proofUrl, cashCollected, pharmaProofs),
     );
+    // Signal that the courier has completed their first DELIVERED transition
+    // this session. PushBootstrap watches for this flag to show the gentle
+    // push re-ask banner (only once per session, only when permission is still
+    // 'default'). Use try/catch — sessionStorage is blocked in some private
+    // browsing contexts.
+    try {
+      sessionStorage.setItem('hir:first-delivered-this-session', '1');
+    } catch {
+      // Private mode or storage quota — ignore.
+    }
   }
 
   return (

@@ -18,6 +18,7 @@ import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
+import { WakeLockOnActive } from '@/components/wake-lock-on-active';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { logMedicalAccess } from '@/lib/medical-access';
 import { headers } from 'next/headers';
@@ -144,6 +145,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         initialAssignedTo={order.assigned_courier_user_id}
         initialStatus={order.status}
       />
+      <WakeLockOnActive status={order.status} />
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h1 className="text-lg font-semibold text-hir-fg">Comandă</h1>
