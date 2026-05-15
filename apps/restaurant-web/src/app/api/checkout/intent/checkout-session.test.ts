@@ -140,6 +140,12 @@ function makeAdminMock() {
 
 describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
   beforeEach(async () => {
+    // Reset the module-scope Stripe spy explicitly. `vi.clearAllMocks()` in
+    // afterEach clears call history, but when the full suite runs the sibling
+    // `route.test.ts` mocks the same `@/lib/stripe/server` module with a
+    // different factory, which can leave this spy in an unknown call state on
+    // some worker schedules. Explicit reset here is belt-and-braces.
+    mockedSessionCreate.mockReset();
     process.env.ALLOWED_ORIGINS = ALLOWED;
     const tenant = await import('@/lib/tenant');
     (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValue({
