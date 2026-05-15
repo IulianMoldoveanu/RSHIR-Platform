@@ -72,11 +72,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <RiderModeProvider value={riderMode}>
-      <div className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100">
+      <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
         {/* Header z-[1100] so it always sits above the Leaflet map (whose
             internal panes can climb to z-700 and whose controls can reach
-            z-1000 in some plugin builds). Same value on the bottom-nav. */}
-        <header className="sticky top-0 z-[1100] flex h-14 items-center justify-between gap-2 border-b border-zinc-800 bg-zinc-950/95 px-3 backdrop-blur">
+            z-1000 in some plugin builds). Same value on the bottom-nav.
+            Chrome surfaces (header bg + border) use semantic tokens so
+            the theme toggle (F4.5) flips them without per-class overrides. */}
+        <header className="sticky top-0 z-[1100] flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur">
           <div className="flex items-center gap-2">
             <Link href="/dashboard" className="flex items-center gap-2">
               {tenantBrand?.logoUrl ? (
@@ -162,7 +164,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             because Leaflet internal stacking can reach z-700 (popup pane)
             plus leaflet-rotate's control overlay tops out near z-1000.
             Anything below 1100 was visibly losing on iOS Safari. */}
-        <nav className="fixed inset-x-0 bottom-0 z-[1100] border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+        <nav className="fixed inset-x-0 bottom-0 z-[1100] border-t border-hir-border bg-hir-bg/95 backdrop-blur">
           <ul className="mx-auto flex max-w-xl items-stretch justify-around">
             {NAV.map((item) => {
               const Icon = item.icon;

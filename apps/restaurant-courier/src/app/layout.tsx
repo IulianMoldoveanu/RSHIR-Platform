@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@hir/ui';
+import { ThemeProvider, themeScriptSource } from '@/components/theme-provider';
 import './globals.css';
 
 const inter = Inter({
@@ -44,10 +45,21 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ro" className={inter.variable}>
+    // suppressHydrationWarning: the inline ThemeScript adds/removes the
+    // `dark` class on <html> before React hydrates, so the server-rendered
+    // markup and the post-hydration markup can disagree on a single class.
+    // That's the intended flow — without it React would clobber the
+    // pre-paint theme back to the server default and we'd see the FOUC
+    // this script is designed to prevent.
+    <html lang="ro" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScriptSource }} />
+      </head>
       <body className="font-sans antialiased">
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );
