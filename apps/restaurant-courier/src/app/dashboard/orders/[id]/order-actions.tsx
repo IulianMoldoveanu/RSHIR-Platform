@@ -1,13 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Banknote, Info } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
 import { Button } from '@hir/ui';
-import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
+import type { PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { useRiderMode } from '@/components/rider-mode-provider';
 import { runTransitionOrQueue } from '@/lib/transition-runner';
+
+// PharmaChecks is only rendered for vertical==='pharma' orders — lazy-load
+// so the camera/photo-upload logic doesn't inflate the default order-detail
+// bundle for the 90%+ of restaurant orders.
+const PharmaChecks = dynamic(
+  () => import('@/components/pharma-checks').then((m) => ({ default: m.PharmaChecks })),
+  { ssr: false },
+);
 
 /**
  * Client-side action panel for the order detail page. Renders the right
@@ -61,7 +70,7 @@ export function OrderActions({
   const [cashConfirmed, setCashConfirmed] = useState(false);
 
   const { mode, fleetName } = useRiderMode();
-  const acceptLabel = '→ Glisează pentru a accepta';
+  const acceptLabel = '→ Glisează pentru a accepta comanda';
 
   const isDeliveryPhase = isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT');
   const isCashOnDelivery = paymentMethod === 'COD';
@@ -79,11 +88,11 @@ export function OrderActions({
       <div className="flex items-start gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
         <div className="flex-1">
-          <p className="font-medium text-hir-fg">Vizualizare read-only</p>
+          <p className="font-medium text-hir-fg">Vizualizare doar-citire</p>
           <p className="mt-0.5 text-xs text-hir-muted-fg">
             {fleetName
-              ? `Folosește aplicația flotei "${fleetName}" pentru a actualiza starea comenzii.`
-              : 'Folosește aplicația flotei tale pentru a actualiza starea comenzii.'}
+              ? `Folosiți aplicația flotei „${fleetName}" pentru a actualiza starea comenzii.`
+              : 'Folosiți aplicația flotei dumneavoastră pentru a actualiza starea comenzii.'}
           </p>
         </div>
       </div>

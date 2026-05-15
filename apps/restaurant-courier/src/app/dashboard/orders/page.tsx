@@ -8,6 +8,7 @@ import { TenantBadge } from '@/components/tenant-badge';
 import { refreshOrdersAction } from '../actions';
 import { OrdersRealtime } from './orders-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
+import { haversineKm } from '@/lib/haversine';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,17 +33,6 @@ const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRAN
 
 const ORDER_COLUMNS =
   'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at, source_tenant_id';
-
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function formatAge(createdAt: string): string {
   const created = new Date(createdAt).getTime();

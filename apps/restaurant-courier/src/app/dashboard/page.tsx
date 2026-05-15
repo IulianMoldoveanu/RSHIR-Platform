@@ -1,12 +1,26 @@
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import { ArrowRight } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
-import { RiderMap } from '@/components/rider-map';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+
+// RiderMap pulls Leaflet (CDN) + leaflet-rotate at runtime. Lazy-load
+// so the heavy component code doesn't block the initial JS parse on
+// slower 3G connections. The map div renders immediately via the
+// fallback skeleton while Leaflet initialises.
+const RiderMap = nextDynamic(
+  () => import('@/components/rider-map').then((m) => ({ default: m.RiderMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full animate-pulse bg-zinc-900" aria-label="Se încarcă harta…" />
+    ),
+  },
+);
 
 export const dynamic = 'force-dynamic';
 

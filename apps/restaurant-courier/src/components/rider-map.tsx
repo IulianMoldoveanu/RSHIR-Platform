@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { vehicleIconHtml, type VehicleType as VehicleIconType } from './vehicle-icon';
+import { haversineMeters as haversineMetersShared } from '@/lib/haversine';
 
 const LEAFLET_VERSION = '1.9.4';
 const LEAFLET_ROTATE_VERSION = '0.2.8';
@@ -56,24 +57,8 @@ declare global {
   }
 }
 
-// Local copies — duplicated rather than imported because rider-map.tsx is a
-// 'use client' module and we want to avoid pulling a shared lib that could
-// drag server-only code into the client bundle.
-function haversineMetersLocal(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6_371_000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+// Alias so call sites inside this file keep the same name without renaming.
+const haversineMetersLocal = haversineMetersShared;
 
 // Initial bearing in degrees from p1 to p2 (clockwise from true north).
 function bearingDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
