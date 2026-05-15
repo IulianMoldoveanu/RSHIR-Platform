@@ -141,6 +141,19 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         setError(reason instanceof Error ? reason.message : 'Eroare la încărcare. Încearcă din nou.');
         return;
       }
+      // Guard against the offline-queue case: uploadSlot returns undefined
+      // (not throws) when a file is enqueued for later sync. For pharma required
+      // slots this means the proof URL is not yet available — calling onComplete
+      // with undefined URLs would silently bypass the mandatory pharma proof
+      // requirement. Block and show an error so the courier must reconnect first.
+      if (requiresId && !next.id) {
+        setError('Actul de identitate nu a putut fi încărcat. Conectează-te la internet și încearcă din nou.');
+        return;
+      }
+      if (requiresPrescription && !next.prescription) {
+        setError('Prescripția nu a putut fi încărcată. Conectează-te la internet și încearcă din nou.');
+        return;
+      }
       onComplete({ delivery: next.delivery, id: next.id, prescription: next.prescription });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la încărcare. Încearcă din nou.');
