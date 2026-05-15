@@ -254,7 +254,7 @@ export default async function EarningsPage() {
       </section>
 
       <p className="text-center text-[11px] text-hir-muted-fg">
-        Plata se face prin contul tău HIR. Pentru întrebări, contactează suportul.
+        Plata se face prin contul dumneavoastră HIR. Pentru întrebări, contactați suportul.
       </p>
     </div>
   );

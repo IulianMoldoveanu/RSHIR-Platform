@@ -12,7 +12,7 @@ export default function OfflinePage() {
         </div>
         <h1 className="text-2xl font-semibold">Ești offline</h1>
         <p className="text-sm text-hir-muted-fg">
-          Verifică conexiunea ca să continui livrările.
+          Verificați conexiunea pentru a continua livrările.
         </p>
         <p className="text-xs text-hir-muted-fg">
           Comanda activă rămâne salvată local — reveniți la aceeași pagină când conexiunea revine.

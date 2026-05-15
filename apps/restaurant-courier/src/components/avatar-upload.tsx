@@ -113,6 +113,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
+            aria-label={url ? 'Schimbă fotografia de profil' : 'Adaugă fotografie de profil'}
             className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
           >
             <Camera className="h-3.5 w-3.5" aria-hidden />
@@ -138,10 +139,12 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
       </div>
       <input
         ref={inputRef}
+        id="avatar-file-input"
         type="file"
         accept="image/jpeg,image/png,image/webp"
         capture="user"
         onChange={handlePick}
+        aria-label="Selectează fotografie de profil"
         className="hidden"
       />
     </div>

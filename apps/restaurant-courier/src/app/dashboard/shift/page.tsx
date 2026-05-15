@@ -109,7 +109,7 @@ export default async function ShiftPage() {
         ) : (
           <>
             <p className="mb-4 text-sm text-hir-muted-fg">
-              Pornește tura pentru a primi comenzi.
+              Porniți tura pentru a primi comenzi.
             </p>
             <StartShiftSection startShiftAction={startShiftAction} />
           </>

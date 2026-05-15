@@ -59,7 +59,7 @@ export function InviteCourierForm() {
                 href="/fleet/couriers"
                 className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
               >
-                Vezi roster
+                Vezi echipa
               </Link>
             </div>
           </div>
@@ -91,7 +91,7 @@ export function InviteCourierForm() {
         />
       </Field>
 
-      <Field label="Telefon (opțional)" hint="Format E.164. Apare ca tap-to-call pe roster.">
+      <Field label="Telefon (opțional)" hint="Format internațional (+40...). Apare ca buton de apel în echipă.">
         <input
           name="phone"
           type="tel"

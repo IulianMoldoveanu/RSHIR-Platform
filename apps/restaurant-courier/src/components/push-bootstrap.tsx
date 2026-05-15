@@ -129,10 +129,10 @@ export function PushBootstrap() {
           </div>
 
           <h2 className="text-base font-semibold text-zinc-100">
-            Cere notificări ca să primești comenzi când ești online
+            Activați notificările pentru a primi comenzi când sunteți online
           </h2>
           <p className="mt-1.5 text-sm text-zinc-400">
-            Primești comenzi instant, fără să ții aplicația deschisă. Poți dezactiva oricând din setările telefonului.
+            Primiți comenzi instant, fără a ține aplicația deschisă. Puteți dezactiva oricând din setările telefonului.
           </p>
 
           <div className="mt-5 flex flex-col gap-2">
@@ -249,7 +249,7 @@ function PushReAskBanner() {
         <div className="flex min-w-0 items-center gap-2">
           <Bell className="h-4 w-4 shrink-0 text-violet-400" aria-hidden />
           <p className="text-xs text-zinc-200">
-            Primește alertă pentru comenzi noi chiar și cu ecranul stins
+            Primiți alertă pentru comenzi noi chiar și cu ecranul stins
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">

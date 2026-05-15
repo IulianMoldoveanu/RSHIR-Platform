@@ -16,12 +16,30 @@ export function SosButton() {
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const triggeredRef = useRef(false);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
+
+  // Move focus into the modal when it opens (focus trap entry point).
+  useEffect(() => {
+    if (open) {
+      closeButtonRef.current?.focus();
+    }
+  }, [open]);
+
+  // Close on Escape — standard modal keyboard contract (WCAG 2.1.1).
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
 
   function startPress() {
     // Hybrid devices fire touchstart + an emulated mousedown for the
@@ -77,6 +95,7 @@ export function SosButton() {
                 </h2>
               </div>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Închide"
@@ -87,12 +106,13 @@ export function SosButton() {
             </div>
 
             <p className="mt-3 text-sm text-zinc-300">
-              Pentru a suna serviciul de urgență 112, ține apăsat butonul de mai jos timp de
+              Pentru a suna serviciul de urgență 112, țineți apăsat butonul de mai jos timp de
               o secundă.
             </p>
 
             <button
               type="button"
+              aria-label="Ține apăsat pentru a suna 112"
               onMouseDown={startPress}
               onMouseUp={endPress}
               onMouseLeave={endPress}
@@ -113,7 +133,7 @@ export function SosButton() {
             </button>
 
             <p className="mt-3 text-[11px] text-zinc-500">
-              Apel direct la operatorul de urgență. Foloseste-l doar pentru situații reale
+              Apel direct la operatorul de urgență. Folosiți-l doar pentru situații reale
               (accident, agresiune, urgență medicală).
             </p>
           </div>

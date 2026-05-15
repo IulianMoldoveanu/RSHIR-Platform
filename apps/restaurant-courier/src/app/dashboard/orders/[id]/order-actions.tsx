@@ -8,9 +8,9 @@ import { Button } from '@hir/ui';
 import type { PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { useRiderMode } from '@/components/rider-mode-provider';
-import { runTransitionOrQueue } from '@/lib/transition-runner';
 import { AppreciationToast } from '@/components/appreciation-toast';
 import { incrementStreak, isMilestone } from '@/lib/delivery-streak';
+import { runTransitionOrQueue } from '@/lib/transition-runner';
 
 // PharmaChecks is only rendered for vertical==='pharma' orders — lazy-load
 // so the camera/photo-upload logic doesn't inflate the default order-detail
@@ -147,8 +147,9 @@ export function OrderActions({
     } catch {
       // Private mode or storage quota — ignore.
     }
-    // Appreciation milestone: fires client-side after every 10 consecutive
-    // successful deliveries. Counter lives in localStorage; wraps at 100.
+    // Appreciation milestone check — runs client-side only so it doesn't
+    // slow the server action. isMilestone(10) fires after every 10
+    // consecutive successful deliveries.
     try {
       const streak = incrementStreak();
       if (isMilestone(streak)) {

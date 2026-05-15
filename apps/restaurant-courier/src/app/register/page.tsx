@@ -24,7 +24,7 @@ export default function RegisterPage() {
             HIR Curier
           </h1>
           <p className="text-sm text-zinc-400">
-            Înrolarea se face prin invitație de la dispecerul tău.
+            Înrolarea se face prin invitație de la dispecerul dumneavoastră.
           </p>
         </div>
 
@@ -38,9 +38,9 @@ export default function RegisterPage() {
                 Cum primești invitația
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Patronul restaurantului sau Fleet Managerul tău îți trimite
-                un link prin email sau Telegram. Link-ul te duce direct la
-                login cu contul tău creat.
+                Patronul restaurantului sau dispecerul flotei vă trimite
+                un link prin email sau Telegram. Link-ul duce direct la
+                conectare cu contul dumneavoastră creat.
               </p>
             </div>
           </div>
@@ -51,18 +51,18 @@ export default function RegisterPage() {
             </span>
             <div>
               <p className="text-sm font-medium text-zinc-100">
-                Vrei să devii curier HIR?
+                Doriți să deveniți curier HIR?
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Contactează direct restaurantul / fleet managerul cu care
-                vrei să lucrezi. Sau scrie-ne la{' '}
+                Contactați direct restaurantul sau dispecerul flotei cu care
+                doriți să lucrați. Sau scrieți-ne la{' '}
                 <a
                   href="mailto:hello@hirforyou.ro"
                   className="text-violet-300 underline-offset-2 hover:underline"
                 >
                   hello@hirforyou.ro
                 </a>{' '}
-                și te punem în legătură.
+                și vă punem în legătură.
               </p>
             </div>
           </div>
@@ -73,12 +73,12 @@ export default function RegisterPage() {
             </span>
             <div>
               <p className="text-sm font-medium text-zinc-100">
-                De ce nu mai e self-register
+                De ce nu există înregistrare directă
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Aplicația HIR Curier e personală — fiecare curier lucrează
-                într-un restaurant sau o flotă specifică. Crearea contului
-                trece pe la patron pentru ca el să-ți poată asigna comenzi
+                Aplicația HIR Curier este personală — fiecare curier lucrează
+                într-un restaurant sau o flotă specifică. Contul se creează
+                prin patron, astfel încât comenzile să poată fi asignate
                 de la prima livrare.
               </p>
             </div>
@@ -89,7 +89,7 @@ export default function RegisterPage() {
           href="/login"
           className="block rounded-xl bg-violet-500 px-4 py-2.5 text-center text-sm font-semibold text-white hover:bg-violet-400"
         >
-          Am deja cont — autentifică-te
+          Am deja cont — conectare
         </Link>
       </div>
     </main>
