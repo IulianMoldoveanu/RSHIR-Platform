@@ -79,7 +79,7 @@ export default async function SettingsPage() {
           />
         </ul>
         <p className="mt-3 text-[11px] text-hir-muted-fg">
-          Pentru a modifica numele sau telefonul, contactează suportul.
+          Pentru a modifica numele sau telefonul, contactați suportul.
         </p>
       </section>
 

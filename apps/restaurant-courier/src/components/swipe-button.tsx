@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { motion, useMotionValue, useTransform, animate, useReducedMotion } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
 import * as haptics from '@/lib/haptics';
 
@@ -43,6 +43,7 @@ export function SwipeButton({
   /** primary = purple accent, success = green for "delivered" final step. */
   variant?: 'primary' | 'success';
 }) {
+  const prefersReducedMotion = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,6 +135,24 @@ export function SwipeButton({
     if (!pending && !done) setHoldProgress(false);
   }
 
+  // Keyboard fallback: Enter or Space fires the confirm action immediately.
+  // Swipe gestures are pointer-only, but the button must be operable without
+  // a mouse or touch screen (WCAG 2.1.1).
+  function handleKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      void runConfirm();
+    }
+  }
+
+  const statusText = done
+    ? 'Confirmat'
+    : pending
+      ? 'Se procesează…'
+      : holdProgress
+        ? 'Ține apăsat…'
+        : label;
+
   return (
     <div
       ref={trackRef}
@@ -141,41 +160,45 @@ export function SwipeButton({
       style={trackStyle}
       aria-disabled={pending || done}
     >
-      {/* Track fill (grows behind the handle as it slides). */}
-      <motion.div
-        className="pointer-events-none absolute inset-0 rounded-full"
-        style={{ background: accent, opacity: fillOpacity }}
-      />
+      {/* Live region: announces state changes to screen readers. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {pending ? 'Se procesează…' : done ? 'Confirmat' : ''}
+      </span>
+
+      {/* Track fill (grows behind the handle as it slides). Skipped when
+          the user prefers reduced motion so no animated opacity transition
+          plays (WCAG 2.3.3 / prefers-reduced-motion). */}
+      {!prefersReducedMotion ? (
+        <motion.div
+          className="pointer-events-none absolute inset-0 rounded-full"
+          style={{ background: accent, opacity: fillOpacity }}
+        />
+      ) : null}
 
       {/* Label centered on the track. */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-medium tracking-wide text-zinc-100">
-        {done
-          ? 'Confirmat'
-          : pending
-            ? 'Se procesează…'
-            : holdProgress
-              ? 'Ține apăsat…'
-              : label}
+        {statusText}
       </div>
 
       {/* Draggable handle. Also accepts press-and-hold (~900ms) as a tap
-          fallback so the action is reachable even if drag gestures fail
-          on the user's browser. Only rendered when interactive. */}
+          fallback and Enter/Space as a keyboard fallback (WCAG 2.1.1).
+          Only rendered when interactive. */}
       {!done && !pending ? (
         <motion.button
           type="button"
-          drag="x"
+          drag={prefersReducedMotion ? false : 'x'}
           dragConstraints={trackRef}
           dragElastic={0}
           dragMomentum={false}
-          style={{ x, background: accent }}
+          style={{ x: prefersReducedMotion ? undefined : x, background: accent }}
           onDragStart={cancelHold}
           onDragEnd={handleDragEnd}
           onPointerDown={handlePointerDown}
           onPointerUp={cancelHold}
           onPointerCancel={cancelHold}
           onPointerLeave={cancelHold}
-          whileTap={{ scale: 0.98 }}
+          onKeyDown={handleKeyDown}
+          whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
           className="absolute left-1 top-1 flex h-12 w-14 cursor-grab items-center justify-center rounded-full text-white shadow-lg active:cursor-grabbing"
           aria-label={label}
         >

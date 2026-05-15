@@ -21,6 +21,13 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
   return (
     <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
+      {/* Skip-to-content: visible on focus for keyboard + AT users. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[2000] focus:rounded-lg focus:bg-violet-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+      >
+        Sari la conținut
+      </a>
       <FleetShortcuts />
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur">
         <div className="flex items-center gap-2">
@@ -67,7 +74,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
       <OfflineBanner />
 
-      <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
+      <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hir-border bg-hir-bg/95 backdrop-blur">
         <ul className="mx-auto flex max-w-3xl items-stretch justify-around">

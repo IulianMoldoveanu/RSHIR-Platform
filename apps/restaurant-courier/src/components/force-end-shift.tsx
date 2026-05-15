@@ -124,7 +124,7 @@ export function ForceEndShift({
                 </label>
               ))}
               <label className="mt-1 text-[11px] text-zinc-500">
-                Sau detaliază (opțional):
+                Sau detaliați (opțional):
               </label>
               <textarea
                 value={PRESET_REASONS.includes(reason) ? '' : reason}

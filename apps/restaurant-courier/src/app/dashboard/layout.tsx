@@ -74,6 +74,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
+        {/* Skip-to-content: visible on focus for keyboard + AT users. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[2000] focus:rounded-lg focus:bg-violet-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+        >
+          Sari la conținut
+        </a>
         {/* Header z-[1100] so it always sits above the Leaflet map (whose
             internal panes can climb to z-700 and whose controls can reach
             z-1000 in some plugin builds). Same value on the bottom-nav.
@@ -164,7 +171,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <ProofSync />
         <TransitionSync />
 
-        <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
+        <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
         {/* Bottom nav — primary navigation on mobile (PWA target). z-[1100]
             because Leaflet internal stacking can reach z-700 (popup pane)

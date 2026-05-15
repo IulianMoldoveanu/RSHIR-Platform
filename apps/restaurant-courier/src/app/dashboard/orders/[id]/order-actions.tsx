@@ -8,6 +8,8 @@ import { Button } from '@hir/ui';
 import type { PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { useRiderMode } from '@/components/rider-mode-provider';
+import { AppreciationToast } from '@/components/appreciation-toast';
+import { incrementStreak, isMilestone } from '@/lib/delivery-streak';
 import { runTransitionOrQueue } from '@/lib/transition-runner';
 
 // PharmaChecks is only rendered for vertical==='pharma' orders — lazy-load
@@ -68,6 +70,7 @@ export function OrderActions({
   const [pharmaRxUrl, setPharmaRxUrl] = useState<string | undefined>(undefined);
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
   const [cashConfirmed, setCashConfirmed] = useState(false);
+  const [milestoneCount, setMilestoneCount] = useState<number | null>(null);
 
   const { mode, fleetName } = useRiderMode();
   const acceptLabel = '→ Glisează pentru a accepta comanda';
@@ -144,6 +147,17 @@ export function OrderActions({
     } catch {
       // Private mode or storage quota — ignore.
     }
+    // Appreciation milestone check — runs client-side only so it doesn't
+    // slow the server action. isMilestone(10) fires after every 10
+    // consecutive successful deliveries.
+    try {
+      const streak = incrementStreak();
+      if (isMilestone(streak)) {
+        setMilestoneCount(streak);
+      }
+    } catch {
+      // localStorage unavailable — ignore.
+    }
   }
 
   return (
@@ -207,6 +221,13 @@ export function OrderActions({
             />
           ) : null}
         </>
+      ) : null}
+
+      {milestoneCount !== null ? (
+        <AppreciationToast
+          count={milestoneCount}
+          onDismiss={() => setMilestoneCount(null)}
+        />
       ) : null}
     </div>
   );

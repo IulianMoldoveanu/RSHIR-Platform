@@ -200,7 +200,7 @@ export default async function FleetOverviewPage() {
         <div className="rounded-2xl border border-amber-700/40 bg-amber-500/5 p-4">
           <p className="text-sm font-semibold text-amber-200">Flotă inactivă</p>
           <p className="mt-1 text-xs text-amber-200/80">
-            Contactează echipa HIR pentru reactivare. Dispecerul nu poate
+            Contactați echipa HIR pentru reactivare. Dispecerul nu poate
             primi comenzi noi cât timp flota este dezactivată.
           </p>
         </div>
