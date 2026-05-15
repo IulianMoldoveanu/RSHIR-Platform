@@ -109,7 +109,7 @@ export default async function SettingsPage() {
       {/* Help link */}
       <Link
         href="/dashboard/help"
-        className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-surface/60 active:scale-[0.99]"
+        className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
           <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />

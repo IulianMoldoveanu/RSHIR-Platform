@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateFleet, inviteCourier, createFleetApiKey, revokeFleetApiKey } from '../actions';
-import { Button } from '@hir/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@hir/ui';
 
 type Fleet = {
   id: string;
@@ -56,30 +56,18 @@ function ShowKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void
     setCopied(true);
   };
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="key-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-    >
-      <div className="w-full max-w-lg rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
-        <h2 id="key-modal-title" className="text-base font-semibold text-zinc-100">
-          Cheie API generată
-        </h2>
-        <p className="mt-2 text-sm font-medium text-rose-400">
-          Aceasta este singura dată când vei vedea cheia completă. Copiaz-o acum.
-        </p>
-        <pre className="mt-4 overflow-x-auto rounded-md border border-zinc-700 bg-zinc-950 p-3 font-mono text-xs break-all whitespace-pre-wrap text-zinc-200">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="border-zinc-700 bg-zinc-900">
+        <DialogHeader>
+          <DialogTitle className="text-zinc-100">Cheie API generată</DialogTitle>
+          <DialogDescription className="font-medium text-rose-400">
+            Aceasta este singura dată când vei vedea cheia completă. Copiaz-o acum.
+          </DialogDescription>
+        </DialogHeader>
+        <pre className="overflow-x-auto rounded-md border border-zinc-700 bg-zinc-950 p-3 font-mono text-xs break-all whitespace-pre-wrap text-zinc-200">
           {rawKey}
         </pre>
-        <div className="mt-4 flex gap-2">
-          <Button
-            type="button"
-            onClick={copy}
-            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
-          >
-            {copied ? 'Copiat!' : 'Copiază cheia'}
-          </Button>
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -88,9 +76,16 @@ function ShowKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void
           >
             Închide
           </Button>
-        </div>
-      </div>
-    </div>
+          <Button
+            type="button"
+            onClick={copy}
+            className="rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+          >
+            {copied ? 'Copiat!' : 'Copiază cheia'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
