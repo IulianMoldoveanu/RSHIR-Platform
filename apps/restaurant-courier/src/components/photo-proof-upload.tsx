@@ -7,6 +7,11 @@ import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
 
 type SlotState = { file: File | null; preview: string | null; url: string | null };
 
+// Maximum allowed file size for proof photos. Raw HEIC shots from recent
+// iPhones routinely exceed 5 MB; 10 MB gives comfortable headroom while
+// still blocking accidental 50+ MB RAW files that would time out on LTE.
+const MAX_PROOF_BYTES = 10 * 1024 * 1024; // 10 MB
+
 function emptySlot(): SlotState {
   return { file: null, preview: null, url: null };
 }
@@ -53,6 +58,12 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_PROOF_BYTES) {
+      setError(`Fișierul este prea mare (max 10 MB). Încearcă o fotografie mai mică.`);
+      // Reset the input so the courier can pick a different file.
+      e.target.value = '';
+      return;
+    }
     setter((prev) => {
       if (prev.preview) URL.revokeObjectURL(prev.preview);
       return { file, preview: URL.createObjectURL(file), url: null };
