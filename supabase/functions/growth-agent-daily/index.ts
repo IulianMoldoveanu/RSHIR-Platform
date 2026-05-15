@@ -20,6 +20,8 @@
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 // Lane 9 observability — additive wrap, never changes behavior.
 import { withRunLog } from '../_shared/log.ts';
+// F6 cost ledger — record per-tenant token spend after each Anthropic call.
+import { recordCost } from '../_shared/agent-cost.ts';
 
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -432,7 +434,18 @@ Deno.serve(async (req) => {
   const processTenant = async (t: TenantMetrics): Promise<void> => {
     try {
       const userPrompt = buildUserPrompt(t, benchmarks);
-      const { recommendations, cost_usd } = await callSonnet(apiKey, model, userPrompt);
+      const { recommendations, cost_usd, raw_usage } = await callSonnet(apiKey, model, userPrompt);
+      // F6: append a cost-ledger row per tenant call. Best-effort; never
+      // fails the primary path. Cache tokens roll into input_tokens for
+      // ledger purposes — the ledger tracks billable tokens only.
+      const usage = raw_usage as { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number } | undefined;
+      await recordCost(supabase, {
+        tenantId: t.tenant_id,
+        agentName: 'growth',
+        model,
+        inputTokens: Number(usage?.input_tokens ?? 0) + Number(usage?.cache_creation_input_tokens ?? 0) + Number(usage?.cache_read_input_tokens ?? 0),
+        outputTokens: Number(usage?.output_tokens ?? 0),
+      });
       const cleaned = recommendations.map(sanitize).filter((r): r is Recommendation => r !== null);
       let crits = 0;
       const final = cleaned.map((r) => {
