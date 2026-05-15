@@ -185,7 +185,7 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
     <div className="relative">
       <div
         ref={containerRef}
-        className="h-72 w-full overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900"
+        className="h-72 w-full overflow-hidden rounded-2xl border border-hir-border bg-hir-surface"
       />
       {pins.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-950/60 p-6 text-center backdrop-blur-sm">

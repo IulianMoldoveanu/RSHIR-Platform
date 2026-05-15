@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CloudOff, CloudUpload } from 'lucide-react';
+import { toast } from '@hir/ui';
 import {
   acceptOrderAction,
   markPickedUpAction,
@@ -47,6 +48,7 @@ export function TransitionSync() {
     setSyncing(true);
     try {
       const items = await listPendingTransitions();
+      const dropped: QueuedTransition[] = [];
       for (const item of items) {
         if (item.id == null) continue;
         if (item.attempts >= MAX_ATTEMPTS) {
@@ -54,7 +56,9 @@ export function TransitionSync() {
           // permanently-failing item (e.g. order no longer in the courier's
           // fleet). Drop it. The structural status filters on the server
           // would silently no-op these anyway, so dropping doesn't lose data.
+          // Collect for user notification below — silent drop is confusing.
           await deleteTransition(item.id);
+          dropped.push(item);
           continue;
         }
         try {
@@ -63,6 +67,22 @@ export function TransitionSync() {
         } catch {
           await bumpTransitionAttempts(item.id);
         }
+      }
+      // Notify the courier about any transitions that exhausted all retries.
+      // The server-side state filter means the order status was already
+      // advanced (or the order is no longer theirs), so no data is lost —
+      // but the rider needs to know to check the order manually.
+      for (const item of dropped) {
+        const label =
+          item.kind === 'accept'
+            ? 'acceptare'
+            : item.kind === 'pickup'
+              ? 'ridicare'
+              : 'livrare';
+        toast.error(
+          `Tranziția de ${label} nu a putut fi sincronizată. Verifică starea comenzii manual.`,
+          { duration: 8000 },
+        );
       }
     } catch {
       // List failed; will retry on next tick.

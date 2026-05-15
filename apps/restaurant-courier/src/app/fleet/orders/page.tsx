@@ -103,7 +103,7 @@ export default async function FleetOrdersPage() {
           matches no rows. id is consumed by the script in that component. */}
       <p
         id="fleet-orders-search-empty"
-        className="hidden rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-3 text-center text-xs text-hir-muted-fg"
+        className="hidden rounded-xl border border-dashed border-hir-border bg-hir-surface px-4 py-3 text-center text-xs text-hir-muted-fg"
       >
         Nicio comandă nu se potrivește cu căutarea.
       </p>
@@ -186,7 +186,7 @@ function Section({
 
 function Empty({ icon, hint }: { icon: React.ReactNode; hint: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-5 text-xs text-hir-muted-fg">
+    <div className="flex items-center gap-2 rounded-xl border border-dashed border-hir-border bg-hir-surface px-4 py-5 text-xs text-hir-muted-fg">
       <span aria-hidden>{icon}</span>
       <span>{hint}</span>
     </div>

@@ -7,8 +7,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   await requirePlatformAdmin();
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-hir-fg">
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-hir-border bg-zinc-950/95 px-4 backdrop-blur">
+    <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-hir-border bg-hir-bg/95 px-4 backdrop-blur">
         <Link href="/admin/fleets" className="flex items-center gap-2">
           <span
             aria-hidden
