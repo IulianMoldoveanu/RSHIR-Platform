@@ -5,20 +5,24 @@
 // gated). Lead kind = 'restaurant' or 'reseller' per the form selector,
 // matching the discriminated union the API enforces. Iulian sees the
 // lead in the same admin queue as the migrate-from-gloriafood form.
+//
+// Lane WEB-I18N-EN-PARITY (2026-05-15): accepts locale prop + uses t()
+// for all visible strings so RO/EN cookie flips re-render the form copy.
 
 import { useState } from 'react';
+import { t, type Locale } from '@/lib/i18n';
 
-const TOPICS = [
-  { v: 'restaurant', l: 'Sunt patron / manager de restaurant' },
-  { v: 'reseller', l: 'Sunt manager flotă / partener / reseller' },
-  { v: 'other', l: 'Altceva (general)' },
-];
-
-export function ContactForm() {
+export function ContactForm({ locale }: { locale: Locale }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topic, setTopic] = useState<string>('restaurant');
+
+  const topics = [
+    { v: 'restaurant', l: t(locale, 'contact.form_topic_restaurant') },
+    { v: 'reseller', l: t(locale, 'contact.form_topic_reseller') },
+    { v: 'other', l: t(locale, 'contact.form_topic_other') },
+  ];
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,13 +79,13 @@ export function ContactForm() {
       } else {
         const j = await r.json().catch(() => null);
         if (r.status === 429) {
-          setError('Prea multe încercări de pe această conexiune. Încearcă peste un minut.');
+          setError(t(locale, 'contact.form_err_rate_limit'));
         } else {
           setError(j?.error ? `Eroare: ${j.error}` : `Eroare ${r.status}`);
         }
       }
     } catch {
-      setError('Eroare de rețea. Încearcă din nou.');
+      setError(t(locale, 'contact.form_err_network'));
     } finally {
       setSubmitting(false);
     }
@@ -91,15 +95,11 @@ export function ContactForm() {
     return (
       <div className="rounded-md border border-[#A7F3D0] bg-[#ECFDF5] p-5">
         <div className="text-sm font-semibold text-[#047857]">
-          Mesaj trimis. Mulțumim!
+          {t(locale, 'contact.form_success_title')}
         </div>
         <p className="mt-2 text-sm text-[#047857]">
-          Echipa HIR revine pe email în 24 de ore lucrătoare. Pentru urgențe ne poți
-          scrie la{' '}
-          <a
-            href="mailto:office@hirforyou.ro"
-            className="font-medium underline"
-          >
+          {t(locale, 'contact.form_success_body')}{' '}
+          <a href="mailto:office@hirforyou.ro" className="font-medium underline">
             office@hirforyou.ro
           </a>
           .
@@ -118,16 +118,16 @@ export function ContactForm() {
         </label>
       </div>
 
-      <Field label="Eu sunt..." required>
+      <Field label={t(locale, 'contact.form_topic_label')} required>
         <select
           name="topic"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         >
-          {TOPICS.map((t) => (
-            <option key={t.v} value={t.v}>
-              {t.l}
+          {topics.map((tp) => (
+            <option key={tp.v} value={tp.v}>
+              {tp.l}
             </option>
           ))}
         </select>
@@ -137,8 +137,8 @@ export function ContactForm() {
         <Field
           label={
             topic === 'reseller'
-              ? 'Numele tău complet'
-              : 'Numele restaurantului'
+              ? t(locale, 'contact.form_name_reseller')
+              : t(locale, 'contact.form_name_restaurant')
           }
           required
         >
@@ -150,7 +150,7 @@ export function ContactForm() {
             className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
           />
         </Field>
-        <Field label="Email" required>
+        <Field label={t(locale, 'contact.form_email')} required>
           <input
             name="email"
             type="email"
@@ -161,7 +161,7 @@ export function ContactForm() {
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Field label="Telefon">
+        <Field label={t(locale, 'contact.form_phone')}>
           <input
             name="phone"
             type="tel"
@@ -170,17 +170,27 @@ export function ContactForm() {
             className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
           />
         </Field>
-        <Field label={topic === 'reseller' ? 'Țară / județ' : 'Oraș'}>
+        <Field
+          label={
+            topic === 'reseller'
+              ? t(locale, 'contact.form_city_reseller')
+              : t(locale, 'contact.form_city_restaurant')
+          }
+        >
           <input
             name="city"
             maxLength={100}
-            placeholder={topic === 'reseller' ? 'România' : 'Brașov'}
+            placeholder={
+              topic === 'reseller'
+                ? t(locale, 'contact.form_city_placeholder_reseller')
+                : t(locale, 'contact.form_city_placeholder_restaurant')
+            }
             className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
           />
         </Field>
       </div>
 
-      <Field label="Mesaj" required>
+      <Field label={t(locale, 'contact.form_message')} required>
         <textarea
           name="message"
           required
@@ -189,8 +199,8 @@ export function ContactForm() {
           rows={5}
           placeholder={
             topic === 'reseller'
-              ? 'Câte restaurante / curieri ai în portofoliu? Ce zone acoperi?'
-              : 'Ce vrei să afli? Câte comenzi ai pe lună? Folosești GloriaFood?'
+              ? t(locale, 'contact.form_placeholder_reseller')
+              : t(locale, 'contact.form_placeholder_restaurant')
           }
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         />
@@ -207,13 +217,10 @@ export function ContactForm() {
         disabled={submitting}
         className="inline-flex w-full items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] focus:ring-offset-2 disabled:opacity-60"
       >
-        {submitting ? 'Se trimite…' : 'Trimite mesajul'}
+        {submitting ? t(locale, 'contact.form_submitting') : t(locale, 'contact.form_submit')}
       </button>
 
-      <p className="text-xs text-[#94A3B8]">
-        Prin trimitere accepți politica HIR de utilizare a datelor. Te contactăm doar
-        pe email și telefon (dacă l-ai oferit).
-      </p>
+      <p className="text-xs text-[#94A3B8]">{t(locale, 'contact.form_privacy')}</p>
     </form>
   );
 }
