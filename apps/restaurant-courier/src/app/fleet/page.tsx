@@ -325,7 +325,7 @@ export default async function FleetOverviewPage() {
             {openOrders.length > 5 ? (
               <Link
                 href="/fleet/orders"
-                className="rounded-xl border border-hir-border bg-zinc-950 px-3 py-2 text-center text-xs font-medium text-hir-muted-fg hover:bg-hir-surface"
+                className="rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-center text-xs font-medium text-hir-muted-fg hover:bg-hir-border"
               >
                 +{openOrders.length - 5} comenzi · vezi toate
               </Link>
@@ -417,7 +417,7 @@ function Kpi({
 
 function Empty({ hint }: { hint: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-6 text-center text-xs text-hir-muted-fg">
+    <div className="rounded-xl border border-dashed border-hir-border bg-hir-surface px-4 py-6 text-center text-xs text-hir-muted-fg">
       {hint}
     </div>
   );
@@ -434,7 +434,7 @@ function OrderRow({
     <li>
       <Link
         href={`/fleet/orders/${order.id}`}
-        className="block rounded-xl border border-hir-border bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-hir-surface"
+        className="block rounded-xl border border-hir-border bg-hir-surface p-3 hover:border-violet-500/40 hover:bg-hir-border"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

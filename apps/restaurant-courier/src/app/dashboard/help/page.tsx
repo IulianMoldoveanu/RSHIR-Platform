@@ -185,7 +185,7 @@ export default function HelpPage() {
         <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport</h2>
         <a
           href="tel:+40212040000"
-          className="flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2.5 hover:border-emerald-500/40 hover:bg-hir-surface"
+          className="flex items-center gap-3 rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 hover:border-emerald-500/40 hover:bg-hir-border"
         >
           <Phone className="h-4 w-4 text-emerald-400" aria-hidden />
           <span className="flex-1 text-sm text-hir-fg">+40 21 204 0000</span>
@@ -194,7 +194,7 @@ export default function HelpPage() {
         </a>
         <a
           href="mailto:suport@hirforyou.ro"
-          className="mt-2 flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2.5 hover:border-violet-500/40 hover:bg-hir-surface"
+          className="mt-2 flex items-center gap-3 rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 hover:border-violet-500/40 hover:bg-hir-border"
         >
           <Mail className="h-4 w-4 text-violet-400" aria-hidden />
           <span className="flex-1 text-sm text-hir-fg">
