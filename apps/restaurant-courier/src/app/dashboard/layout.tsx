@@ -104,7 +104,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                   {(tenantBrand?.name ?? 'H').slice(0, 1).toUpperCase()}
                 </span>
               )}
-              <span className="text-sm font-semibold tracking-tight text-zinc-100">
+              <span className="text-sm font-semibold tracking-tight text-hir-fg">
                 {tenantBrand?.name ?? 'HIR Curier'}
               </span>
             </Link>
@@ -121,7 +121,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <Link
             href="/dashboard/settings"
             aria-label="Profil"
-            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-800 bg-zinc-900 hover:border-violet-500/60"
+            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-hir-border bg-hir-surface hover:border-violet-500/60"
           >
             {profile?.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -131,7 +131,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-[10px] font-bold uppercase text-zinc-400">
+              <span className="text-[10px] font-bold uppercase text-hir-muted-fg">
                 {(profile?.full_name ?? '?')
                   .split(' ')
                   .map((p) => p[0])
@@ -147,7 +147,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               type="submit"
               variant="outline"
               size="sm"
-              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              className="border-hir-border bg-hir-surface text-hir-fg hover:bg-hir-border"
             >
               Ieșire
             </Button>
@@ -177,7 +177,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 <li key={item.href} className="flex-1">
                   <Link
                     href={item.href}
-                    className="relative flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-zinc-400 hover:text-violet-400"
+                    className="relative flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400"
                   >
                     <span className="relative">
                       <Icon className="h-5 w-5" aria-hidden />

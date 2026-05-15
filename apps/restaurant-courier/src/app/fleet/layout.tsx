@@ -20,9 +20,9 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   const fleet = await requireFleetManager();
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-950 text-hir-fg">
+    <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
       <FleetShortcuts />
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-zinc-950/95 px-3 backdrop-blur">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur">
         <div className="flex items-center gap-2">
           <Link href="/fleet" className="flex items-center gap-2">
             <span
@@ -69,7 +69,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
       <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hir-border bg-zinc-950/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-hir-border bg-hir-bg/95 backdrop-blur">
         <ul className="mx-auto flex max-w-3xl items-stretch justify-around">
           {NAV.map((item) => {
             const Icon = item.icon;
