@@ -77,7 +77,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
               <li key={item.href} className="flex-1">
                 <Link
                   href={item.href}
-                  className="flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400"
+                  className="flex flex-col items-center gap-0.5 px-2 py-3 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-[-2px] focus-visible:rounded-lg"
                 >
                   <Icon className="h-5 w-5" aria-hidden />
                   <span>{item.label}</span>

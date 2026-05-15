@@ -118,28 +118,31 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           {/* Avatar shortcut to settings — always visible top-right next to
               logout. Clicking deep-links to /dashboard/settings#profile.
               Falls back to initials if no avatar was uploaded yet. */}
+          {/* Tap target min 44×44 for WCAG 2.5.5; visual avatar stays 32×32. */}
           <Link
             href="/dashboard/settings"
             aria-label="Profil"
-            className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-hir-border bg-hir-surface hover:border-violet-500/60"
+            className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center"
           >
-            {profile?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={profile.avatar_url}
-                alt="Profil"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="text-[10px] font-bold uppercase text-hir-muted-fg">
-                {(profile?.full_name ?? '?')
-                  .split(' ')
-                  .map((p) => p[0])
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join('')}
-              </span>
-            )}
+            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-hir-border bg-hir-surface hover:border-violet-500/60 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2">
+              {profile?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.avatar_url}
+                  alt="Profil"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-[10px] font-bold uppercase text-hir-muted-fg">
+                  {(profile?.full_name ?? '?')
+                    .split(' ')
+                    .map((p) => p[0])
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .join('')}
+                </span>
+              )}
+            </span>
           </Link>
 
           <form action={logoutAction}>
@@ -177,7 +180,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                 <li key={item.href} className="flex-1">
                   <Link
                     href={item.href}
-                    className="relative flex flex-col items-center gap-0.5 px-2 py-2 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400"
+                    className="relative flex flex-col items-center gap-0.5 px-2 py-3 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-[-2px] focus-visible:rounded-lg"
                   >
                     <span className="relative">
                       <Icon className="h-5 w-5" aria-hidden />
