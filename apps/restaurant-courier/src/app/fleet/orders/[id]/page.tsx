@@ -9,6 +9,7 @@ import { OrderStatusBadge, STATUS_LABEL_RO } from '@/components/order-status-bad
 import { AuditTimeline } from './audit-timeline';
 import { MedicalAccessTimeline } from './medical-access-timeline';
 import { logMedicalAccess } from '@/lib/medical-access';
+import { WhyAssigned, type ScoreBreakdown } from './_why-assigned';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,32 @@ export default async function FleetOrderDetailPage(
 
   const order = orderData as OrderDetail | null;
   if (!order) notFound();
+
+  // Fetch the latest auto-assign audit row for this order so we can render
+  // the WhyAssigned score breakdown. Only fetched when the order has an
+  // assigned courier; otherwise null. Failure is silently swallowed — the
+  // panel simply won't render rather than crashing the page.
+  let autoAssignBreakdown: ScoreBreakdown | null = null;
+  if (order.assigned_courier_user_id) {
+    try {
+      const { data: auditRow } = await admin
+        .from('audit_log')
+        .select('metadata')
+        .eq('entity_type', 'courier_order')
+        .eq('entity_id', order.id)
+        .eq('action', 'fleet.order_auto_assigned')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const meta = (auditRow as { metadata: Record<string, unknown> | null } | null)
+        ?.metadata;
+      if (meta && typeof meta.score_breakdown === 'object' && meta.score_breakdown !== null) {
+        autoAssignBreakdown = meta.score_breakdown as ScoreBreakdown;
+      }
+    } catch {
+      // Non-critical — panel stays hidden.
+    }
+  }
 
   // Pharma dispatch view shows customer name + dropoff line + items. Per
   // Legea 95 / GDPR Art.30 this is a PII read that needs an audit row.
@@ -321,6 +348,15 @@ export default async function FleetOrderDetailPage(
           <OrderRow order={order} couriers={annotated} courierName={null} />
         </ul>
       </section>
+
+      {/* "Why this courier?" panel — shown only when the order was auto-assigned
+          and the score breakdown is available in the audit log. */}
+      {autoAssignBreakdown ? (
+        <WhyAssigned
+          breakdown={autoAssignBreakdown}
+          courierName={assignedCourier?.full_name ?? null}
+        />
+      ) : null}
 
       {/* Audit timeline — covers events not visible in the status bar
           (cash collected, geofence warnings, manual reassignments, cancellations).
