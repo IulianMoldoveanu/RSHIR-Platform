@@ -368,6 +368,37 @@ export async function markDeliveredAction(
     },
     async () => {
       const admin = createAdminClient();
+
+      // Server-side enforcement of pharma proof requirement (Legea 95/2006).
+      // PR #456 added a client-side guard in PhotoProofUpload, but the server
+      // action and the drain route forwarded any payload through, so a
+      // session-holding caller could still POST `markDeliveredAction(orderId)`
+      // with no proofs and a pharma order would be marked DELIVERED with
+      // delivered_proof_*_url = NULL. Closing the gap here applies to both
+      // the UI path and the SW background-sync drain path.
+      const { data: pharmaRow } = await admin
+        .from('courier_orders')
+        .select('vertical, pharma_metadata')
+        .eq('id', orderId)
+        .eq('assigned_courier_user_id', userId)
+        .maybeSingle();
+      if (pharmaRow && (pharmaRow as { vertical?: string | null }).vertical === 'pharma') {
+        const meta = ((pharmaRow as { pharma_metadata?: unknown }).pharma_metadata ?? {}) as {
+          requires_id_verification?: boolean;
+          requires_prescription?: boolean;
+        };
+        const idOk =
+          !meta.requires_id_verification ||
+          (!!pharmaProofs?.idUrl && isAllowedProofUrl(pharmaProofs.idUrl));
+        const rxOk =
+          !meta.requires_prescription ||
+          (!!pharmaProofs?.prescriptionUrl && isAllowedProofUrl(pharmaProofs.prescriptionUrl));
+        if (!idOk || !rxOk) {
+          const missing = [!idOk && 'id', !rxOk && 'prescription'].filter(Boolean).join('+');
+          throw new Error(`pharma_proof_missing:${missing}`);
+        }
+      }
+
       const update: Record<string, unknown> = {
         status: 'DELIVERED',
         updated_at: new Date().toISOString(),
