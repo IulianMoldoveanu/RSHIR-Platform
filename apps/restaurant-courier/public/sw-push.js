@@ -146,3 +146,143 @@ self.addEventListener('notificationclick', (event) => {
       }),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Background Sync — drain the IndexedDB transition queue while backgrounded.
+//
+// Registered from transition-runner.ts after every enqueue. Chrome fires the
+// sync event when the network returns, even with the tab closed. iOS Safari
+// does not support Background Sync — the page-context drainer in
+// TransitionSync is the fallback for those clients.
+//
+// IDB schema mirrors transition-queue.ts exactly:
+//   DB:    'hir.courier.transition-queue'  version 1
+//   Store: 'pending'   keyPath 'id' autoIncrement
+//   Shape: { id, kind, orderId, payload, attempts, createdAt }
+// ---------------------------------------------------------------------------
+
+const TRANSITION_DB_NAME = 'hir.courier.transition-queue';
+const TRANSITION_DB_VERSION = 1;
+const TRANSITION_STORE = 'pending';
+const TRANSITION_DRAIN_TAG = 'transition-queue-drain';
+const TRANSITION_DRAIN_URL = '/api/courier/transitions/drain';
+const TRANSITION_MAX_ATTEMPTS = 8;
+
+function openTransitionDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(TRANSITION_DB_NAME, TRANSITION_DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(TRANSITION_STORE)) {
+        db.createObjectStore(TRANSITION_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error('IDB open failed'));
+  });
+}
+
+function listTransitionsPending(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRANSITION_STORE, 'readonly');
+    const store = tx.objectStore(TRANSITION_STORE);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result ?? []);
+    req.onerror = () => reject(req.error ?? new Error('IDB getAll failed'));
+  });
+}
+
+function deleteTransitionItem(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRANSITION_STORE, 'readwrite');
+    const store = tx.objectStore(TRANSITION_STORE);
+    const req = store.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error ?? new Error('IDB delete failed'));
+  });
+}
+
+function bumpTransitionItem(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(TRANSITION_STORE, 'readwrite');
+    const store = tx.objectStore(TRANSITION_STORE);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const item = getReq.result;
+      if (!item) return resolve();
+      item.attempts = (item.attempts ?? 0) + 1;
+      const putReq = store.put(item);
+      putReq.onsuccess = () => resolve();
+      putReq.onerror = () => reject(putReq.error ?? new Error('IDB put failed'));
+    };
+    getReq.onerror = () => reject(getReq.error ?? new Error('IDB get failed'));
+  });
+}
+
+async function drainTransitionQueue() {
+  let db;
+  try {
+    db = await openTransitionDb();
+  } catch {
+    // IDB unavailable — nothing to drain.
+    return;
+  }
+
+  let items;
+  try {
+    items = await listTransitionsPending(db);
+  } catch {
+    return;
+  }
+
+  for (const item of items) {
+    if (item.id == null) continue;
+
+    if ((item.attempts ?? 0) >= TRANSITION_MAX_ATTEMPTS) {
+      // Drop permanently-failing items. The server-side status filter no-ops
+      // on stale transitions, so dropping here is safe (no data loss).
+      await deleteTransitionItem(db, item.id).catch(() => {});
+      continue;
+    }
+
+    try {
+      // The SW runs same-origin, so cookies (Supabase session) are sent
+      // automatically — the route validates the session server-side.
+      const res = await fetch(TRANSITION_DRAIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: item.id,
+          kind: item.kind,
+          orderId: item.orderId,
+          payload: item.payload ?? {},
+        }),
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        await deleteTransitionItem(db, item.id).catch(() => {});
+      } else if (res.status >= 400 && res.status < 500) {
+        // 4xx — client error (bad shape, auth missing). Bump attempts; will
+        // eventually be dropped after MAX_ATTEMPTS. Do not re-register sync
+        // for 4xx because re-trying immediately will just 4xx again.
+        await bumpTransitionItem(db, item.id).catch(() => {});
+      } else {
+        // 5xx or network error — bump and let the browser retry the sync tag.
+        await bumpTransitionItem(db, item.id).catch(() => {});
+      }
+    } catch {
+      // fetch itself threw (network down again mid-drain). bump and bail;
+      // the browser will re-fire the sync event when connectivity returns.
+      await bumpTransitionItem(db, item.id).catch(() => {});
+    }
+  }
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== TRANSITION_DRAIN_TAG) return;
+  // waitUntil keeps the SW alive until the drain completes. Errors inside
+  // drainTransitionQueue are swallowed there; we wrap in a catch here as an
+  // extra guarantee so a thrown exception never fails the notification pipeline.
+  event.waitUntil(drainTransitionQueue().catch(() => {}));
+});
