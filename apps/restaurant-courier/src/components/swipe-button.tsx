@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
+import * as haptics from '@/lib/haptics';
 
 // Tiny haptic helper. Wrapped because navigator.vibrate throws on some
 // iOS WebKit builds when called without a user gesture, and we'd rather
@@ -86,6 +87,7 @@ export function SwipeButton({
     setPending(true);
     try {
       await onConfirm();
+      haptics.success();
       setDone(true);
     } catch (err) {
       animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
