@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { ChevronLeft, MapPin, Phone, Banknote, Package } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { OrderRow, type DispatchCourier, type DispatchOrder } from '../_row';
 import { OrderStatusBadge, STATUS_LABEL_RO } from '@/components/order-status-badge';
 import { AuditTimeline } from './audit-timeline';
+import { logMedicalAccess } from '@/lib/medical-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +58,22 @@ export default async function FleetOrderDetailPage(
 
   const order = orderData as OrderDetail | null;
   if (!order) notFound();
+
+  // Pharma dispatch view shows customer name + dropoff line + items. Per
+  // Legea 95 / GDPR Art.30 this is a PII read that needs an audit row.
+  // Fire-and-forget; see logMedicalAccess for the contract.
+  if (order.vertical === 'pharma') {
+    const h = await headers();
+    void logMedicalAccess({
+      actorUserId: fleet.userId,
+      entityType: 'courier_order',
+      entityId: order.id,
+      purpose: 'dispatch',
+      ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      userAgent: h.get('user-agent'),
+      metadata: { fleet_id: fleet.fleetId },
+    });
+  }
 
   // Mint a 1h signed URL for the delivered-proof photo at render time so
   // the page works regardless of whether the courier-proofs bucket is
