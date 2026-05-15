@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Keyboard, X } from 'lucide-react';
-import { Button } from '@hir/ui';
+import { Keyboard } from 'lucide-react';
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@hir/ui';
 
 type Shortcut = { keys: string; label: string };
 
@@ -121,60 +121,41 @@ export function FleetShortcuts() {
     };
   }, [router, helpOpen]);
 
-  if (!helpOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/70 p-4 backdrop-blur-sm sm:items-center"
-      onClick={() => setHelpOpen(false)}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Comenzi rapide tastatură"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-2xl"
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-100">
+    <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
+      <SheetContent side="bottom" className="bg-zinc-900 border-zinc-800 text-zinc-100">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-zinc-100">
             <Keyboard className="h-4 w-4 text-violet-300" aria-hidden />
             Comenzi rapide
-          </h2>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setHelpOpen(false)}
-            aria-label="Închide"
-            className="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-          >
-            <X className="h-4 w-4" aria-hidden />
-          </Button>
+          </SheetTitle>
+        </SheetHeader>
+        <div className="px-5 pb-5">
+          <ul className="divide-y divide-zinc-800">
+            {SHORTCUTS.map((s) => (
+              <li
+                key={s.keys}
+                className="flex items-center justify-between gap-3 py-2 text-sm"
+              >
+                <span className="text-zinc-300">{s.label}</span>
+                <span className="flex gap-1">
+                  {s.keys.split(' ').map((k, i) => (
+                    <kbd
+                      key={`${s.keys}-${i}`}
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-200"
+                    >
+                      {k}
+                    </kbd>
+                  ))}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] text-zinc-500">
+            Comenzile rapide sunt dezactivate când scrii într-un câmp.
+          </p>
         </div>
-        <ul className="divide-y divide-zinc-800">
-          {SHORTCUTS.map((s) => (
-            <li
-              key={s.keys}
-              className="flex items-center justify-between gap-3 py-2 text-sm"
-            >
-              <span className="text-zinc-300">{s.label}</span>
-              <span className="flex gap-1">
-                {s.keys.split(' ').map((k, i) => (
-                  <kbd
-                    key={`${s.keys}-${i}`}
-                    className="rounded-md border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-zinc-200"
-                  >
-                    {k}
-                  </kbd>
-                ))}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-[11px] text-zinc-500">
-          Comenzile rapide sunt dezactivate când scrii într-un câmp.
-        </p>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
