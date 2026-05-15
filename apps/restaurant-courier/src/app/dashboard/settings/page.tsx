@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronRight, HelpCircle, Mail, Phone, User } from 'lucide-react';
+import { ChevronRight, HelpCircle, Mail, Phone, Star, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { updateAvatarUrlAction, updateVehicleTypeAction } from '../actions';
@@ -95,6 +95,21 @@ export default async function SettingsPage() {
           initial={profile?.vehicle_type ?? 'BIKE'}
           onSave={updateVehicleTypeAction}
         />
+      </section>
+
+      {/* Ratings placeholder — courier_ratings table does not exist yet.
+          When the schema ships (operator-gated), replace this card with a
+          live query against courier_ratings filtered by courier_user_id. */}
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
+            <Star className="h-5 w-5 text-amber-400" aria-hidden />
+          </span>
+          <h2 className="text-base font-semibold text-hir-fg">Evaluarea ta</h2>
+        </div>
+        <p className="text-sm text-hir-muted-fg">
+          Sistemul de evaluări va fi activat în curând. Continuă să livrezi excelent!
+        </p>
       </section>
 
       {/* Theme picker — segmented dark/light/system. F4.5 of the master
