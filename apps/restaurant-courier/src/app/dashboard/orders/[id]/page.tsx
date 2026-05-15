@@ -60,9 +60,14 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // Use the authenticated user client so RLS enforces access:
+  // the courier_orders_assignee_or_open_select policy (migration 20260505_007)
+  // allows rows where assigned_courier_user_id = auth.uid() OR the order is
+  // CREATED/OFFERED in the courier's own fleet. Any other row returns null →
+  // notFound(), which is correct and leaks no PII.
   const admin = createAdminClient();
   const [{ data }, riderMode] = await Promise.all([
-    admin
+    supabase
       .from('courier_orders')
       .select(
         'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id',
