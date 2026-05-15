@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabase } from '@hir/supabase-types';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage, toast } from '@hir/ui';
+import { safeRedirectPath } from '@/lib/safe-redirect';
 
 export default function LoginPage() {
   return (
@@ -43,7 +44,8 @@ function LoginInner() {
         setError(error.message);
         return;
       }
-      router.push('/dashboard');
+      const next = safeRedirectPath(searchParams.get('next'));
+      router.push(next);
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Eroare neașteptată');
