@@ -61,7 +61,7 @@ export function EarningsPreview({
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         {distanceKm != null ? (
-          <div className="flex items-center gap-1.5 text-zinc-300">
+          <div className="flex items-center gap-1.5 text-hir-fg">
             <Navigation className="h-3.5 w-3.5 text-violet-300" aria-hidden />
             <span>
               {distanceKm.toFixed(1)} km
@@ -71,7 +71,7 @@ export function EarningsPreview({
         ) : null}
 
         {paymentMethod ? (
-          <div className="flex items-center gap-1.5 text-zinc-300">
+          <div className="flex items-center gap-1.5 text-hir-fg">
             <Wallet className="h-3.5 w-3.5 text-violet-300" aria-hidden />
             <span>{paymentMethod === 'COD' ? 'Cash la livrare' : 'Card (achitat)'}</span>
           </div>

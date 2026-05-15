@@ -53,7 +53,7 @@ export function OrderTimeline({ status }: { status: string }) {
             {idx < STAGES.length - 1 ? (
               <span
                 className={`absolute left-[-1.125rem] top-5 h-[calc(100%+1rem)] w-px ${
-                  isPast ? 'bg-violet-500' : 'bg-zinc-800'
+                  isPast ? 'bg-violet-500' : 'bg-hir-border'
                 }`}
                 aria-hidden
               />
@@ -66,7 +66,7 @@ export function OrderTimeline({ status }: { status: string }) {
                   ? 'bg-violet-500'
                   : isCurrent
                   ? 'dot-pulse bg-violet-500'
-                  : 'bg-zinc-800'
+                  : 'bg-hir-border'
               }`}
               aria-hidden
             >
@@ -79,7 +79,7 @@ export function OrderTimeline({ status }: { status: string }) {
                   ? 'font-semibold text-zinc-100'
                   : isFuture
                   ? 'text-zinc-500'
-                  : 'text-zinc-300'
+                  : 'text-hir-muted-fg'
               }`}
             >
               {stage.label}
