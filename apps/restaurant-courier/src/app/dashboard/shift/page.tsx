@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction, forceEndShiftAction } from '../actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { ForceEndShift } from '@/components/force-end-shift';
+import { StartShiftSection } from './start-shift-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,10 +111,7 @@ export default async function ShiftPage() {
             <p className="mb-4 text-sm text-hir-muted-fg">
               Pornește tura pentru a primi comenzi.
             </p>
-            <SwipeButton
-              label="→ Glisează pentru a porni tura"
-              onConfirm={startShiftAction}
-            />
+            <StartShiftSection startShiftAction={startShiftAction} />
           </>
         )}
       </section>
