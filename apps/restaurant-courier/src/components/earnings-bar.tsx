@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ShiftTimer } from './shift-timer';
 import { EarningsValue } from './earnings-value';
+import { Target } from 'lucide-react';
 
 /**
  * Always-visible header pill. Shows today's net earnings, today's delivery
@@ -23,7 +24,11 @@ export async function EarningsBar() {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  const [{ data: ordersData }, { data: shiftData }] = await Promise.all([
+  // Trailing-7-day window for daily average comparison.
+  const start7d = new Date(startOfDay);
+  start7d.setDate(start7d.getDate() - 7);
+
+  const [{ data: ordersData }, { data: shiftData }, { data: trailing7Data }] = await Promise.all([
     admin
       .from('courier_orders')
       .select('delivery_fee_ron')
@@ -37,6 +42,13 @@ export async function EarningsBar() {
       .eq('status', 'ONLINE')
       .limit(1)
       .maybeSingle(),
+    admin
+      .from('courier_orders')
+      .select('delivery_fee_ron, updated_at')
+      .eq('assigned_courier_user_id', user.id)
+      .eq('status', 'DELIVERED')
+      .gte('updated_at', start7d.toISOString())
+      .lt('updated_at', startOfDay.toISOString()),
   ]);
 
   const orders = (ordersData ?? []) as Array<{ delivery_fee_ron: number | null }>;
@@ -44,6 +56,20 @@ export async function EarningsBar() {
   const earnings = orders.reduce((sum, row) => sum + (Number(row.delivery_fee_ron) || 0), 0);
   const shift = shiftData as { id: string; started_at: string | null } | null;
   const isOnline = !!shift;
+
+  // Compute trailing-7d daily average for micro-copy hint.
+  const trailing7 = (trailing7Data ?? []) as Array<{ delivery_fee_ron: number | null; updated_at: string }>;
+  const daySet = new Set<string>();
+  let trailing7Total = 0;
+  for (const r of trailing7) {
+    const d = new Date(r.updated_at);
+    daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    trailing7Total += Number(r.delivery_fee_ron) || 0;
+  }
+  const avgDaily = daySet.size > 0 ? trailing7Total / daySet.size : 0;
+  // Gap to daily target. Positive = below average (show hint). Zero days of
+  // trailing data means no hint (avgDaily === 0).
+  const gapToAvg = avgDaily > 0 && earnings < avgDaily ? avgDaily - earnings : 0;
 
   return (
     <div
@@ -65,6 +91,15 @@ export async function EarningsBar() {
       </span>
       <span className="h-3 w-px bg-hir-border" aria-hidden />
       <EarningsValue value={earnings} count={count} />
+      {gapToAvg > 0 ? (
+        <>
+          <span className="h-3 w-px bg-hir-border" aria-hidden />
+          <span className="flex items-center gap-1 text-zinc-500" aria-label={`${gapToAvg.toFixed(2)} RON mai mult pentru target zilnic`}>
+            <Target className="h-3 w-3 shrink-0" aria-hidden />
+            <span>{gapToAvg.toFixed(2)} mai mult pt. target</span>
+          </span>
+        </>
+      ) : null}
       {isOnline && shift?.started_at ? <ShiftTimer startedAt={shift.started_at} /> : null}
     </div>
   );
