@@ -132,14 +132,14 @@ export default async function FleetEarningsPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Decontări</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Decontări</h1>
+          <p className="mt-1 text-sm text-hir-muted-fg">
             Sumar pentru ultimele 7 zile · {delivered.length} livrări totale.
           </p>
         </div>
         <a
           href="/fleet/earnings/export?days=30"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-xs font-semibold text-hir-fg hover:bg-hir-surface/60"
           download
         >
           <Download className="h-3.5 w-3.5" aria-hidden />
@@ -165,15 +165,15 @@ export default async function FleetEarningsPage() {
           hint="De colectat de la curieri"
         />
         <Kpi
-          icon={<Calendar className="h-4 w-4 text-zinc-400" aria-hidden />}
+          icon={<Calendar className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
           label="Cash 7 zile"
           value={`${cashWeek.toFixed(2)} RON`}
         />
       </div>
 
       {/* Tiny daily-revenue bar chart */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-100">Ultimele 7 zile</h2>
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-hir-fg">Ultimele 7 zile</h2>
         <ul className="flex items-end gap-2">
           {dailyBuckets.map((b) => {
             const heightPct = (b.revenue / maxDailyRevenue) * 100;
@@ -186,8 +186,8 @@ export default async function FleetEarningsPage() {
                     aria-label={`${b.revenue.toFixed(2)} RON`}
                   />
                 </div>
-                <span className="text-[10px] text-zinc-500">{b.label}</span>
-                <span className="text-[10px] font-medium text-zinc-300">
+                <span className="text-[10px] text-hir-muted-fg">{b.label}</span>
+                <span className="text-[10px] font-medium text-hir-muted-fg">
                   {b.revenue > 0 ? b.revenue.toFixed(0) : '—'}
                 </span>
               </li>
@@ -200,19 +200,19 @@ export default async function FleetEarningsPage() {
           from >1 restaurant in the last 7 days. Mirrors the per-courier
           layout below for consistency. */}
       {sortedTenants.length > 1 ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-100">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <h2 className="mb-3 text-sm font-semibold text-hir-fg">
             Per restaurant ({sortedTenants.length})
           </h2>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-hir-border">
             {sortedTenants.map((t) => (
               <li
                 key={t.id}
                 className="flex items-center justify-between gap-3 py-2.5"
               >
-                <span className="truncate text-sm text-zinc-100">{t.name}</span>
+                <span className="truncate text-sm text-hir-fg">{t.name}</span>
                 <div className="flex shrink-0 items-center gap-3 text-xs">
-                  <span className="text-zinc-500">{t.count} livrări</span>
+                  <span className="text-hir-muted-fg">{t.count} livrări</span>
                   {t.cash > 0 ? (
                     <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
                       Cash {t.cash.toFixed(2)}
@@ -228,24 +228,24 @@ export default async function FleetEarningsPage() {
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-100">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-hir-fg">
           Per curier ({sortedCouriers.length})
         </h2>
         {sortedCouriers.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-center text-xs text-zinc-500">
+          <p className="rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-5 text-center text-xs text-hir-muted-fg">
             Nicio livrare în ultimele 7 zile.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-hir-border">
             {sortedCouriers.map((c) => (
               <li
                 key={c.userId}
                 className="flex items-center justify-between gap-3 py-2.5"
               >
-                <span className="truncate text-sm text-zinc-100">{c.name}</span>
+                <span className="truncate text-sm text-hir-fg">{c.name}</span>
                 <div className="flex shrink-0 items-center gap-3 text-xs">
-                  <span className="text-zinc-500">{c.count} livrări</span>
+                  <span className="text-hir-muted-fg">{c.count} livrări</span>
                   {c.cash > 0 ? (
                     <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
                       Cash {c.cash.toFixed(2)}
@@ -276,13 +276,13 @@ function Kpi({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+    <div className="rounded-2xl border border-hir-border bg-hir-surface p-3">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {icon}
         {label}
       </div>
-      <p className="mt-1 text-xl font-semibold text-zinc-100">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-zinc-500">{hint}</p> : null}
+      <p className="mt-1 text-xl font-semibold text-hir-fg">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] text-hir-muted-fg">{hint}</p> : null}
     </div>
   );
 }

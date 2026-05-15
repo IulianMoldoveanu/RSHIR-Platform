@@ -31,22 +31,22 @@ export default function HelpPage() {
     <div className="mx-auto max-w-xl space-y-4">
       <Link
         href="/dashboard/settings"
-        className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300"
+        className="inline-flex items-center gap-1 text-xs text-hir-muted-fg hover:text-hir-fg"
       >
         <ArrowLeft className="h-3 w-3" aria-hidden />
         Înapoi
       </Link>
 
-      <header className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <header className="rounded-2xl border border-hir-border bg-hir-surface p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
             <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-zinc-100">
+            <h1 className="text-base font-semibold text-hir-fg">
               Cum funcționează HIR Curier
             </h1>
-            <p className="mt-0.5 text-[11px] text-zinc-500">
+            <p className="mt-0.5 text-[11px] text-hir-muted-fg">
               Ghid de pornire în 4 pași · ~2 minute de citit
             </p>
           </div>
@@ -76,11 +76,11 @@ export default function HelpPage() {
         />
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-100">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-hir-fg">
           Întrebări frecvente
         </h2>
-        <ul className="divide-y divide-zinc-800">
+        <ul className="divide-y divide-hir-border">
           <Faq
             id="payments"
             icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
@@ -113,7 +113,7 @@ export default function HelpPage() {
           />
           <Faq
             id="shift"
-            icon={<Clock className="h-4 w-4 text-zinc-400" aria-hidden />}
+            icon={<Clock className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
             q="Pot închide tura între comenzi?"
             a="Da, oricând nu ai comandă activă. Butonul de oprire apare singur pe home tab. Ce ai livrat rămâne salvat — doar nu mai primești comenzi noi."
           />
@@ -126,18 +126,18 @@ export default function HelpPage() {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
         <div className="mb-3 flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-violet-400" aria-hidden />
-          <h2 className="text-sm font-semibold text-zinc-100">
+          <h2 className="text-sm font-semibold text-hir-fg">
             Termeni pe care îi vezi în aplicație
           </h2>
         </div>
-        <p className="mb-3 text-[11px] text-zinc-500">
+        <p className="mb-3 text-[11px] text-hir-muted-fg">
           Glosar scurt pentru curierii la prima tură. Dacă vezi un cuvânt în
           ecranele de comandă pe care nu îl recunoști, probabil e aici.
         </p>
-        <dl className="divide-y divide-zinc-800">
+        <dl className="divide-y divide-hir-border">
           <GlossaryTerm
             term="Dovadă (proof)"
             def="Poza pe care o faci la livrare. La restaurant e opțională (recomandată pentru contestații). La farmacie e obligatorie: poza la actul de identitate al destinatarului, plus poza la rețetă dacă apare cerută."
@@ -181,28 +181,28 @@ export default function HelpPage() {
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-100">Suport</h2>
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport</h2>
         <a
           href="tel:+40212040000"
-          className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 hover:border-emerald-500/40 hover:bg-zinc-900"
+          className="flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2.5 hover:border-emerald-500/40 hover:bg-hir-surface"
         >
           <Phone className="h-4 w-4 text-emerald-400" aria-hidden />
-          <span className="flex-1 text-sm text-zinc-200">+40 21 204 0000</span>
-          <span className="text-[10px] text-zinc-500">L–V 09–18</span>
-          <ChevronRight className="h-4 w-4 text-zinc-600" aria-hidden />
+          <span className="flex-1 text-sm text-hir-fg">+40 21 204 0000</span>
+          <span className="text-[10px] text-hir-muted-fg">L–V 09–18</span>
+          <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
         </a>
         <a
           href="mailto:suport@hirforyou.ro"
-          className="mt-2 flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 hover:border-violet-500/40 hover:bg-zinc-900"
+          className="mt-2 flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2.5 hover:border-violet-500/40 hover:bg-hir-surface"
         >
           <Mail className="h-4 w-4 text-violet-400" aria-hidden />
-          <span className="flex-1 text-sm text-zinc-200">
+          <span className="flex-1 text-sm text-hir-fg">
             suport@hirforyou.ro
           </span>
-          <ChevronRight className="h-4 w-4 text-zinc-600" aria-hidden />
+          <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
         </a>
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-[11px] text-hir-muted-fg">
           Pentru probleme operaționale (comandă blocată, restaurant nu
           răspunde) contactează direct dispecerul tău. Suport HIR e pentru
           probleme de cont, plată sau aplicație.
@@ -222,13 +222,13 @@ function Step({
   body: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+    <div className="flex items-start gap-3 rounded-2xl border border-hir-border bg-hir-surface p-3">
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">
         {n}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-100">{title}</p>
-        <p className="mt-0.5 text-xs text-zinc-400">{body}</p>
+        <p className="text-sm font-medium text-hir-fg">{title}</p>
+        <p className="mt-0.5 text-xs text-hir-muted-fg">{body}</p>
       </div>
     </div>
   );
@@ -247,11 +247,11 @@ function Faq({
 }) {
   return (
     <li id={id} className="py-3 first:pt-0 last:pb-0">
-      <div className="mb-1 flex items-center gap-2 text-sm font-medium text-zinc-100">
+      <div className="mb-1 flex items-center gap-2 text-sm font-medium text-hir-fg">
         {icon}
         {q}
       </div>
-      <p className="pl-6 text-xs text-zinc-400">{a}</p>
+      <p className="pl-6 text-xs text-hir-muted-fg">{a}</p>
     </li>
   );
 }
@@ -259,8 +259,8 @@ function Faq({
 function GlossaryTerm({ term, def }: { term: string; def: string }) {
   return (
     <div className="py-2.5 first:pt-0 last:pb-0">
-      <dt className="text-sm font-medium text-zinc-100">{term}</dt>
-      <dd className="mt-0.5 text-xs text-zinc-400">{def}</dd>
+      <dt className="text-sm font-medium text-hir-fg">{term}</dt>
+      <dd className="mt-0.5 text-xs text-hir-muted-fg">{def}</dd>
     </div>
   );
 }

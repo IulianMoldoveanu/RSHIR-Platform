@@ -76,11 +76,11 @@ export function OrderActions({
   // the rider isn't left wondering why there's no button.
   if (mode === 'C') {
     return (
-      <div className="flex items-start gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-sm">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+      <div className="flex items-start gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
         <div className="flex-1">
-          <p className="font-medium text-zinc-200">Vizualizare read-only</p>
-          <p className="mt-0.5 text-xs text-zinc-400">
+          <p className="font-medium text-hir-fg">Vizualizare read-only</p>
+          <p className="mt-0.5 text-xs text-hir-muted-fg">
             {fleetName
               ? `Folosește aplicația flotei "${fleetName}" pentru a actualiza starea comenzii.`
               : 'Folosește aplicația flotei tale pentru a actualiza starea comenzii.'}

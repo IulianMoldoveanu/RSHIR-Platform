@@ -72,7 +72,7 @@ const VEHICLE_LABEL: Record<ProfileRow['vehicle_type'], string> = {
 };
 const STATUS_TONE: Record<ProfileRow['status'], { label: string; tone: string }> = {
   ACTIVE: { label: 'Activ', tone: 'bg-emerald-500/10 text-emerald-300' },
-  INACTIVE: { label: 'Inactiv', tone: 'bg-zinc-800 text-zinc-400' },
+  INACTIVE: { label: 'Inactiv', tone: 'bg-hir-border text-hir-muted-fg' },
   SUSPENDED: { label: 'Suspendat', tone: 'bg-amber-500/10 text-amber-300' },
 };
 
@@ -219,7 +219,7 @@ export default async function FleetCourierDetailPage(
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <Link
         href="/fleet/couriers"
-        className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200"
+        className="inline-flex items-center gap-1 text-xs text-hir-muted-fg hover:text-hir-fg"
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Înapoi la curieri
@@ -227,10 +227,10 @@ export default async function FleetCourierDetailPage(
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-100">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-hir-fg">
             {profile.full_name ?? 'Curier'}
           </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-hir-muted-fg">
             <span className="inline-flex items-center gap-1">
               {VEHICLE_ICON[profile.vehicle_type]}
               {VEHICLE_LABEL[profile.vehicle_type]}
@@ -244,7 +244,7 @@ export default async function FleetCourierDetailPage(
                 {formatRoPhone(profile.phone)}
               </a>
             ) : (
-              <span className="text-zinc-500">Fără telefon</span>
+              <span className="text-hir-muted-fg">Fără telefon</span>
             )}
           </div>
         </div>
@@ -262,8 +262,8 @@ export default async function FleetCourierDetailPage(
 
       {/* Current shift card */}
       {lastShift ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             {lastShift.status === 'ONLINE' ? 'Tură curentă' : 'Ultima tură'}
           </p>
           <div className="grid grid-cols-2 gap-3 text-xs">
@@ -305,7 +305,7 @@ export default async function FleetCourierDetailPage(
           </div>
         </section>
       ) : (
-        <section className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 px-4 py-6 text-center text-xs text-zinc-500">
+        <section className="rounded-2xl border border-dashed border-hir-border bg-hir-surface px-4 py-6 text-center text-xs text-hir-muted-fg">
           Curierul nu a pornit încă o tură.
         </section>
       )}
@@ -313,11 +313,11 @@ export default async function FleetCourierDetailPage(
       {/* Past shifts table — last 14 entries (the "current/last" card above
           consumed the 15th most-recent row). */}
       {pastShifts.length > 0 ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             Ture anterioare ({pastShifts.length})
           </p>
-          <ul className="divide-y divide-zinc-800 text-xs">
+          <ul className="divide-y divide-hir-border text-xs">
             {pastShifts.map((s) => {
               const start = new Date(s.started_at);
               const end = s.ended_at ? new Date(s.ended_at) : null;
@@ -328,14 +328,14 @@ export default async function FleetCourierDetailPage(
                   className="flex items-center justify-between gap-3 py-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-zinc-100">
+                    <p className="truncate text-hir-fg">
                       {start.toLocaleString('ro-RO', {
                         day: '2-digit',
                         month: '2-digit',
                         weekday: 'short',
                       })}
                     </p>
-                    <p className="truncate text-[11px] text-zinc-500">
+                    <p className="truncate text-[11px] text-hir-muted-fg">
                       {start.toLocaleTimeString('ro-RO', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -350,10 +350,10 @@ export default async function FleetCourierDetailPage(
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-medium text-zinc-100">
+                    <p className="text-sm font-medium text-hir-fg">
                       {dur != null ? formatDuration(dur) : '—'}
                     </p>
-                    <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                    <p className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
                       durată
                     </p>
                   </div>
@@ -365,8 +365,8 @@ export default async function FleetCourierDetailPage(
       ) : null}
 
       {/* 30-day metrics */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Ultimele 30 zile
         </p>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -387,7 +387,7 @@ export default async function FleetCourierDetailPage(
             hint={cashCollected === 0 ? 'Niciun COD' : undefined}
           />
           <Metric
-            icon={<Timer className="h-4 w-4 text-zinc-400" aria-hidden />}
+            icon={<Timer className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
             label="Timp mediu"
             value={Number.isFinite(avgDurationMs) ? formatDuration(avgDurationMs) : '—'}
             hint="Creare → livrare"
@@ -397,7 +397,7 @@ export default async function FleetCourierDetailPage(
 
       {/* Active orders */}
       {active.length > 0 ? (
-        <section className="rounded-2xl border border-violet-500/30 bg-zinc-900 p-4">
+        <section className="rounded-2xl border border-violet-500/30 bg-hir-surface p-4">
           <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
             În curs ({active.length})
           </p>
@@ -406,12 +406,12 @@ export default async function FleetCourierDetailPage(
               <li key={o.id}>
                 <Link
                   href={`/fleet/orders/${o.id}`}
-                  className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs hover:border-violet-500/40 hover:bg-zinc-900"
+                  className="flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2 text-xs hover:border-violet-500/40 hover:bg-hir-surface"
                 >
                   <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
                     {o.status}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-zinc-100">
+                  <span className="min-w-0 flex-1 truncate text-hir-fg">
                     {o.customer_first_name ?? 'Client'} · {o.dropoff_line1 ?? '—'}
                   </span>
                   {o.delivery_fee_ron != null ? (
@@ -427,9 +427,9 @@ export default async function FleetCourierDetailPage(
       ) : null}
 
       {/* Recent deliveries */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             Livrări recente ({delivered.length})
           </p>
           {delivered.length > 0 ? (
@@ -442,21 +442,21 @@ export default async function FleetCourierDetailPage(
           ) : null}
         </div>
         {delivered.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-center text-xs text-zinc-500">
+          <p className="rounded-xl border border-dashed border-hir-border bg-zinc-950 px-4 py-5 text-center text-xs text-hir-muted-fg">
             Nicio livrare în ultimele 30 zile.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-hir-border">
             {delivered.slice(0, 12).map((o) => (
               <li
                 key={o.id}
                 className="flex items-center justify-between gap-3 py-2 text-xs"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-zinc-100">
+                  <p className="truncate text-hir-fg">
                     {o.customer_first_name ?? 'Client'}
                   </p>
-                  <p className="truncate text-zinc-500">
+                  <p className="truncate text-hir-muted-fg">
                     {o.dropoff_line1 ?? '—'}
                   </p>
                 </div>
@@ -464,7 +464,7 @@ export default async function FleetCourierDetailPage(
                   <span className="text-emerald-300">
                     +{Number(o.delivery_fee_ron ?? 0).toFixed(2)} RON
                   </span>
-                  <span className="text-[10px] text-zinc-500">
+                  <span className="text-[10px] text-hir-muted-fg">
                     {new Date(o.updated_at).toLocaleString('ro-RO', {
                       day: '2-digit',
                       month: '2-digit',
@@ -495,8 +495,8 @@ function Stat({
     <div className="flex items-center gap-2">
       <span aria-hidden>{icon}</span>
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
-        <p className="truncate text-sm font-medium text-zinc-100">{value}</p>
+        <p className="text-[10px] uppercase tracking-wide text-hir-muted-fg">{label}</p>
+        <p className="truncate text-sm font-medium text-hir-fg">{value}</p>
       </div>
     </div>
   );
@@ -515,12 +515,12 @@ function Metric({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {icon}
         {label}
       </div>
-      <p className="mt-1 text-xl font-semibold text-zinc-100">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-zinc-500">{hint}</p> : null}
+      <p className="mt-1 text-xl font-semibold text-hir-fg">{value}</p>
+      {hint ? <p className="mt-0.5 text-[11px] text-hir-muted-fg">{hint}</p> : null}
     </div>
   );
 }

@@ -19,7 +19,7 @@ type ProfileRow = {
 
 const STATUS_LABEL: Record<ProfileRow['status'], { label: string; tone: string }> = {
   ACTIVE: { label: 'Activ', tone: 'bg-emerald-500/10 text-emerald-300' },
-  INACTIVE: { label: 'Inactiv', tone: 'bg-zinc-800 text-zinc-400' },
+  INACTIVE: { label: 'Inactiv', tone: 'bg-hir-border text-hir-muted-fg' },
   SUSPENDED: { label: 'Suspendat', tone: 'bg-amber-500/10 text-amber-300' },
 };
 
@@ -44,9 +44,9 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       {/* Profile card */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-base font-semibold text-zinc-100">Profil</h1>
+          <h1 className="text-base font-semibold text-hir-fg">Profil</h1>
           <span
             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadge.tone}`}
           >
@@ -61,24 +61,24 @@ export default async function SettingsPage() {
             saveAvatarUrl={updateAvatarUrlAction}
           />
         </div>
-        <ul className="divide-y divide-zinc-800/60">
+        <ul className="divide-y divide-hir-border/60">
           <ProfileRowItem
-            icon={<User className="h-4 w-4 text-zinc-400" aria-hidden />}
+            icon={<User className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
             label="Nume"
             value={profile?.full_name ?? '—'}
           />
           <ProfileRowItem
-            icon={<Mail className="h-4 w-4 text-zinc-400" aria-hidden />}
+            icon={<Mail className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
             label="Email"
             value={user.email ?? '—'}
           />
           <ProfileRowItem
-            icon={<Phone className="h-4 w-4 text-zinc-400" aria-hidden />}
+            icon={<Phone className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
             label="Telefon"
             value={profile?.phone ?? '—'}
           />
         </ul>
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-[11px] text-hir-muted-fg">
           Pentru a modifica numele sau telefonul, contactează suportul.
         </p>
       </section>
@@ -86,9 +86,9 @@ export default async function SettingsPage() {
       {/* Vehicle picker — segmented control with the same 3D miniature
           icons used on the live map. Tapping commits immediately
           (optimistic update + rollback on error); no Save button needed. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-        <h2 className="mb-1 text-base font-semibold text-zinc-100">Vehicul</h2>
-        <p className="mb-4 text-[11px] text-zinc-500">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <h2 className="mb-1 text-base font-semibold text-hir-fg">Vehicul</h2>
+        <p className="mb-4 text-[11px] text-hir-muted-fg">
           Selectează vehiculul cu care livrezi astăzi.
         </p>
         <VehicleSelector
@@ -102,23 +102,23 @@ export default async function SettingsPage() {
           localStorage by the provider. The chrome (body bg + fg) honours
           the toggle out of the gate; deeper component surfaces are
           migrated in follow-up PRs. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
         <ThemeToggle />
       </section>
 
       {/* Help link */}
       <Link
         href="/dashboard/help"
-        className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4 hover:border-violet-500/40 hover:bg-zinc-800/60 active:scale-[0.99]"
+        className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-surface/60 active:scale-[0.99]"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
           <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-zinc-100">Ajutor & FAQ</p>
-          <p className="mt-0.5 text-xs text-zinc-500">Plată, fotografii, urgențe</p>
+          <p className="text-sm font-semibold text-hir-fg">Ajutor & FAQ</p>
+          <p className="mt-0.5 text-xs text-hir-muted-fg">Plată, fotografii, urgențe</p>
         </div>
-        <ChevronRight className="h-4 w-4 text-zinc-500" aria-hidden />
+        <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
       </Link>
     </div>
   );
@@ -136,8 +136,8 @@ function ProfileRowItem({
   return (
     <li className="flex items-center gap-3 py-3">
       <span aria-hidden className="shrink-0">{icon}</span>
-      <span className="w-16 shrink-0 text-xs text-zinc-500">{label}</span>
-      <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-zinc-100">{value}</span>
+      <span className="w-16 shrink-0 text-xs text-hir-muted-fg">{label}</span>
+      <span className="min-w-0 flex-1 truncate text-right text-sm font-medium text-hir-fg">{value}</span>
     </li>
   );
 }

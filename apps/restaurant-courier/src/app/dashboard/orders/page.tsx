@@ -152,12 +152,12 @@ export default async function OrdersPage() {
         watchFleetOpenOrders={showOpenOrders}
       />
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-zinc-100">Comenzi</h1>
+        <h1 className="text-lg font-semibold text-hir-fg">Comenzi</h1>
         <form action={refreshOrdersAction}>
           <button
             type="submit"
             aria-label="Reîmprospătează"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 active:scale-95"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-xs font-medium text-hir-muted-fg hover:bg-hir-surface/60 active:scale-95"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             Actualizează
@@ -231,10 +231,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
         {title}
         {count > 0 ? (
-          <span className="rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-300">
+          <span className="rounded-full bg-hir-border px-1.5 py-0.5 text-[10px] font-bold text-hir-muted-fg">
             {count}
           </span>
         ) : null}
@@ -262,12 +262,12 @@ function Empty({
   ctaLabel?: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-400">
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center">
+      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-hir-border text-hir-muted-fg">
         {icon}
       </span>
-      <p className="text-sm font-medium text-zinc-200">{title}</p>
-      <p className="text-xs text-zinc-500">{hint}</p>
+      <p className="text-sm font-medium text-hir-fg">{title}</p>
+      <p className="text-xs text-hir-muted-fg">{hint}</p>
       {ctaHref && ctaLabel ? (
         <Link
           href={ctaHref}
@@ -313,7 +313,7 @@ function OrderListItem({
     <li>
       <Link
         href={`/dashboard/orders/${order.id}`}
-        className="block rounded-2xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-violet-500/50 hover:bg-zinc-800/60 active:scale-[0.99]"
+        className="block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/50 hover:bg-hir-surface/60 active:scale-[0.99]"
       >
         {/* Top row: customer + vertical badge + status chip */}
         <div className="flex items-start justify-between gap-3">
@@ -326,7 +326,7 @@ function OrderListItem({
                 {seqNumber}
               </span>
             ) : null}
-            <p className="truncate text-sm font-semibold text-zinc-100">
+            <p className="truncate text-sm font-semibold text-hir-fg">
               {order.customer_first_name ?? 'Client'}
             </p>
             <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
@@ -336,20 +336,20 @@ function OrderListItem({
         </div>
 
         {/* Route line */}
-        <p className="mt-1.5 truncate text-xs text-zinc-500">
+        <p className="mt-1.5 truncate text-xs text-hir-muted-fg">
           {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
         </p>
 
         {/* Distance + ETA + fee row */}
         <div className="mt-2.5 flex items-center gap-3">
           {distanceKm != null ? (
-            <span className="flex items-center gap-1 rounded-lg bg-zinc-800 px-2 py-1 text-[11px] font-medium text-zinc-200">
+            <span className="flex items-center gap-1 rounded-lg bg-hir-border px-2 py-1 text-[11px] font-medium text-hir-fg">
               <Navigation className="h-3 w-3 text-violet-300" aria-hidden />
               {distanceKm.toFixed(1)} km
             </span>
           ) : null}
           {etaMin != null ? (
-            <span className="text-[11px] text-zinc-500">~{etaMin} min</span>
+            <span className="text-[11px] text-hir-muted-fg">~{etaMin} min</span>
           ) : null}
           {order.delivery_fee_ron != null ? (
             <span className="ml-auto text-xs font-semibold text-emerald-300">
@@ -357,9 +357,9 @@ function OrderListItem({
             </span>
           ) : null}
           {order.delivery_fee_ron == null ? (
-            <span className="ml-auto text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
+            <span className="ml-auto text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
           ) : (
-            <span className="text-[10px] text-zinc-500">{formatAge(order.created_at)}</span>
+            <span className="text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
           )}
         </div>
       </Link>

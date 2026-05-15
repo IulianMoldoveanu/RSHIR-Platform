@@ -44,7 +44,7 @@ const VEHICLE_LABEL: Record<CourierRow['vehicle_type'], string> = {
 
 const STATUS_BADGE: Record<CourierRow['status'], { label: string; tone: string }> = {
   ACTIVE: { label: 'Activ', tone: 'bg-emerald-500/10 text-emerald-300' },
-  INACTIVE: { label: 'Inactiv', tone: 'bg-zinc-800 text-zinc-400' },
+  INACTIVE: { label: 'Inactiv', tone: 'bg-hir-border text-hir-muted-fg' },
   SUSPENDED: { label: 'Suspendat', tone: 'bg-amber-500/10 text-amber-300' },
 };
 
@@ -141,8 +141,8 @@ export default async function FleetCouriersPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-100">Curieri</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Curieri</h1>
+          <p className="mt-1 text-sm text-hir-muted-fg">
             {couriers.length} {couriers.length === 1 ? 'curier' : 'curieri'} în flotă ·{' '}
             <span className="text-emerald-300">{onlineSet.size} online</span>
           </p>
@@ -157,9 +157,9 @@ export default async function FleetCouriersPage() {
       </div>
 
       {couriers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 px-6 py-10 text-center">
-          <p className="text-sm font-medium text-zinc-200">Niciun curier încă</p>
-          <p className="mt-1 text-xs text-zinc-500">
+        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface px-6 py-10 text-center">
+          <p className="text-sm font-medium text-hir-fg">Niciun curier încă</p>
+          <p className="mt-1 text-xs text-hir-muted-fg">
             Invită primul curier din butonul de mai sus.
           </p>
         </div>
@@ -176,7 +176,7 @@ export default async function FleetCouriersPage() {
             return (
               <li
                 key={c.user_id}
-                className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4"
+                className="rounded-2xl border border-hir-border bg-hir-surface p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -189,11 +189,11 @@ export default async function FleetCouriersPage() {
                     <div className="min-w-0 flex-1">
                       <Link
                         href={`/fleet/couriers/${c.user_id}`}
-                        className="truncate text-sm font-semibold text-zinc-100 hover:text-violet-300"
+                        className="truncate text-sm font-semibold text-hir-fg hover:text-violet-300"
                       >
                         {c.full_name ?? 'Curier'}
                       </Link>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-hir-muted-fg">
                         <span className="inline-flex items-center gap-1">
                           {VEHICLE_ICON[c.vehicle_type]}
                           {VEHICLE_LABEL[c.vehicle_type]}
@@ -208,7 +208,7 @@ export default async function FleetCouriersPage() {
                           </a>
                         ) : null}
                         {!isOnline && lastSeen ? (
-                          <span className="text-zinc-500">
+                          <span className="text-hir-muted-fg">
                             văzut {new Date(lastSeen).toLocaleTimeString('ro-RO', {
                               hour: '2-digit',
                               minute: '2-digit',
@@ -225,13 +225,13 @@ export default async function FleetCouriersPage() {
                   </span>
                 </div>
 
-                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-zinc-800 pt-3 text-center">
+                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-hir-border pt-3 text-center">
                   <Mini label="În curs" value={String(inProgress)} />
                   <Mini label="Livrate azi" value={String(todayN)} />
                   <Mini label="Câștig azi" value={`${todayR.toFixed(2)} RON`} />
                 </div>
 
-                <div className="mt-3 flex justify-end border-t border-zinc-800 pt-3">
+                <div className="mt-3 flex justify-end border-t border-hir-border pt-3">
                   <CourierStatusActions userId={c.user_id} status={c.status} />
                 </div>
               </li>
@@ -246,8 +246,8 @@ export default async function FleetCouriersPage() {
 function Mini({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-sm font-semibold text-zinc-100">{value}</p>
-      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-sm font-semibold text-hir-fg">{value}</p>
+      <p className="mt-0.5 text-[10px] uppercase tracking-wide text-hir-muted-fg">{label}</p>
     </div>
   );
 }

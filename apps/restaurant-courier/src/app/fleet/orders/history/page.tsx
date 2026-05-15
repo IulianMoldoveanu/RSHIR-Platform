@@ -149,17 +149,17 @@ export default async function FleetOrdersHistoryPage(
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <Link
         href="/fleet/orders"
-        className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200"
+        className="inline-flex items-center gap-1 text-xs text-hir-muted-fg hover:text-hir-fg"
       >
         <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Înapoi la dispecerat
       </Link>
 
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">
+        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
           Istoric comenzi
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-hir-muted-fg">
           {tenantFilter
             ? `${tenantNames.get(tenantFilter) ?? 'Restaurant'} · `
             : ''}
@@ -187,7 +187,7 @@ export default async function FleetOrdersHistoryPage(
               className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                 active
                   ? 'border-violet-500 bg-violet-500/10 text-violet-200'
-                  : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                  : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:bg-hir-surface/60'
               }`}
             >
               {opt.label}
@@ -196,7 +196,7 @@ export default async function FleetOrdersHistoryPage(
         })}
         <Link
           href={`/fleet/earnings/export?days=${days}`}
-          className="ml-auto inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+          className="ml-auto inline-flex items-center gap-1 rounded-full border border-hir-border bg-hir-surface px-3 py-1 text-xs font-medium text-hir-muted-fg hover:bg-hir-surface/60"
         >
           Export CSV
         </Link>
@@ -213,14 +213,14 @@ export default async function FleetOrdersHistoryPage(
       >
         <input type="hidden" name="days" value={String(days)} />
         {tenantFilter ? <input type="hidden" name="tenant" value={tenantFilter} /> : null}
-        <label htmlFor="courier-filter" className="text-xs text-zinc-500">
+        <label htmlFor="courier-filter" className="text-xs text-hir-muted-fg">
           Filtrează după curier:
         </label>
         <select
           id="courier-filter"
           name="courier"
           defaultValue={courierFilter ?? ''}
-          className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-violet-500 focus:outline-none"
+          className="rounded-md border border-hir-border bg-zinc-950 px-2 py-1 text-xs text-hir-fg focus:border-violet-500 focus:outline-none"
         >
           <option value="">Toți curierii</option>
           {couriers.map((c) => (
@@ -233,7 +233,7 @@ export default async function FleetOrdersHistoryPage(
           type="submit"
           variant="outline"
           size="sm"
-          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+          className="border-hir-border bg-hir-surface text-hir-fg hover:bg-hir-border"
         >
           Aplică
         </Button>
@@ -244,7 +244,7 @@ export default async function FleetOrdersHistoryPage(
               if (tenantFilter) p.set('tenant', tenantFilter);
               return `/fleet/orders/history?${p.toString()}`;
             })()}
-            className="text-xs text-zinc-500 hover:text-zinc-300"
+            className="text-xs text-hir-muted-fg hover:text-hir-fg"
           >
             Resetează
           </Link>
@@ -263,14 +263,14 @@ export default async function FleetOrdersHistoryPage(
         >
           <input type="hidden" name="days" value={String(days)} />
           {courierFilter ? <input type="hidden" name="courier" value={courierFilter} /> : null}
-          <label htmlFor="tenant-filter" className="text-xs text-zinc-500">
+          <label htmlFor="tenant-filter" className="text-xs text-hir-muted-fg">
             Filtrează după restaurant:
           </label>
           <select
             id="tenant-filter"
             name="tenant"
             defaultValue={tenantFilter ?? ''}
-            className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-100 focus:border-violet-500 focus:outline-none"
+            className="rounded-md border border-hir-border bg-zinc-950 px-2 py-1 text-xs text-hir-fg focus:border-violet-500 focus:outline-none"
           >
             <option value="">Toate restaurantele</option>
             {tenantBreakdown.map((t) => (
@@ -283,7 +283,7 @@ export default async function FleetOrdersHistoryPage(
             type="submit"
             variant="outline"
             size="sm"
-            className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+            className="border-hir-border bg-hir-surface text-hir-fg hover:bg-hir-surface/60"
           >
             Aplică
           </Button>
@@ -294,7 +294,7 @@ export default async function FleetOrdersHistoryPage(
                 if (courierFilter) p.set('courier', courierFilter);
                 return `/fleet/orders/history?${p.toString()}`;
               })()}
-              className="text-xs text-zinc-500 hover:text-zinc-300"
+              className="text-xs text-hir-muted-fg hover:text-hir-fg"
             >
               Resetează
             </Link>
@@ -306,11 +306,11 @@ export default async function FleetOrdersHistoryPage(
           period and no tenant filter is active (with a filter, the
           breakdown collapses to a single row that's just noise). */}
       {distinctTenantCount > 1 && !tenantFilter ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <h2 className="mb-3 text-sm font-semibold text-zinc-100">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <h2 className="mb-3 text-sm font-semibold text-hir-fg">
             Per restaurant ({tenantBreakdown.length})
           </h2>
-          <ul className="divide-y divide-zinc-800">
+          <ul className="divide-y divide-hir-border">
             {tenantBreakdown.map((t) => {
               const params = new URLSearchParams({ days: String(days), tenant: t.id });
               if (courierFilter) params.set('courier', courierFilter);
@@ -318,12 +318,12 @@ export default async function FleetOrdersHistoryPage(
                 <li key={t.id} className="flex items-center justify-between gap-3 py-2.5">
                   <Link
                     href={`/fleet/orders/history?${params.toString()}`}
-                    className="truncate text-sm font-medium text-zinc-100 hover:text-violet-200"
+                    className="truncate text-sm font-medium text-hir-fg hover:text-violet-200"
                   >
                     {t.name}
                   </Link>
                   <div className="flex shrink-0 items-center gap-3 text-xs">
-                    <span className="text-zinc-500">{t.count} livrări</span>
+                    <span className="text-hir-muted-fg">{t.count} livrări</span>
                     <span className="font-semibold text-emerald-300">
                       {t.revenue.toFixed(2)} RON
                     </span>
@@ -336,7 +336,7 @@ export default async function FleetOrdersHistoryPage(
       ) : null}
 
       {orders.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-zinc-800 bg-zinc-900 px-4 py-10 text-center text-sm text-zinc-500">
+        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-hir-border bg-hir-surface px-4 py-10 text-center text-sm text-hir-muted-fg">
           <Inbox className="h-5 w-5" aria-hidden />
           Nicio comandă livrată sau anulată în această perioadă.
         </div>
@@ -362,7 +362,7 @@ export default async function FleetOrdersHistoryPage(
       )}
 
       {orders.length === 200 ? (
-        <p className="text-center text-[11px] text-zinc-500">
+        <p className="text-center text-[11px] text-hir-muted-fg">
           Afișate primele 200 de înregistrări. Restrânge intervalul sau folosește
           export CSV pentru o listă completă.
         </p>
@@ -386,7 +386,7 @@ function HistoryItem({
     <li>
       <Link
         href={`/fleet/orders/${order.id}`}
-        className="block rounded-xl border border-zinc-800 bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-zinc-900"
+        className="block rounded-xl border border-hir-border bg-zinc-950 p-3 hover:border-violet-500/40 hover:bg-hir-surface"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -394,13 +394,13 @@ function HistoryItem({
               <OrderStatusBadge status={order.status} />
               {tenantName ? (
                 <span
-                  className="max-w-[140px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-200"
+                  className="max-w-[140px] truncate rounded-full bg-hir-border px-2 py-0.5 text-[10px] font-semibold text-hir-fg"
                   title={tenantName}
                 >
                   {tenantName}
                 </span>
               ) : null}
-              <p className="truncate text-sm font-medium text-zinc-100">
+              <p className="truncate text-sm font-medium text-hir-fg">
                 {order.customer_first_name ?? 'Client'}
               </p>
               {order.payment_method === 'COD' ? (
@@ -410,20 +410,20 @@ function HistoryItem({
                 </span>
               ) : null}
             </div>
-            <p className="mt-1 truncate text-xs text-zinc-500">
+            <p className="mt-1 truncate text-xs text-hir-muted-fg">
               {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
             </p>
-            <p className="mt-1 text-[11px] text-zinc-400">
+            <p className="mt-1 text-[11px] text-hir-muted-fg">
               {courierName ? (
                 <>
-                  Curier: <span className="text-zinc-200">{courierName}</span>
+                  Curier: <span className="text-hir-fg">{courierName}</span>
                 </>
               ) : (
-                <span className="text-zinc-500">Fără curier asignat</span>
+                <span className="text-hir-muted-fg">Fără curier asignat</span>
               )}
             </p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1 text-[10px] text-zinc-500">
+          <div className="flex shrink-0 flex-col items-end gap-1 text-[10px] text-hir-muted-fg">
             <span>
               {new Date(order.updated_at).toLocaleString('ro-RO', {
                 day: '2-digit',

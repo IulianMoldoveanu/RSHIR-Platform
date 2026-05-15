@@ -164,7 +164,7 @@ export function OrderRow({
             ? 'border-amber-600/40 bg-amber-500/5 ring-1 ring-amber-500/20'
             : slaWarning || stallWarning
               ? 'border-amber-500/25 bg-amber-500/[0.03]'
-              : 'border-zinc-800 bg-zinc-950'
+              : 'border-hir-border bg-zinc-950'
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -185,13 +185,13 @@ export function OrderRow({
             <OrderStatusBadge status={order.status} />
             {tenantName ? (
               <span
-                className="max-w-[140px] truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-semibold text-zinc-200"
+                className="max-w-[140px] truncate rounded-full bg-hir-border px-2 py-0.5 text-[10px] font-semibold text-hir-fg"
                 title={tenantName}
               >
                 {tenantName}
               </span>
             ) : null}
-            <p className="truncate text-sm font-medium text-zinc-100">
+            <p className="truncate text-sm font-medium text-hir-fg">
               {order.customer_first_name ?? 'Client'}
             </p>
             {order.delivery_fee_ron != null ? (
@@ -205,21 +205,21 @@ export function OrderRow({
               </span>
             ) : null}
           </div>
-          <p className="mt-1 truncate text-xs text-zinc-500">
+          <p className="mt-1 truncate text-xs text-hir-muted-fg">
             {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
           </p>
           {courierName ? (
-            <p className="mt-1 text-[11px] text-zinc-400">
-              Curier: <span className="text-zinc-200">{courierName}</span>
+            <p className="mt-1 text-[11px] text-hir-muted-fg">
+              Curier: <span className="text-hir-fg">{courierName}</span>
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1 text-[10px] text-zinc-500">
+        <div className="flex shrink-0 flex-col items-end gap-1 text-[10px] text-hir-muted-fg">
           <span>{formatAge(order.created_at)}</span>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hir-border pt-3">
         {!isAssigned ? (
           <>
             <Button
@@ -240,7 +240,7 @@ export function OrderRow({
               variant="outline"
               disabled={pending}
               onClick={() => setPicker((v) => !v)}
-              className="gap-1.5 rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+              className="gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
             >
               <UserCheck className="h-3.5 w-3.5" aria-hidden />
               {picker ? 'Anulează' : 'Manual'}
@@ -254,7 +254,7 @@ export function OrderRow({
             variant="outline"
             disabled={pending}
             onClick={handleUnassign}
-            className="gap-1.5 rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+            className="gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
           >
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -271,9 +271,9 @@ export function OrderRow({
       </div>
 
       {picker && !isAssigned ? (
-        <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-900 p-2">
+        <div className="mt-3 rounded-lg border border-hir-border bg-hir-surface p-2">
           {couriers.length === 0 ? (
-            <p className="px-2 py-3 text-xs text-zinc-500">
+            <p className="px-2 py-3 text-xs text-hir-muted-fg">
               Niciun curier în flotă încă. Invită unul din pagina Curieri.
             </p>
           ) : (
@@ -284,17 +284,17 @@ export function OrderRow({
                     type="button"
                     disabled={pending}
                     onClick={() => handleAssign(c.user_id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-zinc-800 disabled:opacity-60"
+                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-hir-surface/60 disabled:opacity-60"
                   >
                     <span className="flex items-center gap-2">
                       <span
                         aria-label={c.online ? 'Online' : 'Offline'}
                         className={`h-1.5 w-1.5 rounded-full ${c.online ? 'bg-emerald-400' : 'bg-zinc-600'}`}
                       />
-                      <span className="font-medium text-zinc-100">
+                      <span className="font-medium text-hir-fg">
                         {c.full_name ?? 'Curier'}
                       </span>
-                      <span className="text-zinc-500">{VEHICLE_LABEL[c.vehicle_type]}</span>
+                      <span className="text-hir-muted-fg">{VEHICLE_LABEL[c.vehicle_type]}</span>
                     </span>
                     {c.online ? (
                       <span className="text-[10px] uppercase tracking-wide text-emerald-300">Online</span>
