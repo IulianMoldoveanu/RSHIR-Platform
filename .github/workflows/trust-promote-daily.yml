@@ -1,0 +1,53 @@
+# HIR F6 — Trust auto-promotion daily cron
+#
+# Calls the trust-promote-daily Edge Function every day at 04:00 UTC
+# (06:00 Bucuresti winter / 07:00 vara). Runs before growth-agent-daily
+# (06:00 UTC) so the OWNER's morning Telegram digest can reference a
+# fresh trust state.
+#
+# Token lives in repo secret TRUST_PROMOTE_CRON_TOKEN; matches the
+# Supabase secret of the same name. Rotate together.
+
+name: trust-promote-daily
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: trust-promote-daily
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    name: invoke trust-promote-daily
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: POST to Edge Function
+        env:
+          SUPABASE_URL: https://qfmeojeipncuxeltnvab.supabase.co
+          TRUST_PROMOTE_CRON_TOKEN: ${{ secrets.TRUST_PROMOTE_CRON_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TRUST_PROMOTE_CRON_TOKEN}" ]]; then
+            echo "::error::TRUST_PROMOTE_CRON_TOKEN repo secret is not set"
+            exit 1
+          fi
+          echo "POST ${SUPABASE_URL}/functions/v1/trust-promote-daily"
+          HTTP=$(curl -sS -o response.json -w "%{http_code}" \
+            -X POST "${SUPABASE_URL}/functions/v1/trust-promote-daily" \
+            -H "X-Cron-Token: ${TRUST_PROMOTE_CRON_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "status=${HTTP}"
+          cat response.json | head -c 4000
+          echo
+          if [[ "${HTTP}" != "200" ]]; then
+            echo "::error::trust-promote-daily returned ${HTTP}"
+            exit 1
+          fi
+          if command -v jq >/dev/null 2>&1; then
+            jq -r '"trust_rows=\(.trust_rows) promotions=\(.promotions) demotions=\(.demotions) resets=\(.resets) unchanged=\(.unchanged) errors=\(.errors)"' response.json
+          fi

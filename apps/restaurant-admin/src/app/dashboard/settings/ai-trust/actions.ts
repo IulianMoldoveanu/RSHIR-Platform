@@ -93,3 +93,95 @@ export async function updateTrustLevel(
   revalidatePath('/dashboard/settings/ai-trust');
   return { ok: true };
 }
+
+// F6 trust auto-promotion — OWNER opt-out toggle per (agent, category).
+// When false, the daily worker skips this row entirely. Destructive
+// categories are not auto-promoted by the worker anyway (defense in
+// depth in `trust-promote.ts`), but we still allow the toggle so the UI
+// state matches what the OWNER sees.
+const toggleSchema = z.object({
+  agent: z.string().trim().min(1).max(64),
+  category: z.string().trim().min(1).max(120),
+  eligible: z.boolean(),
+});
+
+export async function toggleAutoPromoteEligible(
+  expectedTenantId: string,
+  raw: { agent: string; category: string; eligible: boolean },
+): Promise<UpdateTrustResult> {
+  if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
+
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+
+  const { tenant } = await getActiveTenant();
+  if (tenant.id !== expectedTenantId) return { ok: false, error: 'tenant_mismatch' };
+  await assertTenantMember(user.id, expectedTenantId);
+
+  const role = await getTenantRole(user.id, expectedTenantId);
+  if (role !== 'OWNER') return { ok: false, error: 'forbidden' };
+
+  const parsed = toggleSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: 'invalid_input' };
+
+  const meta = TRUST_CATEGORIES.find(
+    (c) => c.agent === parsed.data.agent && c.category === parsed.data.category,
+  );
+  if (!meta) return { ok: false, error: 'unknown_category' };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // Look up the existing row first so we don't clobber the operator's
+  // trust_level when they only meant to flip the eligibility flag.
+  const { data: existing } = await sb
+    .from('tenant_agent_trust')
+    .select('id')
+    .eq('restaurant_id', expectedTenantId)
+    .eq('agent_name', parsed.data.agent)
+    .eq('action_category', parsed.data.category)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const { error } = await sb
+      .from('tenant_agent_trust')
+      .update({ auto_promote_eligible: parsed.data.eligible })
+      .eq('id', existing.id);
+    if (error) {
+      console.warn('[ai-trust/toggle-auto-promote] update failed:', error.message);
+      return { ok: false, error: 'update_failed' };
+    }
+  } else {
+    const { error } = await sb.from('tenant_agent_trust').insert({
+      restaurant_id: expectedTenantId,
+      agent_name: parsed.data.agent,
+      action_category: parsed.data.category,
+      trust_level: 'PROPOSE_ONLY',
+      is_destructive: meta.destructive,
+      auto_promote_eligible: parsed.data.eligible,
+    });
+    if (error) {
+      console.warn('[ai-trust/toggle-auto-promote] insert failed:', error.message);
+      return { ok: false, error: 'update_failed' };
+    }
+  }
+
+  await logAudit({
+    tenantId: expectedTenantId,
+    actorUserId: user.id,
+    action: 'ai_ceo.trust_auto_promote_toggled',
+    entityType: 'tenant_agent_trust',
+    metadata: {
+      agent: parsed.data.agent,
+      category: parsed.data.category,
+      eligible: parsed.data.eligible,
+    },
+  });
+
+  revalidatePath('/dashboard/settings/ai-trust');
+  return { ok: true };
+}
