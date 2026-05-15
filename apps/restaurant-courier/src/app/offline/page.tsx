@@ -5,16 +5,16 @@ import { Button } from '@hir/ui';
 
 export default function OfflinePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 text-center text-zinc-100">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-hir-bg px-6 text-center text-hir-fg">
       <div className="max-w-sm space-y-5">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-hir-surface">
           <WifiOff className="h-8 w-8 text-violet-400" aria-hidden />
         </div>
         <h1 className="text-2xl font-semibold">Ești offline</h1>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-hir-muted-fg">
           Verifică conexiunea ca să continui livrările.
         </p>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-hir-muted-fg">
           Comanda activă rămâne salvată local — reveniți la aceeași pagină când conexiunea revine.
         </p>
         <Button

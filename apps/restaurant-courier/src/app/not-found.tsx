@@ -5,13 +5,13 @@ import { Compass } from 'lucide-react';
 // illustration on dark theme. CTAs point back to the dashboard / login.
 export default function CourierNotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-4 py-16 text-zinc-100">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-hir-bg px-4 py-16 text-hir-fg">
       <div className="w-full max-w-sm text-center">
         <NotFoundIllustration />
-        <h1 className="mt-6 text-xl font-semibold tracking-tight text-zinc-100">
+        <h1 className="mt-6 text-xl font-semibold tracking-tight text-hir-fg">
           Pagina nu a fost găsită
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+        <p className="mt-2 text-sm leading-relaxed text-hir-muted-fg">
           Linkul nu mai există. Te trimitem înapoi la comenzile tale.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -24,7 +24,7 @@ export default function CourierNotFound() {
           </Link>
           <Link
             href="/login"
-            className="inline-flex h-11 items-center rounded-xl border border-zinc-700 bg-zinc-900 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
+            className="inline-flex h-11 items-center rounded-xl border border-hir-border bg-hir-surface px-4 text-sm font-medium text-hir-fg hover:bg-hir-border"
           >
             Reconectare
           </Link>
