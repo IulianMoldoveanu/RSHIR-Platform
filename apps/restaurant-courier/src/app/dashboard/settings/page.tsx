@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { updateAvatarUrlAction, updateVehicleTypeAction } from '../actions';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { VehicleSelector } from '@/components/vehicle-selector';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,6 +95,15 @@ export default async function SettingsPage() {
           initial={profile?.vehicle_type ?? 'BIKE'}
           onSave={updateVehicleTypeAction}
         />
+      </section>
+
+      {/* Theme picker — segmented dark/light/system. F4.5 of the master
+          plan. Default is dark; light is opt-in and persisted in
+          localStorage by the provider. The chrome (body bg + fg) honours
+          the toggle out of the gate; deeper component surfaces are
+          migrated in follow-up PRs. */}
+      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+        <ThemeToggle />
       </section>
 
       {/* Help link */}
