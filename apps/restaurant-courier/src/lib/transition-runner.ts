@@ -45,6 +45,7 @@ export async function runTransitionOrQueue(
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     await enqueueTransition({ kind, orderId, payload });
     notifyEnqueued();
+    registerBgSync();
     return { queued: true };
   }
   try {
@@ -54,6 +55,7 @@ export async function runTransitionOrQueue(
     if (isNetworkFailure(err)) {
       await enqueueTransition({ kind, orderId, payload });
       notifyEnqueued();
+      registerBgSync();
       return { queued: true };
     }
     throw err;
@@ -63,4 +65,22 @@ export async function runTransitionOrQueue(
 function notifyEnqueued(): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(ENQUEUED_EVENT));
+}
+
+// Best-effort Background Sync registration. Chrome fires a 'sync' event on
+// the service worker when the network returns, even with the tab closed.
+// iOS Safari does not support Background Sync — the page-context drainer in
+// <TransitionSync> is the fallback for those clients. Errors are swallowed
+// so a missing SW or unsupported browser never breaks normal enqueue flow.
+function registerBgSync(): void {
+  if (typeof navigator === 'undefined') return;
+  navigator.serviceWorker?.ready
+    .then((reg) => {
+      // SyncManager is not defined on iOS Safari — guard before calling.
+      if (!('sync' in reg)) return;
+      return (reg.sync as { register(tag: string): Promise<void> }).register(
+        'transition-queue-drain',
+      );
+    })
+    .catch(() => {});
 }
