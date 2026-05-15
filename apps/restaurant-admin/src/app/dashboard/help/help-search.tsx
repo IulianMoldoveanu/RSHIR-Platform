@@ -24,6 +24,12 @@ export type SearchTopic = {
   body: string;
 };
 
+export type SearchStrings = {
+  placeholder: string;
+  noResults: string;
+  ariaLabel: string;
+};
+
 type Hit = SearchTopic & { score: number; snippet: string };
 
 function score(query: string, t: SearchTopic): { score: number; snippet: string } {
@@ -52,7 +58,13 @@ function score(query: string, t: SearchTopic): { score: number; snippet: string 
   return { score: s, snippet: snippetSource };
 }
 
-export function HelpSearch({ topics }: { topics: SearchTopic[] }) {
+export function HelpSearch({
+  topics,
+  strings,
+}: {
+  topics: SearchTopic[];
+  strings: SearchStrings;
+}) {
   const [q, setQ] = useState('');
 
   const results = useMemo<Hit[]>(() => {
@@ -73,18 +85,16 @@ export function HelpSearch({ topics }: { topics: SearchTopic[] }) {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Caută în ghiduri (ex: notificări, GloriaFood, GPS)…"
+          placeholder={strings.placeholder}
           className="w-full border-0 bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
-          aria-label="Caută în ghiduri"
+          aria-label={strings.ariaLabel}
         />
       </label>
 
       {q.trim() && (
         <div className="mt-3 space-y-1.5">
           {results.length === 0 ? (
-            <p className="px-1 py-2 text-xs text-zinc-500">
-              Niciun rezultat. Încercați alte cuvinte sau parcurgeți categoriile de mai jos.
-            </p>
+            <p className="px-1 py-2 text-xs text-zinc-500">{strings.noResults}</p>
           ) : (
             results.map((hit) => (
               <Link

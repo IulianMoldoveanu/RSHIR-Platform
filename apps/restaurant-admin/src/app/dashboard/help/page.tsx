@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import { ChevronRight, HelpCircle, LifeBuoy, Mail, MessageCircle, Phone } from 'lucide-react';
-import { HELP_CATEGORIES, getAllTopics } from './content';
+import {
+  getLocalizedAllTopics,
+  getLocalizedCategories,
+  getHelpUi,
+} from './content-localized';
 import { HelpSearch, type SearchTopic } from './help-search';
+import { HelpLanguageToggle } from './language-toggle';
+import { getHelpLocale } from '@/lib/i18n/help-locale';
 
 // QW6 (UIUX audit 2026-05-08) — Hepy bot deep-link.
 //
@@ -22,12 +28,17 @@ export const metadata = {
 // Help center — role-based topic tree.
 //
 // Pure documentation page: no schema reads, no business logic. Topics live
-// in `./content.ts` and are surfaced via a static index plus per-topic
-// detail pages at `[category]/[slug]`. Client-side search runs over a
-// small JSON index (~25 topics) — no external dep.
+// in `./content.ts` (canonical RO) with EN overlay in `./content.en.ts`,
+// merged via `./content-localized.ts`. Active locale is resolved from the
+// `hir_locale` cookie (set by the language toggle) with Accept-Language
+// fallback.
 export default function HelpIndexPage() {
-  const searchIndex: SearchTopic[] = getAllTopics().flatMap((t) => {
-    const cat = HELP_CATEGORIES.find((c) => c.topics.includes(t));
+  const locale = getHelpLocale();
+  const ui = getHelpUi(locale);
+  const categories = getLocalizedCategories(locale);
+
+  const searchIndex: SearchTopic[] = getLocalizedAllTopics(locale).flatMap((t) => {
+    const cat = categories.find((c) => c.topics.some((x) => x.slug === t.slug));
     if (!cat) return [];
     const body = [
       t.intro,
@@ -49,17 +60,24 @@ export default function HelpIndexPage() {
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <HelpCircle className="h-3.5 w-3.5" aria-hidden />
-          <span>Centru de ajutor</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+            <span>{ui.eyebrow}</span>
+          </div>
+          <HelpLanguageToggle
+            locale={locale}
+            labels={{
+              langToggleLabel: ui.langToggleLabel,
+              langRomanian: ui.langRomanian,
+              langEnglish: ui.langEnglish,
+            }}
+          />
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-          Cum vă putem ajuta?
+          {ui.pageTitleQuestion}
         </h1>
-        <p className="max-w-2xl text-sm text-zinc-600">
-          Ghiduri pas cu pas pentru fiecare rol, troubleshooting rapid și acces direct
-          la suport. Toate articolele sunt actualizate la 2026-05-05.
-        </p>
+        <p className="max-w-2xl text-sm text-zinc-600">{ui.pageDescription}</p>
       </header>
 
       {/* QW6 — bot CTA above the search box. Mobile users can DM Hepy
@@ -75,27 +93,29 @@ export default function HelpIndexPage() {
           <MessageCircle className="h-4 w-4" aria-hidden />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <p className="text-sm font-semibold text-zinc-900">
-            Întreabă-mă pe Telegram (Hepy)
-          </p>
-          <p className="text-xs text-zinc-600">
-            Răspuns instant pentru întrebări rapide despre comenzi, stocuri sau rapoarte.
-            Deschideți chat-ul direct cu botul.
-          </p>
+          <p className="text-sm font-semibold text-zinc-900">{ui.hepyCardTitle}</p>
+          <p className="text-xs text-zinc-600">{ui.hepyCardBody}</p>
         </div>
         <span
           aria-hidden
           className="ml-auto self-center text-xs font-medium text-purple-700 group-hover:text-purple-900"
         >
-          Deschide →
+          {ui.hepyCardOpen}
         </span>
       </a>
 
-      <HelpSearch topics={searchIndex} />
+      <HelpSearch
+        topics={searchIndex}
+        strings={{
+          placeholder: ui.searchPlaceholder,
+          noResults: ui.searchNoResults,
+          ariaLabel: ui.searchAriaLabel,
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         <main className="flex flex-col gap-4">
-          {HELP_CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <section
               key={cat.slug}
               className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
@@ -138,11 +158,9 @@ export default function HelpIndexPage() {
           <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
               <LifeBuoy className="h-4 w-4 text-purple-600" aria-hidden />
-              <h2 className="text-sm font-semibold text-zinc-900">Contact suport</h2>
+              <h2 className="text-sm font-semibold text-zinc-900">{ui.contactTitle}</h2>
             </div>
-            <p className="mt-1.5 text-xs text-zinc-500">
-              Pentru probleme urgente sau întrebări care nu au răspuns în ghiduri.
-            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">{ui.contactBody}</p>
             <div className="mt-3 flex flex-col gap-2">
               <a
                 href="tel:+40212040000"
@@ -150,7 +168,7 @@ export default function HelpIndexPage() {
               >
                 <Phone className="h-4 w-4 flex-none text-emerald-500" aria-hidden />
                 <span className="flex-1">+40 21 204 0000</span>
-                <span className="text-[10px] text-zinc-400">L–V 09–18</span>
+                <span className="text-[10px] text-zinc-400">{ui.contactHours}</span>
               </a>
               <a
                 href="mailto:suport@hirforyou.ro"
@@ -163,10 +181,7 @@ export default function HelpIndexPage() {
           </div>
 
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-            <p className="text-[11px] leading-relaxed text-zinc-500">
-              Lipsește un ghid? Folosiți butonul de feedback (colț dreapta jos)
-              pentru a ne sugera un articol nou.
-            </p>
+            <p className="text-[11px] leading-relaxed text-zinc-500">{ui.feedbackHint}</p>
           </div>
         </aside>
       </div>

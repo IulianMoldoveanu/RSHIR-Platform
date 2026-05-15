@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, Calendar, ChevronRight } from 'lucide-react';
 import {
-  findTopic,
-  type HelpCategory,
-  type HelpStep,
-  type HelpTopic,
-} from '../../content';
+  findLocalizedTopic,
+  getHelpUi,
+  type LocalizedCategory,
+  type LocalizedTopic,
+} from '../../content-localized';
+import type { HelpStep } from '../../content';
+import { getHelpLocale } from '@/lib/i18n/help-locale';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +18,10 @@ export async function generateMetadata(
   }
 ) {
   const params = await props.params;
-  const found = findTopic(params.slug);
-  if (!found) return { title: 'Articol indisponibil · HIR' };
+  const locale = getHelpLocale();
+  const ui = getHelpUi(locale);
+  const found = findLocalizedTopic(params.slug, locale);
+  if (!found) return { title: ui.notFoundTitle };
   return {
     title: `${found.topic.title} · HIR`,
     description: found.topic.summary,
@@ -30,7 +34,9 @@ export default async function HelpTopicPage(
   }
 ) {
   const params = await props.params;
-  const found = findTopic(params.slug);
+  const locale = getHelpLocale();
+  const ui = getHelpUi(locale);
+  const found = findLocalizedTopic(params.slug, locale);
   if (!found || found.category.slug !== params.category) {
     notFound();
     // notFound() returns `never`, but the explicit return below keeps the
@@ -38,21 +44,20 @@ export default async function HelpTopicPage(
     // resolved (CI, partial installs).
     return null;
   }
-  const topic: HelpTopic = found.topic;
-  const category: HelpCategory = found.category;
+  const topic: LocalizedTopic = found.topic;
+  const category: LocalizedCategory = found.category;
 
-  const related: { topic: HelpTopic; category: HelpCategory }[] = (topic.related ?? [])
-    .map((s: string) => findTopic(s))
+  const related: { topic: LocalizedTopic; category: LocalizedCategory }[] = (topic.related ?? [])
+    .map((s: string) => findLocalizedTopic(s, locale))
     .filter(
-      (x: ReturnType<typeof findTopic>): x is { topic: HelpTopic; category: HelpCategory } =>
-        x !== null,
+      (x): x is { topic: LocalizedTopic; category: LocalizedCategory } => x !== null,
     );
 
   return (
     <article className="mx-auto flex max-w-3xl flex-col gap-6">
       <nav className="flex items-center gap-1 text-xs text-zinc-500">
         <Link href="/dashboard/help" className="hover:text-zinc-900">
-          Ajutor
+          {ui.breadcrumbHelp}
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden />
         <Link
@@ -72,7 +77,9 @@ export default async function HelpTopicPage(
         <p className="text-sm text-zinc-600">{topic.summary}</p>
         <div className="flex items-center gap-1 text-[11px] text-zinc-400">
           <Calendar className="h-3 w-3" aria-hidden />
-          <span>Actualizat: {topic.updated}</span>
+          <span>
+            {ui.updatedLabel} {topic.updated}
+          </span>
         </div>
       </header>
 
@@ -129,9 +136,9 @@ export default async function HelpTopicPage(
 
       {related.length > 0 && (
         <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-zinc-900">Vezi și</h2>
+          <h2 className="mb-2 text-sm font-semibold text-zinc-900">{ui.relatedTitle}</h2>
           <ul className="divide-y divide-zinc-100">
-            {related.map(({ topic: rt, category: rc }: { topic: HelpTopic; category: HelpCategory }) => (
+            {related.map(({ topic: rt, category: rc }) => (
               <li key={rt.slug}>
                 <Link
                   href={`/dashboard/help/${rc.slug}/${rt.slug}`}
@@ -151,7 +158,7 @@ export default async function HelpTopicPage(
         className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-900"
       >
         <ArrowLeft className="h-3 w-3" aria-hidden />
-        Înapoi la centrul de ajutor
+        {ui.backToHelp}
       </Link>
     </article>
   );
