@@ -47,7 +47,7 @@ export function ThemeToggle() {
         })}
       </div>
       <p className="text-[11px] text-zinc-500">
-        „Sistem" urmărește preferința telefonului tău. Schimbarea este salvată local.
+        &bdquo;Sistem&rdquo; urmărește preferința telefonului tău. Schimbarea este salvată local.
       </p>
     </div>
   );
