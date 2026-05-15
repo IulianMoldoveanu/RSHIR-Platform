@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFleetManagerContext } from '@/lib/fleet-manager';
 import { logAudit } from '@/lib/audit';
+import { scoreCandidates, type ScoringCourier } from '@/lib/auto-assign-score';
 
 export type FleetActionResult = { ok: true } | { ok: false; error: string };
 
@@ -613,37 +614,29 @@ export async function autoAssignOrderAction(
   // Build candidate list: online riders that belong to this fleet and
   // are not SUSPENDED. (INACTIVE is fine — they just haven't started a
   // shift yet, but if they're in latestShift they've started one.)
-  type Candidate = { userId: string; load: number; distanceM: number };
-  const candidates: Candidate[] = [];
-  const NO_GPS = Number.POSITIVE_INFINITY;
+  const scoringCouriers: ScoringCourier[] = [];
   for (const c of couriers) {
     if (c.status === 'SUSPENDED') continue;
     if (!latestShift.has(c.user_id)) continue;
     const fix = latestShift.get(c.user_id)!;
-    const distance =
-      orderData.pickup_lat != null &&
-      orderData.pickup_lng != null &&
-      fix.lat != null &&
-      fix.lng != null
-        ? haversineMeters(orderData.pickup_lat, orderData.pickup_lng, fix.lat, fix.lng)
-        : NO_GPS;
-    candidates.push({
+    scoringCouriers.push({
       userId: c.user_id,
-      load: inProgress.get(c.user_id) ?? 0,
-      distanceM: distance,
+      activeLoad: inProgress.get(c.user_id) ?? 0,
+      lastLat: fix.lat,
+      lastLng: fix.lng,
     });
   }
 
-  if (candidates.length === 0) {
+  if (scoringCouriers.length === 0) {
     return { ok: false, error: 'Niciun curier online pentru asignare automată.' };
   }
 
-  // Idle riders first; among same-load, closest wins. NO_GPS riders sort last.
-  candidates.sort((a, b) => {
-    if (a.load !== b.load) return a.load - b.load;
-    return a.distanceM - b.distanceM;
-  });
-  const winner = candidates[0];
+  // Rank candidates — produces same winner as the original sort.
+  const ranked = scoreCandidates(
+    { pickup_lat: orderData.pickup_lat, pickup_lng: orderData.pickup_lng },
+    scoringCouriers,
+  );
+  const winner = ranked[0];
 
   // Same gated UPDATE as the manual assign path.
   const { data, error } = await (admin as unknown as {
@@ -668,7 +661,7 @@ export async function autoAssignOrderAction(
   })
     .from('courier_orders')
     .update({
-      assigned_courier_user_id: winner.userId,
+      assigned_courier_user_id: winner.courierId,
       status: 'ACCEPTED',
       updated_at: new Date().toISOString(),
     })
@@ -687,6 +680,22 @@ export async function autoAssignOrderAction(
     };
   }
 
+  // Persist top-3 score breakdowns + the winner's full breakdown so fleet
+  // managers can see "why this courier" from the audit timeline / WhyAssigned UI.
+  const winnerDistanceM =
+    winner.factors.distanceKm != null && Number.isFinite(winner.factors.distanceKm)
+      ? Math.round(winner.factors.distanceKm * 1000)
+      : null;
+
+  const top3Snapshot = ranked.slice(0, 3).map((c) => ({
+    courier_user_id: c.courierId,
+    total_score: c.totalScore,
+    distance_km: c.factors.distanceKm,
+    active_load: c.factors.activeLoad,
+    load_score: c.factors.loadScore,
+    distance_score: c.factors.distanceScore,
+  }));
+
   await logAudit({
     actorUserId: ctx.userId,
     action: 'fleet.order_auto_assigned',
@@ -694,10 +703,20 @@ export async function autoAssignOrderAction(
     entityId: orderId,
     metadata: {
       fleet_id: ctx.fleetId,
-      courier_user_id: winner.userId,
-      distance_m: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : null,
-      load: winner.load,
-      candidates_considered: candidates.length,
+      courier_user_id: winner.courierId,
+      distance_m: winnerDistanceM,
+      load: winner.factors.activeLoad,
+      candidates_considered: ranked.length,
+      // Score breakdown written as COURIER_AUTOASSIGN action alias in the
+      // WhyAssigned component which reads `action = 'fleet.order_auto_assigned'`.
+      score_breakdown: {
+        winner: {
+          courier_user_id: winner.courierId,
+          total_score: winner.totalScore,
+          factors: winner.factors,
+        },
+        top3: top3Snapshot,
+      },
     },
   });
 
@@ -706,20 +725,9 @@ export async function autoAssignOrderAction(
   revalidatePath(`/fleet/orders/${orderId}`);
   return {
     ok: true,
-    courierUserId: winner.userId,
-    distanceM: Number.isFinite(winner.distanceM) ? Math.round(winner.distanceM) : undefined,
+    courierUserId: winner.courierId,
+    distanceM: winnerDistanceM ?? undefined,
   };
-}
-
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6_371_000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 /**
