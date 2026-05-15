@@ -50,6 +50,7 @@ type OrderDetail = {
   assigned_courier_user_id: string | null;
   updated_at: string | null;
   source_tenant_id: string | null;
+  fleet_id: string | null;
 };
 
 export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -60,17 +61,18 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  // Use the authenticated user client so RLS enforces access:
-  // the courier_orders_assignee_or_open_select policy (migration 20260505_007)
-  // allows rows where assigned_courier_user_id = auth.uid() OR the order is
-  // CREATED/OFFERED in the courier's own fleet. Any other row returns null →
-  // notFound(), which is correct and leaks no PII.
+  // IDOR guard (#466): admin client is used here so server rendering stays
+  // resilient to RLS variability across environments, but we MUST gate
+  // visibility post-fetch. A courier may view an order only when:
+  //   * it's assigned to them (their own active delivery), OR
+  //   * it's still open (CREATED/OFFERED) within their own fleet.
+  // Anything else returns notFound() — no 403 message, no PII leak.
   const admin = createAdminClient();
   const [{ data }, riderMode] = await Promise.all([
-    supabase
+    admin
       .from('courier_orders')
       .select(
-        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id',
+        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id',
       )
       .eq('id', params.id)
       .maybeSingle(),
@@ -79,6 +81,14 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
+
+  const isMine = order.assigned_courier_user_id === user.id;
+  const isOpenInMyFleet =
+    order.assigned_courier_user_id === null &&
+    (order.status === 'CREATED' || order.status === 'OFFERED') &&
+    order.fleet_id !== null &&
+    order.fleet_id === riderMode.fleetId;
+  if (!isMine && !isOpenInMyFleet) notFound();
 
   // Pharma orders show patient name + delivery address + (downstream)
   // prescription metadata. Per Legea 95 / GDPR Art.30, every such read
@@ -113,10 +123,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     tenantName = (tenant as { name: string | null } | null)?.name ?? null;
   }
 
-  const isMine = order.assigned_courier_user_id === user.id;
-  const isAvailable =
-    order.assigned_courier_user_id === null &&
-    (order.status === 'CREATED' || order.status === 'OFFERED');
+  const isAvailable = isOpenInMyFleet;
   const showSos = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
 
   const acceptBound = acceptOrderAction.bind(null, order.id);
