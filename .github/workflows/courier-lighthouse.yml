@@ -1,0 +1,73 @@
+# Lighthouse CI gate for the courier PWA.
+#
+# Per F6.5 of the master plan, the courier app needs an automated mobile
+# Lighthouse audit on every PR so we catch regressions on Performance,
+# Accessibility, and PWA installability before they ship to riders on
+# entry-level Android devices.
+#
+# Strategy: build locally, serve with `next start`, run Lighthouse via
+# `@lhci/cli` against the public `/login` route (the only route that
+# doesn't redirect to auth). We can't target /dashboard/* without a
+# signed-in session; /login is the rider's first impression anyway and
+# its bundle weight propagates into every dashboard navigation.
+#
+# Thresholds are intentionally lenient on Performance for the first
+# rollout (>= 75) so we don't block existing PRs while we tune. Tightening
+# to >= 80 is a follow-up once we have a few green runs of baseline.
+
+name: Courier Lighthouse
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/restaurant-courier/**'
+      - 'packages/ui/**'
+      - '.github/workflows/courier-lighthouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/restaurant-courier/**'
+      - 'packages/ui/**'
+
+concurrency:
+  group: courier-lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: Lighthouse · mobile · /login
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build courier app
+        env:
+          # Stub envs so `next build` doesn't bail on missing required
+          # env vars. Real Supabase URLs are not needed for a Lighthouse
+          # run on /login — the page renders without backend round-trips.
+          NEXT_PUBLIC_SUPABASE_URL: 'https://localhost.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'lighthouse-stub-anon-key'
+          SUPABASE_SERVICE_ROLE_KEY: 'lighthouse-stub-service-role-key'
+        run: pnpm --filter @hir/restaurant-courier build
+
+      - name: Run Lighthouse CI
+        run: |
+          npx --yes @lhci/cli@0.14.x autorun \
+            --config=./apps/restaurant-courier/lighthouserc.json
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
