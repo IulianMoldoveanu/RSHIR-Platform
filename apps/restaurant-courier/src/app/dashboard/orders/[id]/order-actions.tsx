@@ -6,6 +6,7 @@ import { SwipeButton } from '@/components/swipe-button';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { useRiderMode } from '@/components/rider-mode-provider';
+import { runTransitionOrQueue } from '@/lib/transition-runner';
 
 /**
  * Client-side action panel for the order detail page. Renders the right
@@ -102,29 +103,39 @@ export function OrderActions({
     setRestaurantProofUrl(urls.delivery);
   }
 
+  async function handleAcceptConfirm() {
+    await runTransitionOrQueue('accept', orderId, {}, acceptAction);
+  }
+
+  async function handlePickedUpConfirm() {
+    await runTransitionOrQueue('pickup', orderId, {}, pickedUpAction);
+  }
+
   async function handleDeliverConfirm() {
     const proofUrl = vertical === 'pharma' ? pharmaProofUrl : restaurantProofUrl;
     const pharmaProofs =
       vertical === 'pharma' && (pharmaIdUrl || pharmaRxUrl)
         ? { idUrl: pharmaIdUrl, prescriptionUrl: pharmaRxUrl }
         : undefined;
-    await deliveredAction(
-      proofUrl,
-      isCashOnDelivery ? cashConfirmed : undefined,
-      pharmaProofs,
+    const cashCollected = isCashOnDelivery ? cashConfirmed : undefined;
+    await runTransitionOrQueue(
+      'deliver',
+      orderId,
+      { proofUrl, cashCollected, pharmaProofs },
+      () => deliveredAction(proofUrl, cashCollected, pharmaProofs),
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
       {isAvailable ? (
-        <SwipeButton label={acceptLabel} onConfirm={acceptAction} />
+        <SwipeButton label={acceptLabel} onConfirm={handleAcceptConfirm} />
       ) : null}
 
       {isMine && status === 'ACCEPTED' ? (
         <SwipeButton
           label="→ Glisează pentru a confirma ridicare"
-          onConfirm={pickedUpAction}
+          onConfirm={handlePickedUpConfirm}
         />
       ) : null}
 
