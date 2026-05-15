@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Keyboard, X } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 type Shortcut = { keys: string; label: string };
 
@@ -139,14 +140,16 @@ export function FleetShortcuts() {
             <Keyboard className="h-4 w-4 text-violet-300" aria-hidden />
             Comenzi rapide
           </h2>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setHelpOpen(false)}
             aria-label="Închide"
-            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            className="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
           >
             <X className="h-4 w-4" aria-hidden />
-          </button>
+          </Button>
         </div>
         <ul className="divide-y divide-zinc-800">
           {SHORTCUTS.map((s) => (

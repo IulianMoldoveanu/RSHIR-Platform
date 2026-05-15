@@ -5,6 +5,7 @@ import { Bell, X } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { registerPushServiceWorker } from '@/lib/push/register-sw';
 import { subscribeToPush } from '@/lib/push/subscribe';
+import { Button } from '@hir/ui';
 
 // v1 key — permanent dismiss (no TTL). If we ever need to re-prompt
 // after a major UX change, bump to push-prompt-dismissed-v2.
@@ -102,14 +103,16 @@ export function PushBootstrap() {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15">
             <Bell className="h-5 w-5 text-violet-400" aria-hidden />
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={handleDismiss}
             aria-label="Închide"
-            className="text-zinc-500 hover:text-zinc-300"
+            className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
           >
             <X className="h-5 w-5" aria-hidden />
-          </button>
+          </Button>
         </div>
 
         <h2 className="text-base font-semibold text-zinc-100">
@@ -120,22 +123,23 @@ export function PushBootstrap() {
         </p>
 
         <div className="mt-5 flex flex-col gap-2">
-          <button
+          <Button
             type="button"
             onClick={handleEnable}
             disabled={phase === 'asking'}
-            className="w-full rounded-xl bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-50"
+            className="w-full rounded-xl bg-violet-500 py-3 text-sm font-semibold text-white hover:bg-violet-400"
           >
             {phase === 'asking' ? 'Se activează…' : 'Activează notificările'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={handleDismiss}
             disabled={phase === 'asking'}
-            className="w-full rounded-xl border border-zinc-800 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200"
+            className="w-full rounded-xl border-zinc-800 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200"
           >
             Mai târziu
-          </button>
+          </Button>
         </div>
       </div>
     </div>

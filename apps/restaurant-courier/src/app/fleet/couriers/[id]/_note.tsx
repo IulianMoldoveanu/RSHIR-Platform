@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Check, Loader2, Pencil, StickyNote } from 'lucide-react';
 import { updateCourierNoteAction } from '../../actions';
+import { Button } from '@hir/ui';
 
 const MAX_LENGTH = 500;
 
@@ -51,14 +52,16 @@ export function ManagerNoteEditor({
           Notiță (doar manager)
         </p>
         {!editing ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] font-medium text-zinc-300 hover:bg-zinc-800"
+            className="gap-1 border-zinc-700 bg-zinc-900 text-[11px] text-zinc-300 hover:bg-zinc-800"
           >
             <Pencil className="h-3 w-3" aria-hidden />
             {saved ? 'Editează' : 'Adaugă notă'}
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -89,11 +92,11 @@ export function ManagerNoteEditor({
             {error ? <span className="text-red-400">{error}</span> : null}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
+            <Button
               type="button"
               disabled={pending}
               onClick={handleSave}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
+              className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -101,15 +104,16 @@ export function ManagerNoteEditor({
                 <Check className="h-3.5 w-3.5" aria-hidden />
               )}
               Salvează
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               disabled={pending}
               onClick={handleCancel}
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+              className="rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
             >
               Anulează
-            </button>
+            </Button>
           </div>
         </>
       )}

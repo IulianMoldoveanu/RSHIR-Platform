@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bike, Car, Check, Loader2, Truck } from 'lucide-react';
 import { inviteCourierToFleetAction } from '../../actions';
+import { Button } from '@hir/ui';
 
 export function InviteCourierForm() {
   const router = useRouter();
@@ -45,13 +46,15 @@ export function InviteCourierForm() {
               când pornește prima tură.
             </p>
             <div className="mt-3 flex gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setDone(null)}
-                className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800"
+                className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
               >
                 Invită alt curier
-              </button>
+              </Button>
               <Link
                 href="/fleet/couriers"
                 className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
@@ -126,14 +129,14 @@ export function InviteCourierForm() {
         </p>
       ) : null}
 
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
+        className="gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400"
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
         {pending ? 'Se trimite invitația…' : 'Trimite invitația'}
-      </button>
+      </Button>
     </form>
   );
 }

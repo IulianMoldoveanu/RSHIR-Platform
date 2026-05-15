@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { updateFleetSettingsAction } from '../actions';
+import { Button } from '@hir/ui';
 
 type Initial = {
   name: string;
@@ -83,14 +84,14 @@ export function FleetSettingsForm({ initial }: { initial: Initial }) {
       ) : null}
 
       <div className="flex items-center justify-between gap-3">
-        <button
+        <Button
           type="submit"
           disabled={pending}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
+          className="gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-400"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
           {pending ? 'Se salvează…' : 'Salvează'}
-        </button>
+        </Button>
         {saved ? (
           <span className="inline-flex items-center gap-1 text-xs text-emerald-300">
             <Check className="h-3.5 w-3.5" aria-hidden /> Salvat

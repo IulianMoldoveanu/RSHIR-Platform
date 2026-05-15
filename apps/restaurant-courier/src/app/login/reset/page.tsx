@@ -7,6 +7,7 @@ import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, KeyRound, Loader2 } from 'lucide-react';
 import { createBrowserSupabase } from '@hir/supabase-types';
+import { Button } from '@hir/ui';
 
 // Password-reset landing for the link emailed by /login/forgot. Supabase
 // auth puts the recovery token in the URL fragment (#access_token=...).
@@ -151,14 +152,14 @@ function ResetInner() {
                 />
               </label>
               {error ? <p className="text-xs text-rose-400">{error}</p> : null}
-              <button
+              <Button
                 type="submit"
                 disabled={submitting || hasToken !== true}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-12 w-full gap-2 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
                 Schimbă parola
-              </button>
+              </Button>
             </form>
           )}
         </div>

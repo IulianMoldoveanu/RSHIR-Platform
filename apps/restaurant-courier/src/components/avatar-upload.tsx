@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { Button } from '@hir/ui';
 
 const MAX_DIM = 512; // px on the longer edge after downscale
 const TARGET_QUALITY = 0.82; // jpeg quality after downscale
@@ -108,25 +109,26 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
       </div>
       <div className="flex-1">
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-50"
+            className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
           >
             <Camera className="h-3.5 w-3.5" aria-hidden />
             {url ? 'Schimbă' : 'Adaugă'}
-          </button>
+          </Button>
           {url ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleRemove}
               disabled={uploading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+              className="gap-1.5 rounded-lg border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
             >
               <X className="h-3.5 w-3.5" aria-hidden />
               Elimină
-            </button>
+            </Button>
           ) : null}
         </div>
         <p className="mt-1.5 text-[11px] text-zinc-500">

@@ -8,6 +8,7 @@ import {
   unassignOrderAction,
 } from '../actions';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { Button } from '@hir/ui';
 
 // Order is "stale" once it's been unassigned for ≥6 minutes. Tunable from
 // here when we get telemetry on real SLA pressure — for now this matches
@@ -221,11 +222,11 @@ export function OrderRow({
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-800 pt-3">
         {!isAssigned ? (
           <>
-            <button
+            <Button
               type="button"
               disabled={pending}
               onClick={handleAutoAssign}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
+              className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -233,25 +234,27 @@ export function OrderRow({
                 <Wand2 className="h-3.5 w-3.5" aria-hidden />
               )}
               Auto-asignează
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               disabled={pending}
               onClick={() => setPicker((v) => !v)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+              className="gap-1.5 rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
             >
               <UserCheck className="h-3.5 w-3.5" aria-hidden />
               {picker ? 'Anulează' : 'Manual'}
-            </button>
+            </Button>
           </>
         ) : null}
 
         {isAssigned && canUnassign ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
             disabled={pending}
             onClick={handleUnassign}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+            className="gap-1.5 rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
           >
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -259,7 +262,7 @@ export function OrderRow({
               <RotateCcw className="h-3.5 w-3.5" aria-hidden />
             )}
             Reasignează
-          </button>
+          </Button>
         ) : null}
 
         {error ? (

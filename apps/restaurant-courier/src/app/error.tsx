@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '@hir/ui';
 
 // Top-level error boundary for the courier app (catches login / register /
 // offline / admin route throws). Dashboard sub-tree has its own
@@ -40,14 +41,14 @@ export default function CourierError({
           </p>
         ) : null}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => reset()}
-            className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600"
+            className="h-11 gap-1.5 rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400"
           >
             <RefreshCw className="h-4 w-4" aria-hidden />
             Reîncearcă
-          </button>
+          </Button>
           <Link
             href="/dashboard/orders"
             className="inline-flex h-11 items-center rounded-xl border border-zinc-700 bg-zinc-900 px-4 text-sm font-medium text-zinc-200 hover:bg-zinc-800"
