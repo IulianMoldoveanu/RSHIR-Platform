@@ -19,6 +19,8 @@ import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
+import { logMedicalAccess } from '@/lib/medical-access';
+import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,6 +74,26 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
+
+  // Pharma orders show patient name + delivery address + (downstream)
+  // prescription metadata. Per Legea 95 / GDPR Art.30, every such read
+  // needs to leave an audit trail. Fire-and-forget — see
+  // logMedicalAccess for the contract.
+  if (order.vertical === 'pharma') {
+    const h = await headers();
+    void logMedicalAccess({
+      actorUserId: user.id,
+      entityType: 'courier_order',
+      entityId: order.id,
+      purpose: 'delivery',
+      // x-forwarded-for is set by Vercel's edge for the originating
+      // client IP. Fall back to null if the header is absent (e.g.
+      // running locally without the proxy chain).
+      ip: h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+      userAgent: h.get('user-agent'),
+      metadata: { rider_mode: riderMode.mode },
+    });
+  }
 
   // Mode-B riders see orders from multiple tenants — surface the
   // source restaurant/pharmacy name in the detail header too, not just
