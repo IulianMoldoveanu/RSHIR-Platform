@@ -1,7 +1,10 @@
 import Link from 'next/link';
-import { Trophy, Wallet } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { StreakCard } from './_streak-card';
+import { ProjectionCard } from './_projection-card';
+import { BestDayCard } from './_best-day-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,16 +56,37 @@ export default async function EarningsPage() {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // One query covering the widest window (this month), bucket on the client.
-  const { data: rows } = await admin
-    .from('courier_orders')
-    .select('id, delivery_fee_ron, updated_at, customer_first_name, dropoff_line1')
-    .eq('assigned_courier_user_id', user.id)
-    .eq('status', 'DELIVERED')
-    .gte('updated_at', startOfMonth.toISOString())
-    .order('updated_at', { ascending: false });
+  // Trailing-30-day window for streak computation.
+  const start30d = new Date(startOfToday);
+  start30d.setDate(start30d.getDate() - 30);
 
-  const all = ((rows ?? []) as DeliveredRow[]);
+  // Trailing-7-day window for projection (excludes today).
+  const start7d = new Date(startOfToday);
+  start7d.setDate(start7d.getDate() - 7);
+
+  // Fetch this-month data (for StatCards + BestDay) and last-30d data
+  // (for Streak + Projection) in parallel. The two windows may partially
+  // overlap but keeping them separate avoids merging logic for the wider
+  // streak window when the month boundary falls inside the 30d range.
+  const [{ data: monthRows }, { data: trailing30Rows }] = await Promise.all([
+    admin
+      .from('courier_orders')
+      .select('id, delivery_fee_ron, updated_at, customer_first_name, dropoff_line1')
+      .eq('assigned_courier_user_id', user.id)
+      .eq('status', 'DELIVERED')
+      .gte('updated_at', startOfMonth.toISOString())
+      .order('updated_at', { ascending: false }),
+    admin
+      .from('courier_orders')
+      .select('delivery_fee_ron, updated_at')
+      .eq('assigned_courier_user_id', user.id)
+      .eq('status', 'DELIVERED')
+      .gte('updated_at', start30d.toISOString())
+      .order('updated_at', { ascending: false }),
+  ]);
+
+  const all = (monthRows ?? []) as DeliveredRow[];
+  const last30 = (trailing30Rows ?? []) as Array<{ delivery_fee_ron: number | null; updated_at: string }>;
 
   const sumFor = (since: Date) => {
     let count = 0;
@@ -82,8 +106,8 @@ export default async function EarningsPage() {
 
   const recent = all.slice(0, 5);
 
-  // Best day of the current month — small motivator. Bucket by YYYY-MM-DD
-  // so a single 23:55 → 00:05 spillover doesn't double-count.
+  // Best day of the current month — bucket by YYYY-MM-DD so a single
+  // 23:55 → 00:05 spillover doesn't double-count.
   const byDay = new Map<string, { earnings: number; count: number }>();
   for (const row of all) {
     const d = new Date(row.updated_at);
@@ -95,25 +119,29 @@ export default async function EarningsPage() {
     acc.count += 1;
     byDay.set(key, acc);
   }
-  let bestKey: string | null = null;
-  let bestEarnings = 0;
+
+  let bestDayKey: string | null = null;
+  let bestDayEarnings = 0;
   for (const [k, v] of byDay) {
-    if (v.earnings > bestEarnings) {
-      bestKey = k;
-      bestEarnings = v.earnings;
+    if (v.earnings > bestDayEarnings) {
+      bestDayKey = k;
+      bestDayEarnings = v.earnings;
     }
   }
-  const bestDay = bestKey
+  const bestDayData = bestDayKey
     ? {
-        label: new Date(bestKey).toLocaleDateString('ro-RO', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'short',
-        }),
-        earnings: bestEarnings,
-        count: byDay.get(bestKey)?.count ?? 0,
+        key: bestDayKey,
+        earnings: bestDayEarnings,
+        count: byDay.get(bestDayKey)?.count ?? 0,
       }
     : null;
+
+  // Split trailing-30d rows into today vs the previous 7 days for
+  // ProjectionCard. Rows from before start7d are not needed there.
+  const todayRows = last30.filter((r) => new Date(r.updated_at) >= startOfToday);
+  const trailing7Rows = last30.filter(
+    (r) => new Date(r.updated_at) >= start7d && new Date(r.updated_at) < startOfToday,
+  );
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -165,18 +193,10 @@ export default async function EarningsPage() {
         </p>
       </section>
 
-      {bestDay && bestDay.count >= 2 ? (
-        <section className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-          <Trophy className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
-          <div className="flex-1 text-sm">
-            <p className="font-medium text-zinc-100">Cea mai bună zi din lună</p>
-            <p className="mt-0.5 text-xs text-zinc-400">
-              <span className="capitalize">{bestDay.label}</span>: {bestDay.earnings.toFixed(2)} RON din{' '}
-              {bestDay.count} {bestDay.count === 1 ? 'livrare' : 'livrări'}
-            </p>
-          </div>
-        </section>
-      ) : null}
+      {/* Gamification cards — stacked above recent deliveries list. */}
+      <StreakCard rows={last30} />
+      <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
+      <BestDayCard bestDay={bestDayData} />
 
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
