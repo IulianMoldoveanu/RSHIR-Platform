@@ -134,7 +134,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       />
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold text-zinc-100">Comandă</h1>
+          <h1 className="text-lg font-semibold text-hir-fg">Comandă</h1>
           <VerticalBadge vertical={vertical} />
           <TenantBadge name={tenantName} />
         </div>
@@ -156,7 +156,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       ) : null}
 
       {/* Pickup card. */}
-      <section className="rounded-2xl border border-violet-500/20 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-violet-500/20 bg-hir-surface p-5">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300">
             1
@@ -165,7 +165,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
             Ridicare
           </p>
         </div>
-        <p className="mt-2 text-base font-semibold text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-hir-fg">
           {order.pickup_line1 ?? '—'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -179,12 +179,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       </section>
 
       {/* Timeline. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-4">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface px-5 py-4">
         <OrderTimeline status={order.status} />
       </section>
 
       {/* Dropoff card. */}
-      <section className="rounded-2xl border border-emerald-500/20 bg-zinc-900 p-5">
+      <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-5">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-300">
             2
@@ -193,10 +193,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
             Livrare
           </p>
         </div>
-        <p className="mt-2 text-base font-semibold text-zinc-100">
+        <p className="mt-2 text-base font-semibold text-hir-fg">
           {order.dropoff_line1 ?? '—'}
         </p>
-        <p className="mt-1 text-sm text-zinc-400">
+        <p className="mt-1 text-sm text-hir-muted-fg">
           {order.customer_first_name ?? 'Client'}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -212,35 +212,35 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
 
       {/* Items + payment. */}
       {items.length > 0 ? (
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             <Package className="h-3 w-3" /> Produse
           </p>
           <ul className="space-y-1 text-sm text-hir-fg">
             {items.map((it, i) => (
               <li key={i}>
-                <span className="text-zinc-500">{it.quantity}×</span> {it.name}
+                <span className="text-hir-muted-fg">{it.quantity}×</span> {it.name}
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-zinc-400">Total</span>
-          <span className="text-base font-semibold text-zinc-100">
+          <span className="text-hir-muted-fg">Total</span>
+          <span className="text-base font-semibold text-hir-fg">
             {order.total_ron != null ? `${Number(order.total_ron).toFixed(2)} RON` : '—'}
           </span>
         </div>
         {order.delivery_fee_ron != null ? (
           <div className="mt-1 flex items-center justify-between text-xs">
-            <span className="text-zinc-500">Taxă livrare</span>
+            <span className="text-hir-muted-fg">Taxă livrare</span>
             <span className="text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
           </div>
         ) : null}
         <div className="mt-1 flex items-center justify-between text-xs">
-          <span className="text-zinc-500">Plată</span>
+          <span className="text-hir-muted-fg">Plată</span>
           <span className="text-hir-fg">{order.payment_method ?? '—'}</span>
         </div>
       </section>
