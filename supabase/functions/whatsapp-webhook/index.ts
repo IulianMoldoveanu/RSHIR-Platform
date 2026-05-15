@@ -36,8 +36,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { withRunLog } from '../_shared/log.ts';
 import {
-  verifyMetaSignature,
   classifySkeletonIntent,
+  decideHandshake,
+  gatePostRequest,
 } from '../_shared/whatsapp.ts';
 
 const NONCE_TTL_MS = 60 * 60 * 1000; // 1h
@@ -273,11 +274,12 @@ Deno.serve(async (req: Request) => {
     if (req.method === 'GET') {
       const mode = url.searchParams.get('hub.mode');
       const token = url.searchParams.get('hub.verify_token');
-      const challenge = url.searchParams.get('hub.challenge') ?? '';
+      const challenge = url.searchParams.get('hub.challenge');
       const expected = Deno.env.get('WHATSAPP_VERIFY_TOKEN');
-      if (mode === 'subscribe' && expected && token === expected) {
+      const echo = decideHandshake(mode, token, challenge, expected);
+      if (echo !== null) {
         setMetadata({ verify: 'ok' });
-        return new Response(challenge, { status: 200, headers: corsHeaders });
+        return new Response(echo, { status: 200, headers: corsHeaders });
       }
       setMetadata({ verify: 'failed' });
       return new Response('forbidden', { status: 403, headers: corsHeaders });
@@ -287,28 +289,34 @@ Deno.serve(async (req: Request) => {
       return json(405, { error: 'method_not_allowed' });
     }
 
+    // Feature flag → secrets → signature → JSON: the ladder runs in one
+    // pure helper so vitest can cover every branch without booting Deno.
     const appSecret = Deno.env.get('META_APP_SECRET');
     const accessToken = Deno.env.get('WHATSAPP_ACCESS_TOKEN');
     const phoneId = Deno.env.get('WHATSAPP_PHONE_ID');
-    if (!appSecret || !accessToken || !phoneId) {
-      setMetadata({ secrets_missing: true });
-      return json(503, { error: 'whatsapp_secrets_missing' });
-    }
-
     const rawBody = await req.text();
     const sig = req.headers.get('x-hub-signature-256');
-    const valid = await verifyMetaSignature(rawBody, sig, appSecret);
-    if (!valid) {
-      setMetadata({ hmac: 'invalid' });
-      return json(401, { error: 'invalid_signature' });
+    const gate = await gatePostRequest({
+      enabled: Deno.env.get('WHATSAPP_ENABLED') === 'true',
+      appSecret,
+      accessToken,
+      phoneId,
+      rawBody,
+      signatureHeader: sig,
+    });
+    if (gate.status !== 200) {
+      setMetadata({ gate: gate.kind });
+      const errMap = {
+        disabled: 'whatsapp_disabled',
+        secrets_missing: 'whatsapp_secrets_missing',
+        invalid_signature: 'invalid_signature',
+        invalid_json: 'invalid_json',
+      } as const;
+      return json(gate.status, { error: errMap[gate.kind] });
     }
 
-    let payload: Record<string, unknown>;
-    try {
-      payload = JSON.parse(rawBody);
-    } catch {
-      return json(400, { error: 'invalid_json' });
-    }
+    // Gate passed → JSON.parse will succeed (gate already validated it).
+    const payload: Record<string, unknown> = JSON.parse(rawBody);
 
     // Meta envelope: { entry: [{ changes: [{ value: { messages: [...], contacts: [...] } }] }] }
     // We only handle the first message in the first change of the first entry — Meta
