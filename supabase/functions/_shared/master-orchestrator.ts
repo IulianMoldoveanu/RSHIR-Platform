@@ -33,6 +33,11 @@
 // Next.js admin app at `apps/restaurant-admin/src/lib/ai/master-orchestrator-types.ts`.
 
 import { checkBudget } from './agent-cost.ts';
+import { retrieveSimilarRuns, backfillRunEmbedding, type SimilarRun } from './master-orchestrator-rag.ts';
+
+// Re-export so sub-agent handlers can type their `prior` parameter without
+// importing the RAG module directly.
+export type { SimilarRun };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -296,7 +301,7 @@ export async function dispatchIntent(
     supabase,
   };
 
-  // PHASE 0 — F6 monthly budget gate. The dispatcher checks the cost ledger
+  // PHASE 0a — F6 monthly budget gate. The dispatcher checks the cost ledger
   // BEFORE plan() so an over-budget tenant cannot accidentally rack up more
   // spend through an auto-executed intent. The `master` agent is exempt —
   // it must keep working so OWNERS can still see the proposed-runs queue
@@ -325,13 +330,38 @@ export async function dispatchIntent(
     }
   }
 
+  // PHASE 0b — F6 RAG retrieval. Top-K similar prior EXECUTED runs surfaced
+  // to plan() via `payload.__prior`. No-op when RAG_ENABLED=false; returns []
+  // on any retrieval failure (NEVER blocks dispatch). Filter to the same agent
+  // so a /menu call sees prior menu runs, not unrelated /ops queries.
+  // Runs AFTER the budget gate (we don't burn an embedding lookup on an
+  // over-budget tenant) and BEFORE plan() (so handlers can use the prior).
+  let prior: SimilarRun[] = [];
+  try {
+    prior = await retrieveSimilarRuns(
+      supabase,
+      input.tenantId,
+      input.intent,
+      input.payload ?? {},
+      { k: 5, agentName: reg.agent },
+    );
+  } catch (e) {
+    // Defence-in-depth — retrieveSimilarRuns already swallows internally.
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn('[master-orchestrator] RAG retrieve threw:', msg);
+    prior = [];
+  }
+  const enrichedPayload: Record<string, unknown> = prior.length
+    ? { ...(input.payload ?? {}), __prior: prior }
+    : (input.payload ?? {});
+
   // PHASE 1 — plan. Pure: no side effects, may read for pre_state.
   // CRITICAL: this runs BEFORE the trust gate so a write handler whose
   // tenant/category resolves to PROPOSE_ONLY is NOT executed (the
   // execute() phase below is what mutates state).
   let plan: HandlerPlan;
   try {
-    plan = await reg.handler.plan(ctx, input.payload);
+    plan = await reg.handler.plan(ctx, enrichedPayload);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error(`[master-orchestrator] plan "${input.intent}" threw:`, message);
@@ -398,6 +428,19 @@ export async function dispatchIntent(
     preState: result.preState ?? plan.preState,
     actorUserId: input.actorUserId ?? null,
   });
+
+  // F6 RAG — fire-and-forget embedding backfill. Strip the __prior we just
+  // injected (we don't want to embed a run's retrieved neighbours; embed
+  // only the actual intent + caller payload). No-op when RAG_ENABLED=false.
+  if (runId) {
+    const sourcePayload: Record<string, unknown> = { ...(input.payload ?? {}) };
+    delete sourcePayload.__prior;
+    // Fire-and-forget: deliberately NOT awaited. The dispatch result must
+    // not depend on OpenAI latency. Deno keeps the function alive long
+    // enough for short fetches; if it times out we'll re-embed on the
+    // next dispatch via a future bulk-backfill cron (not in this PR).
+    void backfillRunEmbedding(supabase, runId, input.intent, sourcePayload);
+  }
 
   return {
     ok: true,
