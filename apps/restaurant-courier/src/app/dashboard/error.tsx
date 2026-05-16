@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
-import { Button } from '@hir/ui';
+import { ErrorCard } from '@/components/error-card';
 
 // Dashboard route group error boundary. Catches any uncaught throw in a child
 // page (orders / earnings / settings / shift / orders/[id]) so the courier
-// sees a recoverable card instead of a blank screen on the road. Logs to
-// console + Sentry-via-onload elsewhere; no side effects beyond reset().
+// sees a recoverable card instead of a blank screen on the road. Segment-
+// level boundaries (orders/[id]/error.tsx, earnings/error.tsx, etc.) handle
+// their own subtrees first; this is the catch-all for everything else.
 export default function DashboardError({
   error,
   reset,
@@ -15,35 +14,5 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error('[courier/dashboard] runtime error', error);
-  }, [error]);
-
-  return (
-    <div className="mx-auto mt-8 max-w-md rounded-2xl border border-rose-500/40 bg-rose-500/5 p-5 text-center">
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10">
-        <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
-      </div>
-      <h2 className="mt-3 text-base font-semibold text-zinc-100">
-        Ceva nu a mers
-      </h2>
-      <p className="mt-1 text-xs text-zinc-400">
-        Pagina nu s-a putut încărca. Conexiune slabă sau o eroare temporară de
-        server. Reîncearcă sau revino în câteva secunde.
-      </p>
-      {error.digest ? (
-        <p className="mt-2 font-mono text-[10px] text-zinc-600">
-          ref: {error.digest}
-        </p>
-      ) : null}
-      <Button
-        type="button"
-        onClick={() => reset()}
-        className="mt-4 gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400"
-      >
-        <RefreshCw className="h-4 w-4" aria-hidden />
-        Reîncarcă pagina
-      </Button>
-    </div>
-  );
+  return <ErrorCard error={error} reset={reset} scope="dashboard" />;
 }
