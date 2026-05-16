@@ -30,7 +30,10 @@ export type RegisterLeadResult =
   | { ok: true }
   | { ok: false; error: string };
 
-export async function registerLead(formData: FormData): Promise<RegisterLeadResult> {
+export async function registerLead(
+  _prevState: RegisterLeadResult | null,
+  formData: FormData,
+): Promise<RegisterLeadResult> {
   const restaurantName = (formData.get('restaurant_name') as string | null)?.trim() ?? '';
   const phone = (formData.get('phone') as string | null)?.trim() || null;
   const email = (formData.get('email') as string | null)?.trim() || null;
