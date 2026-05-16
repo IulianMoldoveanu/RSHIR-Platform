@@ -33,6 +33,26 @@ type Commission = {
   paid_via: string | null;
 };
 
+type PendingByMonth = {
+  partner_id: string;
+  period_month: string; // YYYY-MM-01
+  amount_cents: number;
+};
+
+type Payout = {
+  id: string;
+  partner_id: string;
+  period_month: string;
+  gross_cents: number;
+  platform_fee_cents: number;
+  net_cents: number;
+  paid_at: string;
+  paid_by_email: string | null;
+  proof_url: string | null;
+  notes: string | null;
+  voided_at: string | null;
+};
+
 export default async function PartnersPage() {
   // ── Auth + platform-admin gate ──────────────────────────────
   const supabase = await createServerClient();
@@ -80,6 +100,12 @@ export default async function PartnersPage() {
     .from('partner_commissions')
     .select('id, partner_id, amount_cents, period_start, period_end, status, paid_at, paid_via');
 
+  const { data: rawPayouts } = await admin
+    .from('partner_payouts')
+    .select(
+      'id, partner_id, period_month, gross_cents, platform_fee_cents, net_cents, paid_at, paid_by_user_id, proof_url, notes, voided_at',
+    );
+
   // ── Aggregate client-side (no reporting view yet) ────────────
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -124,6 +150,82 @@ export default async function PartnersPage() {
     paid_via: (c.paid_via as string | null) ?? null,
   }));
 
+  // ── Pending-by-month: aggregate PENDING commissions per partner+month.
+  // period_start is always first-of-month from the cron, so we can reuse
+  // it directly as the period_month key for partner_payouts matching.
+  const pendingByMonthMap = new Map<string, PendingByMonth>();
+  for (const c of commissions) {
+    if (c.status !== 'PENDING') continue;
+    const key = `${c.partner_id}__${c.period_start}`;
+    const prev = pendingByMonthMap.get(key);
+    if (prev) {
+      prev.amount_cents += c.amount_cents;
+    } else {
+      pendingByMonthMap.set(key, {
+        partner_id: c.partner_id,
+        period_month: c.period_start,
+        amount_cents: c.amount_cents,
+      });
+    }
+  }
+  // Drop months that already have an active payout row.
+  for (const p of rawPayouts ?? []) {
+    if (p.voided_at) continue;
+    const key = `${p.partner_id as string}__${p.period_month as string}`;
+    pendingByMonthMap.delete(key);
+  }
+  const pendingByMonth = Array.from(pendingByMonthMap.values()).sort(
+    (a, b) => b.period_month.localeCompare(a.period_month),
+  );
+
+  // ── Resolve paid_by_user_id → email for the history table.
+  const paidByUserIds = Array.from(
+    new Set(
+      (rawPayouts ?? [])
+        .map((p) => p.paid_by_user_id as string | null)
+        .filter((u): u is string => Boolean(u)),
+    ),
+  );
+  let userEmailById: Record<string, string> = {};
+  if (paidByUserIds.length > 0) {
+    try {
+      // admin.auth.admin.getUserById exists on the service-role client.
+      // We bypass the typed wrapper since auth admin isn't in the cast above.
+      const adminAuth = createAdminClient() as unknown as {
+        auth: { admin: { getUserById: (id: string) => Promise<{ data: { user: { email?: string | null } | null } }> } };
+      };
+      const lookups = await Promise.all(
+        paidByUserIds.map(async (uid) => {
+          try {
+            const r = await adminAuth.auth.admin.getUserById(uid);
+            return [uid, r.data.user?.email ?? null] as const;
+          } catch {
+            return [uid, null] as const;
+          }
+        }),
+      );
+      userEmailById = Object.fromEntries(
+        lookups.filter(([, e]) => e).map(([uid, e]) => [uid, e as string]),
+      );
+    } catch {
+      // best-effort enrichment
+    }
+  }
+
+  const payouts: Payout[] = (rawPayouts ?? []).map((p) => ({
+    id: p.id as string,
+    partner_id: p.partner_id as string,
+    period_month: p.period_month as string,
+    gross_cents: Number(p.gross_cents ?? 0),
+    platform_fee_cents: Number(p.platform_fee_cents ?? 0),
+    net_cents: Number(p.net_cents ?? 0),
+    paid_at: p.paid_at as string,
+    paid_by_email: userEmailById[p.paid_by_user_id as string] ?? null,
+    proof_url: (p.proof_url as string | null) ?? null,
+    notes: (p.notes as string | null) ?? null,
+    voided_at: (p.voided_at as string | null) ?? null,
+  })).sort((a, b) => b.paid_at.localeCompare(a.paid_at));
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -135,7 +237,12 @@ export default async function PartnersPage() {
           Vizibil doar administratorilor de platformă.
         </p>
       </header>
-      <PartnersClient partners={partners} commissions={commissions} />
+      <PartnersClient
+        partners={partners}
+        commissions={commissions}
+        pendingByMonth={pendingByMonth}
+        payouts={payouts}
+      />
     </div>
   );
 }
