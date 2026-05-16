@@ -83,7 +83,7 @@ type LeafletGlobal = {
 type LeafletMap = {
   setView: (latlng: [number, number], zoom: number) => LeafletMap;
   remove: () => void;
-  invalidateSize: () => void;
+  invalidateSize: (opts?: { animate?: boolean; pan?: boolean }) => void;
   fitBounds: (bounds: unknown, opts?: Record<string, unknown>) => LeafletMap;
   setBearing?: (angleDeg: number) => LeafletMap;
 };
@@ -346,10 +346,22 @@ export function RiderMap({
           bearing: 0,
         }).setView(FALLBACK_CENTER, FALLBACK_ZOOM);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        }).addTo(map);
+        // CARTO Dark Matter tiles — free, no API key, dark theme that matches
+        // the courier app's surface. Retina @2x for sharp rendering on phone
+        // displays. Falls back to standard tiles when @2x not available.
+        // Attribution-required per CARTO's basemap terms.
+        L.tileLayer(
+          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+          {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            // detectRetina toggles {r} between '' and '@2x' so HiDPI phones
+            // get crisp tiles without forcing them on slow networks.
+            detectRetina: true,
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+          },
+        ).addTo(map);
 
         mapRef.current = map;
 
@@ -447,9 +459,59 @@ export function RiderMap({
           if (polyBounds.length < 2) map.setView([stored.lat, stored.lng], RIDER_ZOOM);
         }
 
-        // Some layouts mount the map inside a flex parent that resizes
-        // after first paint; force a resize so tiles fill correctly.
-        setTimeout(() => map.invalidateSize(), 0);
+        // RESIZE HANDLING.
+        //
+        // Symptom this fixes: on mobile (especially iOS Safari + the dashboard
+        // root where the map is `fillParent` inside a `100vh` container) the
+        // Leaflet map captured the container size BEFORE the parent reached
+        // its final height, and stayed stuck on half the viewport until the
+        // user manually resized / pinched. The single `setTimeout(0)` we
+        // previously called wasn't enough — the parent layout settles across
+        // multiple paint frames (header chrome, badges, dynamic content) and
+        // the address bar hides/shows on scroll.
+        //
+        // Three-pronged fix:
+        //   1. Multi-tick invalidateSize() schedule covering the typical
+        //      mount→paint→settle window (0 / 60 / 200 / 600 / 1500 ms).
+        //   2. ResizeObserver on the container so any later layout shift
+        //      (orientation change, parent flex grow) re-syncs the tiles.
+        //   3. window resize + visibilitychange listeners as a fallback for
+        //      browsers without RO and for tab-restore scenarios where the
+        //      container size changes while the tab was hidden.
+        const invalidateNow = () => {
+          if (cancelledRef.current) return;
+          try {
+            map.invalidateSize({ animate: false });
+          } catch {
+            /* ignore — map may have been removed */
+          }
+        };
+        const resizeTimers: number[] = [];
+        for (const delay of [0, 60, 200, 600, 1500]) {
+          resizeTimers.push(window.setTimeout(invalidateNow, delay));
+        }
+        let resizeObserver: ResizeObserver | null = null;
+        if (containerRef.current && typeof ResizeObserver !== 'undefined') {
+          resizeObserver = new ResizeObserver(() => invalidateNow());
+          resizeObserver.observe(containerRef.current);
+        }
+        const onWindowResize = () => invalidateNow();
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'visible') invalidateNow();
+        };
+        window.addEventListener('resize', onWindowResize, { passive: true });
+        window.addEventListener('orientationchange', onWindowResize, { passive: true });
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        // Stash on the map for the cleanup branch below.
+        (map as unknown as Record<string, unknown>).__riderResizeCleanup = () => {
+          for (const t of resizeTimers) window.clearTimeout(t);
+          if (resizeObserver) {
+            try { resizeObserver.disconnect(); } catch { /* ignore */ }
+          }
+          window.removeEventListener('resize', onWindowResize);
+          window.removeEventListener('orientationchange', onWindowResize);
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
 
         // Track last-known heading so the icon stays oriented even when the
         // device is briefly stationary (heading goes null at speed 0).
@@ -636,6 +698,12 @@ export function RiderMap({
         watchIdRef.current = null;
       }
       if (mapRef.current) {
+        // Tear down the resize observers + listeners attached during init.
+        const cleanup = (mapRef.current as unknown as Record<string, unknown>)
+          .__riderResizeCleanup as (() => void) | undefined;
+        if (typeof cleanup === 'function') {
+          try { cleanup(); } catch { /* ignore */ }
+        }
         mapRef.current.remove();
         mapRef.current = null;
       }
