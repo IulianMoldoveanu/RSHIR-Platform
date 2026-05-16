@@ -38,6 +38,13 @@ jobs:
     name: Lighthouse · mobile · marketing surfaces
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      # `pull-requests: write` is required by the budget-failure comment
+      # step at the bottom of this job. Without it the github-script call
+      # 403s on the PR-comments endpoint and the failure log fills with a
+      # red herring. `contents: read` keeps the rest of the job least-priv.
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
 

@@ -1,14 +1,12 @@
 {
-  "_comment_intent": "Lighthouse CI gate for the public storefront. Targets the three marketing surfaces that received JSON-LD + skip-link work in #512 (Wave 4-B): /pricing, /orase/brasov, /case-studies/foisorul-a. Thresholds set to `warn` so we collect baseline runs before tightening to `error`. Tighten once we have 5+ green runs.",
+  "_comment_intent": "Lighthouse CI gate for the public storefront. Initial target: /pricing only, which renders fully server-side without Supabase round-trips so the stub-env CI build can serve it cleanly. /orase/[citySlug] and /case-studies/[slug] DO hit Supabase for tenant + case-study data, which the stub envs (`https://localhost.invalid`) cannot satisfy — the first CI run failed there with ERRORED_DOCUMENT_REQUEST. Add them back behind a mock or staging URL when bandwidth allows. Thresholds stay at `warn` so we collect baseline runs before tightening to `error`.",
   "ci": {
     "collect": {
       "startServerCommand": "pnpm --filter @hir/restaurant-web start",
       "startServerReadyPattern": "Ready",
       "startServerReadyTimeout": 60000,
       "url": [
-        "http://localhost:3000/pricing",
-        "http://localhost:3000/orase/brasov",
-        "http://localhost:3000/case-studies/foisorul-a"
+        "http://localhost:3000/pricing"
       ],
       "numberOfRuns": 1,
       "settings": {
