@@ -19,6 +19,11 @@ import { resolveRiderMode } from '@/lib/rider-mode';
 import { WelcomeCarousel } from '@/components/welcome-carousel';
 import { FirstShiftTutorial } from '@/components/first-shift-tutorial';
 import { HelpDrawer } from '@/components/help-drawer';
+import { ConnectionBadge } from '@/components/connection-badge';
+import { BatteryBadge } from '@/components/battery-badge';
+import { GpsStalnessPill } from '@/components/gps-staleness-pill';
+import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
+import { LocationTrackerWired } from '@/components/location-tracker-wired';
 
 // Force layout to re-fetch shift state on every navigation. Without this,
 // Next.js may serve a cached layout (with stale isOnline) under a freshly
@@ -94,6 +99,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const tenantBrand = riderMode.mode === 'A' ? await loadTenantBrand(admin, user.id) : null;
 
   return (
+    <GpsTimestampProvider>
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
         {/* Skip-to-content: visible on focus for keyboard + AT users. */}
@@ -143,6 +149,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           {/* Earnings pill — always visible. */}
           <EarningsBar />
+
+          {/* Live status badges — connection quality + battery (only when low)
+              + GPS staleness. Tucked between earnings and help so the user
+              gets at-a-glance device health without crowding the chrome. */}
+          <div className="flex shrink-0 items-center gap-1">
+            <ConnectionBadge />
+            <BatteryBadge />
+            <GpsStalnessPill />
+          </div>
 
           {/* Help icon — opens contextual drawer with FAQ, dispatcher contact,
               report form, and terms. Sits between earnings and avatar so it
@@ -194,7 +209,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <OfflineBanner />
         <BatterySaverBadge />
         <PushBootstrap />
-        <LocationTracker enabled={isOnline} onFix={updateCourierLocationAction} />
+        <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
         <ProofSync />
         <TransitionSync />
 
@@ -241,6 +256,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </nav>
       </div>
     </RiderModeProvider>
+    </GpsTimestampProvider>
   );
 }
 

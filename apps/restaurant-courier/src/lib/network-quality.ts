@@ -1,0 +1,54 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+// Non-standard Network Information API. Available in Chrome/Android WebViews
+// and Chromium-based mobile browsers. Safari iOS does NOT expose it; those
+// devices fall back to navigator.onLine only (online/offline distinction).
+type NetworkInformation = {
+  effectiveType: '2g' | '3g' | '4g' | 'slow-2g';
+  addEventListener(event: string, handler: () => void): void;
+  removeEventListener(event: string, handler: () => void): void;
+};
+
+type NavigatorWithConnection = Navigator & {
+  connection?: NetworkInformation;
+};
+
+export type NetworkQuality = 'offline' | '2g' | '3g' | '4g';
+
+function readQuality(): NetworkQuality {
+  if (typeof navigator === 'undefined') return '4g';
+  if (!navigator.onLine) return 'offline';
+  const conn = (navigator as NavigatorWithConnection).connection;
+  if (!conn) return '4g'; // Unknown — optimistic default
+  return conn.effectiveType === 'slow-2g' ? '2g' : conn.effectiveType;
+}
+
+// Returns the current perceived connection quality, updated reactively when
+// the browser fires online/offline events or the Network Information API
+// fires a 'change' event. On Safari iOS (no Network Information API) the
+// returned value is 'offline' or '4g' only — good enough for the badge.
+export function useNetworkQuality(): NetworkQuality {
+  const [quality, setQuality] = useState<NetworkQuality>(readQuality);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const update = () => setQuality(readQuality());
+
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+
+    const conn = (navigator as NavigatorWithConnection).connection;
+    conn?.addEventListener('change', update);
+
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+      conn?.removeEventListener('change', update);
+    };
+  }, []);
+
+  return quality;
+}
