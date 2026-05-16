@@ -140,6 +140,27 @@ describe('setPaymentMode', () => {
     expect(payments.provider).toBe('netopia');
   });
 
+  // Wave 4-A coverage: the storefront sandbox-banner E2E asserts the exact
+  // (card_sandbox, viva) tuple flows through to settings.payments — guard
+  // that combination explicitly even though card_sandbox+netopia and
+  // card_live+viva already cover the matrix axes individually.
+  it('persists viva when OWNER picks card_sandbox + viva', async () => {
+    getActiveTenantMock.mockResolvedValue({
+      user: { id: 'u1', email: 'owner@x.com' },
+      tenant: { id: 't1' },
+    });
+    getTenantRoleMock.mockResolvedValue('OWNER');
+    const res = await setPaymentMode(
+      fd({ mode: 'card_sandbox', provider: 'viva', tenantId: 't1' }),
+    );
+    expect(res).toEqual({ ok: true, mode: 'card_sandbox', provider: 'viva' });
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    const [patch] = updateMock.mock.calls[0];
+    const payments = (patch.settings as Record<string, unknown>).payments as Record<string, unknown>;
+    expect(payments.mode).toBe('card_sandbox');
+    expect(payments.provider).toBe('viva');
+  });
+
   it('persists viva when OWNER picks card_live + viva', async () => {
     getActiveTenantMock.mockResolvedValue({
       user: { id: 'u1', email: 'owner@x.com' },
