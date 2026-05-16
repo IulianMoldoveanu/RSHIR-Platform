@@ -19,6 +19,7 @@ import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { WelcomeCarousel } from '@/components/welcome-carousel';
 import { FirstShiftTutorial } from '@/components/first-shift-tutorial';
+import { WhatsNewBanner } from '@/components/whats-new-banner';
 import { HelpDrawer } from '@/components/help-drawer';
 import { ConnectionBadge } from '@/components/connection-badge';
 import { BatteryBadge } from '@/components/battery-badge';
@@ -220,6 +221,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             rendering so returning couriers pay zero overhead. */}
         <WelcomeCarousel />
         <FirstShiftTutorial />
+        <WhatsNewBanner />
 
         <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
