@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 /**
  * Pulse-on-change wrapper for the EarningsBar header pill.
@@ -19,6 +19,7 @@ import { motion } from 'framer-motion';
  */
 export function EarningsValue({ value, count }: { value: number; count: number }) {
   const isFirstRender = useRef(true);
+  const reduce = useReducedMotion();
   useEffect(() => {
     isFirstRender.current = false;
   }, []);
@@ -27,9 +28,9 @@ export function EarningsValue({ value, count }: { value: number; count: number }
     <>
       <motion.span
         key={value.toFixed(2)}
-        initial={isFirstRender.current ? false : { scale: 0.92, opacity: 0.65 }}
+        initial={isFirstRender.current || reduce ? false : { scale: 0.92, opacity: 0.65 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
+        transition={{ duration: reduce ? 0 : 0.22, ease: 'easeOut' }}
         className="font-semibold text-zinc-100"
       >
         {value.toFixed(2)} RON
