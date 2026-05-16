@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Package, Clock, Wallet, Settings } from 'lucide-react';
+import { Package, Clock, MessageSquare, Wallet, Settings } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logoutAction, updateCourierLocationAction } from './actions';
@@ -34,6 +34,7 @@ export const dynamic = 'force-dynamic';
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
   { href: '/dashboard/shift', label: 'Tură', icon: Clock },
+  { href: '/dashboard/messages', label: 'Mesaje', icon: MessageSquare },
   { href: '/dashboard/earnings', label: 'Câștiguri', icon: Wallet },
   { href: '/dashboard/settings', label: 'Setări', icon: Settings },
 ] as const;
