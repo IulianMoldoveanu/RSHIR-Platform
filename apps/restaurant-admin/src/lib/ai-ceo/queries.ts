@@ -369,13 +369,21 @@ export async function getGrowthRecommendationCounters(
 export type AgentCostSummary = {
   totalCents7d: number;
   totalCents30d: number;
+  totalCentsMtd: number;
   callCount30d: number;
+  monthlyBudgetCents: number;
   byAgent: Array<{
     agent: string;
     cents30d: number;
     calls30d: number;
   }>;
 };
+
+// Default monthly budget when the tenant has no
+// `tenants.settings.ai.monthly_budget_cents` set. Mirrors the default in
+// `supabase/functions/_shared/agent-cost.ts` so the operator UI matches
+// what the dispatcher actually enforces.
+export const DEFAULT_MONTHLY_BUDGET_CENTS = 5000;
 
 // Aggregates per-tenant Anthropic spend from `agent_cost_ledger` (F6 cost
 // ledger). Pulls the last 30 days of rows in one read (this table is
@@ -385,38 +393,67 @@ export type AgentCostSummary = {
 //
 // Returns zero-valued summary on read failure so the calling page never
 // renders an error state — the widget is purely informational.
+// Helper: extract `tenants.settings.ai.monthly_budget_cents` (default
+// `DEFAULT_MONTHLY_BUDGET_CENTS`). Mirrors the resolver in
+// `supabase/functions/_shared/agent-cost.ts` so the operator UI shows the
+// exact same budget the dispatcher enforces.
+function resolveBudgetFromSettings(settings: unknown): number {
+  if (!settings || typeof settings !== 'object') return DEFAULT_MONTHLY_BUDGET_CENTS;
+  const ai = (settings as Record<string, unknown>).ai;
+  if (!ai || typeof ai !== 'object') return DEFAULT_MONTHLY_BUDGET_CENTS;
+  const raw = (ai as Record<string, unknown>).monthly_budget_cents;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_MONTHLY_BUDGET_CENTS;
+  return n;
+}
+
 export async function getAgentCostSummary(tenantId: string): Promise<AgentCostSummary> {
+  const empty: AgentCostSummary = {
+    totalCents7d: 0,
+    totalCents30d: 0,
+    totalCentsMtd: 0,
+    callCount30d: 0,
+    monthlyBudgetCents: DEFAULT_MONTHLY_BUDGET_CENTS,
+    byAgent: [],
+  };
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = createAdminClient() as any;
-    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const { data, error } = await admin
-      .from('agent_cost_ledger')
-      .select('agent_name, cost_cents, created_at')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', since30d.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(10000); // hard ceiling — should never hit this in practice
-    if (error) {
-      console.warn('[ai-ceo/queries] getAgentCostSummary read failed:', error.message);
-      return { totalCents7d: 0, totalCents30d: 0, callCount30d: 0, byAgent: [] };
+    const now = new Date();
+    const since30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const sinceMtd = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [ledgerRes, tenantRes] = await Promise.all([
+      admin
+        .from('agent_cost_ledger')
+        .select('agent_name, cost_cents, created_at')
+        .eq('tenant_id', tenantId)
+        .gte('created_at', since30d.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(10000),
+      admin.from('tenants').select('settings').eq('id', tenantId).maybeSingle(),
+    ]);
+    if (ledgerRes.error) {
+      console.warn('[ai-ceo/queries] getAgentCostSummary read failed:', ledgerRes.error.message);
+      return { ...empty, monthlyBudgetCents: resolveBudgetFromSettings(tenantRes.data?.settings) };
     }
-    const rows = (data ?? []) as Array<{
+    const rows = (ledgerRes.data ?? []) as Array<{
       agent_name: string;
       cost_cents: number | string;
       created_at: string;
     }>;
     let totalCents7d = 0;
     let totalCents30d = 0;
+    let totalCentsMtd = 0;
     const byAgentMap = new Map<string, { cents: number; calls: number }>();
     const since7dMs = since7d.getTime();
+    const sinceMtdMs = sinceMtd.getTime();
     for (const r of rows) {
       const cents = Number(r.cost_cents ?? 0);
+      const t = new Date(r.created_at).getTime();
       totalCents30d += cents;
-      if (new Date(r.created_at).getTime() >= since7dMs) {
-        totalCents7d += cents;
-      }
+      if (t >= since7dMs) totalCents7d += cents;
+      if (t >= sinceMtdMs) totalCentsMtd += cents;
       const cur = byAgentMap.get(r.agent_name) ?? { cents: 0, calls: 0 };
       cur.cents += cents;
       cur.calls += 1;
@@ -428,7 +465,9 @@ export async function getAgentCostSummary(tenantId: string): Promise<AgentCostSu
     return {
       totalCents7d,
       totalCents30d,
+      totalCentsMtd,
       callCount30d: rows.length,
+      monthlyBudgetCents: resolveBudgetFromSettings(tenantRes.data?.settings),
       byAgent,
     };
   } catch (err) {
@@ -436,7 +475,7 @@ export async function getAgentCostSummary(tenantId: string): Promise<AgentCostSu
       '[ai-ceo/queries] getAgentCostSummary threw:',
       (err as Error).message,
     );
-    return { totalCents7d: 0, totalCents30d: 0, callCount30d: 0, byAgent: [] };
+    return empty;
   }
 }
 

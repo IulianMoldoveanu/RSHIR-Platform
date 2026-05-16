@@ -506,13 +506,21 @@ export default async function AiCeoPage() {
             </h2>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+        <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
               Ultimele 7 zile
             </p>
             <p className="mt-1 font-semibold text-zinc-900 tabular-nums">
               ${(costSummary.totalCents7d / 100).toFixed(2)}
+            </p>
+          </div>
+          <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Luna curentă
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900 tabular-nums">
+              ${(costSummary.totalCentsMtd / 100).toFixed(2)}
             </p>
           </div>
           <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
@@ -532,6 +540,57 @@ export default async function AiCeoPage() {
             </p>
           </div>
         </div>
+
+        {/* Budget utilization bar — month-to-date vs `tenants.settings.ai.monthly_budget_cents`. */}
+        {(() => {
+          const used = costSummary.totalCentsMtd;
+          const limit = costSummary.monthlyBudgetCents;
+          const pct = Math.min(100, Math.round((used / limit) * 100));
+          const warn = pct >= 80;
+          const danger = pct >= 100;
+          const barClass = danger
+            ? 'bg-rose-500'
+            : warn
+              ? 'bg-amber-500'
+              : 'bg-emerald-500';
+          return (
+            <div className="mt-3">
+              <div className="mb-1 flex items-baseline justify-between text-xs">
+                <span className="font-medium text-zinc-700">
+                  Buget lunar: ${(limit / 100).toFixed(2)}
+                </span>
+                <span
+                  className={
+                    danger
+                      ? 'font-semibold text-rose-700 tabular-nums'
+                      : warn
+                        ? 'font-semibold text-amber-700 tabular-nums'
+                        : 'tabular-nums text-zinc-600'
+                  }
+                >
+                  {pct}% utilizat
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className={`h-full ${barClass} transition-all`}
+                  style={{ width: `${pct}%` }}
+                  aria-label={`Buget utilizat ${pct}%`}
+                />
+              </div>
+              {danger && (
+                <p className="mt-1 text-xs text-rose-700">
+                  Bugetul lunar este depășit — dispatcher-ul refuză apeluri noi până luna viitoare.
+                </p>
+              )}
+              {warn && !danger && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Atenție: bugetul lunar este aproape epuizat ({pct}%).
+                </p>
+              )}
+            </div>
+          );
+        })()}
         {costSummary.byAgent.length === 0 ? (
           <p className="mt-4 rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
             Niciun apel AI înregistrat în ultimele 30 de zile.
