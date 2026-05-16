@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { NotificationPreferences } from '@/components/notification-preferences';
 import { VoiceNavToggle } from '@/components/voice-nav-toggle';
+import { AutoAcceptToggle } from '@/components/auto-accept-toggle';
 
 export const metadata = {
   title: 'Notificări — HIR Curier',
@@ -23,6 +24,8 @@ export default function NotificationsPage() {
       <NotificationPreferences />
 
       <VoiceNavToggle />
+
+      <AutoAcceptToggle />
     </div>
   );
 }
