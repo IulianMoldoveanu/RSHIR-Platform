@@ -55,8 +55,10 @@ export type CourierAuditAction =
   | 'order.force_cancelled_by_courier'
   | 'order.cancelled_by_courier'
   | 'delivery.geofence_warning'
+  | 'courier.geofence_alert'
   | 'pharma.callback_sent'
-  | 'earnings.exported';
+  | 'earnings.exported'
+  | 'courier.time_off_requested';
 
 async function deriveTenantId(
   admin: ReturnType<typeof createAdminClient>,
