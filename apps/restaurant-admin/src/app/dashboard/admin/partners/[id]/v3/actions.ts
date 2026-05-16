@@ -16,7 +16,8 @@ export async function assignWaveAction(
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: 'Acces interzis.' };
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   const { error } = await admin
     .from('partners')
@@ -44,7 +45,8 @@ export async function updateKycStatusAction(
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: 'Acces interzis.' };
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   const update: Record<string, unknown> = {
     kyc_status: status,
@@ -78,7 +80,8 @@ export async function assignSponsorAction(
     return { ok: false, error: 'Un partener nu poate fi sponsorul lui însuși.' };
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // Upsert: one sponsor per sub_partner_id (unique constraint)
   const { error } = await admin
@@ -111,7 +114,8 @@ export async function awardLadderTierAction(
   const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: 'Acces interzis.' };
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
   const tierDef = LADDER_TIERS[tier];
 
   const { error } = await admin

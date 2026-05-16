@@ -63,7 +63,8 @@ export default async function PartnerV3Page({ params }: Props) {
   }
 
   const { id: partnerId } = await params;
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // ── Fetch partner ─────────────────────────────────────────
   const { data: rawPartner, error: pError } = await admin
@@ -86,7 +87,7 @@ export default async function PartnerV3Page({ params }: Props) {
     .neq('id', partnerId)
     .order('name');
 
-  const allActivePartners: ActivePartner[] = (rawAllPartners ?? []).map((p) => ({
+  const allActivePartners: ActivePartner[] = (rawAllPartners ?? []).map((p: Record<string, unknown>) => ({
     id: p.id as string,
     name: p.name as string,
     email: p.email as string,
@@ -114,7 +115,7 @@ export default async function PartnerV3Page({ params }: Props) {
     .select('tier_reached, awarded_at, bonus_amount_cents')
     .eq('partner_id', partnerId);
 
-  const milestones: MilestoneRow[] = (rawMilestones ?? []).map((m) => ({
+  const milestones: MilestoneRow[] = (rawMilestones ?? []).map((m: Record<string, unknown>) => ({
     tier_reached: m.tier_reached as string,
     awarded_at: m.awarded_at as string,
     bonus_amount_cents: Number(m.bonus_amount_cents),
@@ -140,7 +141,7 @@ export default async function PartnerV3Page({ params }: Props) {
 
   const ladderBonusCents = milestones.reduce((sum, m) => sum + m.bonus_amount_cents, 0);
   const commissionPaidCents = (rawCommissions ?? []).reduce(
-    (sum, c) => sum + Number(c.amount_cents ?? 0),
+    (sum: number, c: Record<string, unknown>) => sum + Number(c.amount_cents ?? 0),
     0,
   );
 
@@ -160,7 +161,7 @@ export default async function PartnerV3Page({ params }: Props) {
       .from('partners')
       .select('id', { count: 'exact', head: true })
       .eq('wave_label', w)
-      .then((r) => ({ count: r.count ?? 0 }));
+      .then((r: { count: number | null }) => ({ count: r.count ?? 0 }));
     waveCountMap[w] = count;
   }
 
