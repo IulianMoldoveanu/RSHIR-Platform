@@ -18,6 +18,7 @@ import {
   type BadgeDef,
   type BadgeId,
 } from '@/lib/achievements';
+import { celebrate as hapticCelebrate } from '@/lib/haptics';
 
 /** Server-derived metrics passed as props so no client-side DB call is needed. */
 type Props = {
@@ -98,14 +99,7 @@ export function Achievements({
     // Show toast for the first newly unlocked badge.
     if (newlyUnlocked.length > 0) {
       setNewToastId(newlyUnlocked[0]);
-      // Haptic feedback on badge unlock.
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        try {
-          navigator.vibrate([30, 80, 30, 80, 100]);
-        } catch {
-          // unsupported — silent
-        }
-      }
+      hapticCelebrate();
     }
   }, [totalDeliveries, nightDeliveries, longestShiftHours, maxConsecutiveDays]);
 
