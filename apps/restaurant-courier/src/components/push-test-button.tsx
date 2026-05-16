@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BellRing } from 'lucide-react';
 import { Button, toast } from '@hir/ui';
+import { attention as hapticAttention } from '@/lib/haptics';
 
 type PermissionState = 'unsupported' | 'default' | 'granted' | 'denied';
 
@@ -89,9 +90,7 @@ export function PushTestButton() {
 
     if (delivered) {
       toast.success('Notificare test trimisă.', { duration: 3_000 });
-      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate([120, 60, 120]);
-      }
+      hapticAttention();
     } else {
       toast('Nu am putut trimite notificarea. Reîncearcă.', { duration: 5_000 });
     }

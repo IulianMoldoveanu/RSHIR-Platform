@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronRight, X } from 'lucide-react';
 import { Button } from '@hir/ui';
+import { select as hapticSelect } from '@/lib/haptics';
 
 const DISMISS_KEY = 'hir.courier.preShiftChecklistDismissed';
 const ITEMS = [
@@ -45,10 +46,7 @@ export function PreShiftChecklist({ onContinue }: Props) {
 
   function toggle(i: number) {
     setChecked((prev) => ({ ...prev, [i]: !prev[i] }));
-    // Short haptic on tick.
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate(15); } catch { /* silent */ }
-    }
+    hapticSelect();
   }
 
   function handleContinue() {

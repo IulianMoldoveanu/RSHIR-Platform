@@ -5,19 +5,6 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
 import * as haptics from '@/lib/haptics';
 
-// Tiny haptic helper. Wrapped because navigator.vibrate throws on some
-// iOS WebKit builds when called without a user gesture, and we'd rather
-// degrade silently than crash the swipe. The duration values match the
-// "Material short tap" haptic-pattern budget (15-50ms range).
-function haptic(pattern: number | number[]) {
-  if (typeof navigator === 'undefined' || !navigator.vibrate) return;
-  try {
-    navigator.vibrate(pattern);
-  } catch {
-    /* iOS / locked-down browsers — silent fallback. */
-  }
-}
-
 /**
  * Swipe-to-confirm slider. Wolt Drive / Glovo Drive pattern: prevents
  * accidental taps when the phone is jostling in a bike mount or a pocket.
@@ -66,7 +53,7 @@ export function SwipeButton({
       const threshold = maxTravel * 0.7;
       if (!armedRef.current && value >= threshold) {
         armedRef.current = true;
-        haptic(15);
+        haptics.select();
       } else if (armedRef.current && value < threshold) {
         armedRef.current = false;
       }
@@ -83,7 +70,7 @@ export function SwipeButton({
     // Two-pulse pattern (commit + acknowledgement) — distinguishable
     // from the single-tick threshold-cross above, so the courier feels
     // a clear "fired" cue separate from "approaching threshold".
-    haptic([30, 40, 30]);
+    haptics.custom([30, 40, 30]);
     setPending(true);
     try {
       await onConfirm();

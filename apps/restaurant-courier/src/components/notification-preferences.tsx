@@ -8,6 +8,7 @@ import {
   type NotificationCategory,
   type NotificationPreferences,
 } from '@/lib/push/preferences';
+import { toggle as hapticToggle } from '@/lib/haptics';
 
 type CategoryMeta = {
   key: NotificationCategory;
@@ -111,9 +112,7 @@ export function NotificationPreferences() {
 
   const handleToggle = useCallback((key: NotificationCategory) => {
     dispatch({ type: 'toggle', key });
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(30);
-    }
+    hapticToggle();
   }, []);
 
   return (

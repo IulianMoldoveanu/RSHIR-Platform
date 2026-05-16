@@ -35,3 +35,32 @@ export function failure(): void {
 export function tap(): void {
   vibrate([5]);
 }
+
+/** Light select: grid cell tapped, pre-shift checkbox ticked. */
+export function select(): void {
+  vibrate([15]);
+}
+
+/** Toggle flip: notification chip switched on/off, schedule cell removed. */
+export function toggle(): void {
+  vibrate([30]);
+}
+
+/** Celebration: achievement unlocked, end-of-shift summary. */
+export function celebrate(): void {
+  vibrate([30, 80, 30, 80, 100]);
+}
+
+/** Heads-up: push notification test, milestone toast. */
+export function attention(): void {
+  vibrate([120, 60, 120]);
+}
+
+/**
+ * Custom pattern escape hatch. Prefer the named helpers above so the app
+ * stays haptically consistent. Use only when designing a one-off cue that
+ * doesn't fit any standard semantic (e.g. confetti burst rhythm).
+ */
+export function custom(pattern: number | number[]): void {
+  vibrate(pattern);
+}

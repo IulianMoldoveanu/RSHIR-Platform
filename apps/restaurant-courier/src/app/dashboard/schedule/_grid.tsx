@@ -10,6 +10,7 @@ import {
   toggleSlot,
   buildMailtoBody,
 } from '@/lib/schedule-slots';
+import { select as hapticSelect, toggle as hapticToggle } from '@/lib/haptics';
 
 // Grid covers 8:00–21:00 inclusive (14 slots per day).
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
@@ -54,10 +55,8 @@ export function ScheduleGrid() {
     (key: string) => {
       setSlots((prev) => {
         const next = toggleSlot(prev, key);
-        // Haptic feedback on supported devices.
-        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-          navigator.vibrate(next.has(key) ? 30 : 15);
-        }
+        if (next.has(key)) hapticToggle();
+        else hapticSelect();
         return next;
       });
     },

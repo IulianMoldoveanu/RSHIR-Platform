@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { custom as hapticCustom } from '@/lib/haptics';
 
 /**
  * Tiny confetti burst that fires once on mount via framer-motion.
@@ -24,10 +25,7 @@ const PARTICLES = Array.from({ length: 12 }, (_, i) => {
 
 export function ConfettiBurst() {
   useEffect(() => {
-    // Haptic success burst on mount.
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate([30, 50, 30, 50, 60]); } catch { /* silent */ }
-    }
+    hapticCustom([30, 50, 30, 50, 60]);
   }, []);
 
   return (

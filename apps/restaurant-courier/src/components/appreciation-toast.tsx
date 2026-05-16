@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
+import { custom as hapticCustom } from '@/lib/haptics';
 
 type Props = {
   count: number;
@@ -20,10 +21,7 @@ export function AppreciationToast({ count, onDismiss }: Props) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    // Haptic burst to grab attention on the milestone.
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate([50, 100, 50]); } catch { /* silent */ }
-    }
+    hapticCustom([50, 100, 50]);
     const timer = setTimeout(() => {
       setVisible(false);
       onDismiss();
