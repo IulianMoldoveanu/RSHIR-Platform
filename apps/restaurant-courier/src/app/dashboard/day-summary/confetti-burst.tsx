@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { custom as hapticCustom } from '@/lib/haptics';
 
 /**
@@ -24,9 +24,15 @@ const PARTICLES = Array.from({ length: 12 }, (_, i) => {
 });
 
 export function ConfettiBurst() {
+  const reduce = useReducedMotion();
   useEffect(() => {
+    // Haptic always fires on milestone — it's not a visual cue and
+    // reduced-motion users still want the success signal. Only the
+    // visual confetti particles are suppressed below.
     hapticCustom([30, 50, 30, 50, 60]);
   }, []);
+
+  if (reduce) return null;
 
   return (
     <div
