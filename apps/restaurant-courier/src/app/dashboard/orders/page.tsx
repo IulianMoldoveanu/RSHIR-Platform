@@ -9,6 +9,7 @@ import { refreshOrdersAction } from '../actions';
 import { OrdersRealtime } from './orders-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { InsuranceStatusPill } from '@/components/insurance-status-pill';
+import { TodaySummaryPill } from '@/components/today-summary-pill';
 
 export const dynamic = 'force-dynamic';
 
@@ -153,6 +154,7 @@ export default async function OrdersPage() {
         watchFleetOpenOrders={showOpenOrders}
       />
       <InsuranceStatusPill />
+      <TodaySummaryPill />
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-hir-fg">Comenzi</h1>
         <form action={refreshOrdersAction}>
