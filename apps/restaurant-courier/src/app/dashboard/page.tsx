@@ -10,6 +10,7 @@ import { OrderStatusBadge } from '@/components/order-status-badge';
 import { WeatherPill } from '@/components/weather-pill';
 import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
 import { MultiStopFocus, type FocusOrder } from '@/components/multi-stop-focus';
+import { IdleShiftNudge } from '@/components/idle-shift-nudge';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,12 @@ type ProfileRow = {
   vehicle_type: 'BIKE' | 'SCOOTER' | 'CAR';
 };
 
-type ShiftRow = { id: string; last_lat: number | null; last_lng: number | null };
+type ShiftRow = {
+  id: string;
+  last_lat: number | null;
+  last_lng: number | null;
+  started_at: string | null;
+};
 
 type ActiveOrderRow = {
   id: string;
@@ -57,7 +63,7 @@ export default async function DashboardHome() {
         .maybeSingle(),
       admin
         .from('courier_shifts')
-        .select('id, last_lat, last_lng')
+        .select('id, last_lat, last_lng, started_at')
         .eq('courier_user_id', user.id)
         .eq('status', 'ONLINE')
         .limit(1)
@@ -198,6 +204,14 @@ export default async function DashboardHome() {
           <MultiStopFocus orders={activeOrders as FocusOrder[]} />
         </div>
       ) : null}
+
+      {/* Idle-shift nudge — toasts once per hour if online > 30 min with
+          zero active orders. Renders null. */}
+      <IdleShiftNudge
+        activeOrders={activeOrders.length}
+        isOnline={isOnline}
+        shiftStartedAt={shift?.started_at ?? null}
+      />
 
       {/* Shift-control overlay. z-[1200] — above the bottom-nav (z-[1100])
           and above any Leaflet internal pane / control. Different copy +
