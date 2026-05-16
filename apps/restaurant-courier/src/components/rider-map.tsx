@@ -86,6 +86,11 @@ type LeafletMap = {
   invalidateSize: (opts?: { animate?: boolean; pan?: boolean }) => void;
   fitBounds: (bounds: unknown, opts?: Record<string, unknown>) => LeafletMap;
   setBearing?: (angleDeg: number) => LeafletMap;
+  flyTo?: (
+    latlng: [number, number],
+    zoom?: number,
+    opts?: { duration?: number; easeLinearity?: number },
+  ) => LeafletMap;
 };
 
 type LeafletLayer = {
@@ -318,7 +323,12 @@ export function RiderMap({
   // the fresh effect resets `cancelledRef` and shove the new marker
   // toward stale coordinates for up to ~600 ms (Codex review on #275).
   const animationFrameIdRef = useRef<number | null>(null);
+  // Last fix received from watchPosition — surfaced to the recenter
+  // button so a tap can fly the map back to the rider's pin without
+  // waiting for a brand-new getCurrentPosition round trip.
+  const lastFixRef = useRef<{ lat: number; lng: number } | null>(null);
   const [permission, setPermission] = useState<Permission>('pending');
+  const [recentering, setRecentering] = useState(false);
 
   useEffect(() => {
     cancelledRef.current = false;
@@ -540,6 +550,7 @@ export function RiderMap({
             const lng = pos.coords.longitude;
             const accuracyMeters = pos.coords.accuracy;
             setPermission('granted');
+            lastFixRef.current = { lat, lng };
 
             // Persist this fix so we can show it as fallback if GPS drops.
             saveLastPos(lat, lng);
@@ -714,6 +725,48 @@ export function RiderMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(activePins), vehicleType]);
 
+  function handleRecenter() {
+    if (recentering) return;
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Fast path: we have a recent fix from watchPosition. Fly to it
+    // immediately so the courier doesn't wait on a fresh getCurrentPosition
+    // round trip (which can take 5-10s on cold GPS).
+    const last = lastFixRef.current;
+    if (last) {
+      if (typeof map.flyTo === 'function') {
+        map.flyTo([last.lat, last.lng], RIDER_ZOOM, { duration: 0.8 });
+      } else {
+        map.setView([last.lat, last.lng], RIDER_ZOOM);
+      }
+      return;
+    }
+
+    // Slow path: no fix yet. Trigger getCurrentPosition once. The
+    // watchPosition handler is still running in the background so the
+    // pin will keep moving normally afterwards.
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    setRecentering(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setRecentering(false);
+        if (!mapRef.current) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
+        lastFixRef.current = { lat, lng };
+        if (typeof mapRef.current.flyTo === 'function') {
+          mapRef.current.flyTo([lat, lng], RIDER_ZOOM, { duration: 0.8 });
+        } else {
+          mapRef.current.setView([lat, lng], RIDER_ZOOM);
+        }
+      },
+      () => {
+        setRecentering(false);
+      },
+      { enableHighAccuracy: false, maximumAge: 15_000, timeout: 8_000 },
+    );
+  }
+
   // Fill-parent mode: caller controls height (used by the home dashboard
   // where the map should bleed under the bottom-nav). Default keeps the
   // legacy "card on a page" rounded look for any other call sites.
@@ -766,6 +819,45 @@ export function RiderMap({
             Nu am putut porni harta. Verifică internetul și reîmprospătează.
           </p>
         </div>
+      )}
+
+      {/* Recenter / find-me button. Lives bottom-right above the bottom nav
+          (which sits at 80px = bottom-20). Disabled when the courier has
+          denied permission or the device doesn't support geolocation. */}
+      {(permission === 'granted' || permission === 'pending') && (
+        <button
+          type="button"
+          onClick={handleRecenter}
+          disabled={recentering}
+          aria-label="Centrează pe poziția mea"
+          className="absolute bottom-24 right-3 z-[1000] flex h-11 w-11 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950/90 text-violet-300 shadow-lg backdrop-blur transition hover:bg-zinc-900 hover:text-violet-200 active:scale-95 disabled:opacity-50"
+        >
+          {recentering ? (
+            <svg
+              className="h-4 w-4 animate-spin"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.3" />
+              <path
+                d="M21 12a9 9 0 0 0-9-9"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+              <circle cx="12" cy="12" r="3" fill="currentColor" />
+              <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="1.8" />
+              <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          )}
+        </button>
       )}
     </div>
   );
