@@ -54,7 +54,12 @@ const WAVE_DISPLAY: Record<string, { label: string; color: string }> = {
 };
 
 async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
-  const admin = getSupabaseAdmin();
+  // The v3 reseller tables (partner_referrals / partners / ladder_milestones)
+  // are not in restaurant-web's generated supabase types — they are
+  // platform-level and only typed for restaurant-admin. Cast through unknown
+  // to access them safely from the public surface; queries are read-only.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = getSupabaseAdmin() as any;
 
   // Top 10 by active referrals count
   const { data: referralCounts, error: refError } = await admin
@@ -66,7 +71,8 @@ async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
 
   // Aggregate counts per partner
   const countMap: Record<string, number> = {};
-  for (const r of referralCounts) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const r of referralCounts as any[]) {
     const pid = r.partner_id as string;
     countMap[pid] = (countMap[pid] ?? 0) + 1;
   }
@@ -89,7 +95,7 @@ async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
 
   // Try to get city from address field (v3 schema) — best-effort
   // We cast through unknown since the typed schema may not have these new columns yet
-  const partnersWithCity = partners as Array<{
+  const partnersWithCity = partners as unknown as Array<{
     id: string;
     name: string;
     status: string;
@@ -105,7 +111,8 @@ async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
     .in('partner_id', topPartnerIds);
 
   const topTierByPartner: Record<string, string> = {};
-  for (const m of milestones ?? []) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const m of (milestones ?? []) as any[]) {
     const pid = m.partner_id as string;
     const tier = m.tier_reached as string;
     const prev = topTierByPartner[pid];
@@ -115,33 +122,32 @@ async function fetchLeaderboard(): Promise<LeaderboardRow[]> {
   }
 
   // Build leaderboard rows sorted by restaurant count
-  const rows: LeaderboardRow[] = topPartnerIds
-    .map((pid, idx) => {
-      const p = partnersWithCity.find((x) => x.id === pid);
-      if (!p) return null;
-      const optin = Boolean(p.public_testimonial_optin);
-      const wave = p.wave_label ?? 'OPEN';
-      const showWaveBadge = ['W0', 'W1', 'W2'].includes(wave);
+  const rows: LeaderboardRow[] = [];
+  topPartnerIds.forEach((pid, idx) => {
+    const p = partnersWithCity.find((x) => x.id === pid);
+    if (!p) return;
+    const optin = Boolean(p.public_testimonial_optin);
+    const wave = p.wave_label ?? 'OPEN';
+    const showWaveBadge = ['W0', 'W1', 'W2'].includes(wave);
 
-      // Extract city from address (first comma-segment, if address present)
-      let city: string | null = null;
-      if (optin && p.address) {
-        const parts = p.address.split(',');
-        const last = parts[parts.length - 1]?.trim();
-        if (last && last.length < 40) city = last;
-      }
+    // Extract city from address (first comma-segment, if address present)
+    let city: string | null = null;
+    if (optin && p.address) {
+      const parts = p.address.split(',');
+      const last = parts[parts.length - 1]?.trim();
+      if (last && last.length < 40) city = last;
+    }
 
-      return {
-        rank: idx + 1,
-        display_name: optin ? (p.name ?? 'Reseller') : 'Reseller anonim',
-        city: optin ? city : null,
-        restaurant_count: countMap[pid] ?? 0,
-        top_tier: topTierByPartner[pid] ?? null,
-        wave_label: showWaveBadge ? wave : null,
-        is_anon: !optin,
-      } satisfies LeaderboardRow;
-    })
-    .filter((r): r is LeaderboardRow => r !== null);
+    rows.push({
+      rank: idx + 1,
+      display_name: optin ? (p.name ?? 'Reseller') : 'Reseller anonim',
+      city: optin ? city : null,
+      restaurant_count: countMap[pid] ?? 0,
+      top_tier: topTierByPartner[pid] ?? null,
+      wave_label: showWaveBadge ? wave : null,
+      is_anon: !optin,
+    });
+  });
 
   return rows;
 }
