@@ -252,10 +252,38 @@ export default async function EarningsPage() {
         </p>
       </div>
 
-      <section className="grid grid-cols-3 gap-2 min-[360px]:gap-3">
-        <StatCard label="Astăzi" earnings={today.earnings} count={today.count} accent="violet" />
-        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} accent="zinc" />
-        <StatCard label="Luna" earnings={month.earnings} count={month.count} accent="zinc" />
+      {/* Hero "today" stat — the question every courier opens this page to
+          answer is "what did I make today?". Get out of the way and put
+          the answer in a violet-tinted card with a giant tabular-nums
+          number. Week + month follow as smaller chips so the day total
+          stays dominant. */}
+      <section className="relative overflow-hidden rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 via-zinc-950 to-zinc-950 p-5">
+        <span
+          aria-hidden
+          className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-500/15 blur-2xl"
+        />
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300/80">
+          Astăzi
+        </p>
+        <p className="mt-2 flex items-baseline gap-2">
+          <span className="text-4xl font-bold tabular-nums leading-none text-violet-100">
+            {today.earnings.toFixed(2)}
+          </span>
+          <span className="text-base font-semibold text-violet-300/80">RON</span>
+        </p>
+        <p className="mt-2 text-xs text-zinc-400">
+          {today.count === 0
+            ? 'Nicio livrare încă'
+            : `${today.count} ${today.count === 1 ? 'livrare' : 'livrări'}`}
+          {today.count > 0
+            ? ` · ${(today.earnings / Math.max(today.count, 1)).toFixed(2)} RON/livrare`
+            : ''}
+        </p>
+      </section>
+
+      <section className="grid grid-cols-2 gap-2 min-[360px]:gap-3">
+        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} />
+        <StatCard label="Luna" earnings={month.earnings} count={month.count} />
       </section>
 
       {/* Audit P1 #8 — earnings transparency. Formula is exposed even when
@@ -370,28 +398,29 @@ export default async function EarningsPage() {
   );
 }
 
+// Smaller "secondary period" card for Week / Month under the hero card.
 function StatCard({
   label,
   earnings,
   count,
-  accent,
 }: {
   label: string;
   earnings: number;
   count: number;
-  accent: 'violet' | 'zinc';
 }) {
-  const border = accent === 'violet' ? 'border-violet-500/40' : 'border-zinc-800';
-  const earningsColor = accent === 'violet' ? 'text-violet-300' : 'text-zinc-100';
   return (
-    <div className={`rounded-2xl border ${border} bg-zinc-900 p-3 text-center`}>
-      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-1.5 text-sm font-bold leading-none ${earningsColor} min-[400px]:text-base`}>
-        {earnings.toFixed(2)}
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
       </p>
-      <p className="mt-0.5 text-[10px] font-normal text-zinc-500">RON</p>
-      <p className="mt-1 text-[10px] text-zinc-600">
-        {count} {count === 1 ? 'liv.' : 'liv.'}
+      <p className="mt-1.5 flex items-baseline gap-1.5">
+        <span className="text-xl font-bold tabular-nums text-zinc-100">
+          {earnings.toFixed(2)}
+        </span>
+        <span className="text-xs text-zinc-500">RON</span>
+      </p>
+      <p className="mt-1 text-[11px] text-zinc-500">
+        {count} {count === 1 ? 'livrare' : 'livrări'}
       </p>
     </div>
   );
