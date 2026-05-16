@@ -4,6 +4,7 @@ import { Activity, ChevronLeft } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { labelForAction, formatRoRelative } from '@/lib/audit-labels';
+import { GdprDataExportButton } from '@/components/gdpr-data-export-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +66,20 @@ export default async function ActivityPage() {
           acces la datele personale).
         </p>
       </header>
+
+      <section
+        aria-label="Descarcă datele tale"
+        className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4"
+      >
+        <p className="text-sm font-medium text-hir-fg">
+          Dreptul de portabilitate (GDPR Art. 20)
+        </p>
+        <p className="text-xs text-hir-muted-fg">
+          Descarcă o copie a datelor tale (jurnal de activitate + preferințe
+          stocate pe dispozitiv) într-un fișier JSON.
+        </p>
+        <GdprDataExportButton entries={rows} />
+      </section>
 
       {rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-hir-border bg-hir-surface p-8 text-center">
