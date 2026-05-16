@@ -9,6 +9,7 @@ import { PerformanceStats } from './_performance-stats';
 import { Achievements } from './_achievements';
 import { Sparkline7d } from './_sparkline-7d';
 import { DailyGoalCard } from '@/components/daily-goal-card';
+import { WeeklyGoalCard } from '@/components/weekly-goal-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -290,6 +291,7 @@ export default async function EarningsPage() {
 
       {/* Gamification cards — stacked above recent deliveries list. */}
       <DailyGoalCard todayEarnings={today.earnings} />
+      <WeeklyGoalCard weekEarnings={week.earnings} />
       <Sparkline7d rows={last30} />
       <StreakCard rows={last30} />
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
