@@ -28,6 +28,8 @@ import { VehicleSelector } from '@/components/vehicle-selector';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DocumentExpiryCard } from '@/components/document-expiry-card';
 import { ReplayOnboardingButton } from '@/components/replay-onboarding-button';
+import { Card } from '@/components/card';
+import { SettingsRow } from '@/components/settings-row';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +82,7 @@ export default async function SettingsPage() {
 
         <div className="flex flex-col gap-3">
           {/* Profile card */}
-          <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+          <Card padding="lg">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-base font-semibold text-hir-fg">Profil</p>
               <span
@@ -117,10 +119,10 @@ export default async function SettingsPage() {
             <p className="mt-3 text-[11px] text-hir-muted-fg">
               Pentru a modifica numele sau telefonul, contactează suportul.
             </p>
-          </div>
+          </Card>
 
           {/* Vehicle picker */}
-          <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+          <Card padding="lg">
             <p className="mb-1 text-base font-semibold text-hir-fg">Vehicul</p>
             <p className="mb-4 text-[11px] text-hir-muted-fg">
               Selectează vehiculul cu care livrezi astăzi.
@@ -129,7 +131,7 @@ export default async function SettingsPage() {
               initial={profile?.vehicle_type ?? 'BIKE'}
               onSave={updateVehicleTypeAction}
             />
-          </div>
+          </Card>
 
           {/* Document expiry tracker — LocalStorage memento */}
           <DocumentExpiryCard />
@@ -147,24 +149,17 @@ export default async function SettingsPage() {
 
         <div className="flex flex-col gap-3">
           {/* Theme toggle */}
-          <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+          <Card padding="lg">
             <ThemeToggle />
-          </div>
+          </Card>
 
           {/* Notification preferences */}
-          <Link
+          <SettingsRow
             href="/dashboard/settings/notifications"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Bell className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Notificări</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Comenzi, mesaje, urgențe, anunțuri</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Bell className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Notificări"
+            description="Comenzi, mesaje, urgențe, anunțuri"
+          />
         </div>
       </section>
 
@@ -178,95 +173,47 @@ export default async function SettingsPage() {
         </h2>
 
         <div className="flex flex-col gap-3">
-          {/* Photo proof archive */}
-          <Link
+          <SettingsRow
             href="/dashboard/proofs"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Camera className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Fotografii livrări</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Arhivă dovezi livrare, ultimele 30 zile</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Camera className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Fotografii livrări"
+            description="Arhivă dovezi livrare, ultimele 30 zile"
+          />
 
-          {/* Schedule reservation */}
-          <Link
+          <SettingsRow
             href="/dashboard/schedule"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <CalendarClock className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Program săptămânal</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Rezervă ture pentru 7 zile înainte</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<CalendarClock className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Program săptămânal"
+            description="Rezervă ture pentru 7 zile înainte"
+          />
 
-          {/* Trip history */}
-          <Link
+          <SettingsRow
             href="/dashboard/history"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <History className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Istoricul curselor</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Ultimele 100 de comenzi finalizate</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<History className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Istoricul curselor"
+            description="Ultimele 100 de comenzi finalizate"
+          />
 
-          {/* Busy hours heatmap */}
-          <Link
+          <SettingsRow
             href="/dashboard/busy-hours"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Flame className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Ore cu volum mare</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Planifică-ți tura după cererea zilei</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Flame className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Ore cu volum mare"
+            description="Planifică-ți tura după cererea zilei"
+          />
 
-          {/* Time-off request */}
-          <Link
+          <SettingsRow
             href="/dashboard/time-off"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <CalendarOff className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Cerere zile libere</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Concediu medical, vacanță, cauze personale</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<CalendarOff className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Cerere zile libere"
+            description="Concediu medical, vacanță, cauze personale"
+          />
 
-          {/* Help & FAQ */}
-          <Link
+          <SettingsRow
             href="/dashboard/help"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Ajutor &amp; FAQ</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Plată, fotografii, urgențe</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Ajutor & FAQ"
+            description="Plată, fotografii, urgențe"
+          />
 
           {/* Replay onboarding */}
           <div className="flex items-start gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4">
@@ -284,73 +231,47 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          {/* About */}
-          <Link
+          <SettingsRow
             href="/dashboard/about"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Info className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Despre HIR Curier</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Versiune, noutăți, librării open source</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Info className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Despre HIR Curier"
+            description="Versiune, noutăți, librării open source"
+          />
 
-          {/* Device diagnostics */}
-          <Link
+          <SettingsRow
             href="/dashboard/diagnostics"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Stethoscope className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Diagnostic dispozitiv</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">GPS, sunet, notificări, baterie</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Stethoscope className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Diagnostic dispozitiv"
+            description="GPS, sunet, notificări, baterie"
+          />
 
-          {/* Activity log (GDPR Art. 15 transparency) */}
-          <Link
+          <SettingsRow
             href="/dashboard/settings/activity"
-            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
-              <Activity className="h-5 w-5 text-violet-400" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Istoricul activității mele</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Ultimele 100 de acțiuni înregistrate</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-          </Link>
+            icon={<Activity className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Istoricul activității mele"
+            description="Ultimele 100 de acțiuni înregistrate"
+          />
 
           {/* Tax export placeholder — #477 */}
-          <div className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 opacity-50">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-hir-border">
-              <Receipt className="h-5 w-5 text-hir-muted-fg" aria-hidden />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-hir-fg">Export fiscal</p>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">Disponibil în curând</p>
-            </div>
-          </div>
+          <SettingsRow
+            icon={<Receipt className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
+            iconBg="bg-hir-border"
+            label="Export fiscal"
+            description="Disponibil în curând"
+            disabled
+          />
 
           {/* Logout */}
           <form action={logoutAction}>
             <button
               type="submit"
-              className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 text-left hover:border-rose-500/40 hover:bg-rose-500/5 active:scale-[0.99]"
+              className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 text-left transition-colors hover:border-rose-500/40 hover:bg-rose-500/5 active:scale-[0.99]"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/10">
                 <LogOut className="h-5 w-5 text-rose-400" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-rose-400">Deconectare</p>
+                <p className="text-sm font-medium text-rose-400">Deconectare</p>
                 <p className="mt-0.5 text-xs text-hir-muted-fg">{user.email}</p>
               </div>
             </button>
@@ -367,7 +288,7 @@ export default async function SettingsPage() {
           Despre &amp; legal
         </h2>
 
-        <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <Card padding="lg">
           <p className="mb-4 text-xs font-semibold text-hir-fg">
             HIR Curier &middot; v{APP_VERSION}
           </p>
@@ -398,7 +319,7 @@ export default async function SettingsPage() {
           <p className="mt-4 text-[11px] text-hir-muted-fg">
             Procesare date conform Regulamentului UE 2016/679 (GDPR).
           </p>
-        </div>
+        </Card>
       </section>
     </div>
   );
