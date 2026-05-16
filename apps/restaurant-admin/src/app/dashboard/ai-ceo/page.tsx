@@ -1,4 +1,4 @@
-import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap } from 'lucide-react';
+import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap, TrendingUp } from 'lucide-react';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { createServerClient } from '@/lib/supabase/server';
 import {
@@ -8,12 +8,15 @@ import {
   getBriefSchedule,
   getLatestSuggestions,
   getAutoExecutedActions,
+  getPendingGrowthRecommendations,
+  getGrowthRecommendationCounters,
 } from '@/lib/ai-ceo/queries';
 import { getAiAvailability } from '@/lib/ai-availability';
 import { AiUnavailableNotice } from '@/components/ai/ai-unavailable-notice';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { BriefScheduleEditor } from './brief-schedule-editor';
 import { SuggestionsList } from './suggestions-list';
+import { GrowthRowActions } from './growth-row-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,10 +42,61 @@ function truncate(s: string | null, n: number): string {
   return s.length > n ? `${s.slice(0, n).trimEnd()}…` : s;
 }
 
+function relativeTime(iso: string | null): string {
+  if (!iso) return '—';
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '—';
+  const diffMs = Date.now() - t;
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'acum';
+  if (mins < 60) return `acum ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `acum ${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `acum ${days}z`;
+  return formatDateTime(iso);
+}
+
+const PRIORITY_CHIP: Record<string, string> = {
+  critical: 'bg-rose-100 text-rose-800 ring-rose-200',
+  high: 'bg-amber-100 text-amber-800 ring-amber-200',
+  medium: 'bg-sky-100 text-sky-800 ring-sky-200',
+  low: 'bg-zinc-100 text-zinc-700 ring-zinc-200',
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  critical: 'Critic',
+  high: 'Ridicat',
+  medium: 'Mediu',
+  low: 'Scăzut',
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  menu_pricing: 'Preț meniu',
+  menu_assortment: 'Sortiment meniu',
+  operations: 'Operațiuni',
+  marketing: 'Marketing',
+  retention: 'Retenție',
+  reviews: 'Recenzii',
+  delivery_zones: 'Zone livrare',
+  reseller_pitch: 'Pitch reseller',
+};
+
 export default async function AiCeoPage() {
   const { user, tenant } = await getActiveTenant();
 
-  const [thread, runs, facts, brief, suggestions, autoActions, role, aiAvail] = await Promise.all([
+  const [
+    thread,
+    runs,
+    facts,
+    brief,
+    suggestions,
+    autoActions,
+    role,
+    aiAvail,
+    growthRecs,
+    growthCounters,
+  ] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
     getTenantFacts(tenant.id),
@@ -51,9 +105,12 @@ export default async function AiCeoPage() {
     getAutoExecutedActions(tenant.id, 7),
     getTenantRole(user.id, tenant.id),
     getAiAvailability(),
+    getPendingGrowthRecommendations(tenant.id, 10),
+    getGrowthRecommendationCounters(tenant.id),
   ]);
   const canEditBrief = role === 'OWNER';
   const canActSuggestions = role === 'OWNER';
+  const canActGrowth = role === 'OWNER';
 
   // Resolve user email for platform-admin diagnostic visibility. We re-read
   // via the server client because `getActiveTenant` returns a stripped user
@@ -344,6 +401,94 @@ export default async function AiCeoPage() {
           )}
         </section>
       </div>
+
+      {/* 7. Growth recommendations (operator-gated rows from growth_recommendations) */}
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+              <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+              Recomandări creștere
+            </p>
+            <h2 className="mt-1 text-base font-semibold text-zinc-900">
+              Sugestii zilnice de la Growth Agent
+            </h2>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+            <span className="rounded-md bg-white px-2 py-1 ring-1 ring-zinc-200">
+              În așteptare: <strong className="text-zinc-900 tabular-nums">{growthCounters.pending}</strong>
+            </span>
+            <span className="rounded-md bg-white px-2 py-1 ring-1 ring-zinc-200">
+              Aprobate (30z): <strong className="text-emerald-700 tabular-nums">{growthCounters.approved30d}</strong>
+            </span>
+            <span className="rounded-md bg-white px-2 py-1 ring-1 ring-zinc-200">
+              Respinse (30z): <strong className="text-zinc-700 tabular-nums">{growthCounters.dismissed30d}</strong>
+            </span>
+          </div>
+        </div>
+
+        {growthRecs.length === 0 ? (
+          <div className="mt-4 rounded-md border border-dashed border-emerald-200 bg-white p-4 text-sm text-zinc-600">
+            <p className="font-medium text-zinc-900">Nicio recomandare în așteptare.</p>
+            <p className="mt-1">Cron-ul Growth Agent rulează zilnic la 06:00 UTC.</p>
+          </div>
+        ) : (
+          <ul className="mt-4 flex flex-col gap-2">
+            {growthRecs.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-md border border-emerald-100 bg-white px-3 py-2.5"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-wider">
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 ring-1 ${PRIORITY_CHIP[r.priority] ?? PRIORITY_CHIP.medium}`}
+                      >
+                        {PRIORITY_LABEL[r.priority] ?? r.priority}
+                      </span>
+                      <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-zinc-700 ring-1 ring-zinc-200">
+                        {CATEGORY_LABEL[r.category] ?? r.category}
+                      </span>
+                      <span className="text-zinc-500">{relativeTime(r.generated_at)}</span>
+                    </p>
+                    <p className="mt-1.5 text-sm font-medium text-zinc-900">{r.title_ro}</p>
+                    {r.suggested_action_ro && (
+                      <details className="group mt-1 text-sm text-zinc-700">
+                        <summary className="cursor-pointer list-none">
+                          <span className="group-open:hidden">
+                            {truncate(r.suggested_action_ro, 200)}
+                            {r.suggested_action_ro.length > 200 && (
+                              <span className="ml-1 text-xs font-medium text-emerald-700">
+                                Vezi mai mult
+                              </span>
+                            )}
+                          </span>
+                          <span className="hidden group-open:inline whitespace-pre-wrap">
+                            {r.suggested_action_ro}
+                            <span className="ml-1 text-xs font-medium text-emerald-700">
+                              Vezi mai puțin
+                            </span>
+                          </span>
+                        </summary>
+                      </details>
+                    )}
+                  </div>
+                  {canActGrowth && (
+                    <GrowthRowActions recommendationId={r.id} tenantId={tenant.id} />
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {!canActGrowth && growthRecs.length > 0 && (
+          <p className="mt-3 text-xs text-zinc-500">
+            Doar utilizatorii cu rolul <strong>OWNER</strong> pot aproba sau respinge recomandări.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

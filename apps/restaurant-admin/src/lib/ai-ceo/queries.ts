@@ -261,6 +261,111 @@ export async function getAutoExecutedActions(
   }
 }
 
+export type GrowthRecommendation = {
+  id: string;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  category: string;
+  title_ro: string;
+  suggested_action_ro: string;
+  rationale_ro: string | null;
+  generated_at: string | null;
+  status: string;
+};
+
+export type GrowthRecommendationCounters = {
+  pending: number;
+  approved30d: number;
+  dismissed30d: number;
+};
+
+// Pulls the top-N pending growth recommendations for a tenant, newest first
+// (ordered by generated_at desc as a tie-breaker after priority). The table
+// is owned by the F6 growth-agent migration (20260504_006_growth_agent.sql)
+// — same any-cast pattern as the copilot tables to avoid coupling the admin
+// app's typecheck to the bot's type-gen cadence.
+export async function getPendingGrowthRecommendations(
+  tenantId: string,
+  limit = 10,
+): Promise<GrowthRecommendation[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const { data, error } = await admin
+      .from('growth_recommendations')
+      .select(
+        'id, priority, category, title_ro, suggested_action_ro, rationale_ro, generated_at, status',
+      )
+      .eq('tenant_id', tenantId)
+      .eq('status', 'pending')
+      .order('generated_at', { ascending: false })
+      .limit(limit);
+    if (error) {
+      console.warn('[ai-ceo/queries] getPendingGrowthRecommendations:', error.message);
+      return [];
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? []).map((row: any) => ({
+      id: String(row.id ?? ''),
+      priority: (row.priority ?? 'medium') as GrowthRecommendation['priority'],
+      category: String(row.category ?? ''),
+      title_ro: String(row.title_ro ?? ''),
+      suggested_action_ro: String(row.suggested_action_ro ?? ''),
+      rationale_ro: row.rationale_ro ?? null,
+      generated_at: row.generated_at ?? null,
+      status: String(row.status ?? 'pending'),
+    }));
+  } catch (err) {
+    console.warn(
+      '[ai-ceo/queries] getPendingGrowthRecommendations threw:',
+      (err as Error).message,
+    );
+    return [];
+  }
+}
+
+// Counters for the section header. Pending = all-time pending; approved /
+// dismissed are scoped to the last 30 days so the badges reflect "recent
+// activity" rather than lifetime totals.
+export async function getGrowthRecommendationCounters(
+  tenantId: string,
+): Promise<GrowthRecommendationCounters> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = createAdminClient() as any;
+    const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const [pending, approved, dismissed] = await Promise.all([
+      admin
+        .from('growth_recommendations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('status', 'pending'),
+      admin
+        .from('growth_recommendations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('status', 'approved')
+        .gte('decided_at', since30d),
+      admin
+        .from('growth_recommendations')
+        .select('id', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('status', 'dismissed')
+        .gte('decided_at', since30d),
+    ]);
+    return {
+      pending: Number(pending?.count ?? 0),
+      approved30d: Number(approved?.count ?? 0),
+      dismissed30d: Number(dismissed?.count ?? 0),
+    };
+  } catch (err) {
+    console.warn(
+      '[ai-ceo/queries] getGrowthRecommendationCounters threw:',
+      (err as Error).message,
+    );
+    return { pending: 0, approved30d: 0, dismissed30d: 0 };
+  }
+}
+
 export async function getTenantFacts(tenantId: string): Promise<CopilotTenantFact[]> {
   try {
     const admin = createAdminClient() as any;
