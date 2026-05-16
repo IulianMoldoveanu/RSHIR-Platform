@@ -12,6 +12,7 @@ import {
   readDailyGoal,
   writeDailyGoal,
 } from '@/lib/daily-goal';
+import { cardClasses } from './card';
 
 /**
  * Daily earnings goal card with a progress bar against today's gross.
@@ -67,7 +68,7 @@ export function DailyGoalCard({
   return (
     <section
       aria-label="Țintă zilnică"
-      className="flex flex-col gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4"
+      className={cardClasses({ className: 'flex flex-col gap-3' })}
     >
       <header className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">

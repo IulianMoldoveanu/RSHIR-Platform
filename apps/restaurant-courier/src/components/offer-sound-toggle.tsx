@@ -8,6 +8,7 @@ import {
   playOfferChirp,
   setOfferSoundEnabled,
 } from '@/lib/offer-sound';
+import { cardClasses } from './card';
 
 /**
  * Toggle + audition button for the "sunet la ofertă" preference.
@@ -36,7 +37,7 @@ export function OfferSoundToggle() {
 
   if (!hydrated) {
     return (
-      <div className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <div className={cardClasses()}>
         <div className="h-6 w-40 animate-pulse rounded bg-hir-muted" />
       </div>
     );
@@ -45,7 +46,7 @@ export function OfferSoundToggle() {
   const Icon = enabled ? Volume2 : VolumeX;
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4">
+    <div className={cardClasses({ className: 'flex flex-col gap-3' })}>
       <div className="flex items-start gap-3">
         <Icon className="mt-1 h-5 w-5 shrink-0 text-violet-400" aria-hidden />
         <div className="flex flex-1 flex-col gap-1">

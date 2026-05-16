@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Check, RefreshCw, X } from 'lucide-react';
 import { Button, toast } from '@hir/ui';
+import { cardClasses } from './card';
 
 type Check = {
   id: string;
@@ -234,7 +235,7 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
         </Button>
       </header>
 
-      <ul className="divide-y divide-hir-border/60 rounded-2xl border border-hir-border bg-hir-surface">
+      <ul className={cardClasses({ padding: 'none', className: 'divide-y divide-hir-border/60' })}>
         {checks.map((c) => {
           const Icon = c.pass === true ? Check : c.pass === false ? X : RefreshCw;
           const tone =
@@ -272,7 +273,7 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
         {gpsBusy ? 'Se citește poziția…' : 'Testează GPS'}
       </Button>
 
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 text-xs">
+      <section className={cardClasses({ className: 'text-xs' })}>
         <p className="mb-1 font-semibold uppercase tracking-wide text-hir-muted-fg text-[10px]">
           Versiune & dispozitiv
         </p>

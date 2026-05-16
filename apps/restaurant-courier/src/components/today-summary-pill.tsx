@@ -1,6 +1,7 @@
 import { Coins, Package, Timer } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { cardClasses } from './card';
 
 type DeliveredRow = { delivery_fee_ron: number | null; updated_at: string };
 
@@ -51,7 +52,7 @@ export async function TodaySummaryPill() {
   return (
     <section
       aria-label="Sumar de azi"
-      className="grid grid-cols-3 gap-2 rounded-2xl border border-hir-border bg-hir-surface p-3"
+      className={cardClasses({ padding: 'sm', className: 'grid grid-cols-3 gap-2' })}
     >
       <Cell
         icon={<Package className="h-4 w-4 text-violet-400" />}

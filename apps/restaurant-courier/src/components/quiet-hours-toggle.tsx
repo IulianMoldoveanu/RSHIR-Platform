@@ -9,6 +9,7 @@ import {
   writeQuietHours,
   type QuietHours,
 } from '@/lib/quiet-hours';
+import { cardClasses } from './card';
 
 /**
  * Settings card for the do-not-disturb window. When enabled, the offer
@@ -37,14 +38,14 @@ export function QuietHoursToggle() {
 
   if (!hydrated) {
     return (
-      <div className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <div className={cardClasses()}>
         <div className="h-6 w-40 animate-pulse rounded bg-hir-muted" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4">
+    <div className={cardClasses({ className: 'flex flex-col gap-3' })}>
       <div className="flex items-start gap-3">
         <Moon className="mt-1 h-5 w-5 shrink-0 text-violet-400" aria-hidden />
         <div className="flex flex-1 flex-col gap-1">
