@@ -110,6 +110,9 @@ export type TrustRow = {
   isDestructive: boolean;
   approvalCount: number;
   rejectionCount: number;
+  // F6 trust auto-promotion. Default true so freshly-inserted rows
+  // participate in the daily worker; OWNER can flip it off per row.
+  autoPromoteEligible: boolean;
   updatedAt: string | null;
 };
 
@@ -120,7 +123,7 @@ export async function listTrustRows(tenantId: string): Promise<TrustRow[]> {
     const { data, error } = await admin
       .from('tenant_agent_trust')
       .select(
-        'id, agent_name, action_category, trust_level, is_destructive, approval_count, rejection_count, last_recalibrated_at',
+        'id, agent_name, action_category, trust_level, is_destructive, approval_count, rejection_count, auto_promote_eligible, last_recalibrated_at',
       )
       .eq('restaurant_id', tenantId);
     if (error) {
@@ -136,6 +139,13 @@ export async function listTrustRows(tenantId: string): Promise<TrustRow[]> {
       isDestructive: Boolean(row.is_destructive),
       approvalCount: Number(row.approval_count ?? 0),
       rejectionCount: Number(row.rejection_count ?? 0),
+      // Default true if the column hasn't been backfilled yet — matches
+      // the DB default and avoids surprising the OWNER with an opt-out
+      // they never set.
+      autoPromoteEligible:
+        row.auto_promote_eligible === null || row.auto_promote_eligible === undefined
+          ? true
+          : Boolean(row.auto_promote_eligible),
       updatedAt: row.last_recalibrated_at ?? null,
     }));
   } catch (err) {

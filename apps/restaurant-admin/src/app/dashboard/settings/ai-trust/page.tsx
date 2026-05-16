@@ -3,6 +3,7 @@ import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { listTrustRows, type TrustRow } from '@/lib/ai/activity-queries';
 import { TRUST_CATEGORIES, TRUST_LEVEL_LABELS, type AgentName, type TrustLevel } from '@/lib/ai/master-orchestrator-types';
 import { TrustLevelSelect } from './trust-level-select';
+import { AutoPromoteToggle } from './auto-promote-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,14 +80,24 @@ export default async function AiTrustPage() {
                         </p>
                       )}
                     </div>
-                    <TrustLevelSelect
-                      tenantId={tenant.id}
-                      agent={meta.agent}
-                      category={meta.category}
-                      initial={currentLevel}
-                      destructive={meta.destructive}
-                      disabled={!isOwner}
-                    />
+                    <div className="flex flex-none flex-col items-end">
+                      <TrustLevelSelect
+                        tenantId={tenant.id}
+                        agent={meta.agent}
+                        category={meta.category}
+                        initial={currentLevel}
+                        destructive={meta.destructive}
+                        disabled={!isOwner}
+                      />
+                      <AutoPromoteToggle
+                        tenantId={tenant.id}
+                        agent={meta.agent}
+                        category={meta.category}
+                        initial={existing?.autoPromoteEligible ?? true}
+                        destructive={meta.destructive}
+                        disabled={!isOwner}
+                      />
+                    </div>
                   </li>
                 );
               })}
