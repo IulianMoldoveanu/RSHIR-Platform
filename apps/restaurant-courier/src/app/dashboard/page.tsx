@@ -153,28 +153,44 @@ export default async function DashboardHome() {
         vehicleType={profile?.vehicle_type ?? 'BIKE'}
       />
 
-      {/* Greeting + status pill + weather, top-left over the map. */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] rounded-2xl border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 backdrop-blur">
-        <p className="text-sm font-semibold text-zinc-100">
-          Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
-        </p>
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-300">
-          <span
-            aria-hidden
-            className={`inline-block h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-500'}`}
-          />
-          {isOnline
-            ? activeOrders.length > 0
-              ? `${activeOrders.length} ${activeOrders.length === 1 ? 'comandă activă' : 'comenzi active'}`
-              : 'Online · aștept comandă'
-            : 'Offline · pornește tura'}
-        </p>
-        {nextActionHint ? (
-          <p className="mt-1.5 truncate text-[11px] font-medium text-violet-300">
-            {nextActionHint}
+      {/* Greeting + status pill + weather, top-left over the map.
+          The accent left border + soft violet glow give the card a
+          "hero" feel without being loud. Pulsing emerald dot when
+          online so the rider has an at-a-glance live signal. */}
+      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/90 backdrop-blur shadow-lg shadow-violet-500/5">
+        <span
+          aria-hidden
+          className={`absolute inset-y-0 left-0 w-[3px] ${isOnline ? 'bg-emerald-400' : 'bg-zinc-700'}`}
+        />
+        <div className="px-3.5 py-2.5">
+          <p className="text-sm font-semibold tracking-tight text-zinc-100">
+            Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
           </p>
-        ) : null}
-        <WeatherPill weather={weather} reminder={reminder} />
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-300">
+            <span
+              aria-hidden
+              className={`relative inline-flex h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-500'}`}
+            >
+              {isOnline ? (
+                <span
+                  aria-hidden
+                  className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60"
+                />
+              ) : null}
+            </span>
+            {isOnline
+              ? activeOrders.length > 0
+                ? `${activeOrders.length} ${activeOrders.length === 1 ? 'comandă activă' : 'comenzi active'}`
+                : 'Online · aștept comandă'
+              : 'Offline · pornește tura'}
+          </p>
+          {nextActionHint ? (
+            <p className="mt-1.5 truncate text-[11px] font-medium text-violet-300">
+              {nextActionHint}
+            </p>
+          ) : null}
+          <WeatherPill weather={weather} reminder={reminder} />
+        </div>
       </div>
 
       {/* Active-order quick-jump cards. Sorted by next-action urgency
