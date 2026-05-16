@@ -4,6 +4,7 @@ import { StorefrontShell } from '@/components/storefront/storefront-shell';
 import { CartPill } from '@/components/storefront/cart-drawer';
 import { EmptyCartCta } from '@/components/storefront/empty-cart-cta';
 import { HirFooter } from '@/components/storefront/hir-footer';
+import { PoweredByHirBadge } from '@/components/storefront/powered-by-hir-badge';
 import { CookieConsent } from '@/components/legal/cookie-consent';
 import { formatNextOpen, isAcceptingOrders, isOpenNow } from '@/lib/operations';
 import { getTopPopularItems } from '@/lib/menu';
@@ -114,6 +115,15 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <StorefrontShell tenantId={tenant.id}>
         {children}
         {!embed && <HirFooter />}
+        {!embed && (
+          <PoweredByHirBadge
+            tenantSlug={tenant.slug ?? tenant.id}
+            enabled={
+              (tenant as { powered_by_hir_badge?: boolean | null }).powered_by_hir_badge !== false
+            }
+            brandUrl={process.env.NEXT_PUBLIC_BRAND_URL}
+          />
+        )}
         <CartPill
           closedReason={closedReason}
           locale={locale}
