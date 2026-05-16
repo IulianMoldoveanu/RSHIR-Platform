@@ -14,6 +14,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 import { generateReviewReply } from '@/lib/ai/agents/cs-agent';
 
 export type DraftSnapshot = {
@@ -45,7 +46,7 @@ async function loadDraftById(draftId: string, tenantId: string): Promise<DraftSn
     .eq('id', draftId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'încărcarea draftului de răspuns');
   if (!data) throw new Error('Draft inexistent.');
   return data as DraftSnapshot;
 }

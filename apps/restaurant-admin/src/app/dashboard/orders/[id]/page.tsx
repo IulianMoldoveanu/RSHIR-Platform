@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
+import { friendlyDbError } from '@/lib/db-error';
 import { nextStatuses, type OrderStatus } from '../status-machine';
 import { markCodOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
@@ -95,7 +96,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   if (error && /payment_method/i.test(error.message ?? '')) {
     ({ data, error } = await loadOrder(COLS_LEGACY));
   }
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'încărcarea comenzii');
   if (!data) notFound();
 
   const order = data as unknown as {

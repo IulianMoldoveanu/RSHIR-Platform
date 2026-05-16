@@ -18,6 +18,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
@@ -230,7 +231,7 @@ export async function switchToTenantAction(formData: FormData): Promise<void> {
     .eq('tenant_id', tenantId)
     .eq('user_id', user.id)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'verificarea calității de membru');
   if (!data) throw new Error('not_a_member');
 
   const cookieStore = await cookies();

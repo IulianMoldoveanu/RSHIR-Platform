@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import type { Database } from '@hir/supabase-types/database';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { friendlyDbError } from '@/lib/db-error';
 
 type MenuItemUpdate = Database['public']['Tables']['restaurant_menu_items']['Update'];
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
@@ -45,34 +46,6 @@ async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
   const { tenant } = await getActiveTenant();
   await assertTenantMember(user.id, tenant.id);
   return { userId: user.id, tenantId: tenant.id };
-}
-
-/**
- * Map a Supabase / PostgREST error to a Romanian, user-safe message.
- *
- * Raw `error.message` from PostgREST leaks DB internals (constraint names,
- * RLS policy text, column types) into client-side toasts. This wrapper
- * logs the original for server-side debugging and returns a generic
- * message keyed off the Postgres SQLSTATE code where available.
- */
-function friendlyDbError(
-  error: { code?: string | null; message: string; details?: string | null },
-  context: string,
-): Error {
-  // Server-side log preserves the original for ops/debug.
-  console.error(`[menu/actions] ${context}`, {
-    code: error.code,
-    message: error.message,
-    details: error.details,
-  });
-  const code = error.code ?? '';
-  if (code === '23505') return new Error('Există deja o intrare cu aceste date.');
-  if (code === '23503') return new Error('Operațiune blocată: există referințe legate.');
-  if (code === '23514') return new Error('Datele introduse nu trec validarea.');
-  if (code === '42501' || code.startsWith('PGRST')) {
-    return new Error('Nu aveți permisiunea pentru această operațiune.');
-  }
-  return new Error(`Eroare la ${context}. Reîncercați.`);
 }
 
 function publicUrlFor(path: string): string {

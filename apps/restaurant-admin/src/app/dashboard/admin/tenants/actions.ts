@@ -13,6 +13,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 import { isPlatformAdminEmail as isPlatformAdmin } from '@/lib/auth/platform-admin';
 
 export async function openTenantAsPlatformAdmin(formData: FormData): Promise<void> {
@@ -35,7 +36,7 @@ export async function openTenantAsPlatformAdmin(formData: FormData): Promise<voi
     .select('id')
     .eq('id', tenantId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'verificarea restaurantului');
   if (!data) throw new Error('tenant_not_found');
 
   const cookieStore = await cookies();
