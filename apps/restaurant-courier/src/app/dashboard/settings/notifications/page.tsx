@@ -5,6 +5,7 @@ import { VoiceNavToggle } from '@/components/voice-nav-toggle';
 import { AutoAcceptToggle } from '@/components/auto-accept-toggle';
 import { PushTestButton } from '@/components/push-test-button';
 import { OfferSoundToggle } from '@/components/offer-sound-toggle';
+import { QuietHoursToggle } from '@/components/quiet-hours-toggle';
 
 export const metadata = {
   title: 'Notificări — HIR Curier',
@@ -26,6 +27,8 @@ export default function NotificationsPage() {
       <NotificationPreferences />
 
       <OfferSoundToggle />
+
+      <QuietHoursToggle />
 
       <PushTestButton />
 
