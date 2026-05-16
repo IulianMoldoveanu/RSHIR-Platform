@@ -517,6 +517,9 @@ export const dictionaries = {
       // Locale switcher pill is rendered unconditionally inside the header.
       shell: {
         brand_name: 'HIRforYOU',
+        skip_to_content: 'Sari la conținut',
+        primary_nav_label: 'Navigare principală',
+        footer_nav_label: 'Navigare subsol',
         nav_home: 'Acasă',
         nav_features: 'Funcționalități',
         nav_pricing: 'Tarife',
@@ -1510,6 +1513,9 @@ export const dictionaries = {
       // Lane EN-I18N (2026-05-05) — chrome shared across every marketing page.
       shell: {
         brand_name: 'HIRforYOU',
+        skip_to_content: 'Skip to content',
+        primary_nav_label: 'Primary navigation',
+        footer_nav_label: 'Footer navigation',
         nav_home: 'Home',
         nav_features: 'Features',
         nav_pricing: 'Pricing',

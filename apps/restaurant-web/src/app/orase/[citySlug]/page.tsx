@@ -180,6 +180,7 @@ export default async function CityLandingPage(props: Params) {
 
   return (
     <main
+      id="main-content"
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >

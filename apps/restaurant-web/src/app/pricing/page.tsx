@@ -8,7 +8,9 @@ import {
 import { RoiCalculator } from '@/components/marketing/roi-calculator';
 import { getLocale } from '@/lib/i18n/server';
 import { t } from '@/lib/i18n';
-import { marketingOgImageUrl } from '@/lib/seo-marketing';
+import { marketingOgImageUrl, breadcrumbJsonLd } from '@/lib/seo-marketing';
+import { safeJsonLd } from '@/lib/jsonld';
+import { pricingFaqJsonLd, pricingProductJsonLd } from '@/lib/seo/structured-data';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -56,6 +58,15 @@ export const metadata: Metadata = {
 
 export default function PricingPage() {
   const locale = getLocale();
+  const canonicalBase = PRIMARY_DOMAIN
+    ? `https://${PRIMARY_DOMAIN}`
+    : 'https://hir-restaurant-web.vercel.app';
+  const faqLd = pricingFaqJsonLd();
+  const productLd = pricingProductJsonLd({ url: PRICING_URL, imageUrl: OG_IMAGE });
+  const breadcrumbLd = breadcrumbJsonLd(canonicalBase, [
+    { name: 'Acasă', path: '/' },
+    { name: 'Tarife', path: '/pricing' },
+  ]);
 
   const compareRows = [
     {
@@ -104,9 +115,22 @@ export default function PricingPage() {
 
   return (
     <main
+      id="main-content"
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(faqLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(productLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbLd) }}
+      />
       <MarketingHeader active="/pricing" currentLocale={locale} />
 
       {/* Hero */}
