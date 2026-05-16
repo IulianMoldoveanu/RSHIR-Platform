@@ -54,8 +54,8 @@ vi.mock('next/cache', () => ({
 import {
   markCommissionPaidAction,
   voidPayoutAction,
-  __test__,
 } from './payout-actions';
+import * as __test__ from './payout-helpers';
 
 const ADMIN = {
   ok: true as const,

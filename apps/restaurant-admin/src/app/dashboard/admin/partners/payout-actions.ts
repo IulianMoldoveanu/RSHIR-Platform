@@ -16,6 +16,7 @@ import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
 import { requirePlatformAdmin as requirePlatformAdminShared } from '@/lib/auth/platform-admin';
+import { isValidHttpsUrl, normalizePeriodMonth } from './payout-helpers';
 
 const REVALIDATE = '/dashboard/admin/partners';
 // Partner tables are platform-level, not tenant-scoped. The audit
@@ -79,34 +80,6 @@ export type PayoutActionResult =
 export type VoidPayoutResult =
   | { ok: true }
   | { ok: false; error: string };
-
-// ────────────────────────────────────────────────────────────
-// Input validation
-// ────────────────────────────────────────────────────────────
-
-/**
- * Normalize a period month input. Accepts:
- *   - 'YYYY-MM'         → coerced to 'YYYY-MM-01'
- *   - 'YYYY-MM-01'      → passed through
- * Anything else returns null.
- */
-export function normalizePeriodMonth(input: string): string | null {
-  const trimmed = input.trim();
-  const monthOnly = /^(\d{4})-(0[1-9]|1[0-2])$/;
-  const firstOfMonth = /^(\d{4})-(0[1-9]|1[0-2])-01$/;
-  if (monthOnly.test(trimmed)) return `${trimmed}-01`;
-  if (firstOfMonth.test(trimmed)) return trimmed;
-  return null;
-}
-
-function isValidHttpsUrl(s: string): boolean {
-  try {
-    const u = new URL(s);
-    return u.protocol === 'https:' || u.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
 
 // ────────────────────────────────────────────────────────────
 // markCommissionPaidAction — record a payout row for a partner/month.
@@ -243,5 +216,7 @@ export async function voidPayoutAction(input: {
   return { ok: true };
 }
 
-// Test surface: pure helpers exposed for unit tests.
-export const __test__ = { normalizePeriodMonth, isValidHttpsUrl };
+// Test surface: pure helpers live in ./payout-helpers and are imported
+// directly by the test file. Re-exporting a non-async value here would
+// violate the 'use server' contract Next.js 15 enforces — see
+// payout-helpers.ts for the full reasoning.
