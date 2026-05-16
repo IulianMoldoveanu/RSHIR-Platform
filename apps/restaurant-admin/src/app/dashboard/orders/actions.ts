@@ -390,7 +390,7 @@ export async function printFiscalReceipt(
     .eq('id', orderId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (orderErr) return { ok: false, error: orderErr.message };
+  if (orderErr) return { ok: false, error: friendlyDbError(orderErr, 'încărcarea comenzii pentru bon fiscal').message };
   if (!order) return { ok: false, error: 'Comanda nu a fost găsită.' };
 
   type LineItem = {
