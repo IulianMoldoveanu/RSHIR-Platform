@@ -26,6 +26,7 @@ import { logMedicalAccess } from '@/lib/medical-access';
 import { headers } from 'next/headers';
 import { QuickCallButtons } from '@/components/quick-call-buttons';
 import { GeofenceWatcher } from '@/components/geofence-watcher';
+import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         initialStatus={order.status}
       />
       <WakeLockOnActive status={order.status} />
+      <VoiceStatusAnnouncer status={order.status} />
       {isMine &&
       (order.status === 'ACCEPTED' || order.status === 'PICKED_UP') &&
       order.pickup_lat != null &&
