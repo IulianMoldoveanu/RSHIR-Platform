@@ -32,6 +32,8 @@
 // Deno-compatible. Imported by edge functions; mirrored type-only by the
 // Next.js admin app at `apps/restaurant-admin/src/lib/ai/master-orchestrator-types.ts`.
 
+import { checkBudget } from './agent-cost.ts';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -76,9 +78,13 @@ export type DispatchResult =
       ok: true;
       state: 'PROPOSED';
       runId: string;
-      // Why the dispatcher refused to auto-execute. Always 'trust_level' for
-      // now; future kinds: 'second_line_check_disagreed', 'rate_limited'.
-      reason: 'trust_level';
+      // Why the dispatcher refused to auto-execute.
+      // - 'trust_level'       — tenant has the category set to PROPOSE_ONLY.
+      // - 'budget_exhausted'  — F6 cost ledger sum >= monthly budget; the
+      //                         dispatcher refuses to execute (or even plan)
+      //                         any non-master intent until next month.
+      // Future kinds: 'second_line_check_disagreed', 'rate_limited'.
+      reason: 'trust_level' | 'budget_exhausted';
       summary: string;
     }
   | {
@@ -289,6 +295,35 @@ export async function dispatchIntent(
     actorUserId: input.actorUserId ?? null,
     supabase,
   };
+
+  // PHASE 0 — F6 monthly budget gate. The dispatcher checks the cost ledger
+  // BEFORE plan() so an over-budget tenant cannot accidentally rack up more
+  // spend through an auto-executed intent. The `master` agent is exempt —
+  // it must keep working so OWNERS can still see the proposed-runs queue
+  // and approve manually. Proposal recording for other agents is preserved:
+  // we route to the PROPOSED branch (still records a ledger row) but skip
+  // the plan-driven side-effect path entirely.
+  if (reg.agent !== 'master') {
+    const budget = await checkBudget(supabase, input.tenantId);
+    if (!budget.ok) {
+      const runId = await writeLedger(supabase, {
+        tenantId: input.tenantId,
+        agentName: reg.agent,
+        actionType: `${reg.agent}.${reg.defaultCategory}`,
+        state: 'PROPOSED',
+        payload: input.payload,
+        summary: `Budget AI lunar epuizat (${(budget.used / 100).toFixed(2)} USD din ${(budget.limit / 100).toFixed(2)} USD). Intent "${input.intent}" propus, nu executat.`,
+        actorUserId: input.actorUserId ?? null,
+      });
+      return {
+        ok: true,
+        state: 'PROPOSED',
+        runId: runId ?? '',
+        reason: 'budget_exhausted',
+        summary: `Budget AI lunar depasit pentru tenant.`,
+      };
+    }
+  }
 
   // PHASE 1 — plan. Pure: no side effects, may read for pre_state.
   // CRITICAL: this runs BEFORE the trust gate so a write handler whose
