@@ -1,0 +1,17 @@
+{
+  "name": "@hir/e2e-happy-paths",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end happy-path Playwright suite (courier order lifecycle + storefront order placement). Wave 4-C coverage expansion.",
+  "scripts": {
+    "test:e2e:happy-paths": "playwright test --config=playwright.config.ts",
+    "test:e2e:happy-paths:ui": "playwright test --config=playwright.config.ts --ui",
+    "e2e:install": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@types/node": "^22.9.1",
+    "dotenv": "^16.4.7",
+    "typescript": "^5.6.3"
+  }
+}
