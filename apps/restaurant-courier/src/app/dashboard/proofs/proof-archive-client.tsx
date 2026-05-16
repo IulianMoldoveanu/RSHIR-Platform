@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { Camera, X, Calendar, MapPin, User } from 'lucide-react';
 import { Button } from '@hir/ui';
+import { cardClasses } from '@/components/card';
 
 type ProofItem = {
   id: string;
@@ -64,7 +65,7 @@ export function ProofArchiveClient({ items }: Props) {
         </div>
 
         {/* Date range filter */}
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <section className={cardClasses()}>
           <div className="mb-3 flex items-center gap-2">
             <Calendar className="h-4 w-4 text-hir-muted-fg" aria-hidden />
             <span className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
@@ -112,7 +113,7 @@ export function ProofArchiveClient({ items }: Props) {
 
         {/* Grid */}
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface py-14 text-center">
+          <div className={cardClasses({ padding: 'none', className: 'flex flex-col items-center gap-3 py-14 text-center' })}>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-hir-border">
               <Camera className="h-7 w-7 text-hir-muted-fg" aria-hidden />
             </span>

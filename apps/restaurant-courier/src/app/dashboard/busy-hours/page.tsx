@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft, Info } from 'lucide-react';
 import { BusyHoursHeatmap } from './_heatmap';
+import { cardClasses } from '@/components/card';
 
 export const metadata = {
   title: 'Ore cu volum mare — HIR Curier',
@@ -30,7 +31,7 @@ export default function BusyHoursPage() {
 
       <section
         aria-label="Notă despre date"
-        className="flex items-start gap-2 rounded-2xl border border-hir-border bg-hir-surface p-3 text-xs text-hir-muted-fg"
+        className={cardClasses({ padding: 'sm', className: 'flex items-start gap-2 text-xs text-hir-muted-fg' })}
       >
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" aria-hidden />
         <p>

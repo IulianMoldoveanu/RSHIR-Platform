@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { MessageSquare, Phone, Wrench } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +82,7 @@ export default async function MessagesPage() {
       {dispatcherPhone ? (
         <a
           href={`tel:${dispatcherPhone.replace(/\s+/g, '')}`}
-          className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 hover:border-violet-500/40 hover:bg-hir-border/40"
+          className={cardClasses({ className: 'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99]' })}
         >
           <span
             aria-hidden
@@ -101,7 +102,7 @@ export default async function MessagesPage() {
       ) : (
         <a
           href="tel:+40213000000"
-          className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 hover:border-violet-500/40 hover:bg-hir-border/40"
+          className={cardClasses({ className: 'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99]' })}
         >
           <span
             aria-hidden

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { requestTimeOffAction } from './actions';
+import { cardClasses } from '@/components/card';
 
 const REASONS = ['Concediu medical', 'Vacanță', 'Cauză personală'] as const;
 
@@ -51,7 +52,7 @@ export function TimeOffForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       {/* Reason radio group */}
-      <fieldset className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+      <fieldset className={cardClasses({ padding: 'lg' })}>
         <legend className="mb-4 text-sm font-semibold text-hir-fg">Motiv</legend>
         <div className="flex flex-col gap-3">
           {REASONS.map((r) => (
@@ -74,7 +75,7 @@ export function TimeOffForm() {
       </fieldset>
 
       {/* Date range */}
-      <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+      <div className={cardClasses({ padding: 'lg' })}>
         <p className="mb-4 text-sm font-semibold text-hir-fg">Perioadă</p>
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
@@ -107,7 +108,7 @@ export function TimeOffForm() {
       </div>
 
       {/* Optional note */}
-      <div className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+      <div className={cardClasses({ padding: 'lg' })}>
         <label htmlFor="note" className="mb-2 block text-sm font-semibold text-hir-fg">
           Notă opțională
         </label>
