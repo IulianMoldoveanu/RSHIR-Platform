@@ -7,6 +7,7 @@ import { ProjectionCard } from './_projection-card';
 import { BestDayCard } from './_best-day-card';
 import { PerformanceStats } from './_performance-stats';
 import { Achievements } from './_achievements';
+import { Sparkline7d } from './_sparkline-7d';
 
 export const dynamic = 'force-dynamic';
 
@@ -287,6 +288,7 @@ export default async function EarningsPage() {
       </section>
 
       {/* Gamification cards — stacked above recent deliveries list. */}
+      <Sparkline7d rows={last30} />
       <StreakCard rows={last30} />
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
       <BestDayCard bestDay={bestDayData} />
