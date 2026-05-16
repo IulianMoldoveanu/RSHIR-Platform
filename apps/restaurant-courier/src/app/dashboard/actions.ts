@@ -193,11 +193,25 @@ export async function startShiftAction() {
 
 export async function endShiftAction() {
   const userId = await requireUserId();
-  return withRunLog(
+  // Capture the shift ID before closing so we can link to the day summary.
+  let closedShiftId: string | null = null;
+
+  await withRunLog(
     'courier.endShift',
     { courier_user_id: userId },
     async () => {
       const admin = createAdminClient();
+
+      // Fetch the ONLINE shift id so we can redirect to the summary page.
+      const { data: shiftRow } = await admin
+        .from('courier_shifts')
+        .select('id')
+        .eq('courier_user_id', userId)
+        .eq('status', 'ONLINE')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      closedShiftId = (shiftRow as { id: string } | null)?.id ?? null;
 
       await admin
         .from('courier_shifts')
@@ -214,6 +228,14 @@ export async function endShiftAction() {
       revalidatePath('/dashboard/shift');
     },
   );
+
+  // Redirect to day summary. redirect() throws the NEXT_REDIRECT sentinel
+  // which propagates through withRunLog transparently.
+  if (closedShiftId) {
+    redirect(`/dashboard/day-summary?shiftId=${closedShiftId}`);
+  } else {
+    redirect('/dashboard/shift');
+  }
 }
 
 // Audit §3.4 — escape hatch when a courier has stale active orders they will
@@ -643,6 +665,30 @@ export async function cancelOrderByCourierAction(
       return { ok: true as const };
     },
   );
+}
+
+/**
+ * Logs a client-side geofence alert into the audit trail.
+ * Called fire-and-forget from <GeofenceWatcher> after dedup passes.
+ * Best-effort: swallowed on error (geofencing is observability, not blocking).
+ */
+export async function logGeofenceAlertAction(
+  orderId: string,
+  alertType: string,
+  distanceM: number,
+): Promise<void> {
+  try {
+    const userId = await requireUserId();
+    await logAudit({
+      actorUserId: userId,
+      action: 'courier.geofence_alert',
+      entityType: 'courier_order',
+      entityId: orderId,
+      metadata: { alert_type: alertType, distance_m: Math.round(distanceM) },
+    });
+  } catch {
+    // Geofence audit must never block the delivery flow.
+  }
 }
 
 export async function acceptOrderAction(orderId: string) {

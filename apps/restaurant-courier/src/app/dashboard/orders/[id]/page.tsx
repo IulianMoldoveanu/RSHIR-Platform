@@ -25,6 +25,7 @@ import { resolveRiderMode } from '@/lib/rider-mode';
 import { logMedicalAccess } from '@/lib/medical-access';
 import { headers } from 'next/headers';
 import { QuickCallButtons } from '@/components/quick-call-buttons';
+import { GeofenceWatcher } from '@/components/geofence-watcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -171,6 +172,19 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         initialStatus={order.status}
       />
       <WakeLockOnActive status={order.status} />
+      {isMine &&
+      (order.status === 'ACCEPTED' || order.status === 'PICKED_UP') &&
+      order.pickup_lat != null &&
+      order.pickup_lng != null &&
+      order.dropoff_lat != null &&
+      order.dropoff_lng != null ? (
+        <GeofenceWatcher
+          orderId={order.id}
+          pickup={{ lat: order.pickup_lat, lng: order.pickup_lng }}
+          dropoff={{ lat: order.dropoff_lat, lng: order.dropoff_lng }}
+          status={order.status}
+        />
+      ) : null}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h1 className="text-lg font-semibold text-hir-fg">Comandă</h1>
