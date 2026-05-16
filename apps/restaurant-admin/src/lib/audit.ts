@@ -47,6 +47,8 @@ export type AuditAction =
   | 'reservation.table_plan_updated'
   | 'ai_ceo.brief_schedule_updated'
   | 'ai_ceo.suggestion_acted'
+  | 'ai_ceo.recommendation_approved'
+  | 'ai_ceo.recommendation_dismissed'
   | 'ai_ceo.run_reverted'
   | 'ai_ceo.run_approved'
   | 'ai_ceo.run_rejected'
