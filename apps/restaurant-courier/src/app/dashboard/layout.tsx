@@ -16,6 +16,9 @@ import { BatterySaverBadge } from '@/components/battery-saver-badge';
 import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
+import { WelcomeCarousel } from '@/components/welcome-carousel';
+import { FirstShiftTutorial } from '@/components/first-shift-tutorial';
+import { HelpDrawer } from '@/components/help-drawer';
 
 // Force layout to re-fetch shift state on every navigation. Without this,
 // Next.js may serve a cached layout (with stale isOnline) under a freshly
@@ -56,11 +59,30 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         .in('status', ['CREATED', 'OFFERED']),
       admin
         .from('courier_profiles')
-        .select('avatar_url, full_name')
+        .select('avatar_url, full_name, fleet_id')
         .eq('user_id', user.id)
         .maybeSingle(),
     ]);
-  const profile = profileData as { avatar_url: string | null; full_name: string | null } | null;
+  const profile = profileData as {
+    avatar_url: string | null;
+    full_name: string | null;
+    fleet_id: string | null;
+  } | null;
+
+  // Load dispatcher phone for the help drawer. One extra query only when the
+  // courier belongs to a fleet; null-safe so unaffiliated couriers see the
+  // HIR support number fallback inside the drawer.
+  let dispatcherPhone: string | null = null;
+  if (profile?.fleet_id) {
+    const { data: fleetRow } = await admin
+      .from('courier_fleets')
+      .select('contact_phone')
+      .eq('id', profile.fleet_id)
+      .maybeSingle();
+    dispatcherPhone =
+      (fleetRow as { contact_phone: string | null } | null)?.contact_phone ?? null;
+  }
+
   const isOnline = !!shiftData;
   // Mode C riders never browse — don't show a count nudge for them.
   const navOrdersBadge = riderMode.mode === 'C' ? 0 : (openOrdersCount ?? 0);
@@ -74,6 +96,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <RiderModeProvider value={riderMode}>
       <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
+        {/* Skip-to-content: visible on focus for keyboard + AT users. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[2000] focus:rounded-lg focus:bg-violet-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+        >
+          Sari la conținut
+        </a>
         {/* Header z-[1100] so it always sits above the Leaflet map (whose
             internal panes can climb to z-700 and whose controls can reach
             z-1000 in some plugin builds). Same value on the bottom-nav.
@@ -114,6 +143,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
           {/* Earnings pill — always visible. */}
           <EarningsBar />
+
+          {/* Help icon — opens contextual drawer with FAQ, dispatcher contact,
+              report form, and terms. Sits between earnings and avatar so it
+              doesn't crowd the left logo area. */}
+          <HelpDrawer dispatcherPhone={dispatcherPhone} />
 
           {/* Avatar shortcut to settings — always visible top-right next to
               logout. Clicking deep-links to /dashboard/settings#profile.
@@ -164,7 +198,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <ProofSync />
         <TransitionSync />
 
-        <main className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
+        {/* First-run overlays — client-only, each checks localStorage before
+            rendering so returning couriers pay zero overhead. */}
+        <WelcomeCarousel />
+        <FirstShiftTutorial />
+
+        <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
 
         {/* Bottom nav — primary navigation on mobile (PWA target). z-[1100]
             because Leaflet internal stacking can reach z-700 (popup pane)
