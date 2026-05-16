@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { ChevronLeft, ExternalLink, Heart, Info, Package } from 'lucide-react';
+import { ChevronLeft, Eraser, ExternalLink, Heart, Info, Package } from 'lucide-react';
 import { CURRENT_RELEASE } from '@/lib/whats-new';
+import { ClearLocalDataButton } from '@/components/clear-local-data-button';
 
 export const dynamic = 'force-static';
 
@@ -127,6 +128,20 @@ export default function AboutPage() {
           </a>
           .
         </p>
+      </section>
+
+      {/* Local data reset */}
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
+          <Eraser className="h-3.5 w-3.5 text-rose-300" aria-hidden />
+          Date salvate pe acest dispozitiv
+        </h2>
+        <p className="mb-3 text-xs text-hir-muted-fg">
+          Preferințele tale (notificări, ținte zilnice, documente memorizate,
+          sloturi rezervate) sunt salvate doar local pe acest telefon.
+          Le poți șterge oricând fără să afecteze contul tău HIR.
+        </p>
+        <ClearLocalDataButton />
       </section>
     </div>
   );
