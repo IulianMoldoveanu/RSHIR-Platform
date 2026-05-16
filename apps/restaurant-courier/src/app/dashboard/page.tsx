@@ -119,6 +119,25 @@ export default async function DashboardHome() {
     dropoffLng: o.dropoff_lng,
   }));
 
+  // Natural-language next-action hint for the courier's #1 priority
+  // order. Plain RO copy that mirrors how dispatchers actually phrase
+  // instructions over the radio - the rider should not have to parse a
+  // status enum to know what comes next.
+  const topOrder = activeOrders[0] ?? null;
+  const nextActionHint = !topOrder
+    ? null
+    : topOrder.status === 'ACCEPTED'
+      ? topOrder.pickup_line1
+        ? `Mergi la ridicare · ${topOrder.pickup_line1}`
+        : 'Mergi la ridicare'
+      : topOrder.status === 'PICKED_UP'
+        ? topOrder.dropoff_line1
+          ? `Mergi la livrare · ${topOrder.dropoff_line1}`
+          : 'Mergi la livrare'
+        : topOrder.status === 'IN_TRANSIT'
+          ? 'Aproape la client'
+          : null;
+
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
   // viewport minus the 56px header (h-14). Uses dvh (dynamic viewport height)
@@ -150,6 +169,11 @@ export default async function DashboardHome() {
               : 'Online · aștept comandă'
             : 'Offline · pornește tura'}
         </p>
+        {nextActionHint ? (
+          <p className="mt-1.5 truncate text-[11px] font-medium text-violet-300">
+            {nextActionHint}
+          </p>
+        ) : null}
         <WeatherPill weather={weather} reminder={reminder} />
       </div>
 
