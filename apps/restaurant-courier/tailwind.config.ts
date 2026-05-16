@@ -9,6 +9,16 @@ const config: Config = {
   darkMode: 'class',
   theme: {
     extend: {
+      keyframes: {
+        ripple: {
+          '0%': { transform: 'scale(0)', opacity: '0.55' },
+          '60%': { opacity: '0.35' },
+          '100%': { transform: 'scale(1)', opacity: '0' },
+        },
+      },
+      animation: {
+        ripple: 'ripple var(--ripple-duration, 500ms) ease-out forwards',
+      },
       colors: {
         // Semantic tokens backed by CSS variables defined in globals.css.
         // The body uses these directly. Per-component zinc-* values are

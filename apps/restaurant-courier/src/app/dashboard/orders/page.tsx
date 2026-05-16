@@ -11,6 +11,7 @@ import { resolveRiderMode } from '@/lib/rider-mode';
 import { InsuranceStatusPill } from '@/components/insurance-status-pill';
 import { TodaySummaryPill } from '@/components/today-summary-pill';
 import { StaggerList } from '@/components/stagger-list';
+import { RippleButton } from '@/components/ripple-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,14 +160,15 @@ export default async function OrdersPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-hir-fg">Comenzi</h1>
         <form action={refreshOrdersAction}>
-          <button
+          <RippleButton
             type="submit"
             aria-label="Reîmprospătează"
             className="inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-xs font-medium text-hir-fg hover:bg-hir-border active:scale-95"
+            rippleColor="bg-violet-400/30"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
             Actualizează
-          </button>
+          </RippleButton>
         </form>
       </div>
 
