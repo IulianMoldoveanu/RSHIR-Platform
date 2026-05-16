@@ -302,22 +302,29 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </div>
       </section>
 
-      <OrderActions
-        orderId={order.id}
-        status={order.status}
-        isMine={isMine}
-        isAvailable={isAvailable}
-        vertical={vertical}
-        pharmaMetadata={order.pharma_metadata}
-        paymentMethod={order.payment_method}
-        totalRon={order.total_ron}
-        acceptAction={acceptBound}
-        pickedUpAction={pickedUpBound}
-        deliveredAction={deliveredBound}
-        cancelAction={cancelBound}
-      />
+      {/* Sticky action bar: stays visible at the bottom while the courier
+          scrolls through pickup/dropoff/item details above. Uses
+          pb-safe-bottom so it never hides behind the iOS home indicator.
+          The z-index sits below the bottom-nav (z-[1100]) so it doesn't
+          bleed over the navigation chrome. */}
+      <div className="sticky bottom-0 z-10 -mx-4 mt-2 border-t border-hir-border bg-hir-bg/95 px-4 pb-[env(safe-area-inset-bottom,0.5rem)] pt-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <OrderActions
+          orderId={order.id}
+          status={order.status}
+          isMine={isMine}
+          isAvailable={isAvailable}
+          vertical={vertical}
+          pharmaMetadata={order.pharma_metadata}
+          paymentMethod={order.payment_method}
+          totalRon={order.total_ron}
+          acceptAction={acceptBound}
+          pickedUpAction={pickedUpBound}
+          deliveredAction={deliveredBound}
+          cancelAction={cancelBound}
+        />
 
-      {showSos ? <SosButton /> : null}
+        {showSos ? <div className="mt-2"><SosButton /></div> : null}
+      </div>
     </div>
   );
 }

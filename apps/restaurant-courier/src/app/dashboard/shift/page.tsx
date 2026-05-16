@@ -5,6 +5,7 @@ import { startShiftAction, endShiftAction, forceEndShiftAction } from '../action
 import { SwipeButton } from '@/components/swipe-button';
 import { ForceEndShift } from '@/components/force-end-shift';
 import { StartShiftSection } from './start-shift-section';
+import { LongShiftWarning } from '@/components/long-shift-warning';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,9 @@ export default async function ShiftPage() {
                 })}
               </strong>
             </p>
+            <div className="mb-3">
+              <LongShiftWarning startedAt={active.started_at} />
+            </div>
             <SwipeButton
               label="→ Glisează pentru a închide tura"
               onConfirm={endShiftAction}
