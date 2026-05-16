@@ -13,6 +13,56 @@ const FALLBACK_CENTER: [number, number] = [45.6427, 25.5887];
 const FALLBACK_ZOOM = 12;
 const RIDER_ZOOM = 15;
 
+// localStorage key for last-known GPS position.
+const LAST_POS_KEY = 'hir.courier.lastPos';
+
+type StoredPos = { lat: number; lng: number; ts: number };
+
+function saveLastPos(lat: number, lng: number): void {
+  try {
+    localStorage.setItem(LAST_POS_KEY, JSON.stringify({ lat, lng, ts: Date.now() }));
+  } catch {
+    // private mode — silent
+  }
+}
+
+function loadLastPos(): StoredPos | null {
+  try {
+    const raw = localStorage.getItem(LAST_POS_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as unknown;
+    if (
+      typeof p === 'object' &&
+      p !== null &&
+      typeof (p as StoredPos).lat === 'number' &&
+      typeof (p as StoredPos).lng === 'number' &&
+      typeof (p as StoredPos).ts === 'number'
+    ) {
+      return p as StoredPos;
+    }
+  } catch {
+    // parse error — ignore
+  }
+  return null;
+}
+
+function clearLastPos(): void {
+  try {
+    localStorage.removeItem(LAST_POS_KEY);
+  } catch {
+    // silent
+  }
+}
+
+/** Human-friendly age string for the fallback marker tooltip. */
+function ageLabel(ts: number): string {
+  const sec = Math.round((Date.now() - ts) / 1000);
+  if (sec < 60) return `${sec} sec`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h`;
+}
+
 type LeafletGlobal = {
   map: (el: HTMLElement, opts?: Record<string, unknown>) => LeafletMap;
   tileLayer: (url: string, opts?: Record<string, unknown>) => LeafletLayer;
@@ -259,6 +309,7 @@ export function RiderMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
+  const fallbackMarkerRef = useRef<LeafletMarker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
   // rAF id of the in-flight GPS interpolation. Lives on a ref so the
@@ -373,6 +424,29 @@ export function RiderMap({
           }
         }
 
+        // Last-known-position fallback: if we have a stored position from a
+        // previous session / before GPS warms up, show a faded dashed-ring
+        // pin so the courier knows where they last were. Removed the moment
+        // the first live fix arrives.
+        const stored = loadLastPos();
+        if (stored) {
+          const ageStr = ageLabel(stored.ts);
+          fallbackMarkerRef.current = L.marker(
+            [stored.lat, stored.lng],
+            {
+              icon: L.divIcon({
+                className: '',
+                html: `<div title="Ultima locație cunoscută — acum ${ageStr}" style="width:44px;height:44px;border-radius:9999px;background:rgba(124,58,237,0.22);border:2px dashed rgba(124,58,237,0.55);opacity:0.6;box-sizing:border-box;"></div>`,
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+              }),
+            },
+          ).addTo(map);
+          // Center on stored position only when there are no active-order
+          // pins to fit (polyBounds already handled that case above).
+          if (polyBounds.length < 2) map.setView([stored.lat, stored.lng], RIDER_ZOOM);
+        }
+
         // Some layouts mount the map inside a flex parent that resizes
         // after first paint; force a resize so tiles fill correctly.
         setTimeout(() => map.invalidateSize(), 0);
@@ -404,6 +478,16 @@ export function RiderMap({
             const lng = pos.coords.longitude;
             const accuracyMeters = pos.coords.accuracy;
             setPermission('granted');
+
+            // Persist this fix so we can show it as fallback if GPS drops.
+            saveLastPos(lat, lng);
+
+            // Remove the stale fallback marker the moment we get a live fix.
+            if (fallbackMarkerRef.current) {
+              const fm = fallbackMarkerRef.current as unknown as { remove?: () => void };
+              fm.remove?.();
+              fallbackMarkerRef.current = null;
+            }
 
             // Heading: prefer the device-reported value when present
             // (mobile GPS at speed). Fall back to a derived bearing from
@@ -497,10 +581,33 @@ export function RiderMap({
           },
           (err) => {
             if (err.code === err.PERMISSION_DENIED) {
+              // Permission revoked — stale position is no longer trustworthy.
+              clearLastPos();
               setPermission('denied');
             } else {
               setPermission('error');
               console.warn('[rider-map] watchPosition error', err.code, err.message);
+              // GPS timeout / unavailable: if the fallback marker was not
+              // already shown (first load where stored pos was absent) and
+              // the live marker exists, keep the live marker visible. If no
+              // live marker yet, try to show the stored fallback position.
+              if (!markerRef.current && !fallbackMarkerRef.current && mapRef.current) {
+                const pos = loadLastPos();
+                if (pos) {
+                  const ageStr = ageLabel(pos.ts);
+                  fallbackMarkerRef.current = L.marker(
+                    [pos.lat, pos.lng],
+                    {
+                      icon: L.divIcon({
+                        className: '',
+                        html: `<div title="Ultima locație cunoscută — acum ${ageStr}" style="width:44px;height:44px;border-radius:9999px;background:rgba(124,58,237,0.22);border:2px dashed rgba(124,58,237,0.55);opacity:0.6;box-sizing:border-box;"></div>`,
+                        iconSize: [44, 44],
+                        iconAnchor: [22, 22],
+                      }),
+                    },
+                  ).addTo(mapRef.current);
+                }
+              }
             }
           },
           {
@@ -533,6 +640,7 @@ export function RiderMap({
         mapRef.current = null;
       }
       markerRef.current = null;
+      fallbackMarkerRef.current = null;
     };
     // We intentionally re-init when activePins or vehicleType change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
