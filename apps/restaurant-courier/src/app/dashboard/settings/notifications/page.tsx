@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { NotificationPreferences } from '@/components/notification-preferences';
+import { VoiceNavToggle } from '@/components/voice-nav-toggle';
 
 export const metadata = {
   title: 'Notificări — HIR Curier',
@@ -20,6 +21,8 @@ export default function NotificationsPage() {
       <h1 className="text-xl font-bold text-hir-fg">Preferințe notificări</h1>
 
       <NotificationPreferences />
+
+      <VoiceNavToggle />
     </div>
   );
 }

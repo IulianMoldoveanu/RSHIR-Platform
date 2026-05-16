@@ -12,6 +12,7 @@ import {
   haversineMeters,
 } from '@/lib/geofence';
 import * as haptics from '@/lib/haptics';
+import { isVoiceNavEnabled, speak } from '@/lib/voice-nav';
 import { logGeofenceAlertAction } from '@/app/dashboard/actions';
 
 type Props = {
@@ -93,6 +94,9 @@ export function GeofenceWatcher({ orderId, pickup, dropoff, status }: Props) {
         } else {
           toast.success(message, { duration: 5_000 });
         }
+
+        // Hands-free voice prompt when opt-in. Same RO message as the toast.
+        if (isVoiceNavEnabled()) speak(message);
 
         // Distance from courier to the relevant zone centre for audit.
         const target = alert === 'NEAR_DROPOFF' ? dropoff : pickup;
