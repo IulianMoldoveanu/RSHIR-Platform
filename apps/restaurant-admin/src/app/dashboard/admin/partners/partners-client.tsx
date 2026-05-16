@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { createPartner, addReferral, markCommissionPaid } from './actions';
 import {
@@ -684,6 +685,7 @@ export function PartnersClient({
                 <th className="px-4 py-2 text-right font-medium">Restaurante</th>
                 <th className="px-4 py-2 text-right font-medium">Comision luna aceasta</th>
                 <th className="px-4 py-2 text-right font-medium">Plată</th>
+                <th className="px-4 py-2 text-right font-medium">v3</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -719,6 +721,14 @@ export function PartnersClient({
                         Înregistrează plată
                       </button>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/dashboard/admin/partners/${p.id}/v3`}
+                      className="rounded-md border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100"
+                    >
+                      v3
+                    </Link>
                   </td>
                 </tr>
               ))}
