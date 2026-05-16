@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { StreakCard } from './_streak-card';
 import { ProjectionCard } from './_projection-card';
 import { BestDayCard } from './_best-day-card';
+import { ExportForm } from './_export-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,16 +149,16 @@ export default async function EarningsPage() {
       <div>
         <h1 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
           <Wallet className="h-5 w-5 text-violet-400" aria-hidden />
-          Câștigurile tale
+          Castigurile tale
         </h1>
         <p className="mt-1 text-xs text-zinc-500">
-          Suma încasată din taxe de livrare, calculată din comenzile marcate ca livrate.
+          Suma incasata din taxe de livrare, calculata din comenzile marcate ca livrate.
         </p>
       </div>
 
       <section className="grid grid-cols-3 gap-2 min-[360px]:gap-3">
-        <StatCard label="Astăzi" earnings={today.earnings} count={today.count} accent="violet" />
-        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} accent="zinc" />
+        <StatCard label="Astazi" earnings={today.earnings} count={today.count} accent="violet" />
+        <StatCard label="Saptamana" earnings={week.earnings} count={week.count} accent="zinc" />
         <StatCard label="Luna" earnings={month.earnings} count={month.count} accent="zinc" />
       </section>
 
@@ -167,7 +168,7 @@ export default async function EarningsPage() {
           the row populates without UI changes. */}
       <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          Cum calculăm câștigul de azi
+          Cum calculam castigul de azi
         </p>
         <div className="space-y-1.5 text-sm tabular-nums">
           <div className="flex items-center justify-between text-hir-fg">
@@ -177,7 +178,7 @@ export default async function EarningsPage() {
             </span>
           </div>
           <div className="flex items-center justify-between text-zinc-500">
-            <span>− Comision HIR</span>
+            <span>- Comision HIR</span>
             <span className="font-medium">0,00 RON</span>
           </div>
           <div className="flex items-center justify-between border-t border-zinc-800 pt-1.5 text-zinc-100">
@@ -188,8 +189,8 @@ export default async function EarningsPage() {
           </div>
         </div>
         <p className="mt-2 text-[11px] text-zinc-500">
-          Astăzi tot brutul e net. Pe viitor un mic comision platformă va fi
-          dedus aici, mereu vizibil înainte de plată.
+          Astazi tot brutul e net. Pe viitor un mic comision platforma va fi
+          dedus aici, mereu vizibil inainte de plata.
         </p>
       </section>
 
@@ -198,23 +199,26 @@ export default async function EarningsPage() {
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
       <BestDayCard bestDay={bestDayData} />
 
+      {/* Tax export — PFA / autointreprinzator raport ANAF */}
+      <ExportForm />
+
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Ultimele livrări
+          Ultimele livrari
         </h2>
         {recent.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
             <p className="text-sm font-medium text-hir-fg">
-              Nu ai livrări înregistrate luna aceasta
+              Nu ai livrari inregistrate luna aceasta
             </p>
             <p className="text-xs text-zinc-500">
-              Câștigurile apar aici imediat ce marchezi prima livrare.
+              Castigurile apar aici imediat ce marchezi prima livrare.
             </p>
             <Link
               href="/dashboard"
               className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15"
             >
-              Pornește o tură
+              Porneste o tura
             </Link>
           </div>
         ) : (
@@ -254,7 +258,7 @@ export default async function EarningsPage() {
       </section>
 
       <p className="text-center text-[11px] text-hir-muted-fg">
-        Plata se face prin contul dumneavoastră HIR. Pentru întrebări, contactați suportul.
+        Plata se face prin contul dumneavoastra HIR. Pentru intrebari, contactati suportul.
       </p>
     </div>
   );
