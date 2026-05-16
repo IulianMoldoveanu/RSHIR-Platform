@@ -35,7 +35,17 @@ export function MarketingHeader({
   currentLocale: Locale;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
+    <>
+      {/* Lane MARKETING-POLISH-V4B (2026-05-16) — visible-on-focus skip link
+          for keyboard + screen-reader users. Targets `#main-content` on the
+          parent <main> of every marketing page. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-[#4F46E5] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-[#4338CA] focus:ring-offset-2"
+      >
+        {t(currentLocale, 'marketing.shell.skip_to_content')}
+      </a>
+      <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
           href="/"
@@ -46,7 +56,10 @@ export function MarketingHeader({
           </span>
           {t(currentLocale, 'marketing.shell.brand_name')}
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav
+          aria-label={t(currentLocale, 'marketing.shell.primary_nav_label')}
+          className="hidden items-center gap-1 md:flex"
+        >
           {NAV.map((item) => {
             const isActive = active === item.href;
             return (
@@ -84,7 +97,10 @@ export function MarketingHeader({
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
-      <nav className="flex gap-1 overflow-x-auto border-t border-[#F1F5F9] px-4 py-2 md:hidden">
+      <nav
+        aria-label={t(currentLocale, 'marketing.shell.primary_nav_label')}
+        className="flex gap-1 overflow-x-auto border-t border-[#F1F5F9] px-4 py-2 md:hidden"
+      >
         {NAV.map((item) => {
           const isActive = active === item.href;
           return (
@@ -103,6 +119,7 @@ export function MarketingHeader({
         })}
       </nav>
     </header>
+    </>
   );
 }
 
