@@ -28,6 +28,7 @@ import { headers } from 'next/headers';
 import { QuickCallButtons } from '@/components/quick-call-buttons';
 import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
+import { OrderStepper } from '@/components/order-stepper';
 
 export const dynamic = 'force-dynamic';
 
@@ -196,6 +197,8 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </div>
         <OrderStatusBadge status={order.status} size="md" />
       </div>
+
+      {isMine ? <OrderStepper status={order.status} /> : null}
 
       {isMine ? <ActiveOrderTimer status={order.status} since={order.updated_at} /> : null}
 
