@@ -1,14 +1,35 @@
-// Thin audit-log helper for the courier app (mirrors apps/restaurant-admin/src/lib/audit.ts).
-// Writes to the shared `audit_log` table via service-role client.
-// Failures are swallowed — auditing must never block the user action.
-//
-// 2026-05-10 fix: audit_log.tenant_id is NOT NULL (per schema). Courier
-// actions don't have direct tenant context (the courier serves orders
-// across fleets), so we derive tenant_id from the courier_order →
-// restaurant_orders.tenant_id chain when entityType is 'courier_order'.
-// If derivation fails, we skip the insert + warn (same outcome as the
-// previous silent failure — but no more NOT-NULL constraint noise in
-// CI logs).
+/**
+ * Audit-log helper for the courier app.
+ *
+ * Writes to the shared `audit_log` table via the service-role client.
+ * Mirrors `apps/restaurant-admin/src/lib/audit.ts` but adds courier-specific
+ * tenant derivation logic because a courier serves orders across multiple
+ * fleets and may not have a direct tenant context.
+ *
+ * CONTRACT
+ * --------
+ * - Call `logAudit(args)` from any server action or API route that mutates
+ *   data with compliance relevance (order status changes, fleet admin ops,
+ *   earnings exports). Never call from client components.
+ * - Failures are swallowed — auditing must never block the user action.
+ *   A failed insert is logged to stderr and discarded.
+ * - `tenantId` is optional. When omitted, it is derived from the
+ *   `courier_orders.source_tenant_id` column (preferred fast path) or the
+ *   two-hop `courier_orders → restaurant_orders.tenant_id` chain (legacy
+ *   fallback for older rows). Pharma orders and fleet-level events that have
+ *   no Supabase tenant are intentionally skipped (logged at console.info,
+ *   not console.warn, so CI stays quiet).
+ *
+ * METADATA stored per row
+ * -----------------------
+ * `ip`         — first value of `x-forwarded-for` header, or `x-real-ip`
+ * `user_agent` — truncated to 200 chars
+ * plus any caller-supplied `metadata` fields (order ids, amounts, etc.)
+ *
+ * ACTIONS — see `CourierAuditAction` union for the full list. Naming
+ * convention: `<noun>.<verb>` in snake_case (e.g. `fleet.courier_invited`,
+ * `order.cash_collected`).
+ */
 
 import { headers } from 'next/headers';
 import { createAdminClient } from './supabase/admin';
