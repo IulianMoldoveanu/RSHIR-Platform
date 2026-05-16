@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { ChevronRight, HelpCircle, LifeBuoy, Mail, MessageCircle, Phone } from 'lucide-react';
-import { HELP_CATEGORIES, getAllTopics } from './content';
+import { getLocale } from '@/lib/i18n/server';
+import type { Locale } from '@/lib/i18n';
+import { HELP_CATEGORIES, getAllTopics, pickLocale, type L10n } from './content';
 import { HelpSearch, type SearchTopic } from './help-search';
 
 // QW6 (UIUX audit 2026-05-08) — Hepy bot deep-link.
@@ -24,41 +26,90 @@ export const metadata = {
 // Pure documentation page: no schema reads, no business logic. Topics live
 // in `./content.ts` and are surfaced via a static index plus per-topic
 // detail pages at `[category]/[slug]`. Client-side search runs over a
-// small JSON index (~25 topics) — no external dep.
+// small JSON index (~26 topics) — no external dep.
+//
+// Locale: RO default; EN parity added 2026-05-16. The search body is built
+// from BOTH locales concatenated, so an EN query like "delivery zone" hits
+// the RO copy too — important during the transition when most operators
+// still type in RO out of habit.
 export default function HelpIndexPage() {
+  const locale: Locale = getLocale();
+
+  const pickBoth = (v: L10n): string => {
+    if (typeof v === 'string') return v;
+    return `${v.ro} ${v.en}`;
+  };
+
   const searchIndex: SearchTopic[] = getAllTopics().flatMap((t) => {
     const cat = HELP_CATEGORIES.find((c) => c.topics.includes(t));
     if (!cat) return [];
     const body = [
-      t.intro,
-      ...(t.steps?.map((s) => `${s.title}. ${s.body}`) ?? []),
-      t.outro ?? '',
+      pickBoth(t.intro),
+      ...(t.steps?.map((s) => `${pickBoth(s.title)}. ${pickBoth(s.body)}`) ?? []),
+      t.outro ? pickBoth(t.outro) : '',
     ].join(' ');
     return [
       {
         slug: t.slug,
         categorySlug: cat.slug,
-        categoryTitle: cat.title,
-        title: t.title,
-        summary: t.summary,
+        categoryTitle: pickLocale(cat.title, locale),
+        title: pickLocale(t.title, locale),
+        // Title in BOTH locales is included for scoring so EN queries
+        // still rank the right topic when only the RO title is shown.
+        titleSearch: pickBoth(t.title),
+        summary: pickLocale(t.summary, locale),
+        summarySearch: pickBoth(t.summary),
         body,
       },
     ];
   });
+
+  const copy = locale === 'en'
+    ? {
+        eyebrow: 'Help center',
+        h1: 'How can we help?',
+        lead: 'Step-by-step guides for every role, quick troubleshooting, and direct support access. All articles updated on 2026-05-05.',
+        botTitle: 'Ask me on Telegram (Hepy)',
+        botBody: 'Instant answers for quick questions about orders, stock or reports. Open the chat with the bot directly.',
+        botOpen: 'Open →',
+        supportH: 'Contact support',
+        supportLead: 'For urgent issues or questions the guides do not cover.',
+        supportHours: 'Mon–Fri 09–18',
+        feedback: 'Missing a guide? Use the feedback button (bottom-right corner) to suggest a new article.',
+      }
+    : {
+        eyebrow: 'Centru de ajutor',
+        h1: 'Cum vă putem ajuta?',
+        lead: 'Ghiduri pas cu pas pentru fiecare rol, troubleshooting rapid și acces direct la suport. Toate articolele sunt actualizate la 2026-05-05.',
+        botTitle: 'Întreabă-mă pe Telegram (Hepy)',
+        botBody: 'Răspuns instant pentru întrebări rapide despre comenzi, stocuri sau rapoarte. Deschideți chat-ul direct cu botul.',
+        botOpen: 'Deschide →',
+        supportH: 'Contact suport',
+        supportLead: 'Pentru probleme urgente sau întrebări care nu au răspuns în ghiduri.',
+        supportHours: 'L–V 09–18',
+        feedback: 'Lipsește un ghid? Folosiți butonul de feedback (colț dreapta jos) pentru a ne sugera un articol nou.',
+      };
+
+  const searchPlaceholder = locale === 'en'
+    ? 'Search the guides (e.g. notifications, GloriaFood, GPS)…'
+    : 'Caută în ghiduri (ex: notificări, GloriaFood, GPS)…';
+  const searchEmpty = locale === 'en'
+    ? 'No results. Try other keywords or browse the categories below.'
+    : 'Niciun rezultat. Încercați alte cuvinte sau parcurgeți categoriile de mai jos.';
+  const searchAriaLabel = locale === 'en' ? 'Search the guides' : 'Caută în ghiduri';
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           <HelpCircle className="h-3.5 w-3.5" aria-hidden />
-          <span>Centru de ajutor</span>
+          <span>{copy.eyebrow}</span>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-          Cum vă putem ajuta?
+          {copy.h1}
         </h1>
         <p className="max-w-2xl text-sm text-zinc-600">
-          Ghiduri pas cu pas pentru fiecare rol, troubleshooting rapid și acces direct
-          la suport. Toate articolele sunt actualizate la 2026-05-05.
+          {copy.lead}
         </p>
       </header>
 
@@ -76,22 +127,26 @@ export default function HelpIndexPage() {
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <p className="text-sm font-semibold text-zinc-900">
-            Întreabă-mă pe Telegram (Hepy)
+            {copy.botTitle}
           </p>
           <p className="text-xs text-zinc-600">
-            Răspuns instant pentru întrebări rapide despre comenzi, stocuri sau rapoarte.
-            Deschideți chat-ul direct cu botul.
+            {copy.botBody}
           </p>
         </div>
         <span
           aria-hidden
           className="ml-auto self-center text-xs font-medium text-purple-700 group-hover:text-purple-900"
         >
-          Deschide →
+          {copy.botOpen}
         </span>
       </a>
 
-      <HelpSearch topics={searchIndex} />
+      <HelpSearch
+        topics={searchIndex}
+        placeholder={searchPlaceholder}
+        emptyLabel={searchEmpty}
+        ariaLabel={searchAriaLabel}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         <main className="flex flex-col gap-4">
@@ -103,9 +158,9 @@ export default function HelpIndexPage() {
             >
               <div className="mb-3">
                 <h2 className="text-base font-semibold tracking-tight text-zinc-900">
-                  {cat.title}
+                  {pickLocale(cat.title, locale)}
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-500">{cat.description}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{pickLocale(cat.description, locale)}</p>
               </div>
               <ul className="divide-y divide-zinc-100">
                 {cat.topics.map((t) => (
@@ -116,10 +171,10 @@ export default function HelpIndexPage() {
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-zinc-900 group-hover:text-purple-700">
-                          {t.title}
+                          {pickLocale(t.title, locale)}
                         </p>
                         <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
-                          {t.summary}
+                          {pickLocale(t.summary, locale)}
                         </p>
                       </div>
                       <ChevronRight
@@ -138,10 +193,10 @@ export default function HelpIndexPage() {
           <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
               <LifeBuoy className="h-4 w-4 text-purple-600" aria-hidden />
-              <h2 className="text-sm font-semibold text-zinc-900">Contact suport</h2>
+              <h2 className="text-sm font-semibold text-zinc-900">{copy.supportH}</h2>
             </div>
             <p className="mt-1.5 text-xs text-zinc-500">
-              Pentru probleme urgente sau întrebări care nu au răspuns în ghiduri.
+              {copy.supportLead}
             </p>
             <div className="mt-3 flex flex-col gap-2">
               <a
@@ -150,7 +205,7 @@ export default function HelpIndexPage() {
               >
                 <Phone className="h-4 w-4 flex-none text-emerald-500" aria-hidden />
                 <span className="flex-1">+40 21 204 0000</span>
-                <span className="text-[10px] text-zinc-400">L–V 09–18</span>
+                <span className="text-[10px] text-zinc-400">{copy.supportHours}</span>
               </a>
               <a
                 href="mailto:suport@hirforyou.ro"
@@ -164,8 +219,7 @@ export default function HelpIndexPage() {
 
           <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              Lipsește un ghid? Folosiți butonul de feedback (colț dreapta jos)
-              pentru a ne sugera un articol nou.
+              {copy.feedback}
             </p>
           </div>
         </aside>

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 
 // Lightweight client-side search. We avoid a fuzzy library (no extra
 // dependency) and use simple lowercase substring matching with a 3x weight
-// for title hits. Volume is small (~25 topics) — this stays fast even on
+// for title hits. Volume is small (~26 topics) — this stays fast even on
 // a low-end Android.
 //
 // Polish 2026-05-06: long-tail multi-word queries like "cum schimb logo"
@@ -14,13 +14,25 @@ import { useMemo, useState } from 'react';
 // hits scored 1× while title/summary hits scored 3×/2×. When the query has
 // more than two tokens, body hits go to 2× — the searcher is clearly
 // drilling into a specific procedure and the body is where procedures live.
+//
+// EN parity 2026-05-16: the parent builds `titleSearch` / `summarySearch` /
+// `body` from BOTH locales concatenated, so an EN query like "delivery zone"
+// surfaces the right topic even when the displayed title is RO (and vice
+// versa). Displayed `title` / `summary` are locale-resolved.
 
 export type SearchTopic = {
   slug: string;
   categorySlug: string;
   categoryTitle: string;
+  /** Displayed title, locale-resolved. */
   title: string;
+  /** Scored title — contains BOTH locales when localized. */
+  titleSearch: string;
+  /** Displayed summary, locale-resolved. */
   summary: string;
+  /** Scored summary — contains BOTH locales when localized. */
+  summarySearch: string;
+  /** Scored body — contains BOTH locales when localized. */
   body: string;
 };
 
@@ -36,10 +48,13 @@ function score(query: string, t: SearchTopic): { score: number; snippet: string 
   const bodyWeight = tokens.length > 2 ? 2 : 1;
   let s = 0;
   let snippetSource = t.summary;
+  const titleLc = t.titleSearch.toLowerCase();
+  const summaryLc = t.summarySearch.toLowerCase();
+  const bodyLc = t.body.toLowerCase();
   for (const tok of tokens) {
-    if (t.title.toLowerCase().includes(tok)) s += 3;
-    if (t.summary.toLowerCase().includes(tok)) s += 2;
-    const idx = t.body.toLowerCase().indexOf(tok);
+    if (titleLc.includes(tok)) s += 3;
+    if (summaryLc.includes(tok)) s += 2;
+    const idx = bodyLc.indexOf(tok);
     if (idx >= 0) {
       s += bodyWeight;
       if (snippetSource === t.summary) {
@@ -52,7 +67,17 @@ function score(query: string, t: SearchTopic): { score: number; snippet: string 
   return { score: s, snippet: snippetSource };
 }
 
-export function HelpSearch({ topics }: { topics: SearchTopic[] }) {
+export function HelpSearch({
+  topics,
+  placeholder,
+  emptyLabel,
+  ariaLabel,
+}: {
+  topics: SearchTopic[];
+  placeholder?: string;
+  emptyLabel?: string;
+  ariaLabel?: string;
+}) {
   const [q, setQ] = useState('');
 
   const results = useMemo<Hit[]>(() => {
@@ -73,9 +98,9 @@ export function HelpSearch({ topics }: { topics: SearchTopic[] }) {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Caută în ghiduri (ex: notificări, GloriaFood, GPS)…"
+          placeholder={placeholder ?? 'Caută în ghiduri (ex: notificări, GloriaFood, GPS)…'}
           className="w-full border-0 bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none"
-          aria-label="Caută în ghiduri"
+          aria-label={ariaLabel ?? 'Caută în ghiduri'}
         />
       </label>
 
@@ -83,7 +108,7 @@ export function HelpSearch({ topics }: { topics: SearchTopic[] }) {
         <div className="mt-3 space-y-1.5">
           {results.length === 0 ? (
             <p className="px-1 py-2 text-xs text-zinc-500">
-              Niciun rezultat. Încercați alte cuvinte sau parcurgeți categoriile de mai jos.
+              {emptyLabel ?? 'Niciun rezultat. Încercați alte cuvinte sau parcurgeți categoriile de mai jos.'}
             </p>
           ) : (
             results.map((hit) => (
