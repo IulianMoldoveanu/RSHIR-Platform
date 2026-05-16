@@ -10,6 +10,7 @@ import { OrdersRealtime } from './orders-realtime';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { InsuranceStatusPill } from '@/components/insurance-status-pill';
 import { TodaySummaryPill } from '@/components/today-summary-pill';
+import { StaggerList } from '@/components/stagger-list';
 
 export const dynamic = 'force-dynamic';
 
@@ -184,7 +185,7 @@ export default async function OrdersPage() {
               : {})}
           />
         ) : (
-          <ul className="flex flex-col gap-3">
+          <StaggerList className="flex flex-col gap-3" ariaLabel="Comenzile mele">
             {assigned.map((o, idx) => (
               <OrderListItem
                 key={o.id}
@@ -193,7 +194,7 @@ export default async function OrdersPage() {
                 tenantName={isModeB ? tenantNameById.get(o.source_tenant_id ?? '') ?? null : null}
               />
             ))}
-          </ul>
+          </StaggerList>
         )}
       </Section>
 
@@ -208,7 +209,7 @@ export default async function OrdersPage() {
               ctaLabel="Deschide harta"
             />
           ) : (
-            <ul className="flex flex-col gap-3">
+            <StaggerList className="flex flex-col gap-3" ariaLabel="Comenzi disponibile">
               {open.map((o) => (
                 <OrderListItem
                   key={o.id}
@@ -216,7 +217,7 @@ export default async function OrdersPage() {
                   tenantName={isModeB ? tenantNameById.get(o.source_tenant_id ?? '') ?? null : null}
                 />
               ))}
-            </ul>
+            </StaggerList>
           )}
         </Section>
       ) : null}
@@ -314,11 +315,10 @@ function OrderListItem({
   const etaMin = distanceKm != null ? Math.ceil((distanceKm / 25) * 60) : null;
 
   return (
-    <li>
-      <Link
-        href={`/dashboard/orders/${order.id}`}
-        className="block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/50 hover:bg-hir-border/60 active:scale-[0.99]"
-      >
+    <Link
+      href={`/dashboard/orders/${order.id}`}
+      className="block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/50 hover:bg-hir-border/60 active:scale-[0.99]"
+    >
         {/* Top row: customer + vertical badge + status chip */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -366,7 +366,6 @@ function OrderListItem({
             <span className="text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
           )}
         </div>
-      </Link>
-    </li>
+    </Link>
   );
 }
