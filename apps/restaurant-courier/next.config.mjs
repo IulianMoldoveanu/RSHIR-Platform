@@ -1,4 +1,12 @@
 import { withSentryConfig } from '@sentry/nextjs';
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
+const bundleAnalyzer = withBundleAnalyzer({
+  // Opt-in: set ANALYZE=true to emit the report. Default off so CI and
+  // local dev runs stay fast.
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -54,4 +62,4 @@ const sentryWebpackOptions = {
   tunnelRoute: '/monitoring',
 };
 
-export default withSentryConfig(nextConfig, sentryWebpackOptions);
+export default withSentryConfig(bundleAnalyzer(nextConfig), sentryWebpackOptions);

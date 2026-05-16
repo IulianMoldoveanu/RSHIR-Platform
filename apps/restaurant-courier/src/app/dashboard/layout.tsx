@@ -17,9 +17,7 @@ import { BatteryCriticalToast } from '@/components/battery-critical-toast';
 import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
-import { WelcomeCarousel } from '@/components/welcome-carousel';
-import { FirstShiftTutorial } from '@/components/first-shift-tutorial';
-import { WhatsNewBanner } from '@/components/whats-new-banner';
+import { OnboardingOverlays } from '@/components/onboarding-overlays';
 import { HelpDrawer } from '@/components/help-drawer';
 import { ConnectionBadge } from '@/components/connection-badge';
 import { BatteryBadge } from '@/components/battery-badge';
@@ -219,10 +217,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <TransitionSync />
 
         {/* First-run overlays — client-only, each checks localStorage before
-            rendering so returning couriers pay zero overhead. */}
-        <WelcomeCarousel />
-        <FirstShiftTutorial />
-        <WhatsNewBanner />
+            rendering so returning couriers pay zero overhead. The chunks
+            are lazy-loaded post-paint via OnboardingOverlays so they
+            never sit on the critical path. */}
+        <OnboardingOverlays />
 
         <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">
           <PageTransition>{children}</PageTransition>
