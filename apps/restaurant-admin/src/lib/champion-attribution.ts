@@ -1,13 +1,20 @@
 // v3 Loop 3 — restaurant-champion attribution helper.
 //
 // Called by the tenant signup flow when the new tenant has a `?champion=`
-// query param. Resolves the code → referrer tenant, creates the
-// champion_referrals row (status='pending'), and extends the new tenant's
-// trial to 60 days total.
+// query param. Resolves the code → referrer tenant and creates the
+// champion_referrals row (status='pending').
 //
-// Wire from the signup server action / API route that creates a tenant.
-// Returns null on failure (unknown code, dedup violation) — the new tenant
-// signup itself MUST succeed even if attribution fails (don't break signups).
+// Trial extension (champion → 60-day trial vs 30-day default) is tracked
+// via `champion_referrals.trial_extended_days` only — the tenants schema
+// has no canonical trial_ends_at column yet, and the rewards monitor cron
+// (separate followup) reads the days field when verifying.
+//
+// The v3 reseller tables (champion_referrals + tenants.champion_code) are
+// not yet in the generated supabase-types — cast the admin client to any.
+// All queries are read-only or simple inserts; pgRest validates at runtime.
+//
+// Returns ok=false with a `reason` on failure — callers should swallow
+// errors so the underlying tenant signup never blocks on attribution.
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { V3_CONSTANTS } from '@/lib/partner-v3-constants';
@@ -26,12 +33,13 @@ export async function attachChampion(
     return { ok: false, reason: 'invalid_code_format' };
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
   // 1. Resolve code → referrer tenant
   const { data: referrer, error: refErr } = await admin
     .from('tenants')
-    .select('id, trial_ends_at')
+    .select('id')
     .eq('champion_code', championCode.toUpperCase())
     .maybeSingle();
 
@@ -59,32 +67,6 @@ export async function attachChampion(
     }
     console.error('[champion-attribution] insert failed', insErr.message);
     return { ok: false, reason: 'insert_failed' };
-  }
-
-  // 3. Extend new tenant's trial by CHAMPION_TRIAL_EXT_DAYS (30 → 60 days total)
-  // Read existing trial_ends_at, add the extension.
-  const { data: newT } = await admin
-    .from('tenants')
-    .select('trial_ends_at')
-    .eq('id', newTenantId)
-    .maybeSingle();
-
-  if (newT?.trial_ends_at) {
-    const current = new Date(newT.trial_ends_at);
-    const extended = new Date(
-      current.getTime() + V3_CONSTANTS.CHAMPION_TRIAL_EXT_DAYS * 24 * 60 * 60 * 1000,
-    );
-    const { error: extErr } = await admin
-      .from('tenants')
-      .update({ trial_ends_at: extended.toISOString() })
-      .eq('id', newTenantId);
-
-    if (extErr) {
-      console.warn(
-        '[champion-attribution] trial extension failed (non-fatal)',
-        extErr.message,
-      );
-    }
   }
 
   return { ok: true, referrerTenantId: referrer.id };
