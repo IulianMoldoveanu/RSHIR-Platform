@@ -47,6 +47,34 @@ async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
   return { userId: user.id, tenantId: tenant.id };
 }
 
+/**
+ * Map a Supabase / PostgREST error to a Romanian, user-safe message.
+ *
+ * Raw `error.message` from PostgREST leaks DB internals (constraint names,
+ * RLS policy text, column types) into client-side toasts. This wrapper
+ * logs the original for server-side debugging and returns a generic
+ * message keyed off the Postgres SQLSTATE code where available.
+ */
+function friendlyDbError(
+  error: { code?: string | null; message: string; details?: string | null },
+  context: string,
+): Error {
+  // Server-side log preserves the original for ops/debug.
+  console.error(`[menu/actions] ${context}`, {
+    code: error.code,
+    message: error.message,
+    details: error.details,
+  });
+  const code = error.code ?? '';
+  if (code === '23505') return new Error('Există deja o intrare cu aceste date.');
+  if (code === '23503') return new Error('Operațiune blocată: există referințe legate.');
+  if (code === '23514') return new Error('Datele introduse nu trec validarea.');
+  if (code === '42501' || code.startsWith('PGRST')) {
+    return new Error('Nu aveți permisiunea pentru această operațiune.');
+  }
+  return new Error(`Eroare la ${context}. Reîncercați.`);
+}
+
 function publicUrlFor(path: string): string {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   return `${base}/storage/v1/object/public/${MENU_BUCKET}/${path}`;
@@ -72,7 +100,10 @@ async function uploadImage(
       contentType: file.type,
       upsert: true,
     });
-  if (error) throw new Error(`Upload imagine esuat: ${error.message}`);
+  if (error) {
+    console.error('[menu/actions] uploadImage', { message: error.message });
+    throw new Error('Încărcarea imaginii a eșuat. Reîncercați.');
+  }
   return publicUrlFor(path);
 }
 
@@ -99,7 +130,7 @@ export async function createCategoryAction(formData: FormData) {
     name: parsed.name,
     sort_order: nextOrder,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'adăugarea categoriei');
   revalidatePath('/dashboard/menu');
 }
 
@@ -115,7 +146,7 @@ export async function updateCategoryAction(formData: FormData) {
     .update({ name: parsed.name })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea categoriei');
   revalidatePath('/dashboard/menu');
 }
 
@@ -131,7 +162,7 @@ export async function toggleCategoryActiveAction(formData: FormData) {
     .update({ is_active: parsed.is_active })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'schimbarea stării categoriei');
   revalidatePath('/dashboard/menu');
 }
 
@@ -145,7 +176,7 @@ export async function deleteCategoryAction(formData: FormData) {
     .update({ is_active: false })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'dezactivarea categoriei');
   revalidatePath('/dashboard/menu');
 }
 
@@ -159,7 +190,7 @@ export async function reorderCategoriesAction(ids: string[]): Promise<void> {
       .update({ sort_order: i })
       .eq('id', parsed.ids[i])
       .eq('tenant_id', tenantId);
-    if (error) throw new Error(error.message);
+    if (error) throw friendlyDbError(error, 'reordonarea categoriilor');
   }
   revalidatePath('/dashboard/menu');
 }
@@ -191,7 +222,7 @@ export async function createItemAction(formData: FormData) {
     .eq('id', parsed.category_id)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (catErr) throw new Error(catErr.message);
+  if (catErr) throw friendlyDbError(catErr, 'verificarea categoriei');
   if (!cat) throw new Error('Categorie inexistenta.');
 
   const itemId = randomUUID();
@@ -229,7 +260,7 @@ export async function createItemAction(formData: FormData) {
     serving_size_grams: parsed.serving_size_grams,
     serving_size_label: parsed.serving_size_label,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'adăugarea produsului');
   revalidatePath('/dashboard/menu');
 }
 
@@ -256,7 +287,7 @@ export async function updateItemAction(formData: FormData) {
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (existErr) throw new Error(existErr.message);
+  if (existErr) throw friendlyDbError(existErr, 'încărcarea produsului');
   if (!existing) throw new Error('Produsul nu exista.');
 
   let imageUrl: string | undefined = undefined;
@@ -283,7 +314,7 @@ export async function updateItemAction(formData: FormData) {
     .update(update)
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea produsului');
 
   // If availability flipped here, broadcast.
   if (existing.is_available !== parsed.is_available) {
@@ -311,7 +342,7 @@ export async function reorderItemsAction(input: {
     .eq('id', parsed.category_id)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (catErr) throw new Error(catErr.message);
+  if (catErr) throw friendlyDbError(catErr, 'verificarea categoriei');
   if (!cat) throw new Error('Categorie inexistenta.');
 
   // Update sort_order for each item in the supplied order. Tenant + category
@@ -324,7 +355,7 @@ export async function reorderItemsAction(input: {
       .eq('id', parsed.ids[i])
       .eq('tenant_id', tenantId)
       .eq('category_id', parsed.category_id);
-    if (error) throw new Error(error.message);
+    if (error) throw friendlyDbError(error, 'reordonarea produselor');
   }
   revalidatePath('/dashboard/menu');
 }
@@ -338,7 +369,7 @@ export async function deleteItemAction(formData: FormData) {
     .delete()
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'ștergerea produsului');
   revalidatePath('/dashboard/menu');
 }
 
@@ -355,7 +386,7 @@ export async function toggleItemAvailabilityAction(input: {
     .update({ is_available: parsed.is_available })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'schimbarea disponibilității');
 
   await admin.from('menu_events').insert({
     tenant_id: tenantId,
@@ -390,7 +421,7 @@ export async function bulkToggleAvailabilityAction(input: {
     .update({ is_available: parsed.is_available })
     .in('id', parsed.ids)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'schimbarea disponibilității în bloc');
 
   const events = parsed.ids.map((id) => ({
     tenant_id: tenantId,
@@ -501,7 +532,7 @@ export async function setItemSoldOutTodayAction(input: { id: string }) {
     .select('settings')
     .eq('id', tenantId)
     .maybeSingle();
-  if (tErr) throw new Error(tErr.message);
+  if (tErr) throw friendlyDbError(tErr, 'încărcarea setărilor');
 
   const soldOutUntil = endOfBusinessDay(tenantRow?.settings ?? null);
   const { error } = await admin
@@ -509,7 +540,7 @@ export async function setItemSoldOutTodayAction(input: { id: string }) {
     .update({ sold_out_until: soldOutUntil.toISOString() })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'marcarea ca epuizat');
 
   await admin.from('menu_events').insert({
     tenant_id: tenantId,
@@ -538,7 +569,7 @@ export async function clearItemSoldOutAction(input: { id: string }) {
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (existErr) throw new Error(existErr.message);
+  if (existErr) throw friendlyDbError(existErr, 'încărcarea produsului');
   if (!existing) throw new Error('Produsul nu exista.');
 
   const { error } = await admin
@@ -546,7 +577,7 @@ export async function clearItemSoldOutAction(input: { id: string }) {
     .update({ sold_out_until: null })
     .eq('id', parsed.id)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'eliminarea marcajului epuizat');
 
   // Reflect the item's underlying availability on the live channel — if
   // is_available is still false, we shouldn't tell clients it's available.
@@ -577,7 +608,7 @@ async function assertItemBelongsToTenant(itemId: string, tenantId: string) {
     .eq('id', itemId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'verificarea produsului');
   if (!data) throw new Error('Produsul nu exista in acest restaurant.');
 }
 
@@ -601,7 +632,7 @@ export async function createModifierAction(formData: FormData) {
     // (migration 20260505_001 may have shipped post-typegen).
     ...(groupId ? { group_id: groupId } : {}),
   } as never);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'adăugarea opțiunii');
   revalidatePath('/dashboard/menu');
 }
 
@@ -636,7 +667,7 @@ export async function createModifierGroupAction(formData: FormData) {
     select_max: parsed.select_max,
     sort_order: parsed.sort_order ?? 0,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'adăugarea grupului de opțiuni');
   revalidatePath('/dashboard/menu');
 }
 
@@ -656,7 +687,7 @@ export async function updateModifierGroupAction(formData: FormData) {
     .select('id, restaurant_menu_items!inner(tenant_id)')
     .eq('id', parsed.id)
     .maybeSingle();
-  if (grpErr) throw new Error(grpErr.message);
+  if (grpErr) throw friendlyDbError(grpErr, 'verificarea grupului');
   if (!grp || grp.restaurant_menu_items?.tenant_id !== tenantId) {
     throw new Error('Grupul nu apartine acestui restaurant.');
   }
@@ -670,7 +701,7 @@ export async function updateModifierGroupAction(formData: FormData) {
       sort_order: parsed.sort_order ?? 0,
     })
     .eq('id', parsed.id);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea grupului de opțiuni');
   revalidatePath('/dashboard/menu');
 }
 
@@ -683,7 +714,7 @@ export async function deleteModifierGroupAction(formData: FormData) {
     .select('id, restaurant_menu_items!inner(tenant_id)')
     .eq('id', parsed.id)
     .maybeSingle();
-  if (grpErr) throw new Error(grpErr.message);
+  if (grpErr) throw friendlyDbError(grpErr, 'verificarea grupului');
   if (!grp || grp.restaurant_menu_items?.tenant_id !== tenantId) {
     throw new Error('Grupul nu apartine acestui restaurant.');
   }
@@ -692,7 +723,7 @@ export async function deleteModifierGroupAction(formData: FormData) {
     .from('restaurant_menu_modifier_groups')
     .delete()
     .eq('id', parsed.id);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'ștergerea grupului de opțiuni');
   revalidatePath('/dashboard/menu');
 }
 
@@ -710,7 +741,7 @@ export async function updateModifierAction(formData: FormData) {
     .select('item_id, restaurant_menu_items!inner(tenant_id)')
     .eq('id', parsed.id)
     .maybeSingle();
-  if (modErr) throw new Error(modErr.message);
+  if (modErr) throw friendlyDbError(modErr, 'verificarea opțiunii');
   const ownerTenant = (mod as unknown as { restaurant_menu_items?: { tenant_id?: string } } | null)
     ?.restaurant_menu_items?.tenant_id;
   if (!mod || ownerTenant !== tenantId) {
@@ -720,7 +751,7 @@ export async function updateModifierAction(formData: FormData) {
     .from('restaurant_menu_modifiers')
     .update({ name: parsed.name, price_delta_ron: parsed.price_delta_ron })
     .eq('id', parsed.id);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea opțiunii');
   revalidatePath('/dashboard/menu');
 }
 
@@ -733,14 +764,14 @@ export async function deleteModifierAction(formData: FormData) {
     .select('id, restaurant_menu_items!inner(tenant_id)')
     .eq('id', parsed.id)
     .maybeSingle();
-  if (modErr) throw new Error(modErr.message);
+  if (modErr) throw friendlyDbError(modErr, 'verificarea opțiunii');
   const ownerTenant = (mod as unknown as { restaurant_menu_items?: { tenant_id?: string } } | null)
     ?.restaurant_menu_items?.tenant_id;
   if (!mod || ownerTenant !== tenantId) {
     throw new Error('Modificatorul nu apartine acestui restaurant.');
   }
   const { error } = await admin.from('restaurant_menu_modifiers').delete().eq('id', parsed.id);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'ștergerea opțiunii');
   revalidatePath('/dashboard/menu');
 }
 
@@ -759,7 +790,7 @@ export async function bulkImportItemsAction(input: {
     .from('restaurant_menu_categories')
     .select('id, name, sort_order')
     .eq('tenant_id', tenantId);
-  if (catErr) throw new Error(catErr.message);
+  if (catErr) throw friendlyDbError(catErr, 'încărcarea categoriilor');
 
   const byName = new Map<string, string>();
   let maxOrder = -1;
@@ -778,7 +809,7 @@ export async function bulkImportItemsAction(input: {
         .insert({ tenant_id: tenantId, name: row.category, sort_order: maxOrder })
         .select('id')
         .single();
-      if (error) throw new Error(error.message);
+      if (error) throw friendlyDbError(error, 'crearea categoriei din import');
       byName.set(key, created.id);
       categoriesCreated += 1;
     }
@@ -797,7 +828,7 @@ export async function bulkImportItemsAction(input: {
   const { error: insErr, count } = await admin
     .from('restaurant_menu_items')
     .insert(inserts, { count: 'exact' });
-  if (insErr) throw new Error(insErr.message);
+  if (insErr) throw friendlyDbError(insErr, 'importul produselor');
 
   revalidatePath('/dashboard/menu');
   return { created: count ?? inserts.length, categoriesCreated };
