@@ -147,6 +147,40 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
           : 'Indisponibil',
     });
 
+    // LocalStorage usage — sum the byte length of every key we own
+    // (hir-courier-*). Helps the courier (or support) see if a runaway
+    // queue or stuck cache is hogging device storage. Safari Private mode
+    // pretends the storage works but caps quota aggressively.
+    if (typeof localStorage !== 'undefined') {
+      let bytes = 0;
+      let count = 0;
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || (!key.startsWith('hir-courier') && !key.startsWith('hir.courier'))) {
+            continue;
+          }
+          count += 1;
+          const raw = localStorage.getItem(key) ?? '';
+          // UTF-16 in-browser strings; bytes here are an upper bound for
+          // most ASCII / Romanian content — close enough for diagnostics.
+          bytes += key.length + raw.length;
+        }
+      } catch {
+        // Some browsers throw on iterating in private mode.
+      }
+      const kb = (bytes / 1024).toFixed(1);
+      list.push({
+        id: 'storage',
+        label: 'Date locale',
+        pass: bytes < 1024 * 1024, // > 1 MB warrants attention
+        detail:
+          count === 0
+            ? 'Nicio preferință salvată'
+            : `${count} chei · aproximativ ${kb} KB salvați pe acest dispozitiv`,
+      });
+    }
+
     setChecks(list);
   }, [refreshKey]);
 
