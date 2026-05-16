@@ -52,6 +52,16 @@ export default defineConfig({
       },
     },
     {
+      name: 'multi-city-sweep',
+      testMatch: '**/multi-city.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: WEB_BASE_URL,
+        locale: 'ro-RO',
+        timezoneId: 'Europe/Bucharest',
+      },
+    },
+    {
       name: 'sitemap',
       testMatch: '**/sitemap.spec.ts',
       use: {
