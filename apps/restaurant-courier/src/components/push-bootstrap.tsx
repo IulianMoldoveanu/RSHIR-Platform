@@ -5,6 +5,7 @@ import { Bell, X } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { registerPushServiceWorker } from '@/lib/push/register-sw';
 import { subscribeToPush } from '@/lib/push/subscribe';
+import { isCategoryEnabled } from '@/lib/push/preferences';
 import { Button } from '@hir/ui';
 
 // v1 key — permanent dismiss (no TTL). If we ever need to re-prompt
@@ -54,6 +55,11 @@ export function PushBootstrap() {
     }
 
     if (permission === 'denied') {
+      return;
+    }
+
+    // If the courier has disabled new-order notifications, skip the prompt.
+    if (!isCategoryEnabled('new_orders')) {
       return;
     }
 
@@ -249,7 +255,7 @@ function PushReAskBanner() {
         <div className="flex min-w-0 items-center gap-2">
           <Bell className="h-4 w-4 shrink-0 text-violet-400" aria-hidden />
           <p className="text-xs text-zinc-200">
-            Primește alertă pentru comenzi noi chiar și cu ecranul stins
+            Primești alertă pentru comenzi noi chiar și cu ecranul stins
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
