@@ -6,6 +6,7 @@ import { SwipeButton } from '@/components/swipe-button';
 import { Button } from '@hir/ui';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
+import { CancelOrderModal } from '@/components/cancel-order-modal';
 import { useRiderMode } from '@/components/rider-mode-provider';
 import { runTransitionOrQueue } from '@/lib/transition-runner';
 import { AppreciationToast } from '@/components/appreciation-toast';
@@ -40,6 +41,10 @@ type Props = {
     cashCollected?: boolean,
     pharmaProofs?: { idUrl?: string; prescriptionUrl?: string },
   ) => Promise<void>;
+  cancelAction: (
+    reason: string,
+    notes?: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function OrderActions({
@@ -54,6 +59,7 @@ export function OrderActions({
   acceptAction,
   pickedUpAction,
   deliveredAction,
+  cancelAction,
 }: Props) {
   const [pharmaOk, setPharmaOk] = useState(false);
   const [pharmaProofUrl, setPharmaProofUrl] = useState<string | undefined>(undefined);
@@ -211,6 +217,13 @@ export function OrderActions({
             />
           ) : null}
         </>
+      ) : null}
+
+      {/* Courier-initiated cancellation: only ACCEPTED or PICKED_UP.
+          IN_TRANSIT is excluded — at that distance the courier should
+          contact the dispatcher via QuickCallButtons instead. */}
+      {isMine && (status === 'ACCEPTED' || status === 'PICKED_UP') ? (
+        <CancelOrderModal cancelAction={cancelAction} />
       ) : null}
 
       {milestoneCount !== null ? (

@@ -6,6 +6,7 @@ import {
   acceptOrderAction,
   markPickedUpAction,
   markDeliveredAction,
+  cancelOrderByCourierAction,
 } from '../../actions';
 import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
@@ -153,6 +154,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   const acceptBound = acceptOrderAction.bind(null, order.id);
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
   const deliveredBound = markDeliveredAction.bind(null, order.id);
+  const cancelBound = cancelOrderByCourierAction.bind(null, order.id);
 
   const items = Array.isArray(order.items)
     ? (order.items as Array<{ name: string; quantity: number }>)
@@ -312,6 +314,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         acceptAction={acceptBound}
         pickedUpAction={pickedUpBound}
         deliveredAction={deliveredBound}
+        cancelAction={cancelBound}
       />
 
       {showSos ? <SosButton /> : null}

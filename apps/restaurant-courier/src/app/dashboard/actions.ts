@@ -560,6 +560,91 @@ export async function updateAvatarUrlAction(url: string | null): Promise<void> {
   revalidatePath('/dashboard');
 }
 
+// Allowed cancellation reasons a courier may self-report. Stored verbatim as
+// the human-readable prefix in `cancellation_reason`; the full field also
+// receives a structured suffix for machine parsing. Keeping them explicit here
+// prevents free-text injection from reaching the column.
+const COURIER_CANCEL_REASONS = [
+  'Adresa este greșită',
+  'Clientul nu răspunde',
+  'Restaurant închis',
+  'Altă cauză',
+] as const;
+type CourierCancelReason = (typeof COURIER_CANCEL_REASONS)[number];
+
+function isCourierCancelReason(v: unknown): v is CourierCancelReason {
+  return typeof v === 'string' && (COURIER_CANCEL_REASONS as readonly string[]).includes(v);
+}
+
+/**
+ * Courier-initiated single-order cancellation. Available only for orders in
+ * status ACCEPTED or PICKED_UP that are assigned to the calling courier.
+ * IN_TRANSIT is excluded deliberately — at that distance, the courier should
+ * contact the dispatcher instead of self-cancelling.
+ *
+ * Returns a typed result so the client can distinguish validation errors
+ * (surfaced inline) from unexpected server errors (surfaced as toast).
+ */
+export async function cancelOrderByCourierAction(
+  orderId: string,
+  reason: string,
+  notes?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await requireUserId();
+
+  if (!isCourierCancelReason(reason)) {
+    return { ok: false, error: 'Motiv invalid.' };
+  }
+  const trimmedNotes = (notes ?? '').trim().slice(0, 300);
+
+  // Build the cancellation_reason string in the same pattern as forceEndShift:
+  //   "courier_cancel: <reason>[ | <notes>]"
+  // Machine-parseable prefix, human-readable suffix, bounded to 500 chars.
+  const reasonStr = trimmedNotes
+    ? `courier_cancel: ${reason} | ${trimmedNotes}`.slice(0, 500)
+    : `courier_cancel: ${reason}`;
+
+  return withRunLog(
+    'courier.cancelOrder',
+    { courier_user_id: userId, order_id: orderId, reason },
+    async () => {
+      const admin = createAdminClient();
+
+      const { data } = await admin
+        .from('courier_orders')
+        .update({
+          status: 'CANCELLED',
+          updated_at: new Date().toISOString(),
+          cancellation_reason: reasonStr,
+        })
+        .eq('id', orderId)
+        .eq('assigned_courier_user_id', userId)
+        .in('status', ['ACCEPTED', 'PICKED_UP'])
+        .select('id')
+        .maybeSingle();
+
+      if (!data) {
+        // Order wasn't in the expected state or not assigned to this courier.
+        // Return a user-facing message; don't throw (no 500 to the client).
+        return { ok: false as const, error: 'Comanda nu poate fi anulată în starea curentă.' };
+      }
+
+      await logAudit({
+        actorUserId: userId,
+        action: 'order.cancelled_by_courier',
+        entityType: 'courier_order',
+        entityId: orderId,
+        metadata: { reason, notes: trimmedNotes || undefined },
+      });
+      await notifySubscriber(orderId, 'CANCELLED', userId);
+
+      revalidatePath(`/dashboard/orders/${orderId}`);
+      revalidatePath('/dashboard/orders');
+      return { ok: true as const };
+    },
+  );
+}
+
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   return withRunLog(
