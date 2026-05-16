@@ -54,11 +54,16 @@ export function GeofenceWatcher({ orderId, pickup, dropoff, status }: Props) {
   }, [status]);
 
   // Create a single evaluator per order that persists dwell-state across fixes.
-  // pickup/dropoff coords are stable for a given order; omitting from deps is safe.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Adding pickup/dropoff to deps would recreate the evaluator on every parent
+  // re-render (objects are not ref-stable from server-rendered props), dropping
+  // dwell-state mid-shift. Pickup/dropoff are stable for a given orderId, so
+  // keying the effect on orderId alone is correct.
   useEffect(() => {
     evaluatorRef.current = new GeofenceEvaluator(pickup, dropoff);
-  }, [orderId]);
+    // The eslint-disable HAS to be on the deps line (not above the hook) for
+    // react-hooks/exhaustive-deps to honor it — the rule reports against the
+    // dep array's location, not the hook call site.
+  }, [orderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-evaluate whenever a new GPS fix is recorded in the context.
   useEffect(() => {
