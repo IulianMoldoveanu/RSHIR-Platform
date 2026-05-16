@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { isOfferSoundEnabled, playOfferChirp } from '@/lib/offer-sound';
 
 const REFRESH_THROTTLE_MS = 1500;
 
@@ -86,9 +87,22 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
     // accept the same order, then the loser would silently get "already
     // taken" with no in-app cue. Now every claim transition fans out as a
     // refresh to peers on the fleet.
-    const triggerOnFleetActivity = (payload: { new: OrderRowPayload }) => {
+    const triggerOnFleetActivity = (payload: {
+      eventType?: string;
+      new: OrderRowPayload;
+    }) => {
       const row = payload.new ?? {};
       if (!row.status || !OPEN_LIST_RELEVANT_STATUSES.has(row.status)) return;
+      // Play the offer chirp on transitions that surface a new claimable
+      // order (INSERT or UPDATE landing on CREATED/OFFERED). ACCEPTED and
+      // CANCELLED still trigger a refresh but no sound — the courier
+      // either lost the race or saw a peer claim, no new opportunity.
+      const isNewOpenOrder =
+        (row.status === 'CREATED' || row.status === 'OFFERED') &&
+        (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE');
+      if (isNewOpenOrder && isOfferSoundEnabled()) {
+        playOfferChirp();
+      }
       triggerRefresh();
     };
 
