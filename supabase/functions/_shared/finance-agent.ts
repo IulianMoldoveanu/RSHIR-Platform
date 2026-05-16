@@ -44,7 +44,7 @@ import {
   type HandlerPlan,
   type HandlerResult,
   type IntentHandler,
-} from './master-orchestrator';
+} from './master-orchestrator.ts';
 
 // ---------------------------------------------------------------------------
 // Constants — kept in sync with apps/restaurant-admin/src/lib/ai/agents/finance-agent.ts

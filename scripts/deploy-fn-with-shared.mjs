@@ -86,16 +86,44 @@ if (!existsSync(indexPath)) {
 const indexSource = readFileSync(indexPath, 'utf8');
 
 // Find all `from "../_shared/<file>.ts"` imports in index.ts (single + double
-// quotes). Non-recursive — if a helper imports another helper, this
-// resolver does not follow.
-const sharedRe = /from\s+['"]\.\.\/_shared\/([A-Za-z0-9_\-./]+)['"]/g;
+// quotes), then recursively walk each helper's own `from './<file>.ts'`
+// sibling imports inside `_shared/`. The recursive walk was added after a
+// deploy of `ai-dispatch` failed with `Module not found "_shared/agent-cost.ts"`
+// because `master-orchestrator.ts` imports it via `./agent-cost.ts` and the
+// old non-recursive resolver only looked at `../_shared/` imports from
+// `index.ts`.
+const indexSharedRe = /from\s+['"]\.\.\/_shared\/([A-Za-z0-9_\-./]+)['"]/g;
+const siblingSharedRe = /from\s+['"]\.\/([A-Za-z0-9_\-./]+)['"]/g;
 const sharedFiles = new Set();
-for (const m of indexSource.matchAll(sharedRe)) {
+for (const m of indexSource.matchAll(indexSharedRe)) {
   sharedFiles.add(m[1]);
 }
 
+// Walk transitive deps inside _shared/: each helper may import another via
+// `from './<helper>.ts'`. Iterate until the set stops growing.
+let grew = true;
+while (grew) {
+  grew = false;
+  for (const rel of Array.from(sharedFiles)) {
+    const path = `supabase/functions/_shared/${rel}`;
+    if (!existsSync(path)) continue; // surfaced below with a fatal error
+    const src = readFileSync(path, 'utf8');
+    for (const m of src.matchAll(siblingSharedRe)) {
+      if (!sharedFiles.has(m[1])) {
+        sharedFiles.add(m[1]);
+        grew = true;
+      }
+    }
+  }
+}
+
+// Normalize each captured rel so the resolver tolerates both `from
+// './helper'` and `from './helper.ts'` — Deno conventionally requires the
+// extension but a couple of helpers (finance-agent.ts as of 2026-05-16)
+// shipped without it, which previously broke the deploy.
 const sharedSources = [];
-for (const rel of sharedFiles) {
+for (const rawRel of sharedFiles) {
+  const rel = rawRel.endsWith('.ts') ? rawRel : `${rawRel}.ts`;
   const path = `supabase/functions/_shared/${rel}`;
   if (!existsSync(path)) {
     console.error(`[deploy-fn-with-shared] referenced helper not found: ${path}`);
