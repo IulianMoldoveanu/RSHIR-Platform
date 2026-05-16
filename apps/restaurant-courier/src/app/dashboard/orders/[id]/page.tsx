@@ -17,6 +17,7 @@ import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
 import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { CopyAddressButton } from '@/components/copy-address-button';
+import { ShareOrderButton } from '@/components/share-order-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
 import { WakeLockOnActive } from '@/components/wake-lock-on-active';
@@ -272,6 +273,11 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           />
           <PhoneLink phone={order.customer_phone} />
           <CopyAddressButton address={order.dropoff_line1} />
+          <ShareOrderButton
+            orderShortId={order.id.slice(0, 8)}
+            customerFirstName={order.customer_first_name}
+            dropoffAddress={order.dropoff_line1}
+          />
         </div>
         {showSos ? (
           <div className="mt-3">
