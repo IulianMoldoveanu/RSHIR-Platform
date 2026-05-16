@@ -160,6 +160,12 @@ export default async function SettingsLandingPage() {
       icon: SettingsIcon,
     },
     {
+      href: '/dashboard/settings/storefront-attribution',
+      title: 'Badge HIR pe site',
+      description: 'Activează sau dezactivează "Powered by HIR" din footer-ul site-ului public.',
+      icon: ImageIcon,
+    },
+    {
       href: '/dashboard/settings/operations',
       title: 'Program și pickup',
       description: 'Orar, ridicare la sediu și opțiuni de livrare.',

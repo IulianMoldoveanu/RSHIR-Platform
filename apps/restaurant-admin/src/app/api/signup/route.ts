@@ -24,6 +24,9 @@ const signupSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(10).max(72),
   ref: z.string().trim().min(3).max(36).optional(),
+  // v3 Loop 3 — Restaurant-Champion attribution. 8-char code from
+  // tenants.champion_code. Never fails the signup.
+  champion: z.string().trim().toUpperCase().min(6).max(16).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { name, slug, email, password, ref } = parsed.data;
+  const { name, slug, email, password, ref, champion } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -214,6 +217,33 @@ export async function POST(req: NextRequest) {
       }
     } catch (e) {
       console.error('[signup] referral attribution threw', e);
+    }
+  }
+
+  // v3 Loop 3 — Restaurant-Champion attribution (restaurant→restaurant viral).
+  // Never blocks the signup. If the champion code is unknown or already attributed
+  // we log and continue. See apps/restaurant-admin/src/lib/champion-attribution.ts.
+  if (champion) {
+    try {
+      const { attachChampion } = await import('@/lib/champion-attribution');
+      const r = await attachChampion(tenantId, champion);
+      if (r.ok) {
+        void logAudit({
+          tenantId,
+          actorUserId: null,
+          action: 'champion.referral_attributed',
+          entityType: 'tenant',
+          entityId: tenantId,
+          metadata: {
+            referrer_tenant_id: r.referrerTenantId,
+            champion_code: champion,
+          },
+        });
+      } else {
+        console.warn('[signup] champion attribution skipped: %s', r.reason);
+      }
+    } catch (e) {
+      console.error('[signup] champion attribution threw', e);
     }
   }
 
