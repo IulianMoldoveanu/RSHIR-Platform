@@ -7,8 +7,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": ".."
+    "rootDir": ".",
+    "types": ["node", "vitest/globals"]
   },
-  "include": ["**/*.ts", "../_setup/demo-tenant-seed.ts", "../_setup/demo-tenant-teardown.ts"],
-  "exclude": ["node_modules", "dist", "../_setup/*.test.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

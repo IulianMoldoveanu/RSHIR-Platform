@@ -16,30 +16,20 @@
  * whatever credentials happen to be wired into the test env. We never POST to
  * the real PSP: this spec stops at the redirect URL returned to the client.
  *
- * ── Why each spec is `test.fixme()` ───────────────────────────────────────
- * Driving /api/checkout/intent end-to-end needs three things the e2e harness
- * does not provide yet:
+ * ── Wave 4-A status ───────────────────────────────────────────────────────
+ * Spec 1 (COD) is ACTIVE — backed by `e2e/_setup/demo-tenant-seed.ts` which
+ * lands the canonical `e2e-demo` tenant + menu_items under service-role.
  *
- *   1. A seeded demo tenant with at least one menu_item (for the cart body).
- *      The multi-city fixtures only seed `cities` rows; the storefront
- *      happy-path spec at e2e/happy-paths/storefront-happy-path.spec.ts has
- *      the same blocker documented inline.
- *
- *   2. A way to flip that tenant's settings.payments.{mode,provider} between
- *      tests without exposing the OWNER-gated server action over HTTP.
- *      Options: a service-role seed helper under e2e/_setup/ OR a Supabase
- *      RPC that lets the test harness mutate tenant settings under a
- *      controlled token. Neither exists today.
- *
- *   3. The PSP_TENANT_TOGGLE_ENABLED env flag set to 'true' for the target
- *      environment, otherwise resolvePaymentSurface() short-circuits to the
- *      legacy CARD-always behavior and the mode field is ignored.
- *
- * Once those land, drop `test.fixme()` and inline the assertions below.
- * Reference shape for each spec is documented in the body comments.
+ * Specs 2 & 3 (Netopia / Viva sandbox) remain `test.fixme()` pending a
+ * dry-run of the seed against the staging Supabase project — the COD spec
+ * is the proof-of-concept; once it passes against staging in CI we promote
+ * the card-sandbox specs (which additionally need PSP_TENANT_TOGGLE_ENABLED
+ * + NETOPIA_SANDBOX_* / VIVA_SANDBOX_* secrets wired in the target env).
  */
 
 import { test, expect } from '@playwright/test';
+import { seedDemoTenant } from '../_setup/demo-tenant-seed';
+import { cleanupDemoTenant } from '../_setup/demo-tenant-teardown';
 
 // Sandbox redirect prefixes — kept in lockstep with NETOPIA_BASE.sandbox /
 // VIVA_BASE.sandbox in packages/integration-core/src/payment/{netopia,viva}.ts.
@@ -54,43 +44,66 @@ const DEMO_CUSTOMER = {
   email: 'ana.test@example.ro',
 } as const;
 
-test.describe('Customer payment sandbox journey', { tag: '@payment-sandbox' }, () => {
-  test('Spec 1 — COD: cod_only tenant returns paymentMethod=COD with no PSP url', async ({ request: _request }) => {
-    test.fixme(
-      true,
-      'Requires a seeded demo tenant with menu_items + tenant.settings.payments.mode = ' +
-        '"cod_only" + PSP_TENANT_TOGGLE_ENABLED=true. Reference flow once seed helper ' +
-        'lands:\n' +
-        '  1. POST /api/checkout/quote with the demo cart → capture quote.\n' +
-        '  2. POST /api/checkout/intent with paymentMethod=COD + the same cart.\n' +
-        '  3. Expect 200 + JSON shape { orderId, publicTrackToken, paymentMethod: "COD", quote }.\n' +
-        '  4. Assert `url` is absent (COD skips the PSP entirely — see\n' +
-        '     apps/restaurant-web/src/app/api/checkout/intent/route.ts L403).',
-    );
+// Host header the storefront uses to resolve the demo tenant.
+// resolveTenantFromHost() in apps/restaurant-web/src/lib/tenant.ts treats
+// `<slug>.lvh.me` as a subdomain match (dev fallback that always resolves
+// to 127.0.0.1) and looks the slug up in v_tenants_storefront.
+const DEMO_TENANT_HOST = 'e2e-demo.lvh.me';
 
-    // Reference assertions for the runnable form:
-    //
-    //   const res = await request.post('/api/checkout/intent', {
-    //     data: {
-    //       items: [{ itemId: DEMO_ITEM_ID, quantity: 1, modifierIds: [] }],
-    //       fulfillment: 'PICKUP',
-    //       customer: DEMO_CUSTOMER,
-    //       paymentMethod: 'COD',
-    //     },
-    //   });
-    //   expect(res.status()).toBe(200);
-    //   const body = await res.json();
-    //   expect(body.paymentMethod).toBe('COD');
-    //   expect(body.url).toBeUndefined();
-    //   expect(body.orderId).toMatch(/^[0-9a-f-]{36}$/);
-    expect(DEMO_CUSTOMER.firstName).toBe('Ana'); // anchor to silence unused-import lint
+test.describe('Customer payment sandbox journey', { tag: '@payment-sandbox' }, () => {
+  let seededTenantId: string | undefined;
+
+  test.beforeAll(async () => {
+    const seeded = await seedDemoTenant({ paymentMode: { mode: 'cod_only' } });
+    seededTenantId = seeded.tenantId;
+  });
+
+  test.afterAll(async () => {
+    if (seededTenantId) {
+      await cleanupDemoTenant(seededTenantId);
+      seededTenantId = undefined;
+    }
+  });
+
+  test('Spec 1 — COD: cod_only tenant returns paymentMethod=COD with no PSP url', async ({ request }) => {
+    // Re-seed inside the test so we can read the menu item id without
+    // hoisting it onto a shared describe-scope variable. seedDemoTenant is
+    // idempotent — same tenant + menu items reused from beforeAll.
+    const seeded = await seedDemoTenant({ paymentMode: { mode: 'cod_only' } });
+    const firstItem = seeded.menuItems[0];
+    expect(firstItem, 'demo tenant must have at least one menu item').toBeDefined();
+
+    const res = await request.post('/api/checkout/intent', {
+      headers: {
+        host: DEMO_TENANT_HOST,
+        'x-hir-host': DEMO_TENANT_HOST,
+        // Same-origin gate: assertSameOrigin matches origin against self.
+        // We synthesize a same-origin header that lines up with the host
+        // we're impersonating so the request isn't rejected as
+        // forbidden_origin.
+        origin: `http://${DEMO_TENANT_HOST}`,
+      },
+      data: {
+        items: [{ itemId: firstItem.id, quantity: 1, modifierIds: [] }],
+        fulfillment: 'PICKUP',
+        customer: DEMO_CUSTOMER,
+        paymentMethod: 'COD',
+      },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.paymentMethod).toBe('COD');
+    expect(body.url).toBeUndefined();
+    expect(body.orderId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body.publicTrackToken).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   test('Spec 2 — Netopia sandbox: card_sandbox + provider=netopia returns netopia URL', async ({ request: _request }) => {
     test.fixme(
       true,
-      'Requires the demo tenant seed AND tenant.settings.payments = ' +
-        '{ mode: "card_sandbox", provider: "netopia" } AND PSP_TENANT_TOGGLE_ENABLED=true. ' +
+      'Promote once seed validated against staging. Demo tenant seed (Spec 1) ' +
+        'provides the menu + payment settings flip, but Netopia card-sandbox ALSO requires ' +
+        'PSP_TENANT_TOGGLE_ENABLED=true. ' +
         'Also needs NETOPIA_SANDBOX_SIGNATURE + NETOPIA_SANDBOX_API_KEY in the target ' +
         'env (loadProviderCredentials in provider-router.ts rejects otherwise). ' +
         'We never hit the real Netopia sandbox — the assertion stops at the URL shape ' +
@@ -116,8 +129,9 @@ test.describe('Customer payment sandbox journey', { tag: '@payment-sandbox' }, (
   test('Spec 3 — Viva sandbox: card_sandbox + provider=viva returns viva URL', async ({ request: _request }) => {
     test.fixme(
       true,
-      'Requires the demo tenant seed AND tenant.settings.payments = ' +
-        '{ mode: "card_sandbox", provider: "viva" } AND PSP_TENANT_TOGGLE_ENABLED=true. ' +
+      'Promote once seed validated against staging. Demo tenant seed (Spec 1) ' +
+        'provides the menu + payment settings flip, but Viva card-sandbox ALSO requires ' +
+        'PSP_TENANT_TOGGLE_ENABLED=true. ' +
         'Also needs VIVA_SANDBOX_SIGNATURE + VIVA_SANDBOX_API_KEY in the target env. ' +
         'Reference flow mirrors Spec 2 but with provider=viva; URL assertion uses ' +
         `VIVA_SANDBOX_PREFIX="${VIVA_SANDBOX_PREFIX}" and session ids carry the "vv_" prefix.`,
