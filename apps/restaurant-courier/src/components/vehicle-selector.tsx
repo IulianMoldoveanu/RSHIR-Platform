@@ -53,7 +53,22 @@ export function VehicleSelector({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      {/* Showcase preview — the currently selected vehicle at a glance,
+          with a soft radial backdrop so the new 3D paintwork pops. The
+          icons are sharp at any size (pure SVG), so we render large here. */}
+      <div
+        aria-hidden
+        className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-500/10 via-zinc-950 to-zinc-950"
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.35),transparent_60%)]" />
+        <VehicleIcon
+          type={selected}
+          size={96}
+          style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.45))' }}
+        />
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         {OPTIONS.map((opt) => {
           const isSelected = selected === opt.value;
@@ -70,7 +85,7 @@ export function VehicleSelector({
                   : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
               }`}
             >
-              <VehicleIcon type={opt.value} size={48} />
+              <VehicleIcon type={opt.value} size={56} />
               <span>{opt.label}</span>
               {isSelected && isCommitted && !pending ? (
                 <span
