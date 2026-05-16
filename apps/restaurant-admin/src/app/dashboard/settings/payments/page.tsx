@@ -1,40 +1,34 @@
 // Self-serve payments setup page for restaurant OWNERs.
-// Stripe Connect requires platform-level setup (HIR holds the platform account),
-// so owners cannot self-configure directly. This page collects intent + business
-// details and queues them in stripe_onboarding_requests for the platform team.
 //
-// Lane PSP-MULTIGATES-V1 (2026-05-10): added a multi-gateway status surface
-// listing all supported providers (Netopia, Stripe Connect, Viva). The
-// existing Stripe Connect request UX is preserved unchanged — Iulian's
-// human-gated approval flow stays. Viva is greyed out until commercial
-// config arrives.
+// Iulian directive 2026-05-16: Stripe is excluded. The card flow uses Netopia
+// (RO-native) or Viva Wallet — picked per tenant via PaymentModeClient. The
+// legacy Stripe Connect onboarding form has been retired; this page now
+// surfaces only the two surviving gateways plus the cash-on-delivery option.
 
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
-import { PaymentsClient } from './payments-client';
 import { PaymentModeClient } from './payment-mode-client';
-import type { PaymentMode } from './actions';
+import type { PaymentMode, PaymentProvider } from './actions';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
-const VALID_PAYMENT_MODES: PaymentMode[] = ['cod_only', 'card_test', 'card_live'];
+const VALID_PAYMENT_MODES: PaymentMode[] = ['cod_only', 'card_sandbox', 'card_live'];
+const VALID_PAYMENT_PROVIDERS: PaymentProvider[] = ['netopia', 'viva'];
 function readMode(payments: Record<string, unknown>): PaymentMode {
   const m = payments.mode;
   return typeof m === 'string' && VALID_PAYMENT_MODES.includes(m as PaymentMode)
     ? (m as PaymentMode)
     : 'cod_only';
 }
+function readProvider(payments: Record<string, unknown>): PaymentProvider {
+  const p = payments.provider;
+  return typeof p === 'string' &&
+    VALID_PAYMENT_PROVIDERS.includes(p as PaymentProvider)
+    ? (p as PaymentProvider)
+    : 'netopia';
+}
 
 export const dynamic = 'force-dynamic';
-
-type RequestRow = {
-  id: string;
-  business_name: string;
-  vat_number: string | null;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  notes: string | null;
-  created_at: string;
-};
 
 export default async function PaymentsSettingsPage() {
   const { user, tenant } = await getActiveTenant();
@@ -54,39 +48,10 @@ export default async function PaymentsSettingsPage() {
     .maybeSingle();
   const settings = (tenantRow?.settings as Record<string, unknown> | null) ?? {};
   const payments = (settings.payments as Record<string, unknown> | undefined) ?? {};
-  const stripeStatus =
-    typeof payments.stripe_connect_status === 'string'
-      ? (payments.stripe_connect_status as string)
-      : null;
   const netopiaActive = payments.netopia_active === true;
-  const stripeActive = payments.stripe_active === true || stripeStatus === 'ACTIVE';
+  const vivaActive = payments.viva_active === true;
   const paymentMode = readMode(payments);
-
-  // Latest onboarding request (if any). Cast through unknown — the table is
-  // freshly added and not in generated Database types yet.
-  const sb = admin as unknown as {
-    from: (t: string) => {
-      select: (cols: string) => {
-        eq: (col: string, val: string) => {
-          order: (col: string, opts: { ascending: boolean }) => {
-            limit: (n: number) => {
-              maybeSingle: () => Promise<{
-                data: RequestRow | null;
-                error: { message: string } | null;
-              }>;
-            };
-          };
-        };
-      };
-    };
-  };
-  const { data: latestRequest } = await sb
-    .from('stripe_onboarding_requests')
-    .select('id, business_name, vat_number, status, notes, created_at')
-    .eq('tenant_id', tenant.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const paymentProvider = readProvider(payments);
 
   return (
     <div className="flex flex-col gap-6">
@@ -121,16 +86,16 @@ export default async function PaymentsSettingsPage() {
             description="Disponibilă implicit pentru toate comenzile cu livrare."
           />
           <MethodCard
-            label="Card online (Stripe)"
-            status={stripeActive ? 'Activ' : 'Inactiv'}
-            tone={stripeActive ? 'emerald' : 'zinc'}
-            description="Carduri internaționale (Visa, Mastercard, Apple Pay, Google Pay)."
-          />
-          <MethodCard
             label="Card online (Netopia)"
             status={netopiaActive ? 'Activ' : 'Inactiv'}
             tone={netopiaActive ? 'emerald' : 'zinc'}
             description="Carduri emise în România. Configurați prin /dashboard/settings/payments/netopia."
+          />
+          <MethodCard
+            label="Card online (Viva Wallet)"
+            status={vivaActive ? 'Activ' : 'Inactiv'}
+            tone={vivaActive ? 'emerald' : 'zinc'}
+            description="Procesator alternativ RO + UE pentru carduri."
           />
         </div>
       </section>
@@ -141,6 +106,7 @@ export default async function PaymentsSettingsPage() {
         tenantId={tenant.id}
         canEdit={canEditMode}
         currentMode={paymentMode}
+        currentProvider={paymentProvider}
       />
 
       {/* Gateway picker — multi-PSP status surface (Lane PSP-MULTIGATES-V1) */}
@@ -163,29 +129,13 @@ export default async function PaymentsSettingsPage() {
             disabled={role !== 'OWNER'}
           />
           <GatewayRow
-            name="Stripe Connect"
-            description="Carduri internaționale (Visa, Mastercard, Apple Pay, Google Pay). Configurare aprobată manual de echipa HIR."
-            status={
-              stripeActive
-                ? 'Activ'
-                : stripeStatus === 'PENDING'
-                  ? 'În așteptare'
-                  : 'Cerere necesară'
-            }
-            tone={stripeActive ? 'emerald' : stripeStatus === 'PENDING' ? 'amber' : 'zinc'}
+            name="Viva Wallet"
+            description="Procesator alternativ pentru carduri RO și UE. Activare aprobată de echipa HIR."
+            status={vivaActive ? 'Activ' : 'Disponibil'}
+            tone={vivaActive ? 'emerald' : 'zinc'}
             actionHref={null}
             actionLabel={null}
             disabled={role !== 'OWNER'}
-          />
-          <GatewayRow
-            name="Viva Wallet"
-            description="Procesator alternativ pentru carduri RO și internaționale. În curs de configurare comercială."
-            status="Disponibil în curând"
-            tone="zinc"
-            actionHref={null}
-            actionLabel={null}
-            disabled
-            comingSoon
           />
         </div>
       </section>
@@ -219,13 +169,11 @@ export default async function PaymentsSettingsPage() {
         </ul>
       </section>
 
-      {/* Stripe Connect request */}
-      <PaymentsClient
-        tenantId={tenant.id}
-        canEdit={role === 'OWNER'}
-        latestRequest={latestRequest}
-        defaultBusinessName={tenant.name}
-      />
+      {/* Stripe Connect request form removed 2026-05-16 — Stripe is excluded
+          from the active payment path. Netopia + Viva onboarding lives under
+          /dashboard/settings/payments/netopia (and /viva once it ships). The
+          legacy PaymentsClient component is retained in the file tree for
+          historic reference but no longer rendered. */}
 
       {/* Contact note */}
       <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-5">

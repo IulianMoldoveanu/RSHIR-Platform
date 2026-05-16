@@ -1228,32 +1228,35 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         updated: UPDATED,
       },
       {
-        slug: 'plati-stripe',
+        slug: 'plati-netopia-viva',
         title: {
-          ro: 'Cum primești plățile (Stripe Connect)',
-          en: 'How payouts work (Stripe Connect)',
+          ro: 'Cum primești plățile (Netopia sau Viva Wallet)',
+          en: 'How payouts work (Netopia or Viva Wallet)',
         },
         summary: {
-          ro: 'Configurarea contului Stripe Connect pentru plăți automate săptămânale.',
-          en: 'Set up your Stripe Connect account for automatic weekly payouts.',
+          ro: 'Configurarea contului Netopia sau Viva pentru plăți automate săptămânale.',
+          en: 'Set up your Netopia or Viva account for automatic weekly payouts.',
         },
         intro: {
-          ro: 'Plățile către parteneri se fac via Stripe Connect — săptămânal, automat, în RON sau EUR. Nu este necesară factură separată; Stripe generează documentele fiscale.',
-          en: 'Partner payouts go through Stripe Connect — weekly, automatic, in RON or EUR. No separate invoice needed; Stripe generates the tax documents.',
+          ro: 'Plățile către parteneri se fac via Netopia (RO-native) sau Viva Wallet — săptămânal, automat, în RON. Stripe NU mai este folosit în RSHIR; alegerea procesatorului se face de către echipa HIR în timpul onboarding-ului.',
+          en: 'Partner payouts go through Netopia (RO-native) or Viva Wallet — weekly, automatic, in RON. Stripe is no longer used in RSHIR; the HIR team picks the processor during onboarding.',
         },
         steps: [
           {
-            title: { ro: 'Conectați contul Stripe', en: 'Connect your Stripe account' },
+            title: {
+              ro: 'Echipa HIR vă activează procesatorul',
+              en: 'The HIR team activates your processor',
+            },
             body: {
-              ro: 'În dashboard partener → "Plăți" → "Conectează Stripe". Sunteți redirectat la Stripe pentru KYC (carte identitate, IBAN, date fiscale).',
-              en: 'In the partner dashboard → "Payouts" → "Connect Stripe". You get redirected to Stripe for KYC (ID document, IBAN, tax details).',
+              ro: 'După ce trimiteți datele de business (CUI, IBAN, persoană contact), echipa HIR alege Netopia sau Viva în funcție de mix-ul de carduri al clientelei și deschide contul de sub-merchant.',
+              en: 'Once you send the business details (VAT ID, IBAN, contact person), HIR picks Netopia or Viva based on your customer card mix and opens the sub-merchant account.',
             },
           },
           {
             title: { ro: 'Verificare identitate', en: 'Identity verification' },
             body: {
-              ro: 'Stripe verifică în 1-3 zile. Pe parcursul verificării puteți acumula comision; plata se eliberează la confirmare.',
-              en: 'Stripe verifies within 1-3 days. You can still accrue commission during verification; the payout releases once confirmed.',
+              ro: 'Netopia și Viva verifică în 1-3 zile lucrătoare. Pe parcursul verificării puteți acumula comision; plata se eliberează la confirmare.',
+              en: 'Netopia and Viva verify within 1-3 business days. You can still accrue commission during verification; the payout releases once confirmed.',
             },
           },
           {
@@ -1265,12 +1268,12 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           },
         ],
         outro: {
-          ro: 'Pentru parteneri PFA / SRL este obligatorie introducerea CUI-ului în Stripe pentru emiterea automată a facturii fiscale.',
-          en: 'PFA / SRL partners must enter their VAT ID in Stripe so the fiscal invoice is issued automatically.',
+          ro: 'Pentru parteneri PFA / SRL este obligatorie introducerea CUI-ului în contul Netopia/Viva pentru emiterea automată a facturii fiscale.',
+          en: 'PFA / SRL partners must enter their VAT ID in the Netopia/Viva account so the fiscal invoice is issued automatically.',
         },
         screenshot: {
-          ro: 'Dashboard partener cu sold curent + buton "Conectează Stripe"',
-          en: 'Partner dashboard with current balance and a "Connect Stripe" button',
+          ro: 'Dashboard partener cu sold curent + status procesator (Netopia / Viva)',
+          en: 'Partner dashboard with current balance + processor status (Netopia / Viva)',
         },
         updated: UPDATED,
       },
@@ -1373,14 +1376,14 @@ export const HELP_CATEGORIES: HelpCategory[] = [
           },
         ],
         outro: {
-          ro: 'Codul de referal se aplică automat la toate livrările restaurantelor pe care le aduceți. Plățile se virează săptămânal prin Stripe Connect. Materiale de prezentare (logo, banner-e, sales sheet PDF, embed widget) sunt în „Materials gallery".',
-          en: 'Your referral code applies automatically to every delivery from the restaurants you bring in. Payouts run weekly through Stripe Connect. Presentation assets (logo, banners, sales sheet PDF, embed widget) live in the "Materials gallery".',
+          ro: 'Codul de referal se aplică automat la toate livrările restaurantelor pe care le aduceți. Plățile se virează săptămânal prin Netopia sau Viva Wallet. Materiale de prezentare (logo, banner-e, sales sheet PDF, embed widget) sunt în „Materials gallery".',
+          en: 'Your referral code applies automatically to every delivery from the restaurants you bring in. Payouts run weekly through Netopia or Viva Wallet. Presentation assets (logo, banners, sales sheet PDF, embed widget) live in the "Materials gallery".',
         },
         cta: {
           label: { ro: 'Aplicați ca partener', en: 'Apply as a partner' },
           href: '/parteneriat',
         },
-        related: ['comisioane-program', 'plati-stripe', 'parteneri-materiale'],
+        related: ['comisioane-program', 'plati-netopia-viva', 'parteneri-materiale'],
         updated: UPDATED_2026_05_08,
       },
     ],

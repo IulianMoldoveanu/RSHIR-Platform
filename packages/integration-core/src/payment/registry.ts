@@ -5,19 +5,21 @@
 // unknown providers so a misconfigured tenant fails loudly rather than
 // silently no-op'ing.
 //
-// 'viva' is registered with a stub adapter that throws VIVA_NOT_CONFIGURED
-// at call time — that's intentional. The factory is wired so the moment
-// commercial config lands, only `viva.ts` needs to change; routes and
-// admin UI already know about the provider key.
+// Iulian directive 2026-05-16: Stripe Connect is excluded from the active
+// payment path. The adapter file is preserved for historic reference, but
+// it is no longer registered here — `getPspAdapter('stripe_connect')` now
+// throws the same "unknown provider" error a typo would. Callers must
+// migrate to 'netopia' or 'viva'.
 
 import type { PspAdapter, PspProviderKey } from './contract';
 import { netopiaAdapter } from './netopia';
-import { stripeConnectAdapter } from './stripe-connect';
 import { vivaAdapter } from './viva';
 
-const REGISTRY: Record<PspProviderKey, PspAdapter> = {
+// 'stripe_connect' intentionally absent — see header note. The provider
+// key remains in the union type for compile-time compatibility with any
+// historic tenant rows; runtime lookup throws.
+const REGISTRY: Partial<Record<PspProviderKey, PspAdapter>> = {
   netopia: netopiaAdapter,
-  stripe_connect: stripeConnectAdapter,
   viva: vivaAdapter,
 };
 
@@ -30,8 +32,8 @@ export function getPspAdapter(key: PspProviderKey): PspAdapter {
 }
 
 export function isPspProviderImplemented(key: PspProviderKey): boolean {
-  // 'viva' is in the registry but the adapter throws — surface that
-  // honestly so admin UI can grey out the picker.
-  if (key === 'viva') return false;
+  // 'stripe_connect' is deliberately unregistered. 'netopia' + 'viva' both
+  // expose a sandbox-mode helper at the storefront's createCheckoutSession
+  // boundary; live mode is still gated on commercial config.
   return REGISTRY[key] !== undefined;
 }
