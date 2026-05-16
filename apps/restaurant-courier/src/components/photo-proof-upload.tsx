@@ -5,6 +5,9 @@ import { Camera, X, Check } from 'lucide-react';
 import { toast, Button } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
 
+/** Per-slot upload progress, 0-100. Null when not uploading. */
+type SlotProgress = Record<ProofFolder, number | null>;
+
 type SlotState = { file: File | null; preview: string | null; url: string | null };
 
 // Maximum allowed file size for proof photos. Raw HEIC shots from recent
@@ -47,6 +50,11 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [queuedFolders, setQueuedFolders] = useState<Set<ProofFolder>>(new Set());
+  const [slotProgress, setSlotProgress] = useState<SlotProgress>({
+    delivery: null,
+    id: null,
+    prescription: null,
+  });
 
   function pickFile(ref: React.RefObject<HTMLInputElement>) {
     ref.current?.click();
@@ -81,7 +89,11 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
 
   async function uploadSlot(slot: SlotState, folder: ProofFolder): Promise<string | undefined> {
     if (!slot.file) return undefined;
-    const result = await uploadOrEnqueue(slot.file, orderId, folder);
+    setSlotProgress((prev) => ({ ...prev, [folder]: 0 }));
+    const result = await uploadOrEnqueue(slot.file, orderId, folder, (pct) => {
+      setSlotProgress((prev) => ({ ...prev, [folder]: pct }));
+    });
+    setSlotProgress((prev) => ({ ...prev, [folder]: null }));
     if (result.ok) return result.url;
     if (result.queued) {
       setQueuedFolders((prev) => {
@@ -211,6 +223,9 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             Fotografia este salvată local — se va sincroniza automat când ești online.
           </p>
         ) : null}
+        {slotProgress.delivery !== null ? (
+          <UploadProgressBar pct={slotProgress.delivery} />
+        ) : null}
         {delivery.file ? (
           delivery.url ? (
             // Successful upload — show a confirmation strip instead of the
@@ -230,7 +245,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
               onClick={handleUploadAll}
               className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
             >
-              {uploading ? 'Se încarcă…' : 'Încarcă fotografia'}
+              {uploading ? 'Se încarcă…' : error ? 'Încearcă din nou' : 'Încarcă fotografia'}
             </Button>
           )
         ) : (
@@ -281,14 +296,33 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         ) : null}
       </div>
       {error ? <p className="mt-2 text-[11px] text-rose-400">{error}</p> : null}
+      {(slotProgress.id !== null || slotProgress.prescription !== null) ? (
+        <UploadProgressBar
+          pct={Math.round(
+            ((slotProgress.id ?? 100) + (slotProgress.prescription ?? 100)) /
+              (requiresId && requiresPrescription ? 2 : 1),
+          )}
+        />
+      ) : null}
       <Button
         type="button"
         disabled={!allDone || uploading}
         onClick={handleUploadAll}
         className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
       >
-        {uploading ? 'Se încarcă…' : 'Trimite documentele'}
+        {uploading ? 'Se încarcă…' : error ? 'Încearcă din nou' : 'Trimite documentele'}
       </Button>
+    </div>
+  );
+}
+
+function UploadProgressBar({ pct }: { pct: number }) {
+  return (
+    <div className="mt-2 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progres încărcare">
+      <div
+        className="h-1.5 rounded-full bg-violet-500 transition-all duration-200"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
