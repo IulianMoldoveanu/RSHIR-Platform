@@ -96,6 +96,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: '/dashboard/reviews', label: 'Recenzii' },
         { href: '/dashboard/customer-insights', label: 'Insights clienți' },
         { href: '/dashboard/analytics', label: 'Analytics' },
+        { href: '/dashboard/champion', label: 'Recomandă & câștigă' },
       ],
     },
     { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
