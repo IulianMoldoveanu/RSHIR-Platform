@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_GOAL_RON,
+  DEFAULT_WEEKLY_GOAL_RON,
   MAX_GOAL_RON,
+  MAX_WEEKLY_GOAL_RON,
   MIN_GOAL_RON,
+  MIN_WEEKLY_GOAL_RON,
   clampGoal,
+  clampWeeklyGoal,
   computeProgress,
 } from '../src/lib/daily-goal';
 
@@ -50,5 +54,22 @@ describe('computeProgress', () => {
     const r = computeProgress(100, 0);
     expect(r.progressPct).toBeGreaterThan(0);
     expect(r.progressPct).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('clampWeeklyGoal', () => {
+  it('keeps in-range values', () => {
+    expect(clampWeeklyGoal(1200)).toBe(1200);
+    expect(clampWeeklyGoal(MIN_WEEKLY_GOAL_RON)).toBe(MIN_WEEKLY_GOAL_RON);
+    expect(clampWeeklyGoal(MAX_WEEKLY_GOAL_RON)).toBe(MAX_WEEKLY_GOAL_RON);
+  });
+  it('clamps below MIN', () => {
+    expect(clampWeeklyGoal(100)).toBe(MIN_WEEKLY_GOAL_RON);
+  });
+  it('clamps above MAX', () => {
+    expect(clampWeeklyGoal(99999)).toBe(MAX_WEEKLY_GOAL_RON);
+  });
+  it('falls back to default on non-finite input', () => {
+    expect(clampWeeklyGoal(Number.NaN)).toBe(DEFAULT_WEEKLY_GOAL_RON);
   });
 });
