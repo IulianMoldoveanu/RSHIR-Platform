@@ -121,13 +121,13 @@ export default async function DashboardHome() {
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
-  // viewport minus the 56px header (h-14). NOTE: we deliberately do not set
-  // z-0 here — that creates a stacking context that traps the fixed shift
-  // overlay below the bottom-nav. Instead, header / nav / overlay each carry
-  // a z-index higher than Leaflet's internal max (~1000) and live in the
-  // body's root stacking context.
+  // viewport minus the 56px header (h-14). Uses dvh (dynamic viewport height)
+  // so iOS/Chrome address-bar collapse doesn't leave a strip of empty space
+  // under the map — that was the root cause of the "half-screen" complaint.
+  // NOTE: we deliberately do not set z-0 here — that creates a stacking
+  // context that traps the fixed shift overlay below the bottom-nav.
   return (
-    <div className="relative -mx-4 -mt-6 -mb-24 h-[calc(100vh-3.5rem)] sm:-mx-6">
+    <div className="relative -mx-4 -mt-6 -mb-24 h-[calc(100dvh-3.5rem)] min-h-[calc(100vh-3.5rem)] sm:-mx-6">
       <RiderMap
         fillParent
         activePins={activePins}
