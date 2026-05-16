@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from '@hir/ui';
 import { unlinkRecipeAction } from '../actions';
 
 export function UnlinkRecipeButton({
@@ -23,9 +24,10 @@ export function UnlinkRecipeButton({
     startTransition(async () => {
       const res = await unlinkRecipeAction(fd);
       if (!res.ok) {
-        window.alert(`Eroare: ${res.error}`);
+        toast.error(`Eroare: ${res.error}`);
         return;
       }
+      toast.success('Rețetă ștearsă');
       router.refresh();
     });
   }
