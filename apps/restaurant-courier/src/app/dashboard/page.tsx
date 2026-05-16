@@ -9,6 +9,7 @@ import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { WeatherPill } from '@/components/weather-pill';
 import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
+import { MultiStopFocus, type FocusOrder } from '@/components/multi-stop-focus';
 
 export const dynamic = 'force-dynamic';
 
@@ -185,6 +186,16 @@ export default async function DashboardHome() {
               +{activeOrders.length - 3} ·  vezi toate
             </Link>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Multi-stop focus banner. Renders only when 2+ active orders so it
+          doesn't clutter the common single-order case. Sits above the
+          shift-control overlay so the courier always sees the next
+          actionable instruction without scrolling. */}
+      {activeOrders.length >= 2 ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[1199] px-3">
+          <MultiStopFocus orders={activeOrders as FocusOrder[]} />
         </div>
       ) : null}
 
