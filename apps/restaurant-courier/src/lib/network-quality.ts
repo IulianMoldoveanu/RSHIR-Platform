@@ -1,5 +1,32 @@
 'use client';
 
+/**
+ * React hook and helpers for reading the device's perceived network quality.
+ *
+ * BROWSER SUPPORT MATRIX
+ * ----------------------
+ * Chrome / Android WebView / Samsung Internet — full Network Information API
+ *   (`navigator.connection.effectiveType`): '2g' | '3g' | '4g' | 'slow-2g'.
+ * Safari iOS / Firefox — Network Information API is NOT available.
+ *   On these browsers `useNetworkQuality` returns 'offline' (no signal)
+ *   or '4g' (connected) — a binary signal good enough for the UI badge.
+ *
+ * USAGE
+ * -----
+ * ```tsx
+ * const quality = useNetworkQuality(); // 'offline' | '2g' | '3g' | '4g'
+ * ```
+ * The hook subscribes to `window` online/offline events and, on Chrome,
+ * the Network Information API 'change' event. State updates are reactive;
+ * no polling.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Couriers operate on 3G/4G in the field. The offline banner and the
+ * proof-queue sync sentinel both gate behaviour on network quality so
+ * the app degrades gracefully rather than silently hanging.
+ */
+
 import { useEffect, useState } from 'react';
 
 // Non-standard Network Information API. Available in Chrome/Android WebViews

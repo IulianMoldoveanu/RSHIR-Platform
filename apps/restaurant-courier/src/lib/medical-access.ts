@@ -1,18 +1,36 @@
-// MedicalAccessLog helper — appends an audit row whenever a courier or
-// dispatcher views pharma medical-grade PII (customer name, address,
-// prescription detail). Distinct from audit_log: audit_log captures
-// actions performed on data, medical_access_logs captures reads.
-//
-// Per F2.2 of the courier master plan + DPA-TEMPLATE-2026-05-13.md, this
-// is the evidence trail for a Legea 95 inspection or GDPR Art.30 records-
-// of-processing request. 5-year retention.
-//
-// Failures swallowed — logging must never block the user surfacing the
-// delivery. If the table is unreachable we'd rather render the delivery
-// page than greet the rider with an error screen. The trade-off: a brief
-// outage can lose a small fraction of access events. Acceptable in
-// practice; the courier_order itself is the canonical record of who was
-// assigned the delivery.
+/**
+ * Medical access log helper — records every READ of pharma PII by a courier
+ * or dispatcher into the `medical_access_logs` table.
+ *
+ * DISTINCTION FROM audit_log
+ * --------------------------
+ * `audit_log`          — captures _actions_ (status changes, fleet ops).
+ * `medical_access_logs` — captures _reads_ of sensitive personal health data
+ *                          (customer name, address, prescription details).
+ *
+ * LEGAL BASIS
+ * -----------
+ * Required by Legea 95/2006 (Romanian Medicines Act, Art. 800–808) and
+ * GDPR Art. 30 (records of processing activities). Rows must be retained
+ * for 5 years. This table is the forensic evidence for a regulatory
+ * inspection or a data-subject access request.
+ *
+ * WHEN TO CALL
+ * ------------
+ * Call `logMedicalAccess` from any server action or page that renders
+ * pharma-vertical PII to a courier (order detail page, dispatch view).
+ * Pass `purpose='delivery'` for normal courier access; `purpose='audit'`
+ * or `'compliance_inspection'` for platform-admin reads.
+ *
+ * FAILURE POLICY
+ * --------------
+ * Failures are swallowed silently. A missing log row is preferable to
+ * blocking a courier mid-delivery with a 500 error. The `courier_order`
+ * row (which records `assigned_courier_user_id`) remains the canonical
+ * record of who handled the delivery.
+ *
+ * See also: `MedicalAccessEntity`, `MedicalAccessPurpose` for allowed values.
+ */
 
 import { createAdminClient } from './supabase/admin';
 

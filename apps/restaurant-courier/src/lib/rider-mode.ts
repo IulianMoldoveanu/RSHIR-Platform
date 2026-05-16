@@ -1,3 +1,39 @@
+/**
+ * Rider mode resolution — determines which UI variant the courier sees.
+ *
+ * THREE MODES (locked in decision_courier_three_modes.md)
+ * -------------------------------------------------------
+ * Mode A — Solo courier. Single restaurant tenant, no managed fleet.
+ *   Rules: courier_profiles.fleet_id is null OR points to the platform-default
+ *   fleet ('hir-default'), AND the user has at most one tenant_members row.
+ *   UI: full swipe-to-confirm panel (accept / pickup / deliver).
+ *
+ * Mode B — Multi-vendor courier. Works for more than one restaurant tenant
+ *   but is not assigned to a managed fleet.
+ *   Rules: same fleet condition as A, but tenant_members count > 1.
+ *   UI: full swipe-to-confirm panel; order list shows a tenant badge to
+ *   distinguish which restaurant each order belongs to.
+ *
+ * Mode C — Fleet-managed courier. Assigned to a named fleet run by a third
+ *   party (Bringo, Bolt-Fleet, internal partner fleet). Status visibility
+ *   is provided by HIR Curier, but the actual pickup/deliver transitions
+ *   happen in the fleet's own app.
+ *   Rules: courier_profiles.fleet_id points to a non-default fleet row.
+ *   UI: READ-ONLY order detail (no swipe buttons). A static info card
+ *   directs the courier to their fleet app.
+ *
+ * RESOLUTION RULES (never set manually; derived from DB at request time)
+ * ----------------------------------------------------------------------
+ *   1. If fleet_id → non-default fleet → Mode C.
+ *   2. Else if tenant_members count > 1 → Mode B.
+ *   3. Else → Mode A.
+ *
+ * Safe defaults: a brand-new courier with no profile returns Mode A so the
+ * dashboard renders the simplest variant without a redirect or error.
+ *
+ * @param userId - Supabase auth user id (UUID).
+ */
+
 import { createAdminClient } from './supabase/admin';
 
 export type RiderMode = 'A' | 'B' | 'C';

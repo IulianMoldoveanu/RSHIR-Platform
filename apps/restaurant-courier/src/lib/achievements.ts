@@ -1,16 +1,37 @@
 /**
  * Achievement badge definitions + localStorage persistence.
  *
- * Badges are computed client-side from server-passed data:
- *   - totalDeliveries: total DELIVERED orders for this courier (all time)
- *   - nightDeliveries: DELIVERED orders between 22:00 and 06:00 (last 30d)
- *   - shiftHours: hours in longest single shift (last 30d)
- *   - consecutiveDays: max consecutive calendar days with at least one delivery (last 30d)
+ * BADGE COMPUTATION
+ * -----------------
+ * Badges are computed client-side from four server-passed metrics:
+ *   totalDeliveries   — total DELIVERED orders for this courier (all time)
+ *   nightDeliveries   — DELIVERED orders between 22:00 and 06:00 (last 30d)
+ *   longestShiftHours — hours in the longest single shift (last 30d)
+ *   maxConsecutiveDays — max consecutive calendar days with >= 1 delivery (last 30d)
  *
- * Unlock dates are persisted in localStorage so a courier sees "unlocked 3 days ago"
- * and gets a toast only on first unlock (not on every page visit).
+ * These metrics come from the `/dashboard/earnings` server component query.
+ * The thresholds that unlock each badge are encoded in `evaluateAndPersist`.
  *
- * Never throws — every path guards for private-mode / SSR.
+ * BADGE_DEFS CONTRACT
+ * -------------------
+ * `id`          — stable string key; must match a `BadgeId` union literal.
+ * `label`       — short Romanian display name shown on the badge card.
+ * `description` — one-sentence Romanian explanation shown on hover/expand.
+ * `icon`        — Lucide icon component name (string); imported dynamically
+ *                 in the `_achievements.tsx` component.
+ * `tone`        — Tailwind color prefix for the unlocked-state ring / glow.
+ *                 Must be a whitelisted value ('violet'|'amber'|'emerald'|'sky'|'rose')
+ *                 so Tailwind's JIT includes the classes at build time.
+ *
+ * PERSISTENCE
+ * -----------
+ * Unlock dates are stored in localStorage under the key `hir.courier.achievements.v1`
+ * as `Record<BadgeId, { unlockedAt: string }>`. This means:
+ *   - A courier sees "unlocked 3 days ago" across page visits.
+ *   - The new-badge toast fires only once (first unlock, not on every visit).
+ *   - Clearing localStorage resets the unlock state — badges re-earn correctly.
+ *
+ * Never throws — every path is guarded for private-mode / SSR / quota errors.
  */
 
 const STORAGE_KEY = 'hir.courier.achievements.v1';
