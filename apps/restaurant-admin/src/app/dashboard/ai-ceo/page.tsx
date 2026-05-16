@@ -1,4 +1,4 @@
-import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap, TrendingUp } from 'lucide-react';
+import { Sparkles, MessageSquare, Activity, Lightbulb, Brain, Clock, Zap, TrendingUp, DollarSign } from 'lucide-react';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { createServerClient } from '@/lib/supabase/server';
 import {
@@ -10,6 +10,7 @@ import {
   getAutoExecutedActions,
   getPendingGrowthRecommendations,
   getGrowthRecommendationCounters,
+  getAgentCostSummary,
 } from '@/lib/ai-ceo/queries';
 import { getAiAvailability } from '@/lib/ai-availability';
 import { AiUnavailableNotice } from '@/components/ai/ai-unavailable-notice';
@@ -96,6 +97,7 @@ export default async function AiCeoPage() {
     aiAvail,
     growthRecs,
     growthCounters,
+    costSummary,
   ] = await Promise.all([
     getThreadForTenant(tenant.id),
     getRecentAgentRuns(tenant.id, 7),
@@ -107,6 +109,7 @@ export default async function AiCeoPage() {
     getAiAvailability(),
     getPendingGrowthRecommendations(tenant.id, 10),
     getGrowthRecommendationCounters(tenant.id),
+    getAgentCostSummary(tenant.id),
   ]);
   const canEditBrief = role === 'OWNER';
   const canActSuggestions = role === 'OWNER';
@@ -488,6 +491,82 @@ export default async function AiCeoPage() {
             Doar utilizatorii cu rolul <strong>OWNER</strong> pot aproba sau respinge recomandări.
           </p>
         )}
+      </section>
+
+      {/* 8. F6 cost ledger — per-tenant Anthropic spend over the last 30 days */}
+      <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+              <DollarSign className="h-3.5 w-3.5" aria-hidden />
+              Cheltuieli AI (30 zile)
+            </p>
+            <h2 className="mt-1 text-base font-semibold text-zinc-900">
+              Token spend per agent
+            </h2>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+          <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Ultimele 7 zile
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900 tabular-nums">
+              ${(costSummary.totalCents7d / 100).toFixed(2)}
+            </p>
+          </div>
+          <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Ultimele 30 zile
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900 tabular-nums">
+              ${(costSummary.totalCents30d / 100).toFixed(2)}
+            </p>
+          </div>
+          <div className="rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+              Apeluri 30 zile
+            </p>
+            <p className="mt-1 font-semibold text-zinc-900 tabular-nums">
+              {costSummary.callCount30d.toLocaleString('ro-RO')}
+            </p>
+          </div>
+        </div>
+        {costSummary.byAgent.length === 0 ? (
+          <p className="mt-4 rounded-md border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+            Niciun apel AI înregistrat în ultimele 30 de zile.
+          </p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <th className="py-2 pr-3 font-semibold">Agent</th>
+                  <th className="py-2 pr-3 font-semibold text-right">Cost 30z</th>
+                  <th className="py-2 font-semibold text-right">Apeluri</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {costSummary.byAgent.map((a) => (
+                  <tr key={a.agent} className="align-top">
+                    <td className="py-2 pr-3 text-zinc-900">{a.agent}</td>
+                    <td className="py-2 pr-3 text-right text-zinc-700 tabular-nums">
+                      ${(a.cents30d / 100).toFixed(2)}
+                    </td>
+                    <td className="py-2 text-right text-zinc-700 tabular-nums">
+                      {a.calls30d.toLocaleString('ro-RO')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-xs text-zinc-500">
+          Datele provin din <code className="rounded bg-zinc-100 px-1 py-0.5">agent_cost_ledger</code> și
+          reprezintă costul Anthropic (input + output tokens × prețul modelului). Bugetul lunar se
+          configurează din <strong>Configurare → AI trust</strong>.
+        </p>
       </section>
     </div>
   );
