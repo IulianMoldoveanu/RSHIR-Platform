@@ -230,6 +230,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Edge Functions',
           icon: 'settings' as const,
         },
+        {
+          href: '/dashboard/admin/intents',
+          label: 'Intent registry',
+          icon: 'sparkles' as const,
+        },
       ]
     : [];
 
