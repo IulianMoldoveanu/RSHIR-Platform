@@ -17,13 +17,13 @@ export function ThemeToggle() {
   const { preference, setPreference } = useTheme();
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         Temă
       </p>
       <div
         role="radiogroup"
         aria-label="Temă vizuală"
-        className="flex rounded-xl border border-zinc-800 bg-zinc-900 p-1"
+        className="flex rounded-xl border border-hir-border bg-hir-surface p-1"
       >
         {OPTIONS.map(({ value, label, icon: Icon }) => {
           const active = preference === value;
@@ -37,7 +37,7 @@ export function ThemeToggle() {
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
                 active
                   ? 'bg-violet-600 text-white'
-                  : 'text-zinc-300 hover:bg-zinc-800/60'
+                  : 'text-hir-muted-fg hover:bg-hir-border/60'
               }`}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden />
@@ -46,7 +46,7 @@ export function ThemeToggle() {
           );
         })}
       </div>
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-[11px] text-hir-muted-fg">
         &bdquo;Sistem&rdquo; urmărește preferința telefonului tău. Schimbarea este salvată local.
       </p>
     </div>

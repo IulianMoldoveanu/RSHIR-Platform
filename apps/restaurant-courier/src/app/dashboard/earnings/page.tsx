@@ -146,48 +146,48 @@ export default async function EarningsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <div>
-        <h1 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
+        <h1 className="flex items-center gap-2 text-lg font-semibold text-hir-fg">
           <Wallet className="h-5 w-5 text-violet-400" aria-hidden />
           Câștigurile tale
         </h1>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-hir-muted-fg">
           Suma încasată din taxe de livrare, calculată din comenzile marcate ca livrate.
         </p>
       </div>
 
       <section className="grid grid-cols-3 gap-2 min-[360px]:gap-3">
         <StatCard label="Astăzi" earnings={today.earnings} count={today.count} accent="violet" />
-        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} accent="zinc" />
-        <StatCard label="Luna" earnings={month.earnings} count={month.count} accent="zinc" />
+        <StatCard label="Săptămâna" earnings={week.earnings} count={week.count} accent="neutral" />
+        <StatCard label="Luna" earnings={month.earnings} count={month.count} accent="neutral" />
       </section>
 
       {/* Audit P1 #8 — earnings transparency. Formula is exposed even when
           commission is 0 today, so the courier trusts the number rather than
           wondering what's deducted. When per-courier commission lands later,
           the row populates without UI changes. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Cum calculăm câștigul de azi
         </p>
         <div className="space-y-1.5 text-sm tabular-nums">
           <div className="flex items-center justify-between text-hir-fg">
             <span>Brut (taxe livrare)</span>
-            <span className="font-medium text-zinc-100">
+            <span className="font-medium text-hir-fg">
               {today.earnings.toFixed(2)} RON
             </span>
           </div>
-          <div className="flex items-center justify-between text-zinc-500">
+          <div className="flex items-center justify-between text-hir-muted-fg">
             <span>− Comision HIR</span>
             <span className="font-medium">0,00 RON</span>
           </div>
-          <div className="flex items-center justify-between border-t border-zinc-800 pt-1.5 text-zinc-100">
+          <div className="flex items-center justify-between border-t border-hir-border pt-1.5 text-hir-fg">
             <span className="font-semibold">= Net</span>
-            <span className="font-semibold text-emerald-300">
+            <span className="font-semibold text-emerald-400">
               {today.earnings.toFixed(2)} RON
             </span>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-zinc-500">
+        <p className="mt-2 text-[11px] text-hir-muted-fg">
           Astăzi tot brutul e net. Pe viitor un mic comision platformă va fi
           dedus aici, mereu vizibil înainte de plată.
         </p>
@@ -199,15 +199,15 @@ export default async function EarningsPage() {
       <BestDayCard bestDay={bestDayData} />
 
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
           Ultimele livrări
         </h2>
         {recent.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center">
             <p className="text-sm font-medium text-hir-fg">
               Nu ai livrări înregistrate luna aceasta
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-hir-muted-fg">
               Câștigurile apar aici imediat ce marchezi prima livrare.
             </p>
             <Link
@@ -226,18 +226,18 @@ export default async function EarningsPage() {
                   className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 hover:border-violet-500/40 active:scale-[0.99]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="truncate text-sm font-medium text-hir-fg">
                       {r.customer_first_name ?? 'Client'}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
+                    <p className="mt-0.5 truncate text-xs text-hir-muted-fg">
                       {r.dropoff_line1 ?? '—'}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-emerald-300">
+                    <p className="text-sm font-semibold text-emerald-400">
                       +{(Number(r.delivery_fee_ron) || 0).toFixed(2)} RON
                     </p>
-                    <p className="mt-0.5 text-[10px] text-zinc-500">
+                    <p className="mt-0.5 text-[10px] text-hir-muted-fg">
                       {new Date(r.updated_at).toLocaleString('ro-RO', {
                         day: '2-digit',
                         month: 'short',
@@ -269,18 +269,18 @@ function StatCard({
   label: string;
   earnings: number;
   count: number;
-  accent: 'violet' | 'zinc';
+  accent: 'violet' | 'neutral';
 }) {
-  const border = accent === 'violet' ? 'border-violet-500/40' : 'border-zinc-800';
-  const earningsColor = accent === 'violet' ? 'text-violet-300' : 'text-zinc-100';
+  const border = accent === 'violet' ? 'border-violet-500/40' : 'border-hir-border';
+  const earningsColor = accent === 'violet' ? 'text-violet-400' : 'text-hir-fg';
   return (
-    <div className={`rounded-2xl border ${border} bg-zinc-900 p-3 text-center`}>
-      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+    <div className={`rounded-2xl border ${border} bg-hir-surface p-3 text-center`}>
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-hir-muted-fg">{label}</p>
       <p className={`mt-1.5 text-sm font-bold leading-none ${earningsColor} min-[400px]:text-base`}>
         {earnings.toFixed(2)}
       </p>
-      <p className="mt-0.5 text-[10px] font-normal text-zinc-500">RON</p>
-      <p className="mt-1 text-[10px] text-zinc-600">
+      <p className="mt-0.5 text-[10px] font-normal text-hir-muted-fg">RON</p>
+      <p className="mt-1 text-[10px] text-hir-muted-fg">
         {count} {count === 1 ? 'liv.' : 'liv.'}
       </p>
     </div>

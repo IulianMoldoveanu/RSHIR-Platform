@@ -82,19 +82,19 @@ export function StreakCard({ rows }: Props) {
       <div className="flex-1 text-sm">
         {isWarning ? (
           <>
-            <p className="font-medium text-zinc-100">Seria ta e în pericol!</p>
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="font-medium text-hir-fg">Seria ta e în pericol!</p>
+            <p className="mt-0.5 text-xs text-hir-muted-fg">
               Ai livrat ieri, dar încă nu ai nicio livrare azi. Pornește o tură pentru a o păstra.
             </p>
           </>
         ) : (
           <>
-            <p className="font-medium text-zinc-100">
+            <p className="font-medium text-hir-fg">
               {streak === 1
                 ? 'Prima zi din serie — continuă tot mâine!'
                 : `Continuă-ți seria — ${streak} ${streak === 1 ? 'zi' : 'zile'} la rând`}
             </p>
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="mt-0.5 text-xs text-hir-muted-fg">
               Livrezi în fiecare zi. Menține seria activă!
             </p>
           </>

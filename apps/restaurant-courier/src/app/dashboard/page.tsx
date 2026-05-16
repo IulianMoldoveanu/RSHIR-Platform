@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import { ArrowRight } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -6,7 +7,20 @@ import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
-import { RiderMapLazy as RiderMap } from '@/components/rider-map-lazy';
+
+// RiderMap pulls Leaflet (CDN) + leaflet-rotate at runtime. Lazy-load
+// so the heavy component code doesn't block the initial JS parse on
+// slower 3G connections. The map div renders immediately via the
+// fallback skeleton while Leaflet initialises.
+const RiderMap = nextDynamic(
+  () => import('@/components/rider-map').then((m) => ({ default: m.RiderMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full animate-pulse bg-hir-surface" aria-label="Se încarcă harta…" />
+    ),
+  },
+);
 
 export const dynamic = 'force-dynamic';
 
@@ -117,11 +131,11 @@ export default async function DashboardHome() {
       />
 
       {/* Greeting + status pill, top-left over the map. */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] rounded-2xl border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 backdrop-blur">
-        <p className="text-sm font-semibold text-zinc-100">
+      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] rounded-2xl border border-hir-border bg-hir-bg/90 px-3 py-2.5 backdrop-blur">
+        <p className="text-sm font-semibold text-hir-fg">
           Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
         </p>
-        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-300">
+        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-hir-muted-fg">
           <span
             aria-hidden
             className={`inline-block h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-500'}`}
@@ -143,7 +157,7 @@ export default async function DashboardHome() {
             <Link
               key={o.id}
               href={`/dashboard/orders/${o.id}`}
-              className={`flex items-center gap-2 rounded-xl border bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur hover:bg-zinc-900 ${
+              className={`flex items-center gap-2 rounded-xl border bg-hir-bg/90 px-3 py-2 text-xs font-medium text-hir-fg shadow-lg backdrop-blur hover:bg-hir-surface ${
                 idx === 0
                   ? 'border-violet-400 ring-1 ring-violet-500/30 hover:border-violet-300'
                   : 'border-violet-500/40 hover:border-violet-400'
@@ -168,7 +182,7 @@ export default async function DashboardHome() {
           {activeOrders.length > 3 ? (
             <Link
               href="/dashboard/orders"
-              className="rounded-xl border border-hir-border bg-zinc-950/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur hover:bg-zinc-900"
+              className="rounded-xl border border-hir-border bg-hir-bg/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur hover:bg-hir-surface"
             >
               +{activeOrders.length - 3} ·  vezi toate
             </Link>
@@ -183,17 +197,17 @@ export default async function DashboardHome() {
           doesn't accidentally go offline mid-delivery). */}
       {!isOnline ? (
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
-            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="mx-auto max-w-xl rounded-2xl border border-hir-border bg-hir-bg/95 p-4 shadow-2xl backdrop-blur">
+            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-hir-muted-fg">
               Ești offline
             </p>
             <SwipeButton
               label="→ Glisează pentru a porni tura"
               onConfirm={startShiftAction}
             />
-            <div className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
+            <div className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-hir-muted-fg">
               <span>Glisează sau ține apăsat ~1 secundă.</span>
-              <span aria-hidden className="text-zinc-700">·</span>
+              <span aria-hidden className="text-hir-border">·</span>
               <Link
                 href="/dashboard/help"
                 className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
@@ -205,7 +219,7 @@ export default async function DashboardHome() {
         </div>
       ) : activeOrders.length === 0 ? (
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
+          <div className="mx-auto max-w-xl rounded-2xl border border-hir-border bg-hir-bg/95 p-4 shadow-2xl backdrop-blur">
             <p className="mb-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
               <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
               Online · gata pentru comenzi

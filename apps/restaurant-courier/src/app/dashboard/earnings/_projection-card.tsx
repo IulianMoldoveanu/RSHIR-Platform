@@ -77,30 +77,30 @@ export function ProjectionCard({ todayRows, trailing7Rows }: Props) {
       className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
         isAbove
           ? 'border-emerald-500/30 bg-emerald-500/5'
-          : 'border-zinc-700 bg-zinc-900'
+          : 'border-hir-border bg-hir-surface'
       }`}
     >
       <TrendingUp
-        className={`h-5 w-5 shrink-0 ${isAbove ? 'text-emerald-400' : 'text-zinc-400'}`}
+        className={`h-5 w-5 shrink-0 ${isAbove ? 'text-emerald-400' : 'text-hir-muted-fg'}`}
         aria-hidden
       />
       <div className="flex-1 text-sm">
         {isAbove ? (
           <>
-            <p className="font-medium text-zinc-100">Ești peste media zilnică</p>
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="font-medium text-hir-fg">Ești peste media zilnică</p>
+            <p className="mt-0.5 text-xs text-hir-muted-fg">
               +{proj.delta.toFixed(2)} RON față de media din ultimele 7 zile (
               {proj.avgDailyEarnings.toFixed(2)} RON/zi)
             </p>
           </>
         ) : (
           <>
-            <p className="font-medium text-zinc-100">
+            <p className="font-medium text-hir-fg">
               {remaining > 0
                 ? `Mai ai ${remaining} ${remaining === 1 ? 'livrare' : 'livrări'} pentru a-ți atinge media zilnică`
                 : `Mai ai ${Math.abs(proj.delta).toFixed(2)} RON pentru media zilnică`}
             </p>
-            <p className="mt-0.5 text-xs text-zinc-400">
+            <p className="mt-0.5 text-xs text-hir-muted-fg">
               Media ta din ultimele 7 zile: {proj.avgDailyEarnings.toFixed(2)} RON/zi
             </p>
           </>

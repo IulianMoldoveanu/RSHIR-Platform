@@ -28,8 +28,8 @@ export function BestDayCard({ bestDay }: Props) {
     >
       <Trophy className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
       <div className="flex-1 text-sm">
-        <p className="font-medium text-zinc-100">Cea mai bună zi din lună</p>
-        <p className="mt-0.5 text-xs text-zinc-400">
+        <p className="font-medium text-hir-fg">Cea mai bună zi din lună</p>
+        <p className="mt-0.5 text-xs text-hir-muted-fg">
           {label}: {bestDay.earnings.toFixed(2)} RON din{' '}
           {bestDay.count} {bestDay.count === 1 ? 'livrare' : 'livrări'}
         </p>
