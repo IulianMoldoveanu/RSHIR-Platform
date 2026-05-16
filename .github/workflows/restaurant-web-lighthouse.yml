@@ -1,0 +1,97 @@
+# Lighthouse CI gate for the public storefront marketing surfaces.
+#
+# Mirrors `courier-lighthouse.yml` from F6.5 but targets the three pages
+# that received marketing polish in PR #512 (Wave 4-B):
+#   - /pricing            (FAQPage + Product + BreadcrumbList JSON-LD)
+#   - /orase/brasov       (LocalBusiness + BreadcrumbList JSON-LD)
+#   - /case-studies/foisorul-a (Article + BreadcrumbList JSON-LD)
+#
+# Each got rich snippets, skip-link, next/image migrations, and
+# accessible nav. The Lighthouse run verifies those landed and catches
+# regressions before they ship.
+#
+# Thresholds match the courier gate's "lenient first" stance: scores
+# emit `warn` (not `error`) so we collect a few baselines before
+# tightening. Tighten by flipping `warn` → `error` in `lighthouserc.json`.
+
+name: Restaurant Web Lighthouse
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/restaurant-web/**'
+      - 'packages/ui/**'
+      - '.github/workflows/restaurant-web-lighthouse.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/restaurant-web/**'
+      - 'packages/ui/**'
+
+concurrency:
+  group: restaurant-web-lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: Lighthouse · mobile · marketing surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build restaurant-web
+        env:
+          # Stub envs so `next build` doesn't bail on missing required
+          # env vars. The three marketing routes render server-side
+          # without hitting Supabase for content, so stub URLs are fine.
+          NEXT_PUBLIC_SUPABASE_URL: 'https://localhost.invalid'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'lighthouse-stub-anon-key'
+          SUPABASE_SERVICE_ROLE_KEY: 'lighthouse-stub-service-role-key'
+        run: pnpm --filter @hir/restaurant-web build
+
+      - name: Run Lighthouse CI
+        id: lhci
+        run: |
+          npx --yes @lhci/cli@0.14.x autorun \
+            --config=./apps/restaurant-web/lighthouserc.json
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Comment budget failure on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '### Lighthouse budget fail — marketing surfaces',
+                '',
+                'One or more Lighthouse thresholds were not met on /pricing, /orase/brasov, or /case-studies/foisorul-a:',
+                '| Category | Min |',
+                '|---|---|',
+                '| Performance | 70 |',
+                '| Accessibility | 90 |',
+                '| Best Practices | 85 |',
+                '| SEO | 90 |',
+                '',
+                'Check the **Lighthouse CI** step above for the full report and public storage link.',
+              ].join('\n')
+            })

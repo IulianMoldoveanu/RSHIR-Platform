@@ -1,0 +1,38 @@
+{
+  "_comment_intent": "Lighthouse CI gate for the public storefront. Targets the three marketing surfaces that received JSON-LD + skip-link work in #512 (Wave 4-B): /pricing, /orase/brasov, /case-studies/foisorul-a. Thresholds set to `warn` so we collect baseline runs before tightening to `error`. Tighten once we have 5+ green runs.",
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm --filter @hir/restaurant-web start",
+      "startServerReadyPattern": "Ready",
+      "startServerReadyTimeout": 60000,
+      "url": [
+        "http://localhost:3000/pricing",
+        "http://localhost:3000/orase/brasov",
+        "http://localhost:3000/case-studies/foisorul-a"
+      ],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop",
+        "emulatedFormFactor": "mobile",
+        "throttlingMethod": "simulate",
+        "onlyCategories": [
+          "performance",
+          "accessibility",
+          "best-practices",
+          "seo"
+        ]
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.7 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.85 }],
+        "categories:seo": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
