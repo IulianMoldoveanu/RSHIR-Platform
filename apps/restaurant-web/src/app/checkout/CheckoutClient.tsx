@@ -44,11 +44,17 @@ type IntentResponse = {
   publicTrackToken: string;
   paymentMethod: 'CARD' | 'COD';
   /**
-   * Stripe Checkout Session URL — present only when paymentMethod === 'CARD'.
-   * Client window.location-redirects to this URL; Stripe hosts the payment
-   * form and bounces back to /checkout/success or /checkout/cancel.
+   * PSP-hosted checkout URL — present only when paymentMethod === 'CARD'.
+   * Iulian directive 2026-05-16: Stripe is excluded; routed by
+   * apps/restaurant-web/src/lib/payments/provider-router.ts to either Netopia
+   * (secure.[sandbox.]netopia-payments.com) or Viva Wallet
+   * ([demo|www].vivapayments.com). Client window.location-redirects to this
+   * URL; the PSP hosts the card form and bounces back to /checkout/success
+   * or /checkout/cancel.
    */
   url?: string;
+  /** PSP that issued `url`, present whenever `url` is present. */
+  provider?: 'netopia' | 'viva';
   quote: Quote;
 };
 
@@ -470,7 +476,7 @@ export function CheckoutClient(props: {
       const response = data as IntentResponse;
       // Clear the cart immediately for both branches — once the order is
       // persisted in restaurant_orders the cart no longer represents
-      // pending intent. If the customer abandons Stripe checkout, the
+      // pending intent. If the customer abandons the PSP checkout, the
       // /checkout/cancel landing offers a return-to-menu link.
       sessionStorage.removeItem(CART_STORAGE_KEY);
       writeStoredPromo(null);
@@ -486,12 +492,12 @@ export function CheckoutClient(props: {
       }
 
       if (response.paymentMethod === 'COD') {
-        // COD orders skip Stripe entirely. Order is already PENDING in the
+        // COD orders skip the PSP entirely. Order is already PENDING in the
         // DB; the customer goes straight to /track and the restaurant
         // confirms via the admin UI.
         // Lane Y5 — when running inside an embed iframe, notify the host
         // page so its analytics can record a conversion. CARD path fires
-        // the same event from /checkout/success after Stripe completes.
+        // the same event from /checkout/success after the PSP completes.
         if (window.parent !== window) {
           try {
             window.parent.postMessage(
@@ -510,7 +516,8 @@ export function CheckoutClient(props: {
         router.push(`/track/${response.publicTrackToken}`);
         return;
       }
-      // Lane J — CARD path. Redirect to the Stripe-hosted checkout URL.
+      // CARD path. Redirect to the PSP-hosted checkout URL returned by the
+      // provider router (Netopia or Viva — picked from tenant settings).
       // No publishable key, no Elements, no on-page payment form.
       if (!response.url) {
         setError(t(locale, 'checkout.err_create_order'));
@@ -958,10 +965,11 @@ export function CheckoutClient(props: {
         </Section>
       )}
 
-      {/* Lane J — STEP 3 (in-app Stripe Elements payment) removed. The CARD
-          branch in handleProceedToPayment now redirects via
-          window.location.href to a Stripe-hosted Checkout Session URL.
-          Stripe bounces back to /checkout/success or /checkout/cancel. */}
+      {/* STEP 3 (in-app card payment form) intentionally removed. The CARD
+          branch in handleProceedToPayment redirects via window.location.href
+          to a PSP-hosted Checkout URL (Netopia or Viva, picked by tenant
+          settings via lib/payments/provider-router.ts). The PSP bounces back
+          to /checkout/success or /checkout/cancel. */}
     </div>
   );
 }

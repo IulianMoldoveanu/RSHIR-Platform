@@ -1,9 +1,10 @@
 /**
- * Playwright config for the happy-path E2E suite (Wave 4-C).
+ * Playwright config for the happy-path E2E suite (Wave 4-C, extended in 4-A).
  *
- * Two end-to-end flows in scope:
- *   - courier-happy-path.spec.ts   → restaurant-courier (port 3002 / E2E_COURIER_BASE_URL)
- *   - storefront-happy-path.spec.ts → restaurant-web    (port 3000 / E2E_WEB_BASE_URL)
+ * End-to-end flows in scope:
+ *   - courier-happy-path.spec.ts          → restaurant-courier (port 3002 / E2E_COURIER_BASE_URL)
+ *   - storefront-happy-path.spec.ts       → restaurant-web    (port 3000 / E2E_WEB_BASE_URL)
+ *   - customer-payment-sandbox.spec.ts    → restaurant-web    (Wave 4-A; Netopia/Viva sandbox shape)
  *
  * Most assertions in these specs are currently behind `test.fixme()`
  * because they require a real Supabase stack (auth users, seed orders,
@@ -55,6 +56,20 @@ export default defineConfig({
     {
       name: 'storefront-happy-path',
       testMatch: '**/storefront-happy-path.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: WEB_BASE_URL,
+        locale: 'ro-RO',
+        timezoneId: 'Europe/Bucharest',
+      },
+    },
+    {
+      // Wave 4-A — Netopia/Viva sandbox URL-shape coverage. Same target as
+      // storefront-happy-path; kept as a distinct project so it can be run
+      // in isolation (`--project customer-payment-sandbox`). All specs are
+      // currently `test.fixme()` pending demo-tenant seed.
+      name: 'customer-payment-sandbox',
+      testMatch: '**/customer-payment-sandbox.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
         baseURL: WEB_BASE_URL,
