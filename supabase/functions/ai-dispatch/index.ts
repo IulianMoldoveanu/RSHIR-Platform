@@ -25,6 +25,8 @@ import { registerMenuAgentIntents } from '../_shared/menu-agent.ts';
 import { registerMarketingAgent } from '../_shared/marketing-agent.ts';
 import { registerFinanceAgentIntents } from '../_shared/finance-agent.ts';
 import { registerComplianceAgentIntents } from '../_shared/compliance-agent.ts';
+import { registerCsIntents } from '../_shared/cs-agent.ts';
+import { registerGrowthIntents } from '../_shared/growth-agent.ts';
 
 // Register every shipped agent so the dispatcher has the full intent map
 // resident in this edge fn. registerIntent() is idempotent (warns on
@@ -35,6 +37,8 @@ registerMenuAgentIntents();
 registerMarketingAgent();
 registerFinanceAgentIntents();
 registerComplianceAgentIntents();
+registerCsIntents();
+registerGrowthIntents();
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

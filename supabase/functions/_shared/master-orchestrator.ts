@@ -502,4 +502,12 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   // --- Marketing agent (write) — placeholders for Sprint 14 ---
   { name: 'marketing.draft_post', agent: 'marketing', defaultCategory: 'social.draft', description: 'Generează draft de postare social.' },
   { name: 'marketing.publish_post', agent: 'marketing', defaultCategory: 'social.publish', description: 'Publică o postare social.' },
+  // --- Growth agent (read) — F6 closure ---
+  // Growth recommendations are produced by the daily cron
+  // (`supabase/functions/growth-agent-daily`); the on-demand intents below
+  // expose them through the orchestrator so other channels (web admin,
+  // telegram, voice) can surface the same recommendations without
+  // duplicating the Anthropic call.
+  { name: 'growth.recommendations_for_tenant', agent: 'growth', defaultCategory: 'growth.read', description: 'Listează recomandările de creștere generate de daily cron.', readOnly: true },
+  { name: 'growth.recommendation_get', agent: 'growth', defaultCategory: 'growth.read', description: 'Detalii pentru o singură recomandare (rationale + payload).', readOnly: true },
 ];
