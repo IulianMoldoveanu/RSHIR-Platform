@@ -9,6 +9,8 @@
  * environments.
  */
 
+import { isSilentNow } from './quiet-hours';
+
 const STORAGE_KEY = 'hir-courier-offer-sound';
 // Default ON. Missing offers because the phone was on silent is a common
 // complaint, so the chirp should be the default behaviour.
@@ -41,6 +43,8 @@ export function setOfferSoundEnabled(v: boolean): void {
  */
 export function playOfferChirp(): void {
   if (typeof window === 'undefined') return;
+  // Respect the courier's do-not-disturb window.
+  if (isSilentNow()) return;
   const Ctx =
     window.AudioContext ||
     (window as unknown as { webkitAudioContext?: typeof AudioContext })

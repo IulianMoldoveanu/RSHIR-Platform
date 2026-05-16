@@ -11,6 +11,8 @@
  * Android WebView builds, some desktop browsers).
  */
 
+import { isSilentNow } from './quiet-hours';
+
 const STORAGE_KEY = 'hir-courier-voice-nav';
 const VOICE_LANG = 'ro-RO';
 
@@ -44,11 +46,14 @@ export function setVoiceNavEnabled(v: boolean): void {
  * - Picks the first available ro-RO voice; falls back to the browser default
  *   voice with lang='ro-RO' if no Romanian voice is installed.
  * - Queues behind any ongoing utterance (does not cancel in-progress speech).
- * - Silent no-op when speechSynthesis is unavailable.
+ * - Silent no-op when speechSynthesis is unavailable OR when the courier's
+ *   quiet-hours window is active.
  */
 export function speak(message: string): void {
   if (typeof window === 'undefined') return;
   if (!('speechSynthesis' in window)) return;
+  // Respect the courier's do-not-disturb window (Setari -> Notificari).
+  if (isSilentNow()) return;
 
   const utterance = new SpeechSynthesisUtterance(message);
   utterance.lang = VOICE_LANG;
