@@ -3,6 +3,7 @@ import { Receipt } from 'lucide-react';
 import { EmptyState } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
+import { friendlyDbError } from '@/lib/db-error';
 import { ticketAgingClass } from '@/lib/uiux-quickwins';
 import { OrdersRealtime } from './orders-realtime';
 import type { OrderStatus } from './status-machine';
@@ -249,7 +250,7 @@ export default async function OrdersPage({
     // to show the regular queue than a hard 500.
     ({ data, error } = await loadOrders(COLS_LEGACY, false));
   }
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'încărcarea listei de comenzi');
 
   const rows = (data ?? []) as unknown as OrderRow[];
 

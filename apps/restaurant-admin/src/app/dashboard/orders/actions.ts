@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { ALLOWED_TRANSITIONS, OrderTransitionError, type OrderStatus } from './status-machine';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 import { dispatchOrderEvent, probeCustomDispatchEligibility } from '@/lib/integration-bus';
 import { awardLoyaltyForDeliveredOrder } from '@/lib/loyalty';
 import {
@@ -37,7 +38,7 @@ async function loadOrderForTenant(orderId: string, tenantId: string) {
     .eq('id', orderId)
     .eq('tenant_id', tenantId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'încărcarea comenzii');
   if (!data) throw new Error('Comanda nu exista in acest restaurant.');
   return data as { id: string; tenant_id: string; status: OrderStatus };
 }
@@ -65,7 +66,7 @@ export async function updateOrderStatus(
     .update({ status: newStatus })
     .eq('id', orderId)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea stării comenzii');
 
   await logAudit({
     tenantId,
@@ -224,7 +225,7 @@ export async function markCodOrderPaid(
         'Marcarea cash nu este disponibilă încă — migrația plății nu a fost aplicată.',
       );
     }
-    throw new Error(readErr.message);
+    throw friendlyDbError(readErr, 'încărcarea comenzii pentru plată');
   }
   if (!existing) throw new Error('Comanda nu exista in acest restaurant.');
 
@@ -259,9 +260,9 @@ export async function markCodOrderPaid(
     .select('id');
   const { data: claimed, error } = (await guarded) as {
     data: Array<{ id: string }> | null;
-    error: { message: string } | null;
+    error: { code?: string | null; message: string; details?: string | null } | null;
   };
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'marcarea comenzii ca plătită');
   if (!claimed || claimed.length === 0) {
     throw new Error('Comanda nu mai e eligibilă (a fost modificată între timp).');
   }
@@ -306,7 +307,7 @@ export async function cancelOrder(
     .update(update)
     .eq('id', orderId)
     .eq('tenant_id', tenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'anularea comenzii');
 
   await logAudit({
     tenantId,

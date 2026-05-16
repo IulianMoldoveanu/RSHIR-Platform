@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 
 // RSHIR-46: tenant moderation toggle for customer reviews. Soft-hide via
 // hidden_at timestamp so we can unhide and so the row stays in the
@@ -31,7 +32,7 @@ export async function toggleReviewHidden(
     .eq('id', reviewId)
     .eq('tenant_id', expectedTenantId)
     .maybeSingle();
-  if (readErr) throw new Error(readErr.message);
+  if (readErr) throw friendlyDbError(readErr, 'încărcarea review-ului');
   if (!review) throw new Error('Review not found.');
 
   const update = hidden
@@ -42,7 +43,7 @@ export async function toggleReviewHidden(
     .update(update as never)
     .eq('id', reviewId)
     .eq('tenant_id', expectedTenantId);
-  if (error) throw new Error(error.message);
+  if (error) throw friendlyDbError(error, 'actualizarea review-ului');
 
   await logAudit({
     tenantId: expectedTenantId,

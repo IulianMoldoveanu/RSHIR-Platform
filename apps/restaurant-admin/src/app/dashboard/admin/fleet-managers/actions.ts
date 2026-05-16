@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logAudit } from '@/lib/audit';
+import { friendlyDbError } from '@/lib/db-error';
 import { requirePlatformAdmin as requirePlatformAdminShared } from '@/lib/auth/platform-admin';
 
 const REVALIDATE = '/dashboard/admin/fleet-managers';
@@ -43,7 +44,7 @@ async function findAuthUserByEmail(
   const lower = email.toLowerCase();
   for (let page = 1; page <= MAX_AUTH_PAGES; page++) {
     const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw new Error(error.message);
+    if (error) throw friendlyDbError(error, 'căutarea utilizatorului');
     const users = (data?.users ?? []) as { id: string; email?: string | null }[];
     if (users.length === 0) return null;
     const match = users.find((u) => (u.email ?? '').toLowerCase() === lower);
