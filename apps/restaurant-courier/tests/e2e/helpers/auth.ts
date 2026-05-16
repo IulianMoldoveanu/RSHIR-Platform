@@ -7,6 +7,18 @@ import { E2E_COURIER_EMAIL, E2E_COURIER_PASSWORD } from '../fixtures/seed';
  * dashboard has rendered the offline UI.
  */
 export async function loginAsTestCourier(page: Page): Promise<void> {
+  // Skip first-run onboarding overlays so tests can interact with the real
+  // dashboard immediately (welcome carousel + first-shift tutorial would
+  // otherwise sit on top of /dashboard and block locators).
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem('hir-courier-onboarded', '1');
+      window.localStorage.setItem('hir-courier-first-shift-done', '1');
+    } catch {
+      // localStorage may be unavailable in private/iframe contexts — ignore.
+    }
+  });
+
   await page.goto('/login');
   await page.getByLabel('Email').fill(E2E_COURIER_EMAIL);
   await page.getByLabel('Parola').fill(E2E_COURIER_PASSWORD);
