@@ -11,6 +11,7 @@ import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getLoyaltyBalance } from '@/lib/loyalty';
+import { resolvePaymentSurface } from '@/lib/payment-mode';
 import { CheckoutClient } from './CheckoutClient';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
@@ -100,7 +101,7 @@ export default async function CheckoutPage() {
   const tenantPhone = readPhone(tenant.settings) ?? '';
   const pickup = readPickup(tenant.settings);
   const { logoUrl } = brandingFor(tenant.settings);
-  const codEnabled = tenant.settings.cod_enabled === true;
+  const paymentSurface = resolvePaymentSurface(tenant.settings);
 
   const customerId = readCustomerCookie(tenant.id);
   const [prefill, loyalty] = await Promise.all([
@@ -145,7 +146,9 @@ export default async function CheckoutPage() {
         pickupAddress={pickup.address}
         pickupLat={pickup.lat}
         pickupLng={pickup.lng}
-        codEnabled={codEnabled}
+        codEnabled={paymentSurface.codEnabled}
+        cardEnabled={paymentSurface.cardEnabled}
+        showTestBanner={paymentSurface.showTestBanner}
         prefill={prefill}
         loyalty={
           loyalty

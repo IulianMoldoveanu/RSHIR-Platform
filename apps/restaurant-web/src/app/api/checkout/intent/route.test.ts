@@ -114,4 +114,33 @@ describe('POST /api/checkout/intent', () => {
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('invalid_request');
   });
+
+  it('returns 422 card_disabled when tenant is in cod_only mode and body asks for CARD', async () => {
+    // PSP_TENANT_TOGGLE_ENABLED=true makes resolvePaymentSurface honor the
+    // per-tenant mode. cod_only → CARD radio is hidden client-side and the
+    // intent route refuses CARD bodies.
+    process.env.PSP_TENANT_TOGGLE_ENABLED = 'true';
+    const tenant = await import('@/lib/tenant');
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tenant: {
+        ...FAKE_TENANT,
+        settings: { ...FAKE_TENANT.settings, payments: { mode: 'cod_only' } },
+      },
+      host: 's1.hir.ro',
+      slug: 's1',
+    });
+    const res = await POST(
+      makeReq({
+        items: [{ itemId: '11111111-1111-1111-1111-111111111111', quantity: 1 }],
+        fulfillment: 'DELIVERY',
+        customer: { firstName: 'Ion', lastName: 'Pop', phone: '+40712345678' },
+        address: { line1: 'Strada X 1', city: 'Brasov', lat: 45.6, lng: 25.6 },
+        paymentMethod: 'CARD',
+      }),
+    );
+    delete process.env.PSP_TENANT_TOGGLE_ENABLED;
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('card_disabled');
+  });
 });

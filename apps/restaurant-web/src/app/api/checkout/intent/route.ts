@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getStripe } from '@/lib/stripe/server';
+import { resolvePaymentSurface } from '@/lib/payment-mode';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
@@ -105,12 +106,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Server-enforce cod_enabled (UI hides the radio when off).
-  if (parsed.data.paymentMethod === 'COD') {
-    const codEnabled = (tenant.settings as Record<string, unknown> | null)?.cod_enabled;
-    if (codEnabled !== true) {
-      return NextResponse.json({ error: 'cod_disabled' }, { status: 422 });
-    }
+  // Server-enforce the per-tenant payment surface. Storefront UI hides the
+  // radio when a method is off, but a determined client can still POST.
+  // cod_only mode refuses CARD; modes without COD refuse COD.
+  const paymentSurface = resolvePaymentSurface(tenant.settings);
+  if (parsed.data.paymentMethod === 'COD' && !paymentSurface.codEnabled) {
+    return NextResponse.json({ error: 'cod_disabled' }, { status: 422 });
+  }
+  if (parsed.data.paymentMethod === 'CARD' && !paymentSurface.cardEnabled) {
+    return NextResponse.json({ error: 'card_disabled' }, { status: 422 });
   }
 
   const admin = getSupabaseAdmin();
@@ -420,7 +424,10 @@ export async function POST(req: NextRequest) {
   // `payment_intent.payment_failed`, and we propagate `metadata.order_id`
   // onto the inner PaymentIntent via `payment_intent_data.metadata` so the
   // existing /api/webhooks/stripe lookup keeps working.
-  const stripe = getStripe();
+  // card_test mode uses the Stripe TEST secret key so demo tenants can
+  // accept 4242 4242 4242 4242 without touching live money. card_live and
+  // the legacy fallback use STRIPE_SECRET_KEY (live).
+  const stripe = getStripe(paymentSurface.mode === 'card_test' ? 'test' : 'live');
   const totalRonAmount = Number(order.total_ron);
   const baseUrl = tenantBaseUrl();
 

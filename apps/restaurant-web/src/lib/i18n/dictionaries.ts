@@ -152,6 +152,9 @@ export const dictionaries = {
       payment_method_card_hint: 'Plătești online cu Visa / Mastercard.',
       payment_method_cod: 'Cash la livrare',
       payment_method_cod_hint: 'Plătești curierului la primirea comenzii.',
+      test_mode_banner_title: 'Plată în mod demo',
+      test_mode_banner_body:
+        'Folosiți cardul de test 4242 4242 4242 4242, orice CVV și o dată viitoare. Nu se procesează tranzacții reale.',
       place_order_cod_template: 'Plasează comanda · {amount}',
       section_confirm: '4. Confirmă comanda',
       section_payment: '5. Plată',
@@ -1145,6 +1148,9 @@ export const dictionaries = {
       payment_method_card_hint: 'Pay online with Visa / Mastercard.',
       payment_method_cod: 'Cash on delivery',
       payment_method_cod_hint: 'Pay the courier when the order arrives.',
+      test_mode_banner_title: 'Demo payment mode',
+      test_mode_banner_body:
+        'Use the test card 4242 4242 4242 4242, any CVV and a future date. No real transaction is processed.',
       place_order_cod_template: 'Place order · {amount}',
       section_confirm: '4. Confirm your order',
       section_payment: '5. Payment',

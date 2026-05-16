@@ -114,23 +114,38 @@ export function CheckoutClient(props: {
   pickupLat: number | null;
   pickupLng: number | null;
   codEnabled: boolean;
+  cardEnabled: boolean;
+  showTestBanner: boolean;
   prefill: Prefill | null;
   loyalty: LoyaltyContext | null;
   locale: Locale;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
-  const { locale, pickupEnabled, pickupAddress, pickupLat, pickupLng, codEnabled, prefill, loyalty } =
-    props;
+  const {
+    locale,
+    pickupEnabled,
+    pickupAddress,
+    pickupLat,
+    pickupLng,
+    codEnabled,
+    cardEnabled,
+    showTestBanner,
+    prefill,
+    loyalty,
+  } = props;
 
   // Loyalty redemption toggle — wired up after the quote state below.
   const [redeemActive, setRedeemActive] = useState(false);
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
-  // Default 'CARD' so existing tenants and tenants without COD configured
-  // see the unchanged Stripe flow. The radio only appears when codEnabled.
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
+  // Default to whichever method is enabled. Legacy + card_live + card_test
+  // tenants get CARD; cod_only tenants get COD (CARD radio is hidden and the
+  // intent route refuses CARD bodies).
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    cardEnabled ? 'CARD' : 'COD',
+  );
 
   // Customer — prefilled from the most recent order for known customers
   // (cookie-recognized). Speeds up repeat checkout by ~5 fields.
@@ -785,24 +800,39 @@ export function CheckoutClient(props: {
           </Field>
         </Section>
 
-        {codEnabled && (
+        {(cardEnabled && codEnabled) || showTestBanner ? (
           <Section title={t(locale, 'checkout.section_payment_method')}>
-            <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2">
-              <PaymentMethodChip
-                active={paymentMethod === 'CARD'}
-                onClick={() => setPaymentMethod('CARD')}
-                title={t(locale, 'checkout.payment_method_card')}
-                hint={t(locale, 'checkout.payment_method_card_hint')}
-              />
-              <PaymentMethodChip
-                active={paymentMethod === 'COD'}
-                onClick={() => setPaymentMethod('COD')}
-                title={t(locale, 'checkout.payment_method_cod')}
-                hint={t(locale, 'checkout.payment_method_cod_hint')}
-              />
-            </div>
+            {showTestBanner && (
+              <div
+                role="status"
+                className="sm:col-span-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+              >
+                <strong className="block text-sm font-semibold">
+                  {t(locale, 'checkout.test_mode_banner_title')}
+                </strong>
+                <span className="mt-1 block">
+                  {t(locale, 'checkout.test_mode_banner_body')}
+                </span>
+              </div>
+            )}
+            {cardEnabled && codEnabled && (
+              <div className="grid grid-cols-1 gap-2 sm:col-span-2 sm:grid-cols-2">
+                <PaymentMethodChip
+                  active={paymentMethod === 'CARD'}
+                  onClick={() => setPaymentMethod('CARD')}
+                  title={t(locale, 'checkout.payment_method_card')}
+                  hint={t(locale, 'checkout.payment_method_card_hint')}
+                />
+                <PaymentMethodChip
+                  active={paymentMethod === 'COD'}
+                  onClick={() => setPaymentMethod('COD')}
+                  title={t(locale, 'checkout.payment_method_cod')}
+                  hint={t(locale, 'checkout.payment_method_cod_hint')}
+                />
+              </div>
+            )}
           </Section>
-        )}
+        ) : null}
 
         <PromoBox
           locale={locale}
