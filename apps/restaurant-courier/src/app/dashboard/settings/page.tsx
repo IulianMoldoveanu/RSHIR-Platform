@@ -24,6 +24,7 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { VehicleSelector } from '@/components/vehicle-selector';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DocumentExpiryCard } from '@/components/document-expiry-card';
+import { ReplayOnboardingButton } from '@/components/replay-onboarding-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -248,6 +249,22 @@ export default async function SettingsPage() {
             </div>
             <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
           </Link>
+
+          {/* Replay onboarding */}
+          <div className="flex items-start gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
+              <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1 space-y-2">
+              <div>
+                <p className="text-sm font-semibold text-hir-fg">Reia tutorialul</p>
+                <p className="mt-0.5 text-xs text-hir-muted-fg">
+                  Vezi din nou ghidul de pornire în 4 pași și carusel-ul de bun venit
+                </p>
+              </div>
+              <ReplayOnboardingButton />
+            </div>
+          </div>
 
           {/* Activity log (GDPR Art. 15 transparency) */}
           <Link
