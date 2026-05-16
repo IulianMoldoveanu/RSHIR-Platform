@@ -19,6 +19,7 @@ import { CopyAddressButton } from '@/components/copy-address-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
 import { WakeLockOnActive } from '@/components/wake-lock-on-active';
+import { LiveEta } from '@/components/live-eta';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { logMedicalAccess } from '@/lib/medical-access';
 import { headers } from 'next/headers';
@@ -70,7 +71,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   //   * it's still open (CREATED/OFFERED) within their own fleet.
   // Anything else returns notFound() — no 403 message, no PII leak.
   const admin = createAdminClient();
-  const [{ data }, riderMode] = await Promise.all([
+  const [{ data }, riderMode, { data: profileRow }] = await Promise.all([
     admin
       .from('courier_orders')
       .select(
@@ -79,7 +80,13 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       .eq('id', params.id)
       .maybeSingle(),
     resolveRiderMode(user.id),
+    admin
+      .from('courier_profiles')
+      .select('vehicle_type')
+      .eq('user_id', user.id)
+      .maybeSingle(),
   ]);
+  const vehicleType = (profileRow as { vehicle_type?: string } | null)?.vehicle_type ?? 'BIKE';
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
@@ -212,6 +219,16 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       <section className="rounded-2xl border border-hir-border bg-hir-surface px-5 py-4">
         <OrderTimeline status={order.status} />
       </section>
+
+      {/* Live ETA: only while this courier is actively delivering. */}
+      {isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT') &&
+      order.dropoff_lat != null && order.dropoff_lng != null ? (
+        <LiveEta
+          dropoffLat={order.dropoff_lat}
+          dropoffLng={order.dropoff_lng}
+          vehicleType={vehicleType}
+        />
+      ) : null}
 
       {/* Dropoff card. */}
       <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-5">
