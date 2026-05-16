@@ -38,7 +38,7 @@ export default async function StorefrontAttributionPage() {
 
       <header className="space-y-1">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Afișare „Powered by HIR" pe site
+          Afișare „Powered by HIR” pe site
         </h1>
         <p className="text-sm text-zinc-600">
           Un rând mic în footer-ul site-ului tău public care leagă către pagina noastră pentru
