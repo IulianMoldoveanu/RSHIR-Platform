@@ -32,6 +32,7 @@ export type CourierAuditAction =
   | 'fleet.bulk_auto_assigned'
   | 'order.cash_collected'
   | 'order.force_cancelled_by_courier'
+  | 'order.cancelled_by_courier'
   | 'delivery.geofence_warning'
   | 'pharma.callback_sent'
   | 'earnings.exported';
