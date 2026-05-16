@@ -1,8 +1,16 @@
-// HIR Restaurant Suite — Stripe Connect PSP adapter (Lane PSP-MULTIGATES-V1).
+// HIR Restaurant Suite — Stripe Connect PSP adapter.
 //
-// Iulian directive 2026-05-10: Stripe Connect is fallback/demo only.
-// Primary marketplace target remains Netopia/Viva once commercial config
-// arrives. Default `psp_credentials.active = false` for new tenants.
+// @deprecated Iulian directive 2026-05-16: Stripe is excluded from the
+// active RSHIR payment path — use Netopia or Viva. This file is kept
+// for historic reference and so any in-flight import keeps type-checking,
+// but the adapter is NO LONGER REGISTERED in `./registry.ts`; calling
+// `getPspAdapter('stripe_connect')` throws. See
+// `memory/decision_stripe_excluded_2026-05-16.md`.
+//
+// Original Lane PSP-MULTIGATES-V1 context (2026-05-10) preserved below:
+// Stripe Connect was fallback/demo only; primary marketplace target was
+// Netopia/Viva once commercial config arrives. Default
+// `psp_credentials.active = false` for new tenants.
 //
 // Architecture choices:
 //   - Direct charges (not destination charges) — funds flow directly to
@@ -114,6 +122,11 @@ function timingSafeEqualHex(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
+/**
+ * @deprecated Stripe Connect is excluded from RSHIR's active payment path.
+ * Use Netopia (`netopiaAdapter`) or Viva (`vivaAdapter`). Kept for historic
+ * reference only — not registered in `./registry.ts`.
+ */
 export const stripeConnectAdapter: PspAdapter = {
   providerKey: 'stripe_connect',
 

@@ -51,9 +51,10 @@ export type {
   PspProviderKey,
   PspWebhookEvent,
 } from './payment/contract';
-export { netopiaAdapter } from './payment/netopia';
+export { netopiaAdapter, createNetopiaCheckoutSession } from './payment/netopia';
+export type { CheckoutSessionInput, CheckoutSessionResult } from './payment/netopia';
 export { stripeConnectAdapter } from './payment/stripe-connect';
-export { vivaAdapter } from './payment/viva';
+export { vivaAdapter, createVivaCheckoutSession } from './payment/viva';
 export { getPspAdapter, isPspProviderImplemented } from './payment/registry';
 
 // Aggregator KDS unification — Glovo / Wolt / Bolt Food adapters.

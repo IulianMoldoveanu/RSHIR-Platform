@@ -24,9 +24,9 @@ vi.mock('@/lib/supabase-admin', () => ({
   }),
 }));
 
-vi.mock('@/lib/stripe/server', () => ({
-  getStripe: vi.fn(() => {
-    throw new Error('stripe client should not be called for early-return paths');
+vi.mock('@/lib/payments/provider-router', () => ({
+  createCheckoutSession: vi.fn(() => {
+    throw new Error('provider router should not be called for early-return paths');
   }),
 }));
 

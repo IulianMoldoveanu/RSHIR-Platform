@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { getStripe } from '@/lib/stripe/server';
 import { resolvePaymentSurface } from '@/lib/payment-mode';
+import { createCheckoutSession } from '@/lib/payments/provider-router';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { intentRequestSchema } from '../schemas';
 import { computeQuote } from '../pricing';
@@ -29,9 +29,9 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  // Each successful intent allocates a Stripe PaymentIntent + customer +
+  // Each successful intent allocates a PSP checkout session + customer +
   // order rows. Without a limit, a script can burn thousands of cents in
-  // Stripe object overhead. 10 attempts per IP per minute (capacity 10,
+  // PSP object overhead. 10 attempts per IP per minute (capacity 10,
   // refill 1/6s) is generous for a real customer (typical checkout retries
   // 1-3 times) but blocks scripted abuse.
   const rl = checkLimit(`checkout-intent:${clientIp(req)}`, { capacity: 10, refillPerSec: 1 / 6 });
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   // Same-origin gate. Without this a third-party page could initiate a paid
   // order in a logged-in customer's browser via a cross-origin POST. The
   // attacker can't see the response (CORS blocks the read) but the side
-  // effect — Stripe payment intent + a real order — is what we're stopping.
+  // effect — PSP checkout session + a real order — is what we're stopping.
   const origin = assertSameOrigin(req);
   if (!origin.ok) {
     return NextResponse.json(
@@ -396,7 +396,7 @@ export async function POST(req: NextRequest) {
     redeemedPoints: loyaltyDiscountRon > 0 ? requestedRedeemPoints : 0,
   };
 
-  // COD: skip Stripe entirely. Order is PENDING/UNPAID; the restaurant
+  // COD: skip PSP entirely. Order is PENDING/UNPAID; the restaurant
   // collects cash on delivery and the admin marks payment_status PAID
   // post-delivery (manually or via the courier app's complete-order flow).
   // The customer skips the payment step on the client and lands on /track.
@@ -415,83 +415,59 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  // Lane J — migrate from Stripe Elements (client-side `confirmPayment` with
-  // a `pk_live_*` publishable key) to Stripe Checkout Session (server creates
-  // a hosted-checkout URL, client window.location-redirects). The publishable
-  // key is no longer needed anywhere; the bundle drops `@stripe/stripe-js` +
-  // `@stripe/react-stripe-js`. Webhook handler is unchanged: a Checkout
-  // Session in `mode: 'payment'` still emits `payment_intent.succeeded` /
-  // `payment_intent.payment_failed`, and we propagate `metadata.order_id`
-  // onto the inner PaymentIntent via `payment_intent_data.metadata` so the
-  // existing /api/webhooks/stripe lookup keeps working.
-  // card_test mode uses the Stripe TEST secret key so demo tenants can
-  // accept 4242 4242 4242 4242 without touching live money. card_live and
-  // the legacy fallback use STRIPE_SECRET_KEY (live).
-  const stripe = getStripe(paymentSurface.mode === 'card_test' ? 'test' : 'live');
+  // Iulian directive 2026-05-16: Stripe is excluded. Card path dispatches to
+  // Netopia or Viva via the provider router. Provider + mode (sandbox/live)
+  // are read from tenant.settings.payments by resolvePaymentSurface above;
+  // the router picks the right adapter and returns a hosted-checkout URL the
+  // client window.location-redirects to. Webhook side now lives at
+  // /api/webhooks/netopia (and /api/webhooks/viva when V2 lands); the legacy
+  // /api/webhooks/stripe endpoint returns 410 Gone.
   const totalRonAmount = Number(order.total_ron);
   const baseUrl = tenantBaseUrl();
 
-  const session = await stripe.checkout.sessions.create(
+  const session = await createCheckoutSession(
+    paymentSurface.provider,
+    paymentSurface.mode,
     {
-      mode: 'payment',
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'ron',
-            unit_amount: Math.round(totalRonAmount * 100),
-            // One aggregated line — matches what the customer just confirmed
-            // on the review step. Detailed line items live on
-            // restaurant_orders.items already; the Stripe receipt only needs
-            // a single human-readable label.
-            product_data: {
-              name: `Comandă ${tenant.name}`,
-              description: `Comandă #${order.id.slice(0, 8)}`,
-            },
-          },
-        },
-      ],
-      success_url: `${baseUrl}/checkout/success?order_id=${order.id}&token=${order.public_track_token}`,
-      cancel_url: `${baseUrl}/checkout/cancel?order_id=${order.id}`,
+      orderId: order.id,
+      amountBani: Math.round(totalRonAmount * 100),
+      currency: 'RON',
+      successUrl: `${baseUrl}/checkout/success?order_id=${order.id}&token=${order.public_track_token}`,
+      cancelUrl: `${baseUrl}/checkout/cancel?order_id=${order.id}`,
+      customer: {
+        email: parsed.data.customer.email ?? '',
+        firstName: parsed.data.customer.firstName,
+        phone: parsed.data.customer.phone,
+      },
       metadata: {
         order_id: order.id,
         tenant_id: tenant.id,
         tenant_slug: tenant.slug,
       },
-      // CRITICAL: propagate order_id onto the underlying PaymentIntent's
-      // metadata. The webhook handler at /api/webhooks/stripe reads
-      // `event.data.object.metadata.order_id` for `payment_intent.succeeded`
-      // and `payment_intent.payment_failed`. Without this, those events
-      // arrive without an order_id and the order is never marked PAID.
-      payment_intent_data: {
-        metadata: {
-          order_id: order.id,
-          tenant_id: tenant.id,
-          tenant_slug: tenant.slug,
-        },
-      },
-      // Default Stripe expiration is 24h; matches our pending-order tolerance.
     },
-    { idempotencyKey: `order:${order.id}` },
   );
 
-  // We don't have the PaymentIntent id yet — Stripe creates it lazily when
-  // the customer lands on the hosted checkout page. The webhook fills in
-  // stripe_payment_intent_id when payment_intent.succeeded fires (Lane G's
-  // markOrderPaidAndDispatch path is keyed on order_id metadata, not on
-  // the column being set up-front). The /api/checkout/confirm fallback
-  // path becomes a no-op for new Checkout-Session orders; webhook is the
-  // single source of truth post-Lane J.
+  if (!session.ok) {
+    // Surface the adapter error so the client can fall back to COD if the
+    // tenant supports it. The order row stays PENDING/UNPAID; no charge has
+    // been attempted yet (we never POSTed to the PSP) — the customer can
+    // retry from /track or re-submit with paymentMethod=COD.
+    console.error('[checkout/intent] PSP session creation failed', session);
+    return NextResponse.json(
+      { error: 'psp_unavailable', provider: session.provider, reason: session.error },
+      { status: 502 },
+    );
+  }
 
   const responsePayload = {
     orderId: order.id,
     publicTrackToken: order.public_track_token,
     paymentMethod: 'CARD' as const,
-    // The Stripe-hosted checkout URL. Client does
-    // `window.location.href = url`. After payment Stripe redirects the
-    // customer to success_url / cancel_url.
+    // PSP-hosted checkout URL. Client does `window.location.href = url`.
+    // The PSP redirects the customer to success_url / cancel_url after
+    // card authorization.
     url: session.url,
+    provider: session.provider,
     quote: responseQuote,
   };
   if (idempotencyContext) {

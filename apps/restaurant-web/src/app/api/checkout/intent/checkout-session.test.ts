@@ -1,7 +1,13 @@
-// Lane J — verifies the migrated checkout flow uses Stripe Checkout Sessions
-// (not PaymentIntents + Elements) and that the response shape is the
-// `{ url, orderId, paymentMethod: 'CARD' }` triple the redesigned client
-// expects. Mocks Supabase + Stripe; no real API calls.
+// Verifies the migrated checkout flow uses the Netopia/Viva provider router
+// (not Stripe) and that the response shape is the
+// `{ url, orderId, paymentMethod: 'CARD', provider }` quadruple the
+// redesigned client expects. Mocks Supabase + provider-router; no real PSP
+// API calls.
+//
+// Iulian directive 2026-05-16: Stripe is excluded. card_sandbox routes to
+// Netopia or Viva sandbox; card_live calls the live provider (still
+// scaffolded). The PSP-mode resolution in the intent route is the single
+// piece this test pins.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
@@ -47,14 +53,9 @@ vi.mock('../pricing', () => ({
   computeQuote: vi.fn(),
 }));
 
-const mockedSessionCreate = vi.fn();
-// Typed as `unknown[]` so the mock accepts the optional `mode` arg the
-// production signature now takes without polluting the assertion shape.
-const mockedGetStripe = vi.fn((..._args: unknown[]) => ({
-  checkout: { sessions: { create: mockedSessionCreate } },
-}));
-vi.mock('@/lib/stripe/server', () => ({
-  getStripe: (mode?: 'live' | 'test') => mockedGetStripe(mode),
+const mockedCreateCheckoutSession = vi.fn();
+vi.mock('@/lib/payments/provider-router', () => ({
+  createCheckoutSession: (...args: unknown[]) => mockedCreateCheckoutSession(...args),
 }));
 
 const supabaseAdminFactory = vi.fn();
@@ -103,10 +104,6 @@ const VALID_BODY = {
   paymentMethod: 'CARD',
 };
 
-// Single-shot Supabase admin mock: returns minimal happy-path responses
-// for the chained calls in route.ts (customers insert → addresses insert →
-// orders insert → orders update). vi.mocked chain stubs with `as any` to
-// keep the test focused on the Stripe call assertion.
 function makeAdminMock() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const make = (data: any) => ({
@@ -141,14 +138,9 @@ function makeAdminMock() {
 
 // ───── Tests ──────────────────────────────────────────────────────────
 
-describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
+describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
   beforeEach(async () => {
-    // Reset the module-scope Stripe spy explicitly. `vi.clearAllMocks()` in
-    // afterEach clears call history, but when the full suite runs the sibling
-    // `route.test.ts` mocks the same `@/lib/stripe/server` module with a
-    // different factory, which can leave this spy in an unknown call state on
-    // some worker schedules. Explicit reset here is belt-and-braces.
-    mockedSessionCreate.mockReset();
+    mockedCreateCheckoutSession.mockReset();
     process.env.ALLOWED_ORIGINS = ALLOWED;
     const tenant = await import('@/lib/tenant');
     (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -182,9 +174,11 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
       },
     });
     supabaseAdminFactory.mockReturnValue(makeAdminMock());
-    mockedSessionCreate.mockResolvedValue({
-      id: 'cs_test_123',
-      url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+    mockedCreateCheckoutSession.mockResolvedValue({
+      ok: true,
+      provider: 'netopia',
+      sessionId: 'np_order-abc-12345',
+      url: 'https://secure.sandbox.netopia-payments.com/payment/card/start?ref=np_order-abc-12345',
     });
   });
 
@@ -193,7 +187,7 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
     vi.clearAllMocks();
   });
 
-  it('creates a Stripe Checkout Session (not a PaymentIntent) and returns the hosted URL', async () => {
+  it('calls the provider router with order data and returns the hosted URL', async () => {
     const { POST } = await import('./route');
     const res = await POST(makeReq(VALID_BODY));
     expect(res.status).toBe(200);
@@ -202,46 +196,33 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
       orderId: string;
       paymentMethod: string;
       url: string;
+      provider: string;
       publicTrackToken: string;
     };
     expect(json.paymentMethod).toBe('CARD');
-    expect(json.url).toBe('https://checkout.stripe.com/c/pay/cs_test_123');
+    expect(json.provider).toBe('netopia');
+    expect(json.url).toContain('secure.sandbox.netopia-payments.com');
     expect(json.orderId).toBe('order-abc-12345');
     expect(json.publicTrackToken).toBe('tok-xyz');
 
-    expect(mockedSessionCreate).toHaveBeenCalledTimes(1);
-    const [args, opts] = mockedSessionCreate.mock.calls[0];
-
-    // Mode + payment method types
-    expect(args.mode).toBe('payment');
-    expect(args.payment_method_types).toEqual(['card']);
-
-    // Single line item, RON, amount in bani (cents). 42.50 RON → 4250 bani.
-    expect(args.line_items).toHaveLength(1);
-    expect(args.line_items[0].quantity).toBe(1);
-    expect(args.line_items[0].price_data.currency).toBe('ron');
-    expect(args.line_items[0].price_data.unit_amount).toBe(4250);
-    expect(args.line_items[0].price_data.product_data.name).toContain('Demo Restaurant');
-
-    // success/cancel URLs use canonical tenant base + carry order_id.
-    expect(args.success_url).toContain('https://demo.hir.ro/checkout/success');
-    expect(args.success_url).toContain('order_id=order-abc-12345');
-    expect(args.success_url).toContain('token=tok-xyz');
-    expect(args.cancel_url).toContain('https://demo.hir.ro/checkout/cancel');
-    expect(args.cancel_url).toContain('order_id=order-abc-12345');
-
-    // Metadata on the Session AND propagated onto the inner PaymentIntent —
-    // the webhook reads metadata.order_id off payment_intent.succeeded.
-    expect(args.metadata.order_id).toBe('order-abc-12345');
-    expect(args.metadata.tenant_id).toBe('t1');
-    expect(args.payment_intent_data.metadata.order_id).toBe('order-abc-12345');
-    expect(args.payment_intent_data.metadata.tenant_id).toBe('t1');
-
-    // Idempotency keyed on order_id so a retried POST never creates a 2nd session.
-    expect(opts).toEqual({ idempotencyKey: 'order:order-abc-12345' });
+    expect(mockedCreateCheckoutSession).toHaveBeenCalledTimes(1);
+    const [provider, mode, input] = mockedCreateCheckoutSession.mock.calls[0];
+    // Default (flag off): provider defaults to 'netopia', mode resolves to card_live.
+    expect(provider).toBe('netopia');
+    expect(mode).toBe('card_live');
+    // 42.50 RON → 4250 bani.
+    expect(input.amountBani).toBe(4250);
+    expect(input.currency).toBe('RON');
+    expect(input.orderId).toBe('order-abc-12345');
+    expect(input.successUrl).toContain('https://demo.hir.ro/checkout/success');
+    expect(input.successUrl).toContain('order_id=order-abc-12345');
+    expect(input.successUrl).toContain('token=tok-xyz');
+    expect(input.cancelUrl).toContain('https://demo.hir.ro/checkout/cancel');
+    expect(input.metadata.order_id).toBe('order-abc-12345');
+    expect(input.metadata.tenant_id).toBe('t1');
   });
 
-  it('does NOT call Stripe Checkout Session for COD orders', async () => {
+  it('does NOT call the provider router for COD orders', async () => {
     const { POST } = await import('./route');
     const codBody = { ...VALID_BODY, paymentMethod: 'COD' };
     const res = await POST(makeReq(codBody));
@@ -249,17 +230,19 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
     const json = (await res.json()) as { paymentMethod: string; url?: string };
     expect(json.paymentMethod).toBe('COD');
     expect(json.url).toBeUndefined();
-    expect(mockedSessionCreate).not.toHaveBeenCalled();
+    expect(mockedCreateCheckoutSession).not.toHaveBeenCalled();
   });
 
-  it('uses Stripe TEST mode when tenant payments.mode = card_test', async () => {
-    // Enable the per-tenant toggle and put the tenant in card_test mode.
+  it('routes card_sandbox + provider=netopia to the Netopia adapter', async () => {
     process.env.PSP_TENANT_TOGGLE_ENABLED = 'true';
     const tenant = await import('@/lib/tenant');
     (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValue({
       tenant: {
         ...FAKE_TENANT,
-        settings: { ...FAKE_TENANT.settings, payments: { mode: 'card_test' } },
+        settings: {
+          ...FAKE_TENANT.settings,
+          payments: { mode: 'card_sandbox', provider: 'netopia' },
+        },
       },
       host: 'demo.hir.ro',
       slug: 'demo',
@@ -268,8 +251,58 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
     const res = await POST(makeReq(VALID_BODY));
     delete process.env.PSP_TENANT_TOGGLE_ENABLED;
     expect(res.status).toBe(200);
-    // getStripe was called with mode='test' — that's the assertion the route
-    // hands the test-mode key to Stripe client construction.
-    expect(mockedGetStripe).toHaveBeenCalledWith('test');
+    expect(mockedCreateCheckoutSession).toHaveBeenCalledWith(
+      'netopia',
+      'card_sandbox',
+      expect.any(Object),
+    );
+  });
+
+  it('routes card_sandbox + provider=viva to the Viva adapter', async () => {
+    process.env.PSP_TENANT_TOGGLE_ENABLED = 'true';
+    mockedCreateCheckoutSession.mockResolvedValueOnce({
+      ok: true,
+      provider: 'viva',
+      sessionId: 'vv_order-abc-12345',
+      url: 'https://demo.vivapayments.com/web/checkout?ref=vv_order-abc-12345',
+    });
+    const tenant = await import('@/lib/tenant');
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValue({
+      tenant: {
+        ...FAKE_TENANT,
+        settings: {
+          ...FAKE_TENANT.settings,
+          payments: { mode: 'card_sandbox', provider: 'viva' },
+        },
+      },
+      host: 'demo.hir.ro',
+      slug: 'demo',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(makeReq(VALID_BODY));
+    delete process.env.PSP_TENANT_TOGGLE_ENABLED;
+    expect(res.status).toBe(200);
+    expect(mockedCreateCheckoutSession).toHaveBeenCalledWith(
+      'viva',
+      'card_sandbox',
+      expect.any(Object),
+    );
+    const json = (await res.json()) as { provider: string; url: string };
+    expect(json.provider).toBe('viva');
+    expect(json.url).toContain('vivapayments.com');
+  });
+
+  it('returns 502 psp_unavailable when the adapter refuses', async () => {
+    mockedCreateCheckoutSession.mockResolvedValueOnce({
+      ok: false,
+      provider: 'netopia',
+      error: 'netopia_live_not_implemented',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(makeReq(VALID_BODY));
+    expect(res.status).toBe(502);
+    const json = (await res.json()) as { error: string; provider: string };
+    expect(json.error).toBe('psp_unavailable');
+    expect(json.provider).toBe('netopia');
   });
 });
