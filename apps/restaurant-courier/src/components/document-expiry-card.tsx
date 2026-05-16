@@ -11,6 +11,7 @@ import {
   type CourierDocs,
   type ExpiryState,
 } from '@/lib/courier-documents';
+import { cardClasses } from './card';
 
 type DocKey = keyof CourierDocs;
 
@@ -73,7 +74,7 @@ export function DocumentExpiryCard() {
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-2xl border border-hir-border bg-hir-surface p-5"
+      className={cardClasses({ padding: 'lg' })}
     >
       <div className="mb-4 flex items-center gap-2">
         <FileWarning className="h-5 w-5 text-violet-400" aria-hidden />

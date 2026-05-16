@@ -12,6 +12,7 @@ import {
   readWeeklyGoal,
   writeWeeklyGoal,
 } from '@/lib/daily-goal';
+import { cardClasses } from './card';
 
 /**
  * Weekly earnings goal — Monday→Sunday window. Companion to DailyGoalCard.
@@ -58,7 +59,7 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
   return (
     <section
       aria-label="Țintă săptămânală"
-      className="flex flex-col gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4"
+      className={cardClasses({ className: 'flex flex-col gap-3' })}
     >
       <header className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
