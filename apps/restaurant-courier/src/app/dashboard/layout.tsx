@@ -13,6 +13,7 @@ import { ProofSync } from '@/components/proof-sync';
 import { TransitionSync } from '@/components/transition-sync';
 import { OfflineBanner } from '@/components/offline-banner';
 import { BatterySaverBadge } from '@/components/battery-saver-badge';
+import { BatteryCriticalToast } from '@/components/battery-critical-toast';
 import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
@@ -209,6 +210,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
         <OfflineBanner />
         <BatterySaverBadge />
+        <BatteryCriticalToast />
         <PushBootstrap />
         <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
         <ProofSync />
