@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ChevronLeft, Eraser, ExternalLink, Heart, Info, Package } from 'lucide-react';
 import { CURRENT_RELEASE } from '@/lib/whats-new';
 import { ClearLocalDataButton } from '@/components/clear-local-data-button';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-static';
 
@@ -56,7 +57,7 @@ export default function AboutPage() {
       </header>
 
       {/* Version + last release */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <div className="flex items-center gap-3">
           <span
             aria-hidden
@@ -85,7 +86,7 @@ export default function AboutPage() {
       </section>
 
       {/* OSS credits */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
           <Heart className="h-3.5 w-3.5 text-rose-300" aria-hidden />
           Construit cu open source
@@ -115,7 +116,7 @@ export default function AboutPage() {
       </section>
 
       {/* Operated by */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 text-xs text-hir-muted-fg">
+      <section className={cardClasses({ className: 'text-xs text-hir-muted-fg' })}>
         <p className="mb-1 font-semibold text-hir-fg">Operator</p>
         <p>
           HIR Platform · administrator infrastructură HIR for You.
@@ -131,7 +132,7 @@ export default function AboutPage() {
       </section>
 
       {/* Local data reset */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
           <Eraser className="h-3.5 w-3.5 text-rose-300" aria-hidden />
           Date salvate pe acest dispozitiv

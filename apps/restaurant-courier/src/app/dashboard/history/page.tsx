@@ -12,6 +12,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { EmptyState } from '@/components/empty-state';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,7 +118,7 @@ export default async function TripHistoryPage() {
       ) : (
         <>
           {/* Summary chips */}
-          <section className="grid grid-cols-3 gap-2 rounded-2xl border border-hir-border bg-hir-surface p-3">
+          <section className={cardClasses({ padding: 'sm', className: 'grid grid-cols-3 gap-2' })}>
             <div className="flex flex-col items-center gap-0.5 text-center">
               <span className="text-base font-bold tabular-nums text-emerald-300">
                 {deliveredCount}
@@ -159,7 +160,10 @@ export default async function TripHistoryPage() {
                 <li key={row.id}>
                   <Link
                     href={`/dashboard/orders/${row.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface p-3 hover:border-violet-500/40 hover:bg-hir-border/40"
+                    className={cardClasses({
+                      padding: 'sm',
+                      className: 'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99]',
+                    })}
                   >
                     <span
                       aria-hidden

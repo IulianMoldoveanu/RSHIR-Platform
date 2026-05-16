@@ -4,6 +4,7 @@ import { Banknote, Clock, MapPin, Package, Star, ChevronRight, Home } from 'luci
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ConfettiBurst } from './confetti-burst';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -170,7 +171,7 @@ export default async function DaySummaryPage(props: {
         </div>
 
         {/* Main stats card */}
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <section className={cardClasses({ padding: 'lg' })}>
           <div className="grid grid-cols-2 gap-4">
             <StatBlock
               icon={<Banknote className="h-5 w-5 text-emerald-400" aria-hidden />}
@@ -229,7 +230,7 @@ export default async function DaySummaryPage(props: {
 
         {/* Empty state */}
         {deliveryCount === 0 ? (
-          <section className="rounded-2xl border border-hir-border bg-hir-surface p-6 text-center">
+          <section className={cardClasses({ padding: 'lg', className: 'text-center' })}>
             <p className="text-sm text-hir-muted-fg">
               Nicio livrare finalizata in aceasta tura.
             </p>
