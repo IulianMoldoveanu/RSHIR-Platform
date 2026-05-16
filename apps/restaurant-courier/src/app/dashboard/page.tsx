@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
-import { RiderMap } from '@/components/rider-map';
+import { RiderMapLazy as RiderMap } from '@/components/rider-map-lazy';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 
