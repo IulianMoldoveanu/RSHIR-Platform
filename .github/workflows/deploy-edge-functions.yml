@@ -1,0 +1,137 @@
+# Auto-deploy Supabase Edge Functions on push to main.
+#
+# WHY this exists:
+# Merged source under `supabase/functions/` does NOT auto-deploy to Supabase.
+# Before this workflow, every PR that touched an Edge Function shipped dead
+# source — verified empirically on 2026-05-16 when `ai-dispatch` (introduced
+# by PR #510) was found to be `existed=false` on the project despite three
+# subsequent PRs merging into main. The F6 master.list_intents intent (#524)
+# and the F6 growth-agent intents (#520) were similarly stuck as source-only
+# until a manual run of `scripts/deploy-fn-with-shared.mjs` shipped them.
+#
+# This workflow closes that gap permanently: it detects which functions
+# changed in the push and re-deploys each one through the same script.
+#
+# Change detection rules:
+#   - `supabase/functions/<name>/**`        → redeploy that function
+#   - `supabase/functions/_shared/<file>.ts` → redeploy ALL functions that
+#                                              transitively import it (best
+#                                              approximated as "all
+#                                              functions" — _shared changes
+#                                              are infrequent and the cost
+#                                              of a 30-fn redeploy is bounded
+#                                              at ~2-3 minutes)
+#   - `scripts/deploy-fn-with-shared.mjs`    → no auto-deploy (script-only
+#                                              change; rely on the next
+#                                              push touching a function)
+#
+# Required repository secret:
+#   SUPABASE_ACCESS_TOKEN  — Supabase Management API PAT scoped to the
+#                            HIR-Restaurants Platform project. Add via
+#                            Settings → Secrets → Actions.
+
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+
+concurrency:
+  group: deploy-edge-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy touched functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need at least 2 commits to diff HEAD against HEAD~1 on a push
+          # event. fetch-depth: 2 keeps the checkout cheap.
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Compute set of functions to redeploy
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Files changed in the push commit.
+          changed=$(git diff --name-only HEAD~1 HEAD -- 'supabase/functions/**' || true)
+          echo "Changed Edge Function files:"
+          echo "$changed"
+
+          shared_touched=false
+          declare -A fns=()
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              supabase/functions/_shared/*)
+                shared_touched=true
+                ;;
+              supabase/functions/*)
+                # Extract the function dir name (immediate child of functions/).
+                name=$(echo "$f" | awk -F/ '{print $3}')
+                if [ -n "$name" ] && [ "$name" != "_shared" ]; then
+                  fns["$name"]=1
+                fi
+                ;;
+            esac
+          done <<< "$changed"
+
+          if [ "$shared_touched" = "true" ]; then
+            echo "_shared/ changed — redeploying ALL functions."
+            for d in supabase/functions/*/; do
+              name=$(basename "$d")
+              [ "$name" = "_shared" ] && continue
+              # Only include dirs that have an index.ts (skip stubs).
+              if [ -f "supabase/functions/$name/index.ts" ]; then
+                fns["$name"]=1
+              fi
+            done
+          fi
+
+          list=""
+          for k in "${!fns[@]}"; do
+            list="$list $k"
+          done
+          list=$(echo "$list" | xargs)
+          echo "Functions to redeploy: $list"
+          echo "functions=$list" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy each touched function
+        if: steps.detect.outputs.functions != ''
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret not set. Add via repo Settings → Secrets → Actions."
+            exit 1
+          fi
+          for name in ${{ steps.detect.outputs.functions }}; do
+            echo "::group::deploy $name"
+            # `--verify-jwt=preserve` is the deploy script default — keeps
+            # the live setting whether or not the function existed before.
+            node scripts/deploy-fn-with-shared.mjs "$name" --verify-jwt=preserve
+            echo "::endgroup::"
+          done
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -z "${{ steps.detect.outputs.functions }}" ]; then
+            echo "No Edge Functions to redeploy in this push." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Redeployed: ${{ steps.detect.outputs.functions }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
