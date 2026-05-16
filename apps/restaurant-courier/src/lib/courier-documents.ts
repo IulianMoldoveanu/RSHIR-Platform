@@ -1,15 +1,17 @@
 /**
  * LocalStorage helpers for courier-self document expiry tracking.
  *
- * Tracks 4 documents required for legal courier operation in Romania:
- *   - dl (permis de conducere)
- *   - vehicleReg (carte de identitate vehicul)
- *   - rca (asigurare RCA — obligatorie)
- *   - casco (asigurare CASCO — opțional)
+ * Tracks documents required for legal courier operation in Romania:
+ *   - dl       — permis de conducere (obligatoriu)
+ *   - vehicleReg — carte de identitate vehicul (obligatoriu)
+ *   - rca      — asigurare RCA (obligatoriu)
+ *   - casco    — asigurare CASCO (opțional)
+ *   - itp      — inspecție tehnică periodică (obligatoriu pentru SCOOTER/CAR)
+ *   - atestat  — atestat profesional transport (când vehicleType=CAR + livrare contra cost)
  *
  * Each value is an ISO date string "YYYY-MM-DD" or null when not set.
- * The persisted shape is a versioned JSON object so future migrations are
- * trivial (e.g. adding ITP, atestat profesional).
+ * The persisted shape is a versioned JSON object so future migrations stay
+ * trivial.
  */
 
 export type CourierDocs = {
@@ -17,6 +19,8 @@ export type CourierDocs = {
   vehicleReg: string | null;
   rca: string | null;
   casco: string | null;
+  itp: string | null;
+  atestat: string | null;
 };
 
 export const EMPTY_DOCS: CourierDocs = {
@@ -24,6 +28,8 @@ export const EMPTY_DOCS: CourierDocs = {
   vehicleReg: null,
   rca: null,
   casco: null,
+  itp: null,
+  atestat: null,
 };
 
 export const STORAGE_KEY = 'hir-courier-documents';
@@ -40,6 +46,8 @@ export function readDocs(): CourierDocs {
       vehicleReg: typeof parsed.vehicleReg === 'string' ? parsed.vehicleReg : null,
       rca: typeof parsed.rca === 'string' ? parsed.rca : null,
       casco: typeof parsed.casco === 'string' ? parsed.casco : null,
+      itp: typeof parsed.itp === 'string' ? parsed.itp : null,
+      atestat: typeof parsed.atestat === 'string' ? parsed.atestat : null,
     };
   } catch {
     return EMPTY_DOCS;

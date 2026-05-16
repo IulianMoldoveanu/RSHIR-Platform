@@ -14,11 +14,21 @@ import {
 
 type DocKey = keyof CourierDocs;
 
-const DOC_LABELS: Record<DocKey, { label: string; required: boolean }> = {
+const DOC_LABELS: Record<DocKey, { label: string; required: boolean; hint?: string }> = {
   dl: { label: 'Permis de conducere', required: true },
   vehicleReg: { label: 'Carte de identitate vehicul', required: true },
   rca: { label: 'RCA (asigurare obligatorie)', required: true },
-  casco: { label: 'CASCO (opțional)', required: false },
+  casco: { label: 'CASCO', required: false },
+  itp: {
+    label: 'Inspecție tehnică (ITP)',
+    required: true,
+    hint: 'Obligatorie pentru scuter, motocicletă și autoturism.',
+  },
+  atestat: {
+    label: 'Atestat profesional transport',
+    required: false,
+    hint: 'Necesar la livrare contra cost cu autoturism (peste 3,5 t și/sau servicii reglementate ARR).',
+  },
 };
 
 const CHIP_STYLE: Record<ExpiryState, { className: string; label: (d: number | null) => string }> = {
@@ -97,6 +107,9 @@ export function DocumentExpiryCard() {
                   {hydrated ? chip.label(daysRemaining) : '—'}
                 </span>
               </div>
+              {meta.hint ? (
+                <p className="text-[11px] text-hir-muted-fg">{meta.hint}</p>
+              ) : null}
               <div className="flex items-center gap-3">
                 <input
                   type="date"
