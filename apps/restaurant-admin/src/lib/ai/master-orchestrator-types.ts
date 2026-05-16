@@ -59,6 +59,9 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'menu.price_change', agent: 'menu', defaultCategory: 'price.change', description: 'Schimbă prețul unui produs (destructiv).' },
   { name: 'marketing.draft_post', agent: 'marketing', defaultCategory: 'social.draft', description: 'Generează draft de postare social.' },
   { name: 'marketing.publish_post', agent: 'marketing', defaultCategory: 'social.publish', description: 'Publică o postare social.' },
+  // --- Growth agent (read) — F6 closure ---
+  { name: 'growth.recommendations_for_tenant', agent: 'growth', defaultCategory: 'growth.read', description: 'Listează recomandările de creștere generate de daily cron.', readOnly: true },
+  { name: 'growth.recommendation_get', agent: 'growth', defaultCategory: 'growth.read', description: 'Detalii pentru o singură recomandare (rationale + payload).', readOnly: true },
 ];
 
 // Display metadata for the trust UI (per (agent, action_category) pair).
