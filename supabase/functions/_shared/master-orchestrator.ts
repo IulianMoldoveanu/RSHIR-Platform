@@ -510,4 +510,10 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   // duplicating the Anthropic call.
   { name: 'growth.recommendations_for_tenant', agent: 'growth', defaultCategory: 'growth.read', description: 'Listează recomandările de creștere generate de daily cron.', readOnly: true },
   { name: 'growth.recommendation_get', agent: 'growth', defaultCategory: 'growth.read', description: 'Detalii pentru o singură recomandare (rationale + payload).', readOnly: true },
+  // --- Master agent (read) — F6 meta-handler ---
+  // Self-introspection over the live REGISTRY so channels can ask
+  // "what can I dispatch?" through the same wire format as any other
+  // intent. Mirrors KNOWN_INTENTS at runtime; the test suite asserts
+  // both lists stay in sync.
+  { name: 'master.list_intents', agent: 'master', defaultCategory: 'master.read', description: 'Listează intent-urile înregistrate (filtrabil pe agent + readOnly).', readOnly: true },
 ];

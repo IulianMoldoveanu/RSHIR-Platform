@@ -56,12 +56,14 @@ import { registerAnalyticsIntents } from '../_shared/analytics-intents.ts';
 import { registerOpsAgentIntents } from '../_shared/ops-agent.ts';
 import { registerCsIntents } from '../_shared/cs-agent.ts';
 import { registerGrowthIntents } from '../_shared/growth-agent.ts';
+import { registerMasterIntents } from '../_shared/master-agent.ts';
 
 registerMenuAgentIntents();
 registerAnalyticsIntents();
 registerOpsAgentIntents();
 registerCsIntents();
 registerGrowthIntents();
+registerMasterIntents();
 
 const ALLOWED_CHAT_ID = 1274150118; // Iulian (operator)
 // PR B: bot is also reachable by tenant OWNERs that bound their Telegram
