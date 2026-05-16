@@ -83,6 +83,23 @@ export default async function OperatorActionsPage() {
         </div>
       </header>
 
+      <section className="rounded-lg border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-medium text-zinc-900">Pagini admin înrudite</h2>
+        <ul className="mt-2 space-y-1 text-xs">
+          <li>
+            <a
+              href="/dashboard/admin/intents"
+              className="font-medium text-blue-700 hover:underline"
+            >
+              Intent registry →
+            </a>
+            <span className="ml-1 text-zinc-600">
+              Listă completă a intent-urilor înregistrate cu master orchestrator-ul (F6).
+            </span>
+          </li>
+        </ul>
+      </section>
+
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {results.map(({ item, probe }) => (
           <article key={item.key} className="rounded-lg border border-zinc-200 bg-white p-4">
