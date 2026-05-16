@@ -281,58 +281,70 @@ function OrderListItem({
   // Rough ETA: assume 25 km/h average for mixed urban traffic.
   const etaMin = distanceKm != null ? Math.ceil((distanceKm / 25) * 60) : null;
 
+  const fee = order.delivery_fee_ron != null ? Number(order.delivery_fee_ron) : null;
+
   return (
     <Link
       href={`/dashboard/orders/${order.id}`}
-      className="block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/50 hover:bg-hir-border/60 active:scale-[0.99]"
+      className="group block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-all hover:border-violet-500/50 hover:bg-hir-border/40 hover:shadow-lg hover:shadow-violet-500/5 active:scale-[0.99]"
     >
-        {/* Top row: customer + vertical badge + status chip */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {seqNumber != null ? (
-              <span
-                aria-label={`Comanda ${seqNumber}`}
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-500 text-[10px] font-bold text-white"
-              >
-                {seqNumber}
-              </span>
-            ) : null}
-            <p className="truncate text-sm font-semibold text-hir-fg">
-              {order.customer_first_name ?? 'Client'}
-            </p>
-            <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
-            <TenantBadge name={tenantName ?? null} />
-          </div>
-          <OrderStatusBadge status={order.status} />
+      {/* Header row: sequence + customer + status */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {seqNumber != null ? (
+            <span
+              aria-label={`Comanda ${seqNumber}`}
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white shadow-md shadow-violet-500/30"
+            >
+              {seqNumber}
+            </span>
+          ) : null}
+          <p className="truncate text-base font-semibold text-hir-fg">
+            {order.customer_first_name ?? 'Client'}
+          </p>
         </div>
+        <OrderStatusBadge status={order.status} />
+      </div>
 
-        {/* Route line */}
-        <p className="mt-1.5 truncate text-xs text-hir-muted-fg">
-          {order.pickup_line1 ?? '—'} → {order.dropoff_line1 ?? '—'}
-        </p>
+      {/* Badges row: vertical + tenant */}
+      {(order.vertical === 'pharma' || tenantName) ? (
+        <div className="mt-2 flex items-center gap-1.5">
+          <VerticalBadge vertical={order.vertical ?? 'restaurant'} />
+          <TenantBadge name={tenantName ?? null} />
+        </div>
+      ) : null}
 
-        {/* Distance + ETA + fee row */}
-        <div className="mt-2.5 flex items-center gap-3">
+      {/* Route — pickup → dropoff stacked, with dots for clarity */}
+      <div className="mt-3 flex flex-col gap-1.5 text-xs">
+        <div className="flex items-start gap-2">
+          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-violet-400" />
+          <span className="truncate text-hir-muted-fg">{order.pickup_line1 ?? '—'}</span>
+        </div>
+        <div className="flex items-start gap-2">
+          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+          <span className="truncate text-hir-muted-fg">{order.dropoff_line1 ?? '—'}</span>
+        </div>
+      </div>
+
+      {/* Footer row: distance/ETA chip + fee callout */}
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-hir-border/60 pt-3">
+        <div className="flex items-center gap-2 text-[11px] text-hir-muted-fg">
           {distanceKm != null ? (
-            <span className="flex items-center gap-1 rounded-lg bg-hir-border px-2 py-1 text-[11px] font-medium text-hir-fg">
+            <span className="flex items-center gap-1 rounded-lg bg-hir-border/60 px-2 py-1 font-medium text-hir-fg">
               <Navigation className="h-3 w-3 text-violet-300" aria-hidden />
               {distanceKm.toFixed(1)} km
             </span>
           ) : null}
-          {etaMin != null ? (
-            <span className="text-[11px] text-hir-muted-fg">~{etaMin} min</span>
-          ) : null}
-          {order.delivery_fee_ron != null ? (
-            <span className="ml-auto text-xs font-semibold text-emerald-300">
-              +{Number(order.delivery_fee_ron).toFixed(2)} RON
-            </span>
-          ) : null}
-          {order.delivery_fee_ron == null ? (
-            <span className="ml-auto text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
-          ) : (
-            <span className="text-[10px] text-hir-muted-fg">{formatAge(order.created_at)}</span>
-          )}
+          {etaMin != null ? <span>~{etaMin} min</span> : null}
+          <span className="text-hir-muted-fg/70">·</span>
+          <span>{formatAge(order.created_at)}</span>
         </div>
+        {fee != null ? (
+          <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 text-sm font-bold tabular-nums text-emerald-300">
+            +{fee.toFixed(2)} RON
+          </span>
+        ) : null}
+      </div>
     </Link>
   );
 }
