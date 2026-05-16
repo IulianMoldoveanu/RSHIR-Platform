@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Package, Clock, MessageSquare, Wallet, Settings } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logoutAction, updateCourierLocationAction } from './actions';
@@ -25,6 +24,7 @@ import { GpsStalnessPill } from '@/components/gps-staleness-pill';
 import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
 import { LocationTrackerWired } from '@/components/location-tracker-wired';
 import { PageTransition } from '@/components/page-transition';
+import { BottomNav } from '@/components/bottom-nav';
 
 // Force layout to re-fetch shift state on every navigation. Without this,
 // Next.js may serve a cached layout (with stale isOnline) under a freshly
@@ -32,13 +32,6 @@ import { PageTransition } from '@/components/page-transition';
 // page says offline" desync the user sees.
 export const dynamic = 'force-dynamic';
 
-const NAV = [
-  { href: '/dashboard/orders', label: 'Comenzi', icon: Package },
-  { href: '/dashboard/shift', label: 'Tură', icon: Clock },
-  { href: '/dashboard/messages', label: 'Mesaje', icon: MessageSquare },
-  { href: '/dashboard/earnings', label: 'Câștiguri', icon: Wallet },
-  { href: '/dashboard/settings', label: 'Setări', icon: Settings },
-] as const;
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createServerClient();
@@ -229,37 +222,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {/* Bottom nav — primary navigation on mobile (PWA target). z-[1100]
             because Leaflet internal stacking can reach z-700 (popup pane)
             plus leaflet-rotate's control overlay tops out near z-1000.
-            Anything below 1100 was visibly losing on iOS Safari. */}
-        <nav className="fixed inset-x-0 bottom-0 z-[1100] border-t border-hir-border bg-hir-bg/95 backdrop-blur">
-          <ul className="mx-auto flex max-w-xl items-stretch justify-around">
-            {NAV.map((item) => {
-              const Icon = item.icon;
-              const badgeCount =
-                item.href === '/dashboard/orders' && navOrdersBadge > 0 ? navOrdersBadge : 0;
-              return (
-                <li key={item.href} className="flex-1">
-                  <Link
-                    href={item.href}
-                    className="relative flex flex-col items-center gap-0.5 px-2 py-3 text-[11px] font-medium text-hir-muted-fg hover:text-violet-400 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-[-2px] focus-visible:rounded-lg"
-                  >
-                    <span className="relative">
-                      <Icon className="h-5 w-5" aria-hidden />
-                      {badgeCount > 0 ? (
-                        <span
-                          className="absolute -right-2 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[9px] font-bold text-white"
-                          aria-label={`${badgeCount} comenzi disponibile`}
-                        >
-                          {badgeCount > 9 ? '9+' : badgeCount}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+            BottomNav highlights the active tab + animates a violet bar
+            between tabs via framer-motion layoutId. */}
+        <BottomNav ordersBadge={navOrdersBadge} />
       </div>
     </RiderModeProvider>
     </GpsTimestampProvider>
