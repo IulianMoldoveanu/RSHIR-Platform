@@ -14,6 +14,7 @@ import {
   LogOut,
   Mail,
   Phone,
+  Info,
   Receipt,
   Shield,
   Stethoscope,
@@ -282,6 +283,21 @@ export default async function SettingsPage() {
               <ReplayOnboardingButton />
             </div>
           </div>
+
+          {/* About */}
+          <Link
+            href="/dashboard/about"
+            className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 hover:border-violet-500/40 hover:bg-hir-border/60 active:scale-[0.99]"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
+              <Info className="h-5 w-5 text-violet-400" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-hir-fg">Despre HIR Curier</p>
+              <p className="mt-0.5 text-xs text-hir-muted-fg">Versiune, noutăți, librării open source</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
+          </Link>
 
           {/* Device diagnostics */}
           <Link
