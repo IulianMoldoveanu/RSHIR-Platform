@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import * as Sentry from '@sentry/nextjs';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendWebhook, notifyPharmaCallback } from '@/lib/webhook';
@@ -185,6 +186,8 @@ export async function startShiftAction() {
         .update({ status: 'ACTIVE' })
         .eq('user_id', userId);
 
+      Sentry.addBreadcrumb({ category: 'shift', message: 'Shift started', level: 'info' });
+
       revalidatePath('/dashboard');
       revalidatePath('/dashboard/shift');
     },
@@ -194,6 +197,7 @@ export async function startShiftAction() {
 export async function endShiftAction() {
   const userId = await requireUserId();
   // Capture the shift ID before closing so we can link to the day summary.
+  // Mutated inside withRunLog body via closure — safe in async context.
   let closedShiftId: string | null = null;
 
   await withRunLog(
@@ -224,13 +228,16 @@ export async function endShiftAction() {
         .update({ status: 'INACTIVE' })
         .eq('user_id', userId);
 
+      Sentry.addBreadcrumb({ category: 'shift', message: 'Shift ended', level: 'info' });
+
       revalidatePath('/dashboard');
       revalidatePath('/dashboard/shift');
     },
   );
 
-  // Redirect to day summary. redirect() throws the NEXT_REDIRECT sentinel
-  // which propagates through withRunLog transparently.
+  // Redirect to day summary after withRunLog records success.
+  // redirect() throws the NEXT_REDIRECT sentinel which is handled by the
+  // Next.js framework — it never reaches the SwipeButton catch block.
   if (closedShiftId) {
     redirect(`/dashboard/day-summary?shiftId=${closedShiftId}`);
   } else {
@@ -346,7 +353,10 @@ export async function markPickedUpAction(orderId: string) {
         .in('status', ['ACCEPTED'])
         .select('id')
         .maybeSingle();
-      if (data) await notifySubscriber(orderId, 'PICKED_UP', userId);
+      if (data) {
+        await notifySubscriber(orderId, 'PICKED_UP', userId);
+        Sentry.addBreadcrumb({ category: 'order', message: 'Order picked up', level: 'info', data: { orderId } });
+      }
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
     },
@@ -469,6 +479,7 @@ export async function markDeliveredAction(
         }
         await assertDeliveryGeofence(admin, userId, orderId);
         await notifySubscriber(orderId, 'DELIVERED', userId);
+        Sentry.addBreadcrumb({ category: 'order', message: 'Order delivered', level: 'info', data: { orderId } });
       }
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
@@ -659,36 +670,13 @@ export async function cancelOrderByCourierAction(
         metadata: { reason, notes: trimmedNotes || undefined },
       });
       await notifySubscriber(orderId, 'CANCELLED', userId);
+      Sentry.addBreadcrumb({ category: 'order', message: 'Order cancelled by courier', level: 'warning', data: { orderId, reason } });
 
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
       return { ok: true as const };
     },
   );
-}
-
-/**
- * Logs a client-side geofence alert into the audit trail.
- * Called fire-and-forget from <GeofenceWatcher> after dedup passes.
- * Best-effort: swallowed on error (geofencing is observability, not blocking).
- */
-export async function logGeofenceAlertAction(
-  orderId: string,
-  alertType: string,
-  distanceM: number,
-): Promise<void> {
-  try {
-    const userId = await requireUserId();
-    await logAudit({
-      actorUserId: userId,
-      action: 'courier.geofence_alert',
-      entityType: 'courier_order',
-      entityId: orderId,
-      metadata: { alert_type: alertType, distance_m: Math.round(distanceM) },
-    });
-  } catch {
-    // Geofence audit must never block the delivery flow.
-  }
 }
 
 export async function acceptOrderAction(orderId: string) {
@@ -729,9 +717,36 @@ export async function acceptOrderAction(orderId: string) {
         .is('assigned_courier_user_id', null)
         .select('id')
         .maybeSingle();
-      if (data) await notifySubscriber(orderId, 'ACCEPTED', userId);
+      if (data) {
+        await notifySubscriber(orderId, 'ACCEPTED', userId);
+        Sentry.addBreadcrumb({ category: 'order', message: 'Order accepted', level: 'info', data: { orderId } });
+      }
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
     },
   );
+}
+
+/**
+ * Logs a client-side geofence alert into the audit trail.
+ * Called fire-and-forget from <GeofenceWatcher> after dedup passes.
+ * Best-effort: swallowed on error — geofencing is observability, not blocking.
+ */
+export async function logGeofenceAlertAction(
+  orderId: string,
+  alertType: string,
+  distanceM: number,
+): Promise<void> {
+  try {
+    const userId = await requireUserId();
+    await logAudit({
+      actorUserId: userId,
+      action: 'courier.geofence_alert',
+      entityType: 'courier_order',
+      entityId: orderId,
+      metadata: { alert_type: alertType, distance_m: Math.round(distanceM) },
+    });
+  } catch {
+    // Geofence audit must never block the delivery flow.
+  }
 }

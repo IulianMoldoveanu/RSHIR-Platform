@@ -65,9 +65,34 @@ jobs:
         run: pnpm --filter @hir/restaurant-courier build
 
       - name: Run Lighthouse CI
+        id: lhci
         run: |
           npx --yes @lhci/cli@0.14.x autorun \
             --config=./apps/restaurant-courier/lighthouserc.json
         env:
           LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.head_ref || github.ref_name }}
           LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+
+      - name: Comment budget failure on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: [
+                '### Lighthouse budget fail — courier PWA',
+                '',
+                'One or more Lighthouse thresholds were not met:',
+                '| Category | Min |',
+                '|---|---|',
+                '| Performance | 80 |',
+                '| Accessibility | 90 |',
+                '| Best Practices | 85 |',
+                '| SEO | 80 |',
+                '',
+                'Check the **Lighthouse CI** step above for the full report and public storage link.',
+              ].join('\n')
+            })
