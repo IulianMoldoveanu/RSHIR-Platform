@@ -83,6 +83,11 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
 
   const navLinks = [
     { href: '/partner-portal', label: 'Tablou de bord' },
+    { href: '/partner-portal/team', label: 'Echipa' },
+    { href: '/partner-portal/leads', label: 'Lead-uri' },
+    { href: '/partner-portal/calculator', label: 'Calculator' },
+    { href: '/partner-portal/ladder', label: 'Progres' },
+    { href: '/partner-portal/library', label: 'Sales kit' },
   ];
 
   return (
