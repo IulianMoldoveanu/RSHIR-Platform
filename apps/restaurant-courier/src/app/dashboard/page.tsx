@@ -7,6 +7,8 @@ import { SwipeButton } from '@/components/swipe-button';
 import { RiderMapLazy as RiderMap } from '@/components/rider-map-lazy';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
+import { WeatherPill } from '@/components/weather-pill';
+import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +18,7 @@ type ProfileRow = {
   vehicle_type: 'BIKE' | 'SCOOTER' | 'CAR';
 };
 
-type ShiftRow = { id: string };
+type ShiftRow = { id: string; last_lat: number | null; last_lng: number | null };
 
 type ActiveOrderRow = {
   id: string;
@@ -54,7 +56,7 @@ export default async function DashboardHome() {
         .maybeSingle(),
       admin
         .from('courier_shifts')
-        .select('id')
+        .select('id, last_lat, last_lng')
         .eq('courier_user_id', user.id)
         .eq('status', 'ONLINE')
         .limit(1)
@@ -72,6 +74,15 @@ export default async function DashboardHome() {
   const profile = profileData as ProfileRow | null;
   const shift = shiftData as ShiftRow | null;
   const isOnline = !!shift;
+
+  // Weather: fetch only when a shift is ONLINE (the courier is on the move).
+  // Use the courier's last GPS fix; fall back to Brașov center.
+  // fetchWeather is cached 30 min in-process — no extra network latency on
+  // subsequent navigations within the same Vercel function instance.
+  const weatherLat = shift?.last_lat ?? BRASOV_CENTER.lat;
+  const weatherLng = shift?.last_lng ?? BRASOV_CENTER.lng;
+  const weather = isOnline ? await fetchWeather(weatherLat, weatherLng) : null;
+  const reminder = weather ? safetyReminder(weather) : null;
   // Sort active orders by next-action urgency so the rider sees what to
   // do FIRST at the top: in-progress (IN_TRANSIT > PICKED_UP) before
   // not-yet-picked (ACCEPTED). Tie-break on updated_at desc (already the
@@ -116,7 +127,7 @@ export default async function DashboardHome() {
         vehicleType={profile?.vehicle_type ?? 'BIKE'}
       />
 
-      {/* Greeting + status pill, top-left over the map. */}
+      {/* Greeting + status pill + weather, top-left over the map. */}
       <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] rounded-2xl border border-zinc-800 bg-zinc-950/90 px-3 py-2.5 backdrop-blur">
         <p className="text-sm font-semibold text-zinc-100">
           Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
@@ -132,6 +143,7 @@ export default async function DashboardHome() {
               : 'Online · aștept comandă'
             : 'Offline · pornește tura'}
         </p>
+        <WeatherPill weather={weather} reminder={reminder} />
       </div>
 
       {/* Active-order quick-jump cards. Sorted by next-action urgency
