@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { labelForAction, formatRoRelative } from '@/lib/audit-labels';
 import { GdprDataExportButton } from '@/components/gdpr-data-export-button';
+import { EmptyState } from '@/components/empty-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,15 +83,11 @@ export default async function ActivityPage() {
       </section>
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-hir-border bg-hir-surface p-8 text-center">
-          <Activity className="h-8 w-8 text-hir-muted-fg" aria-hidden />
-          <p className="text-sm font-medium text-hir-fg">
-            Nicio activitate înregistrată încă
-          </p>
-          <p className="text-xs text-hir-muted-fg">
-            Pe măsură ce livrezi, evenimentele apar aici.
-          </p>
-        </div>
+        <EmptyState
+          icon={<Activity className="h-5 w-5" aria-hidden />}
+          title="Nicio activitate înregistrată încă"
+          hint="Pe măsură ce livrezi, evenimentele apar aici."
+        />
       ) : (
         <ol className="flex flex-col gap-3">
           {rows.map((row) => {
