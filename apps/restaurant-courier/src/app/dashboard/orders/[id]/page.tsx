@@ -22,6 +22,7 @@ import { WakeLockOnActive } from '@/components/wake-lock-on-active';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { logMedicalAccess } from '@/lib/medical-access';
 import { headers } from 'next/headers';
+import { QuickCallButtons } from '@/components/quick-call-buttons';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,6 +128,21 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   const isAvailable = isOpenInMyFleet;
   const showSos = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
 
+  // Quick-call: fetch the fleet's dispatcher phone only for active own
+  // deliveries — not for available orders the courier hasn't accepted yet.
+  let fleetContactPhone: string | null = null;
+  let fleetName: string | null = null;
+  if (showSos && order.fleet_id) {
+    const { data: fleetRow } = await admin
+      .from('courier_fleets')
+      .select('name, contact_phone')
+      .eq('id', order.fleet_id)
+      .maybeSingle();
+    const fleet = fleetRow as { name: string | null; contact_phone: string | null } | null;
+    fleetContactPhone = fleet?.contact_phone ?? null;
+    fleetName = fleet?.name ?? null;
+  }
+
   const acceptBound = acceptOrderAction.bind(null, order.id);
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
   const deliveredBound = markDeliveredAction.bind(null, order.id);
@@ -222,6 +238,14 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           <PhoneLink phone={order.customer_phone} />
           <CopyAddressButton address={order.dropoff_line1} />
         </div>
+        {showSos ? (
+          <div className="mt-3">
+            <QuickCallButtons
+              fleetContactPhone={fleetContactPhone}
+              fleetName={fleetName}
+            />
+          </div>
+        ) : null}
       </section>
 
       {/* Items + payment. */}
