@@ -12,6 +12,7 @@ import { InsuranceStatusPill } from '@/components/insurance-status-pill';
 import { TodaySummaryPill } from '@/components/today-summary-pill';
 import { StaggerList } from '@/components/stagger-list';
 import { RippleButton } from '@/components/ripple-button';
+import { EmptyState } from '@/components/empty-state';
 
 export const dynamic = 'force-dynamic';
 
@@ -174,7 +175,7 @@ export default async function OrdersPage() {
 
       <Section title="Comenzile mele" count={assigned.length}>
         {assigned.length === 0 ? (
-          <Empty
+          <EmptyState
             icon={<Inbox className="h-5 w-5" aria-hidden />}
             title="Nicio comandă activă"
             hint="Te anunțăm imediat ce apare o comandă pentru tine."
@@ -203,7 +204,7 @@ export default async function OrdersPage() {
       {showOpenOrders ? (
         <Section title="Comenzi disponibile" count={open.length}>
           {open.length === 0 ? (
-            <Empty
+            <EmptyState
               icon={<MapPinned className="h-5 w-5" aria-hidden />}
               title="Nicio comandă liberă în zonă"
               hint="Verifică din nou peste câteva minute sau privește harta din pagina principală."
@@ -248,42 +249,6 @@ function Section({
       </h2>
       {children}
     </section>
-  );
-}
-
-function Empty({
-  icon,
-  title,
-  hint,
-  ctaHref,
-  ctaLabel,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  hint: string;
-  // Optional CTA — renders only when both fields are provided. Keeps
-  // the existing "icon + title + hint" empty state usable in places
-  // where there's no obvious next action (e.g. "we'll notify you when
-  // an order arrives") without forcing a button that does nothing.
-  ctaHref?: string;
-  ctaLabel?: string;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center">
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-hir-border text-hir-muted-fg">
-        {icon}
-      </span>
-      <p className="text-sm font-medium text-hir-fg">{title}</p>
-      <p className="text-xs text-hir-muted-fg">{hint}</p>
-      {ctaHref && ctaLabel ? (
-        <Link
-          href={ctaHref}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15"
-        >
-          {ctaLabel}
-        </Link>
-      ) : null}
-    </div>
   );
 }
 
