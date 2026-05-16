@@ -1,0 +1,36 @@
+{
+  "_comment_intent": "Lighthouse CI gate for the public storefront. Initial target: /pricing only, which renders fully server-side without Supabase round-trips so the stub-env CI build can serve it cleanly. /orase/[citySlug] and /case-studies/[slug] DO hit Supabase for tenant + case-study data, which the stub envs (`https://localhost.invalid`) cannot satisfy — the first CI run failed there with ERRORED_DOCUMENT_REQUEST. Add them back behind a mock or staging URL when bandwidth allows. Thresholds stay at `warn` so we collect baseline runs before tightening to `error`.",
+  "ci": {
+    "collect": {
+      "startServerCommand": "pnpm --filter @hir/restaurant-web start",
+      "startServerReadyPattern": "Ready",
+      "startServerReadyTimeout": 60000,
+      "url": [
+        "http://localhost:3000/pricing"
+      ],
+      "numberOfRuns": 1,
+      "settings": {
+        "preset": "desktop",
+        "emulatedFormFactor": "mobile",
+        "throttlingMethod": "simulate",
+        "onlyCategories": [
+          "performance",
+          "accessibility",
+          "best-practices",
+          "seo"
+        ]
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["warn", { "minScore": 0.7 }],
+        "categories:accessibility": ["warn", { "minScore": 0.9 }],
+        "categories:best-practices": ["warn", { "minScore": 0.85 }],
+        "categories:seo": ["warn", { "minScore": 0.9 }]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
