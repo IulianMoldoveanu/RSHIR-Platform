@@ -6,6 +6,7 @@ import { SwipeButton } from '@/components/swipe-button';
 import { ForceEndShift } from '@/components/force-end-shift';
 import { StartShiftSection } from './start-shift-section';
 import { LongShiftWarning } from '@/components/long-shift-warning';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +66,7 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+      <section className={cardClasses({ padding: 'lg' })}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-base font-semibold text-hir-fg">Tură</h1>
           <span
@@ -121,7 +122,7 @@ export default async function ShiftPage() {
       </section>
 
       {stats ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <section className={cardClasses({ padding: 'lg' })}>
           <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             Statistici tură curentă
           </p>

@@ -13,6 +13,7 @@ import {
   Phone,
   Shield,
 } from 'lucide-react';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +38,7 @@ export default function HelpPage() {
         Înapoi
       </Link>
 
-      <header className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <header className={cardClasses()}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
             <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
@@ -76,7 +77,7 @@ export default function HelpPage() {
         />
       </section>
 
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <h2 className="mb-3 text-sm font-semibold text-hir-fg">
           Întrebări frecvente
         </h2>
@@ -126,7 +127,7 @@ export default function HelpPage() {
         </ul>
       </section>
 
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <div className="mb-3 flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-violet-400" aria-hidden />
           <h2 className="text-sm font-semibold text-hir-fg">
@@ -181,7 +182,7 @@ export default function HelpPage() {
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+      <section className={cardClasses()}>
         <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport</h2>
         <a
           href="tel:+40212040000"
@@ -222,7 +223,7 @@ function Step({
   body: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-hir-border bg-hir-surface p-3">
+    <div className={cardClasses({ padding: 'sm', className: 'flex items-start gap-3' })}>
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-500 text-xs font-bold text-white">
         {n}
       </span>
