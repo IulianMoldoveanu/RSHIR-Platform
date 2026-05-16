@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { StreakCard } from './_streak-card';
 import { ProjectionCard } from './_projection-card';
 import { BestDayCard } from './_best-day-card';
+import { PerformanceStats } from './_performance-stats';
+import { Achievements } from './_achievements';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +70,20 @@ export default async function EarningsPage() {
   // (for Streak + Projection) in parallel. The two windows may partially
   // overlap but keeping them separate avoids merging logic for the wider
   // streak window when the month boundary falls inside the 30d range.
-  const [{ data: monthRows }, { data: trailing30Rows }] = await Promise.all([
+  //
+  // Also fetch:
+  //   - perf30Rows: DELIVERED with coords + timestamps for PerformanceStats
+  //   - allAssigned30: all statuses for finish-rate denominator
+  //   - allTimeDelivered: total count for achievement milestones (no time filter)
+  //   - shifts30: completed shifts for longestShiftHours badge
+  const [
+    { data: monthRows },
+    { data: trailing30Rows },
+    { data: perf30Rows },
+    { data: allAssigned30 },
+    { count: allTimeDeliveredCount },
+    { data: shifts30 },
+  ] = await Promise.all([
     admin
       .from('courier_orders')
       .select('id, delivery_fee_ron, updated_at, customer_first_name, dropoff_line1')
@@ -83,10 +98,88 @@ export default async function EarningsPage() {
       .eq('status', 'DELIVERED')
       .gte('updated_at', start30d.toISOString())
       .order('updated_at', { ascending: false }),
+    admin
+      .from('courier_orders')
+      .select('created_at, updated_at, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng')
+      .eq('assigned_courier_user_id', user.id)
+      .eq('status', 'DELIVERED')
+      .gte('updated_at', start30d.toISOString())
+      .order('updated_at', { ascending: false }),
+    admin
+      .from('courier_orders')
+      .select('status')
+      .eq('assigned_courier_user_id', user.id)
+      .in('status', ['DELIVERED', 'CANCELLED', 'FAILED'])
+      .gte('updated_at', start30d.toISOString()),
+    admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_courier_user_id', user.id)
+      .eq('status', 'DELIVERED'),
+    admin
+      .from('courier_shifts')
+      .select('started_at, ended_at')
+      .eq('courier_user_id', user.id)
+      .eq('status', 'OFFLINE')
+      .gte('started_at', start30d.toISOString()),
   ]);
 
   const all = (monthRows ?? []) as DeliveredRow[];
   const last30 = (trailing30Rows ?? []) as Array<{ delivery_fee_ron: number | null; updated_at: string }>;
+
+  // --- Achievement + PerformanceStats server-side metrics ---
+
+  type PerfRow = {
+    created_at: string;
+    updated_at: string;
+    pickup_lat: number | null;
+    pickup_lng: number | null;
+    dropoff_lat: number | null;
+    dropoff_lng: number | null;
+  };
+  const perfRows = (perf30Rows ?? []) as PerfRow[];
+  const allAssignedRows = (allAssigned30 ?? []) as Array<{ status: string }>;
+
+  // Night deliveries: DELIVERED updated between 22:00 and 06:00 local.
+  // Using getHours() which is local-time — matches what TZ=Europe/Bucharest
+  // produces on the Vercel deployment for router-level accuracy.
+  const nightDeliveries = perfRows.filter((r) => {
+    const h = new Date(r.updated_at).getHours();
+    return h >= 22 || h < 6;
+  }).length;
+
+  // Longest single shift (hours) from completed shifts in last 30d.
+  type ShiftRow = { started_at: string; ended_at: string | null };
+  const longestShiftHours = ((shifts30 ?? []) as ShiftRow[]).reduce((max, s) => {
+    if (!s.ended_at) return max;
+    const hours =
+      (new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 3_600_000;
+    return hours > max ? hours : max;
+  }, 0);
+
+  // Max consecutive calendar days with at least 1 DELIVERED order (last 30d).
+  const deliveryDateSet = new Set<string>();
+  for (const r of perfRows) {
+    const d = new Date(r.updated_at);
+    deliveryDateSet.add(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+    );
+  }
+  let maxConsecutiveDays = 0;
+  let runLen = 0;
+  const checkDate = new Date(startOfToday);
+  for (let i = 0; i < 30; i++) {
+    const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    if (deliveryDateSet.has(key)) {
+      runLen += 1;
+      if (runLen > maxConsecutiveDays) maxConsecutiveDays = runLen;
+    } else {
+      runLen = 0;
+    }
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  const totalDeliveries = allTimeDeliveredCount ?? 0;
 
   const sumFor = (since: Date) => {
     let count = 0;
@@ -197,6 +290,15 @@ export default async function EarningsPage() {
       <StreakCard rows={last30} />
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
       <BestDayCard bestDay={bestDayData} />
+
+      <PerformanceStats rows={perfRows} allAssignedRows={allAssignedRows} />
+
+      <Achievements
+        totalDeliveries={totalDeliveries}
+        nightDeliveries={nightDeliveries}
+        longestShiftHours={longestShiftHours}
+        maxConsecutiveDays={maxConsecutiveDays}
+      />
 
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
