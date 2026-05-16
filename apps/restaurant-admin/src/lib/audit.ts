@@ -56,6 +56,7 @@ export type AuditAction =
   | 'ai_ceo.trust_auto_promote_toggled'
   | 'ai_ceo.trust_auto_promoted'
   | 'ai_ceo.trust_auto_demoted'
+  | 'ai_ceo.monthly_budget_updated'
   | 'menu_agent.proposal_accepted'
   | 'menu_agent.proposal_dismissed'
   | 'partner.created'

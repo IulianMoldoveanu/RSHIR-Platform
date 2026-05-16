@@ -185,3 +185,95 @@ export async function toggleAutoPromoteEligible(
   revalidatePath('/dashboard/settings/ai-trust');
   return { ok: true };
 }
+
+// ────────────────────────────────────────────────────────────
+// Monthly budget editor
+// ────────────────────────────────────────────────────────────
+
+// OWNER-only. Patches `tenants.settings.ai.monthly_budget_cents`. The
+// dispatcher's `checkBudget` resolver in `_shared/agent-cost.ts` reads
+// this value to gate every non-master intent — when month-to-date spend
+// exceeds the cap the dispatcher returns PROPOSED instead of executing.
+// Until this action shipped the budget could only be set via DB query.
+//
+// Bounds: 100 (≈$1, defends against a typo'd 0 or negative locking the
+// tenant out) to 100_000 (≈$1000, defends against a typo'd extra zero).
+// Returns `bounds` on invalid input so the UI can show the constraint.
+const monthlyBudgetSchema = z.object({
+  monthly_budget_cents: z.number().int().min(100).max(100_000),
+});
+
+export type UpdateBudgetResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+export async function updateMonthlyBudgetCents(
+  expectedTenantId: string,
+  raw: { monthly_budget_cents: number },
+): Promise<UpdateBudgetResult> {
+  if (!expectedTenantId) return { ok: false, error: 'missing_tenant_id' };
+
+  const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+
+  const { tenant } = await getActiveTenant();
+  if (tenant.id !== expectedTenantId) return { ok: false, error: 'tenant_mismatch' };
+  await assertTenantMember(user.id, expectedTenantId);
+
+  const role = await getTenantRole(user.id, expectedTenantId);
+  if (role !== 'OWNER') return { ok: false, error: 'forbidden' };
+
+  const parsed = monthlyBudgetSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: 'bounds' };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // Read current settings, deep-merge ai.monthly_budget_cents, write back.
+  // tenants.settings is JSONB so we can't UPDATE just the leaf — we have
+  // to round-trip the whole blob. Same pattern as other settings editors
+  // (storefront branding, notifications, etc.).
+  const { data: row, error: readErr } = await sb
+    .from('tenants')
+    .select('settings')
+    .eq('id', expectedTenantId)
+    .maybeSingle();
+  if (readErr) {
+    console.warn('[ai-trust/budget] tenant read failed:', readErr.message);
+    return { ok: false, error: 'read_failed' };
+  }
+  const cur = (row?.settings as Record<string, unknown>) ?? {};
+  const ai = (cur.ai as Record<string, unknown>) ?? {};
+  const nextSettings = {
+    ...cur,
+    ai: { ...ai, monthly_budget_cents: parsed.data.monthly_budget_cents },
+  };
+
+  const { error: writeErr } = await sb
+    .from('tenants')
+    .update({ settings: nextSettings })
+    .eq('id', expectedTenantId);
+  if (writeErr) {
+    console.warn('[ai-trust/budget] tenant write failed:', writeErr.message);
+    return { ok: false, error: 'update_failed' };
+  }
+
+  await logAudit({
+    tenantId: expectedTenantId,
+    actorUserId: user.id,
+    action: 'ai_ceo.monthly_budget_updated',
+    entityType: 'tenant',
+    entityId: expectedTenantId,
+    metadata: {
+      monthly_budget_cents: parsed.data.monthly_budget_cents,
+    },
+  });
+
+  revalidatePath('/dashboard/settings/ai-trust');
+  revalidatePath('/dashboard/ai-ceo');
+  return { ok: true };
+}
