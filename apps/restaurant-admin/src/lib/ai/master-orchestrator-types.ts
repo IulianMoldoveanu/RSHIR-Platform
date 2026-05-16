@@ -62,6 +62,8 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   // --- Growth agent (read) — F6 closure ---
   { name: 'growth.recommendations_for_tenant', agent: 'growth', defaultCategory: 'growth.read', description: 'Listează recomandările de creștere generate de daily cron.', readOnly: true },
   { name: 'growth.recommendation_get', agent: 'growth', defaultCategory: 'growth.read', description: 'Detalii pentru o singură recomandare (rationale + payload).', readOnly: true },
+  // --- Master agent (read) — F6 meta-handler ---
+  { name: 'master.list_intents', agent: 'master', defaultCategory: 'master.read', description: 'Listează intent-urile înregistrate (filtrabil pe agent + readOnly).', readOnly: true },
 ];
 
 // Display metadata for the trust UI (per (agent, action_category) pair).
