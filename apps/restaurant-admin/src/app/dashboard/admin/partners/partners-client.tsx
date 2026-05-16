@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { createPartner, addReferral, markCommissionPaid } from './actions';
+import {
+  markCommissionPaidAction,
+  voidPayoutAction,
+} from './payout-actions';
 
 type Partner = {
   id: string;
@@ -24,6 +28,26 @@ type Commission = {
   status: string;
   paid_at: string | null;
   paid_via: string | null;
+};
+
+type PendingByMonth = {
+  partner_id: string;
+  period_month: string;
+  amount_cents: number;
+};
+
+type Payout = {
+  id: string;
+  partner_id: string;
+  period_month: string;
+  gross_cents: number;
+  platform_fee_cents: number;
+  net_cents: number;
+  paid_at: string;
+  paid_by_email: string | null;
+  proof_url: string | null;
+  notes: string | null;
+  voided_at: string | null;
 };
 
 function centsToRon(cents: number): string {
@@ -316,16 +340,328 @@ function CommissionRow({ commission }: { commission: Commission }) {
 }
 
 // ────────────────────────────────────────────────────────────
+// MarkPayoutModal — record a partner_payouts row for a partner + month.
+//
+// Triggered by the "Mark paid" button on a partner row. Pre-fills the
+// month picker + gross amount from the largest pending month for that
+// partner, but the operator can override both.
+// ────────────────────────────────────────────────────────────
+
+function MarkPayoutModal({
+  partner,
+  pendingByMonth,
+  onClose,
+}: {
+  partner: Partner;
+  pendingByMonth: PendingByMonth[];
+  onClose: () => void;
+}) {
+  const partnerPending = pendingByMonth.filter((p) => p.partner_id === partner.id);
+  const firstPending = partnerPending[0];
+
+  const [periodMonth, setPeriodMonth] = useState<string>(
+    firstPending?.period_month.slice(0, 7) ?? '',
+  );
+  const [grossCents, setGrossCents] = useState<string>(
+    firstPending ? (firstPending.amount_cents / 100).toFixed(2) : '',
+  );
+  const [feeCents, setFeeCents] = useState<string>('0');
+  const [proofUrl, setProofUrl] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    const gross = Math.round(parseFloat(grossCents) * 100);
+    const fee = Math.round(parseFloat(feeCents || '0') * 100);
+    if (!periodMonth) {
+      setError('Selectați luna.');
+      return;
+    }
+    if (!Number.isFinite(gross) || gross < 0) {
+      setError('Suma gross invalidă.');
+      return;
+    }
+    if (!Number.isFinite(fee) || fee < 0) {
+      setError('Comisionul platformei invalid.');
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await markCommissionPaidAction({
+        partner_id: partner.id,
+        period_month: periodMonth,
+        gross_cents: gross,
+        platform_fee_cents: fee,
+        proof_url: proofUrl.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
+      if (!res.ok) {
+        setError(res.error);
+      } else {
+        onClose();
+      }
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-900">Înregistrează plată</h3>
+            <p className="text-xs text-zinc-500">{partner.name} · {partner.email}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-zinc-400 hover:text-zinc-600"
+            aria-label="Închide"
+          >
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-700">Lună (YYYY-MM) *</label>
+            <input
+              type="month"
+              required
+              value={periodMonth}
+              onChange={(e) => setPeriodMonth(e.target.value)}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            />
+            {partnerPending.length > 1 && (
+              <p className="text-xs text-zinc-500">
+                Luni cu PENDING: {partnerPending.map((p) => p.period_month.slice(0, 7)).join(', ')}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-zinc-700">Sumă brută (RON) *</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={grossCents}
+                onChange={(e) => setGrossCents(e.target.value)}
+                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm tabular-nums"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-zinc-700">Reținere HIR (RON)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={feeCents}
+                onChange={(e) => setFeeCents(e.target.value)}
+                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm tabular-nums"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-700">URL dovadă (opțional)</label>
+            <input
+              type="url"
+              placeholder="https://..."
+              value={proofUrl}
+              onChange={(e) => setProofUrl(e.target.value)}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-700">Note (opțional)</label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            />
+          </div>
+
+          {error && <p className="text-xs text-rose-600">{error}</p>}
+
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Anulează
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-md bg-emerald-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {pending ? 'Se salvează...' : 'Confirmă plata'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// PayoutHistoryTable — read-only ledger of recorded payouts.
+// Offers a "Anulează" (void) button on active rows.
+// ────────────────────────────────────────────────────────────
+
+function PayoutHistoryTable({
+  payouts,
+  partnersById,
+}: {
+  payouts: Payout[];
+  partnersById: Record<string, Partner>;
+}) {
+  const [pendingVoid, setPendingVoid] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  function handleVoid(payoutId: string) {
+    const reason = window.prompt('Motiv anulare (opțional):') ?? undefined;
+    if (reason === null) return;
+    setPendingVoid(payoutId);
+    setToast(null);
+    startTransition(async () => {
+      const res = await voidPayoutAction({ payout_id: payoutId, reason });
+      setPendingVoid(null);
+      setToast(res.ok
+        ? { ok: true, msg: 'Payout anulat.' }
+        : { ok: false, msg: res.error });
+    });
+  }
+
+  if (payouts.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-6 text-center text-xs text-zinc-500">
+        Niciun payout înregistrat încă.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+      <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2">
+        <span className="text-xs font-medium text-zinc-500">Istoric plăți</span>
+      </div>
+      {toast && (
+        <p className={`px-4 py-2 text-xs ${toast.ok ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {toast.msg}
+        </p>
+      )}
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
+            <th className="px-4 py-2 text-left font-medium">Partener</th>
+            <th className="px-4 py-2 text-left font-medium">Lună</th>
+            <th className="px-4 py-2 text-right font-medium">Brut</th>
+            <th className="px-4 py-2 text-right font-medium">Reținere</th>
+            <th className="px-4 py-2 text-right font-medium">Net</th>
+            <th className="px-4 py-2 text-left font-medium">Plătit la</th>
+            <th className="px-4 py-2 text-left font-medium">De către</th>
+            <th className="px-4 py-2 text-left font-medium">Dovadă</th>
+            <th className="px-4 py-2 text-left font-medium">Status</th>
+            <th className="px-4 py-2 text-right font-medium">Acțiune</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-zinc-100">
+          {payouts.map((p) => {
+            const partner = partnersById[p.partner_id];
+            const isVoided = Boolean(p.voided_at);
+            return (
+              <tr key={p.id} className={isVoided ? 'bg-zinc-50 text-zinc-400' : 'hover:bg-zinc-50'}>
+                <td className="px-4 py-2">{partner?.name ?? p.partner_id.slice(0, 8)}</td>
+                <td className="px-4 py-2 tabular-nums text-xs">{p.period_month.slice(0, 7)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{centsToRon(p.gross_cents)}</td>
+                <td className="px-4 py-2 text-right tabular-nums">{centsToRon(p.platform_fee_cents)}</td>
+                <td className="px-4 py-2 text-right tabular-nums font-medium">{centsToRon(p.net_cents)}</td>
+                <td className="px-4 py-2 text-xs">{p.paid_at.slice(0, 10)}</td>
+                <td className="px-4 py-2 text-xs">{p.paid_by_email ?? '—'}</td>
+                <td className="px-4 py-2 text-xs">
+                  {p.proof_url ? (
+                    <a
+                      href={p.proof_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-600 underline"
+                    >
+                      link
+                    </a>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2 text-xs">
+                  {isVoided ? (
+                    <span className="inline-flex rounded-full bg-zinc-200 px-2 py-0.5 text-xs">
+                      VOIDED
+                    </span>
+                  ) : (
+                    <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
+                      PAID
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {!isVoided && (
+                    <button
+                      type="button"
+                      disabled={pendingVoid === p.id}
+                      onClick={() => handleVoid(p.id)}
+                      className="text-xs text-rose-600 underline disabled:opacity-50"
+                    >
+                      {pendingVoid === p.id ? '...' : 'Anulează'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
 // PartnersClient
 // ────────────────────────────────────────────────────────────
 
 export function PartnersClient({
   partners,
   commissions,
+  pendingByMonth,
+  payouts,
 }: {
   partners: Partner[];
   commissions: Commission[];
+  pendingByMonth: PendingByMonth[];
+  payouts: Payout[];
 }) {
+  const [modalPartner, setModalPartner] = useState<Partner | null>(null);
+  const partnersById = Object.fromEntries(partners.map((p) => [p.id, p]));
+  const pendingCountByPartner: Record<string, number> = {};
+  for (const pm of pendingByMonth) {
+    pendingCountByPartner[pm.partner_id] = (pendingCountByPartner[pm.partner_id] ?? 0) + 1;
+  }
   return (
     <div className="flex flex-col gap-6">
       {/* Partner list */}
@@ -347,6 +683,7 @@ export function PartnersClient({
                 <th className="px-4 py-2 text-right font-medium">Comision %</th>
                 <th className="px-4 py-2 text-right font-medium">Restaurante</th>
                 <th className="px-4 py-2 text-right font-medium">Comision luna aceasta</th>
+                <th className="px-4 py-2 text-right font-medium">Plată</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -364,11 +701,41 @@ export function PartnersClient({
                   <td className="px-4 py-3 text-right tabular-nums font-medium text-zinc-900">
                     {centsToRon(p.commission_this_month_cents)}
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    {(pendingCountByPartner[p.id] ?? 0) > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setModalPartner(p)}
+                        className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                      >
+                        Marchează plătit ({pendingCountByPartner[p.id]})
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setModalPartner(p)}
+                        className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                      >
+                        Înregistrează plată
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Payouts ledger */}
+      <PayoutHistoryTable payouts={payouts} partnersById={partnersById} />
+
+      {modalPartner && (
+        <MarkPayoutModal
+          partner={modalPartner}
+          pendingByMonth={pendingByMonth}
+          onClose={() => setModalPartner(null)}
+        />
       )}
 
       {/* Commission list with markCommissionPaid inline form */}

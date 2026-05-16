@@ -60,6 +60,8 @@ export type AuditAction =
   | 'partner.referral_added'
   | 'partner.referral_attributed'
   | 'partner.commission_marked_paid'
+  | 'partner.payout_marked_paid'
+  | 'partner.payout_voided'
   | 'partner.profile_updated'
   | 'partner.code_generated'
   | 'partner.landing_updated'
