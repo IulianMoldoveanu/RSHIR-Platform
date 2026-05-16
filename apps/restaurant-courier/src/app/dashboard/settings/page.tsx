@@ -20,6 +20,7 @@ import { updateAvatarUrlAction, updateVehicleTypeAction, logoutAction } from '..
 import { AvatarUpload } from '@/components/avatar-upload';
 import { VehicleSelector } from '@/components/vehicle-selector';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { DocumentExpiryCard } from '@/components/document-expiry-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +123,9 @@ export default async function SettingsPage() {
               onSave={updateVehicleTypeAction}
             />
           </div>
+
+          {/* Document expiry tracker — LocalStorage memento */}
+          <DocumentExpiryCard />
         </div>
       </section>
 
