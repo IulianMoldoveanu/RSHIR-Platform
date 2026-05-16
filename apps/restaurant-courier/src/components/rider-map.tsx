@@ -726,13 +726,25 @@ export function RiderMap({
     <div className={wrapperClass}>
       <div ref={containerRef} className={containerClass} />
 
-      <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 backdrop-blur">
-        <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400 align-middle" />
-        În așteptare comandă
-      </div>
+      {permission === 'pending' && (
+        // Discreet GPS-warming hint at the top of the map — replaces the
+        // generic "În așteptare comandă" label until we have a fix, so the
+        // rider knows the location lookup is still in flight (not stuck).
+        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300 align-middle" />
+          Localizez poziția…
+        </div>
+      )}
+
+      {permission === 'granted' && (
+        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 align-middle" />
+          În așteptare comandă
+        </div>
+      )}
 
       {permission === 'denied' && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-950/80 p-6 text-center backdrop-blur-sm">
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-zinc-950/85 p-6 text-center backdrop-blur-sm">
           <div className="max-w-xs">
             <p className="text-sm font-semibold text-zinc-100">Locația este dezactivată</p>
             <p className="mt-2 text-xs text-zinc-400">
@@ -743,8 +755,16 @@ export function RiderMap({
       )}
 
       {permission === 'unsupported' && (
-        <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-950/80 p-6 text-center">
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-zinc-950/85 p-6 text-center">
           <p className="text-xs text-zinc-400">Browserul nu suportă geolocalizarea.</p>
+        </div>
+      )}
+
+      {permission === 'error' && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-zinc-950/85 p-6 text-center">
+          <p className="text-xs text-zinc-400">
+            Nu am putut porni harta. Verifică internetul și reîmprospătează.
+          </p>
         </div>
       )}
     </div>
