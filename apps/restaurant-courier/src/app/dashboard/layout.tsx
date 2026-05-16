@@ -26,6 +26,7 @@ import { BatteryBadge } from '@/components/battery-badge';
 import { GpsStalnessPill } from '@/components/gps-staleness-pill';
 import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
 import { LocationTrackerWired } from '@/components/location-tracker-wired';
+import { PageTransition } from '@/components/page-transition';
 
 // Force layout to re-fetch shift state on every navigation. Without this,
 // Next.js may serve a cached layout (with stale isOnline) under a freshly
@@ -223,7 +224,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <FirstShiftTutorial />
         <WhatsNewBanner />
 
-        <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">{children}</main>
+        <main id="main-content" className="flex-1 px-4 pb-24 pt-6 sm:px-6">
+          <PageTransition>{children}</PageTransition>
+        </main>
 
         {/* Bottom nav — primary navigation on mobile (PWA target). z-[1100]
             because Leaflet internal stacking can reach z-700 (popup pane)
