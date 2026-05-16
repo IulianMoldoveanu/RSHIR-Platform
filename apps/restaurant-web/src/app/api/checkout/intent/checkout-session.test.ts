@@ -48,10 +48,13 @@ vi.mock('../pricing', () => ({
 }));
 
 const mockedSessionCreate = vi.fn();
+// Typed as `unknown[]` so the mock accepts the optional `mode` arg the
+// production signature now takes without polluting the assertion shape.
+const mockedGetStripe = vi.fn((..._args: unknown[]) => ({
+  checkout: { sessions: { create: mockedSessionCreate } },
+}));
 vi.mock('@/lib/stripe/server', () => ({
-  getStripe: vi.fn(() => ({
-    checkout: { sessions: { create: mockedSessionCreate } },
-  })),
+  getStripe: (mode?: 'live' | 'test') => mockedGetStripe(mode),
 }));
 
 const supabaseAdminFactory = vi.fn();
@@ -247,5 +250,26 @@ describe('POST /api/checkout/intent — Lane J Checkout Session', () => {
     expect(json.paymentMethod).toBe('COD');
     expect(json.url).toBeUndefined();
     expect(mockedSessionCreate).not.toHaveBeenCalled();
+  });
+
+  it('uses Stripe TEST mode when tenant payments.mode = card_test', async () => {
+    // Enable the per-tenant toggle and put the tenant in card_test mode.
+    process.env.PSP_TENANT_TOGGLE_ENABLED = 'true';
+    const tenant = await import('@/lib/tenant');
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValue({
+      tenant: {
+        ...FAKE_TENANT,
+        settings: { ...FAKE_TENANT.settings, payments: { mode: 'card_test' } },
+      },
+      host: 'demo.hir.ro',
+      slug: 'demo',
+    });
+    const { POST } = await import('./route');
+    const res = await POST(makeReq(VALID_BODY));
+    delete process.env.PSP_TENANT_TOGGLE_ENABLED;
+    expect(res.status).toBe(200);
+    // getStripe was called with mode='test' — that's the assertion the route
+    // hands the test-mode key to Stripe client construction.
+    expect(mockedGetStripe).toHaveBeenCalledWith('test');
   });
 });

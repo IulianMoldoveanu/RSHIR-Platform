@@ -13,6 +13,17 @@ import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { PaymentsClient } from './payments-client';
+import { PaymentModeClient } from './payment-mode-client';
+import type { PaymentMode } from './actions';
+import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+
+const VALID_PAYMENT_MODES: PaymentMode[] = ['cod_only', 'card_test', 'card_live'];
+function readMode(payments: Record<string, unknown>): PaymentMode {
+  const m = payments.mode;
+  return typeof m === 'string' && VALID_PAYMENT_MODES.includes(m as PaymentMode)
+    ? (m as PaymentMode)
+    : 'cod_only';
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +39,10 @@ type RequestRow = {
 export default async function PaymentsSettingsPage() {
   const { user, tenant } = await getActiveTenant();
   const role = await getTenantRole(user.id, tenant.id);
+  // Platform admins may not be members of this tenant (allow-list bypass);
+  // still allow them to edit the per-tenant payment mode during onboarding.
+  const isPlatformAdmin = isPlatformAdminEmail(user.email);
+  const canEditMode = role === 'OWNER' || isPlatformAdmin;
 
   const admin = createAdminClient();
 
@@ -45,6 +60,7 @@ export default async function PaymentsSettingsPage() {
       : null;
   const netopiaActive = payments.netopia_active === true;
   const stripeActive = payments.stripe_active === true || stripeStatus === 'ACTIVE';
+  const paymentMode = readMode(payments);
 
   // Latest onboarding request (if any). Cast through unknown — the table is
   // freshly added and not in generated Database types yet.
@@ -84,7 +100,7 @@ export default async function PaymentsSettingsPage() {
         </p>
       </header>
 
-      {role !== 'OWNER' && (
+      {role !== 'OWNER' && !isPlatformAdmin && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           Doar utilizatorii cu rolul <strong>OWNER</strong> pot solicita activarea
           plăților online.
@@ -118,6 +134,14 @@ export default async function PaymentsSettingsPage() {
           />
         </div>
       </section>
+
+      {/* Per-tenant payment-mode toggle. Drives storefront checkout surface
+          before live Netopia/Viva credentials arrive. */}
+      <PaymentModeClient
+        tenantId={tenant.id}
+        canEdit={canEditMode}
+        currentMode={paymentMode}
+      />
 
       {/* Gateway picker — multi-PSP status surface (Lane PSP-MULTIGATES-V1) */}
       <section className="rounded-xl border border-zinc-200 bg-white p-5">
