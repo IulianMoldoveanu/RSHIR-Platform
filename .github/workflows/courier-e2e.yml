@@ -62,10 +62,15 @@ jobs:
         working-directory: apps/restaurant-courier
         run: pnpm e2e
 
-      - name: Upload Playwright report on failure
+      - name: Upload Playwright traces + screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: apps/restaurant-courier/playwright-report/
+          name: playwright-traces
+          # test-results/ is Playwright's default trace/screenshot/video dir.
+          # The earlier upload pointed at playwright-report/ which we never
+          # generate (reporter is github+list, no HTML), so every failure
+          # silently produced "No files were found" and shipped 0 artifacts.
+          path: apps/restaurant-courier/test-results/
           retention-days: 7
+          if-no-files-found: ignore
