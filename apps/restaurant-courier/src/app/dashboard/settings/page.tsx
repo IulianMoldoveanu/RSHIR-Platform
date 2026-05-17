@@ -45,9 +45,18 @@ type ProfileRow = {
 };
 
 const STATUS_LABEL: Record<ProfileRow['status'], { label: string; tone: string }> = {
-  ACTIVE: { label: 'Activ', tone: 'bg-emerald-500/10 text-emerald-300' },
-  INACTIVE: { label: 'Inactiv', tone: 'bg-hir-border text-hir-muted-fg' },
-  SUSPENDED: { label: 'Suspendat', tone: 'bg-amber-500/10 text-amber-300' },
+  ACTIVE: {
+    label: 'Activ',
+    tone: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 ring-1 ring-inset ring-emerald-500/20',
+  },
+  INACTIVE: {
+    label: 'Inactiv',
+    tone: 'border-hir-border bg-hir-border/40 text-hir-muted-fg ring-1 ring-inset ring-hir-border/60',
+  },
+  SUSPENDED: {
+    label: 'Suspendat',
+    tone: 'border-amber-500/40 bg-amber-500/10 text-amber-200 ring-1 ring-inset ring-amber-500/20',
+  },
 };
 
 export default async function SettingsPage() {
@@ -71,8 +80,8 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-          <Settings className="h-5 w-5 text-violet-300" aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+          <Settings className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
         </span>
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Setări</h1>
@@ -97,7 +106,7 @@ export default async function SettingsPage() {
             <div className="mb-4 flex items-center justify-between">
               <p className="text-base font-semibold text-hir-fg">Profil</p>
               <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusBadge.tone}`}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${statusBadge.tone}`}
               >
                 {statusBadge.label}
               </span>
