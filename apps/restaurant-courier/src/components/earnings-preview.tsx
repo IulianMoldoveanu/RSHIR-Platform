@@ -47,13 +47,17 @@ export function EarningsPreview({
   const cashTotal = paymentMethod === 'COD' && totalRon != null ? Number(totalRon) : null;
 
   return (
-    <section className="rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-4">
+    <section className="relative overflow-hidden rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-4 shadow-lg shadow-violet-500/10">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-violet-500/20 blur-2xl"
+      />
       <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
         Câștig din această livrare
       </p>
 
       <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-zinc-50">
+        <span className="text-3xl font-bold tabular-nums text-zinc-50">
           {fee != null ? fee.toFixed(2) : '—'}
         </span>
         <span className="text-sm font-medium text-zinc-400">RON</span>
@@ -61,8 +65,8 @@ export function EarningsPreview({
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         {distanceKm != null ? (
-          <div className="flex items-center gap-1.5 text-hir-fg">
-            <Navigation className="h-3.5 w-3.5 text-violet-300" aria-hidden />
+          <div className="flex items-center gap-1.5 tabular-nums text-hir-fg">
+            <Navigation className="h-3.5 w-3.5 text-violet-300" aria-hidden strokeWidth={2.25} />
             <span>
               {distanceKm.toFixed(1)} km
               {etaMin != null ? ` · ~${etaMin} min` : ''}
@@ -72,17 +76,17 @@ export function EarningsPreview({
 
         {paymentMethod ? (
           <div className="flex items-center gap-1.5 text-hir-fg">
-            <Wallet className="h-3.5 w-3.5 text-violet-300" aria-hidden />
+            <Wallet className="h-3.5 w-3.5 text-violet-300" aria-hidden strokeWidth={2.25} />
             <span>{paymentMethod === 'COD' ? 'Cash la livrare' : 'Card (achitat)'}</span>
           </div>
         ) : null}
       </div>
 
       {cashTotal != null ? (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-700/40 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
-          <Banknote className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100 ring-1 ring-inset ring-amber-500/20">
+          <Banknote className="h-4 w-4 shrink-0 text-amber-300" aria-hidden strokeWidth={2.25} />
           <span>
-            Vei încasa <span className="font-semibold">{cashTotal.toFixed(2)} RON</span> de la
+            Vei încasa <span className="font-semibold tabular-nums">{cashTotal.toFixed(2)} RON</span> de la
             client la livrare.
           </span>
         </div>
