@@ -91,20 +91,24 @@ export default async function TripHistoryPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <Link
         href="/dashboard/settings"
-        className="flex min-h-[44px] items-center gap-1 self-start text-sm text-hir-muted-fg hover:text-hir-fg"
+        className="inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Setări
       </Link>
 
-      <header>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-hir-fg">
-          <History className="h-5 w-5 text-violet-400" aria-hidden />
-          Istoricul curselor
-        </h1>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          Ultimele 100 de comenzi cu starea finală: livrată, anulată sau eșuată.
-        </p>
+      <header className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+          <History className="h-5 w-5 text-violet-300" aria-hidden />
+        </span>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
+            Istoricul curselor
+          </h1>
+          <p className="mt-0.5 text-sm leading-relaxed text-hir-muted-fg">
+            Ultimele 100 de comenzi cu starea finală: livrată, anulată sau eșuată.
+          </p>
+        </div>
       </header>
 
       {rows.length === 0 ? (
@@ -118,29 +122,30 @@ export default async function TripHistoryPage() {
       ) : (
         <>
           {/* Summary chips */}
-          <section className={cardClasses({ padding: 'sm', className: 'grid grid-cols-3 gap-2' })}>
-            <div className="flex flex-col items-center gap-0.5 text-center">
-              <span className="text-base font-bold tabular-nums text-emerald-300">
+          <section className={cardClasses({ padding: 'md', className: 'grid grid-cols-3 gap-2' })}>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-lg font-bold tabular-nums text-emerald-300">
                 {deliveredCount}
               </span>
-              <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
                 Livrate
               </span>
             </div>
-            <div className="flex flex-col items-center gap-0.5 text-center">
-              <span className="text-base font-bold tabular-nums text-hir-fg">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-lg font-bold tabular-nums text-hir-fg">
                 {finishRate.toFixed(0)}%
               </span>
-              <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
                 Rată finalizare
               </span>
             </div>
-            <div className="flex flex-col items-center gap-0.5 text-center">
-              <span className="text-base font-bold tabular-nums text-hir-fg">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-lg font-bold tabular-nums text-hir-fg">
                 {grossRon.toFixed(0)}
+                <span className="ml-1 text-xs font-medium text-hir-muted-fg">RON</span>
               </span>
-              <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
-                RON brut
+              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+                Brut
               </span>
             </div>
           </section>
@@ -162,18 +167,28 @@ export default async function TripHistoryPage() {
                     href={`/dashboard/orders/${row.id}`}
                     className={cardClasses({
                       padding: 'sm',
-                      className: 'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99]',
+                      className:
+                        'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2',
                     })}
                   >
                     <span
                       aria-hidden
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-800 ${meta.tone}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ${
+                        row.status === 'DELIVERED'
+                          ? 'bg-emerald-500/15 ring-emerald-500/30'
+                          : row.status === 'CANCELLED' || row.status === 'FAILED'
+                            ? 'bg-rose-500/15 ring-rose-500/30'
+                            : 'bg-violet-500/15 ring-violet-500/30'
+                      } ${meta.tone}`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon
+                        className="h-4 w-4"
+                        strokeWidth={row.status === 'DELIVERED' ? 3 : 2.5}
+                      />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className={`text-xs font-semibold uppercase tracking-wide ${meta.tone}`}>
+                        <p className={`text-[11px] font-semibold uppercase tracking-wide ${meta.tone}`}>
                           {meta.label}
                         </p>
                         {row.vertical === 'pharma' ? (
@@ -183,7 +198,7 @@ export default async function TripHistoryPage() {
                       <p className="mt-0.5 truncate text-sm font-medium text-hir-fg">
                         {row.customer_first_name ?? row.dropoff_line1 ?? 'Comandă'}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-hir-muted-fg">
+                      <p className="mt-0.5 text-[11px] tabular-nums text-hir-muted-fg">
                         {formatRoDateTime(row.updated_at)}
                       </p>
                     </div>
