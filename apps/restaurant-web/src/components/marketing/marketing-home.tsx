@@ -53,14 +53,14 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
           <div className="mt-9 flex flex-wrap gap-3">
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
             >
               {t(currentLocale, 'marketing.home.cta_signup')}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
             <Link
               href="/migrate-from-gloriafood"
-              className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+              className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
             >
               {t(currentLocale, 'marketing.home.cta_partner')}
             </Link>
@@ -126,10 +126,13 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
         <div className="mt-8">
           <Link
             href="/features"
-            className="inline-flex items-center gap-1 text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
+            className="group inline-flex items-center gap-1 rounded-md text-sm font-medium text-[#4F46E5] transition-colors hover:text-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
           >
             {t(currentLocale, 'marketing.home.value_more_link')}
-            <ArrowRight className="h-4 w-4" aria-hidden />
+            <ArrowRight
+              className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
           </Link>
         </div>
       </section>
@@ -241,10 +244,13 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
             </div>
             <Link
               href="/case-studies/foisorul-a"
-              className="mt-7 inline-flex items-center gap-1 text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
+              className="group mt-7 inline-flex items-center gap-1 rounded-md text-sm font-medium text-[#4F46E5] transition-colors hover:text-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
             >
               {t(currentLocale, 'marketing.home.case_study_link')}
-              <ArrowRight className="h-4 w-4" aria-hidden />
+              <ArrowRight
+                className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </Link>
           </div>
           <div className="rounded-md border border-[#F1F5F9] bg-[#FAFAFA] p-6">
@@ -285,7 +291,7 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
             >
               {t(currentLocale, 'marketing.home.final_cta_signup')}
               <ArrowRight className="h-4 w-4" aria-hidden />
