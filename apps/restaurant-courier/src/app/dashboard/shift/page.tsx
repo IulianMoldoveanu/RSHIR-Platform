@@ -68,17 +68,17 @@ export default async function ShiftPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       <section className={cardClasses({ padding: 'lg' })}>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-base font-semibold text-hir-fg">Tură</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Tură</h1>
           <span
             className={
               active
-                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300'
+                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30'
                 : 'inline-flex items-center gap-1.5 rounded-full bg-hir-border px-2.5 py-1 text-[11px] font-semibold text-hir-muted-fg'
             }
           >
             <span
               aria-hidden
-              className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+              className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-zinc-600'}`}
             />
             {active ? 'Online' : 'Offline'}
           </span>
@@ -88,7 +88,7 @@ export default async function ShiftPage() {
           <>
             <p className="mb-4 text-sm text-hir-muted-fg">
               Online de la{' '}
-              <strong className="font-semibold text-hir-fg">
+              <strong className="font-semibold tabular-nums text-hir-fg">
                 {new Date(active.started_at).toLocaleTimeString('ro-RO', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -161,8 +161,10 @@ function Stat({
   return (
     <div className="flex flex-col items-center gap-1.5">
       <span aria-hidden>{icon}</span>
-      <span className="text-base font-bold text-hir-fg">{value}</span>
-      <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">{label}</span>
+      <span className="text-lg font-bold tabular-nums text-hir-fg">{value}</span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+        {label}
+      </span>
     </div>
   );
 }
