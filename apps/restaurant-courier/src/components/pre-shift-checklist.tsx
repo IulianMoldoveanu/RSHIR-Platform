@@ -68,14 +68,14 @@ export function PreShiftChecklist({ onContinue }: Props) {
   const allChecked = ITEMS.every((_, i) => checked[i]);
 
   return (
-    <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/50 to-zinc-900 p-5 shadow-2xl shadow-black/30">
+    <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/50 to-hir-surface p-5 shadow-2xl shadow-black/30 ring-1 ring-inset ring-violet-500/10">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span
             aria-hidden
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-500/40"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-500/40 shadow-md shadow-violet-500/15"
           >
-            <ClipboardCheck className="h-4 w-4 text-violet-200" />
+            <ClipboardCheck className="h-4 w-4 text-violet-200" strokeWidth={2.25} />
           </span>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
             Verificare pre-tură
@@ -85,9 +85,9 @@ export function PreShiftChecklist({ onContinue }: Props) {
           type="button"
           aria-label="Sari peste verificare"
           onClick={handleSkip}
-          className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-800/60 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+          className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-hir-border/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
-          <X className="h-4 w-4" aria-hidden />
+          <X className="h-4 w-4" aria-hidden strokeWidth={2.25} />
         </button>
       </div>
 
@@ -98,24 +98,24 @@ export function PreShiftChecklist({ onContinue }: Props) {
               type="button"
               onClick={() => toggle(i)}
               aria-pressed={!!checked[i]}
-              className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-all active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
+              className={`flex min-h-[48px] w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-all hover:-translate-y-px active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2 ${
                 checked[i]
-                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100 shadow-md shadow-emerald-500/15'
-                  : 'border-hir-border bg-zinc-900/60 text-zinc-300 hover:border-violet-500/40 hover:bg-zinc-900'
+                  ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100 shadow-md shadow-emerald-500/15 ring-1 ring-inset ring-emerald-500/20'
+                  : 'border-hir-border bg-hir-surface text-hir-fg hover:border-emerald-500/40 hover:bg-emerald-500/5'
               }`}
             >
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-all ${
                   checked[i]
                     ? 'border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-500/40'
-                    : 'border-zinc-600 bg-zinc-800'
+                    : 'border-hir-border bg-hir-bg'
                 }`}
               >
                 {checked[i] ? (
                   <Check className="h-3 w-3" aria-hidden strokeWidth={3} />
                 ) : null}
               </span>
-              {label}
+              <span className="leading-snug">{label}</span>
             </button>
           </li>
         ))}
@@ -127,8 +127,8 @@ export function PreShiftChecklist({ onContinue }: Props) {
           onClick={handleContinue}
           className={`flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 ${
             allChecked
-              ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/40 hover:-translate-y-px hover:bg-violet-500 hover:shadow-xl hover:shadow-violet-600/50'
-              : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'
+              ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/40 ring-1 ring-inset ring-violet-400/30 hover:-translate-y-px hover:bg-violet-500 hover:shadow-xl hover:shadow-violet-600/50 active:translate-y-0'
+              : 'border border-hir-border bg-hir-surface text-hir-muted-fg hover:border-hir-muted-fg/40 hover:bg-hir-border/40 hover:text-hir-fg'
           }`}
         >
           {allChecked ? (
@@ -139,17 +139,17 @@ export function PreShiftChecklist({ onContinue }: Props) {
           ) : (
             <>
               Continuă oricum
-              <ChevronRight className="h-4 w-4" aria-hidden />
+              <ChevronRight className="h-4 w-4" aria-hidden strokeWidth={2.25} />
             </>
           )}
         </button>
 
-        <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-violet-500 has-[:focus-visible]:outline-offset-2">
+        <label className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-1 text-xs text-hir-muted-fg transition-colors hover:text-hir-fg has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-violet-500 has-[:focus-visible]:outline-offset-2">
           <input
             type="checkbox"
             checked={neverShow}
             onChange={(e) => setNeverShow(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-violet-500"
+            className="h-4 w-4 rounded border-hir-border bg-hir-bg accent-violet-500"
           />
           Nu mai arăta această verificare
         </label>
