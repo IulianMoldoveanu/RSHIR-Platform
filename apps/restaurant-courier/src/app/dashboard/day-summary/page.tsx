@@ -274,7 +274,7 @@ function StatBlock({
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           {label}
         </span>
       </div>

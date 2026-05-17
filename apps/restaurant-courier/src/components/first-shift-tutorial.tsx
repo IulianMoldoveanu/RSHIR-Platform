@@ -138,7 +138,7 @@ export function FirstShiftTutorial() {
               className="absolute top-24 flex flex-col items-center gap-1 text-violet-400"
             >
               <ArrowUp className="h-6 w-6 animate-bounce" aria-hidden />
-              <span className="text-[10px] font-semibold uppercase tracking-wide">Comenzi</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide">Comenzi</span>
             </motion.div>
           )}
 
@@ -151,7 +151,7 @@ export function FirstShiftTutorial() {
               transition={{ delay: 0.15 }}
               className="absolute bottom-20 flex flex-col items-center gap-1 text-violet-400"
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide">Câștiguri</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide">Câștiguri</span>
               <ArrowDown className="h-6 w-6 animate-bounce" aria-hidden />
             </motion.div>
           )}
@@ -169,7 +169,7 @@ export function FirstShiftTutorial() {
                 className="rounded-3xl border border-violet-500/30 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-6 shadow-2xl"
               >
                 {/* Step counter. */}
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-violet-400">
+                <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-violet-400">
                   Pasul {step + 1} din {STEPS.length}
                 </p>
 

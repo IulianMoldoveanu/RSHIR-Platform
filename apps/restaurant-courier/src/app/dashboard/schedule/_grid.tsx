@@ -122,7 +122,7 @@ export function ScheduleGrid() {
                 className="flex flex-col items-center justify-center pb-2 pt-1"
               >
                 <span
-                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${
                     isToday ? 'text-violet-400' : 'text-hir-muted-fg'
                   }`}
                 >

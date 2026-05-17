@@ -74,7 +74,7 @@ export default function AboutPage() {
         </div>
 
         <div className="mt-3 rounded-xl border border-hir-border bg-hir-bg p-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             {CURRENT_RELEASE.title}
           </p>
           <ul className="ml-1 list-disc space-y-1 pl-5 text-xs text-hir-muted-fg">

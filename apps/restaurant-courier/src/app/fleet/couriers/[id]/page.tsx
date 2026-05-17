@@ -250,7 +250,7 @@ export default async function FleetCourierDetailPage(
         </div>
         <div className="flex flex-col items-end gap-2">
           <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadge.tone}`}
+            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusBadge.tone}`}
           >
             {statusBadge.label}
           </span>
@@ -408,7 +408,7 @@ export default async function FleetCourierDetailPage(
                   href={`/fleet/orders/${o.id}`}
                   className="flex items-center gap-3 rounded-xl border border-hir-border bg-zinc-950 px-3 py-2 text-xs hover:border-violet-500/40 hover:bg-hir-surface"
                 >
-                  <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+                  <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
                     {o.status}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-hir-fg">
@@ -515,7 +515,7 @@ function Metric({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {icon}
         {label}
       </div>

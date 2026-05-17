@@ -84,7 +84,7 @@ export function WhyAssigned({ breakdown, courierName }: Props) {
       {open ? (
         <div className="border-t border-hir-border px-5 pb-5 pt-4">
           {/* Winner detail */}
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
             Scor curier ales
           </p>
           <div className="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
@@ -119,7 +119,7 @@ export function WhyAssigned({ breakdown, courierName }: Props) {
           {/* Top-3 comparison table */}
           {breakdown.top3.length > 1 ? (
             <>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                 Top {breakdown.top3.length} candidați
               </p>
               <div className="overflow-x-auto">

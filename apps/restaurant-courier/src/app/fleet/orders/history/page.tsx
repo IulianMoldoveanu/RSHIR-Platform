@@ -404,7 +404,7 @@ function HistoryItem({
                 {order.customer_first_name ?? 'Client'}
               </p>
               {order.payment_method === 'COD' ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
                   <Banknote className="h-3 w-3" aria-hidden />
                   Cash
                 </span>

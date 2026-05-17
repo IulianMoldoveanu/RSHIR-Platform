@@ -70,7 +70,7 @@ export function PreShiftChecklist({ onContinue }: Props) {
   return (
     <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/40 to-zinc-900 p-5">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
           Verificare pre-tură
         </p>
         <button

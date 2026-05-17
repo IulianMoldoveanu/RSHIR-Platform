@@ -405,7 +405,7 @@ function Kpi({
 }) {
   return (
     <div className="rounded-2xl border border-hir-border bg-hir-surface p-3">
-      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {icon}
         {label}
       </div>

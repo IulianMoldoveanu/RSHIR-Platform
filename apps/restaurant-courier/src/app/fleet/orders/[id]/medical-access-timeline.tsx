@@ -89,7 +89,7 @@ export async function MedicalAccessTimeline({ orderId }: { orderId: string }) {
     <section className="rounded-2xl border border-amber-900/40 bg-amber-950/20 p-5">
       <div className="mb-3 flex items-center gap-2">
         <ShieldAlert className="h-3.5 w-3.5 text-amber-400" aria-hidden />
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
           Jurnal acces medical
         </p>
       </div>
