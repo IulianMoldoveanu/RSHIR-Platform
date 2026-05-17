@@ -28,23 +28,30 @@ export const STATUS_LABEL_RO: Record<string, string> = {
 // neutral zinc because it's the "nothing happened yet" state; the
 // in-flight states get a single sky color because by then the order's
 // identity belongs to the courier carrying it, not the lifecycle stage.
+//
+// Rose used for CANCELLED/FAILED (matches the rest of the polish-wave
+// error palette - was red-* which clashed with the SOS / cancel
+// modal). Text shade bumped from -300 to -200 for slightly better
+// contrast on the tinted /10 backgrounds.
 const TONE_BY_STATUS: Record<string, string> = {
-  CREATED: 'border-zinc-700 bg-zinc-950 text-zinc-400',
-  OFFERED: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-  ACCEPTED: 'border-violet-500/40 bg-violet-500/10 text-violet-300',
-  PICKED_UP: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-  IN_TRANSIT: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-  DELIVERED: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-  CANCELLED: 'border-red-500/40 bg-red-500/10 text-red-300',
-  FAILED: 'border-red-500/40 bg-red-500/10 text-red-300',
+  CREATED: 'border-zinc-700 bg-zinc-950 text-zinc-300',
+  OFFERED: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+  ACCEPTED: 'border-violet-500/40 bg-violet-500/10 text-violet-200',
+  PICKED_UP: 'border-sky-500/40 bg-sky-500/10 text-sky-200',
+  IN_TRANSIT: 'border-sky-500/40 bg-sky-500/10 text-sky-200',
+  DELIVERED: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+  CANCELLED: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
+  FAILED: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
 };
 
 const FALLBACK_TONE = 'border-zinc-700 bg-zinc-900 text-zinc-300';
 
 type Size = 'sm' | 'md';
 
+// Pill sizing - bumped sm text from text-[10px] to text-[11px] for
+// a11y parity with the section-label normalization across the wave.
 const SIZE_CLASSES: Record<Size, string> = {
-  sm: 'px-2 py-0.5 text-[10px]',
+  sm: 'px-2 py-0.5 text-[11px]',
   md: 'px-2.5 py-1 text-[11px]',
 };
 
