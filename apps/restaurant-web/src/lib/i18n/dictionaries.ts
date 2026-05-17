@@ -9,6 +9,7 @@ export const dictionaries = {
     notFound: {
       title: 'Restaurant negăsit',
       body: 'Domeniul accesat nu este atribuit niciunui restaurant HIR. Verifică adresa sau contactează-ne.',
+      cta: 'Înapoi la pagina principală',
     },
     layout: {
       not_accepting: 'Restaurantul nu acceptă comenzi acum.',
@@ -1008,6 +1009,7 @@ export const dictionaries = {
     notFound: {
       title: 'Restaurant not found',
       body: 'This domain is not assigned to any HIR restaurant. Check the address or contact us.',
+      cta: 'Back to homepage',
     },
     layout: {
       not_accepting: 'The restaurant is not accepting orders right now.',
