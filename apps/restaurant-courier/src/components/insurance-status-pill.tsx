@@ -63,10 +63,10 @@ export function InsuranceStatusPill() {
   const Icon = verdict === 'ok' ? ShieldCheck : ShieldAlert;
   const tone =
     verdict === 'ok'
-      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 ring-1 ring-inset ring-emerald-500/15'
       : verdict === 'attention'
-        ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
-        : 'border-rose-500/30 bg-rose-500/10 text-rose-300';
+        ? 'border-amber-500/40 bg-amber-500/10 text-amber-200 ring-1 ring-inset ring-amber-500/15'
+        : 'border-rose-500/40 bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-500/15';
 
   const title =
     verdict === 'ok'
@@ -84,10 +84,19 @@ export function InsuranceStatusPill() {
         ? 'ring-amber-500/40'
         : 'ring-rose-500/40';
 
+  // Tone-matched hover shadow so the lift reads as warm/serious/critical
+  // rather than a generic neutral elevation.
+  const hoverShadow =
+    verdict === 'ok'
+      ? 'hover:shadow-md hover:shadow-emerald-500/20'
+      : verdict === 'attention'
+        ? 'hover:shadow-md hover:shadow-amber-500/20'
+        : 'hover:shadow-md hover:shadow-rose-500/20';
+
   return (
     <a
       href="/dashboard/settings"
-      className={`group flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-xs font-medium transition-all hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${tone} ${
+      className={`group flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-xs font-medium transition-all hover:-translate-y-px active:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 ${tone} ${hoverShadow} ${
         verdict === 'ok'
           ? 'focus-visible:outline-emerald-500'
           : verdict === 'attention'
@@ -98,7 +107,7 @@ export function InsuranceStatusPill() {
     >
       <span
         aria-hidden
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ${ringTone} bg-current/10`}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ${ringTone} bg-current/10`}
       >
         <Icon className="h-4 w-4" strokeWidth={2.25} />
       </span>
