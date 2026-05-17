@@ -88,21 +88,21 @@ export function CancelOrderModal({ cancelAction }: Props) {
 
   return (
     <>
-      {/* Trigger button — minimum 44px height, destructive red-tinted */}
+      {/* Trigger button — minimum 44px height, destructive rose-tinted */}
       <button
         type="button"
         onClick={handleOpen}
-        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-red-700/40 bg-red-950/30 px-4 py-3 text-sm font-medium text-red-300 hover:bg-red-950/50 active:bg-red-950/60"
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/15 hover:text-rose-200 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
         aria-label="Anulează comanda"
       >
-        <XCircle className="h-4 w-4 shrink-0" aria-hidden />
+        <XCircle className="h-4 w-4 shrink-0" aria-hidden strokeWidth={2.25} />
         Anulează comanda
       </button>
 
       {/* Modal overlay */}
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-6"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 px-4 pb-6 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-label="Anulare comandă"
@@ -111,21 +111,33 @@ export function CancelOrderModal({ cancelAction }: Props) {
             if (e.target === e.currentTarget) handleClose();
           }}
         >
-          <div className="w-full max-w-xl rounded-2xl border border-hir-border bg-zinc-900 p-5 shadow-xl">
+          <div className="w-full max-w-xl rounded-2xl border border-rose-500/30 bg-zinc-900 p-5 shadow-2xl shadow-rose-900/30">
             {step === 'pick' ? (
               <>
-                <h2 className="mb-1 text-base font-semibold text-hir-fg">Anulează comanda</h2>
-                <p className="mb-4 text-sm text-hir-muted-fg">Selectează motivul anulării:</p>
+                <div className="mb-3 flex items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-500/15 ring-1 ring-rose-500/40"
+                  >
+                    <XCircle className="h-5 w-5 text-rose-300" strokeWidth={2.25} />
+                  </span>
+                  <h2 className="text-lg font-semibold tracking-tight text-hir-fg">
+                    Anulează comanda
+                  </h2>
+                </div>
+                <p className="mb-4 text-sm leading-relaxed text-hir-muted-fg">
+                  Selectează motivul anulării:
+                </p>
 
                 <fieldset className="space-y-2">
                   <legend className="sr-only">Motiv anulare</legend>
                   {REASONS.map((r) => (
                     <label
                       key={r}
-                      className={`flex min-h-[44px] cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                      className={`flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-all has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-rose-500 has-[:focus-visible]:outline-offset-2 ${
                         reason === r
-                          ? 'border-red-500/60 bg-red-950/40 text-red-200'
-                          : 'border-hir-border bg-hir-surface text-hir-fg hover:border-red-700/40 hover:bg-red-950/20'
+                          ? 'border-rose-500/60 bg-rose-500/10 text-rose-100 shadow-md shadow-rose-500/15'
+                          : 'border-hir-border bg-hir-surface text-hir-fg hover:border-rose-500/30 hover:bg-rose-500/5'
                       }`}
                     >
                       <input
@@ -134,7 +146,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
                         value={r}
                         checked={reason === r}
                         onChange={() => handleReasonSelect(r)}
-                        className="h-4 w-4 shrink-0 accent-red-500"
+                        className="h-4 w-4 shrink-0 accent-rose-500"
                       />
                       {r}
                     </label>
@@ -143,7 +155,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
 
                 {reason === 'Altă cauză' ? (
                   <textarea
-                    className="mt-3 w-full rounded-xl border border-hir-border bg-hir-surface px-4 py-3 text-sm text-hir-fg placeholder:text-hir-muted-fg focus:border-red-500/60 focus:outline-none"
+                    className="mt-3 w-full resize-none rounded-xl border border-hir-border bg-hir-surface px-4 py-3 text-sm leading-relaxed text-hir-fg placeholder:text-hir-muted-fg/70 transition-colors focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
                     placeholder="Descrie pe scurt motivul (opțional)…"
                     rows={3}
                     maxLength={300}
@@ -157,7 +169,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
                     type="button"
                     variant="ghost"
                     onClick={handleClose}
-                    className="flex-1 min-h-[44px] rounded-xl border border-hir-border text-sm text-hir-muted-fg hover:text-hir-fg"
+                    className="flex-1 min-h-[48px] rounded-xl border border-hir-border text-sm text-hir-muted-fg transition-colors hover:border-hir-muted-fg/50 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                   >
                     Renunță
                   </Button>
@@ -165,7 +177,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
                     type="button"
                     disabled={!reason}
                     onClick={handleNext}
-                    className="flex-1 min-h-[44px] rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex-1 min-h-[48px] rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-rose-600/30 transition-all hover:-translate-y-px hover:bg-rose-500 hover:shadow-lg hover:shadow-rose-600/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-rose-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
                   >
                     Continuă
                   </button>
@@ -173,16 +185,26 @@ export function CancelOrderModal({ cancelAction }: Props) {
               </>
             ) : (
               <>
-                <h2 className="mb-1 text-base font-semibold text-red-300">Confirmare anulare</h2>
-                <p className="mb-2 text-sm text-hir-muted-fg">
+                <div className="mb-2 flex items-center gap-2.5">
+                  <span
+                    aria-hidden
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-rose-500/15 ring-1 ring-rose-500/40"
+                  >
+                    <XCircle className="h-5 w-5 text-rose-300" strokeWidth={2.25} />
+                  </span>
+                  <h2 className="text-lg font-semibold tracking-tight text-rose-200">
+                    Confirmare anulare
+                  </h2>
+                </div>
+                <p className="mb-3 text-sm leading-relaxed text-hir-muted-fg">
                   Ești sigur că dorești să anulezi comanda?
                 </p>
-                <p className="mb-4 rounded-xl border border-hir-border bg-hir-surface px-4 py-3 text-sm text-hir-fg">
+                <p className="mb-4 rounded-xl border border-hir-border bg-hir-surface px-4 py-3 text-sm leading-relaxed text-hir-fg">
                   <span className="text-hir-muted-fg">Motiv: </span>
-                  {reason}
-                  {notes ? ` — ${notes}` : ''}
+                  <span className="font-medium">{reason}</span>
+                  {notes ? <span className="text-hir-muted-fg"> — {notes}</span> : ''}
                 </p>
-                <p className="mb-4 text-xs text-hir-muted-fg">
+                <p className="mb-4 text-xs leading-relaxed text-hir-muted-fg">
                   Această acțiune nu poate fi anulată. Comanda va reveni în coada flotei.
                 </p>
 
@@ -192,7 +214,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
                     variant="ghost"
                     onClick={handleBack}
                     disabled={isPending}
-                    className="flex-1 min-h-[44px] rounded-xl border border-hir-border text-sm text-hir-muted-fg hover:text-hir-fg"
+                    className="flex-1 min-h-[48px] rounded-xl border border-hir-border text-sm text-hir-muted-fg transition-colors hover:border-hir-muted-fg/50 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                   >
                     Înapoi
                   </Button>
@@ -200,7 +222,7 @@ export function CancelOrderModal({ cancelAction }: Props) {
                     type="button"
                     disabled={isPending}
                     onClick={handleConfirm}
-                    className="flex-1 min-h-[44px] rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex-1 min-h-[48px] rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-rose-600/30 transition-all hover:-translate-y-px hover:bg-rose-500 hover:shadow-lg hover:shadow-rose-600/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-rose-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
                   >
                     {isPending ? 'Se anulează…' : 'Da, anulează'}
                   </button>
