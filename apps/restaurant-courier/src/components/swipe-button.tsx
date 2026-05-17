@@ -124,7 +124,7 @@ export function SwipeButton({
   return (
     <div
       ref={trackRef}
-      className="relative h-14 w-full select-none overflow-hidden rounded-full border border-zinc-800"
+      className="relative h-14 w-full select-none overflow-hidden rounded-full border border-hir-border ring-1 ring-inset ring-hir-border/40"
       style={trackStyle}
       aria-disabled={pending || done}
     >
@@ -135,7 +135,7 @@ export function SwipeButton({
       />
 
       {/* Label centered on the track. */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-medium tracking-wide text-zinc-100">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-semibold tracking-wide text-hir-fg">
         {done
           ? 'Confirmat'
           : pending
@@ -163,20 +163,30 @@ export function SwipeButton({
           onPointerCancel={cancelHold}
           onPointerLeave={cancelHold}
           whileTap={{ scale: 0.98 }}
-          className="absolute left-1 top-1 flex h-12 w-14 cursor-grab items-center justify-center rounded-full text-white shadow-lg active:cursor-grabbing"
+          className={`absolute left-1 top-1 flex h-12 w-14 cursor-grab items-center justify-center rounded-full text-white shadow-lg ${
+            variant === 'success' ? 'shadow-emerald-500/40' : 'shadow-violet-500/40'
+          } active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            variant === 'success' ? 'focus-visible:outline-emerald-400' : 'focus-visible:outline-violet-400'
+          }`}
           aria-label={label}
         >
-          <ChevronRight className="h-5 w-5" aria-hidden />
+          <ChevronRight className="h-5 w-5" aria-hidden strokeWidth={2.5} />
         </motion.button>
       ) : null}
 
       {/* Pending / done state: stationary indicator on the right. */}
       {(pending || done) ? (
         <div
-          className="absolute right-1 top-1 flex h-12 w-14 items-center justify-center rounded-full text-white"
+          className={`absolute right-1 top-1 flex h-12 w-14 items-center justify-center rounded-full text-white shadow-md ${
+            variant === 'success' ? 'shadow-emerald-500/40' : 'shadow-violet-500/40'
+          }`}
           style={{ background: accent }}
         >
-          {done ? <Check className="h-5 w-5" aria-hidden /> : <Loader2 className="h-5 w-5 animate-spin" aria-hidden />}
+          {done ? (
+            <Check className="h-5 w-5 drop-shadow-[0_0_4px_rgba(255,255,255,0.5)]" aria-hidden strokeWidth={3} />
+          ) : (
+            <Loader2 className="h-5 w-5 animate-spin" aria-hidden strokeWidth={2.5} />
+          )}
         </div>
       ) : null}
     </div>

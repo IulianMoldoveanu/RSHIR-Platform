@@ -59,7 +59,7 @@ export function VehicleSelector({
           icons are sharp at any size (pure SVG), so we render large here. */}
       <div
         aria-hidden
-        className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-violet-500/20 bg-gradient-to-b from-violet-500/10 via-zinc-950 to-zinc-950"
+        className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-500/10 via-hir-bg to-hir-bg ring-1 ring-inset ring-violet-500/10 shadow-md shadow-violet-500/10"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.35),transparent_60%)]" />
         <VehicleIcon
@@ -79,10 +79,10 @@ export function VehicleSelector({
               key={opt.value}
               onClick={() => pick(opt.value)}
               aria-pressed={isSelected}
-              className={`relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-medium transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
+              className={`relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-semibold transition-all hover:-translate-y-px active:translate-y-0 active:scale-95 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                 isSelected
-                  ? 'border-violet-500/70 bg-violet-500/15 text-violet-100 shadow-lg shadow-violet-500/15'
-                  : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:border-violet-500/30 hover:bg-hir-border/50 hover:text-hir-fg'
+                  ? 'border-violet-500/70 bg-violet-500/15 text-violet-100 shadow-lg shadow-violet-500/20 ring-1 ring-inset ring-violet-500/20'
+                  : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:border-violet-500/40 hover:bg-hir-border/50 hover:text-hir-fg hover:shadow-md hover:shadow-violet-500/10'
               }`}
             >
               <VehicleIcon type={opt.value} size={56} />
@@ -98,9 +98,9 @@ export function VehicleSelector({
               {isSelected && pending ? (
                 <span
                   aria-hidden
-                  className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-white"
+                  className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-white shadow-md shadow-violet-500/40"
                 >
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} />
                 </span>
               ) : null}
             </button>
@@ -110,7 +110,7 @@ export function VehicleSelector({
       <p className="text-[11px] text-hir-muted-fg">
         Vehiculul ales apare ca marker pe hartă.
       </p>
-      {error ? <p className="text-[11px] text-rose-400">{error}</p> : null}
+      {error ? <p className="text-[11px] font-medium text-rose-300">{error}</p> : null}
     </div>
   );
 }
