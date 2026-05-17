@@ -32,19 +32,19 @@ export default function HelpPage() {
     <div className="mx-auto max-w-xl space-y-4">
       <Link
         href="/dashboard/settings"
-        className="inline-flex items-center gap-1 text-xs text-hir-muted-fg hover:text-hir-fg"
+        className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ArrowLeft className="h-3 w-3" aria-hidden />
-        Înapoi
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        Înapoi la setări
       </Link>
 
-      <header className={cardClasses()}>
+      <header className={cardClasses({ padding: 'lg' })}>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10">
-            <HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+            <HelpCircle className="h-5 w-5 text-violet-300" aria-hidden />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-hir-fg">
+            <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
               Cum funcționează HIR Curier
             </h1>
             <p className="mt-0.5 text-[11px] text-hir-muted-fg">
@@ -183,27 +183,36 @@ export default function HelpPage() {
       </section>
 
       <section className={cardClasses()}>
-        <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport</h2>
-        <a
-          href="tel:+40212040000"
-          className="flex items-center gap-3 rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 hover:border-emerald-500/40 hover:bg-hir-border"
-        >
-          <Phone className="h-4 w-4 text-emerald-400" aria-hidden />
-          <span className="flex-1 text-sm text-hir-fg">+40 21 204 0000</span>
-          <span className="text-[10px] text-hir-muted-fg">L–V 09–18</span>
-          <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-        </a>
-        <a
-          href="mailto:suport@hirforyou.ro"
-          className="mt-2 flex items-center gap-3 rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 hover:border-violet-500/40 hover:bg-hir-border"
-        >
-          <Mail className="h-4 w-4 text-violet-400" aria-hidden />
-          <span className="flex-1 text-sm text-hir-fg">
-            suport@hirforyou.ro
-          </span>
-          <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-        </a>
-        <p className="mt-3 text-[11px] text-hir-muted-fg">
+        <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport HIR</h2>
+        <div className="flex flex-col gap-2">
+          <a
+            href="tel:+40212040000"
+            className="flex min-h-[56px] items-center gap-3 rounded-xl border border-hir-border bg-hir-bg px-3 py-2.5 transition-colors hover:border-emerald-500/40 hover:bg-emerald-500/5 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+              <Phone className="h-4 w-4 text-emerald-300" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium tabular-nums text-hir-fg">+40 21 204 0000</p>
+              <p className="mt-0.5 text-[11px] text-hir-muted-fg">L–V 09–18 · sună rapid</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
+          </a>
+          <a
+            href="mailto:suport@hirforyou.ro"
+            className="flex min-h-[56px] items-center gap-3 rounded-xl border border-hir-border bg-hir-bg px-3 py-2.5 transition-colors hover:border-violet-500/40 hover:bg-violet-500/5 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
+              <Mail className="h-4 w-4 text-violet-300" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-hir-fg">suport@hirforyou.ro</p>
+              <p className="mt-0.5 text-[11px] text-hir-muted-fg">răspundem în 24h lucrătoare</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
+          </a>
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-hir-muted-fg">
           Pentru probleme operaționale (comandă blocată, restaurant nu
           răspunde) contactează direct dispecerul tău. Suport HIR e pentru
           probleme de cont, plată sau aplicație.
