@@ -78,9 +78,9 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={openDrawer}
-        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg hover:text-violet-400 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-violet-300 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <HelpCircle className="h-5 w-5" aria-hidden />
+        <HelpCircle className="h-5 w-5" aria-hidden strokeWidth={2.25} />
       </button>
 
       <AnimatePresence>
@@ -132,7 +132,7 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                 <nav aria-label="Opțiuni ajutor">
                   <ul className="flex flex-col px-4 pb-5">
                     <DrawerItem
-                      icon={<BookOpen className="h-5 w-5 text-violet-300" aria-hidden />}
+                      icon={<BookOpen className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />}
                       label="Întrebări frecvente"
                       sublabel="Ghid rapid · plată · poze · urgențe"
                       as="link"
@@ -141,7 +141,7 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                     />
                     {dispatcherPhone ? (
                       <DrawerItem
-                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden />}
+                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden strokeWidth={2.25} />}
                         label="Sună dispecerul"
                         sublabel={dispatcherPhone}
                         as="tel"
@@ -149,7 +149,7 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                       />
                     ) : (
                       <DrawerItem
-                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden />}
+                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden strokeWidth={2.25} />}
                         label="Sună suportul HIR"
                         sublabel="+40 21 204 0000 · L–V 09–18"
                         as="tel"
@@ -157,14 +157,14 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                       />
                     )}
                     <DrawerItem
-                      icon={<Flag className="h-5 w-5 text-amber-300" aria-hidden />}
+                      icon={<Flag className="h-5 w-5 text-amber-300" aria-hidden strokeWidth={2.25} />}
                       label="Raportează o problemă"
                       sublabel="Scrie suportului direct din aplicație"
                       as="button"
                       onClick={() => setShowReport(true)}
                     />
                     <DrawerItem
-                      icon={<FileText className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
+                      icon={<FileText className="h-5 w-5 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />}
                       label="Termeni și condiții"
                       as="link"
                       href="https://hirforyou.ro/termeni"
@@ -273,17 +273,21 @@ type DrawerItemProps = DrawerItemLink | DrawerItemTel | DrawerItemButton;
 
 function DrawerItem(props: DrawerItemProps) {
   const inner = (
-    <div className="flex min-h-[60px] w-full items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-hir-surface active:scale-[0.99]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hir-surface ring-1 ring-hir-border">
+    <div className="group flex min-h-[60px] w-full items-center gap-3 rounded-xl px-3 py-3 transition-all hover:bg-hir-surface hover:-translate-y-px active:translate-y-0 active:scale-[0.99]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hir-surface ring-1 ring-hir-border transition-colors group-hover:ring-violet-500/30">
         {props.icon}
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-hir-fg">{props.label}</p>
         {props.sublabel && (
-          <p className="mt-0.5 truncate text-xs text-hir-muted-fg">{props.sublabel}</p>
+          <p className="mt-0.5 truncate text-xs leading-relaxed text-hir-muted-fg">{props.sublabel}</p>
         )}
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
+      <ChevronRight
+        className="h-4 w-4 shrink-0 text-hir-muted-fg transition-transform group-hover:translate-x-0.5 group-hover:text-violet-300"
+        aria-hidden
+        strokeWidth={2.25}
+      />
     </div>
   );
 
