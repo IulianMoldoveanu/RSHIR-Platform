@@ -111,9 +111,14 @@ export function LiveEta({ dropoffLat, dropoffLng, vehicleType }: Props) {
 
   if (state.status === 'arrived') {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3">
-        <Navigation2 className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-        <p className="text-sm font-semibold text-emerald-300">Ai ajuns la destinație</p>
+      <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 shadow-md shadow-emerald-500/20 ring-1 ring-inset ring-emerald-500/20">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/40"
+        >
+          <Navigation2 className="h-4 w-4 text-emerald-300" strokeWidth={2.5} />
+        </span>
+        <p className="text-sm font-semibold text-emerald-100">Ai ajuns la destinație</p>
       </div>
     );
   }
@@ -130,17 +135,21 @@ export function LiveEta({ dropoffLat, dropoffLng, vehicleType }: Props) {
   const progressPct = Math.max(0, Math.min(100, (1 - state.distanceKm / MAX_KM) * 100));
 
   return (
-    <div className="rounded-2xl border border-violet-500/30 bg-hir-surface p-4">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="relative overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-950/20 to-hir-surface p-4 shadow-md shadow-violet-500/10">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Navigation2 className="h-4 w-4 shrink-0 text-violet-400" aria-hidden />
-          <span className="text-xs font-semibold uppercase tracking-wide text-violet-400">
+          <Navigation2 className="h-4 w-4 shrink-0 text-violet-300" aria-hidden strokeWidth={2.25} />
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
             ETA live
           </span>
         </div>
         <div className="text-right">
-          <span className="text-base font-bold text-hir-fg">ETA: {etaLabel}</span>
-          <span className="ml-2 text-sm text-hir-muted-fg">· {distLabel} rămas</span>
+          <span className="text-base font-bold tabular-nums text-hir-fg">
+            ETA: {etaLabel}
+          </span>
+          <span className="ml-2 text-sm tabular-nums text-hir-muted-fg">
+            · {distLabel} rămas
+          </span>
         </div>
       </div>
 
@@ -151,15 +160,15 @@ export function LiveEta({ dropoffLat, dropoffLng, vehicleType }: Props) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Progres livrare: ${distLabel} rămași`}
-        className="h-2 w-full overflow-hidden rounded-full bg-hir-border"
+        className="h-2 w-full overflow-hidden rounded-full bg-hir-border ring-1 ring-inset ring-hir-border/60"
       >
         <div
-          className="h-full rounded-full bg-violet-500 transition-all duration-700"
+          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 shadow-[0_0_8px_rgba(124,58,237,0.55)] transition-all duration-700"
           style={{ width: `${progressPct}%` }}
         />
       </div>
 
-      <p className="mt-2 text-[10px] text-hir-muted-fg">
+      <p className="mt-2 text-[11px] text-hir-muted-fg">
         Actualizat la fiecare 30 s · estimat pe baza vitezei medii
       </p>
     </div>
