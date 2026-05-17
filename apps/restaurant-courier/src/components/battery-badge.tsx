@@ -34,10 +34,10 @@ export function BatteryBadge() {
         : BatteryLow;
 
   const tone = isCharging
-    ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
+    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200'
     : isCritical
-      ? 'border-red-500/30 bg-red-500/15 text-red-300'
-      : 'border-amber-500/30 bg-amber-500/15 text-amber-300';
+      ? 'border-rose-500/40 bg-rose-500/15 text-rose-200'
+      : 'border-amber-500/40 bg-amber-500/15 text-amber-200';
 
   const label = isCharging ? `Încărcare ${percent}%` : `Baterie ${percent}%`;
   const tooltip = isCharging
@@ -53,7 +53,7 @@ export function BatteryBadge() {
       title={tooltip}
       tabIndex={0}
       className={`flex min-h-[44px] min-w-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${tone} ${
-        isCharging ? 'ring-emerald-500/20' : isCritical ? 'ring-red-500/20' : 'ring-amber-500/20'
+        isCharging ? 'ring-emerald-500/20' : isCritical ? 'ring-rose-500/20' : 'ring-amber-500/20'
       }`}
     >
       <span className="flex items-center gap-1">

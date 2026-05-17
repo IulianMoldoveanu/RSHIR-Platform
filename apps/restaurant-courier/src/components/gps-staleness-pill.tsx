@@ -52,22 +52,22 @@ export function GpsStalnessPill() {
   const config: Record<GpsState, { label: string; tone: string; tooltip: string }> = {
     'live-now': {
       label: 'Live · acum',
-      tone: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
+      tone: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
       tooltip: 'GPS actualizat — fix primit acum',
     },
     'live-aged': {
       label: `Live · ${formatAge(age)}`,
-      tone: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
+      tone: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
       tooltip: `GPS primit în urmă cu ${formatAge(age)}`,
     },
     stale: {
       label: `Întârziat · ${formatAge(age)}`,
-      tone: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
+      tone: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
       tooltip: `GPS întârziat — ultimul fix în urmă cu ${formatAge(age)}`,
     },
     lost: {
       label: `Pierdut · ${formatAge(age)}`,
-      tone: 'border-red-500/30 bg-red-500/15 text-red-300',
+      tone: 'border-rose-500/40 bg-rose-500/15 text-rose-200',
       tooltip: `GPS pierdut — niciun fix în ultimele ${formatAge(age)}`,
     },
     // Unreachable branch once state !== 'waiting', but TypeScript needs it.
@@ -91,11 +91,23 @@ export function GpsStalnessPill() {
           ? 'ring-emerald-500/20'
           : state === 'stale'
             ? 'ring-amber-500/20'
-            : 'ring-red-500/20'
+            : 'ring-rose-500/20'
       }`}
     >
       <span className="flex items-center gap-1">
-        <MapPin className="h-3 w-3" aria-hidden strokeWidth={2.25} />
+        {state === 'live-now' ? (
+          // Pulsing emerald dot reads as "GPS alive right now" — matches the
+          // affordance pattern of the live ETA pill on order detail.
+          <span
+            aria-hidden
+            className="relative flex h-2 w-2"
+          >
+            <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
+            <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+        ) : (
+          <MapPin className="h-3 w-3" aria-hidden strokeWidth={2.25} />
+        )}
         <span>{label}</span>
       </span>
     </div>
