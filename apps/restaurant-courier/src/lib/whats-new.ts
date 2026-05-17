@@ -29,10 +29,16 @@ export const CURRENT_RELEASE: ReleaseEntry = {
 
 export const STORAGE_KEY = 'hir-courier-last-seen-release';
 
+// Sentinel for "don't ever show me the banner again" — used by E2E tests
+// (so a release bump doesn't silently overlap the order-detail swipe area)
+// and as an escape hatch for couriers who explicitly opt out via support.
+const SUPPRESS_ALL = 'all';
+
 export function hasSeenCurrentRelease(): boolean {
   if (typeof localStorage === 'undefined') return true;
   try {
-    return localStorage.getItem(STORAGE_KEY) === CURRENT_RELEASE.id;
+    const v = localStorage.getItem(STORAGE_KEY);
+    return v === CURRENT_RELEASE.id || v === SUPPRESS_ALL;
   } catch {
     return true;
   }

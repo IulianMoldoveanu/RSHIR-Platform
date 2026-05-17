@@ -10,10 +10,18 @@ export async function loginAsTestCourier(page: Page): Promise<void> {
   // Skip first-run onboarding overlays so tests can interact with the real
   // dashboard immediately (welcome carousel + first-shift tutorial would
   // otherwise sit on top of /dashboard and block locators).
+  //
+  // Also pin the "what's new" release as already seen — the banner is
+  // bottom-fixed at z-1090 and overlaps the order-detail action bar where
+  // the pickup/deliver swipe buttons live, intercepting the synthetic
+  // mouse gestures in 02-accept-deliver and 03-force-end-shift.
+  // We hard-code a far-future date so a new release bump can't silently
+  // re-introduce the banner overlap during E2E runs.
   await page.addInitScript(() => {
     try {
       window.localStorage.setItem('hir-courier-onboarded', '1');
       window.localStorage.setItem('hir-courier-first-shift-done', '1');
+      window.localStorage.setItem('hir-courier-last-seen-release', 'all');
     } catch {
       // localStorage may be unavailable in private/iframe contexts — ignore.
     }
