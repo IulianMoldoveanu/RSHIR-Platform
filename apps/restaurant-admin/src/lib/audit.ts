@@ -138,7 +138,8 @@ export type AuditAction =
   | 'fleet_assignment_created'
   | 'fleet_assignment_role_changed'
   | 'fleet_assignment_terminated'
-  | 'fleet_realloc_recommendation_run';
+  | 'fleet_realloc_recommendation_run'
+  | 'order.manual_created';
 
 export async function logAudit(args: {
   tenantId: string;
