@@ -53,12 +53,12 @@ export function Sparkline7d({ rows, now = new Date() }: { rows: Row[]; now?: Dat
   return (
     <section
       aria-label="Câștigul ultimei săptămâni"
-      className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4"
+      className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm ring-1 ring-inset ring-hir-border/40"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-violet-400" aria-hidden />
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <TrendingUp className="h-4 w-4 text-violet-300" aria-hidden strokeWidth={2.25} />
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             Ultimele 7 zile
           </p>
         </div>

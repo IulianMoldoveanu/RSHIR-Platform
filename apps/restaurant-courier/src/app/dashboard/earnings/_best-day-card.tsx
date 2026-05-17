@@ -24,14 +24,29 @@ export function BestDayCard({ bestDay }: Props) {
   return (
     <section
       aria-label="Cea mai bună zi din lună"
-      className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3"
+      className="flex items-center gap-3 rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-amber-500/5 px-4 py-3 shadow-md shadow-amber-500/10 ring-1 ring-inset ring-amber-500/20"
     >
-      <Trophy className="h-5 w-5 shrink-0 text-amber-400" aria-hidden />
+      <span
+        aria-hidden
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 ring-1 ring-amber-500/40"
+      >
+        <Trophy className="h-5 w-5 text-amber-200" strokeWidth={2.25} />
+      </span>
       <div className="flex-1 text-sm">
-        <p className="font-medium text-zinc-100">Cea mai bună zi din lună</p>
-        <p className="mt-0.5 text-xs text-zinc-400">
-          {label}: {bestDay.earnings.toFixed(2)} RON din{' '}
-          {bestDay.count} {bestDay.count === 1 ? 'livrare' : 'livrări'}
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+          Cea mai bună zi din lună
+        </p>
+        <p className="mt-1 text-sm text-zinc-100">
+          <span className="font-medium tabular-nums text-amber-100">{label}</span>
+          <span className="text-zinc-400"> · </span>
+          <span className="font-semibold tabular-nums">
+            {bestDay.earnings.toFixed(2)} RON
+          </span>
+          <span className="text-zinc-400">
+            {' '}
+            din <span className="tabular-nums">{bestDay.count}</span>{' '}
+            {bestDay.count === 1 ? 'livrare' : 'livrări'}
+          </span>
         </p>
       </div>
     </section>
