@@ -158,13 +158,13 @@ export default async function OrdersPage() {
       />
       <InsuranceStatusPill />
       <TodaySummaryPill />
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-hir-fg">Comenzi</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Comenzi</h1>
         <form action={refreshOrdersAction}>
           <RippleButton
             type="submit"
             aria-label="Reîmprospătează"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-xs font-medium text-hir-fg hover:bg-hir-border active:scale-95"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-xs font-medium text-hir-fg transition-all hover:border-violet-500/40 hover:bg-hir-border active:scale-95 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             rippleColor="bg-violet-400/30"
           >
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
@@ -239,10 +239,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
+      <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {title}
         {count > 0 ? (
-          <span className="rounded-full bg-hir-border px-1.5 py-0.5 text-[10px] font-bold text-hir-fg">
+          <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-violet-200 ring-1 ring-inset ring-violet-500/30">
             {count}
           </span>
         ) : null}
@@ -286,7 +286,7 @@ function OrderListItem({
   return (
     <Link
       href={`/dashboard/orders/${order.id}`}
-      className="group block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-all hover:border-violet-500/50 hover:bg-hir-border/40 hover:shadow-lg hover:shadow-violet-500/5 active:scale-[0.99]"
+      className="group block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-all hover:-translate-y-px hover:border-violet-500/50 hover:bg-hir-border/40 hover:shadow-lg hover:shadow-violet-500/10 active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
     >
       {/* Header row: sequence + customer + status */}
       <div className="flex items-start justify-between gap-3">
@@ -314,14 +314,18 @@ function OrderListItem({
         </div>
       ) : null}
 
-      {/* Route — pickup → dropoff stacked, with dots for clarity */}
-      <div className="mt-3 flex flex-col gap-1.5 text-xs">
-        <div className="flex items-start gap-2">
-          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-violet-400" />
+      {/* Route — pickup → dropoff stacked, with dots + connector for clarity */}
+      <div className="relative mt-3 flex flex-col gap-1.5 text-xs">
+        <span
+          aria-hidden
+          className="absolute left-[3px] top-3 h-3 w-0.5 bg-gradient-to-b from-violet-400/50 to-emerald-400/50"
+        />
+        <div className="relative flex items-start gap-2">
+          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-violet-400 ring-2 ring-hir-surface" />
           <span className="truncate text-hir-muted-fg">{order.pickup_line1 ?? '—'}</span>
         </div>
-        <div className="flex items-start gap-2">
-          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400" />
+        <div className="relative flex items-start gap-2">
+          <span aria-hidden className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400 ring-2 ring-hir-surface" />
           <span className="truncate text-hir-muted-fg">{order.dropoff_line1 ?? '—'}</span>
         </div>
       </div>
