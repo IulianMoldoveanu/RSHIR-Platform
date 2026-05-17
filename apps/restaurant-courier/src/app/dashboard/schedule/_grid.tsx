@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Check, Send } from 'lucide-react';
 import {
   MAX_SLOTS,
   slotKey,
@@ -86,17 +86,18 @@ export function ScheduleGrid() {
   return (
     <div className="flex flex-col gap-5">
       {/* Counter */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface px-4 py-3">
         <p className="text-sm font-medium text-hir-fg">
           <span
-            className={atCap ? 'font-bold text-amber-400' : 'font-bold text-violet-400'}
+            className={`tabular-nums ${atCap ? 'font-bold text-amber-300' : 'font-bold text-violet-300'}`}
           >
-            {reserved} / {MAX_SLOTS}
-          </span>{' '}
-          ore rezervate săptămâna asta
+            {reserved}
+          </span>
+          <span className="text-hir-muted-fg"> / {MAX_SLOTS}</span>{' '}
+          <span className="text-xs text-hir-muted-fg">ore săptămâna asta</span>
         </p>
         {atCap ? (
-          <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-400">
+          <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
             Limită atinsă
           </span>
         ) : null}
@@ -167,11 +168,11 @@ export function ScheduleGrid() {
                     aria-pressed={isReserved}
                     aria-label={`${RO_DAYS_LONG[dowIndex]} ${fmtDDMM(day)} ${String(hour).padStart(2, '0')}:00 — ${isReserved ? 'rezervat' : 'liber'}`}
                     className={[
-                      'relative mx-0.5 my-0.5 flex items-center justify-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-1',
+                      'relative mx-0.5 my-0.5 flex items-center justify-center rounded-lg transition-all active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-1',
                       // min tap target 44px
                       'min-h-[44px]',
                       isReserved
-                        ? 'bg-violet-600 text-white hover:bg-violet-500'
+                        ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30 hover:bg-violet-500'
                         : isToday && !atCap
                           ? 'bg-violet-500/10 text-hir-muted-fg hover:bg-violet-500/20'
                           : atCap
@@ -180,9 +181,7 @@ export function ScheduleGrid() {
                     ].join(' ')}
                   >
                     {isReserved ? (
-                      <span className="text-[11px] font-bold text-white" aria-hidden>
-                        OK
-                      </span>
+                      <Check className="h-4 w-4 text-white" aria-hidden strokeWidth={3} />
                     ) : null}
                   </button>
                 );
@@ -210,7 +209,7 @@ export function ScheduleGrid() {
         type="button"
         onClick={handleSendToDispatcher}
         disabled={reserved === 0}
-        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
       >
         <Send className="h-4 w-4" aria-hidden />
         Trimite la dispecer
