@@ -34,23 +34,23 @@ const DOC_LABELS: Record<DocKey, { label: string; required: boolean; hint?: stri
 
 const CHIP_STYLE: Record<ExpiryState, { className: string; label: (d: number | null) => string }> = {
   unset: {
-    className: 'bg-hir-border text-hir-muted-fg',
+    className: 'border-hir-border/60 bg-hir-border/40 text-hir-muted-fg ring-hir-border/40',
     label: () => 'Necompletat',
   },
   expired: {
-    className: 'bg-rose-500/15 text-rose-300',
+    className: 'border-rose-500/40 bg-rose-500/15 text-rose-200 ring-rose-500/20',
     label: (d) => (d !== null ? `Expirat acum ${Math.abs(d)} zile` : 'Expirat'),
   },
   critical: {
-    className: 'bg-rose-500/15 text-rose-300',
+    className: 'border-rose-500/40 bg-rose-500/15 text-rose-200 ring-rose-500/20',
     label: (d) => (d === 0 ? 'Expiră azi' : `Mai sunt ${d} zile`),
   },
   warning: {
-    className: 'bg-amber-500/15 text-amber-300',
+    className: 'border-amber-500/40 bg-amber-500/15 text-amber-200 ring-amber-500/20',
     label: (d) => `Mai sunt ${d} zile`,
   },
   ok: {
-    className: 'bg-emerald-500/15 text-emerald-300',
+    className: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200 ring-emerald-500/20',
     label: (d) => `Mai sunt ${d} zile`,
   },
 };
@@ -76,16 +76,23 @@ export function DocumentExpiryCard() {
       aria-labelledby={headingId}
       className={cardClasses({ padding: 'lg' })}
     >
-      <div className="mb-4 flex items-center gap-2">
-        <FileWarning className="h-5 w-5 text-violet-400" aria-hidden />
-        <h2 id={headingId} className="text-base font-semibold text-hir-fg">
-          Documente curier
-        </h2>
+      <div className="mb-3 flex items-start gap-3">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 ring-1 ring-violet-500/30"
+        >
+          <FileWarning className="h-4 w-4 text-violet-300" strokeWidth={2.25} />
+        </span>
+        <div className="flex flex-1 flex-col gap-1">
+          <h2 id={headingId} className="text-base font-semibold text-hir-fg">
+            Documente curier
+          </h2>
+          <p className="text-xs leading-relaxed text-hir-muted-fg">
+            Datele sunt stocate doar pe acest dispozitiv. Le folosim pentru a-ți
+            aminti înainte să expire un document necesar livrării.
+          </p>
+        </div>
       </div>
-      <p className="mb-4 text-xs text-hir-muted-fg">
-        Datele sunt stocate doar pe acest dispozitiv. Le folosim pentru a-ți
-        aminti înainte să expire un document necesar livrării.
-      </p>
 
       <div className="flex flex-col gap-4">
         {(Object.keys(DOC_LABELS) as DocKey[]).map((key) => {
@@ -103,22 +110,22 @@ export function DocumentExpiryCard() {
                   ) : null}
                 </label>
                 <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${chip.className}`}
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${chip.className}`}
                 >
                   {hydrated ? chip.label(daysRemaining) : '—'}
                 </span>
               </div>
               {meta.hint ? (
-                <p className="text-[11px] text-hir-muted-fg">{meta.hint}</p>
+                <p className="text-[11px] leading-relaxed text-hir-muted-fg">{meta.hint}</p>
               ) : null}
               <div className="flex items-center gap-3">
                 <input
                   type="date"
                   value={value ?? ''}
                   onChange={(e) => onChange(key, e.target.value)}
-                  className="min-h-[44px] flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 text-sm text-hir-fg focus-visible:border-violet-500 focus-visible:outline-none"
+                  className="min-h-[44px] flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 text-sm tabular-nums text-hir-fg transition focus-visible:border-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/20"
                 />
-                <span className="w-24 shrink-0 text-right text-xs text-hir-muted-fg">
+                <span className="w-24 shrink-0 text-right text-xs tabular-nums text-hir-muted-fg">
                   {formatRoDate(value)}
                 </span>
               </div>
@@ -127,7 +134,7 @@ export function DocumentExpiryCard() {
         })}
       </div>
 
-      <p className="mt-4 text-[11px] text-hir-muted-fg">
+      <p className="mt-4 text-[11px] leading-relaxed text-hir-muted-fg">
         Nu trimitem aceste date către server. Sunt doar pentru memento personal.
       </p>
     </section>

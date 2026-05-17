@@ -88,7 +88,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
 
   return (
     <div className="flex items-center gap-4">
-      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-violet-500/40 bg-zinc-900">
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-violet-500/40 bg-zinc-900 shadow-md shadow-violet-500/15 ring-1 ring-inset ring-violet-500/20">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -103,7 +103,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
         )}
         {uploading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <Loader2 className="h-6 w-6 animate-spin text-violet-300" aria-hidden />
+            <Loader2 className="h-6 w-6 animate-spin text-violet-300" aria-hidden strokeWidth={2.25} />
           </div>
         ) : null}
       </div>
@@ -113,9 +113,9 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
+            className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition hover:-translate-y-px hover:bg-violet-400 hover:shadow-lg hover:shadow-violet-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0"
           >
-            <Camera className="h-3.5 w-3.5" aria-hidden />
+            <Camera className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
             {url ? 'Schimbă' : 'Adaugă'}
           </Button>
           {url ? (
@@ -124,17 +124,17 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
               variant="outline"
               onClick={handleRemove}
               disabled={uploading}
-              className="gap-1.5 rounded-lg border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800"
+              className="gap-1.5 rounded-lg border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:-translate-y-px hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
             >
-              <X className="h-3.5 w-3.5" aria-hidden />
+              <X className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
               Elimină
             </Button>
           ) : null}
         </div>
-        <p className="mt-1.5 text-[11px] text-zinc-500">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
           JPG / PNG / WEBP, max 2 MB. Se afișează în antet.
         </p>
-        {error ? <p className="mt-1 text-[11px] text-rose-400">{error}</p> : null}
+        {error ? <p className="mt-1 text-[11px] font-medium text-rose-400">{error}</p> : null}
       </div>
       <input
         ref={inputRef}
