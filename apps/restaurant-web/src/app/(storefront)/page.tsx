@@ -151,9 +151,9 @@ export default async function StorefrontHomePage() {
           'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți 2 lei pe comandă, nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
       },
       {
-        question: 'AI-ul vorbește română?',
+        question: 'Asistentul vorbește română?',
         answer:
-          'Da. Modelele sunt configurate pentru română formală (dumneavoastră), cu suport pentru EN dacă restaurantul preferă.',
+          'Da. Asistentul răspunde în română formală (dumneavoastră), iar la cerere vorbește și engleză.',
       },
     ];
     return (

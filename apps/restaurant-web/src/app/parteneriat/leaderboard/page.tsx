@@ -9,15 +9,58 @@
 
 import type { Metadata } from 'next';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 86400; // 24h cache fallback
 
+const LEADERBOARD_URL = 'https://hirforyou.ro/parteneriat/leaderboard';
+const LEADERBOARD_TITLE = 'Top reselleri HIR for You — Leaderboard partener';
+const LEADERBOARD_DESC =
+  'Clasamentul celor mai activi reselleri HIR for You. Transparență fără declarații de venit — doar restaurante aduse și treapta Ladder atinsă.';
+
 export const metadata: Metadata = {
-  title: 'Top reselleri HIR for You — Leaderboard partener',
-  description:
-    'Clasamentul celor mai activi reselleri HIR for You. Transparență fără declarații de venit — doar restaurante aduse și treapta Ladder atinsă.',
-  alternates: { canonical: 'https://hirforyou.ro/parteneriat/leaderboard' },
+  title: LEADERBOARD_TITLE,
+  description: LEADERBOARD_DESC,
+  alternates: {
+    canonical: LEADERBOARD_URL,
+    languages: {
+      'ro-RO': LEADERBOARD_URL,
+      en: LEADERBOARD_URL,
+      'x-default': LEADERBOARD_URL,
+    },
+  },
+  openGraph: {
+    title: LEADERBOARD_TITLE,
+    description: LEADERBOARD_DESC,
+    url: LEADERBOARD_URL,
+    type: 'website',
+    locale: 'ro_RO',
+    images: [
+      {
+        url: marketingOgImageUrl({
+          title: 'Top reselleri HIR for You',
+          subtitle: 'Clasament actualizat zilnic — fără declarații de venit',
+          variant: 'partner',
+        }),
+        width: 1200,
+        height: 630,
+        alt: 'Leaderboard reselleri HIR for You',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: LEADERBOARD_TITLE,
+    description: LEADERBOARD_DESC,
+    images: [
+      marketingOgImageUrl({
+        title: 'Top reselleri HIR for You',
+        subtitle: 'Clasament actualizat zilnic — fără declarații de venit',
+        variant: 'partner',
+      }),
+    ],
+  },
   robots: { index: true, follow: true },
 };
 
