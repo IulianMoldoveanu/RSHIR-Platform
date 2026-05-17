@@ -81,6 +81,30 @@ export function VoiceClient({
 
   return (
     <div className="flex flex-col gap-6">
+      <div
+        className={`rounded-md border px-4 py-3 text-sm font-medium ${
+          enabled
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            : 'border-zinc-200 bg-zinc-50 text-zinc-600'
+        }`}
+      >
+        Asistentul vocal este{' '}
+        <span className={enabled ? 'font-bold text-emerald-800' : 'font-bold text-zinc-700'}>
+          {enabled ? 'ACTIVAT' : 'DEZACTIVAT'}
+        </span>
+        {enabled && (
+          <span className="ml-2 text-xs font-normal">
+            — comenzile telefonice sunt extrase automat și plasate ca PENDING.
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+        <span className="font-semibold">Costuri externe estimate:</span> Twilio (~€0.01/min
+        apel) + Claude haiku (~€0.02/apel extragere comandă). Verificați creditele din
+        consolele Twilio și Anthropic înainte de activare.
+      </div>
+
       {feedback && (
         <div
           role="status"
@@ -266,7 +290,7 @@ export function VoiceClient({
             <div className="text-xs text-zinc-500">
               Cost estimat: ~{costPreview.toFixed(2)}&nbsp;USD/lună la 100 apeluri × 30&nbsp;s
               <br />
-              (Twilio inbound + Polly TTS + Whisper transcription).
+              (Twilio inbound + Polly TTS + Whisper transcription + Claude haiku extragere).
             </div>
             <button
               type="submit"

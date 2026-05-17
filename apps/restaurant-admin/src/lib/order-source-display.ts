@@ -1,12 +1,11 @@
 // Single source of truth for the "Sursă comandă" badge label + Tailwind ring
 // classes used on the dashboard orders list (`/dashboard/orders`) and on the
 // KDS card (`/kds`). Aligned with the `restaurant_orders.source` enum
-// `order_source` values shipped in `20260606_007_order_source_aggregator_values.sql`:
+// `order_source` values shipped in `20260606_007_order_source_aggregator_values.sql`
+// and `20260517_001_voice_order_source.sql`:
 // INTERNAL_STOREFRONT (default — no badge), EXTERNAL_API, POS_PUSH, MANUAL_ADMIN,
-// GLOVO, WOLT, BOLT_FOOD, plus legacy TAZZ + FOODPANDA which map to a neutral
-// "Sursă externă" pill so historical orders still render after the aggregator
-// integrations were removed (Tazz merged into Wolt RO May 2025; Foodpanda exited
-// RO 2024).
+// GLOVO, WOLT, BOLT_FOOD, VOICE, plus legacy TAZZ + FOODPANDA which map to a
+// neutral "Sursă externă" pill so historical orders still render.
 
 export type OrderSource =
   | 'INTERNAL_STOREFRONT'
@@ -17,7 +16,8 @@ export type OrderSource =
   | 'WOLT'
   | 'TAZZ'
   | 'FOODPANDA'
-  | 'BOLT_FOOD';
+  | 'BOLT_FOOD'
+  | 'VOICE';
 
 const LEGACY_AGGREGATOR_SOURCES = ['TAZZ', 'FOODPANDA'] as const;
 type LegacyAggregatorSource = (typeof LEGACY_AGGREGATOR_SOURCES)[number];
@@ -38,6 +38,7 @@ const SOURCE_LABEL: Record<ActiveOrderSource, string> = {
   GLOVO: 'Glovo',
   WOLT: 'Wolt',
   BOLT_FOOD: 'Bolt Food',
+  VOICE: 'Vocal',
 };
 
 // Light theme (used on /dashboard/orders, white background).
@@ -48,6 +49,7 @@ const SOURCE_BADGE_CLASS_LIGHT: Record<ActiveOrderSource, string> = {
   GLOVO: 'bg-yellow-50 text-yellow-900 ring-yellow-300',
   WOLT: 'bg-cyan-50 text-cyan-900 ring-cyan-300',
   BOLT_FOOD: 'bg-emerald-50 text-emerald-900 ring-emerald-300',
+  VOICE: 'bg-violet-50 text-violet-800 ring-violet-200',
 };
 
 // Dark theme (used on /kds, dark zinc background).
@@ -58,6 +60,7 @@ const SOURCE_BADGE_CLASS_DARK: Record<ActiveOrderSource, string> = {
   GLOVO: 'bg-yellow-500/15 text-yellow-200 ring-yellow-500/40',
   WOLT: 'bg-cyan-500/15 text-cyan-200 ring-cyan-500/40',
   BOLT_FOOD: 'bg-emerald-500/15 text-emerald-200 ring-emerald-500/40',
+  VOICE: 'bg-violet-500/15 text-violet-200 ring-violet-500/40',
 };
 
 const LEGACY_LIGHT = 'bg-zinc-100 text-zinc-800 ring-zinc-300';

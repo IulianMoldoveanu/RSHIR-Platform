@@ -125,41 +125,134 @@ describe('estimateMonthlyCostUsd', () => {
 // -------- Intent matcher (mirrors the function in voice-incoming Edge) --------
 //
 // The Edge Function's matcher is duplicated here as a pure helper so we
-// can unit-test it without spinning up Deno. Keep these in sync — both
-// files are <100 LOC.
+// can unit-test it without spinning up Deno. Keep in sync with the Edge
+// Function in supabase/functions/voice-incoming/index.ts.
 
 function matchIntent(transcript: string): string | null {
   const t = transcript.toLowerCase();
-  if (/rezerv(are|ă|a)|masă|mese/.test(t)) return 'cs.reservation_create';
-  if (/comand(ă|a|are|ă)|comanzi|livrare/.test(t)) return 'ops.orders_now';
-  if (/program|deschis|închis|orar/.test(t)) return 'ops.weather_today';
-  if (/meniu|preț|prețuri|specialit/.test(t)) return 'menu.description_update';
+  if (/rezerv(are|a)|masa|mese/.test(t)) return 'cs.reservation_create';
+  if (/vreau sa comand|doresc sa comand|as vrea sa comand|comanda noua/.test(t)) {
+    return 'ops.order_create';
+  }
+  if (/comand(a|are)|comanzi|livrare/.test(t)) return 'ops.order_create';
+  if (/program|deschis|inchis|orar/.test(t)) return 'ops.weather_today';
+  if (/meniu|pret|preturi|specialit/.test(t)) return 'menu.description_update';
   return null;
 }
 
 describe('matchIntent', () => {
   it('routes reservation phrases to cs.reservation_create', () => {
-    expect(matchIntent('aș dori să fac o rezervare pentru patru persoane')).toBe(
+    expect(matchIntent('as dori sa fac o rezervare pentru patru persoane')).toBe(
       'cs.reservation_create',
     );
-    expect(matchIntent('aveți o masă liberă disearǎ?')).toBe(
-      'cs.reservation_create',
-    );
+    expect(matchIntent('aveti o masa libera diseara?')).toBe('cs.reservation_create');
   });
-  it('routes order phrases to ops.orders_now', () => {
-    expect(matchIntent('vreau o comandă cu livrare')).toBe('ops.orders_now');
+  it('routes order phrases to ops.order_create', () => {
+    expect(matchIntent('vreau o comanda cu livrare')).toBe('ops.order_create');
+    expect(matchIntent('vreau sa comand doua pizza')).toBe('ops.order_create');
+    expect(matchIntent('comanzi la domiciliu?')).toBe('ops.order_create');
   });
   it('routes hours/program phrases to ops.weather_today', () => {
-    // weather_today is the read-only catch-all the skeleton wires; Sprint 14
-    // replaces it with a dedicated 'ops.opening_hours'.
     expect(matchIntent('care e programul de deschis?')).toBe('ops.weather_today');
   });
   it('routes menu/price phrases to menu.description_update', () => {
-    expect(matchIntent('ce preț are pizza?')).toBe('menu.description_update');
-    expect(matchIntent('aveți meniu vegetarian?')).toBe('menu.description_update');
+    expect(matchIntent('ce pret are pizza?')).toBe('menu.description_update');
+    expect(matchIntent('aveti meniu vegetarian?')).toBe('menu.description_update');
   });
   it('returns null for unrecognized input', () => {
-    expect(matchIntent('mulțumesc, la revedere')).toBeNull();
+    expect(matchIntent('multumesc, la revedere')).toBeNull();
     expect(matchIntent('')).toBeNull();
+  });
+});
+
+// -------- Claude order prompt builder --------
+//
+// Mirrors buildOrderParsePrompt from voice-incoming Edge. Tests ensure the
+// prompt shape is deterministic so Claude always receives consistent context.
+
+type MenuItemContext = { id: string; name: string; price_ron: number };
+
+function buildOrderParsePrompt(transcript: string, menuItems: MenuItemContext[]): string {
+  return `Restaurant menu items (JSON): ${JSON.stringify(menuItems)}
+Customer transcript: "${transcript}"
+
+Extract structured order. Return JSON only:
+{
+  "items": [{ "item_id": "uuid", "qty": 2 }],
+  "customer_name": "string or null",
+  "customer_phone": "string or null",
+  "delivery_address": "string or null",
+  "notes": "string or null",
+  "confidence": 0.0
+}
+
+Match item names from the transcript to the closest menu item by name. Use the item's id field.
+If you cannot extract a valid order (confidence < 0.7), return {"confidence": 0, "reason": "..."}.
+Return only the JSON object with no prose or markdown.`;
+}
+
+describe('buildOrderParsePrompt', () => {
+  const menu: MenuItemContext[] = [
+    { id: 'uuid-1', name: 'Pizza Margherita', price_ron: 35 },
+    { id: 'uuid-2', name: 'Cola 0.5L', price_ron: 8 },
+  ];
+
+  it('includes menu JSON in the prompt', () => {
+    const prompt = buildOrderParsePrompt('vreau doua pizza', menu);
+    expect(prompt).toContain('"id":"uuid-1"');
+    expect(prompt).toContain('"name":"Pizza Margherita"');
+    expect(prompt).toContain('"price_ron":35');
+  });
+
+  it('includes the transcript verbatim', () => {
+    const transcript = 'doresc o pizza margherita si o cola';
+    const prompt = buildOrderParsePrompt(transcript, menu);
+    expect(prompt).toContain(transcript);
+  });
+
+  it('requests JSON-only output with confidence field', () => {
+    const prompt = buildOrderParsePrompt('comand', menu);
+    expect(prompt).toContain('"confidence"');
+    expect(prompt).toContain('Return only the JSON object');
+  });
+
+  it('includes fallback instruction for low confidence', () => {
+    const prompt = buildOrderParsePrompt('', menu);
+    expect(prompt).toContain('confidence < 0.7');
+    expect(prompt).toContain('"reason"');
+  });
+});
+
+// -------- voice.enabled gating --------
+//
+// Tests that simulate the feature-flag check inside processRecordingAsync.
+// The actual guard is in the Edge Function; this mirrors the logic so we
+// can assert the behaviour in a fast Vitest test.
+
+function isVoiceOrderEnabled(settings: unknown): boolean {
+  if (!settings || typeof settings !== 'object') return false;
+  const voice = (settings as Record<string, unknown>).voice;
+  if (!voice || typeof voice !== 'object') return false;
+  return (voice as Record<string, unknown>).enabled === true;
+}
+
+describe('voice.enabled gating', () => {
+  it('returns false when settings is null', () => {
+    expect(isVoiceOrderEnabled(null)).toBe(false);
+  });
+
+  it('returns false when voice key is absent', () => {
+    expect(isVoiceOrderEnabled({})).toBe(false);
+    expect(isVoiceOrderEnabled({ other: true })).toBe(false);
+  });
+
+  it('returns false when voice.enabled is falsy', () => {
+    expect(isVoiceOrderEnabled({ voice: { enabled: false } })).toBe(false);
+    expect(isVoiceOrderEnabled({ voice: { enabled: 'true' } })).toBe(false);
+    expect(isVoiceOrderEnabled({ voice: {} })).toBe(false);
+  });
+
+  it('returns true only when voice.enabled is strictly true', () => {
+    expect(isVoiceOrderEnabled({ voice: { enabled: true } })).toBe(true);
   });
 });
