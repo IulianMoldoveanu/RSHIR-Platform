@@ -216,12 +216,37 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
   const userAgent =
     typeof navigator !== 'undefined' ? navigator.userAgent : 'necunoscut';
 
+  // Verdict summary: count passes / fails / unknowns. Drives the top
+  // chip so the courier sees "Totul ok" or "2 atentionari" without
+  // scrolling the whole list.
+  const verdict = checks.reduce(
+    (acc, c) => {
+      if (c.pass === true) acc.pass += 1;
+      else if (c.pass === false) acc.fail += 1;
+      else acc.unknown += 1;
+      return acc;
+    },
+    { pass: 0, fail: 0, unknown: 0 },
+  );
+  const verdictTone =
+    verdict.fail === 0
+      ? {
+          ring: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+          label: verdict.pass === 0 ? 'Verificare în curs…' : `Totul în regulă · ${verdict.pass} verificări OK`,
+        }
+      : {
+          ring: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+          label: `${verdict.fail} ${verdict.fail === 1 ? 'atenționare' : 'atenționări'} · ${verdict.pass} verificări OK`,
+        };
+
   return (
     <div className="flex flex-col gap-4">
       <header className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
-          Diagnostic dispozitiv
-        </p>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${verdictTone.ring}`}
+        >
+          {verdictTone.label}
+        </span>
         <Button
           type="button"
           variant="ghost"
@@ -231,7 +256,7 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
           className="-mr-2"
         >
           <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
-          Reîmprospătează
+          Reîncearcă
         </Button>
       </header>
 
@@ -240,21 +265,32 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
           const Icon = c.pass === true ? Check : c.pass === false ? X : RefreshCw;
           const tone =
             c.pass === true
-              ? 'text-emerald-300'
+              ? {
+                  bg: 'bg-emerald-500/15 ring-1 ring-emerald-500/30',
+                  fg: 'text-emerald-300',
+                }
               : c.pass === false
-                ? 'text-rose-300'
-                : 'text-hir-muted-fg';
+                ? {
+                    bg: 'bg-rose-500/15 ring-1 ring-rose-500/30',
+                    fg: 'text-rose-300',
+                  }
+                : {
+                    bg: 'bg-hir-border',
+                    fg: 'text-hir-muted-fg',
+                  };
           return (
             <li key={c.id} className="flex items-start gap-3 px-4 py-3">
               <span
                 aria-hidden
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 ${tone}`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tone.bg}`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className={`h-4 w-4 ${tone.fg}`} strokeWidth={c.pass === true ? 3 : 2.5} />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-hir-fg">{c.label}</p>
-                <p className="text-xs text-hir-muted-fg">{c.detail}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">
+                  {c.detail}
+                </p>
               </div>
             </li>
           );
@@ -263,33 +299,31 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
 
       <Button
         type="button"
-        variant="outline"
-        size="sm"
         onClick={testGps}
         disabled={gpsBusy}
-        className="self-start"
+        className="self-start gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
       >
-        <RefreshCw className={`mr-2 h-4 w-4 ${gpsBusy ? 'animate-spin' : ''}`} aria-hidden />
+        <RefreshCw className={`h-4 w-4 ${gpsBusy ? 'animate-spin' : ''}`} aria-hidden />
         {gpsBusy ? 'Se citește poziția…' : 'Testează GPS'}
       </Button>
 
       <section className={cardClasses({ className: 'text-xs' })}>
-        <p className="mb-1 font-semibold uppercase tracking-wide text-hir-muted-fg text-[10px]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Versiune & dispozitiv
         </p>
-        <dl className="space-y-1">
+        <dl className="space-y-1.5">
           <div className="flex justify-between gap-3">
             <dt className="text-hir-muted-fg">HIR Curier</dt>
-            <dd className="font-mono text-hir-fg">{appVersion}</dd>
+            <dd className="font-mono tabular-nums text-hir-fg">{appVersion}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-hir-muted-fg">User agent</dt>
-            <dd className="truncate font-mono text-[10px] text-hir-fg">{userAgent}</dd>
+            <dd className="truncate font-mono text-[11px] text-hir-fg">{userAgent}</dd>
           </div>
         </dl>
       </section>
 
-      <p className="text-[11px] text-hir-muted-fg">
+      <p className="text-[11px] leading-relaxed text-hir-muted-fg">
         Aceste verificări nu trimit nimic către server. Sunt doar pentru
         diagnosticul tău local.
       </p>
