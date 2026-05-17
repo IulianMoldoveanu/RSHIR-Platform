@@ -111,7 +111,6 @@ export async function rejectVoiceOrder(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function editVoiceOrder(orderId: string): never {
+export async function editVoiceOrder(orderId: string): Promise<never> {
   redirect(`/dashboard/orders/${orderId}`);
 }

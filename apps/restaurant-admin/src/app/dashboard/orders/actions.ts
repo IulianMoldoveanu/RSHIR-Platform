@@ -599,24 +599,75 @@ export async function manualCreateOrder(formData: FormData): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
 
+  // restaurant_orders has no inline customer_phone/email columns. Customer info
+  // is persisted in the `customers` table (FK customer_id) and address in
+  // `customer_addresses` (FK delivery_address_id). Upsert customer by
+  // (tenant_id, phone) so repeat phone-orders link to the same row — also
+  // makes them eligible for the Customer Reactivation widget.
+  const { data: existingCustomer } = await sb
+    .from('customers')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('phone', customerPhone)
+    .is('deleted_at', null)
+    .maybeSingle();
+
+  let customerId: string;
+  if (existingCustomer?.id) {
+    customerId = existingCustomer.id;
+  } else {
+    const { data: newCustomer, error: cErr } = await sb
+      .from('customers')
+      .insert({
+        tenant_id: tenantId,
+        phone: customerPhone,
+        first_name: customerName,
+        email: customerEmail || null,
+      })
+      .select('id')
+      .single();
+    if (cErr || !newCustomer) throw friendlyDbError(cErr ?? { message: 'unknown' }, 'crearea clientului');
+    customerId = newCustomer.id as string;
+  }
+
+  let deliveryAddressId: string | null = null;
+  if (fulfillmentType === 'DELIVERY' && dropoffAddress) {
+    const { data: addrRow, error: aErr } = await sb
+      .from('customer_addresses')
+      .insert({
+        customer_id: customerId,
+        line1: dropoffAddress,
+        city: '',
+      })
+      .select('id')
+      .single();
+    if (aErr || !addrRow) throw friendlyDbError(aErr ?? { message: 'unknown' }, 'salvarea adresei');
+    deliveryAddressId = addrRow.id as string;
+  }
+
+  // Compose notes: free-text + payment method tag so the courier sees COD vs CARD.
+  const composedNotes = [
+    notes?.trim() || null,
+    `Plată: ${paymentMethod === 'COD' ? 'Numerar la livrare' : 'Card'}`,
+    fulfillmentType === 'PICKUP' ? 'Ridicare la restaurant' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   const { data: orderRow, error: orderErr } = await sb
     .from('restaurant_orders')
     .insert({
       tenant_id: tenantId,
       source: 'MANUAL_ADMIN',
       status: 'PENDING',
-      customer_first_name: customerName,
-      customer_phone: customerPhone,
-      customer_email: customerEmail || null,
-      dropoff_address: fulfillmentType === 'DELIVERY' ? dropoffAddress || null : null,
-      fulfillment_type: fulfillmentType,
-      payment_method: paymentMethod,
-      payment_status: 'UNPAID',
+      customer_id: customerId,
+      delivery_address_id: deliveryAddressId,
+      payment_status: paymentMethod === 'COD' ? 'UNPAID' : 'UNPAID',
       subtotal_ron: subtotalRon,
       delivery_fee_ron: deliveryFeeRon,
       total_ron: totalRon,
       items: lineItems,
-      notes: notes || null,
+      notes: composedNotes || null,
     })
     .select('id')
     .single();
