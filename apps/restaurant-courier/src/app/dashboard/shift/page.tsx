@@ -72,14 +72,18 @@ export default async function ShiftPage() {
           <span
             className={
               active
-                ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30'
-                : 'inline-flex items-center gap-1.5 rounded-full bg-hir-border px-2.5 py-1 text-[11px] font-semibold text-hir-muted-fg'
+                ? 'inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-200 ring-1 ring-inset ring-emerald-500/20'
+                : 'inline-flex items-center gap-1.5 rounded-full border border-hir-border bg-hir-border/40 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg ring-1 ring-inset ring-hir-border/60'
             }
           >
-            <span
-              aria-hidden
-              className={`h-2 w-2 rounded-full ${active ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-zinc-600'}`}
-            />
+            {active ? (
+              <span aria-hidden className="relative flex h-2 w-2">
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
+                <span className="relative h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.55)]" />
+              </span>
+            ) : (
+              <span aria-hidden className="h-2 w-2 rounded-full bg-zinc-600" />
+            )}
             {active ? 'Online' : 'Offline'}
           </span>
         </div>
@@ -128,17 +132,20 @@ export default async function ShiftPage() {
           </p>
           <div className="grid grid-cols-3 gap-4 text-center">
             <Stat
-              icon={<Banknote className="h-5 w-5 text-emerald-400" aria-hidden />}
+              icon={<Banknote className="h-4 w-4 text-emerald-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-emerald-500/10 ring-emerald-500/30"
               label="Câștig"
               value={`${stats.earnings.toFixed(2)} RON`}
             />
             <Stat
-              icon={<TrendingUp className="h-5 w-5 text-violet-400" aria-hidden />}
+              icon={<TrendingUp className="h-4 w-4 text-violet-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-violet-500/10 ring-violet-500/30"
               label="RON/oră"
               value={stats.perHour > 0 ? stats.perHour.toFixed(2) : '—'}
             />
             <Stat
-              icon={<Clock className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
+              icon={<Clock className="h-4 w-4 text-amber-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-amber-500/10 ring-amber-500/30"
               label="Livrări"
               value={String(stats.count)}
             />
@@ -151,18 +158,25 @@ export default async function ShiftPage() {
 
 function Stat({
   icon,
+  iconBg,
   label,
   value,
 }: {
   icon: React.ReactNode;
+  iconBg: string;
   label: string;
   value: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <span aria-hidden>{icon}</span>
-      <span className="text-lg font-bold tabular-nums text-hir-fg">{value}</span>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+      <span
+        aria-hidden
+        className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 ${iconBg}`}
+      >
+        {icon}
+      </span>
+      <span className="text-xl font-bold tabular-nums leading-none text-hir-fg">{value}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
       </span>
     </div>
