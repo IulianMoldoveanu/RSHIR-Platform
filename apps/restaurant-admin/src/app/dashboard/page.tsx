@@ -18,6 +18,7 @@ import { StorefrontShareTile } from './storefront-share-tile';
 import { AiCeoWidget } from './ai-ceo-widget';
 import { WeatherTile } from './weather-tile';
 import { EventsTile } from './events-tile';
+import { DemandForecastWidget } from './demand-forecast-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +118,10 @@ export default async function DashboardOverviewPage(
 
       <Suspense fallback={null}>
         <TodayReservationsPanel tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <DemandForecastWidget tenantId={tenant.id} />
       </Suspense>
 
       <Suspense fallback={null}>
