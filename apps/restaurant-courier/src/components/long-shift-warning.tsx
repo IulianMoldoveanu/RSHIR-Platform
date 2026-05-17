@@ -31,17 +31,27 @@ export function LongShiftWarning({ startedAt }: { startedAt: string }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-2xl border border-amber-600/30 bg-amber-950/40 px-4 py-3"
+      className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 shadow-md shadow-amber-500/10"
     >
-      <Coffee className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" aria-hidden />
-      <p className="flex-1 text-sm text-amber-200">
-        Tură lungă. Ia o pauză dacă ai ocazia — conduci mai bine odihnit.
-      </p>
+      <span
+        aria-hidden
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 ring-1 ring-amber-500/40"
+      >
+        <Coffee className="h-4 w-4 text-amber-200" strokeWidth={2.25} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300/90">
+          Tură lungă
+        </p>
+        <p className="mt-0.5 text-sm leading-relaxed text-amber-100">
+          Ia o pauză dacă ai ocazia — conduci mai bine odihnit.
+        </p>
+      </div>
       <button
         type="button"
         onClick={() => setDismissed(true)}
         aria-label="Închide avertisment"
-        className="shrink-0 text-[11px] text-amber-400 hover:text-amber-200"
+        className="shrink-0 self-start rounded-md px-2 py-1 text-[11px] font-semibold text-amber-300 transition-colors hover:bg-amber-500/10 hover:text-amber-100 focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
       >
         OK
       </button>
