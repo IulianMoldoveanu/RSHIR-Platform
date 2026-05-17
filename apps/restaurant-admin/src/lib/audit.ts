@@ -129,6 +129,8 @@ export type AuditAction =
   | 'voice.call_received'
   | 'voice.intent_dispatched'
   | 'voice.response_sent'
+  | 'voice.order_extracted'
+  | 'order.voice_created'
   // CS Agent — Sprint 14
   | 'cs_response_generated'
   | 'cs_response_posted'
@@ -141,7 +143,9 @@ export type AuditAction =
   | 'fleet_realloc_recommendation_run'
   | 'order.manual_created'
   | 'tenant.integration_mode_set'
-  | 'upsell.suggestions_returned';
+  | 'upsell.suggestions_returned'
+  | 'customer.reactivation_contacted'
+  | 'demand_forecast.refreshed';
 
 export async function logAudit(args: {
   tenantId: string;
