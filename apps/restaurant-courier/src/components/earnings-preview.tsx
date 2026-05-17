@@ -48,7 +48,7 @@ export function EarningsPreview({
 
   return (
     <section className="rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
         Câștig din această livrare
       </p>
 

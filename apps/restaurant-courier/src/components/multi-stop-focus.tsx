@@ -125,7 +125,7 @@ export function MultiStopFocus({ orders }: { orders: FocusOrder[] }) {
 
   return (
     <div className="pointer-events-auto mx-auto flex w-full max-w-md flex-col gap-2 rounded-2xl border border-violet-400/40 bg-zinc-950/95 p-3 shadow-xl backdrop-blur">
-      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
         <Route className="h-3.5 w-3.5" aria-hidden />
         Multi-stop · {orders.length} comenzi · ~{formatDistance(totalRemainingM)}
       </div>

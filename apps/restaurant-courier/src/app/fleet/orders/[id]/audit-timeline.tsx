@@ -100,7 +100,7 @@ export async function AuditTimeline({ orderId }: { orderId: string }) {
     <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Activity className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
           Jurnal de audit
         </p>
       </div>

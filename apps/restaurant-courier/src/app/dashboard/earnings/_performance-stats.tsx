@@ -124,7 +124,7 @@ function StatTile({
     <div className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4">
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
           {label}
         </span>
       </div>
