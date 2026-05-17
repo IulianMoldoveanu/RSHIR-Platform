@@ -10,7 +10,9 @@ import {
   Flag,
   FileText,
   ChevronRight,
+  ChevronLeft,
   Send,
+  CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 import * as haptics from '@/lib/haptics';
@@ -112,15 +114,15 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
               className="fixed inset-x-0 bottom-0 z-[1800] rounded-t-3xl border-t border-hir-border bg-hir-bg pb-[env(safe-area-inset-bottom,16px)]"
             >
               {/* Handle. */}
-              <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-zinc-700" aria-hidden />
+              <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-hir-border" aria-hidden />
 
               <div className="flex items-center justify-between px-5 pb-2 pt-4">
-                <h2 className="text-base font-semibold text-hir-fg">Ajutor</h2>
+                <h2 className="text-lg font-semibold tracking-tight text-hir-fg">Ajutor</h2>
                 <button
                   type="button"
                   aria-label="Închide"
                   onClick={closeDrawer}
-                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-zinc-500 hover:text-zinc-300 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                  className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 >
                   <X className="h-5 w-5" aria-hidden />
                 </button>
@@ -130,32 +132,34 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                 <nav aria-label="Opțiuni ajutor">
                   <ul className="flex flex-col px-4 pb-5">
                     <DrawerItem
-                      icon={<BookOpen className="h-5 w-5 text-violet-400" aria-hidden />}
-                      label="Întrebări frecvente (FAQ)"
+                      icon={<BookOpen className="h-5 w-5 text-violet-300" aria-hidden />}
+                      label="Întrebări frecvente"
+                      sublabel="Ghid rapid · plată · poze · urgențe"
                       as="link"
                       href="/dashboard/help"
                       onClick={closeDrawer}
                     />
                     {dispatcherPhone ? (
                       <DrawerItem
-                        icon={<Phone className="h-5 w-5 text-emerald-400" aria-hidden />}
-                        label="Contactați dispecerul"
+                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden />}
+                        label="Sună dispecerul"
                         sublabel={dispatcherPhone}
                         as="tel"
                         href={`tel:${dispatcherPhone}`}
                       />
                     ) : (
                       <DrawerItem
-                        icon={<Phone className="h-5 w-5 text-zinc-500" aria-hidden />}
-                        label="Suport HIR"
+                        icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden />}
+                        label="Sună suportul HIR"
                         sublabel="+40 21 204 0000 · L–V 09–18"
                         as="tel"
                         href="tel:+40212040000"
                       />
                     )}
                     <DrawerItem
-                      icon={<Flag className="h-5 w-5 text-amber-400" aria-hidden />}
-                      label="Raportați o problemă"
+                      icon={<Flag className="h-5 w-5 text-amber-300" aria-hidden />}
+                      label="Raportează o problemă"
+                      sublabel="Scrie suportului direct din aplicație"
                       as="button"
                       onClick={() => setShowReport(true)}
                     />
@@ -173,15 +177,17 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                 <div className="px-5 pb-6">
                   {sent ? (
                     <div className="flex flex-col items-center gap-3 py-6 text-center">
-                      <Send className="h-8 w-8 text-emerald-400" aria-hidden />
-                      <p className="text-sm font-semibold text-hir-fg">Mesaj trimis!</p>
-                      <p className="text-xs text-zinc-500">
+                      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-500/30">
+                        <CheckCircle2 className="h-7 w-7" aria-hidden strokeWidth={2.25} />
+                      </span>
+                      <p className="text-base font-semibold text-hir-fg">Mesaj trimis</p>
+                      <p className="max-w-xs text-xs leading-relaxed text-hir-muted-fg">
                         Echipa de suport va răspunde în cel mai scurt timp.
                       </p>
                       <button
                         type="button"
                         onClick={closeDrawer}
-                        className="mt-2 min-h-[44px] rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+                        className="mt-2 min-h-[48px] rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
                       >
                         Închide
                       </button>
@@ -193,18 +199,19 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                           type="button"
                           aria-label="Înapoi la ajutor"
                           onClick={() => setShowReport(false)}
-                          className="mb-3 flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300"
+                          className="mb-3 inline-flex min-h-[32px] items-center gap-1.5 rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                         >
-                          ← Înapoi
+                          <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+                          Înapoi
                         </button>
                         <label
                           htmlFor="report-text"
                           className="mb-1.5 block text-sm font-semibold text-hir-fg"
                         >
-                          Descrieți problema
+                          Descrie problema
                         </label>
-                        <p className="mb-3 text-xs text-zinc-500">
-                          Includeți numărul comenzii dacă este relevant.
+                        <p className="mb-3 text-xs leading-relaxed text-hir-muted-fg">
+                          Include numărul comenzii dacă e relevant.
                         </p>
                         <textarea
                           id="report-text"
@@ -214,12 +221,12 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                           required
                           minLength={10}
                           placeholder="Ex: Comanda #1234 — clientul nu a răspuns la ușă..."
-                          className="w-full rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 text-sm text-hir-fg placeholder-zinc-600 focus:border-violet-500 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-500"
+                          className="w-full resize-none rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 text-sm leading-relaxed text-hir-fg placeholder:text-hir-muted-fg/70 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                         />
                       </div>
                       <button
                         type="submit"
-                        className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:opacity-50"
+                        className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
                         disabled={!reportText.trim()}
                       >
                         <Send className="h-4 w-4" aria-hidden />
@@ -266,17 +273,17 @@ type DrawerItemProps = DrawerItemLink | DrawerItemTel | DrawerItemButton;
 
 function DrawerItem(props: DrawerItemProps) {
   const inner = (
-    <div className="flex min-h-[56px] w-full items-center gap-3 rounded-xl px-3 py-3 hover:bg-hir-surface active:scale-[0.99]">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-hir-surface">
+    <div className="flex min-h-[60px] w-full items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-hir-surface active:scale-[0.99]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-hir-surface ring-1 ring-hir-border">
         {props.icon}
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-hir-fg">{props.label}</p>
         {props.sublabel && (
-          <p className="mt-0.5 text-xs text-zinc-500">{props.sublabel}</p>
+          <p className="mt-0.5 truncate text-xs text-hir-muted-fg">{props.sublabel}</p>
         )}
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600" aria-hidden />
+      <ChevronRight className="h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
     </div>
   );
 
