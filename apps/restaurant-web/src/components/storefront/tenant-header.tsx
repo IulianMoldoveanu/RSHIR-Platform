@@ -128,7 +128,7 @@ export function TenantHeader({
               decoding="async"
             />
           ) : (
-            <span className="text-2xl font-semibold tracking-tight text-zinc-900">
+            <span className="text-2xl font-bold tracking-tight text-zinc-900">
               {name.slice(0, 2).toUpperCase()}
             </span>
           )}
@@ -151,14 +151,14 @@ export function TenantHeader({
             ) : null}
             <Link
               href="/bio"
-              className="text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-800"
+              className="rounded-md text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
             >
               {t(locale, 'header.bio_link')}
             </Link>
             {showAccountLink ? (
               <Link
                 href="/account"
-                className="inline-flex items-center gap-1 text-xs font-medium text-purple-700 transition-colors hover:text-purple-900"
+                className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-purple-700 transition-colors hover:text-purple-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
               >
                 <UserRound className="h-3.5 w-3.5" aria-hidden />
                 {t(locale, 'account.header_link')}
@@ -230,13 +230,13 @@ export function TenantHeader({
               </span>
             )}
             {etaText && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
                 <Clock className="h-3 w-3" aria-hidden />
                 {etaText}
               </span>
             )}
             {minOrderRon > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-zinc-700 ring-1 ring-inset ring-zinc-200">
                 <Banknote className="h-3 w-3" aria-hidden />
                 {t(locale, 'header.min_order_template', { amount: formatRon(minOrderRon, locale) })}
               </span>
