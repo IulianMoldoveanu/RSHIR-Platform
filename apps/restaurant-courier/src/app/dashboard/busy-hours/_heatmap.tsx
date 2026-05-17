@@ -47,7 +47,7 @@ export function BusyHoursHeatmap() {
           {HOUR_LABELS.map((hour) => (
             <div
               key={`h-${hour}`}
-              className="text-center text-[10px] font-semibold text-hir-muted-fg"
+              className="text-center text-[11px] font-semibold tabular-nums text-hir-muted-fg"
             >
               {String(hour).padStart(2, '0')}
             </div>
@@ -57,7 +57,7 @@ export function BusyHoursHeatmap() {
           {BUSY_HOURS_MATRIX.map((row, dayIdx) => (
             <Fragment key={`row-${dayIdx}`}>
               <div
-                className="flex items-center justify-end pr-1 text-[10px] font-semibold text-hir-muted-fg"
+                className="flex items-center justify-end pr-1 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
                 aria-label={DAY_LABELS_RO_LONG[dayIdx]}
               >
                 {DAY_LABELS_RO_SHORT[dayIdx]}
@@ -74,9 +74,9 @@ export function BusyHoursHeatmap() {
                     aria-label={`${DAY_LABELS_RO_LONG[dayIdx]} ${String(
                       HOUR_LABELS[hourIdx],
                     ).padStart(2, '0')}:00 — ${INTENSITY_LABEL[value as Intensity]}`}
-                    className={`flex h-8 items-center justify-center rounded-md text-[10px] font-semibold ${intensityClass(
+                    className={`flex h-8 items-center justify-center rounded-md text-[10px] font-bold transition-transform hover:scale-110 ${intensityClass(
                       value as Intensity,
-                    )} ${isNow ? 'ring-2 ring-violet-300' : ''}`}
+                    )} ${isNow ? 'ring-2 ring-violet-300 shadow-lg shadow-violet-500/40' : ''}`}
                   >
                     {isNow ? 'acum' : null}
                   </div>
@@ -88,11 +88,11 @@ export function BusyHoursHeatmap() {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-hir-muted-fg">
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-hir-muted-fg">
         {[0, 1, 2, 3, 4].map((v) => (
           <span key={v} className="flex items-center gap-1.5">
             <span
-              className={`inline-block h-3 w-4 rounded ${intensityClass(v as Intensity)}`}
+              className={`inline-block h-3 w-4 rounded ring-1 ring-inset ring-white/10 ${intensityClass(v as Intensity)}`}
               aria-hidden
             />
             {INTENSITY_LABEL[v as Intensity]}
