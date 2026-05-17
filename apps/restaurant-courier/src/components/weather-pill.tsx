@@ -63,12 +63,27 @@ export function WeatherPill({ weather, reminder }: Props) {
     ? `${weather.tempC}°C`
     : null;
 
+  // Tone tinting per condition so the pill carries a hint of the weather
+  // mood (sunny=amber, rain/snow/fog=sky, storm=rose, cloudy=zinc).
+  const tone =
+    weather.condition === 'clear'
+      ? 'text-amber-300'
+      : weather.condition === 'storm'
+        ? 'text-rose-300'
+        : weather.condition === 'rain' ||
+            weather.condition === 'snow' ||
+            weather.condition === 'fog'
+          ? 'text-sky-300'
+          : 'text-zinc-300';
+
   return (
     <span
       aria-label={`Vreme: ${icon} ${label ?? ''}`}
-      className="mt-1 flex items-center gap-1 text-[11px] text-zinc-400"
+      className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-zinc-900/60 px-2 py-0.5 text-[11px] font-medium tabular-nums ring-1 ring-inset ring-zinc-800/80 ${tone}`}
     >
-      <span aria-hidden>{icon}</span>
+      <span aria-hidden className="text-sm leading-none">
+        {icon}
+      </span>
       {label ? <span>{label}</span> : null}
     </span>
   );
