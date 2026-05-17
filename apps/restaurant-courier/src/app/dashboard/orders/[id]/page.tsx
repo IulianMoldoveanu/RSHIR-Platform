@@ -29,6 +29,8 @@ import { QuickCallButtons } from '@/components/quick-call-buttons';
 import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
 import { OrderStepper } from '@/components/order-stepper';
+import { StopCard } from '@/components/stop-card';
+import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
 
@@ -215,30 +217,22 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       ) : null}
 
       {/* Pickup card. */}
-      <section className="rounded-2xl border border-violet-500/20 bg-hir-surface p-5">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-[10px] font-bold text-violet-300">
-            1
-          </span>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
-            Ridicare
-          </p>
-        </div>
-        <p className="mt-2 text-base font-semibold text-hir-fg">
-          {order.pickup_line1 ?? '—'}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <MapLink
-            address={order.pickup_line1}
-            lat={order.pickup_lat}
-            lng={order.pickup_lng}
-          />
-          <CopyAddressButton address={order.pickup_line1} />
-        </div>
-      </section>
+      <StopCard
+        tone="pickup"
+        step={1}
+        label="Ridicare"
+        address={order.pickup_line1}
+      >
+        <MapLink
+          address={order.pickup_line1}
+          lat={order.pickup_lat}
+          lng={order.pickup_lng}
+        />
+        <CopyAddressButton address={order.pickup_line1} />
+      </StopCard>
 
       {/* Timeline. */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface px-5 py-4">
+      <section className={cardClasses({ padding: 'none', className: 'px-5 py-4' })}>
         <OrderTimeline status={order.status} />
       </section>
 
@@ -253,49 +247,37 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       ) : null}
 
       {/* Dropoff card. */}
-      <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-5">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-bold text-emerald-300">
-            2
-          </span>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
-            Livrare
-          </p>
-        </div>
-        <p className="mt-2 text-base font-semibold text-hir-fg">
-          {order.dropoff_line1 ?? '—'}
-        </p>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          {order.customer_first_name ?? 'Client'}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <MapLink
-            address={order.dropoff_line1}
-            lat={order.dropoff_lat}
-            lng={order.dropoff_lng}
-          />
-          <PhoneLink phone={order.customer_phone} />
-          <CopyAddressButton address={order.dropoff_line1} />
-          <ShareOrderButton
-            orderShortId={order.id.slice(0, 8)}
-            customerFirstName={order.customer_first_name}
-            dropoffAddress={order.dropoff_line1}
-          />
-        </div>
-        {showSos ? (
-          <div className="mt-3">
-            <QuickCallButtons
-              fleetContactPhone={fleetContactPhone}
-              fleetName={fleetName}
-            />
-          </div>
-        ) : null}
-      </section>
+      <StopCard
+        tone="dropoff"
+        step={2}
+        label="Livrare"
+        address={order.dropoff_line1}
+        subtitle={order.customer_first_name ?? 'Client'}
+      >
+        <MapLink
+          address={order.dropoff_line1}
+          lat={order.dropoff_lat}
+          lng={order.dropoff_lng}
+        />
+        <PhoneLink phone={order.customer_phone} />
+        <CopyAddressButton address={order.dropoff_line1} />
+        <ShareOrderButton
+          orderShortId={order.id.slice(0, 8)}
+          customerFirstName={order.customer_first_name}
+          dropoffAddress={order.dropoff_line1}
+        />
+      </StopCard>
+      {showSos ? (
+        <QuickCallButtons
+          fleetContactPhone={fleetContactPhone}
+          fleetName={fleetName}
+        />
+      ) : null}
 
       {/* Items + payment. */}
       {items.length > 0 ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+        <section className={cardClasses()}>
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             <Package className="h-3 w-3" /> Produse
           </p>
           <ul className="space-y-1 text-sm text-hir-fg">
@@ -308,20 +290,20 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
+      <section className={cardClasses({ className: 'text-sm' })}>
         <div className="flex items-center justify-between">
           <span className="text-hir-muted-fg">Total</span>
-          <span className="text-base font-semibold text-hir-fg">
+          <span className="text-base font-semibold tabular-nums text-hir-fg">
             {order.total_ron != null ? `${Number(order.total_ron).toFixed(2)} RON` : '—'}
           </span>
         </div>
         {order.delivery_fee_ron != null ? (
-          <div className="mt-1 flex items-center justify-between text-xs">
+          <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="text-hir-muted-fg">Taxă livrare</span>
-            <span className="text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
+            <span className="tabular-nums text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
           </div>
         ) : null}
-        <div className="mt-1 flex items-center justify-between text-xs">
+        <div className="mt-1.5 flex items-center justify-between text-xs">
           <span className="text-hir-muted-fg">Plată</span>
           <span className="text-hir-fg">{order.payment_method ?? '—'}</span>
         </div>
