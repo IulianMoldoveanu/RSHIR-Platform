@@ -211,9 +211,9 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             type="button"
             variant="ghost"
             onClick={() => pickFile(deliveryRef)}
-            className="flex h-20 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 text-xs text-zinc-400 hover:border-violet-500 hover:bg-transparent hover:text-violet-300"
+            className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-700 text-xs font-medium text-zinc-400 transition-all hover:border-violet-500 hover:bg-violet-500/5 hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            <Camera className="h-4 w-4" /> Fă o fotografie
+            <Camera className="h-5 w-5" strokeWidth={2.25} /> Fă o fotografie
           </Button>
         )}
         <input ref={deliveryRef} type="file" accept="image/*" capture="environment" onChange={(e) => { handleChange(e, setDelivery); }} className="hidden" />
@@ -234,16 +234,17 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             // that the upload-button-stays-rendered approach lacked.
             <p
               data-testid="delivery-proof-uploaded"
-              className="mt-2 w-full rounded-lg bg-emerald-900/40 py-2 text-center text-xs font-medium text-emerald-300"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 py-2.5 text-center text-xs font-semibold text-emerald-100 ring-1 ring-inset ring-emerald-500/20"
             >
-              ✓ Fotografie încărcată
+              <Check className="h-3.5 w-3.5" aria-hidden strokeWidth={3} />
+              Fotografie încărcată
             </p>
           ) : (
             <Button
               type="button"
               disabled={uploading}
               onClick={handleUploadAll}
-              className="mt-2 w-full rounded-lg bg-zinc-800 py-2 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
+              className="mt-2 w-full rounded-lg bg-violet-600 py-2.5 text-xs font-semibold text-white shadow-md shadow-violet-600/30 transition-all hover:-translate-y-px hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-600/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0"
             >
               {uploading ? 'Se încarcă…' : error ? 'Încearcă din nou' : 'Încarcă fotografia'}
             </Button>
@@ -269,9 +270,9 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
     (!requiresPrescription || !!rxSlot.file);
 
   return (
-    <div className="rounded-xl border border-emerald-500/20 bg-zinc-900 p-3">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-emerald-400">
-        Documente obligatorii
+    <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-4 ring-1 ring-inset ring-emerald-500/10">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+        Documente obligatorii · farmacie
       </p>
       <div className="grid grid-cols-2 gap-3">
         {requiresId ? (
@@ -308,7 +309,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
         type="button"
         disabled={!allDone || uploading}
         onClick={handleUploadAll}
-        className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
+        className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/30 transition-all hover:-translate-y-px hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-600/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
       >
         {uploading ? 'Se încarcă…' : error ? 'Încearcă din nou' : 'Trimite documentele'}
       </Button>
