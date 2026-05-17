@@ -189,29 +189,35 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   if (vertical === 'restaurant') {
     // Single optional slot — auto-submit on pick.
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+      <div className="rounded-xl border border-hir-border bg-hir-surface p-3 ring-1 ring-inset ring-hir-border/40">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-300">Fotografie pungă livrare (opțional)</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+            Fotografie pungă livrare (opțional)
+          </span>
           {delivery.preview ? (
             <Button
               type="button"
               variant="ghost"
               onClick={() => clearSlot(setDelivery, deliveryRef)}
-              className="h-auto gap-1 p-0 text-[11px] text-zinc-500 hover:bg-transparent hover:text-zinc-300"
+              className="h-auto gap-1 p-0 text-[11px] text-hir-muted-fg transition-colors hover:bg-transparent hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
             >
-              <X className="h-3 w-3" /> elimină
+              <X className="h-3 w-3" strokeWidth={2.5} /> elimină
             </Button>
           ) : null}
         </div>
         {delivery.preview ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={delivery.preview} alt="Previzualizare dovadă livrare" className="h-32 w-full rounded-lg object-cover" />
+          <img
+            src={delivery.preview}
+            alt="Previzualizare dovadă livrare"
+            className="h-32 w-full rounded-lg object-cover ring-1 ring-violet-500/30"
+          />
         ) : (
           <Button
             type="button"
             variant="ghost"
             onClick={() => pickFile(deliveryRef)}
-            className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-700 text-xs font-medium text-zinc-400 transition-all hover:border-violet-500 hover:bg-violet-500/5 hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-hir-border text-xs font-medium text-hir-muted-fg transition-all hover:-translate-y-px hover:border-violet-500/60 hover:bg-violet-500/5 hover:text-violet-200 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             <Camera className="h-5 w-5" strokeWidth={2.25} /> Fă o fotografie
           </Button>
@@ -255,7 +261,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             type="button"
             variant="ghost"
             onClick={() => onComplete({})}
-            className="mt-2 w-full rounded-lg bg-zinc-800 py-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            className="mt-2 w-full rounded-lg border border-hir-border bg-hir-surface py-2 text-xs font-medium text-hir-muted-fg transition-colors hover:border-hir-muted-fg/40 hover:bg-hir-border/40 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             Continuă fără fotografie
           </Button>
@@ -319,9 +325,16 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
 
 function UploadProgressBar({ pct }: { pct: number }) {
   return (
-    <div className="mt-2 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progres încărcare">
+    <div
+      className="mt-2 overflow-hidden rounded-full bg-hir-border ring-1 ring-inset ring-hir-border/60"
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Progres încărcare"
+    >
       <div
-        className="h-1.5 rounded-full bg-violet-500 transition-all duration-200"
+        className="h-1.5 rounded-full bg-gradient-to-r from-violet-500 to-violet-400 shadow-[0_0_6px_rgba(124,58,237,0.55)] transition-all duration-200"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -346,26 +359,35 @@ function PhotoSlot({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-medium text-zinc-400">{label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+          {label}
+        </span>
         {slot.preview ? (
-          <span className="text-emerald-400">
-            <Check className="h-3 w-3" aria-hidden />
+          <span
+            aria-hidden
+            className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-500/40"
+          >
+            <Check className="h-2.5 w-2.5 text-emerald-300" strokeWidth={3} />
           </span>
         ) : null}
       </div>
       {slot.preview ? (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={slot.preview} alt={label} className="h-24 w-full rounded-lg object-cover" />
+          <img
+            src={slot.preview}
+            alt={label}
+            className="h-24 w-full rounded-lg object-cover ring-1 ring-emerald-500/30"
+          />
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={onClear}
             aria-label={`Elimină ${label}`}
-            className="absolute right-1 top-1 h-6 w-6 rounded-full bg-black/60 text-white hover:bg-black/80"
+            className="absolute right-1 top-1 h-6 w-6 rounded-full bg-black/70 text-white shadow-sm backdrop-blur transition-colors hover:bg-black/90 focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-1"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3 w-3" strokeWidth={2.5} />
           </Button>
         </div>
       ) : (
@@ -373,9 +395,9 @@ function PhotoSlot({
           type="button"
           variant="ghost"
           onClick={onPick}
-          className="flex h-24 w-full items-center justify-center gap-1 rounded-lg border border-dashed border-zinc-700 text-[10px] text-zinc-500 hover:border-emerald-500/50 hover:bg-transparent hover:text-emerald-400"
+          className="flex h-24 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-hir-border text-[11px] font-medium text-hir-muted-fg transition-all hover:-translate-y-px hover:border-emerald-500/60 hover:bg-emerald-500/5 hover:text-emerald-300 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
         >
-          <Camera className="h-4 w-4" />
+          <Camera className="h-4 w-4" strokeWidth={2.25} />
           Fotografiază
         </Button>
       )}
