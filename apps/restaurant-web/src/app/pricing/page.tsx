@@ -272,13 +272,13 @@ export default function PricingPage() {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+              className="inline-flex items-center justify-center rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/30 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/40 active:translate-y-px focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
             >
               {t(locale, 'pricing.cta_primary')}
             </Link>
             <Link
               href="/migrate-from-gloriafood"
-              className="inline-flex items-center justify-center rounded-md border border-white/20 bg-transparent px-5 py-3 text-sm font-medium text-white hover:bg-white/5"
+              className="inline-flex items-center justify-center rounded-md border border-white/20 bg-transparent px-5 py-3 text-sm font-medium text-white transition-colors hover:border-white/40 hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
             >
               {t(locale, 'pricing.cta_secondary')}
             </Link>
@@ -372,10 +372,10 @@ function PriceCard({
       <div className="mt-7">
         <Link
           href={cta.href}
-          className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium ${
+          className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2 ${
             accent
-              ? 'bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]'
-              : 'border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC]'
+              ? 'bg-[#4F46E5] text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px'
+              : 'border border-[#E2E8F0] bg-white text-[#0F172A] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]'
           }`}
         >
           {cta.label}
@@ -388,9 +388,11 @@ function PriceCard({
 function Faq({ q, children }: { q: string; children: React.ReactNode }) {
   return (
     <details className="group py-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-[#0F172A]">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md py-1 text-sm font-medium text-[#0F172A] transition-colors hover:text-[#4F46E5] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2">
         {q}
-        <span className="text-[#94A3B8] transition-transform group-open:rotate-45">+</span>
+        <span className="text-xl leading-none text-[#94A3B8] transition-transform group-open:rotate-45 group-hover:text-[#4F46E5]">
+          +
+        </span>
       </summary>
       <p className="mt-3 text-sm leading-relaxed text-[#475569]">{children}</p>
     </details>
