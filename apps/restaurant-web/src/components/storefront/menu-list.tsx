@@ -72,7 +72,7 @@ export function MenuList({
               animate={{ opacity: 1, scale: 1 }}
               exit={reduceMotion ? undefined : { opacity: 0, scale: 0.6 }}
               transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
-              className="absolute right-7 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800"
+              className="absolute right-7 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
             >
               <X className="h-3.5 w-3.5" />
             </motion.button>
@@ -119,7 +119,7 @@ export function MenuList({
                     <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
                       {cat.name}
                     </h2>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500 tabular-nums">
+                    <span className="inline-flex min-w-[20px] items-center justify-center rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 tabular-nums ring-1 ring-inset ring-zinc-200">
                       {cat.items.length}
                     </span>
                   </div>
