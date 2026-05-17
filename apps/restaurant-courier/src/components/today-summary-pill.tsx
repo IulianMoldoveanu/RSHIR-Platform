@@ -55,19 +55,19 @@ export async function TodaySummaryPill() {
       className={cardClasses({ padding: 'md', className: 'grid grid-cols-3 gap-2' })}
     >
       <Cell
-        icon={<Package className="h-4 w-4 text-violet-300" />}
+        icon={<Package className="h-4 w-4 text-violet-300" strokeWidth={2.25} />}
         iconBg="bg-violet-500/10 ring-violet-500/30"
         value={String(count)}
         label={count === 1 ? 'livrare azi' : 'livrări azi'}
       />
       <Cell
-        icon={<Coins className="h-4 w-4 text-emerald-300" />}
+        icon={<Coins className="h-4 w-4 text-emerald-300" strokeWidth={2.25} />}
         iconBg="bg-emerald-500/10 ring-emerald-500/30"
         value={earnings.toFixed(2)}
         label="RON brut"
       />
       <Cell
-        icon={<Timer className="h-4 w-4 text-amber-300" />}
+        icon={<Timer className="h-4 w-4 text-amber-300" strokeWidth={2.25} />}
         iconBg="bg-amber-500/10 ring-amber-500/30"
         value={
           minutesAgo === null
@@ -99,12 +99,12 @@ function Cell({
     <div className="flex flex-col items-center gap-1.5 px-2 py-1.5 text-center">
       <span
         aria-hidden
-        className={`flex h-7 w-7 items-center justify-center rounded-full ring-1 ${iconBg}`}
+        className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 ${iconBg}`}
       >
         {icon}
       </span>
-      <span className="text-lg font-bold tabular-nums text-hir-fg">{value}</span>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+      <span className="text-xl font-bold tabular-nums leading-none text-hir-fg">{value}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
       </span>
     </div>
