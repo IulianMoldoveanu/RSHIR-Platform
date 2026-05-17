@@ -62,8 +62,8 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
       className={cardClasses({ className: 'flex flex-col gap-3' })}
     >
       <header className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
-          <CalendarRange className="h-3.5 w-3.5 text-violet-400" aria-hidden />
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+          <CalendarRange className="h-3.5 w-3.5 text-violet-300" aria-hidden strokeWidth={2.25} />
           Țintă săptămânală
         </p>
         {!editing ? (
@@ -72,10 +72,10 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
             variant="ghost"
             size="sm"
             onClick={() => setEditing(true)}
-            className="-mr-2 text-hir-muted-fg hover:text-hir-fg"
+            className="-mr-2 rounded-md text-hir-muted-fg transition-colors hover:bg-hir-border/30 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             aria-label="Modifică ținta săptămânală"
           >
-            <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden />
+            <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
             Modifică
           </Button>
         ) : null}
@@ -109,14 +109,14 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
       ) : (
         <>
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm tabular-nums text-hir-fg">
+            <p className="text-base tabular-nums text-hir-fg">
               <span className="font-bold">{weekEarnings.toFixed(2)}</span>
               <span className="text-hir-muted-fg"> / {goal} RON</span>
             </p>
             <p
-              className={`text-xs font-semibold tabular-nums ${reached ? 'text-emerald-300' : 'text-hir-muted-fg'}`}
+              className={`text-xs font-semibold tabular-nums ${reached ? 'text-emerald-200' : 'text-hir-muted-fg'}`}
             >
-              {reached ? 'Țintă atinsă! 🎯' : `mai sunt ${Math.abs(delta).toFixed(2)} RON`}
+              {reached ? 'Țintă atinsă' : `mai sunt ${Math.abs(delta).toFixed(2)} RON`}
             </p>
           </div>
 
@@ -126,17 +126,21 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
             aria-valuemax={goal}
             aria-valuenow={Math.min(weekEarnings, goal)}
             aria-label="Progres față de ținta săptămânală"
-            className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-800"
+            className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-800 ring-1 ring-inset ring-zinc-800"
           >
             <div
-              className={`h-full rounded-full transition-all ${barColor}`}
+              className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${
+                reached
+                  ? 'from-emerald-500 to-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.55)]'
+                  : 'from-violet-500 to-violet-400 shadow-[0_0_6px_rgba(124,58,237,0.5)]'
+              }`}
               style={{ width: `${progressPct}%` }}
             />
           </div>
 
           {!reached ? (
-            <p className="text-[11px] text-hir-muted-fg">
-              Săptămâna se închide duminică seara — Luni resetăm calculul.
+            <p className="text-[11px] leading-relaxed text-hir-muted-fg">
+              Săptămâna se închide duminică seara — luni resetăm calculul.
             </p>
           ) : null}
         </>
