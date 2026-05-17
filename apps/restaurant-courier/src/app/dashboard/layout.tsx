@@ -3,8 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { logoutAction, updateCourierLocationAction } from './actions';
-import { Button } from '@hir/ui';
+import { updateCourierLocationAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
 import { LocationTracker } from '@/components/location-tracker';
@@ -159,16 +158,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               doesn't crowd the left logo area. */}
           <HelpDrawer dispatcherPhone={dispatcherPhone} />
 
-          {/* Avatar shortcut to settings — always visible top-right next to
-              logout. Clicking deep-links to /dashboard/settings#profile.
-              Falls back to initials if no avatar was uploaded yet. */}
-          {/* Tap target min 44×44 for WCAG 2.5.5; visual avatar stays 32×32. */}
+          {/* Avatar shortcut to settings — primary tap target for profile,
+              docs, theme, and logout. Settings is the canonical home for
+              all account actions, so we removed the redundant "Iesire"
+              button that duplicated the Deconectare row in settings. The
+              avatar gets a sharper hover ring + violet outline so it
+              reads as the rightmost action affordance. Tap target min
+              44x44 for WCAG 2.5.5; visual avatar stays 32x32. */}
           <Link
             href="/dashboard/settings"
-            aria-label="Profil"
+            aria-label="Profil și setări"
             className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center"
           >
-            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-hir-border bg-hir-surface hover:border-violet-500/60 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2">
+            <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-hir-border bg-hir-surface transition-colors hover:border-violet-400 hover:ring-2 hover:ring-violet-500/30 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2">
               {profile?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -188,17 +190,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               )}
             </span>
           </Link>
-
-          <form action={logoutAction}>
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              className="border-hir-border bg-hir-surface text-hir-fg hover:bg-hir-border"
-            >
-              Ieșire
-            </Button>
-          </form>
         </header>
 
         <OfflineBanner />
