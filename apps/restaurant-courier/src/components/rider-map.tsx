@@ -345,6 +345,19 @@ export function RiderMap({
         // simply renders without rotation support.
         await loadLeafletRotate();
 
+        // React 18 strict-mode + the async loadLeaflet() chain can race a
+        // prior mount's L.map() against the next mount, leaving the
+        // container with a `_leaflet_id` from the dead instance. The next
+        // L.map(...) then throws "Map container is already initialized."
+        // and the dashboard error boundary swallows the whole page.
+        // Detach any stale id so init starts on a clean container.
+        const container = containerRef.current as HTMLDivElement & {
+          _leaflet_id?: number | null;
+        };
+        if (container._leaflet_id != null) {
+          delete container._leaflet_id;
+        }
+
         const map = L.map(containerRef.current, {
           zoomControl: true,
           // leaflet-rotate hooks: enables two-finger touch rotate, plus a
