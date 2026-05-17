@@ -6,6 +6,20 @@ export const LOCALES: readonly Locale[] = ['ro', 'en'] as const;
 export const DEFAULT_LOCALE: Locale = 'ro';
 export const LOCALE_COOKIE = 'hir_locale';
 
+// ── Locale extensibility helpers ──────────────────────────────────────────────
+// ACTIVE_LOCALES have full dictionary coverage and are served to users today.
+// RESERVED_LOCALES are declared for future expansion; no dictionary exists yet.
+// Callers using `Locale` are unaffected — that type only covers active locales.
+
+export const ACTIVE_LOCALES = ['ro', 'en'] as const;
+export type ActiveLocale = typeof ACTIVE_LOCALES[number];
+
+// Declared but not yet activated: no dictionaries, no routing, no hreflang.
+export const RESERVED_LOCALES = ['bg', 'hu', 'pl', 'ru', 'uk'] as const;
+export type ReservedLocale = typeof RESERVED_LOCALES[number];
+
+export const ALL_DECLARED_LOCALES = [...ACTIVE_LOCALES, ...RESERVED_LOCALES] as const;
+
 export function isLocale(v: unknown): v is Locale {
   return v === 'ro' || v === 'en';
 }

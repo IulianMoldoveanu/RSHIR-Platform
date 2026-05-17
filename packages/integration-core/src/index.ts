@@ -72,3 +72,12 @@ export type {
 } from './aggregator';
 export { woltAdapter, printInterceptAdapter } from './aggregator';
 export type { PrintInterceptEnvelope } from './aggregator';
+
+// Fiscal-adapter registry — country-level invoice dispatch abstraction.
+// Empty at module load; future PRs register concrete country adapters.
+export type { FiscalAdapter, FiscalInvoiceInput } from './fiscal/registry';
+export {
+  registerFiscalAdapter,
+  getFiscalAdapter,
+  FISCAL_COUNTRIES_SUPPORTED,
+} from './fiscal/registry';
