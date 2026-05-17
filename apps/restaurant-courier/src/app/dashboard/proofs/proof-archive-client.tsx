@@ -56,19 +56,27 @@ export function ProofArchiveClient({ items }: Props) {
     <>
       <div className="mx-auto flex max-w-xl flex-col gap-5">
         {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold text-hir-fg">Fotografii livrări</h1>
-          <p className="mt-1 text-sm text-hir-muted-fg">
-            Ultimele 30 de zile · {items.length}{' '}
-            {items.length === 1 ? 'fotografie' : 'fotografii'}
-          </p>
-        </div>
+        <header className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+            <Camera className="h-5 w-5 text-violet-300" aria-hidden />
+          </span>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
+              Fotografii livrări
+            </h1>
+            <p className="mt-0.5 text-sm leading-relaxed text-hir-muted-fg">
+              Ultimele 30 de zile ·{' '}
+              <span className="tabular-nums text-hir-fg">{items.length}</span>{' '}
+              {items.length === 1 ? 'fotografie' : 'fotografii'}
+            </p>
+          </div>
+        </header>
 
         {/* Date range filter */}
         <section className={cardClasses()}>
           <div className="mb-3 flex items-center gap-2">
             <Calendar className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-            <span className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
               Filtrare perioadă
             </span>
           </div>
@@ -79,16 +87,16 @@ export function ProofArchiveClient({ items }: Props) {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
+              className="min-h-[44px] flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 py-2 text-sm tabular-nums text-hir-fg transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             />
-            <span className="text-xs text-hir-muted-fg">până la</span>
+            <span className="text-xs text-hir-muted-fg">→</span>
             <label className="sr-only" htmlFor="to-date">Până la data</label>
             <input
               id="to-date"
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
+              className="min-h-[44px] flex-1 rounded-lg border border-hir-border bg-hir-bg px-3 py-2 text-sm tabular-nums text-hir-fg transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             />
             {(fromDate || toDate) ? (
               <Button
@@ -96,7 +104,7 @@ export function ProofArchiveClient({ items }: Props) {
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="h-auto shrink-0 px-2 py-2 text-hir-muted-fg hover:text-hir-fg"
+                className="h-auto shrink-0 rounded-lg px-2 py-2 text-hir-muted-fg transition-colors hover:bg-hir-border/50 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 aria-label="Resetează filtrele"
               >
                 <X className="h-4 w-4" />
@@ -104,8 +112,9 @@ export function ProofArchiveClient({ items }: Props) {
             ) : null}
           </div>
           {(fromDate || toDate) ? (
-            <p className="mt-2 text-[11px] text-hir-muted-fg">
-              {filtered.length} din {items.length}{' '}
+            <p className="mt-3 text-[11px] text-hir-muted-fg">
+              <span className="tabular-nums text-hir-fg">{filtered.length}</span> din{' '}
+              <span className="tabular-nums">{items.length}</span>{' '}
               {items.length === 1 ? 'fotografie' : 'fotografii'} afișate
             </p>
           ) : null}
@@ -114,15 +123,15 @@ export function ProofArchiveClient({ items }: Props) {
         {/* Grid */}
         {filtered.length === 0 ? (
           <div className={cardClasses({ padding: 'none', className: 'flex flex-col items-center gap-3 py-14 text-center' })}>
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-hir-border">
-              <Camera className="h-7 w-7 text-hir-muted-fg" aria-hidden />
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10 ring-1 ring-violet-500/30">
+              <Camera className="h-7 w-7 text-violet-300" aria-hidden />
             </span>
             <p className="text-sm font-medium text-hir-fg">
               {items.length === 0
                 ? 'Nu ai poze încărcate'
                 : 'Nicio fotografie în intervalul selectat'}
             </p>
-            <p className="max-w-xs text-xs text-hir-muted-fg">
+            <p className="max-w-xs text-xs leading-relaxed text-hir-muted-fg">
               {items.length === 0
                 ? 'Pozele apar aici după primele livrări cu fotografie de confirmare.'
                 : 'Încearcă un interval mai larg sau resetează filtrele.'}
@@ -141,18 +150,18 @@ export function ProofArchiveClient({ items }: Props) {
                 role="listitem"
                 onClick={() => setSelected(item)}
                 aria-label={`Fotografie livrare ${formatDate(item.deliveredAt)}`}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-hir-border bg-hir-border focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-hir-border bg-hir-border transition-all hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/15 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={item.signedUrl}
                   alt={`Dovadă livrare ${formatDate(item.deliveredAt)}`}
-                  className="h-full w-full object-cover transition-opacity duration-200 group-hover:opacity-80"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                   loading="lazy"
                 />
                 {/* Date overlay */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-4">
-                  <p className="truncate text-[9px] font-medium text-white">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-5">
+                  <p className="truncate text-[10px] font-medium tabular-nums text-white">
                     {formatTime(item.deliveredAt)}
                   </p>
                 </div>
@@ -176,12 +185,12 @@ export function ProofArchiveClient({ items }: Props) {
             className="flex items-center justify-between px-4 py-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-semibold text-white">Dovadă livrare</p>
+            <p className="text-sm font-semibold tracking-tight text-white">Dovadă livrare</p>
             <button
               type="button"
               onClick={() => setSelected(null)}
               aria-label="Închide"
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
             >
               <X className="h-5 w-5" />
             </button>
