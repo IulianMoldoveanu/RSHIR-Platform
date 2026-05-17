@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const dryRun = url.searchParams.get('dry_run') === 'true';
 
-  return withRunLog('champion-rewards-verify', async (setMetadata) => {
+  return withRunLog('champion-rewards-verify', async ({ setMetadata }) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, serviceRole, {
