@@ -47,7 +47,12 @@ export function QuietHoursToggle() {
   return (
     <div className={cardClasses({ className: 'flex flex-col gap-3' })}>
       <div className="flex items-start gap-3">
-        <Moon className="mt-1 h-5 w-5 shrink-0 text-violet-400" aria-hidden />
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 ring-1 ring-violet-500/30"
+        >
+          <Moon className="h-4 w-4 text-violet-300" strokeWidth={2.25} />
+        </span>
         <div className="flex flex-1 flex-col gap-1">
           <label
             htmlFor={toggleId}
@@ -55,7 +60,7 @@ export function QuietHoursToggle() {
           >
             Ore de liniște
           </label>
-          <p className="text-xs text-hir-muted-fg">
+          <p className="text-xs leading-relaxed text-hir-muted-fg">
             Oprește sunetul pentru oferte și anunțurile vocale în intervalul
             ales. Notificările push rămân active — doar partea audio e tăcută.
           </p>
@@ -65,7 +70,7 @@ export function QuietHoursToggle() {
           type="checkbox"
           checked={q.enabled}
           onChange={(e) => update({ enabled: e.target.checked })}
-          className="mt-1 h-5 w-5 accent-hir-accent"
+          className="mt-1 h-5 w-5 cursor-pointer accent-violet-500 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         />
       </div>
 
@@ -73,7 +78,10 @@ export function QuietHoursToggle() {
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label htmlFor={startId} className="text-[11px] font-medium text-hir-muted-fg">
+              <label
+                htmlFor={startId}
+                className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
+              >
                 De la
               </label>
               <input
@@ -81,11 +89,14 @@ export function QuietHoursToggle() {
                 type="time"
                 value={q.startHHmm}
                 onChange={(e) => update({ startHHmm: e.target.value })}
-                className="min-h-[44px] rounded-lg border border-hir-border bg-hir-bg px-3 text-sm text-hir-fg focus-visible:border-violet-500 focus-visible:outline-none"
+                className="min-h-[44px] rounded-lg border border-hir-border bg-hir-bg px-3 text-sm tabular-nums text-hir-fg transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor={endId} className="text-[11px] font-medium text-hir-muted-fg">
+              <label
+                htmlFor={endId}
+                className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
+              >
                 Până la
               </label>
               <input
@@ -93,17 +104,17 @@ export function QuietHoursToggle() {
                 type="time"
                 value={q.endHHmm}
                 onChange={(e) => update({ endHHmm: e.target.value })}
-                className="min-h-[44px] rounded-lg border border-hir-border bg-hir-bg px-3 text-sm text-hir-fg focus-visible:border-violet-500 focus-visible:outline-none"
+                className="min-h-[44px] rounded-lg border border-hir-border bg-hir-bg px-3 text-sm tabular-nums text-hir-fg transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
               />
             </div>
           </div>
 
           {inside ? (
-            <p className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-[11px] text-violet-200">
+            <p className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-[11px] font-medium text-violet-100 ring-1 ring-inset ring-violet-500/20">
               Ești în interval. Sunetul este tăcut acum.
             </p>
           ) : (
-            <p className="text-[11px] text-hir-muted-fg">
+            <p className="text-[11px] leading-relaxed text-hir-muted-fg">
               Intervalul nu e activ acum; sunetul rulează normal.
             </p>
           )}

@@ -48,7 +48,12 @@ export function OfferSoundToggle() {
   return (
     <div className={cardClasses({ className: 'flex flex-col gap-3' })}>
       <div className="flex items-start gap-3">
-        <Icon className="mt-1 h-5 w-5 shrink-0 text-violet-400" aria-hidden />
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 ring-1 ring-violet-500/30"
+        >
+          <Icon className="h-4 w-4 text-violet-300" strokeWidth={2.25} />
+        </span>
         <div className="flex flex-1 flex-col gap-1">
           <label
             htmlFor={id}
@@ -56,7 +61,7 @@ export function OfferSoundToggle() {
           >
             Sunet la ofertă nouă
           </label>
-          <p className="text-xs text-hir-muted-fg">
+          <p className="text-xs leading-relaxed text-hir-muted-fg">
             Un semnal scurt de două tonuri (E5→A5) când apare o comandă
             nouă. Distinct de sunetul standard al telefonului.
           </p>
@@ -66,7 +71,7 @@ export function OfferSoundToggle() {
           type="checkbox"
           checked={enabled}
           onChange={(e) => onToggle(e.target.checked)}
-          className="mt-1 h-5 w-5 accent-hir-accent"
+          className="mt-1 h-5 w-5 cursor-pointer accent-violet-500 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         />
       </div>
 
@@ -75,9 +80,9 @@ export function OfferSoundToggle() {
           variant="outline"
           size="sm"
           onClick={onAudition}
-          className="self-start"
+          className="self-start rounded-lg border-hir-border transition-colors hover:border-violet-500/40 hover:bg-violet-500/5 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
-          <Volume2 className="mr-2 h-4 w-4" aria-hidden />
+          <Volume2 className="mr-2 h-4 w-4" aria-hidden strokeWidth={2.25} />
           Test sunet
         </Button>
       ) : null}
