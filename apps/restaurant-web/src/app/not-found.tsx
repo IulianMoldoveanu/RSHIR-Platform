@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import { Compass, Home } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
@@ -35,10 +36,25 @@ export default async function NotFound() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+      <div className="mb-2 flex h-20 w-20 items-center justify-center rounded-full bg-purple-50 text-purple-600 shadow-lg shadow-purple-500/20 ring-1 ring-purple-200">
+        <Compass className="h-10 w-10" aria-hidden strokeWidth={2.25} />
+      </div>
+      <p className="font-mono text-xs font-semibold uppercase tracking-widest text-purple-700">
+        404
+      </p>
+      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
         {t(locale, 'notFound.title')}
       </h1>
-      <p className="text-sm text-zinc-600">{t(locale, 'notFound.body')}</p>
+      <p className="max-w-sm text-sm leading-relaxed text-zinc-600">
+        {t(locale, 'notFound.body')}
+      </p>
+      <Link
+        href="/"
+        className="mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-purple-700 px-6 text-sm font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
+      >
+        <Home className="h-4 w-4" aria-hidden />
+        {t(locale, 'notFound.cta')}
+      </Link>
 
       {isPreview && (
         <div className="mt-6 w-full rounded-xl border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-900">
