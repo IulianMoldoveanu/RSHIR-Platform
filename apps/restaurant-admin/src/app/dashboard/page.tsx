@@ -82,15 +82,20 @@ export default async function DashboardOverviewPage(
 
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">{tenant.name}</h1>
-          <p className="text-sm text-zinc-600">Panou de control — astăzi.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            {tenant.name}
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600">Panou de control · astăzi</p>
         </div>
         <Link
           href="/dashboard/analytics"
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+          className="group inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-2"
         >
           Vezi raport complet
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRight
+            className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+            aria-hidden
+          />
         </Link>
       </header>
 
