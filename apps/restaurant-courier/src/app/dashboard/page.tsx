@@ -157,24 +157,24 @@ export default async function DashboardHome() {
           The accent left border + soft violet glow give the card a
           "hero" feel without being loud. Pulsing emerald dot when
           online so the rider has an at-a-glance live signal. */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/90 backdrop-blur shadow-lg shadow-violet-500/5">
+      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] overflow-hidden rounded-2xl border border-hir-border bg-hir-bg/90 ring-1 ring-inset ring-hir-border/40 backdrop-blur shadow-lg shadow-violet-500/10">
         <span
           aria-hidden
           className={`absolute inset-y-0 left-0 w-[3px] ${isOnline ? 'bg-emerald-400' : 'bg-zinc-700'}`}
         />
         <div className="px-3.5 py-2.5">
-          <p className="text-sm font-semibold tracking-tight text-zinc-100">
+          <p className="text-sm font-semibold tracking-tight text-hir-fg">
             Bună, {profile?.full_name?.split(' ')[0] ?? 'curier'}
           </p>
-          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-zinc-300">
+          <p className="mt-1 flex items-center gap-1.5 text-[11px] text-hir-fg">
             <span
               aria-hidden
-              className={`relative inline-flex h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-500'}`}
+              className={`relative inline-flex h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-hir-muted-fg/40'}`}
             >
               {isOnline ? (
                 <span
                   aria-hidden
-                  className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60"
+                  className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70"
                 />
               ) : null}
             </span>
@@ -185,7 +185,7 @@ export default async function DashboardHome() {
               : 'Offline · pornește tura'}
           </p>
           {nextActionHint ? (
-            <p className="mt-1.5 truncate text-[11px] font-medium text-violet-300">
+            <p className="mt-1.5 truncate text-[11px] font-semibold text-violet-200">
               {nextActionHint}
             </p>
           ) : null}
@@ -202,15 +202,15 @@ export default async function DashboardHome() {
             <Link
               key={o.id}
               href={`/dashboard/orders/${o.id}`}
-              className={`group flex items-center gap-2 rounded-xl border bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-zinc-900 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
+              className={`group flex items-center gap-2 rounded-xl border bg-hir-bg/90 px-3 py-2 text-xs font-medium text-hir-fg shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-hir-surface/90 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                 idx === 0
-                  ? 'border-violet-400 shadow-violet-500/30 ring-1 ring-violet-500/40 hover:border-violet-300 hover:shadow-violet-500/40'
-                  : 'border-violet-500/40 hover:border-violet-400'
+                  ? 'border-violet-400 shadow-violet-500/30 ring-1 ring-inset ring-violet-500/40 hover:border-violet-300 hover:shadow-violet-500/40'
+                  : 'border-violet-500/40 ring-1 ring-inset ring-violet-500/15 hover:border-violet-400'
               }`}
             >
               <span
                 aria-hidden
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular-nums ${
                   idx === 0
                     ? 'bg-violet-500 text-white shadow-md shadow-violet-500/40'
                     : 'bg-hir-border text-hir-fg'
@@ -226,13 +226,14 @@ export default async function DashboardHome() {
               <ArrowRight
                 className="h-3.5 w-3.5 shrink-0 text-violet-300 transition-transform group-hover:translate-x-0.5"
                 aria-hidden
+                strokeWidth={2.25}
               />
             </Link>
           ))}
           {activeOrders.length > 3 ? (
             <Link
               href="/dashboard/orders"
-              className="group rounded-xl border border-hir-border bg-zinc-950/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur transition-all hover:border-violet-500/40 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+              className="group rounded-xl border border-hir-border bg-hir-bg/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur transition-all hover:-translate-y-px hover:border-violet-500/40 hover:bg-hir-surface/90 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             >
               <span className="tabular-nums">+{activeOrders.length - 3}</span>
               <span className="mx-1 text-hir-muted-fg">·</span>
@@ -267,31 +268,35 @@ export default async function DashboardHome() {
           doesn't accidentally go offline mid-delivery). */}
       {!isOnline ? (
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
-            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="mx-auto max-w-xl rounded-2xl border border-hir-border bg-hir-bg/95 p-4 shadow-2xl ring-1 ring-inset ring-hir-border/40 backdrop-blur">
+            <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-hir-muted-fg">
               Ești offline
             </p>
             <SwipeButton
               label="→ Glisează pentru a porni tura"
               onConfirm={startShiftAction}
             />
-            <div className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-zinc-500">
+            <div className="mt-2.5 flex items-center justify-center gap-3 text-[11px] text-hir-muted-fg">
               <span>Glisează sau ține apăsat ~1 secundă.</span>
-              <span aria-hidden className="text-zinc-700">·</span>
+              <span aria-hidden className="text-hir-border">·</span>
               <Link
                 href="/dashboard/help"
-                className="inline-flex items-center gap-1 text-violet-300 hover:text-violet-200"
+                className="group inline-flex items-center gap-1 text-violet-300 transition-colors hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 rounded"
               >
                 Ghid rapid
+                <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden strokeWidth={2.25} />
               </Link>
             </div>
           </div>
         </div>
       ) : activeOrders.length === 0 ? (
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
-          <div className="mx-auto max-w-xl rounded-2xl border border-zinc-800 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
-            <p className="mb-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
-              <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+          <div className="mx-auto max-w-xl rounded-2xl border border-hir-border bg-hir-bg/95 p-4 shadow-2xl ring-1 ring-inset ring-emerald-500/15 backdrop-blur">
+            <p className="mb-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
+              <span aria-hidden className="relative inline-flex h-2 w-2">
+                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
+                <span className="relative h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+              </span>
               Online · gata pentru comenzi
             </p>
             <SwipeButton
