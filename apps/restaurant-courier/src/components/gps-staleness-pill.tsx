@@ -86,10 +86,16 @@ export function GpsStalnessPill() {
       aria-label={tooltip}
       title={tooltip}
       tabIndex={0}
-      className={`flex min-h-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[10px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${tone}`}
+      className={`flex min-h-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${tone} ${
+        state === 'live-now' || state === 'live-aged'
+          ? 'ring-emerald-500/20'
+          : state === 'stale'
+            ? 'ring-amber-500/20'
+            : 'ring-red-500/20'
+      }`}
     >
       <span className="flex items-center gap-1">
-        <MapPin className="h-3 w-3" aria-hidden />
+        <MapPin className="h-3 w-3" aria-hidden strokeWidth={2.25} />
         <span>{label}</span>
       </span>
     </div>

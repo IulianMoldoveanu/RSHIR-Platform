@@ -79,7 +79,9 @@ export function ConnectionBadge() {
       aria-label={`Conexiune: ${cfg.label} — ${cfg.tooltip}`}
       title={cfg.tooltip}
       tabIndex={0}
-      className={`flex min-h-[44px] min-w-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[10px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-violet-500 ${cfg.tone}`}
+      className={`flex min-h-[44px] min-w-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${cfg.tone} ${
+        isOffline ? 'ring-red-500/20' : cfg.bars >= 3 ? 'ring-emerald-500/20' : 'ring-amber-500/20'
+      }`}
     >
       <span className="flex items-center gap-1">
         {isOffline ? (
