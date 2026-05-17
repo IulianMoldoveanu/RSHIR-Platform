@@ -252,9 +252,11 @@ function Card({
   explainMetric?: ExplainMetric;
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 transition-shadow hover:shadow-sm">
       <div className="flex items-start justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+          {label}
+        </p>
         <span className="text-zinc-300">{icon}</span>
       </div>
       <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">{value}</p>
@@ -299,11 +301,14 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
       {s.lowStockCount !== null && s.lowStockCount > 0 && (
         <Link
           href="/dashboard/inventory?filter=low"
-          className="inline-flex items-center gap-2 self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100"
+          className="group inline-flex items-center gap-2 self-start rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 transition-all hover:bg-amber-100 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
         >
           <AlertTriangle className="h-3.5 w-3.5 flex-none text-amber-600" aria-hidden />
           {s.lowStockCount}{' '}
-          {s.lowStockCount === 1 ? 'produs pe terminate' : 'produse pe terminate'} →
+          {s.lowStockCount === 1 ? 'produs pe terminate' : 'produse pe terminate'}
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
         </Link>
       )}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -331,7 +336,7 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
       />
       <Link
         href="/dashboard/reviews"
-        className="rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:bg-zinc-50"
+        className="group rounded-xl border border-zinc-200 bg-white p-4 transition-all hover:-translate-y-px hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:outline-offset-2"
       >
         <div className="flex items-start justify-between">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -339,9 +344,14 @@ export async function KpiCards({ tenantId }: { tenantId: string }) {
           </p>
           <Star className="h-4 w-4 text-zinc-300" />
         </div>
-        <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">{s.reviewsLast7d}</p>
-        <p className="mt-1 text-[11px] font-medium text-purple-700 hover:text-purple-900">
-          Vezi recenziile →
+        <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">
+          {s.reviewsLast7d}
+        </p>
+        <p className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 transition-colors group-hover:text-purple-900">
+          Vezi recenziile
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
         </p>
       </Link>
       </div>
