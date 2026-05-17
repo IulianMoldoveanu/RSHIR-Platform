@@ -79,23 +79,30 @@ export async function EarningsBar() {
       <span
         className={
           isOnline
-            ? 'inline-flex items-center gap-1 font-medium text-emerald-300'
-            : 'inline-flex items-center gap-1 font-medium text-hir-muted-fg'
+            ? 'inline-flex items-center gap-1.5 font-semibold text-emerald-200'
+            : 'inline-flex items-center gap-1.5 font-medium text-hir-muted-fg'
         }
       >
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-600'}`}
-          aria-hidden
-        />
+        {isOnline ? (
+          // Pulsing dot reads as "shift live right now" — mirrors the
+          // GpsStalenessPill 'live-now' affordance so the two header
+          // signals speak the same visual language.
+          <span aria-hidden className="relative flex h-2 w-2">
+            <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
+            <span className="relative h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+          </span>
+        ) : (
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
+        )}
         {isOnline ? 'Online' : 'Offline'}
       </span>
-      <span className="h-3 w-px bg-hir-border" aria-hidden />
+      <span className="h-3 w-px bg-hir-border/70" aria-hidden />
       <EarningsValue value={earnings} count={count} />
       {gapToAvg > 0 ? (
         <>
-          <span className="h-3 w-px bg-hir-border" aria-hidden />
+          <span className="h-3 w-px bg-hir-border/70" aria-hidden />
           <span
-            className="flex items-center gap-1 tabular-nums text-hir-muted-fg"
+            className="flex items-center gap-1 tabular-nums text-amber-200"
             aria-label={`${gapToAvg.toFixed(2)} RON mai mult pentru target zilnic`}
           >
             <Target

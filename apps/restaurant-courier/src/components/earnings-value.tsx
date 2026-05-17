@@ -31,11 +31,11 @@ export function EarningsValue({ value, count }: { value: number; count: number }
         initial={isFirstRender.current || reduce ? false : { scale: 0.92, opacity: 0.65 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: reduce ? 0 : 0.22, ease: 'easeOut' }}
-        className="font-semibold text-zinc-100"
+        className="font-semibold tabular-nums text-hir-fg"
       >
         {value.toFixed(2)} RON
       </motion.span>
-      <span className="text-zinc-500">
+      <span className="tabular-nums text-hir-muted-fg">
         · {count} {count === 1 ? 'livrare' : 'livrări'}
       </span>
     </>
