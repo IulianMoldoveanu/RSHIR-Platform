@@ -202,16 +202,18 @@ export default async function DashboardHome() {
             <Link
               key={o.id}
               href={`/dashboard/orders/${o.id}`}
-              className={`flex items-center gap-2 rounded-xl border bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur hover:bg-zinc-900 ${
+              className={`group flex items-center gap-2 rounded-xl border bg-zinc-950/90 px-3 py-2 text-xs font-medium text-zinc-100 shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-zinc-900 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                 idx === 0
-                  ? 'border-violet-400 ring-1 ring-violet-500/30 hover:border-violet-300'
+                  ? 'border-violet-400 shadow-violet-500/30 ring-1 ring-violet-500/40 hover:border-violet-300 hover:shadow-violet-500/40'
                   : 'border-violet-500/40 hover:border-violet-400'
               }`}
             >
               <span
                 aria-hidden
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                  idx === 0 ? 'bg-violet-500 text-white' : 'bg-hir-border text-hir-fg'
+                  idx === 0
+                    ? 'bg-violet-500 text-white shadow-md shadow-violet-500/40'
+                    : 'bg-hir-border text-hir-fg'
                 }`}
               >
                 {idx + 1}
@@ -221,15 +223,20 @@ export default async function DashboardHome() {
               <span className="min-w-0 flex-1 truncate">
                 {o.customer_first_name ?? o.dropoff_line1 ?? 'Comandă'}
               </span>
-              <ArrowRight className="h-3.5 w-3.5 shrink-0 text-violet-300" aria-hidden />
+              <ArrowRight
+                className="h-3.5 w-3.5 shrink-0 text-violet-300 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </Link>
           ))}
           {activeOrders.length > 3 ? (
             <Link
               href="/dashboard/orders"
-              className="rounded-xl border border-hir-border bg-zinc-950/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur hover:bg-zinc-900"
+              className="group rounded-xl border border-hir-border bg-zinc-950/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur transition-all hover:border-violet-500/40 hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             >
-              +{activeOrders.length - 3} ·  vezi toate
+              <span className="tabular-nums">+{activeOrders.length - 3}</span>
+              <span className="mx-1 text-hir-muted-fg">·</span>
+              vezi toate
             </Link>
           ) : null}
         </div>
