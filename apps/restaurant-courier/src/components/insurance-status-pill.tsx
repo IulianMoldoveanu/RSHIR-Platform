@@ -75,13 +75,33 @@ export function InsuranceStatusPill() {
         ? 'Atenție la documente'
         : 'Document expirat';
 
+  // Match the pill ring color to the verdict so the disc visually
+  // belongs to the pill family (emerald / amber / rose).
+  const ringTone =
+    verdict === 'ok'
+      ? 'ring-emerald-500/40'
+      : verdict === 'attention'
+        ? 'ring-amber-500/40'
+        : 'ring-rose-500/40';
+
   return (
     <a
       href="/dashboard/settings"
-      className={`flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-medium ${tone}`}
+      className={`group flex items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-xs font-medium transition-all hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 ${tone} ${
+        verdict === 'ok'
+          ? 'focus-visible:outline-emerald-500'
+          : verdict === 'attention'
+            ? 'focus-visible:outline-amber-500'
+            : 'focus-visible:outline-rose-500'
+      }`}
       aria-label={`${title} — ${summary}. Tap pentru detalii.`}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <span
+        aria-hidden
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 ${ringTone} bg-current/10`}
+      >
+        <Icon className="h-4 w-4" strokeWidth={2.25} />
+      </span>
       <span className="min-w-0 flex-1 truncate">
         <span className="font-semibold">{title}.</span>{' '}
         <span className="text-current/80">{summary}</span>

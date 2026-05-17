@@ -52,20 +52,23 @@ export async function TodaySummaryPill() {
   return (
     <section
       aria-label="Sumar de azi"
-      className={cardClasses({ padding: 'sm', className: 'grid grid-cols-3 gap-2' })}
+      className={cardClasses({ padding: 'md', className: 'grid grid-cols-3 gap-2' })}
     >
       <Cell
-        icon={<Package className="h-4 w-4 text-violet-400" />}
+        icon={<Package className="h-4 w-4 text-violet-300" />}
+        iconBg="bg-violet-500/10 ring-violet-500/30"
         value={String(count)}
         label={count === 1 ? 'livrare azi' : 'livrări azi'}
       />
       <Cell
-        icon={<Coins className="h-4 w-4 text-emerald-400" />}
+        icon={<Coins className="h-4 w-4 text-emerald-300" />}
+        iconBg="bg-emerald-500/10 ring-emerald-500/30"
         value={earnings.toFixed(2)}
         label="RON brut"
       />
       <Cell
-        icon={<Timer className="h-4 w-4 text-amber-400" />}
+        icon={<Timer className="h-4 w-4 text-amber-300" />}
+        iconBg="bg-amber-500/10 ring-amber-500/30"
         value={
           minutesAgo === null
             ? '—'
@@ -83,20 +86,25 @@ export async function TodaySummaryPill() {
 
 function Cell({
   icon,
+  iconBg,
   value,
   label,
 }: {
   icon: React.ReactNode;
+  iconBg: string;
   value: string;
   label: string;
 }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-2 py-1.5 text-center">
-      <span aria-hidden className="mb-0.5">
+    <div className="flex flex-col items-center gap-1.5 px-2 py-1.5 text-center">
+      <span
+        aria-hidden
+        className={`flex h-7 w-7 items-center justify-center rounded-full ring-1 ${iconBg}`}
+      >
         {icon}
       </span>
-      <span className="text-base font-bold tabular-nums text-hir-fg">{value}</span>
-      <span className="text-[10px] uppercase tracking-wide text-hir-muted-fg">
+      <span className="text-lg font-bold tabular-nums text-hir-fg">{value}</span>
+      <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
         {label}
       </span>
     </div>
