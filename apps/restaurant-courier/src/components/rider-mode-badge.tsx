@@ -16,7 +16,7 @@ export function RiderModeBadge() {
   if (mode === 'C') {
     const inner = (
       <>
-        <Truck className="h-3 w-3" aria-hidden />
+        <Truck className="h-3 w-3" aria-hidden strokeWidth={2.25} />
         <span className="hidden sm:inline">Dispecerizat de</span>
         <span className="font-semibold">{fleetName ?? 'flota'}</span>
       </>
@@ -27,27 +27,27 @@ export function RiderModeBadge() {
         <a
           href={`tel:${fleetContactPhone}`}
           aria-label={`Sună dispecerul ${fleetName ?? ''}`.trim()}
-          className="flex items-center gap-1.5 rounded-full border border-amber-700/40 bg-amber-950/40 px-2.5 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-900/40 active:scale-95"
+          className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-100 ring-1 ring-inset ring-amber-500/20 transition-colors hover:bg-amber-500/15 active:scale-95 focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
         >
           {inner}
-          <Phone className="h-3 w-3 text-amber-300" aria-hidden />
+          <Phone className="h-3 w-3 text-amber-300" aria-hidden strokeWidth={2.25} />
         </a>
       );
     }
 
     return (
-      <div className="flex items-center gap-1.5 rounded-full border border-amber-700/40 bg-amber-950/40 px-2.5 py-1 text-[11px] font-medium text-amber-200">
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-100 ring-1 ring-inset ring-amber-500/20">
         {inner}
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-sky-700/40 bg-sky-950/40 px-2.5 py-1 text-[11px] font-medium text-sky-200">
-      <Users className="h-3 w-3" aria-hidden />
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-100 ring-1 ring-inset ring-sky-500/20">
+      <Users className="h-3 w-3" aria-hidden strokeWidth={2.25} />
       <span className="hidden sm:inline">Multi-vendor</span>
-      <span className="font-semibold sm:hidden">
-        <Briefcase className="inline h-3 w-3" aria-hidden /> {tenantCount}
+      <span className="inline-flex items-center gap-1 font-semibold tabular-nums sm:hidden">
+        <Briefcase className="inline h-3 w-3" aria-hidden strokeWidth={2.25} /> {tenantCount}
       </span>
     </div>
   );
