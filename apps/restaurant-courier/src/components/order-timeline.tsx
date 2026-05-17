@@ -48,12 +48,18 @@ export function OrderTimeline({ status }: { status: string }) {
         const isFuture = idx > currentIdx;
 
         return (
-          <li key={stage.key} className="relative">
-            {/* Vertical connector line (skip on the last item). */}
+          <li key={stage.key} className="relative" aria-current={isCurrent ? 'step' : undefined}>
+            {/* Vertical connector line (skip on the last item). Gradient
+                from completed -> current so the active section visually
+                "fills" into the next step. */}
             {idx < STAGES.length - 1 ? (
               <span
                 className={`absolute left-[-1.125rem] top-5 h-[calc(100%+1rem)] w-px ${
-                  isPast ? 'bg-violet-500' : 'bg-hir-border'
+                  isPast
+                    ? 'bg-violet-500'
+                    : isCurrent
+                      ? 'bg-gradient-to-b from-violet-500 to-hir-border'
+                      : 'bg-hir-border'
                 }`}
                 aria-hidden
               />
@@ -61,25 +67,25 @@ export function OrderTimeline({ status }: { status: string }) {
 
             {/* Marker dot. */}
             <span
-              className={`absolute left-[-1.5rem] top-1 flex h-4 w-4 items-center justify-center rounded-full ${
+              className={`absolute left-[-1.5rem] top-1 flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-hir-surface ${
                 isPast
                   ? 'bg-violet-500'
                   : isCurrent
-                  ? 'dot-pulse bg-violet-500'
-                  : 'bg-hir-border'
+                    ? 'dot-pulse bg-violet-500 shadow-[0_0_8px_rgba(124,58,237,0.55)]'
+                    : 'bg-hir-border'
               }`}
               aria-hidden
             >
-              {isPast ? <Check className="h-2.5 w-2.5 text-white" /> : null}
+              {isPast ? <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} /> : null}
             </span>
 
             <div
-              className={`text-sm ${
+              className={`text-sm transition-colors ${
                 isCurrent
                   ? 'font-semibold text-zinc-100'
-                  : isFuture
-                  ? 'text-zinc-500'
-                  : 'text-hir-muted-fg'
+                  : isPast
+                    ? 'text-violet-200/90'
+                    : 'text-hir-muted-fg'
               }`}
             >
               {stage.label}
