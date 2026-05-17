@@ -23,21 +23,25 @@ export default async function DiagnosticsPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <Link
         href="/dashboard/settings"
-        className="flex min-h-[44px] items-center gap-1 self-start text-sm text-hir-muted-fg hover:text-hir-fg"
+        className="inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
+        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
         Setări
       </Link>
 
-      <header>
-        <h1 className="flex items-center gap-2 text-xl font-bold text-hir-fg">
-          <Stethoscope className="h-5 w-5 text-violet-400" aria-hidden />
-          Diagnostic
-        </h1>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          Verifică ce funcționalități suportă telefonul tău. Util când o
-          alertă nu sună sau GPS-ul pare blocat.
-        </p>
+      <header className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+          <Stethoscope className="h-5 w-5 text-violet-300" aria-hidden />
+        </span>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
+            Diagnostic
+          </h1>
+          <p className="mt-0.5 text-sm leading-relaxed text-hir-muted-fg">
+            Verifică ce funcționalități suportă telefonul tău. Util când o
+            alertă nu sună sau GPS-ul pare blocat.
+          </p>
+        </div>
       </header>
 
       <DiagnosticsPanel appVersion={APP_VERSION} />
