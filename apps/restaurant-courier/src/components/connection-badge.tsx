@@ -12,25 +12,25 @@ const CONFIG: Record<
   offline: {
     bars: 1,
     label: 'Offline',
-    tone: 'border-red-500/30 bg-red-500/15 text-red-300',
+    tone: 'border-rose-500/40 bg-rose-500/15 text-rose-200',
     tooltip: 'Conexiune pierdută — datele nu se sincronizează',
   },
   '2g': {
     bars: 1,
     label: '2G',
-    tone: 'border-red-500/30 bg-red-500/15 text-red-300',
+    tone: 'border-rose-500/40 bg-rose-500/15 text-rose-200',
     tooltip: 'Conexiune slabă (2G) — actualizări lente',
   },
   '3g': {
     bars: 2,
     label: '3G',
-    tone: 'border-amber-500/30 bg-amber-500/15 text-amber-300',
+    tone: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
     tooltip: 'Conexiune medie (3G) — actualizare ~5 sec',
   },
   '4g': {
     bars: 4,
     label: '4G',
-    tone: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
+    tone: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
     tooltip: 'Conexiune bună (4G) — actualizare 2 sec',
   },
 };
@@ -46,7 +46,7 @@ function SignalBars({ filled, tone }: { filled: number; tone: string }) {
     ? 'bg-emerald-400'
     : tone.includes('amber')
       ? 'bg-amber-400'
-      : 'bg-red-400';
+      : 'bg-rose-400';
 
   return (
     <span className="flex items-end gap-px" aria-hidden>
@@ -80,12 +80,12 @@ export function ConnectionBadge() {
       title={cfg.tooltip}
       tabIndex={0}
       className={`flex min-h-[44px] min-w-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${cfg.tone} ${
-        isOffline ? 'ring-red-500/20' : cfg.bars >= 3 ? 'ring-emerald-500/20' : 'ring-amber-500/20'
+        isOffline ? 'ring-rose-500/20' : cfg.bars >= 3 ? 'ring-emerald-500/20' : 'ring-amber-500/20'
       }`}
     >
       <span className="flex items-center gap-1">
         {isOffline ? (
-          <Icon className="h-3 w-3" aria-hidden />
+          <Icon className="h-3 w-3" aria-hidden strokeWidth={2.25} />
         ) : (
           <SignalBars filled={cfg.bars} tone={cfg.tone} />
         )}
