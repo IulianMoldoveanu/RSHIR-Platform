@@ -26,6 +26,7 @@ import {
   wizardGoLive,
   type WizardDraft,
 } from './actions';
+import { setIntegrationMode, type IntegrationMode } from './integration-actions';
 import { uploadBrandingAsset, setBrandColor } from '../../settings/branding/actions';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { StepCelebration } from '@/components/onboarding/StepCelebration';
@@ -69,7 +70,8 @@ const STEPS: StepDef[] = [
   { num: 3, label: 'Meniu', shortLabel: 'Meniu', estMinutes: 3 },
   { num: 4, label: 'Livrare', shortLabel: 'Livrare', estMinutes: 2 },
   { num: 5, label: 'Plăți', shortLabel: 'Plăți', estMinutes: 1 },
-  { num: 6, label: 'Activează comenzi', shortLabel: 'Go-live', estMinutes: 1 },
+  { num: 6, label: 'Integrare comenzi', shortLabel: 'Integrare', estMinutes: 1 },
+  { num: 7, label: 'Activează comenzi', shortLabel: 'Go-live', estMinutes: 1 },
 ];
 const TOTAL_EST = STEPS.reduce((s, x) => s + x.estMinutes, 0);
 
@@ -89,7 +91,7 @@ export function WizardClient(props: {
   cities: CityOption[];
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<number>(Math.min(Math.max(props.initialStep, 1), 6));
+  const [step, setStep] = useState<number>(Math.min(Math.max(props.initialStep, 1), 7));
   const [draft, setDraft] = useState<WizardDraft>(() => ({
     ...props.initialDraft,
     restaurantInfo: {
@@ -108,6 +110,7 @@ export function WizardClient(props: {
     payment: {
       cod_enabled: props.persisted.cod_enabled,
     },
+    integration: props.initialDraft.integration ?? { mode: null, rawKey: null },
   }));
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -156,11 +159,11 @@ export function WizardClient(props: {
 
   function goNext() {
     setGlobalError(null);
-    if (step < 6) {
+    if (step < 7) {
       // Celebrate the step the user just COMPLETED (not the one we're about to show).
       const completed = STEPS[step - 1];
       if (completed) {
-        toast.success(`Pas ${completed.num} din 6 finalizat: ${completed.label}`);
+        toast.success(`Pas ${completed.num} din 7 finalizat: ${completed.label}`);
         setCelebrate({ kind: 'step', fireKey: Date.now() });
       }
       setStep(step + 1);
@@ -192,6 +195,10 @@ export function WizardClient(props: {
       return draft.payment.cod_enabled === true; // we require COD for now
     }
     if (n === 6) {
+      // Integration step — must have chosen a mode.
+      return draft.integration.mode !== null;
+    }
+    if (n === 7) {
       return (
         props.sourceState.menu_added &&
         props.sourceState.zones_set &&
@@ -216,7 +223,7 @@ export function WizardClient(props: {
       <div className="sticky top-0 z-10 -mx-4 border-b border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-xl sm:border sm:px-5">
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs font-medium text-zinc-700">
-            Pasul <strong>{step}</strong> din 6 ·{' '}
+            Pasul <strong>{step}</strong> din 7 ·{' '}
             <span className="text-zinc-500">~{completedRemaining} min rămas</span>
           </div>
           <div className="text-[11px] text-zinc-400">
@@ -230,10 +237,10 @@ export function WizardClient(props: {
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200">
           <div
             className="h-full bg-emerald-500 transition-all"
-            style={{ width: `${((step - 1) / 6) * 100}%` }}
+            style={{ width: `${((step - 1) / 7) * 100}%` }}
           />
         </div>
-        <ol className="mt-2 hidden grid-cols-6 gap-1 text-[10px] sm:grid">
+        <ol className="mt-2 hidden grid-cols-7 gap-1 text-[10px] sm:grid">
           {STEPS.map((s) => {
             const done = s.num < step;
             const current = s.num === step;
@@ -318,10 +325,20 @@ export function WizardClient(props: {
           />
         )}
         {step === 6 && (
-          <Step6
+          <Step6Integration
+            tenantSlug={props.tenantSlug}
+            mode={draft.integration.mode}
+            onMode={(mode) => patchDraft({ integration: { mode, rawKey: null } })}
+            disabled={!props.canEdit}
+          />
+        )}
+        {step === 7 && (
+          <Step7GoLive
             sourceState={props.sourceState}
             tenantId={props.tenantId}
             tenantSlug={props.tenantSlug}
+            integrationMode={draft.integration.mode}
+            integrationRawKey={draft.integration.rawKey}
             disabled={!props.canEdit || redirecting}
             onError={setGlobalError}
             onLive={() => {
@@ -370,7 +387,7 @@ export function WizardClient(props: {
             Salvează schiță
           </button>
         </div>
-        {step < 6 && (
+        {step < 7 && (
           <button
             type="button"
             onClick={async () => {
@@ -399,6 +416,20 @@ export function WizardClient(props: {
                   setGlobalError(r.detail ?? r.error);
                   return;
                 }
+              }
+              if (step === 6 && draft.integration.mode !== null) {
+                // Persist integration_mode and auto-provision sandbox key.
+                // rawKey is stored in client draft only (show-once semantics).
+                const r = await setIntegrationMode(
+                  props.tenantId,
+                  draft.integration.mode,
+                );
+                if (!r.ok) {
+                  setGlobalError(r.detail ?? r.error);
+                  return;
+                }
+                // Store rawKey so Step7 can display it without an extra round-trip.
+                patchDraft({ integration: { mode: draft.integration.mode, rawKey: r.rawKey } });
               }
               goNext();
             }}
@@ -1049,11 +1080,107 @@ function Step5({
   );
 }
 
-// ───────────────────────────── Step 6 ─────────────────────────────
-function Step6({
+// ───────────────────────────── Step 6 · Integration ──────────────────────────
+const INTEGRATION_OPTIONS: Array<{
+  value: IntegrationMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'storefront_only',
+    label: 'Folosesc site-ul HIR (hirforyou.ro)',
+    description: 'Comenzile vin prin pagina ta de pe hirforyou.ro. Nimic de configurat.',
+  },
+  {
+    value: 'embed_widget',
+    label: 'Am site/aplicație și vreau să adaug un buton HIR pe el',
+    description: 'Lipești o linie de cod — apare un buton flotant „Comandă online". Clientul rămâne pe site-ul tău.',
+  },
+  {
+    value: 'api_only',
+    label: 'Am site/aplicație și vreau să trimit eu comenzile prin API',
+    description: 'Trimiți comenzile din checkout-ul tău via REST API. Ai control total.',
+  },
+  {
+    value: 'embed_or_api',
+    label: 'Le folosesc pe ambele (widget + API)',
+    description: 'Activăm atât widget-ul cât și API-ul. Alegi în funcție de pagină.',
+  },
+];
+
+function Step6Integration({
+  tenantSlug,
+  mode,
+  onMode,
+  disabled,
+}: {
+  tenantSlug: string;
+  mode: IntegrationMode | null;
+  onMode: (m: IntegrationMode) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <header className="flex flex-col gap-1">
+        <h2 className="text-base font-semibold text-zinc-900">Cum primești comenzile online?</h2>
+        <p className="text-sm text-zinc-600">
+          Alege modul de integrare. Dacă ai deja un site, widget-ul e 1 linie de cod.
+          Poți schimba oricând din{' '}
+          <span className="font-medium">Setări → Integrări</span>.
+        </p>
+      </header>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="sr-only">Mod integrare comenzi</legend>
+        {INTEGRATION_OPTIONS.map((opt) => (
+          <label
+            key={opt.value}
+            className={
+              'flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ' +
+              (mode === opt.value
+                ? 'border-indigo-400 bg-indigo-50/50 ring-1 ring-indigo-200'
+                : 'border-zinc-200 bg-white hover:border-zinc-300')
+            }
+          >
+            <input
+              type="radio"
+              name="integration_mode"
+              value={opt.value}
+              checked={mode === opt.value}
+              disabled={disabled}
+              onChange={() => onMode(opt.value)}
+              className="mt-0.5 accent-indigo-600"
+            />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-zinc-900">{opt.label}</span>
+              <span className="text-xs text-zinc-600">{opt.description}</span>
+            </div>
+          </label>
+        ))}
+      </fieldset>
+
+      {(mode === 'embed_widget' || mode === 'embed_or_api') && (
+        <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+          La pasul următor vei vedea codul de embed cu slug-ul tău (
+          <code className="font-mono font-bold">{tenantSlug}</code>) deja completat.
+        </div>
+      )}
+      {(mode === 'api_only' || mode === 'embed_or_api') && (
+        <div className="rounded-lg border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-800">
+          Generăm automat o cheie API sandbox. O vei vedea la pasul următor — copiaz-o înainte să închizi pagina.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────── Step 7 · Go-live ────────────────────────────
+function Step7GoLive({
   sourceState,
   tenantId,
   tenantSlug,
+  integrationMode,
+  integrationRawKey,
   disabled,
   onError,
   onLive,
@@ -1061,6 +1188,8 @@ function Step6({
   sourceState: SourceState;
   tenantId: string;
   tenantSlug: string;
+  integrationMode: IntegrationMode | null;
+  integrationRawKey: string | null;
   disabled: boolean;
   onError: (e: string | null) => void;
   onLive: () => void;
@@ -1068,6 +1197,31 @@ function Step6({
   const [pending, startTransition] = useTransition();
   const ready =
     sourceState.menu_added && sourceState.zones_set && sourceState.hours_set;
+
+  const scriptOrigin = (
+    process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hiraisolutions.ro'
+  ).replace(/\/$/, '');
+  const webBase = scriptOrigin;
+  const ordersEndpoint = `${webBase}/api/public/v1/orders`;
+
+  const embedSnippet = `<script src="${scriptOrigin}/embed.js"
+  data-tenant="${tenantSlug}"
+  data-color="#FF6B35"
+  data-position="bottom-right"
+  data-label="Comandă online"></script>`;
+
+  const curlSnippet = integrationRawKey
+    ? `curl -X POST ${ordersEndpoint} \\
+  -H "Authorization: Bearer ${integrationRawKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"customer":{"firstName":"Ion","phone":"+40712345678"},"items":[{"name":"Pizza","qty":1,"priceRon":35}],"totals":{"subtotalRon":35,"deliveryFeeRon":8,"totalRon":43},"fulfillment":"DELIVERY","dropoff":{"line1":"Str. Libertății 10","city":"Cluj-Napoca"}}'`
+    : null;
+
+  const showWidget =
+    integrationMode === 'embed_widget' || integrationMode === 'embed_or_api';
+  const showApi =
+    integrationMode === 'api_only' || integrationMode === 'embed_or_api';
+  const showBoth = integrationMode === 'embed_or_api';
 
   return (
     <div className="flex flex-col gap-5">
@@ -1103,6 +1257,90 @@ function Step6({
         </p>
       </div>
 
+      {/* Next steps panel for external integrations */}
+      {(showWidget || showApi) && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-zinc-900">
+              Integrare pe site-ul tău
+            </h3>
+            {showBoth && (
+              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-indigo-700">
+                Alege ce e mai simplu
+              </span>
+            )}
+          </div>
+
+          <div className={`grid grid-cols-1 gap-4 ${showBoth ? 'sm:grid-cols-2' : ''}`}>
+            {showWidget && (
+              <div className="flex flex-col gap-2 rounded-xl border border-purple-200 bg-purple-50/40 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-purple-900">
+                    Widget embed — 1 linie de cod
+                  </span>
+                  {!showBoth && (
+                    <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-purple-700">
+                      Recomandat
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-purple-800">
+                  Copiați și lipiți înaintea tag-ului{' '}
+                  <code className="rounded bg-purple-100 px-1 font-mono">&lt;/body&gt;</code>.
+                  Un buton flotant &ldquo;Comandă online&rdquo; apare pe orice pagină.
+                </p>
+                <SnippetCopyBlock code={embedSnippet} label="Copiază codul embed" />
+                <a
+                  href="/dashboard/settings/integrations"
+                  className="mt-1 text-xs text-purple-700 underline hover:text-purple-900"
+                >
+                  Configurare avansată (culoare, poziție) →
+                </a>
+              </div>
+            )}
+
+            {showApi && (
+              <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/40 p-4">
+                <span className="text-sm font-semibold text-violet-900">
+                  API REST — cheie sandbox generată
+                </span>
+                {integrationRawKey ? (
+                  <>
+                    <p className="text-xs font-medium text-rose-700">
+                      Aceasta este singura dată când vei vedea cheia. Copiaz-o acum.
+                    </p>
+                    <SnippetCopyBlock code={integrationRawKey} label="Copiază cheia API" mono />
+                    {curlSnippet && (
+                      <>
+                        <p className="text-xs text-violet-700">Exemplu cURL:</p>
+                        <SnippetCopyBlock code={curlSnippet} label="Copiază exemplu cURL" />
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-zinc-500">
+                    Nu am putut genera cheia automat.{' '}
+                    <a
+                      href="/dashboard/settings/integrations/api"
+                      className="text-violet-600 underline"
+                    >
+                      Generează manual din Setări
+                    </a>
+                    .
+                  </p>
+                )}
+                <a
+                  href="/dashboard/settings/integrations/api"
+                  className="mt-1 text-xs text-violet-700 underline hover:text-violet-900"
+                >
+                  Gestionare chei API + documentație →
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         disabled={!ready || pending || disabled}
@@ -1119,7 +1357,48 @@ function Step6({
         }
         className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-5 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
       >
-        {pending ? 'Se activează…' : ready ? 'Activează comenzi acum' : 'Completează pașii 1-5 mai întâi'}
+        {pending ? 'Se activează…' : ready ? 'Activează comenzi acum' : 'Completează pașii 1-6 mai întâi'}
+      </button>
+    </div>
+  );
+}
+
+// Small copy-to-clipboard code block used in Step7GoLive.
+function SnippetCopyBlock({
+  code,
+  label,
+  mono,
+}: {
+  code: string;
+  label: string;
+  mono?: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* silent — user can still select manually */
+    }
+  }
+
+  return (
+    <div className="relative">
+      <pre
+        className={`overflow-x-auto rounded-lg bg-zinc-900 p-3 pr-24 text-xs leading-relaxed text-zinc-100 whitespace-pre-wrap break-all ${mono ? 'text-emerald-300' : ''}`}
+      >
+        {code}
+      </pre>
+      <button
+        type="button"
+        onClick={handleCopy}
+        aria-label={label}
+        className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-zinc-100 backdrop-blur hover:bg-white/20"
+      >
+        {copied ? 'Copiat' : 'Copiază'}
       </button>
     </div>
   );
