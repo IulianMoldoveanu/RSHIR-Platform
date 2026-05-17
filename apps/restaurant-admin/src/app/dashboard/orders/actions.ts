@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { assertTenantMember, getActiveTenant } from '@/lib/tenant';
@@ -13,6 +14,7 @@ import {
   dispatchToExternalFleet,
   type ExternalDispatchPayload,
 } from '@/lib/external-dispatch';
+import { z } from 'zod';
 
 // RSHIR-32 M-1: callers pass the tenantId rendered server-side; we refuse
 // the action if the cookie-derived active tenant has drifted (multi-tenant
@@ -494,4 +496,163 @@ export async function printFiscalReceipt(
   revalidatePath(`/dashboard/orders/${orderId}`);
 
   return { ok: true, queued: true };
+}
+
+// ────────────────────────────────────────────────────────────
+// manualCreateOrder — phone-order quick entry from the admin UI.
+// Zod-validates, computes totals server-side from live menu prices,
+// inserts restaurant_orders + logs audit + fires integration bus.
+// Never trusts client-supplied totals.
+// ────────────────────────────────────────────────────────────
+
+const manualOrderSchema = z.object({
+  tenantId: z.string().uuid(),
+  customerName: z.string().trim().min(1).max(80),
+  customerPhone: z.string().trim().min(6).max(40),
+  customerEmail: z.string().trim().email().max(200).optional().or(z.literal('')),
+  fulfillmentType: z.enum(['DELIVERY', 'PICKUP']),
+  dropoffAddress: z.string().trim().max(300).optional().or(z.literal('')),
+  paymentMethod: z.enum(['COD', 'CARD']),
+  notes: z.string().trim().max(500).optional().or(z.literal('')),
+  // items: JSON-serialised array of { menuItemId, qty }
+  itemsJson: z.string(),
+}).refine(
+  (v) => v.fulfillmentType !== 'DELIVERY' || (v.dropoffAddress ?? '').trim().length >= 3,
+  { message: 'Adresa de livrare este obligatorie.', path: ['dropoffAddress'] },
+);
+
+type CartEntry = { menuItemId: string; qty: number };
+
+export async function manualCreateOrder(formData: FormData): Promise<void> {
+  const raw = {
+    tenantId: formData.get('tenantId'),
+    customerName: formData.get('customerName'),
+    customerPhone: formData.get('customerPhone'),
+    customerEmail: formData.get('customerEmail') ?? '',
+    fulfillmentType: formData.get('fulfillmentType'),
+    dropoffAddress: formData.get('dropoffAddress') ?? '',
+    paymentMethod: formData.get('paymentMethod'),
+    notes: formData.get('notes') ?? '',
+    itemsJson: formData.get('itemsJson'),
+  };
+
+  const parsed = manualOrderSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(parsed.error.errors.map((e) => e.message).join('; '));
+  }
+
+  const {
+    tenantId,
+    customerName,
+    customerPhone,
+    customerEmail,
+    fulfillmentType,
+    dropoffAddress,
+    paymentMethod,
+    notes,
+    itemsJson,
+  } = parsed.data;
+
+  const { userId } = await requireTenant(tenantId);
+
+  let cartEntries: CartEntry[];
+  try {
+    cartEntries = JSON.parse(itemsJson) as CartEntry[];
+  } catch {
+    throw new Error('Format invalid pentru produse.');
+  }
+  if (!Array.isArray(cartEntries) || cartEntries.length === 0) {
+    throw new Error('Comanda trebuie să conțină cel puțin un produs.');
+  }
+
+  const admin = createAdminClient();
+
+  // Fetch live menu prices for the selected items — do NOT trust client totals.
+  const menuItemIds = cartEntries.map((e) => e.menuItemId);
+  const { data: menuRows, error: menuErr } = await admin
+    .from('restaurant_menu_items')
+    .select('id, name, price_ron')
+    .eq('tenant_id', tenantId)
+    .in('id', menuItemIds);
+  if (menuErr) throw friendlyDbError(menuErr, 'încărcarea prețurilor din meniu');
+
+  const priceById = new Map<string, { name: string; price_ron: number }>(
+    (menuRows ?? []).map((r) => [r.id as string, { name: r.name as string, price_ron: Number(r.price_ron) }]),
+  );
+
+  // Build line items and compute subtotal server-side.
+  const lineItems: Array<{ name: string; quantity: number; priceRon: number }> = [];
+  let subtotalRon = 0;
+  for (const entry of cartEntries) {
+    const row = priceById.get(entry.menuItemId);
+    if (!row) throw new Error(`Produsul cu id ${entry.menuItemId} nu a fost găsit în meniu.`);
+    const qty = Math.max(1, Math.floor(entry.qty));
+    lineItems.push({ name: row.name, quantity: qty, priceRon: row.price_ron });
+    subtotalRon += row.price_ron * qty;
+  }
+
+  // Manual phone orders: no delivery fee (patron enters a known local address;
+  // courier resolves distance visually). Can be extended in a future PR.
+  const deliveryFeeRon = 0;
+  const totalRon = subtotalRon + deliveryFeeRon;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  const { data: orderRow, error: orderErr } = await sb
+    .from('restaurant_orders')
+    .insert({
+      tenant_id: tenantId,
+      source: 'MANUAL_ADMIN',
+      status: 'PENDING',
+      customer_first_name: customerName,
+      customer_phone: customerPhone,
+      customer_email: customerEmail || null,
+      dropoff_address: fulfillmentType === 'DELIVERY' ? dropoffAddress || null : null,
+      fulfillment_type: fulfillmentType,
+      payment_method: paymentMethod,
+      payment_status: 'UNPAID',
+      subtotal_ron: subtotalRon,
+      delivery_fee_ron: deliveryFeeRon,
+      total_ron: totalRon,
+      items: lineItems,
+      notes: notes || null,
+    })
+    .select('id')
+    .single();
+  if (orderErr || !orderRow) throw friendlyDbError(orderErr ?? { message: 'unknown' }, 'crearea comenzii manuale');
+
+  const orderId = (orderRow as { id: string }).id;
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.manual_created',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: {
+      customerPhone,
+      fulfillmentType,
+      paymentMethod,
+      itemCount: lineItems.length,
+      totalRon,
+    },
+  });
+
+  await dispatchOrderEvent(tenantId, 'created', {
+    orderId,
+    source: 'MANUAL_ADMIN',
+    status: 'PENDING',
+    items: lineItems.map((i) => ({ name: i.name, qty: i.quantity, priceRon: i.priceRon })),
+    totals: { subtotalRon, deliveryFeeRon, totalRon },
+    customer: { firstName: customerName, phone: customerPhone },
+    dropoff:
+      fulfillmentType === 'DELIVERY' && dropoffAddress
+        ? { line1: dropoffAddress, city: '' }
+        : null,
+    notes: notes || null,
+  });
+
+  revalidatePath('/dashboard/orders');
+  redirect(`/dashboard/orders/${orderId}`);
 }

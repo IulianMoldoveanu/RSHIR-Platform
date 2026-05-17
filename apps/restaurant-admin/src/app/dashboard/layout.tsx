@@ -85,6 +85,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         ]),
     { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
     { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
+    { href: '/dashboard/orders/manual-entry', label: 'Comandă manuală' },
     { href: '/dashboard/orders/aggregator-inbox', label: 'Inbox preluare email' },
     { href: '/dashboard/menu', label: 'Meniu', icon: 'bookOpen' as const },
     {
