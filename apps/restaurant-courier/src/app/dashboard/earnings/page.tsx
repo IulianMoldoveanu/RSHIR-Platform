@@ -242,15 +242,19 @@ export default async function EarningsPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-lg font-semibold text-zinc-100">
-          <Wallet className="h-5 w-5 text-violet-400" aria-hidden />
-          Câștigurile tale
-        </h1>
-        <p className="mt-1 text-xs text-zinc-500">
-          Suma încasată din taxe de livrare, calculată din comenzile marcate ca livrate.
-        </p>
-      </div>
+      <header className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+          <Wallet className="h-5 w-5 text-violet-300" aria-hidden />
+        </span>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
+            Câștigurile tale
+          </h1>
+          <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+            Suma încasată din taxe de livrare, calculată din comenzile marcate ca livrate.
+          </p>
+        </div>
+      </header>
 
       {/* Hero "today" stat — the question every courier opens this page to
           answer is "what did I make today?". Get out of the way and put
@@ -337,7 +341,7 @@ export default async function EarningsPage() {
       />
 
       <section>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
           Ultimele livrări
         </h2>
         {recent.length === 0 ? (
@@ -345,12 +349,12 @@ export default async function EarningsPage() {
             <p className="text-sm font-medium text-hir-fg">
               Nu ai livrări înregistrate luna aceasta
             </p>
-            <p className="text-xs text-zinc-500">
+            <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
               Câștigurile apar aici imediat ce marchezi prima livrare.
             </p>
             <Link
               href="/dashboard"
-              className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15"
+              className="mt-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 transition-colors hover:border-violet-400 hover:bg-violet-500/15 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             >
               Pornește o tură
             </Link>
@@ -361,7 +365,7 @@ export default async function EarningsPage() {
               <li key={r.id}>
                 <Link
                   href={`/dashboard/orders/${r.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 hover:border-violet-500/40 active:scale-[0.99]"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-zinc-100">
@@ -372,10 +376,10 @@ export default async function EarningsPage() {
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold text-emerald-300">
+                    <p className="text-sm font-semibold tabular-nums text-emerald-300">
                       +{(Number(r.delivery_fee_ron) || 0).toFixed(2)} RON
                     </p>
-                    <p className="mt-0.5 text-[10px] text-zinc-500">
+                    <p className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
                       {new Date(r.updated_at).toLocaleString('ro-RO', {
                         day: '2-digit',
                         month: 'short',
