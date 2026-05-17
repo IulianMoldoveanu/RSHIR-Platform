@@ -49,7 +49,12 @@ export function AutoAcceptToggle() {
   return (
     <div className={cardClasses({ className: 'flex flex-col gap-3' })}>
       <div className="flex items-start gap-3">
-        <Zap className="mt-1 h-5 w-5 shrink-0 text-violet-400" aria-hidden />
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 ring-1 ring-violet-500/30"
+        >
+          <Zap className="h-4 w-4 text-violet-300" strokeWidth={2.25} />
+        </span>
         <div className="flex flex-1 flex-col gap-1">
           <label
             htmlFor={toggleId}
@@ -57,7 +62,7 @@ export function AutoAcceptToggle() {
           >
             Acceptare automată comenzi
           </label>
-          <p className="text-xs text-hir-muted-fg">
+          <p className="text-xs leading-relaxed text-hir-muted-fg">
             Acceptă automat comenzile compatibile cu modul tău curent, dacă
             punctul de preluare este în raza configurată mai jos. Poți
             dezactiva oricând.
@@ -68,15 +73,19 @@ export function AutoAcceptToggle() {
           type="checkbox"
           checked={enabled}
           onChange={(e) => onToggle(e.target.checked)}
-          className="mt-1 h-5 w-5 accent-hir-accent"
+          className="mt-1 h-5 w-5 cursor-pointer accent-violet-500 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         />
       </div>
 
       {enabled ? (
         <>
-          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-            <span>
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 ring-1 ring-inset ring-amber-500/20">
+            <AlertTriangle
+              className="mt-0.5 h-4 w-4 shrink-0 text-amber-300"
+              aria-hidden
+              strokeWidth={2.25}
+            />
+            <span className="leading-relaxed">
               Activ — comenzile compatibile se vor accepta singure. Verifică
               detaliile imediat după notificare.
             </span>
@@ -86,11 +95,11 @@ export function AutoAcceptToggle() {
             <div className="flex items-baseline justify-between">
               <label
                 htmlFor={sliderId}
-                className="text-xs font-medium text-hir-muted-fg"
+                className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
               >
-                Doar dacă punctul de preluare e la maxim
+                Maxim până la punctul de preluare
               </label>
-              <span className="text-sm font-semibold text-violet-300">
+              <span className="text-sm font-bold tabular-nums text-violet-200">
                 {radius} km
               </span>
             </div>
@@ -102,12 +111,12 @@ export function AutoAcceptToggle() {
               step={1}
               value={radius}
               onChange={(e) => onRadius(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer accent-hir-accent"
+              className="h-2 w-full cursor-pointer accent-violet-500 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
               aria-valuemin={MIN_RADIUS_KM}
               aria-valuemax={MAX_RADIUS_KM}
               aria-valuenow={radius}
             />
-            <div className="flex justify-between text-[10px] text-hir-muted-fg">
+            <div className="flex justify-between text-[11px] tabular-nums text-hir-muted-fg">
               <span>{MIN_RADIUS_KM} km</span>
               <span>{MAX_RADIUS_KM} km</span>
             </div>
