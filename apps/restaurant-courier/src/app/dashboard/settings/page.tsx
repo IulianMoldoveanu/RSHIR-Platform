@@ -16,6 +16,7 @@ import {
   Phone,
   Info,
   Receipt,
+  Settings,
   Shield,
   Stethoscope,
   User,
@@ -69,7 +70,17 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <h1 className="text-xl font-bold text-hir-fg">Setări</h1>
+      <header className="flex items-start gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
+          <Settings className="h-5 w-5 text-violet-300" aria-hidden />
+        </span>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Setări</h1>
+          <p className="mt-0.5 text-sm leading-relaxed text-hir-muted-fg">
+            Profil, vehicul, notificări și jurnal activitate.
+          </p>
+        </div>
+      </header>
 
       {/* ── Section 1: Profil + vehicul ─────────────────────────── */}
       <section aria-labelledby="section-profil">
