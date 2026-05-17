@@ -45,7 +45,7 @@ export function PharmaChecks({ orderId, pharmaMetadata, onAllSatisfied }: Props)
 
   return (
     <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-4">
-      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
         Verificări obligatorii
       </p>
 

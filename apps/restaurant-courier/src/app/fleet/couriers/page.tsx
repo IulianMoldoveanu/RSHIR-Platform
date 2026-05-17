@@ -219,7 +219,7 @@ export default async function FleetCouriersPage() {
                     </div>
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadge.tone}`}
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${statusBadge.tone}`}
                   >
                     {statusBadge.label}
                   </span>

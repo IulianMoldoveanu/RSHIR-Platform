@@ -171,13 +171,13 @@ export function OrderRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {slaBreached ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-red-300">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
                 SLA {ageMin}m
               </span>
             ) : null}
             {stalled ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
                 <AlertTriangle className="h-3 w-3" aria-hidden />
                 Curier blocat {stallMin}m
               </span>
@@ -200,7 +200,7 @@ export function OrderRow({
               </span>
             ) : null}
             {order.payment_method === 'COD' ? (
-              <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+              <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
                 Cash
               </span>
             ) : null}

@@ -208,7 +208,7 @@ function BadgeToast({ badge, onDismiss }: { badge: BadgeDef; onDismiss: () => vo
         <IconComp className="h-5 w-5 text-violet-400" aria-hidden />
       </span>
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-400">
           Realizare deblocată
         </p>
         <p className="mt-0.5 text-sm font-semibold text-zinc-100">{badge.label}</p>

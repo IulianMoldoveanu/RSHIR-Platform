@@ -195,7 +195,7 @@ export default async function FleetOrderDetailPage(
 
       {/* Timeline */}
       <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
-        <p className="mb-4 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Progres comandă
         </p>
         <ul className="grid grid-cols-4 gap-1 text-[10px] text-hir-muted-fg">
@@ -228,7 +228,7 @@ export default async function FleetOrderDetailPage(
 
       {/* Pickup */}
       <section className="rounded-2xl border border-violet-500/20 bg-hir-surface p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-400">
           Ridicare
         </p>
         <p className="mt-2 text-base font-semibold text-hir-fg">
@@ -249,7 +249,7 @@ export default async function FleetOrderDetailPage(
 
       {/* Dropoff */}
       <section className="rounded-2xl border border-emerald-500/20 bg-hir-surface p-5">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
           Livrare
         </p>
         <p className="mt-2 text-base font-semibold text-hir-fg">
@@ -283,7 +283,7 @@ export default async function FleetOrderDetailPage(
       {/* Items */}
       {items.length > 0 ? (
         <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
             <Package className="h-3 w-3" aria-hidden /> Produse
           </p>
           <ul className="space-y-1 text-sm text-hir-fg">
@@ -372,7 +372,7 @@ export default async function FleetOrderDetailPage(
 
       {deliveredProofSignedUrl ? (
         <section className="rounded-2xl border border-emerald-700/30 bg-hir-surface p-5">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
             Dovadă livrare
           </p>
           <a
