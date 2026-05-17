@@ -44,9 +44,14 @@ export function OfflineBanner() {
       // so it remains visible while the rider scrolls or interacts with
       // navigation controls without obscuring sheets/dialogs that need
       // the foreground.
-      className="sticky top-14 z-[1200] flex items-center justify-center gap-2 border-b border-amber-500/30 bg-amber-500/15 px-3 py-1.5 text-[11px] font-semibold text-amber-200 backdrop-blur"
+      className="sticky top-14 z-[1200] flex items-center justify-center gap-2 border-b border-amber-500/40 bg-amber-500/15 px-3 py-2 text-[11px] font-semibold text-amber-100 shadow-sm shadow-amber-500/20 backdrop-blur"
     >
-      <WifiOff className="h-3.5 w-3.5" aria-hidden />
+      <span
+        aria-hidden
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40"
+      >
+        <WifiOff className="h-3.5 w-3.5 text-amber-200" strokeWidth={2.25} />
+      </span>
       <span>
         Conexiune pierdută — comenzile vor fi sincronizate când reapare semnalul.
       </span>

@@ -73,18 +73,18 @@ export async function EarningsBar() {
 
   return (
     <div
-      className="flex items-center gap-2 rounded-full border border-hir-border bg-hir-surface/80 px-3 py-1 text-[11px]"
+      className="flex items-center gap-2 rounded-full border border-hir-border bg-hir-surface/80 px-3 py-1.5 text-[11px] backdrop-blur ring-1 ring-inset ring-hir-border/40"
       aria-label="Sumar tură curentă"
     >
       <span
         className={
           isOnline
-            ? 'inline-flex items-center gap-1 text-emerald-400'
-            : 'inline-flex items-center gap-1 text-hir-muted-fg'
+            ? 'inline-flex items-center gap-1 font-medium text-emerald-300'
+            : 'inline-flex items-center gap-1 font-medium text-hir-muted-fg'
         }
       >
         <span
-          className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+          className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-zinc-600'}`}
           aria-hidden
         />
         {isOnline ? 'Online' : 'Offline'}
@@ -94,9 +94,16 @@ export async function EarningsBar() {
       {gapToAvg > 0 ? (
         <>
           <span className="h-3 w-px bg-hir-border" aria-hidden />
-          <span className="flex items-center gap-1 text-zinc-500" aria-label={`${gapToAvg.toFixed(2)} RON mai mult pentru target zilnic`}>
-            <Target className="h-3 w-3 shrink-0" aria-hidden />
-            <span>{gapToAvg.toFixed(2)} mai mult pt. target</span>
+          <span
+            className="flex items-center gap-1 tabular-nums text-hir-muted-fg"
+            aria-label={`${gapToAvg.toFixed(2)} RON mai mult pentru target zilnic`}
+          >
+            <Target
+              className="h-3 w-3 shrink-0 text-amber-300"
+              aria-hidden
+              strokeWidth={2.25}
+            />
+            <span>{gapToAvg.toFixed(2)} pt. target</span>
           </span>
         </>
       ) : null}
