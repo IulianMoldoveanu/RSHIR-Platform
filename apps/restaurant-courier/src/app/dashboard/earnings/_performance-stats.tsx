@@ -75,31 +75,31 @@ export function PerformanceStats({ rows, allAssignedRows }: Props) {
     <section aria-labelledby="perf-stats-heading">
       <h2
         id="perf-stats-heading"
-        className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500"
+        className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
       >
-        Performanță — ultimele 30 de zile
+        Performanță · ultimele 30 de zile
       </h2>
       <div className="grid grid-cols-2 gap-2">
         <StatTile
-          icon={<CheckCircle className="h-4 w-4 text-emerald-400" aria-hidden />}
+          icon={<CheckCircle className="h-4 w-4 text-emerald-300" aria-hidden strokeWidth={2.25} />}
           label="Rată finalizare"
           value={acceptRate !== null ? `${acceptRate.toFixed(0)}%` : '—'}
           sub={`din ${allAssignedRows.filter((r) => ['DELIVERED', 'CANCELLED', 'FAILED'].includes(r.status)).length} alocate`}
         />
         <StatTile
-          icon={<Clock className="h-4 w-4 text-violet-400" aria-hidden />}
+          icon={<Clock className="h-4 w-4 text-violet-300" aria-hidden strokeWidth={2.25} />}
           label="Timp mediu livrare"
           value={avgMinutes !== null ? `${avgMinutes} min` : '—'}
           sub="de la creare la livrat"
         />
         <StatTile
-          icon={<MapPin className="h-4 w-4 text-sky-400" aria-hidden />}
+          icon={<MapPin className="h-4 w-4 text-sky-300" aria-hidden strokeWidth={2.25} />}
           label="Kilometri parcurși"
           value={`${totalKm.toFixed(1)} km`}
           sub="distanță directă estimată"
         />
         <StatTile
-          icon={<TrendingUp className="h-4 w-4 text-amber-400" aria-hidden />}
+          icon={<TrendingUp className="h-4 w-4 text-amber-300" aria-hidden strokeWidth={2.25} />}
           label="Livrări totale"
           value={String(deliveredCount)}
           sub="în ultimele 30 de zile"
@@ -121,15 +121,15 @@ function StatTile({
   sub: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4">
+    <div className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 transition-shadow hover:shadow-md">
       <div className="flex items-center gap-1.5">
         {icon}
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           {label}
         </span>
       </div>
       <p className="text-2xl font-bold leading-none text-zinc-100 tabular-nums">{value}</p>
-      <p className="text-[10px] text-zinc-500">{sub}</p>
+      <p className="text-[11px] text-hir-muted-fg">{sub}</p>
     </div>
   );
 }
