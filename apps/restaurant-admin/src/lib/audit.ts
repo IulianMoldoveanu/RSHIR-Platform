@@ -145,7 +145,9 @@ export type AuditAction =
   | 'tenant.integration_mode_set'
   | 'upsell.suggestions_returned'
   | 'customer.reactivation_contacted'
-  | 'demand_forecast.refreshed';
+  | 'demand_forecast.refreshed'
+  | 'voice.order_extracted'
+  | 'order.voice_created';
 
 export async function logAudit(args: {
   tenantId: string;

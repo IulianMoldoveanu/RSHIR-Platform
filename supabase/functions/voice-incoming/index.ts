@@ -1,6 +1,8 @@
 // Lane VOICE-CHANNEL-TWILIO-SKELETON — Edge Function `voice-incoming`.
 //
-// Sprint 12 skeleton. End-to-end happy path:
+// Sprint 12 skeleton + Voice AI order extraction (feat/voice-ai-handler).
+//
+// End-to-end happy path:
 //   1. Twilio POSTs the voice webhook here when a tenant's phone number
 //      receives a call. Application/x-www-form-urlencoded body per the
 //      Twilio Voice API docs.
@@ -31,7 +33,7 @@
 //
 // CRITICAL: Twilio voice webhooks have a hard 15-second response limit
 // (https://www.twilio.com/docs/usage/webhooks/webhooks-connection-overrides).
-// Whisper transcription on a 30–60s caller recording can take 5–30s,
+// Whisper transcription on a 30-60s caller recording can take 5-30s,
 // blowing the budget. Pattern: return TwiML IMMEDIATELY and offload the
 // heavy work (download recording, Whisper, dispatch, persist) to
 // `EdgeRuntime.waitUntil` so it runs after the response is sent. The
@@ -115,15 +117,21 @@ export async function validateTwilioSignature(opts: {
   return diff === 0;
 }
 
-// Coarse intent matcher — keyword-based, RO-only V1. The future Sprint 14
-// upgrade is to hand the full transcript to Sonnet 4.5 and ask it to pick
-// from the registered intents. Skeleton stays cheap + deterministic.
+// Coarse intent matcher — keyword-based, RO-only V1.
+//
+// ops.order_create is checked BEFORE the generic comanda/livrare pattern so
+// that explicit order requests route to order creation rather than the
+// read-only active-orders query.
 export function matchIntent(transcript: string): string | null {
   const t = transcript.toLowerCase();
-  if (/rezerv(are|ă|a)|masă|mese/.test(t)) return 'cs.reservation_create';
-  if (/comand(ă|a|are|ă)|comanzi|livrare/.test(t)) return 'ops.orders_now';
-  if (/program|deschis|închis|orar/.test(t)) return 'ops.weather_today';
-  if (/meniu|preț|prețuri|specialit/.test(t)) return 'menu.description_update';
+  if (/rezerv(are|a)|masa|mese/.test(t)) return 'cs.reservation_create';
+  // Explicit "I want to place an order" phrases — route to AI order creation.
+  if (/vreau sa comand|doresc sa comand|as vrea sa comand|comanda noua/.test(t)) {
+    return 'ops.order_create';
+  }
+  if (/comand(a|are)|comanzi|livrare/.test(t)) return 'ops.order_create';
+  if (/program|deschis|inchis|orar/.test(t)) return 'ops.weather_today';
+  if (/meniu|pret|preturi|specialit/.test(t)) return 'menu.description_update';
   return null;
 }
 
@@ -171,6 +179,106 @@ async function transcribeAudio(opts: {
   };
 }
 
+// -------- Claude order parser --------
+
+export type ParsedOrderItem = {
+  item_id: string;
+  qty: number;
+};
+
+export type ParsedOrder = {
+  items: ParsedOrderItem[];
+  customer_name: string | null;
+  customer_phone: string | null;
+  delivery_address: string | null;
+  notes: string | null;
+  confidence: number;
+  reason?: string;
+};
+
+type MenuItemContext = {
+  id: string;
+  name: string;
+  price_ron: number;
+};
+
+// Exported so the Next.js admin test suite can unit-test the prompt shape
+// without pulling in Deno dependencies.
+export function buildOrderParsePrompt(transcript: string, menuItems: MenuItemContext[]): string {
+  return `Restaurant menu items (JSON): ${JSON.stringify(menuItems)}
+Customer transcript: "${transcript}"
+
+Extract structured order. Return JSON only:
+{
+  "items": [{ "item_id": "uuid", "qty": 2 }],
+  "customer_name": "string or null",
+  "customer_phone": "string or null",
+  "delivery_address": "string or null",
+  "notes": "string or null",
+  "confidence": 0.0
+}
+
+Match item names from the transcript to the closest menu item by name. Use the item's id field.
+If you cannot extract a valid order (confidence < 0.7), return {"confidence": 0, "reason": "..."}.
+Return only the JSON object with no prose or markdown.`;
+}
+
+// Estimate claude-haiku-4-5 cost: $0.80/MTok input, $4.00/MTok output.
+// Returns cost in cents (integer, smallest measurable unit).
+function estimateHaikuCostCents(inputTokens: number, outputTokens: number): number {
+  return Math.round((inputTokens / 1_000_000) * 80 + (outputTokens / 1_000_000) * 400);
+}
+
+async function parseOrderWithClaude(opts: {
+  transcript: string;
+  menuItems: MenuItemContext[];
+  anthropicKey: string;
+}): Promise<{ order: ParsedOrder; costCents: number }> {
+  const prompt = buildOrderParsePrompt(opts.transcript, opts.menuItems);
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': opts.anthropicKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      max_tokens: 512,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`claude_${res.status}: ${detail.slice(0, 200)}`);
+  }
+
+  const body = (await res.json()) as {
+    content?: Array<{ type: string; text?: string }>;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+
+  const textBlock = (body.content ?? []).find((b) => b.type === 'text');
+  if (!textBlock?.text) throw new Error('claude_no_text');
+
+  // Strip optional markdown code fences Claude sometimes adds.
+  const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`claude_json_parse: ${raw.slice(0, 100)}`);
+  }
+
+  const inputTokens = body.usage?.input_tokens ?? 0;
+  const outputTokens = body.usage?.output_tokens ?? 0;
+  const costCents = estimateHaikuCostCents(inputTokens, outputTokens);
+
+  return { order: parsed as ParsedOrder, costCents };
+}
+
 // -------- Master Orchestrator dispatch --------
 
 // Light import: shared module re-exports `dispatchIntent`. We keep the
@@ -199,9 +307,10 @@ async function dispatchToOrchestrator(opts: {
     };
   }
   return {
-    summary: typeof (result as { data?: unknown }).data === 'string'
-      ? ((result as { data: string }).data)
-      : 'Cererea dumneavoastră a fost înregistrată.',
+    summary:
+      typeof (result as { data?: unknown }).data === 'string'
+        ? (result as { data: string }).data
+        : 'Cererea dumneavoastra a fost inregistrata.',
     data: result.data,
   };
 }
@@ -242,14 +351,14 @@ async function readVaultSecret(supabase: any, name: string): Promise<string | nu
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') {
-    return twimlReject('Metodă nepermisă.');
+    return twimlReject('Metoda nepermisa.');
   }
 
   return withRunLog('voice-incoming', async ({ setMetadata }) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!SUPABASE_URL || !SERVICE_KEY) {
-      return twimlReject('Serviciul nu este configurat. Sunați mai târziu.');
+      return twimlReject('Serviciul nu este configurat. Sunati mai tarziu.');
     }
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -264,7 +373,7 @@ Deno.serve(async (req: Request) => {
     const recordingDuration = params.get('RecordingDuration');
 
     if (!callSid || !toNumber) {
-      return twimlReject('Cerere invalidă.');
+      return twimlReject('Cerere invalida.');
     }
 
     setMetadata({
@@ -277,19 +386,14 @@ Deno.serve(async (req: Request) => {
     // Look up tenant by inbound phone number.
     const tenant = await findTenantByPhoneNumber(supabase, toNumber);
     if (!tenant) {
-      return twimlReject(
-        'Numărul nu este configurat. Vă rugăm verificați și sunați din nou.',
-      );
+      return twimlReject('Numarul nu este configurat. Va rugam verificati si sunati din nou.');
     }
     setMetadata({ tenant_id: tenant.id });
 
     // Read vault secrets.
-    const authToken = await readVaultSecret(
-      supabase,
-      `voice_twilio_auth_${tenant.id}`,
-    );
+    const authToken = await readVaultSecret(supabase, `voice_twilio_auth_${tenant.id}`);
     if (!authToken) {
-      return twimlReject('Configurația vocală incompletă. Anunțați restaurantul.');
+      return twimlReject('Configuratia vocala incompleta. Anuntati restaurantul.');
     }
 
     // Verify Twilio signature on EVERY request (initial + recording-finished).
@@ -310,13 +414,15 @@ Deno.serve(async (req: Request) => {
       return new Response('forbidden', { status: 403 });
     }
 
-    // Read the tenant's voice settings (greeting copy).
+    // Read the tenant's voice settings (greeting copy + enabled flag).
     const settings = (tenant.settings ?? {}) as Record<string, unknown>;
     const voiceSettings = (settings.voice ?? {}) as Record<string, unknown>;
+    // FEATURE FLAG: voice AI is off by default. Must be explicitly set to true.
+    const voiceEnabled = voiceSettings.enabled === true;
     const greeting =
       typeof voiceSettings.greeting === 'string' && voiceSettings.greeting.trim().length > 0
         ? voiceSettings.greeting
-        : 'Bună ziua, ați sunat la restaurant. Vă rog spuneți pe scurt cum vă putem ajuta.';
+        : 'Buna ziua, ati sunat la restaurant. Va rog spuneti pe scurt cum va putem ajuta.';
 
     // -------- INITIAL stage: record the caller, then re-call us --------
     if (!recordingUrl) {
@@ -354,7 +460,7 @@ Deno.serve(async (req: Request) => {
 
     const accountSid = String(voiceSettings.twilio_account_sid ?? '');
     const ackResponse =
-      'Mulțumim pentru mesaj. Cineva de la restaurant vă va contacta în scurt timp.';
+      'Multumim pentru mesaj. Cineva de la restaurant va va contacta in scurt timp.';
     const responseSafe = escapeXml(ackResponse);
     const twimlResponse = twiml(
       `<Say voice="Polly.Carmen" language="ro-RO">${responseSafe}</Say><Hangup/>`,
@@ -375,6 +481,7 @@ Deno.serve(async (req: Request) => {
           : null,
         accountSid,
         authToken,
+        voiceEnabled,
       }),
     );
 
@@ -388,15 +495,15 @@ Deno.serve(async (req: Request) => {
 
 // -------- Async post-processing (runs after TwiML is returned) --------
 //
-// Three outcomes recorded on the voice_calls row:
-//   - status='processed' + transcript + intent + response: orchestrator
-//     handler accepted the dispatch.
+// Four outcomes recorded on the voice_calls row:
+//   - status='processed' + intent='ops.order_create' + metadata.linked_order_id:
+//     voice order was extracted with confidence >= 0.7 and inserted as PENDING.
+//     Operator approves or rejects from /dashboard/voice.
+//   - status='processed' + transcript + intent + response: another
+//     orchestrator handler accepted the dispatch.
 //   - status='processed' + transcript but no intent: free-text message,
 //     no handler matched. The operator reads the transcript manually.
-//     This is the COMMON case at skeleton stage.
-//   - status='failed' + metadata.errors: one of the upstream calls
-//     (Twilio recording fetch, Whisper, dispatcher) threw. Operator
-//     sees the error in the call-log UI.
+//   - status='failed' + metadata.errors: one of the upstream calls threw.
 
 type ProcessRecordingArgs = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -409,6 +516,8 @@ type ProcessRecordingArgs = {
   recordingDurationSeconds: number | null;
   accountSid: string;
   authToken: string;
+  // Whether tenant.settings.voice.enabled is true. The feature flag gate.
+  voiceEnabled: boolean;
 };
 
 async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> {
@@ -418,6 +527,7 @@ async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> 
   let intent: string | null = null;
   let response: string | null = null;
   let finalStatus: 'processed' | 'failed' = 'processed';
+  let callMetadata: Record<string, unknown> = {};
 
   // OpenAI key is OPTIONAL — without it, we still record the call but
   // skip transcription. The admin UI will surface the recording URL so
@@ -443,7 +553,118 @@ async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> 
       transcript = t.text;
       if (t.durationSeconds !== null) durationSeconds = t.durationSeconds;
       intent = matchIntent(transcript);
-      if (intent) {
+
+      if (intent === 'ops.order_create') {
+        // ---- Voice AI order extraction path ----
+        // CRITICAL: gated on voice.enabled. Default is OFF per spec.
+        if (!args.voiceEnabled) {
+          errorTrace.push('voice_ai_disabled_for_tenant');
+          intent = null;
+        } else {
+          const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') ?? null;
+          if (!anthropicKey) {
+            errorTrace.push('anthropic_key_missing');
+            intent = null;
+          } else {
+            // Fetch available menu items for Claude context (max 100).
+            const { data: menuRows } = await args.supabase
+              .from('restaurant_menu_items')
+              .select('id, name, price_ron')
+              .eq('tenant_id', args.tenantId)
+              .eq('is_available', true)
+              .limit(100);
+            const menuItems = (menuRows ?? []) as MenuItemContext[];
+
+            const { order: parsedOrder, costCents } = await parseOrderWithClaude({
+              transcript,
+              menuItems,
+              anthropicKey,
+            });
+
+            callMetadata = {
+              extracted_order: parsedOrder,
+              claude_cost_cents: costCents,
+            };
+
+            if (
+              parsedOrder.confidence >= 0.7 &&
+              Array.isArray(parsedOrder.items) &&
+              parsedOrder.items.length > 0
+            ) {
+              const validItems = parsedOrder.items.filter(
+                (i: ParsedOrderItem) =>
+                  typeof i.item_id === 'string' &&
+                  i.item_id.length > 0 &&
+                  typeof i.qty === 'number' &&
+                  i.qty > 0,
+              );
+
+              if (validItems.length > 0) {
+                // Build line-item snapshot and compute totals.
+                const menuById = new Map(menuItems.map((m) => [m.id, m]));
+                const lineItems = validItems.map((i: ParsedOrderItem) => {
+                  const item = menuById.get(i.item_id);
+                  return {
+                    item_id: i.item_id,
+                    name: item?.name ?? 'Produs necunoscut',
+                    qty: i.qty,
+                    unit_price_ron: item?.price_ron ?? 0,
+                    total_ron: (item?.price_ron ?? 0) * i.qty,
+                  };
+                });
+                const subtotalRon = lineItems.reduce(
+                  (sum: number, li: { total_ron: number }) => sum + li.total_ron,
+                  0,
+                );
+
+                const noteParts = [
+                  parsedOrder.customer_name ? `Client: ${parsedOrder.customer_name}` : null,
+                  parsedOrder.customer_phone ? `Tel: ${parsedOrder.customer_phone}` : null,
+                  parsedOrder.delivery_address
+                    ? `Adresa: ${parsedOrder.delivery_address}`
+                    : null,
+                  parsedOrder.notes ?? null,
+                ].filter(Boolean);
+
+                const { data: orderRow, error: orderErr } = await args.supabase
+                  .from('restaurant_orders')
+                  .insert({
+                    tenant_id: args.tenantId,
+                    items: lineItems,
+                    subtotal_ron: subtotalRon,
+                    delivery_fee_ron: 0,
+                    total_ron: subtotalRon,
+                    status: 'PENDING',
+                    payment_status: 'UNPAID',
+                    source: 'VOICE',
+                    notes: noteParts.length > 0 ? noteParts.join(' | ') : null,
+                  })
+                  .select('id')
+                  .maybeSingle();
+
+                if (orderErr) {
+                  errorTrace.push(`order_insert_failed: ${orderErr.message}`);
+                } else if (orderRow?.id) {
+                  callMetadata = {
+                    ...callMetadata,
+                    linked_order_id: orderRow.id,
+                  };
+                  response = `Comanda inregistrata (${validItems.length} produs${validItems.length === 1 ? '' : 'e'}). Un operator va confirma in scurt timp.`;
+                }
+              } else {
+                errorTrace.push('no_valid_items_after_filter');
+              }
+            } else {
+              // Confidence < 0.7 — operator reviews the transcript manually.
+              const reason =
+                typeof parsedOrder.reason === 'string' ? parsedOrder.reason : 'low_confidence';
+              errorTrace.push(`order_extraction_low_confidence: ${reason}`);
+              response = 'Am notat. Verificati comanda in dashboard in cateva minute.';
+            }
+          }
+        }
+      } else if (intent) {
+        // ---- Other intents: route through Master Orchestrator ----
         const dispatchResult = await dispatchToOrchestrator({
           supabase: args.supabase,
           tenantId: args.tenantId,
@@ -480,6 +701,11 @@ async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> 
     }
   }
 
+  const finalMetadata: Record<string, unknown> = {
+    ...callMetadata,
+    ...(errorTrace.length > 0 ? { errors: errorTrace } : {}),
+  };
+
   await args.supabase.from('voice_calls').upsert(
     {
       tenant_id: args.tenantId,
@@ -491,7 +717,7 @@ async function processRecordingAsync(args: ProcessRecordingArgs): Promise<void> 
       response,
       duration_seconds: durationSeconds,
       status: finalStatus,
-      metadata: errorTrace.length > 0 ? { errors: errorTrace } : null,
+      metadata: Object.keys(finalMetadata).length > 0 ? finalMetadata : null,
     },
     { onConflict: 'twilio_call_sid' },
   );
