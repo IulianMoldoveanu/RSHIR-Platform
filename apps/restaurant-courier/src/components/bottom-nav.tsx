@@ -67,17 +67,21 @@ export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
                   )
                 ) : null}
                 <span className="relative">
-                  <item.Icon className="h-5 w-5" aria-hidden />
+                  <item.Icon
+                    className="h-5 w-5"
+                    aria-hidden
+                    strokeWidth={isActive ? 2.5 : 2.25}
+                  />
                   {badgeCount > 0 ? (
                     <span
-                      className="absolute -right-2 -top-1 flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[9px] font-bold text-white"
+                      className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold tabular-nums text-white shadow-md shadow-violet-500/40 ring-2 ring-hir-bg"
                       aria-label={`${badgeCount} comenzi disponibile`}
                     >
                       {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                   ) : null}
                 </span>
-                <span>{item.label}</span>
+                <span className={isActive ? 'font-semibold' : undefined}>{item.label}</span>
               </Link>
             </li>
           );
