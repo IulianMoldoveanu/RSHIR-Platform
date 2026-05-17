@@ -92,7 +92,7 @@ function fmtEur(n: number): string {
   return n.toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-export default function PublicCalculatorPage() {
+export default function CalculatorClient() {
   const [myRest, setMyRest] = useState(5);
   const [mySubs, setMySubs] = useState(2);
   const [avgRest, setAvgRest] = useState(3);

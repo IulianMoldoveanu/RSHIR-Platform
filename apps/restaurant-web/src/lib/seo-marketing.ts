@@ -30,6 +30,12 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   // landing with revenue calculator + FAQ. Funnels into
   // /parteneriat/inscriere for the actual signup.
   { path: '/parteneri', priority: 0.7 },
+  // Reseller v3 surfaces (2026-05-17) — main landing + public earnings
+  // simulator + public leaderboard. All three carry their own metadata
+  // exports; sitemap entry ensures they're discoverable by crawlers.
+  { path: '/parteneriat', priority: 0.8 },
+  { path: '/parteneriat/calculator', priority: 0.7 },
+  { path: '/parteneriat/leaderboard', priority: 0.6 },
   { path: '/parteneriat/inscriere', priority: 0.7 },
   { path: '/contact', priority: 0.4 },
   // Lane SITE-COPY-V2 (2026-05-10) — /press + /status removed from sitemap
