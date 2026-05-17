@@ -57,9 +57,12 @@ export async function ActiveOrdersPanel({ tenantId }: { tenantId: string }) {
         <h2 className="text-sm font-semibold text-zinc-700">Comenzi active</h2>
         <Link
           href="/dashboard/orders"
-          className="text-xs font-medium text-purple-700 hover:text-purple-900"
+          className="group inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-xs font-medium text-purple-700 transition-colors hover:text-purple-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
         >
-          Vezi toate →
+          Vezi toate
+          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
+            →
+          </span>
         </Link>
       </div>
       {rows.length === 0 ? (
@@ -79,16 +82,16 @@ export async function ActiveOrdersPanel({ tenantId }: { tenantId: string }) {
               <li key={o.id}>
                 <Link
                   href={`/dashboard/orders/${o.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-zinc-50"
+                  className="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-indigo-500 focus-visible:-outline-offset-2"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     {stalePending && (
                       <span
                         aria-label="În așteptare de >5 minute"
-                        className="h-2 w-2 flex-none rounded-full bg-rose-500"
+                        className="h-2 w-2 flex-none rounded-full bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.6)]"
                       />
                     )}
-                    <span className="font-mono text-xs text-zinc-500">
+                    <span className="font-mono text-xs tabular-nums text-zinc-500">
                       #{o.id.slice(0, 8)}
                     </span>
                     <span className="truncate font-medium text-zinc-800">{customerName}</span>
