@@ -219,7 +219,7 @@ function TrackInner({
       {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
         <a
           href={`tel:${order.tenant.phone}`}
-          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
+          className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
         >
           {t(locale, 'track.call_restaurant_template', { phone: order.tenant.phone })}
         </a>
@@ -478,7 +478,7 @@ function ReorderRail({
       </p>
       <a
         href={url}
-        className="mt-3 inline-flex h-11 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-800"
+        className="mt-3 inline-flex h-11 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
       >
         {t(locale, 'track.reorder_cta')}
       </a>
@@ -679,7 +679,7 @@ function Timeline({
                       <path d="M10.28 3.22a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06l1.47 1.47 3.97-3.97a.75.75 0 0 1 1.06 0Z" />
                     </svg>
                   ) : current ? (
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600" />
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.6)]" />
                   ) : null}
                 </span>
                 <span
@@ -792,7 +792,7 @@ function ReviewWidget({
         type="button"
         onClick={submit}
         disabled={rating < 1 || submitting}
-        className="mt-3 inline-flex h-12 items-center justify-center rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-50"
+        className="mt-3 inline-flex h-12 items-center justify-center rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
       >
         {submitting ? t(locale, 'track.review_submitting') : t(locale, 'track.review_submit')}
       </button>
@@ -986,7 +986,7 @@ function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: str
             type="button"
             onClick={handleSubscribe}
             disabled={busy}
-            className="mt-3 inline-flex h-10 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-50"
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
           >
             {busy ? 'Se activează…' : 'Activează notificări'}
           </button>
