@@ -243,14 +243,14 @@ export default async function EarningsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-          <Wallet className="h-5 w-5 text-violet-300" aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+          <Wallet className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
         </span>
         <div>
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
             Câștigurile tale
           </h1>
-          <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+          <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">
             Suma încasată din taxe de livrare, calculată din comenzile marcate ca livrate.
           </p>
         </div>
@@ -275,7 +275,7 @@ export default async function EarningsPage() {
           </span>
           <span className="text-base font-semibold text-violet-300/80">RON</span>
         </p>
-        <p className="mt-2 text-xs text-zinc-400">
+        <p className="mt-2 text-xs text-hir-muted-fg">
           {today.count === 0
             ? 'Nicio livrare încă'
             : `${today.count} ${today.count === 1 ? 'livrare' : 'livrări'}`}
@@ -294,29 +294,29 @@ export default async function EarningsPage() {
           commission is 0 today, so the courier trusts the number rather than
           wondering what's deducted. When per-courier commission lands later,
           the row populates without UI changes. */}
-      <section className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4 ring-1 ring-inset ring-hir-border/40">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Cum calculăm câștigul de azi
         </p>
         <div className="space-y-1.5 text-sm tabular-nums">
           <div className="flex items-center justify-between text-hir-fg">
             <span>Brut (taxe livrare)</span>
-            <span className="font-medium text-zinc-100">
+            <span className="font-medium text-hir-fg">
               {today.earnings.toFixed(2)} RON
             </span>
           </div>
-          <div className="flex items-center justify-between text-zinc-500">
+          <div className="flex items-center justify-between text-hir-muted-fg">
             <span>− Comision HIR</span>
             <span className="font-medium">0,00 RON</span>
           </div>
-          <div className="flex items-center justify-between border-t border-zinc-800 pt-1.5 text-zinc-100">
+          <div className="flex items-center justify-between border-t border-hir-border/60 pt-1.5 text-hir-fg">
             <span className="font-semibold">= Net</span>
-            <span className="font-semibold text-emerald-300">
+            <span className="font-semibold text-emerald-200">
               {today.earnings.toFixed(2)} RON
             </span>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-zinc-500">
+        <p className="mt-2 text-[11px] leading-relaxed text-hir-muted-fg">
           Astăzi tot brutul e net. Pe viitor un mic comision platformă va fi
           dedus aici, mereu vizibil înainte de plată.
         </p>
@@ -341,20 +341,20 @@ export default async function EarningsPage() {
       />
 
       <section>
-        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Ultimele livrări
         </h2>
         {recent.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 px-6 py-8 text-center">
-            <p className="text-sm font-medium text-hir-fg">
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center ring-1 ring-inset ring-hir-border/40">
+            <p className="text-sm font-semibold text-hir-fg">
               Nu ai livrări înregistrate luna aceasta
             </p>
-            <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
+            <p className="max-w-xs text-xs leading-relaxed text-hir-muted-fg">
               Câștigurile apar aici imediat ce marchezi prima livrare.
             </p>
             <Link
               href="/dashboard"
-              className="mt-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 transition-colors hover:border-violet-400 hover:bg-violet-500/15 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+              className="mt-2 inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 shadow-sm shadow-violet-500/20 transition-all hover:-translate-y-px hover:border-violet-400 hover:bg-violet-500/15 hover:shadow-md hover:shadow-violet-500/30 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             >
               Pornește o tură
             </Link>
@@ -365,21 +365,21 @@ export default async function EarningsPage() {
               <li key={r.id}>
                 <Link
                   href={`/dashboard/orders/${r.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                  className="group flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 transition-all hover:-translate-y-px hover:border-violet-500/40 hover:bg-hir-border/40 hover:shadow-md hover:shadow-violet-500/10 active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-zinc-100">
+                    <p className="truncate text-sm font-semibold text-hir-fg">
                       {r.customer_first_name ?? 'Client'}
                     </p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
+                    <p className="mt-0.5 truncate text-xs text-hir-muted-fg">
                       {r.dropoff_line1 ?? '—'}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-semibold tabular-nums text-emerald-300">
+                    <p className="text-sm font-semibold tabular-nums text-emerald-200">
                       +{(Number(r.delivery_fee_ron) || 0).toFixed(2)} RON
                     </p>
-                    <p className="mt-0.5 text-[11px] tabular-nums text-zinc-500">
+                    <p className="mt-0.5 text-[11px] tabular-nums text-hir-muted-fg">
                       {new Date(r.updated_at).toLocaleString('ro-RO', {
                         day: '2-digit',
                         month: 'short',
@@ -413,17 +413,17 @@ function StatCard({
   count: number;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+    <div className="rounded-2xl border border-hir-border bg-hir-surface p-4 ring-1 ring-inset ring-hir-border/40 transition-all hover:-translate-y-px hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/10">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
       </p>
       <p className="mt-1.5 flex items-baseline gap-1.5">
-        <span className="text-xl font-bold tabular-nums text-zinc-100">
+        <span className="text-xl font-bold tabular-nums text-hir-fg">
           {earnings.toFixed(2)}
         </span>
-        <span className="text-xs text-zinc-500">RON</span>
+        <span className="text-xs text-hir-muted-fg">RON</span>
       </p>
-      <p className="mt-1 text-[11px] text-zinc-500">
+      <p className="mt-1 text-[11px] tabular-nums text-hir-muted-fg">
         {count} {count === 1 ? 'livrare' : 'livrări'}
       </p>
     </div>
