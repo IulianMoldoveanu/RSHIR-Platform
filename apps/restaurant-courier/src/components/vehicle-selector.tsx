@@ -79,10 +79,10 @@ export function VehicleSelector({
               key={opt.value}
               onClick={() => pick(opt.value)}
               aria-pressed={isSelected}
-              className={`relative flex flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-medium transition ${
+              className={`relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-3 text-xs font-medium transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                 isSelected
-                  ? 'border-violet-500 bg-violet-500/15 text-violet-100 shadow-[0_0_0_3px_rgba(139,92,246,0.18)]'
-                  : 'border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-zinc-700'
+                  ? 'border-violet-500/70 bg-violet-500/15 text-violet-100 shadow-lg shadow-violet-500/15'
+                  : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:border-violet-500/30 hover:bg-hir-border/50 hover:text-hir-fg'
               }`}
             >
               <VehicleIcon type={opt.value} size={56} />
@@ -90,9 +90,9 @@ export function VehicleSelector({
               {isSelected && isCommitted && !pending ? (
                 <span
                   aria-hidden
-                  className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-white"
+                  className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-500 text-white shadow-md shadow-violet-500/40"
                 >
-                  <Check className="h-3 w-3" />
+                  <Check className="h-3 w-3" strokeWidth={3} />
                 </span>
               ) : null}
               {isSelected && pending ? (
@@ -107,7 +107,7 @@ export function VehicleSelector({
           );
         })}
       </div>
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-[11px] text-hir-muted-fg">
         Vehiculul ales apare ca marker pe hartă.
       </p>
       {error ? <p className="text-[11px] text-rose-400">{error}</p> : null}
