@@ -36,6 +36,7 @@ const DEFAULT_DRAFT: WizardDraft = {
   menu: { source: null },
   delivery: { tier: null },
   payment: { cod_enabled: true },
+  integration: { mode: null, rawKey: null },
 };
 
 export default async function OnboardingWizardPage() {
@@ -126,7 +127,7 @@ export default async function OnboardingWizardPage() {
           Asistent de configurare
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
-          {tenant.name} · 6 pași până la prima comandă
+          {tenant.name} · 7 pași până la prima comandă
         </h1>
         <p className="text-sm text-zinc-600">
           Răspunzi la fiecare pas, salvăm automat. Poți închide tabul oricând —

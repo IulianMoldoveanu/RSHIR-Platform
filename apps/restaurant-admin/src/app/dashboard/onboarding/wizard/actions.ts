@@ -46,6 +46,14 @@ export type WizardDraft = {
   payment: {
     cod_enabled: boolean;
   };
+  // Lane ONBOARD-OWN-WEBSITE: persists the chosen integration mode and, once
+  // the sandbox key is generated, stores the raw key for the final step display.
+  // The raw key is deliberately kept in the client draft only — it is never
+  // re-read from the server (show-once semantics).
+  integration: {
+    mode: 'storefront_only' | 'embed_widget' | 'api_only' | 'embed_or_api' | null;
+    rawKey: string | null;
+  };
 };
 
 export type WizardActionResult =
@@ -116,7 +124,7 @@ export async function saveWizardDraft(args: {
   if (
     typeof args.step !== 'number' ||
     args.step < 1 ||
-    args.step > 6 ||
+    args.step > 7 ||
     !Number.isFinite(args.step)
   ) {
     return { ok: false, error: 'invalid_input', detail: 'step out of range' };
