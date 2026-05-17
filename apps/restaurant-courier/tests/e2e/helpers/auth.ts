@@ -20,8 +20,8 @@ export async function loginAsTestCourier(page: Page): Promise<void> {
   });
 
   await page.goto('/login');
-  await page.getByLabel('Email').fill(E2E_COURIER_EMAIL);
-  await page.getByLabel('Parola').fill(E2E_COURIER_PASSWORD);
+  await page.getByLabel(/email/i).fill(E2E_COURIER_EMAIL);
+  await page.getByLabel(/parol/i).fill(E2E_COURIER_PASSWORD);
   await page.getByRole('button', { name: /intr|conect|continuă/i }).click();
   await page.waitForURL((url) => url.pathname.startsWith('/dashboard'), { timeout: 30_000 });
 }
