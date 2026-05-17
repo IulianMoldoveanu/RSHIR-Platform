@@ -136,10 +136,10 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                     ? t(locale, 'item.add_short')
                     : t(locale, 'item.add_to_cart')
                 }
-                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-colors ${
+                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-offset-2 ${
                   justAdded
-                    ? 'bg-emerald-600'
-                    : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800'
+                    ? 'bg-emerald-600 shadow-md shadow-emerald-600/30 focus-visible:outline-emerald-500'
+                    : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800 hover:shadow-md hover:shadow-purple-700/30 focus-visible:outline-purple-500'
                 }`}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -185,7 +185,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
           </div>
         </div>
 
-        <div className="relative h-24 w-24 flex-none overflow-hidden rounded-xl bg-zinc-100 sm:h-28 sm:w-28">
+        <div className="relative h-24 w-24 flex-none overflow-hidden rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-50 ring-1 ring-zinc-200/60 sm:h-28 sm:w-28">
           {item.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -193,7 +193,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
               alt={item.name}
               width={112}
               height={112}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.07]"
               loading="lazy"
               decoding="async"
             />
