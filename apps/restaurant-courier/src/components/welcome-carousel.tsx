@@ -145,9 +145,9 @@ export function WelcomeCarousel() {
             type="button"
             aria-label="Sari peste introducere"
             onClick={dismiss}
-            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-zinc-800/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            <X className="h-5 w-5" aria-hidden />
+            <X className="h-5 w-5" aria-hidden strokeWidth={2.25} />
           </button>
 
           {/* Progress text top-center — explicit "1 din 3" so the user
@@ -203,7 +203,7 @@ export function WelcomeCarousel() {
                     haptics.tap();
                   }}
                   className={`h-2 rounded-full transition-all focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
-                    i === index ? 'w-8 bg-violet-500' : 'w-2 bg-zinc-700 hover:bg-zinc-500'
+                    i === index ? 'w-8 bg-violet-500 shadow-sm shadow-violet-500/40' : 'w-2 bg-hir-border hover:bg-hir-muted-fg/50'
                   }`}
                 />
               ))}
@@ -215,7 +215,7 @@ export function WelcomeCarousel() {
                 ref={isLast ? startRef : undefined}
                 type="button"
                 onClick={next}
-                className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+                className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:-translate-y-px hover:bg-violet-500 hover:shadow-xl hover:shadow-violet-500/40 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
               >
                 {isLast ? (
                   'Începe acum'

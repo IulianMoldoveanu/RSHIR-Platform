@@ -150,7 +150,7 @@ export function FirstShiftTutorial() {
               transition={{ delay: 0.15 }}
               className="absolute top-20 flex flex-col items-center gap-1 text-violet-300"
             >
-              <ArrowUp className="h-6 w-6 animate-bounce" aria-hidden />
+              <ArrowUp className="h-6 w-6 animate-bounce drop-shadow-[0_0_8px_rgba(167,139,250,0.4)]" aria-hidden strokeWidth={2.25} />
               <span className="text-[11px] font-semibold uppercase tracking-wide">
                 {current.arrowLabel ?? ''}
               </span>
@@ -169,7 +169,7 @@ export function FirstShiftTutorial() {
               <span className="text-[11px] font-semibold uppercase tracking-wide">
                 {current.arrowLabel ?? ''}
               </span>
-              <ArrowDown className="h-6 w-6 animate-bounce" aria-hidden />
+              <ArrowDown className="h-6 w-6 animate-bounce drop-shadow-[0_0_8px_rgba(167,139,250,0.4)]" aria-hidden strokeWidth={2.25} />
             </motion.div>
           )}
 
@@ -183,7 +183,7 @@ export function FirstShiftTutorial() {
                 animate="animate"
                 exit="exit"
                 transition={{ duration: 0.2 }}
-                className="rounded-3xl border border-violet-500/30 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-6 shadow-2xl shadow-black/40"
+                className="rounded-3xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-hir-surface p-6 shadow-2xl shadow-black/40 ring-1 ring-inset ring-violet-500/15"
               >
                 <h2 className="mb-2 text-xl font-bold tracking-tight text-hir-fg">
                   {current.title}
@@ -202,7 +202,7 @@ export function FirstShiftTutorial() {
                       role="tab"
                       aria-selected={i === step}
                       className={`h-2 rounded-full transition-all ${
-                        i === step ? 'w-8 bg-violet-500' : 'w-2 bg-zinc-700'
+                        i === step ? 'w-8 bg-violet-500 shadow-sm shadow-violet-500/40' : 'w-2 bg-hir-border'
                       }`}
                     />
                   ))}
@@ -212,14 +212,14 @@ export function FirstShiftTutorial() {
                   <button
                     type="button"
                     onClick={advance}
-                    className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+                    className="flex min-h-[48px] flex-1 items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:-translate-y-px hover:bg-violet-500 hover:shadow-xl hover:shadow-violet-500/40 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
                   >
                     {isLast ? 'Gata, pornesc' : 'Continuă'}
                   </button>
                   <button
                     type="button"
                     onClick={dismiss}
-                    className="flex min-h-[48px] items-center justify-center rounded-xl border border-hir-border px-4 py-2.5 text-sm text-hir-muted-fg transition-colors hover:border-zinc-600 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                    className="flex min-h-[48px] items-center justify-center rounded-xl border border-hir-border bg-hir-bg px-4 py-2.5 text-sm font-medium text-hir-muted-fg transition-colors hover:border-hir-muted-fg/40 hover:bg-hir-surface hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                   >
                     Sari peste
                   </button>
