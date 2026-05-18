@@ -193,7 +193,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       ) : null}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold text-hir-fg">Comandă</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Comandă</h1>
           <VerticalBadge vertical={vertical} />
           <TenantBadge name={tenantName} />
         </div>
@@ -278,19 +278,20 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
       {items.length > 0 ? (
         <section className={cardClasses()}>
           <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-            <Package className="h-3 w-3" /> Produse
+            <Package className="h-3 w-3" strokeWidth={2.25} /> Produse
           </p>
           <ul className="space-y-1 text-sm text-hir-fg">
             {items.map((it, i) => (
-              <li key={i}>
-                <span className="text-hir-muted-fg">{it.quantity}×</span> {it.name}
+              <li key={i} className="flex items-baseline gap-1.5">
+                <span className="shrink-0 font-semibold tabular-nums text-hir-muted-fg">{it.quantity}×</span>
+                <span className="min-w-0">{it.name}</span>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      <section className={cardClasses({ className: 'text-sm' })}>
+      <section className={cardClasses({ className: 'text-sm ring-1 ring-inset ring-hir-border/40' })}>
         <div className="flex items-center justify-between">
           <span className="text-hir-muted-fg">Total</span>
           <span className="text-base font-semibold tabular-nums text-hir-fg">
@@ -300,12 +301,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         {order.delivery_fee_ron != null ? (
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="text-hir-muted-fg">Taxă livrare</span>
-            <span className="tabular-nums text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
+            <span className="font-medium tabular-nums text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
           </div>
         ) : null}
         <div className="mt-1.5 flex items-center justify-between text-xs">
           <span className="text-hir-muted-fg">Plată</span>
-          <span className="text-hir-fg">{order.payment_method ?? '—'}</span>
+          <span className="font-medium text-hir-fg">{order.payment_method ?? '—'}</span>
         </div>
       </section>
 

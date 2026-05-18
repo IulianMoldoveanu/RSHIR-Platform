@@ -38,22 +38,27 @@ function toneFor(status: string, elapsedSec: number): {
   label: string;
 } {
   const t = THRESHOLDS[status];
-  if (!t) return { ring: 'border-hir-border bg-hir-surface', text: 'text-hir-fg', label: 'text-hir-muted-fg' };
+  const neutral = {
+    ring: 'border-hir-border bg-hir-surface ring-1 ring-inset ring-hir-border/40',
+    text: 'text-hir-fg',
+    label: 'text-hir-muted-fg',
+  };
+  if (!t) return neutral;
   if (elapsedSec >= t.crit) {
     return {
-      ring: 'border-rose-500/40 bg-rose-500/10',
+      ring: 'border-rose-500/40 bg-rose-500/10 ring-1 ring-inset ring-rose-500/20 shadow-sm shadow-rose-500/15',
       text: 'text-rose-200',
       label: 'text-rose-300/80',
     };
   }
   if (elapsedSec >= t.warn) {
     return {
-      ring: 'border-amber-500/40 bg-amber-500/10',
+      ring: 'border-amber-500/40 bg-amber-500/10 ring-1 ring-inset ring-amber-500/20',
       text: 'text-amber-200',
       label: 'text-amber-300/80',
     };
   }
-  return { ring: 'border-hir-border bg-hir-surface', text: 'text-hir-fg', label: 'text-hir-muted-fg' };
+  return neutral;
 }
 
 const TICK_MS = 1_000;
@@ -95,6 +100,7 @@ export function ActiveOrderTimer({ status, since }: { status: string; since: str
       <Clock
         className={`h-3.5 w-3.5 ${tone.label} ${isCritical ? 'animate-pulse' : ''}`}
         aria-hidden
+        strokeWidth={2.25}
       />
       <span className={tone.label}>{label}</span>
       <span className={`font-semibold tabular-nums ${tone.text}`}>{elapsed}</span>
