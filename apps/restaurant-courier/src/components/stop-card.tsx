@@ -19,16 +19,24 @@ const TONE = {
   pickup: {
     accentBg: 'bg-violet-500',
     chipBg: 'bg-violet-500/20',
-    chipText: 'text-violet-300',
-    label: 'text-violet-400',
-    border: 'border-violet-500/20',
+    chipText: 'text-violet-200',
+    chipRing: 'ring-violet-500/40',
+    chipShadow: 'shadow-violet-500/40',
+    label: 'text-violet-300',
+    border: 'border-violet-500/30',
+    ring: 'ring-violet-500/10',
+    shadow: 'shadow-violet-500/10',
   },
   dropoff: {
     accentBg: 'bg-emerald-500',
     chipBg: 'bg-emerald-500/20',
-    chipText: 'text-emerald-300',
-    label: 'text-emerald-400',
-    border: 'border-emerald-500/20',
+    chipText: 'text-emerald-200',
+    chipRing: 'ring-emerald-500/40',
+    chipShadow: 'shadow-emerald-500/40',
+    label: 'text-emerald-300',
+    border: 'border-emerald-500/30',
+    ring: 'ring-emerald-500/10',
+    shadow: 'shadow-emerald-500/10',
   },
 } as const satisfies Record<Tone, Record<string, string>>;
 
@@ -50,12 +58,12 @@ export function StopCard({
   const t = TONE[tone];
   return (
     <section
-      className={`relative overflow-hidden rounded-2xl border ${t.border} bg-hir-surface p-5`}
+      className={`relative overflow-hidden rounded-2xl border ${t.border} bg-hir-surface p-5 shadow-sm ring-1 ring-inset ${t.ring} ${t.shadow}`}
     >
       <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${t.accentBg}`} />
       <div className="flex items-center gap-2">
         <span
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${t.chipBg} ${t.chipText}`}
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums shadow-sm ring-1 ring-inset ${t.chipBg} ${t.chipText} ${t.chipRing} ${t.chipShadow}`}
         >
           {step}
         </span>
@@ -69,7 +77,7 @@ export function StopCard({
         {address ?? '—'}
       </p>
       {subtitle ? (
-        <p className="mt-1 text-sm text-hir-muted-fg">{subtitle}</p>
+        <p className="mt-1 text-sm leading-relaxed text-hir-muted-fg">{subtitle}</p>
       ) : null}
       {children ? <div className="mt-3 flex flex-wrap gap-2">{children}</div> : null}
     </section>

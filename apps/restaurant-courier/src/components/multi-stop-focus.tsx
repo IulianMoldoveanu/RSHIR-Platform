@@ -124,9 +124,9 @@ export function MultiStopFocus({ orders }: { orders: FocusOrder[] }) {
   );
 
   return (
-    <div className="pointer-events-auto mx-auto flex w-full max-w-md flex-col gap-2.5 rounded-2xl border border-violet-400/40 bg-zinc-950/95 p-3 shadow-2xl shadow-violet-500/20 ring-1 ring-violet-500/10 backdrop-blur">
+    <div className="pointer-events-auto mx-auto flex w-full max-w-md flex-col gap-2.5 rounded-2xl border border-violet-400/40 bg-hir-bg/95 p-3 shadow-2xl shadow-violet-500/20 ring-1 ring-inset ring-violet-500/15 backdrop-blur">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
-        <Route className="h-3.5 w-3.5" aria-hidden />
+        <Route className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
         <span>Multi-stop</span>
         <span className="text-violet-300/60">·</span>
         <span className="tabular-nums">{orders.length} comenzi</span>
@@ -153,11 +153,11 @@ export function MultiStopFocus({ orders }: { orders: FocusOrder[] }) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
             Următoarea oprire · {next.label.toLowerCase()}
           </p>
-          <p className="mt-0.5 truncate text-sm font-medium text-zinc-100">
+          <p className="mt-0.5 truncate text-sm font-semibold text-hir-fg">
             {next.address}
           </p>
           {next.distanceM !== null ? (
-            <p className="text-[11px] tabular-nums text-zinc-400">
+            <p className="text-[11px] tabular-nums text-hir-muted-fg">
               {formatDistance(next.distanceM)} de aici
             </p>
           ) : null}
@@ -165,12 +165,13 @@ export function MultiStopFocus({ orders }: { orders: FocusOrder[] }) {
         <ArrowRight
           className="h-4 w-4 shrink-0 text-violet-300 transition-transform group-hover:translate-x-0.5"
           aria-hidden
+          strokeWidth={2.25}
         />
       </Link>
 
       {/* Remaining stops — breadcrumb chips */}
       {remaining.length > 0 ? (
-        <ol className="flex items-center gap-1.5 overflow-x-auto text-[11px] text-zinc-400">
+        <ol className="flex items-center gap-1.5 overflow-x-auto text-[11px] text-hir-muted-fg">
           {remaining.map((s, i) => (
             <li key={s.orderId} className="flex items-center gap-1.5 whitespace-nowrap">
               <span
@@ -181,12 +182,12 @@ export function MultiStopFocus({ orders }: { orders: FocusOrder[] }) {
               </span>
               <span>{s.label}</span>
               {s.distanceM !== null ? (
-                <span className="tabular-nums text-zinc-500">
+                <span className="tabular-nums text-hir-muted-fg/70">
                   · {formatDistance(s.distanceM)}
                 </span>
               ) : null}
               {i < remaining.length - 1 ? (
-                <span className="text-zinc-700">→</span>
+                <span className="text-hir-border">→</span>
               ) : null}
             </li>
           ))}
