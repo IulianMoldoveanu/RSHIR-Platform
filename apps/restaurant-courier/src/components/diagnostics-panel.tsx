@@ -231,11 +231,11 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
   const verdictTone =
     verdict.fail === 0
       ? {
-          ring: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200',
+          ring: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 ring-1 ring-inset ring-emerald-500/20',
           label: verdict.pass === 0 ? 'Verificare în curs…' : `Totul în regulă · ${verdict.pass} verificări OK`,
         }
       : {
-          ring: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
+          ring: 'border-amber-500/40 bg-amber-500/10 text-amber-200 ring-1 ring-inset ring-amber-500/20',
           label: `${verdict.fail} ${verdict.fail === 1 ? 'atenționare' : 'atenționări'} · ${verdict.pass} verificări OK`,
         };
 
@@ -253,9 +253,9 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
           size="sm"
           onClick={() => setRefreshKey((k) => k + 1)}
           aria-label="Reîmprospătează verificările"
-          className="-mr-2"
+          className="-mr-2 gap-1 rounded-lg px-2 py-1 text-xs font-medium text-hir-muted-fg transition-colors hover:bg-hir-border/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
-          <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
           Reîncearcă
         </Button>
       </header>
@@ -282,12 +282,12 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
             <li key={c.id} className="flex items-start gap-3 px-4 py-3">
               <span
                 aria-hidden
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${tone.bg}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${tone.bg}`}
               >
                 <Icon className={`h-4 w-4 ${tone.fg}`} strokeWidth={c.pass === true ? 3 : 2.5} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-hir-fg">{c.label}</p>
+                <p className="text-sm font-semibold text-hir-fg">{c.label}</p>
                 <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">
                   {c.detail}
                 </p>
@@ -301,20 +301,20 @@ export function DiagnosticsPanel({ appVersion }: { appVersion: string }) {
         type="button"
         onClick={testGps}
         disabled={gpsBusy}
-        className="self-start gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none"
+        className="self-start gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-violet-600/30 transition-all hover:-translate-y-px hover:bg-violet-500 hover:shadow-lg hover:shadow-violet-500/40 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0"
       >
-        <RefreshCw className={`h-4 w-4 ${gpsBusy ? 'animate-spin' : ''}`} aria-hidden />
+        <RefreshCw className={`h-4 w-4 ${gpsBusy ? 'animate-spin' : ''}`} aria-hidden strokeWidth={2.25} />
         {gpsBusy ? 'Se citește poziția…' : 'Testează GPS'}
       </Button>
 
-      <section className={cardClasses({ className: 'text-xs' })}>
+      <section className={cardClasses({ className: 'text-xs ring-1 ring-inset ring-hir-border/40' })}>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Versiune & dispozitiv
         </p>
         <dl className="space-y-1.5">
           <div className="flex justify-between gap-3">
             <dt className="text-hir-muted-fg">HIR Curier</dt>
-            <dd className="font-mono tabular-nums text-hir-fg">{appVersion}</dd>
+            <dd className="font-mono font-semibold tabular-nums text-hir-fg">{appVersion}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-hir-muted-fg">User agent</dt>
