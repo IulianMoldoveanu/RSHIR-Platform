@@ -90,9 +90,9 @@ export function ShareOrderButton({
       size="sm"
       onClick={onShare}
       disabled={busy}
-      className="self-start"
+      className="min-h-[36px] gap-1.5 self-start rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-fg transition-all hover:-translate-y-px hover:border-violet-500/40 hover:bg-hir-border/60 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 disabled:hover:translate-y-0"
     >
-      <Share2 className="mr-2 h-4 w-4" aria-hidden />
+      <Share2 className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
       {busy ? 'Se pregătește…' : 'Partajează statusul'}
     </Button>
   );
