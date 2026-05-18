@@ -29,5 +29,5 @@ export function ShiftTimer({ startedAt }: { startedAt: string }) {
     return () => window.clearInterval(id);
   }, [startedAt]);
 
-  return <span className="text-hir-muted-fg">· {elapsed}</span>;
+  return <span className="tabular-nums text-hir-muted-fg">· {elapsed}</span>;
 }
