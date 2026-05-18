@@ -64,22 +64,24 @@ export function WeatherPill({ weather, reminder }: Props) {
     : null;
 
   // Tone tinting per condition so the pill carries a hint of the weather
-  // mood (sunny=amber, rain/snow/fog=sky, storm=rose, cloudy=zinc).
+  // mood (sunny=amber, rain/snow/fog=sky, storm=rose, cloudy=neutral).
+  // Bumped -300 → -200 across the set to match the AA contrast rule
+  // used by every other status chip in the wave on /10 tinted bg.
   const tone =
     weather.condition === 'clear'
-      ? 'text-amber-300'
+      ? { text: 'text-amber-200', ring: 'ring-amber-500/20' }
       : weather.condition === 'storm'
-        ? 'text-rose-300'
+        ? { text: 'text-rose-200', ring: 'ring-rose-500/20' }
         : weather.condition === 'rain' ||
             weather.condition === 'snow' ||
             weather.condition === 'fog'
-          ? 'text-sky-300'
-          : 'text-zinc-300';
+          ? { text: 'text-sky-200', ring: 'ring-sky-500/20' }
+          : { text: 'text-hir-fg', ring: 'ring-hir-border/60' };
 
   return (
     <span
       aria-label={`Vreme: ${icon} ${label ?? ''}`}
-      className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-zinc-900/60 px-2 py-0.5 text-[11px] font-medium tabular-nums ring-1 ring-inset ring-zinc-800/80 ${tone}`}
+      className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-hir-surface/70 px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1 ring-inset ${tone.text} ${tone.ring}`}
     >
       <span aria-hidden className="text-sm leading-none">
         {icon}
