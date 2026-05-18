@@ -34,9 +34,9 @@ export function MapLink({
       href={geoHref ?? universalHref}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-300 hover:bg-violet-500/20"
+      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 transition-all hover:-translate-y-px hover:border-violet-500/60 hover:bg-violet-500/20 hover:shadow-md hover:shadow-violet-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
     >
-      <MapPin className="h-3.5 w-3.5" aria-hidden />
+      <MapPin className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
       Deschide în Maps
     </a>
   );
@@ -62,9 +62,9 @@ export function PhoneLink({ phone }: { phone: string | null | undefined }) {
   return (
     <a
       href={`tel:${phone}`}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20"
+      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold tabular-nums text-emerald-200 transition-all hover:-translate-y-px hover:border-emerald-500/60 hover:bg-emerald-500/20 hover:shadow-md hover:shadow-emerald-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
     >
-      <Phone className="h-3.5 w-3.5" aria-hidden />
+      <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
       {display}
     </a>
   );

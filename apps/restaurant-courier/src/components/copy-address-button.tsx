@@ -28,16 +28,20 @@ export function CopyAddressButton({ address }: { address: string | null | undefi
       type="button"
       onClick={handleCopy}
       aria-label={copied ? 'Adresă copiată' : 'Copiază adresa'}
-      className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] font-medium text-zinc-300 hover:bg-zinc-800 active:scale-95"
+      className={`inline-flex min-h-[36px] items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold transition-all hover:-translate-y-px active:translate-y-0 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+        copied
+          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 focus-visible:outline-emerald-500'
+          : 'border-hir-border bg-hir-surface text-hir-fg hover:border-violet-500/40 hover:bg-hir-border/60 focus-visible:outline-violet-500'
+      }`}
     >
       {copied ? (
         <>
-          <Check className="h-3 w-3 text-emerald-400" aria-hidden />
+          <Check className="h-3 w-3 text-emerald-300" aria-hidden strokeWidth={3} />
           Copiat
         </>
       ) : (
         <>
-          <Copy className="h-3 w-3" aria-hidden />
+          <Copy className="h-3 w-3 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />
           Copiază
         </>
       )}
