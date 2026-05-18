@@ -34,7 +34,7 @@ export const STATUS_LABEL_RO: Record<string, string> = {
 // modal). Text shade bumped from -300 to -200 for slightly better
 // contrast on the tinted /10 backgrounds.
 const TONE_BY_STATUS: Record<string, string> = {
-  CREATED: 'border-zinc-700 bg-zinc-950 text-zinc-300',
+  CREATED: 'border-hir-border bg-zinc-950 text-hir-fg',
   OFFERED: 'border-amber-500/40 bg-amber-500/10 text-amber-200',
   ACCEPTED: 'border-violet-500/40 bg-violet-500/10 text-violet-200',
   PICKED_UP: 'border-sky-500/40 bg-sky-500/10 text-sky-200',
@@ -44,7 +44,7 @@ const TONE_BY_STATUS: Record<string, string> = {
   FAILED: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
 };
 
-const FALLBACK_TONE = 'border-zinc-700 bg-zinc-900 text-zinc-300';
+const FALLBACK_TONE = 'border-hir-border bg-zinc-900 text-hir-fg';
 
 type Size = 'sm' | 'md';
 

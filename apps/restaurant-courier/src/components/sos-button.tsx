@@ -81,7 +81,7 @@ export function SosButton() {
                 >
                   <AlertTriangle className="h-5 w-5 text-rose-300" strokeWidth={2.25} />
                 </span>
-                <h2 id="sos-title" className="text-lg font-semibold tracking-tight text-zinc-100">
+                <h2 id="sos-title" className="text-lg font-semibold tracking-tight text-hir-fg">
                   Urgență
                 </h2>
               </div>
@@ -89,13 +89,13 @@ export function SosButton() {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Închide"
-                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md text-hir-muted-fg transition-colors hover:bg-zinc-900 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
 
-            <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+            <p className="mt-3 text-sm leading-relaxed text-hir-fg">
               Pentru a suna serviciul de urgență 112, ține apăsat butonul de
               mai jos timp de o secundă.
             </p>
@@ -121,7 +121,7 @@ export function SosButton() {
               </span>
             </button>
 
-            <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-3 text-[11px] leading-relaxed text-hir-muted-fg">
               Apel direct la operatorul de urgență. Folosește-l doar pentru
               situații reale (accident, agresiune, urgență medicală).
             </p>

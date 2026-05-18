@@ -82,7 +82,7 @@ export function OrderTimeline({ status }: { status: string }) {
             <div
               className={`text-sm transition-colors ${
                 isCurrent
-                  ? 'font-semibold text-zinc-100'
+                  ? 'font-semibold text-hir-fg'
                   : isPast
                     ? 'text-violet-200/90'
                     : 'text-hir-muted-fg'

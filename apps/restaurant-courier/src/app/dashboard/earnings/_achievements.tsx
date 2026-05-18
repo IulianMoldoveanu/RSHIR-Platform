@@ -112,7 +112,7 @@ export function Achievements({
         <div className="mb-2 flex items-center justify-between">
           <h2
             id="achievements-heading"
-            className="text-xs font-semibold uppercase tracking-wide text-zinc-500"
+            className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg"
           >
             Realizări ({unlockedCount}/{total})
           </h2>
@@ -141,7 +141,7 @@ export function Achievements({
                   className={`flex w-full flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                     isUnlocked
                       ? TONE_UNLOCKED[badge.tone]
-                      : 'border-hir-border bg-hir-surface text-zinc-600'
+                      : 'border-hir-border bg-hir-surface text-hir-muted-fg'
                   }`}
                 >
                   <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-hir-bg/30">
@@ -151,7 +151,7 @@ export function Achievements({
                         aria-hidden
                       />
                     ) : (
-                      <Lock className="h-3.5 w-3.5 text-zinc-600" aria-hidden />
+                      <Lock className="h-3.5 w-3.5 text-hir-muted-fg" aria-hidden />
                     )}
                   </span>
                   <span className="text-[9px] font-semibold leading-tight">{badge.label}</span>
@@ -211,8 +211,8 @@ function BadgeToast({ badge, onDismiss }: { badge: BadgeDef; onDismiss: () => vo
         <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-400">
           Realizare deblocată
         </p>
-        <p className="mt-0.5 text-sm font-semibold text-zinc-100">{badge.label}</p>
-        <p className="mt-0.5 text-xs text-zinc-400">{badge.description}</p>
+        <p className="mt-0.5 text-sm font-semibold text-hir-fg">{badge.label}</p>
+        <p className="mt-0.5 text-xs text-hir-muted-fg">{badge.description}</p>
       </div>
     </button>
   );

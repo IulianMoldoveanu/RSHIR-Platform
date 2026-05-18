@@ -145,14 +145,14 @@ export function WelcomeCarousel() {
             type="button"
             aria-label="Sari peste introducere"
             onClick={dismiss}
-            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-800/60 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-zinc-800/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>
 
           {/* Progress text top-center — explicit "1 din 3" so the user
               knows what's left without parsing the dot widths. */}
-          <p className="absolute top-6 text-xs font-medium tabular-nums text-zinc-500">
+          <p className="absolute top-6 text-xs font-medium tabular-nums text-hir-muted-fg">
             {index + 1} din {SCREENS.length}
           </p>
 
@@ -176,10 +176,10 @@ export function WelcomeCarousel() {
                 </div>
 
                 <div className="space-y-3">
-                  <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+                  <h1 className="text-2xl font-bold tracking-tight text-hir-fg">
                     {screen.title}
                   </h1>
-                  <p className="text-sm leading-relaxed text-zinc-400">{screen.body}</p>
+                  <p className="text-sm leading-relaxed text-hir-muted-fg">{screen.body}</p>
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -231,7 +231,7 @@ export function WelcomeCarousel() {
                 <button
                   type="button"
                   onClick={dismiss}
-                  className="min-h-[44px] w-full rounded-2xl px-6 py-3 text-sm text-zinc-500 transition-colors hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                  className="min-h-[44px] w-full rounded-2xl px-6 py-3 text-sm text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 >
                   Sari peste
                 </button>

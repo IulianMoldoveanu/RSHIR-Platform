@@ -32,10 +32,10 @@ export function ErrorCard({
       <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-rose-500/10">
         <AlertTriangle className="h-5 w-5 text-rose-400" aria-hidden />
       </div>
-      <h2 className="mt-3 text-base font-semibold text-zinc-100">{title}</h2>
-      <p className="mt-1 text-xs text-zinc-400">{hint}</p>
+      <h2 className="mt-3 text-base font-semibold text-hir-fg">{title}</h2>
+      <p className="mt-1 text-xs text-hir-muted-fg">{hint}</p>
       {error.digest ? (
-        <p className="mt-2 font-mono text-[10px] text-zinc-600">ref: {error.digest}</p>
+        <p className="mt-2 font-mono text-[10px] text-hir-muted-fg">ref: {error.digest}</p>
       ) : null}
       <Button
         type="button"

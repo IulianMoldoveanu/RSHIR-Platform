@@ -266,7 +266,7 @@ function CashCollectedGate({
           type="button"
           variant="ghost"
           onClick={onReset}
-          className="h-auto p-0 text-xs text-zinc-400 hover:text-zinc-200"
+          className="h-auto p-0 text-xs text-hir-muted-fg hover:text-hir-fg"
         >
           Modifică
         </Button>

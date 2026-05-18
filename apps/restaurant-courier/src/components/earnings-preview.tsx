@@ -60,7 +60,7 @@ export function EarningsPreview({
         <span className="text-3xl font-bold tabular-nums text-zinc-50">
           {fee != null ? fee.toFixed(2) : '—'}
         </span>
-        <span className="text-sm font-medium text-zinc-400">RON</span>
+        <span className="text-sm font-medium text-hir-muted-fg">RON</span>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">

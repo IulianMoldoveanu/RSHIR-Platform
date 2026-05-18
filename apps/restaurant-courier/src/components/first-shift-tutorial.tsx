@@ -130,14 +130,14 @@ export function FirstShiftTutorial() {
             type="button"
             aria-label="Închide tutorialul"
             onClick={dismiss}
-            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-800/60 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-zinc-800/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>
 
           {/* Progress text top-center — explicit "1 din 3" so the user
               knows what's left without parsing the dot widths. */}
-          <p className="absolute top-6 text-xs font-medium tabular-nums text-zinc-500">
+          <p className="absolute top-6 text-xs font-medium tabular-nums text-hir-muted-fg">
             {step + 1} din {STEPS.length}
           </p>
 
@@ -185,10 +185,10 @@ export function FirstShiftTutorial() {
                 transition={{ duration: 0.2 }}
                 className="rounded-3xl border border-violet-500/30 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-6 shadow-2xl shadow-black/40"
               >
-                <h2 className="mb-2 text-xl font-bold tracking-tight text-zinc-100">
+                <h2 className="mb-2 text-xl font-bold tracking-tight text-hir-fg">
                   {current.title}
                 </h2>
-                <p className="text-sm leading-relaxed text-zinc-400">{current.body}</p>
+                <p className="text-sm leading-relaxed text-hir-muted-fg">{current.body}</p>
 
                 {/* Dot indicators — matches welcome carousel widths. */}
                 <div
@@ -219,7 +219,7 @@ export function FirstShiftTutorial() {
                   <button
                     type="button"
                     onClick={dismiss}
-                    className="flex min-h-[48px] items-center justify-center rounded-xl border border-zinc-700 px-4 py-2.5 text-sm text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                    className="flex min-h-[48px] items-center justify-center rounded-xl border border-hir-border px-4 py-2.5 text-sm text-hir-muted-fg transition-colors hover:border-zinc-600 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                   >
                     Sari peste
                   </button>

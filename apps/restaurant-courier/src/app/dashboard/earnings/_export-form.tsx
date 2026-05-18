@@ -42,7 +42,7 @@ export function ExportForm() {
       aria-label="Export raport fiscal"
       className="rounded-2xl border border-hir-border bg-hir-surface p-4"
     >
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         Raport fiscal (PFA / autointreprinzător)
       </p>
 
@@ -84,7 +84,7 @@ export function ExportForm() {
           <div className="flex-1">
             <label
               htmlFor="export-month"
-              className="mb-1 block text-[11px] text-zinc-500"
+              className="mb-1 block text-[11px] text-hir-muted-fg"
             >
               Luna
             </label>
@@ -106,7 +106,7 @@ export function ExportForm() {
         <div className={mode === 'month' ? 'w-28' : 'flex-1'}>
           <label
             htmlFor="export-year"
-            className="mb-1 block text-[11px] text-zinc-500"
+            className="mb-1 block text-[11px] text-hir-muted-fg"
           >
             An
           </label>
@@ -144,7 +144,7 @@ export function ExportForm() {
           : `Descarca raport anual ${year} CSV`}
       </a>
 
-      <p className="mt-2 text-[11px] text-zinc-500">
+      <p className="mt-2 text-[11px] text-hir-muted-fg">
         Format compatibil Excel RO (UTF-8, separator{' '}
         <code className="font-mono">;</code>). Coloane: data, comenzi, km,
         venit brut, comision HIR, venit net.
