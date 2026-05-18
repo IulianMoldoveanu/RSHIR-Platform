@@ -16,10 +16,10 @@ export function TenantBadge({ name }: { name: string | null }) {
   if (!name) return null;
   return (
     <span
-      className="inline-flex max-w-[140px] items-center gap-1 truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-medium text-zinc-300 ring-1 ring-inset ring-zinc-700/60"
+      className="inline-flex max-w-[140px] items-center gap-1 truncate rounded-full bg-zinc-800 px-2 py-0.5 text-[11px] font-medium text-hir-fg ring-1 ring-inset ring-zinc-700/60"
       title={name}
     >
-      <Store className="h-3 w-3 shrink-0 text-zinc-400" aria-hidden strokeWidth={2.25} />
+      <Store className="h-3 w-3 shrink-0 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />
       <span className="truncate">{name}</span>
     </span>
   );

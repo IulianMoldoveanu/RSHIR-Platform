@@ -128,7 +128,7 @@ function StatTile({
           {label}
         </span>
       </div>
-      <p className="text-2xl font-bold leading-none text-zinc-100 tabular-nums">{value}</p>
+      <p className="text-2xl font-bold leading-none text-hir-fg tabular-nums">{value}</p>
       <p className="text-[11px] text-hir-muted-fg">{sub}</p>
     </div>
   );

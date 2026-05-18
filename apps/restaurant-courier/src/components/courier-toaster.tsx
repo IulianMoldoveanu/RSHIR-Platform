@@ -32,7 +32,7 @@ export function CourierToaster() {
           actionButton:
             '!rounded-lg !bg-violet-500 !px-2.5 !py-1 !text-xs !font-semibold !text-white',
           cancelButton:
-            '!rounded-lg !bg-zinc-800 !px-2.5 !py-1 !text-xs !font-semibold !text-zinc-200',
+            '!rounded-lg !bg-zinc-800 !px-2.5 !py-1 !text-xs !font-semibold !text-hir-fg',
         },
       }}
     />

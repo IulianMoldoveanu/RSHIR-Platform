@@ -36,13 +36,13 @@ export function BestDayCard({ bestDay }: Props) {
         <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-300">
           Cea mai bună zi din lună
         </p>
-        <p className="mt-1 text-sm text-zinc-100">
+        <p className="mt-1 text-sm text-hir-fg">
           <span className="font-medium tabular-nums text-amber-100">{label}</span>
-          <span className="text-zinc-400"> · </span>
+          <span className="text-hir-muted-fg"> · </span>
           <span className="font-semibold tabular-nums">
             {bestDay.earnings.toFixed(2)} RON
           </span>
-          <span className="text-zinc-400">
+          <span className="text-hir-muted-fg">
             {' '}
             din <span className="tabular-nums">{bestDay.count}</span>{' '}
             {bestDay.count === 1 ? 'livrare' : 'livrări'}

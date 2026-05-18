@@ -1,12 +1,12 @@
 // Courier dashboard skeleton. Dark theme matches the courier app body
-// (`bg-zinc-950 text-zinc-100`). The real page is a full-screen map +
+// (`bg-zinc-950 text-hir-fg`). The real page is a full-screen map +
 // floating cards; the skeleton renders a soft grid placeholder for the
 // map area plus header/active-order placeholders so the courier never
 // sees a blank screen on first navigation.
 
 export default function CourierDashboardLoading() {
   return (
-    <div className="relative min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="relative min-h-screen bg-zinc-950 text-hir-fg">
       {/* Faux map area */}
       <div
         aria-hidden
@@ -20,7 +20,7 @@ export default function CourierDashboardLoading() {
 
       {/* Top earnings bar placeholder */}
       <div className="absolute inset-x-0 top-0 z-10 px-3 pt-3">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/85 p-3 backdrop-blur">
+        <div className="rounded-2xl border border-hir-border bg-zinc-950/85 p-3 backdrop-blur">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 animate-pulse rounded-full bg-zinc-800" />
@@ -36,7 +36,7 @@ export default function CourierDashboardLoading() {
 
       {/* Active order card placeholder */}
       <div className="absolute inset-x-0 bottom-0 z-10 px-3 pb-24">
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/85 p-4 backdrop-blur">
+        <div className="rounded-2xl border border-hir-border bg-zinc-950/85 p-4 backdrop-blur">
           <div className="flex items-center justify-between">
             <div className="h-3 w-24 animate-pulse rounded bg-zinc-800" />
             <div className="h-6 w-20 animate-pulse rounded-full bg-zinc-800" />
@@ -50,7 +50,7 @@ export default function CourierDashboardLoading() {
       </div>
 
       {/* Bottom nav placeholder */}
-      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-zinc-800 bg-zinc-950/95 px-3 py-2 backdrop-blur">
+      <div className="absolute inset-x-0 bottom-0 z-20 border-t border-hir-border bg-zinc-950/95 px-3 py-2 backdrop-blur">
         <div className="flex items-center justify-around">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col items-center gap-1.5 py-1">

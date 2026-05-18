@@ -132,7 +132,7 @@ function CheckRow({
       >
         {checked ? <Check className="h-3 w-3" aria-hidden strokeWidth={3} /> : null}
       </span>
-      <span className={`text-sm leading-snug ${checked ? 'font-medium text-emerald-200' : 'text-zinc-300'}`}>
+      <span className={`text-sm leading-snug ${checked ? 'font-medium text-emerald-200' : 'text-hir-fg'}`}>
         {label}
       </span>
     </Button>

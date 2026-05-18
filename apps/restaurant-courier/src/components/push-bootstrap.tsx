@@ -116,7 +116,7 @@ export function PushBootstrap() {
         aria-label="Activare notificări"
       >
         {/* Bottom sheet */}
-        <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+        <div className="w-full max-w-md rounded-2xl border border-hir-border bg-zinc-950 p-5 shadow-2xl">
           {/* Close button */}
           <div className="mb-4 flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-500/15">
@@ -128,16 +128,16 @@ export function PushBootstrap() {
               size="icon"
               onClick={handleDismiss}
               aria-label="Închide"
-              className="h-7 w-7 text-zinc-500 hover:text-zinc-300"
+              className="h-7 w-7 text-hir-muted-fg hover:text-hir-fg"
             >
               <X className="h-5 w-5" aria-hidden />
             </Button>
           </div>
 
-          <h2 className="text-base font-semibold text-zinc-100">
+          <h2 className="text-base font-semibold text-hir-fg">
             Cere notificări ca să primești comenzi când ești online
           </h2>
-          <p className="mt-1.5 text-sm text-zinc-400">
+          <p className="mt-1.5 text-sm text-hir-muted-fg">
             Primești comenzi instant, fără să ții aplicația deschisă. Poți dezactiva oricând din setările telefonului.
           </p>
 
@@ -155,7 +155,7 @@ export function PushBootstrap() {
               variant="outline"
               onClick={handleDismiss}
               disabled={phase === 'asking'}
-              className="w-full rounded-xl border-zinc-800 py-3 text-sm font-medium text-zinc-400 hover:text-zinc-200"
+              className="w-full rounded-xl border-hir-border py-3 text-sm font-medium text-hir-muted-fg hover:text-hir-fg"
             >
               Mai târziu
             </Button>
@@ -254,7 +254,7 @@ function PushReAskBanner() {
       <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-violet-700/40 bg-zinc-950/95 px-4 py-3 shadow-xl backdrop-blur">
         <div className="flex min-w-0 items-center gap-2">
           <Bell className="h-4 w-4 shrink-0 text-violet-400" aria-hidden />
-          <p className="text-xs text-zinc-200">
+          <p className="text-xs text-hir-fg">
             Primești alertă pentru comenzi noi chiar și cu ecranul stins
           </p>
         </div>
@@ -269,7 +269,7 @@ function PushReAskBanner() {
           <button
             type="button"
             onClick={handleSnooze}
-            className="min-h-[44px] min-w-[44px] rounded-xl px-2 py-2 text-xs text-zinc-400 hover:text-zinc-200"
+            className="min-h-[44px] min-w-[44px] rounded-xl px-2 py-2 text-xs text-hir-muted-fg hover:text-hir-fg"
             aria-label="Amână notificarea"
           >
             <X className="h-4 w-4" aria-hidden />

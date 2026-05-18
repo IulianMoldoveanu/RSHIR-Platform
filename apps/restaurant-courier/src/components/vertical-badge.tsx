@@ -22,7 +22,7 @@ export function VerticalBadge({ vertical }: { vertical: 'restaurant' | 'pharma' 
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-300 ring-1 ring-inset ring-zinc-700/60">
+    <span className="inline-flex items-center gap-1 rounded-full border border-hir-border bg-zinc-800 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-hir-fg ring-1 ring-inset ring-zinc-700/60">
       <UtensilsCrossed className="h-3 w-3" aria-hidden strokeWidth={2.25} />
       Restaurant
     </span>

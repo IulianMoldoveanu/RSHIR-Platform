@@ -53,7 +53,7 @@ export function Sparkline7d({ rows, now = new Date() }: { rows: Row[]; now?: Dat
   return (
     <section
       aria-label="Câștigul ultimei săptămâni"
-      className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm ring-1 ring-inset ring-hir-border/40"
+      className="rounded-2xl border border-hir-border bg-zinc-900 p-4 shadow-sm ring-1 ring-inset ring-hir-border/40"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function Sparkline7d({ rows, now = new Date() }: { rows: Row[]; now?: Dat
             Ultimele 7 zile
           </p>
         </div>
-        <p className="text-sm font-semibold tabular-nums text-zinc-100">
+        <p className="text-sm font-semibold tabular-nums text-hir-fg">
           {weekTotal.toFixed(2)} RON
         </p>
       </div>
@@ -133,7 +133,7 @@ export function Sparkline7d({ rows, now = new Date() }: { rows: Row[]; now?: Dat
       </svg>
 
       {weekTotal === 0 ? (
-        <p className="mt-2 text-[11px] text-zinc-500">
+        <p className="mt-2 text-[11px] text-hir-muted-fg">
           Nicio livrare în ultimele 7 zile.
         </p>
       ) : null}

@@ -124,14 +124,14 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
               variant="outline"
               onClick={handleRemove}
               disabled={uploading}
-              className="gap-1.5 rounded-lg border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:-translate-y-px hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
+              className="gap-1.5 rounded-lg border-hir-border bg-zinc-900 px-3 py-1.5 text-xs font-medium text-hir-fg transition hover:-translate-y-px hover:border-hir-border hover:bg-zinc-800 hover:text-hir-fg active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
             >
               <X className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
               Elimină
             </Button>
           ) : null}
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-hir-muted-fg">
           JPG / PNG / WEBP, max 2 MB. Se afișează în antet.
         </p>
         {error ? <p className="mt-1 text-[11px] font-medium text-rose-400">{error}</p> : null}
