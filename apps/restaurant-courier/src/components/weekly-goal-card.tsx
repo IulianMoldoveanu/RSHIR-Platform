@@ -126,7 +126,7 @@ export function WeeklyGoalCard({ weekEarnings }: { weekEarnings: number }) {
             aria-valuemax={goal}
             aria-valuenow={Math.min(weekEarnings, goal)}
             aria-label="Progres față de ținta săptămânală"
-            className="h-2.5 w-full overflow-hidden rounded-full bg-zinc-800 ring-1 ring-inset ring-zinc-800"
+            className="h-2.5 w-full overflow-hidden rounded-full bg-hir-border ring-1 ring-inset ring-hir-border/60"
           >
             <div
               className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${
