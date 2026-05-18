@@ -28,21 +28,21 @@ export function EmptyState({
   ctaLabel?: string;
   tone?: 'neutral' | 'positive';
 }) {
-  const iconRing =
+  const iconWrap =
     tone === 'positive'
-      ? 'bg-emerald-500/15 text-emerald-300'
-      : 'bg-hir-border text-hir-muted-fg';
+      ? 'bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/30 shadow-sm shadow-emerald-500/15'
+      : 'bg-hir-border/40 text-hir-muted-fg ring-1 ring-hir-border/60';
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center">
-      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${iconRing}`}>
+    <div className="flex flex-col items-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 py-8 text-center ring-1 ring-inset ring-hir-border/40">
+      <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${iconWrap}`}>
         {icon}
       </span>
-      <p className="text-sm font-medium text-hir-fg">{title}</p>
-      {hint ? <p className="max-w-xs text-xs text-hir-muted-fg">{hint}</p> : null}
+      <p className="text-sm font-semibold text-hir-fg">{title}</p>
+      {hint ? <p className="max-w-xs text-xs leading-relaxed text-hir-muted-fg">{hint}</p> : null}
       {ctaHref && ctaLabel ? (
         <Link
           href={ctaHref}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:border-violet-400 hover:bg-violet-500/15 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+          className="mt-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 shadow-sm shadow-violet-500/15 transition-all hover:-translate-y-px hover:border-violet-400 hover:bg-violet-500/15 hover:shadow-md hover:shadow-violet-500/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
           {ctaLabel}
         </Link>
