@@ -47,7 +47,7 @@ export function EarningsPreview({
   const cashTotal = paymentMethod === 'COD' && totalRon != null ? Number(totalRon) : null;
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-zinc-900 p-4 shadow-lg shadow-violet-500/10">
+    <section className="relative overflow-hidden rounded-2xl border border-violet-500/40 bg-gradient-to-br from-violet-950/60 to-hir-surface p-4 shadow-lg shadow-violet-500/15 ring-1 ring-inset ring-violet-500/15">
       <span
         aria-hidden
         className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-violet-500/20 blur-2xl"
@@ -57,10 +57,10 @@ export function EarningsPreview({
       </p>
 
       <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-3xl font-bold tabular-nums text-zinc-50">
+        <span className="text-3xl font-bold tabular-nums leading-none text-hir-fg drop-shadow-[0_0_8px_rgba(167,139,250,0.3)]">
           {fee != null ? fee.toFixed(2) : '—'}
         </span>
-        <span className="text-sm font-medium text-hir-muted-fg">RON</span>
+        <span className="text-sm font-semibold text-hir-muted-fg">RON</span>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
