@@ -49,19 +49,22 @@ export function WhatsNewBanner() {
       aria-live="polite"
       className="fixed inset-x-0 bottom-20 z-[1090] px-3"
     >
-      <div className="mx-auto flex max-w-md flex-col gap-2 rounded-2xl border border-violet-500/40 bg-zinc-950/95 p-4 shadow-2xl backdrop-blur">
+      <div className="mx-auto flex max-w-md flex-col gap-2 rounded-2xl border border-violet-500/40 bg-hir-bg/95 p-4 shadow-2xl shadow-violet-500/20 ring-1 ring-inset ring-violet-500/15 backdrop-blur">
         <div className="flex items-start gap-3">
           <span
             aria-hidden
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-500/40 shadow-sm shadow-violet-500/20"
           >
-            <Sparkles className="h-4 w-4 text-violet-300" />
+            <Sparkles
+              className="h-4 w-4 text-violet-300 drop-shadow-[0_0_4px_rgba(167,139,250,0.6)]"
+              strokeWidth={2.25}
+            />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-hir-fg">
+            <p className="text-sm font-semibold tracking-tight text-hir-fg">
               {CURRENT_RELEASE.title}
             </p>
-            <p className="mt-0.5 text-[11px] text-hir-muted-fg">
+            <p className="mt-0.5 text-[11px] tabular-nums text-hir-muted-fg">
               {CURRENT_RELEASE.date}
             </p>
           </div>
@@ -69,13 +72,13 @@ export function WhatsNewBanner() {
             type="button"
             onClick={dismiss}
             aria-label="Închide"
-            className="-mr-1 -mt-1 flex h-7 w-7 items-center justify-center rounded-full text-hir-muted-fg hover:bg-hir-border hover:text-hir-fg"
+            className="-mr-1 -mt-1 flex h-7 w-7 items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            <X className="h-4 w-4" aria-hidden />
+            <X className="h-4 w-4" aria-hidden strokeWidth={2.25} />
           </button>
         </div>
 
-        <ul className="ml-1 list-disc space-y-1 pl-5 text-xs text-hir-muted-fg">
+        <ul className="ml-1 list-disc space-y-1 pl-5 text-xs leading-relaxed text-hir-muted-fg">
           {CURRENT_RELEASE.bullets.map((b, i) => (
             <li key={i}>{b}</li>
           ))}
@@ -84,7 +87,7 @@ export function WhatsNewBanner() {
         <button
           type="button"
           onClick={dismiss}
-          className="self-end rounded-lg px-3 py-1.5 text-xs font-medium text-violet-300 hover:bg-violet-500/10 hover:text-violet-200"
+          className="self-end rounded-lg px-3 py-1.5 text-xs font-semibold text-violet-300 transition-colors hover:bg-violet-500/10 hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
           Am înțeles
         </button>
