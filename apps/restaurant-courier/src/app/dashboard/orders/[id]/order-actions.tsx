@@ -85,11 +85,16 @@ export function OrderActions({
   // the rider isn't left wondering why there's no button.
   if (mode === 'C') {
     return (
-      <div className="flex items-start gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
+      <div className="flex items-start gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 text-sm ring-1 ring-inset ring-hir-border/40">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-hir-border/40 ring-1 ring-hir-border/60"
+        >
+          <Info className="h-4 w-4 text-hir-muted-fg" strokeWidth={2.25} />
+        </span>
         <div className="flex-1">
-          <p className="font-medium text-hir-fg">Vizualizare read-only</p>
-          <p className="mt-0.5 text-xs text-hir-muted-fg">
+          <p className="font-semibold text-hir-fg">Vizualizare read-only</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">
             {fleetName
               ? `Folosește aplicația flotei "${fleetName}" pentru a actualiza starea comenzii.`
               : 'Folosește aplicația flotei tale pentru a actualiza starea comenzii.'}
@@ -257,16 +262,16 @@ function CashCollectedGate({
 }) {
   if (confirmed) {
     return (
-      <div className="flex items-center justify-between rounded-2xl border border-emerald-700/40 bg-emerald-950/40 px-4 py-3 text-sm">
-        <span className="flex items-center gap-2 text-emerald-300">
-          <Banknote className="h-4 w-4" aria-hidden />
-          Cash încasat: <span className="font-semibold">{amountLabel}</span>
+      <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm ring-1 ring-inset ring-emerald-500/20 shadow-sm shadow-emerald-500/10">
+        <span className="flex items-center gap-2 text-emerald-200">
+          <Banknote className="h-4 w-4" aria-hidden strokeWidth={2.25} />
+          Cash încasat: <span className="font-semibold tabular-nums">{amountLabel}</span>
         </span>
         <Button
           type="button"
           variant="ghost"
           onClick={onReset}
-          className="h-auto p-0 text-xs text-hir-muted-fg hover:text-hir-fg"
+          className="h-auto p-0 text-xs text-hir-muted-fg transition-colors hover:bg-transparent hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 rounded"
         >
           Modifică
         </Button>
@@ -275,16 +280,21 @@ function CashCollectedGate({
   }
 
   return (
-    <div className="rounded-2xl border border-amber-700/40 bg-amber-950/30 p-4">
-      <div className="flex items-start gap-2">
-        <Banknote className="mt-0.5 h-4 w-4 text-amber-300" aria-hidden />
+    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 ring-1 ring-inset ring-amber-500/20 shadow-sm shadow-amber-500/10">
+      <div className="flex items-start gap-2.5">
+        <span
+          aria-hidden
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40 shadow-sm shadow-amber-500/20"
+        >
+          <Banknote className="h-4 w-4 text-amber-300" strokeWidth={2.25} />
+        </span>
         <div className="flex-1">
-          <p className="text-sm font-medium text-amber-100">
+          <p className="text-sm font-semibold text-amber-100">
             Plată cash la livrare
           </p>
-          <p className="mt-0.5 text-xs text-amber-200/80">
+          <p className="mt-0.5 text-xs leading-relaxed text-amber-200/90">
             Confirmă că ai încasat{' '}
-            <span className="font-semibold">{amountLabel}</span> de la client
+            <span className="font-semibold tabular-nums">{amountLabel}</span> de la client
             înainte de a marca livrarea.
           </p>
         </div>
@@ -292,7 +302,7 @@ function CashCollectedGate({
       <Button
         type="button"
         onClick={onConfirm}
-        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 hover:bg-amber-400"
+        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-md shadow-amber-500/30 transition-all hover:-translate-y-px hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-2"
       >
         Da, am încasat {amountLabel}
       </Button>
