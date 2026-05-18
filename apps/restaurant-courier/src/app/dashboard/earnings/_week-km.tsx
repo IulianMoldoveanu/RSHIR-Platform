@@ -60,21 +60,21 @@ export function WeekKm({
   return (
     <section
       aria-label="Kilometri săptămâna aceasta"
-      className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4"
+      className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4 ring-1 ring-inset ring-hir-border/40 shadow-sm shadow-sky-500/5"
     >
       <span
         aria-hidden
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 ring-1 ring-sky-500/30 shadow-sm shadow-sky-500/15"
       >
-        <MapPin className="h-5 w-5 text-sky-300" />
+        <MapPin className="h-5 w-5 text-sky-300" strokeWidth={2.25} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           Săptămâna aceasta
         </p>
         <p className="mt-0.5 text-sm text-hir-fg">
           <span className="font-bold tabular-nums">{totalKm.toFixed(1)} km</span>{' '}
-          <span className="text-hir-muted-fg">
+          <span className="tabular-nums text-hir-muted-fg">
             · {count} livr{count === 1 ? 'are' : 'ări'} · ~{kmPerDelivery.toFixed(1)} km/livrare
           </span>
         </p>

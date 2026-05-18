@@ -121,15 +121,15 @@ function StatTile({
   sub: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 transition-shadow hover:shadow-md">
+    <div className="flex flex-col gap-2 rounded-2xl border border-hir-border bg-hir-surface p-4 ring-1 ring-inset ring-hir-border/40 transition-all hover:-translate-y-px hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/10">
       <div className="flex items-center gap-1.5">
         {icon}
         <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           {label}
         </span>
       </div>
-      <p className="text-2xl font-bold leading-none text-hir-fg tabular-nums">{value}</p>
-      <p className="text-[11px] text-hir-muted-fg">{sub}</p>
+      <p className="text-2xl font-bold leading-none tabular-nums text-hir-fg">{value}</p>
+      <p className="text-[11px] leading-relaxed text-hir-muted-fg">{sub}</p>
     </div>
   );
 }
