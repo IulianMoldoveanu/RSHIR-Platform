@@ -40,19 +40,19 @@ const ICON_MAP: Record<string, typeof Package> = {
 };
 
 const TONE_UNLOCKED: Record<BadgeDef['tone'], string> = {
-  violet: 'border-violet-500/40 bg-violet-500/10 text-violet-300',
-  amber: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
-  emerald: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
-  sky: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
-  rose: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
+  violet: 'border-violet-500/40 bg-violet-500/10 text-violet-200 ring-1 ring-inset ring-violet-500/15 shadow-sm shadow-violet-500/10',
+  amber: 'border-amber-500/40 bg-amber-500/10 text-amber-200 ring-1 ring-inset ring-amber-500/15 shadow-sm shadow-amber-500/10',
+  emerald: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200 ring-1 ring-inset ring-emerald-500/15 shadow-sm shadow-emerald-500/10',
+  sky: 'border-sky-500/40 bg-sky-500/10 text-sky-200 ring-1 ring-inset ring-sky-500/15 shadow-sm shadow-sky-500/10',
+  rose: 'border-rose-500/40 bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-500/15 shadow-sm shadow-rose-500/10',
 };
 
 const TONE_ICON_UNLOCKED: Record<BadgeDef['tone'], string> = {
-  violet: 'text-violet-400',
-  amber: 'text-amber-400',
-  emerald: 'text-emerald-400',
-  sky: 'text-sky-400',
-  rose: 'text-rose-400',
+  violet: 'text-violet-300',
+  amber: 'text-amber-300',
+  emerald: 'text-emerald-300',
+  sky: 'text-sky-300',
+  rose: 'text-rose-300',
 };
 
 /** Format unlock date as "dd mmm" in Romanian. */
@@ -112,9 +112,12 @@ export function Achievements({
         <div className="mb-2 flex items-center justify-between">
           <h2
             id="achievements-heading"
-            className="text-xs font-semibold uppercase tracking-wide text-hir-muted-fg"
+            className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg"
           >
-            Realizări ({unlockedCount}/{total})
+            Realizări
+            <span className="inline-flex min-w-[28px] items-center justify-center rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-violet-200 ring-1 ring-inset ring-violet-500/30">
+              {unlockedCount}/{total}
+            </span>
           </h2>
         </div>
         <ul className="grid grid-cols-4 gap-2" role="list">
@@ -138,25 +141,30 @@ export function Achievements({
                       ? `${badge.label}: ${badge.description} (${formatUnlockDate(unlockedAt!)})`
                       : `Blocat: ${badge.description}`
                   }
-                  className={`flex w-full flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
+                  className={`flex w-full flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-all focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                     isUnlocked
-                      ? TONE_UNLOCKED[badge.tone]
-                      : 'border-hir-border bg-hir-surface text-hir-muted-fg'
+                      ? `${TONE_UNLOCKED[badge.tone]} hover:-translate-y-px`
+                      : 'border-hir-border bg-hir-surface text-hir-muted-fg ring-1 ring-inset ring-hir-border/40 opacity-60'
                   }`}
                 >
-                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-hir-bg/30">
+                  <span
+                    className={`relative flex h-9 w-9 items-center justify-center rounded-full ${
+                      isUnlocked ? 'bg-hir-bg/40 ring-1 ring-current/30' : 'bg-hir-bg/30'
+                    }`}
+                  >
                     {isUnlocked ? (
                       <IconComp
-                        className={`h-4 w-4 ${TONE_ICON_UNLOCKED[badge.tone]}`}
+                        className={`h-4 w-4 ${TONE_ICON_UNLOCKED[badge.tone]} drop-shadow-[0_0_4px_currentColor]`}
                         aria-hidden
+                        strokeWidth={2.25}
                       />
                     ) : (
-                      <Lock className="h-3.5 w-3.5 text-hir-muted-fg" aria-hidden />
+                      <Lock className="h-3.5 w-3.5 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />
                     )}
                   </span>
-                  <span className="text-[9px] font-semibold leading-tight">{badge.label}</span>
+                  <span className="text-[10px] font-semibold leading-tight">{badge.label}</span>
                   {isUnlocked && unlockedAt ? (
-                    <span className="text-[8px] leading-none opacity-70">
+                    <span className="text-[9px] tabular-nums leading-none opacity-80">
                       {formatUnlockDate(unlockedAt)}
                     </span>
                   ) : null}
