@@ -53,7 +53,7 @@ export function Sparkline7d({ rows, now = new Date() }: { rows: Row[]; now?: Dat
   return (
     <section
       aria-label="Câștigul ultimei săptămâni"
-      className="rounded-2xl border border-hir-border bg-zinc-900 p-4 shadow-sm ring-1 ring-inset ring-hir-border/40"
+      className="rounded-2xl border border-hir-border bg-hir-surface p-4 shadow-sm ring-1 ring-inset ring-hir-border/40"
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">

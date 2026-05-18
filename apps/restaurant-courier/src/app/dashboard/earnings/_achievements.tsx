@@ -202,17 +202,17 @@ function BadgeToast({ badge, onDismiss }: { badge: BadgeDef; onDismiss: () => vo
         setVisible(false);
         onDismiss();
       }}
-      className="fixed bottom-24 left-1/2 z-[1400] flex max-w-xs -translate-x-1/2 items-center gap-3 rounded-2xl border border-violet-500/40 bg-zinc-950/95 px-4 py-3 text-left shadow-lg backdrop-blur active:scale-[0.98]"
+      className="fixed bottom-24 left-1/2 z-[1400] flex max-w-xs -translate-x-1/2 items-center gap-3 rounded-2xl border border-violet-500/40 bg-hir-bg/95 px-4 py-3 text-left shadow-xl shadow-violet-500/25 ring-1 ring-inset ring-violet-500/15 backdrop-blur transition-transform active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20">
-        <IconComp className="h-5 w-5 text-violet-400" aria-hidden />
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-500/40 shadow-sm shadow-violet-500/20">
+        <IconComp className="h-5 w-5 text-violet-300 drop-shadow-[0_0_4px_rgba(167,139,250,0.6)]" aria-hidden strokeWidth={2.25} />
       </span>
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-300">
           Realizare deblocată
         </p>
         <p className="mt-0.5 text-sm font-semibold text-hir-fg">{badge.label}</p>
-        <p className="mt-0.5 text-xs text-hir-muted-fg">{badge.description}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">{badge.description}</p>
       </div>
     </button>
   );

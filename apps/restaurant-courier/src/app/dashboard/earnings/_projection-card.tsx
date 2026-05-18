@@ -77,7 +77,7 @@ export function ProjectionCard({ todayRows, trailing7Rows }: Props) {
       className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
         isAbove
           ? 'border-emerald-500/30 bg-emerald-500/5'
-          : 'border-hir-border bg-zinc-900'
+          : 'border-hir-border bg-hir-surface'
       }`}
     >
       <TrendingUp

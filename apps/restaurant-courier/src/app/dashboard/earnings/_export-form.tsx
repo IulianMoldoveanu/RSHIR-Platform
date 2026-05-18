@@ -92,7 +92,7 @@ export function ExportForm() {
               id="export-month"
               value={month}
               onChange={(e) => setMonth(Number(e.target.value))}
-              className="h-11 w-full rounded-xl border border-hir-border bg-zinc-900 px-3 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
+              className="h-11 w-full rounded-xl border border-hir-border bg-hir-surface px-3 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
             >
               {MONTHS.map((m) => (
                 <option key={m.value} value={m.value}>
@@ -114,7 +114,7 @@ export function ExportForm() {
             id="export-year"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="h-11 w-full rounded-xl border border-hir-border bg-zinc-900 px-3 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
+            className="h-11 w-full rounded-xl border border-hir-border bg-hir-surface px-3 text-sm text-hir-fg focus:border-violet-500 focus:outline-none"
           >
             {YEARS.map((y) => (
               <option key={y} value={y}>
