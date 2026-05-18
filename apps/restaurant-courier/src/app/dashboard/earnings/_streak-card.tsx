@@ -69,39 +69,51 @@ export function StreakCard({ rows }: Props) {
   return (
     <section
       aria-label="Seria de livrări"
-      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ring-1 ring-inset ${
         isWarning
-          ? 'border-orange-500/30 bg-orange-500/5'
-          : 'border-violet-500/30 bg-violet-500/5'
+          ? 'border-amber-500/40 bg-amber-500/10 ring-amber-500/15 shadow-sm shadow-amber-500/10'
+          : 'border-violet-500/40 bg-violet-500/10 ring-violet-500/15 shadow-sm shadow-violet-500/10'
       }`}
     >
-      <Flame
-        className={`h-5 w-5 shrink-0 ${isWarning ? 'text-orange-400' : 'text-violet-400'}`}
+      <span
         aria-hidden
-      />
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ${
+          isWarning
+            ? 'bg-amber-500/20 ring-amber-500/40 shadow-sm shadow-amber-500/20'
+            : 'bg-violet-500/20 ring-violet-500/40 shadow-sm shadow-violet-500/20'
+        }`}
+      >
+        <Flame
+          className={`h-4 w-4 ${isWarning ? 'text-amber-300' : 'text-violet-300'} ${
+            isWarning ? '' : 'drop-shadow-[0_0_4px_rgba(167,139,250,0.5)]'
+          }`}
+          aria-hidden
+          strokeWidth={2.25}
+        />
+      </span>
       <div className="flex-1 text-sm">
         {isWarning ? (
           <>
-            <p className="font-medium text-hir-fg">Seria ta e în pericol!</p>
-            <p className="mt-0.5 text-xs text-hir-muted-fg">
+            <p className="font-semibold text-amber-100">Seria ta e în pericol!</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-200/90">
               Ai livrat ieri, dar încă nu ai nicio livrare azi. Pornește o tură pentru a o păstra.
             </p>
           </>
         ) : (
           <>
-            <p className="font-medium text-hir-fg">
+            <p className="font-semibold text-hir-fg">
               {streak === 1
                 ? 'Prima zi din serie — continuă tot mâine!'
                 : `Continuă-ți seria — ${streak} ${streak === 1 ? 'zi' : 'zile'} la rând`}
             </p>
-            <p className="mt-0.5 text-xs text-hir-muted-fg">
+            <p className="mt-0.5 text-xs leading-relaxed text-hir-muted-fg">
               Livrezi în fiecare zi. Menține seria activă!
             </p>
           </>
         )}
       </div>
       <span
-        className={`text-xl font-bold tabular-nums ${isWarning ? 'text-orange-300' : 'text-violet-300'}`}
+        className={`text-2xl font-bold tabular-nums leading-none ${isWarning ? 'text-amber-200' : 'text-violet-200'}`}
         aria-label={`${streak} zile`}
       >
         {streak}
