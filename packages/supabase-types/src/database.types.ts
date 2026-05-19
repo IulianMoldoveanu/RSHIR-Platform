@@ -836,6 +836,7 @@ export type Database = {
         Row: {
           created_at: string
           custom_domain: string | null
+          delivery_mode: Database["public"]["Enums"]["tenant_delivery_mode"]
           dispatch_mode: string
           domain_status: string
           domain_verified_at: string | null
@@ -851,6 +852,7 @@ export type Database = {
         Insert: {
           created_at?: string
           custom_domain?: string | null
+          delivery_mode?: Database["public"]["Enums"]["tenant_delivery_mode"]
           dispatch_mode?: string
           domain_status?: string
           domain_verified_at?: string | null
@@ -866,6 +868,7 @@ export type Database = {
         Update: {
           created_at?: string
           custom_domain?: string | null
+          delivery_mode?: Database["public"]["Enums"]["tenant_delivery_mode"]
           dispatch_mode?: string
           domain_status?: string
           domain_verified_at?: string | null
@@ -1000,6 +1003,7 @@ export type Database = {
         | "TAZZ"
         | "FOODPANDA"
         | "BOLT_FOOD"
+      tenant_delivery_mode: "full_saas" | "headless"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1139,6 +1143,7 @@ export const Constants = {
         "FOODPANDA",
         "BOLT_FOOD",
       ],
+      tenant_delivery_mode: ["full_saas", "headless"],
     },
   },
 } as const

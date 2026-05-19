@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ExternalLink } from 'lucide-react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
+import { getTenantDeliveryMode, isHeadless } from '@/lib/tenant-mode';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { logoutAction } from './actions';
@@ -54,6 +55,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     );
   }
   const { user, tenant, tenants, isPlatformAdminMode } = active;
+
+  const deliveryMode = isPlatformAdminMode
+    ? 'full_saas' as const
+    : await getTenantDeliveryMode(tenant.id);
+  const connectMode = isHeadless(deliveryMode);
+
   let onboarding: Awaited<ReturnType<typeof computeOnboardingState>>;
   if (isPlatformAdminMode) {
     onboarding = { menu_added: false, hours_set: false, zones_set: false, went_live: true, completed_at: null };
@@ -69,10 +76,57 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const isPlatformAdmin = isPlatformAdminEmail(user.email);
 
+  // Headless (HIR Connect) nav: hide storefront-facing features, expose
+  // only the service-layer surfaces (orders, courier, AI, analytics, API).
+  const connectNavEntries: SidebarEntry[] = [
+    { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
+    { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
+    { href: '/dashboard/orders/manual-entry', label: 'Comandă manuală' },
+    // Menu is read-only for Connect tenants — they manage their own site.
+    { href: '/dashboard/menu', label: 'Meniu (citire)', icon: 'bookOpen' as const },
+    { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
+    { href: '/dashboard/ai-activity', label: 'Jurnal AI' },
+    {
+      label: 'Operațiuni',
+      icon: 'sliders' as const,
+      items: [
+        { href: '/dashboard/zones', label: 'Zone livrare' },
+        { href: '/dashboard/settings/operations', label: 'Program & pickup' },
+        { href: '/dashboard/settings/notifications', label: 'Notificări' },
+        { href: '/dashboard/pre-orders', label: 'Pre-comenzi' },
+        { href: '/dashboard/voice', label: 'Apeluri vocale' },
+        { href: '/dashboard/inventory', label: 'Stocuri' },
+        { href: '/kds', label: 'Ecran bucătărie (KDS)' },
+      ],
+    },
+    {
+      label: 'Analytics',
+      icon: 'megaphone' as const,
+      items: [
+        { href: '/dashboard/analytics', label: 'Analytics' },
+        { href: '/dashboard/customer-insights', label: 'Insights clienți' },
+      ],
+    },
+    {
+      label: 'API & Integrări',
+      icon: 'settings' as const,
+      items: [
+        { href: '/dashboard/settings/integrations/api', label: 'API Settings' },
+        // Webhook config route — filled by connect-webhook PR (Task 2).
+        { href: '/dashboard/settings/integrations/webhooks', label: 'Webhook configurare' },
+        { href: '/dashboard/settings/integrations', label: 'Integrări' },
+        { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
+        { href: '/dashboard/settings/ai-trust', label: 'Încredere AI' },
+      ],
+    },
+    { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni', icon: 'sliders' as const },
+    { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
+  ];
+
   // Tenant-scoped nav (Comenzi / Meniu / Marketing / etc). Hidden in
   // platform-admin-only mode so Iulian doesn't see a fake "Foișorul A"
   // shell when he hasn't been onboarded as a member of any restaurant.
-  const tenantNavEntries: SidebarEntry[] = isPlatformAdminMode ? [] : [
+  const tenantNavEntries: SidebarEntry[] = isPlatformAdminMode ? [] : connectMode ? connectNavEntries : [
     ...(onboarding.went_live
       ? []
       : [
@@ -248,7 +302,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <aside className="hidden w-56 flex-col border-r border-zinc-200 bg-white lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-zinc-200 px-4">
           <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-600 text-xs font-bold text-white">H</span>
-          <span className="text-sm font-semibold tracking-tight text-zinc-900">HIR</span>
+          <span className="text-sm font-semibold tracking-tight text-zinc-900">
+            HIR
+            {connectMode ? (
+              <span className="ml-1.5 inline-flex items-center rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                Connect
+              </span>
+            ) : null}
+          </span>
         </div>
         <SidebarNav entries={navEntries} />
       </aside>
@@ -267,7 +328,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             )}
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-500">
-            {storefrontUrl ? (
+            {storefrontUrl && !connectMode ? (
               <a
                 href={storefrontUrl}
                 target="_blank"
@@ -286,7 +347,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             </form>
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6">
+          {connectMode ? (
+            <div className="mb-5 flex items-start gap-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+              <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">C</span>
+              <p className="text-sm text-indigo-800">
+                <span className="font-semibold">Mod HIR Connect</span> — site-ul tău rămâne sursa principală; HIR gestionează doar livrarea + insights AI
+              </p>
+            </div>
+          ) : null}
+          {children}
+        </main>
       </div>
       <PwaInstallPrompt />
       {isPlatformAdminMode ? null : <FeedbackFab tenantId={tenant.id} />}
