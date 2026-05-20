@@ -12,15 +12,19 @@ export default function BusyHoursPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <Link
         href="/dashboard/settings"
-        className="inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        className="group inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+        <ChevronLeft
+          className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+          aria-hidden
+          strokeWidth={2.25}
+        />
         Setări
       </Link>
 
       <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-          <Flame className="h-5 w-5 text-violet-300" aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+          <Flame className="h-5 w-5 text-violet-300 drop-shadow-[0_0_4px_rgba(167,139,250,0.5)]" aria-hidden strokeWidth={2.25} />
         </span>
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
@@ -38,9 +42,9 @@ export default function BusyHoursPage() {
 
       <section
         aria-label="Notă despre date"
-        className={cardClasses({ padding: 'sm', className: 'flex items-start gap-2 text-xs leading-relaxed text-hir-muted-fg' })}
+        className={cardClasses({ padding: 'sm', className: 'flex items-start gap-2 text-xs leading-relaxed text-hir-muted-fg ring-1 ring-inset ring-hir-border/40' })}
       >
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" aria-hidden />
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-violet-300" aria-hidden strokeWidth={2.25} />
         <p>
           Datele sunt orientative, derivate din distribuția comenzilor în
           pilotul Brașov (apr–mai 2026). Pe măsură ce platforma crește, le

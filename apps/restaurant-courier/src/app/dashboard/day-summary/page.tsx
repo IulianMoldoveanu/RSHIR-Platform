@@ -166,13 +166,13 @@ export default async function DaySummaryPage(props: {
             className={cardClasses({
               padding: 'lg',
               className:
-                'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-hir-surface text-center',
+                'border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 to-hir-surface text-center ring-1 ring-inset ring-emerald-500/15 shadow-md shadow-emerald-500/15',
             })}
           >
             <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
               Câștig brut
             </p>
-            <p className="mt-1 text-4xl font-bold tabular-nums text-emerald-200">
+            <p className="mt-1 text-4xl font-bold tabular-nums leading-none text-emerald-100 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]">
               {totalEarnings.toFixed(2)}
               <span className="ml-1 text-xl font-semibold text-emerald-300/80">RON</span>
             </p>
@@ -185,21 +185,24 @@ export default async function DaySummaryPage(props: {
         ) : null}
 
         {/* Stats grid (delivery count + km + hours) */}
-        <section className={cardClasses({ padding: 'lg' })}>
+        <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
           <div className="grid grid-cols-3 gap-4">
             <StatBlock
-              icon={<Package className="h-5 w-5 text-violet-300" aria-hidden />}
+              icon={<Package className="h-4 w-4 text-violet-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-violet-500/10 ring-violet-500/30"
               label="Livrări"
               value={String(deliveryCount)}
             />
             <StatBlock
-              icon={<MapPin className="h-5 w-5 text-blue-300" aria-hidden />}
+              icon={<MapPin className="h-4 w-4 text-sky-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-sky-500/10 ring-sky-500/30"
               label="Km estimați"
               value={`${totalKm.toFixed(1)}`}
               suffix="km"
             />
             <StatBlock
-              icon={<Clock className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
+              icon={<Clock className="h-4 w-4 text-amber-300" aria-hidden strokeWidth={2.25} />}
+              iconBg="bg-amber-500/10 ring-amber-500/30"
               label="Ore active"
               value={totalHours.toFixed(1)}
               suffix="h"
@@ -213,13 +216,13 @@ export default async function DaySummaryPage(props: {
             className={cardClasses({
               padding: 'lg',
               variant: 'warning',
-              className: 'bg-gradient-to-br from-amber-500/10 to-amber-950/20',
+              className: 'bg-gradient-to-br from-amber-500/10 to-amber-950/20 ring-1 ring-inset ring-amber-500/15 shadow-sm shadow-amber-500/10',
             })}
           >
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40 shadow-sm shadow-amber-500/20">
                 <Star
-                  className="h-3.5 w-3.5 text-amber-300"
+                  className="h-4 w-4 text-amber-300 drop-shadow-[0_0_4px_rgba(252,211,77,0.5)]"
                   aria-hidden
                   strokeWidth={2.5}
                 />
@@ -254,16 +257,16 @@ export default async function DaySummaryPage(props: {
         <div className="flex flex-col gap-3">
           <Link
             href="/dashboard/shift"
-            className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+            className="group flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:-translate-y-px hover:bg-violet-500 hover:shadow-xl hover:shadow-violet-500/40 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
           >
             Continuă cu o tură nouă
-            <ChevronRight className="h-4 w-4" aria-hidden />
+            <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden strokeWidth={2.25} />
           </Link>
           <Link
             href="/dashboard"
-            className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 text-sm font-medium text-hir-fg transition-colors hover:border-violet-500/60 hover:bg-hir-border/40 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-hir-border bg-hir-surface px-6 text-sm font-semibold text-hir-fg transition-all hover:-translate-y-px hover:border-violet-500/60 hover:bg-hir-border/40 hover:shadow-md hover:shadow-violet-500/10 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            <Home className="h-4 w-4" aria-hidden />
+            <Home className="h-4 w-4" aria-hidden strokeWidth={2.25} />
             Mergi acasă
           </Link>
         </div>
@@ -274,19 +277,26 @@ export default async function DaySummaryPage(props: {
 
 function StatBlock({
   icon,
+  iconBg,
   label,
   value,
   suffix,
 }: {
   icon: React.ReactNode;
+  iconBg: string;
   label: string;
   value: string;
   suffix?: string;
 }) {
   return (
     <div className="flex flex-col items-center gap-1.5 text-center">
-      <span aria-hidden>{icon}</span>
-      <span className="text-lg font-bold tabular-nums text-hir-fg">
+      <span
+        aria-hidden
+        className={`flex h-8 w-8 items-center justify-center rounded-full ring-1 ${iconBg}`}
+      >
+        {icon}
+      </span>
+      <span className="text-xl font-bold tabular-nums leading-none text-hir-fg">
         {value}
         {suffix ? (
           <span className="ml-0.5 text-xs font-medium text-hir-muted-fg">
@@ -294,7 +304,7 @@ function StatBlock({
           </span>
         ) : null}
       </span>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
       </span>
     </div>
