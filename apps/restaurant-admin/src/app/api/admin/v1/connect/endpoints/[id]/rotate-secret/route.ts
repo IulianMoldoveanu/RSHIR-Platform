@@ -7,11 +7,13 @@ export const runtime = 'nodejs';
 
 const GRACE_HOURS = 24;
 
-export async function POST(_req: NextRequest, ctx: { params: { id: string } }) {
+export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const adminCheck = await requirePlatformAdmin();
   if (!adminCheck.ok) {
     return NextResponse.json({ error: adminCheck.error }, { status: adminCheck.status });
   }
+
+  const { id: endpointId } = await ctx.params;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createAdminClient() as any;
@@ -19,7 +21,7 @@ export async function POST(_req: NextRequest, ctx: { params: { id: string } }) {
   const { data: endpoint, error: epErr } = await supabase
     .from('connect_webhook_endpoints')
     .select('id, signing_secret_hash')
-    .eq('id', ctx.params.id)
+    .eq('id', endpointId)
     .single();
   if (epErr || !endpoint) {
     return NextResponse.json({ error: 'endpoint_not_found' }, { status: 404 });
