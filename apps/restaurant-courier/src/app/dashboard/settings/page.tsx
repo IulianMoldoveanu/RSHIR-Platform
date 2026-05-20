@@ -27,7 +27,9 @@ import { updateAvatarUrlAction, updateVehicleTypeAction, logoutAction } from '..
 import { AvatarUpload } from '@/components/avatar-upload';
 import { VehicleSelector } from '@/components/vehicle-selector';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { DocumentExpiryCard } from '@/components/document-expiry-card';
+// DocumentExpiryCard temporarily hidden from settings per product decision
+// (2026-05-20). File kept in tree — re-enable when the documents flow is ready.
+// import { DocumentExpiryCard } from '@/components/document-expiry-card';
 import { ReplayOnboardingButton } from '@/components/replay-onboarding-button';
 import { Card } from '@/components/card';
 import { SettingsRow } from '@/components/settings-row';
@@ -153,8 +155,7 @@ export default async function SettingsPage() {
             />
           </Card>
 
-          {/* Document expiry tracker — LocalStorage memento */}
-          <DocumentExpiryCard />
+          {/* Document expiry tracker hidden — see import comment above. */}
         </div>
       </section>
 

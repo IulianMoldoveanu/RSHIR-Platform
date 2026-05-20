@@ -44,7 +44,7 @@ const TONE_BY_STATUS: Record<string, string> = {
   FAILED: 'border-rose-500/40 bg-rose-500/10 text-rose-200',
 };
 
-const FALLBACK_TONE = 'border-hir-border bg-zinc-900 text-hir-fg';
+const FALLBACK_TONE = 'border-hir-border bg-zinc-900 text-zinc-100';
 
 type Size = 'sm' | 'md';
 

@@ -134,8 +134,11 @@ export function SwipeButton({
         style={{ background: accent, opacity: fillOpacity }}
       />
 
-      {/* Label centered on the track. */}
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-semibold tracking-wide text-hir-fg">
+      {/* Label centered on the track. White in both themes — the track is
+          hardcoded dark zinc-800 (regardless of theme), so text-hir-fg
+          rendered as zinc-900 on light theme produced dark text on dark
+          track and the label was unreadable. */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-sm font-semibold tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
         {done
           ? 'Confirmat'
           : pending

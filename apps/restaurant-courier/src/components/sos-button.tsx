@@ -89,7 +89,7 @@ export function SosButton() {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Închide"
-                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md text-hir-muted-fg transition-colors hover:bg-zinc-900 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-md text-hir-muted-fg transition-colors hover:bg-zinc-900 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-rose-500 focus-visible:outline-offset-2"
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
