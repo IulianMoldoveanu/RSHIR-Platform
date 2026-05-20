@@ -91,15 +91,19 @@ export default async function TripHistoryPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <Link
         href="/dashboard/settings"
-        className="inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        className="group inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+        <ChevronLeft
+          className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+          aria-hidden
+          strokeWidth={2.25}
+        />
         Setări
       </Link>
 
       <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-          <History className="h-5 w-5 text-violet-300" aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+          <History className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
         </span>
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
@@ -122,29 +126,29 @@ export default async function TripHistoryPage() {
       ) : (
         <>
           {/* Summary chips */}
-          <section className={cardClasses({ padding: 'md', className: 'grid grid-cols-3 gap-2' })}>
+          <section className={cardClasses({ padding: 'md', className: 'grid grid-cols-3 gap-2 ring-1 ring-inset ring-hir-border/40' })}>
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-lg font-bold tabular-nums text-emerald-300">
+              <span className="text-xl font-bold tabular-nums leading-none text-emerald-200">
                 {deliveredCount}
               </span>
-              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
                 Livrate
               </span>
             </div>
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-lg font-bold tabular-nums text-hir-fg">
+              <span className="text-xl font-bold tabular-nums leading-none text-hir-fg">
                 {finishRate.toFixed(0)}%
               </span>
-              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
                 Rată finalizare
               </span>
             </div>
             <div className="flex flex-col items-center gap-1 text-center">
-              <span className="text-lg font-bold tabular-nums text-hir-fg">
+              <span className="text-xl font-bold tabular-nums leading-none text-hir-fg">
                 {grossRon.toFixed(0)}
                 <span className="ml-1 text-xs font-medium text-hir-muted-fg">RON</span>
               </span>
-              <span className="text-[11px] font-medium uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-hir-muted-fg">
                 Brut
               </span>
             </div>
@@ -168,7 +172,7 @@ export default async function TripHistoryPage() {
                     className={cardClasses({
                       padding: 'sm',
                       className:
-                        'flex items-center gap-3 transition-colors hover:border-violet-500/40 hover:bg-hir-border/40 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2',
+                        'group flex items-center gap-3 transition-all hover:-translate-y-px hover:border-violet-500/40 hover:bg-hir-border/40 hover:shadow-md hover:shadow-violet-500/10 active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2',
                     })}
                   >
                     <span
@@ -203,11 +207,15 @@ export default async function TripHistoryPage() {
                       </p>
                     </div>
                     {row.status === 'DELIVERED' && row.delivery_fee_ron !== null ? (
-                      <span className="text-sm font-semibold tabular-nums text-emerald-300">
+                      <span className="text-sm font-semibold tabular-nums text-emerald-200">
                         +{Number(row.delivery_fee_ron).toFixed(2)}
                       </span>
                     ) : null}
-                    <ChevronRight className="h-4 w-4 shrink-0 text-hir-muted-fg" aria-hidden />
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-hir-muted-fg transition-transform group-hover:translate-x-0.5 group-hover:text-violet-300"
+                      aria-hidden
+                      strokeWidth={2.25}
+                    />
                   </Link>
                 </li>
               );
