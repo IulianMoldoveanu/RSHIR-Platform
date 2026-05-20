@@ -4,6 +4,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { getLocale } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,9 +45,10 @@ const steps = [
 ];
 
 export default function ConnectPage() {
+  const currentLocale = getLocale();
   return (
     <>
-      <MarketingHeader />
+      <MarketingHeader currentLocale={currentLocale} />
       <main>
         {/* Hero */}
         <section className="bg-gradient-to-b from-indigo-50 to-white px-4 pb-20 pt-16 text-center">
@@ -132,7 +134,7 @@ export default function ConnectPage() {
           </a>
         </section>
       </main>
-      <MarketingFooter />
+      <MarketingFooter currentLocale={currentLocale} />
     </>
   );
 }
