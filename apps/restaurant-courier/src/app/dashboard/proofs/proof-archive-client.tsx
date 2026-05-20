@@ -57,8 +57,8 @@ export function ProofArchiveClient({ items }: Props) {
       <div className="mx-auto flex max-w-xl flex-col gap-5">
         {/* Header */}
         <header className="flex items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-            <Camera className="h-5 w-5 text-violet-300" aria-hidden />
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+            <Camera className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
           </span>
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
@@ -73,9 +73,9 @@ export function ProofArchiveClient({ items }: Props) {
         </header>
 
         {/* Date range filter */}
-        <section className={cardClasses()}>
+        <section className={cardClasses({ className: 'ring-1 ring-inset ring-hir-border/40' })}>
           <div className="mb-3 flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-hir-muted-fg" aria-hidden />
+            <Calendar className="h-4 w-4 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />
             <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
               Filtrare perioadă
             </span>
@@ -107,7 +107,7 @@ export function ProofArchiveClient({ items }: Props) {
                 className="h-auto shrink-0 rounded-lg px-2 py-2 text-hir-muted-fg transition-colors hover:bg-hir-border/50 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
                 aria-label="Resetează filtrele"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={2.25} />
               </Button>
             ) : null}
           </div>
@@ -122,11 +122,11 @@ export function ProofArchiveClient({ items }: Props) {
 
         {/* Grid */}
         {filtered.length === 0 ? (
-          <div className={cardClasses({ padding: 'none', className: 'flex flex-col items-center gap-3 py-14 text-center' })}>
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-500/10 ring-1 ring-violet-500/30">
-              <Camera className="h-7 w-7 text-violet-300" aria-hidden />
+          <div className={cardClasses({ padding: 'none', className: 'flex flex-col items-center gap-3 py-14 text-center ring-1 ring-inset ring-hir-border/40' })}>
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/10 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+              <Camera className="h-7 w-7 text-violet-300" aria-hidden strokeWidth={2.25} />
             </span>
-            <p className="text-sm font-medium text-hir-fg">
+            <p className="text-sm font-semibold text-hir-fg">
               {items.length === 0
                 ? 'Nu ai poze încărcate'
                 : 'Nicio fotografie în intervalul selectat'}
@@ -150,7 +150,7 @@ export function ProofArchiveClient({ items }: Props) {
                 role="listitem"
                 onClick={() => setSelected(item)}
                 aria-label={`Fotografie livrare ${formatDate(item.deliveredAt)}`}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-hir-border bg-hir-border transition-all hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/15 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-hir-border bg-hir-border ring-1 ring-inset ring-hir-border/40 transition-all hover:-translate-y-px hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/20 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
