@@ -1,0 +1,107 @@
+/* HIR Connect — admin + frontend styles */
+
+.hir-connect-wrap .hir-mono {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	background: #f6f7f7;
+	padding: 4px 8px;
+	border-radius: 4px;
+	display: inline-block;
+	margin-right: 8px;
+}
+
+.hir-connect-wrap .hir-hints {
+	list-style: disc;
+	padding-left: 1.5rem;
+	max-width: 720px;
+}
+
+.hir-connect-wrap .hir-hints li {
+	margin: 0.4rem 0;
+}
+
+.hir-connect-test {
+	margin-top: 0.5rem;
+}
+
+/* Frontend upsell widget */
+.hir-upsell {
+	margin: 1.5rem 0;
+	padding: 1.25rem;
+	border: 1px solid #e3e3e3;
+	border-radius: 8px;
+	background: #fafafa;
+}
+
+.hir-upsell__title {
+	margin: 0 0 1rem;
+	font-size: 1.1rem;
+}
+
+.hir-upsell__list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 1rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.hir-upsell__item {
+	background: #fff;
+	border: 1px solid #ececec;
+	border-radius: 6px;
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.hir-upsell__img {
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	object-fit: cover;
+	border-radius: 4px;
+}
+
+.hir-upsell__name {
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.hir-upsell__price {
+	color: #555;
+	font-size: 0.9rem;
+}
+
+.hir-upsell__add {
+	margin-top: auto;
+}
+
+/* Tracking iframe wrapper */
+.hir-tracking {
+	margin: 1rem 0;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.hir-tracking--empty {
+	padding: 1rem;
+	background: #fff8e1;
+	border: 1px solid #ffe082;
+	border-radius: 6px;
+	color: #5d4037;
+}
+
+/* My Account / order detail card */
+.hir-tracking-card {
+	margin: 1.5rem 0;
+	padding: 1rem;
+	background: #f0f7ff;
+	border: 1px solid #bbdefb;
+	border-radius: 8px;
+}
+
+.hir-tracking-card h2 {
+	margin-top: 0;
+	font-size: 1.05rem;
+}
