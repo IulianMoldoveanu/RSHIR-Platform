@@ -21,7 +21,7 @@ const WHATSAPP_PHONE = '+40743700916';
 export const metadata: Metadata = {
   title: 'HIR for You — Demo gratuit | Scapă de comisionul Glovo în 5 minute',
   description:
-    'Vezi cum funcționează HIR pentru restaurantul tău. Demo de 15 minute, fără card, fără obligații. Comenzi proprii, livrare proprie, 2 lei pe comandă.',
+    'Vezi cum funcționează HIR pentru restaurantul tău. Demo de 15 minute, fără card, fără obligații. Comenzi proprii pe site-ul tău, 2 lei pe comandă procesată online, livrare opțională prin ofertă personalizată.',
   alternates: { canonical: 'https://hirforyou.ro/demo' },
   openGraph: {
     title: 'HIR for You — Demo gratuit pentru restaurantul tău',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
       {
         url: marketingOgImageUrl({
           title: 'Demo gratuit HIR for You',
-          subtitle: 'Comenzi proprii. Livrare proprie. 2 lei/comandă.',
+          subtitle: 'Comenzi proprii. 2 lei pe comandă procesată online. Livrare prin ofertă personalizată.',
           variant: 'case-study',
         }),
         width: 1200,
@@ -80,11 +80,10 @@ export default function DemoPage() {
         </div>
         <h1 className="text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
           Comenzile tale. <br />
-          <span className="text-violet-700">Livrarea ta. 2 lei pe comandă.</span>
+          <span className="text-violet-700">2 lei pe comandă procesată online.</span>
         </h1>
         <p className="mt-4 text-base text-zinc-700 sm:text-lg">
-          Înlocuim Glovo, Wolt și Bolt cu site-ul tău, livrare proprie și AI care lucrează 24/7. Demo de 15 minute, fără
-          card.
+          Înlocuim Glovo, Wolt și Bolt cu site-ul tău, AI care lucrează 24/7 și o ofertă personalizată de livrare. Demo de 15 minute, fără card.
         </p>
 
         {/* Primary CTA — WhatsApp deep link. RO HoReCa preferă WhatsApp peste email. */}

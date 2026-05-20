@@ -138,7 +138,7 @@ export default async function StorefrontHomePage() {
       {
         question: 'Cât costă HIRforYOU?',
         answer:
-          '2 lei per comandă livrată. Fără abonament, fără comision procentual din valoarea coșului.',
+          '2 lei per comandă procesată online prin site. Fără abonament, fără comision procentual din valoarea coșului. Livrarea este separată — îți facem o ofertă personalizată de curierat sau folosești curierul tău.',
       },
       {
         question: 'Cum mă mut de pe GloriaFood pe HIRforYOU?',
@@ -148,7 +148,7 @@ export default async function StorefrontHomePage() {
       {
         question: 'Ce diferență față de Glovo / Wolt / Bolt?',
         answer:
-          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți 2 lei pe comandă, nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
+          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți 2 lei pe comandă procesată online (livrare contractată separat, prin ofertă personalizată), nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
       },
       {
         question: 'Asistentul vorbește română?',

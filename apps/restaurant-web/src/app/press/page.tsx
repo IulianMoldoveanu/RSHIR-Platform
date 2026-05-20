@@ -117,9 +117,11 @@ export default function PressPage() {
               pentru restaurante din România: storefront pentru clienți, panou
               de administrare, aplicație de curier și rețea de livrare —
               construite să înlocuiască Wolt, Glovo și GloriaFood la un
-              cost previzibil de <strong>2 lei pe comandă</strong>, fără
-              comisioane procentuale. Lansat în Brașov, scalează la nivel
-              național printr-o rețea de afiliați și manageri de flotă.
+              cost previzibil de <strong>2 lei pe comandă procesată online</strong>,
+              fără comisioane procentuale. Livrarea este opțională și se
+              contractează separat printr-o ofertă personalizată. Lansat în
+              Brașov, scalează la nivel național printr-o rețea de afiliați
+              și manageri de flotă.
             </p>
           </div>
           <div>
@@ -131,9 +133,10 @@ export default function PressPage() {
               for Romanian restaurants: customer storefront, admin dashboard,
               courier app and delivery network — built to replace Wolt, Glovo
               and GloriaFood at a flat{' '}
-              <strong>2 lei per order</strong> cost, with no percentage
-              commission. Launched in Brașov, scaling nationally through an
-              affiliate and fleet-manager network.
+              <strong>2 lei per online order processed</strong> cost, with no
+              percentage commission. Delivery is optional and contracted
+              separately through a tailored offer. Launched in Brașov, scaling
+              nationally through an affiliate and fleet-manager network.
             </p>
           </div>
         </div>
@@ -143,7 +146,7 @@ export default function PressPage() {
           <FactCard label="Fondator" value="Iulian Moldoveanu" />
           <FactCard label="Sediu" value="Brașov, România" />
           <FactCard label="Lansare pilot" value="2026" />
-          <FactCard label="Tarif livrare" value="2 lei / comandă" />
+          <FactCard label="Tarif platformă" value="2 lei / comandă procesată online" />
         </div>
       </section>
 

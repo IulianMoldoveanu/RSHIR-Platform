@@ -177,7 +177,7 @@ export function localBusinessJsonLd(baseUrl: string) {
     url: baseUrl,
     telephone: '+40743700916',
     email: 'office@hirforyou.ro',
-    priceRange: '2 RON / comandă',
+    priceRange: '2 RON / comandă procesată online',
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'RO',

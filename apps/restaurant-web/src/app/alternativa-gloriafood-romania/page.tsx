@@ -35,7 +35,7 @@ function daysUntilShutdown(): number {
 
 const PAGE_TITLE = 'Alternativa GloriaFood pentru România — HIRforYOU';
 const PAGE_DESCRIPTION =
-  'GloriaFood se închide pe 30 aprilie 2027. HIRforYOU este alternativa românească pentru restaurante: site propriu, comenzi online, KDS, livrare și AI — 2 lei per comandă, fără comision procentual.';
+  'GloriaFood se închide pe 30 aprilie 2027. HIRforYOU este alternativa românească pentru restaurante: site propriu, comenzi online, KDS și AI — 2 lei per comandă procesată online, fără comision procentual. Livrare opțională prin ofertă personalizată.';
 
 export async function generateMetadata(): Promise<Metadata> {
   const host =
@@ -43,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const url = `${canonicalBaseUrl(host)}/alternativa-gloriafood-romania`;
   const ogImage = marketingOgImageUrl({
     title: 'Alternativa GloriaFood pentru România',
-    subtitle: 'HIRforYOU — 2 lei per comandă, fără comision procentual',
+    subtitle: 'HIRforYOU — 2 lei per comandă procesată online, livrare prin ofertă personalizată',
     variant: 'migrate',
   });
   return {
@@ -83,9 +83,9 @@ const REASONS: ReadonlyArray<{ title: string; body: string }> = [
       'Restaurantul dumneavoastră primește un magazin online sub propriul nume — nu o pagină pe Glovo, Wolt sau Bolt. Clienții vă rămân ai dumneavoastră, datele lor le păstrați.',
   },
   {
-    title: '2 lei per comandă, nu comision procentual',
+    title: '2 lei per comandă procesată online, nu comision procentual',
     body:
-      'Plătiți 2 lei pentru fiecare comandă livrată — atât. Fără comision procentual din valoarea coșului. La o comandă medie de 80 lei, costul este sub 3% — față de tipic 25-30% pe agregatorii mari.',
+      'Plătiți 2 lei pentru fiecare comandă procesată prin site — atât. Fără comision procentual din valoarea coșului. La o comandă medie de 80 lei, costul este sub 3% — față de tipic 25-30% pe agregatorii mari. Livrarea se contractează separat, prin ofertă personalizată.',
   },
   {
     title: 'AI inclus, fără cost suplimentar',
@@ -111,10 +111,10 @@ const COMPARE: ReadonlyArray<CompareRow> = [
     gfGood: false,
   },
   {
-    feature: 'Cost per comandă',
-    hir: '2 lei (flat)',
+    feature: 'Cost procesare comandă',
+    hir: '2 lei (flat) / comandă procesată online',
     hirGood: true,
-    gf: '0 lei (free) — dar fără AI și fără livrare proprie',
+    gf: '0 lei (free) — dar fără AI și fără livrare',
     gfGood: false,
   },
   {
@@ -126,7 +126,7 @@ const COMPARE: ReadonlyArray<CompareRow> = [
   },
   {
     feature: 'Curier propriu / flotă HIR',
-    hir: 'Inclus',
+    hir: 'Opțional, prin ofertă personalizată',
     hirGood: true,
     gf: 'Indisponibil — depindeți de agregatori',
     gfGood: false,
@@ -168,7 +168,7 @@ const FAQ: ReadonlyArray<{ question: string; answer: string }> = [
   {
     question: 'Cât costă HIRforYOU?',
     answer:
-      '2 lei per comandă livrată. Fără abonament lunar, fără comision procentual din valoarea coșului. Pentru un restaurant cu 30 de comenzi pe zi (preț mediu 80 lei), costul HIR este aproximativ 1.800 lei pe lună — versus tipic 18.000-22.000 lei pe lună plătiți la Glovo/Wolt/Bolt pentru aceleași comenzi (în funcție de contractul cu agregatorul).',
+      '2 lei per comandă procesată online prin site. Fără abonament lunar, fără comision procentual din valoarea coșului. Pentru un restaurant cu 30 de comenzi pe zi (preț mediu 80 lei), costul HIR pentru procesare este aproximativ 1.800 lei pe lună — versus tipic 18.000-22.000 lei pe lună plătiți la Glovo/Wolt/Bolt pentru aceleași comenzi (în funcție de contractul cu agregatorul). Livrarea este separată și se contractează printr-o ofertă personalizată potrivită zonei și volumului tău.',
   },
   {
     question: 'Cât durează migrarea de pe GloriaFood pe HIRforYOU?',

@@ -26,15 +26,15 @@ const PRICING_URL = PRIMARY_DOMAIN
   : 'https://hir-restaurant-web.vercel.app/pricing';
 
 const OG_IMAGE = marketingOgImageUrl({
-  title: 'Tarife — 2 lei pe comandă',
-  subtitle: 'Fără abonament. Fără procent. Fără setup.',
+  title: 'Tarife — 2 lei pe comandă procesată',
+  subtitle: 'Fără abonament. Fără procent. Livrare prin ofertă personalizată.',
   variant: 'pricing',
 });
 
 export const metadata: Metadata = {
   title: 'Tarife — HIRforYOU',
   description:
-    '2 lei pe comandă. Un singur plan. Fără abonament, fără procent, fără setup. Instalare gratuită pentru primele 50 de restaurante.',
+    '2 lei pe comandă procesată online. Un singur plan. Fără abonament, fără procent, fără setup. Livrarea este separată, prin ofertă personalizată. Instalare gratuită pentru primele 50 de restaurante.',
   alternates: {
     canonical: PRICING_URL,
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Tarife — HIRforYOU',
     description:
-      'Plătești doar pentru comenzile livrate. 2 lei pe comandă. Fără surprize.',
+      'Plătești doar pentru comenzile procesate de site. 2 lei pe comandă. Livrare opțională prin ofertă personalizată.',
     type: 'website',
     locale: 'ro_RO',
     images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Tarife HIR' }],
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Tarife — HIRforYOU',
-    description: 'Plătești doar pentru comenzile livrate. 2 lei pe comandă.',
+    description: '2 lei pe comandă procesată online. Livrare separată, prin ofertă personalizată.',
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
