@@ -40,15 +40,19 @@ export default function AboutPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <Link
         href="/dashboard/settings"
-        className="inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        className="group inline-flex min-h-[32px] items-center gap-1.5 self-start rounded-lg px-1 text-xs font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+        <ChevronLeft
+          className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+          aria-hidden
+          strokeWidth={2.25}
+        />
         Setări
       </Link>
 
       <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30">
-          <Info className="h-5 w-5 text-violet-300" aria-hidden />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
+          <Info className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
         </span>
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
@@ -61,25 +65,25 @@ export default function AboutPage() {
       </header>
 
       {/* Version + last release */}
-      <section className={cardClasses({ padding: 'lg' })}>
+      <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
         <div className="flex items-center gap-3">
           <span
             aria-hidden
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-sm shadow-violet-500/15"
           >
-            <Package className="h-5 w-5 text-violet-300" />
+            <Package className="h-5 w-5 text-violet-300" strokeWidth={2.25} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-hir-fg">HIR Curier</p>
             <p className="mt-0.5 text-xs text-hir-muted-fg">
               <span className="tabular-nums">Versiunea {APP_VERSION}</span>
               <span className="mx-1.5 text-hir-muted-fg/60">·</span>
-              <span>ultima actualizare {CURRENT_RELEASE.date}</span>
+              <span className="tabular-nums">ultima actualizare {CURRENT_RELEASE.date}</span>
             </p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-hir-border bg-hir-bg p-4">
+        <div className="mt-4 rounded-xl border border-hir-border bg-hir-bg p-4 ring-1 ring-inset ring-hir-border/40">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-violet-300">
             {CURRENT_RELEASE.title}
           </p>
@@ -88,7 +92,7 @@ export default function AboutPage() {
               <li key={i} className="flex items-start gap-2">
                 <span
                   aria-hidden
-                  className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-violet-400"
+                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-400 shadow-sm shadow-violet-500/40"
                 />
                 <span>{b}</span>
               </li>
@@ -98,26 +102,26 @@ export default function AboutPage() {
       </section>
 
       {/* OSS credits */}
-      <section className={cardClasses({ padding: 'lg' })}>
+      <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
         <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-          <Heart className="h-3.5 w-3.5 text-rose-300" aria-hidden />
+          <Heart className="h-3.5 w-3.5 text-rose-300 drop-shadow-[0_0_3px_rgba(251,113,133,0.5)]" aria-hidden strokeWidth={2.25} />
           Construit cu open source
         </h2>
         <ul className="divide-y divide-hir-border/60">
           {LIBRARIES.map((lib) => (
             <li key={lib.name} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-hir-fg">{lib.name}</p>
-                <p className="mt-0.5 text-[11px] text-hir-muted-fg">{lib.purpose}</p>
+                <p className="text-sm font-semibold text-hir-fg">{lib.name}</p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-hir-muted-fg">{lib.purpose}</p>
               </div>
               <a
                 href={lib.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Deschide ${lib.name} într-o filă nouă`}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-violet-500/10 hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-hir-muted-fg transition-all hover:-translate-y-px hover:bg-violet-500/10 hover:text-violet-200 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
               >
-                <ExternalLink className="h-4 w-4" aria-hidden />
+                <ExternalLink className="h-4 w-4" aria-hidden strokeWidth={2.25} />
               </a>
             </li>
           ))}
@@ -128,13 +132,13 @@ export default function AboutPage() {
       </section>
 
       {/* Operated by */}
-      <section className={cardClasses({ className: 'text-xs leading-relaxed text-hir-muted-fg' })}>
+      <section className={cardClasses({ className: 'text-xs leading-relaxed text-hir-muted-fg ring-1 ring-inset ring-hir-border/40' })}>
         <p className="mb-1 text-sm font-semibold text-hir-fg">Operator</p>
         <p>
           HIR Platform · administrator infrastructură HIR for You. Suport curieri:{' '}
           <a
             href="mailto:suport@hirforyou.ro"
-            className="font-medium text-violet-300 hover:text-violet-200"
+            className="rounded font-semibold text-violet-300 transition-colors hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             suport@hirforyou.ro
           </a>
@@ -143,9 +147,9 @@ export default function AboutPage() {
       </section>
 
       {/* Local data reset */}
-      <section className={cardClasses({ padding: 'lg' })}>
+      <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
         <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-          <Eraser className="h-3.5 w-3.5 text-rose-300" aria-hidden />
+          <Eraser className="h-3.5 w-3.5 text-rose-300" aria-hidden strokeWidth={2.25} />
           Date salvate pe acest dispozitiv
         </h2>
         <p className="mb-3 text-xs leading-relaxed text-hir-muted-fg">
