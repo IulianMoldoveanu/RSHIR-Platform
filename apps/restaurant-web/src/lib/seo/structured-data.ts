@@ -94,7 +94,7 @@ const PRICING_FAQ_ITEMS: FaqJsonLdInput = [
   {
     question: 'Cât plătesc pentru HIR?',
     answer:
-      '2 lei pe comandă livrată. Nu există abonament, nu există procent din valoare, nu există taxă de setup. Plătești doar pentru comenzile care ajung efectiv la client.',
+      '2 lei pe comandă procesată online prin site. Nu există abonament, nu există procent din valoare, nu există taxă de setup. Plătești doar pentru comenzile care intră efectiv prin platformă. Livrarea este separată — se contractează printr-o ofertă personalizată sau o faci cu echipa ta proprie.',
   },
   {
     question: 'Există o perioadă de probă?',
@@ -104,22 +104,22 @@ const PRICING_FAQ_ITEMS: FaqJsonLdInput = [
   {
     question: 'Există comision din valoarea comenzii?',
     answer:
-      'Nu. HIR percepe 2 lei fix pe comandă livrată, indiferent dacă comanda este de 30 lei sau de 300 lei. Restul rămâne integral la restaurant.',
+      'Nu. HIR percepe 2 lei fix pe comandă procesată online, indiferent dacă comanda este de 30 lei sau de 300 lei. Restul rămâne integral la restaurant.',
   },
   {
     question: 'Ce se întâmplă cu comenzile anulate?',
     answer:
-      'Nu plătești pentru comenzile anulate înainte de livrare. Tariful de 2 lei se aplică doar comenzilor finalizate cu succes.',
+      'Nu plătești pentru comenzile anulate înainte de finalizare. Tariful de 2 lei se aplică doar comenzilor procesate cu succes prin platformă.',
   },
   {
     question: 'Pot folosi propriul curier?',
     answer:
-      'Da. Poți folosi flota proprie, flotă parteneră sau pickup. HIR nu te obligă să folosești un curier extern și nu adaugă comision suplimentar pentru livrare proprie.',
+      'Da. Poți folosi flota proprie, flotă parteneră sau pickup — plătești doar 2 lei pe comandă procesată online către HIR, costul curierului tău rămâne al tău. Dacă nu ai curieri, îți construim o ofertă personalizată de livrare prin rețeaua HIR, potrivită zonei și volumului tău.',
   },
   {
     question: 'Cum se face plata către HIR?',
     answer:
-      'Factură lunară emisă automat pentru totalul comenzilor livrate în luna precedentă. Plată prin transfer bancar sau card.',
+      'Factură lunară emisă automat pentru totalul comenzilor procesate online în luna precedentă. Costul de livrare (dacă folosești oferta personalizată HIR) apare facturat separat. Plată prin transfer bancar sau card.',
   },
 ];
 
@@ -145,7 +145,7 @@ export function pricingProductJsonLd(input: { url: string; imageUrl?: string }) 
     '@type': 'Product',
     name: 'HIRforYOU — comandă online pentru restaurante',
     description:
-      'Tarif unic 2 lei per comandă livrată. Fără abonament, fără procent, fără taxă de setup. Instalare gratuită pentru primele 50 de restaurante.',
+      'Tarif unic 2 lei per comandă procesată online prin site. Fără abonament, fără procent, fără taxă de setup. Livrarea este separată și se contractează printr-o ofertă personalizată. Instalare gratuită pentru primele 50 de restaurante.',
     brand: { '@type': 'Brand', name: 'HIRforYOU' },
     image: input.imageUrl ? [input.imageUrl] : undefined,
     offers: {
@@ -157,7 +157,7 @@ export function pricingProductJsonLd(input: { url: string; imageUrl?: string }) 
         '@type': 'UnitPriceSpecification',
         price: '2.00',
         priceCurrency: 'RON',
-        unitText: 'per comandă livrată',
+        unitText: 'per comandă procesată online',
       },
       availability: 'https://schema.org/InStock',
       seller: { '@type': 'Organization', name: 'HIRforYOU' },
