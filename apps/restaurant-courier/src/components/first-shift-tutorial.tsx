@@ -130,7 +130,7 @@ export function FirstShiftTutorial() {
             type="button"
             aria-label="Închide tutorialul"
             onClick={dismiss}
-            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-zinc-800/60 hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="absolute right-4 top-4 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full text-hir-muted-fg transition-colors hover:bg-zinc-800/60 hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             <X className="h-5 w-5" aria-hidden />
           </button>

@@ -36,6 +36,20 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
     setError(null);
     setUploading(true);
     try {
+      // iPhone gallery returns HEIC by default. Most browsers can't decode it
+      // on a canvas, so reject early with a clear message instead of bubbling
+      // up a cryptic storage error after the canvas step silently fails.
+      const lower = (file.name || '').toLowerCase();
+      if (
+        file.type === 'image/heic' ||
+        file.type === 'image/heif' ||
+        lower.endsWith('.heic') ||
+        lower.endsWith('.heif')
+      ) {
+        throw new Error(
+          'Format HEIC neacceptat. Schimbă din Setări iPhone → Cameră → Formate → „Cel mai compatibil" sau alege o poză JPG/PNG.',
+        );
+      }
       const blob = await downscale(file);
       const ext = blob.type === 'image/png' ? 'png' : 'jpg';
       // Cache-bust on every upload so the new image replaces the cached one.
@@ -56,7 +70,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
       await saveAvatarUrl(publicUrl);
       setUrl(publicUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la încărcare.');
+      setError(friendlyError(err));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -124,7 +138,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
               variant="outline"
               onClick={handleRemove}
               disabled={uploading}
-              className="gap-1.5 rounded-lg border-hir-border bg-zinc-900 px-3 py-1.5 text-xs font-medium text-hir-fg transition hover:-translate-y-px hover:border-hir-border hover:bg-zinc-800 hover:text-hir-fg active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
+              className="gap-1.5 rounded-lg border border-hir-border bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-100 transition hover:-translate-y-px hover:border-hir-border hover:bg-zinc-800 hover:text-white active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
             >
               <X className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
               Elimină
@@ -140,7 +154,6 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="user"
         onChange={handlePick}
         className="hidden"
       />
@@ -189,4 +202,27 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error('img-load-failed'));
     img.src = src;
   });
+}
+
+// Map opaque storage errors to a message the courier can act on. Supabase
+// returns "the database schema is invalid or incompatible" when the
+// `courier-avatars` bucket is missing in the target project — almost
+// always a deployment issue rather than a real client mistake. Surface
+// that explicitly so the courier doesn't blame their phone.
+function friendlyError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? '');
+  const m = raw.toLowerCase();
+  if (m.includes('schema') && (m.includes('invalid') || m.includes('incompatible'))) {
+    return 'Stocarea pentru poze nu este configurată pe server. Contactează suportul.';
+  }
+  if (m.includes('img-load-failed')) {
+    return 'Nu am putut citi poza. Încearcă alt format (JPG sau PNG).';
+  }
+  if (m.includes('exceeded') || m.includes('size')) {
+    return 'Poza este prea mare. Folosește una mai mică de 2 MB.';
+  }
+  if (m.includes('mime') || m.includes('type')) {
+    return 'Format neacceptat. Folosește JPG, PNG sau WEBP.';
+  }
+  return raw || 'Eroare la încărcare.';
 }
