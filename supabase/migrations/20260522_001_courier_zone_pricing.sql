@@ -1,10 +1,15 @@
 -- courier zone-based pricing schema
 -- RFC — review by Iulian before merge (see PR description).
 --
--- Business decision (2026-05-22):
+-- Business decision (2026-05-22, confirmed by Iulian):
 --   Delivery price is owned by the CITY, not by the tenant or the fleet.
---   Brașov intra-city: 20 RON restaurant / 15 RON courier, flat anywhere in the city.
---   Extra-urban ring zones: 6 predefined zones, flat fee per ring, max 20 km.
+--   Origin point for distance: Str. Mihail Kogălniceanu, Centrul Civic Brașov (≈45.6536,25.6112).
+--   Brașov has 4 pricing rings (V2 split — courier favoured on long-distance):
+--     Z1  0-6 km   Brașov urban                                       20 / 15 RON  (HIR 5)
+--     Z2  6-10 km  Sânpetru, Ghimbav, Stupini                         30 / 24 RON  (HIR 6)
+--     Z3 10-14 km  Hărman, Săcele, Timișu de Jos, Cristian, Tărlungeni 35 / 28 RON  (HIR 7)
+--     Z4 14+  km   Codlea, Bod, Hălchiu, Poiana Brașov, Râșnov         50 / 40 RON  (HIR 10)
+--   Distance via OSRM real road routing (NOT haversine). Cap 20 km.
 --   Per-tenant override: schema + audit trail built; default OFF; UI ships separately.
 --
 -- Courier legal status: PFA/SRL (invoices HIR), CIM accepted, no civil/author rights.
@@ -32,6 +37,9 @@ create table if not exists public.delivery_zones (
   -- All money in RON cents to avoid float drift.
   restaurant_fee_cents int         not null,
   courier_payout_cents int         not null,
+  -- Locality names that fall inside this zone (informational; UI shows these to patron/courier).
+  -- Real zone matching is done via geometry (point-in-polygon or distance-from-origin).
+  localities           text[]      not null default array[]::text[],
   active               boolean     not null default true,
   created_at           timestamptz not null default now(),
   updated_at           timestamptz not null default now(),
@@ -283,9 +291,13 @@ create policy "payout_items_service_role_all"
   with check (true);
 
 
--- ── 7. Seed — Brașov zones ───────────────────────────────────────────────────
--- Runs only if the Brașov city row already exists (idempotent via ON CONFLICT DO NOTHING).
--- Extra-urban zone prices are set to 0/0 as TODO placeholders — Iulian fills them from the admin UI.
+-- ── 7. Seed — Brașov 4 pricing rings ─────────────────────────────────────────
+-- Confirmed by Iulian 2026-05-22. Prices are the LIVE V2 values (not placeholders).
+-- Origin point for ring distance: Str. Mihail Kogălniceanu, Centrul Civic Brașov
+-- (approx 45.6536, 25.6112 — ANAF/Bulevardul Victoriei area).
+-- All zones active=true. Geometry shapes here are circles centred on each locality
+-- as a first approximation; final boundaries follow real road catchments
+-- (Google My Maps / QGIS export) — Iulian replaces in a follow-up admin action.
 
 do $$
 declare
@@ -298,51 +310,68 @@ begin
     return;
   end if;
 
-  -- ── Intra-city zone ────────────────────────────────────────────────────
-  -- Approximate bounding polygon for the Brașov municipality administrative area.
-  -- Replace with exact polygon from primărie GIS data before going live.
+  -- ── Z1 — Brașov urban (0-6 km) ─────────────────────────────────────────
   insert into public.delivery_zones
-    (city_id, name, zone_type, geometry, max_distance_km, restaurant_fee_cents, courier_payout_cents)
+    (city_id, name, zone_type, geometry, max_distance_km,
+     restaurant_fee_cents, courier_payout_cents, localities, active)
   values (
     v_brasov_id,
-    'Brașov - intra-oraș',
+    'Brașov - Zona 1 (urban, 0-6 km)',
     'URBAN',
-    '{
-      "type": "Polygon",
-      "coordinates": [[
-        [25.5300, 45.6000],
-        [25.6500, 45.6000],
-        [25.6500, 45.6800],
-        [25.5300, 45.6800],
-        [25.5300, 45.6000]
-      ]]
-    }'::jsonb,
-    null,
-    2000,
-    1500
+    '{"type":"Circle","center":[25.6112,45.6536],"radius_m":6000}'::jsonb,
+    6,
+    2000, 1500,
+    array['Brașov']::text[],
+    true
   )
   on conflict do nothing;
 
-  -- ── Extra-urban ring zones — prices TODO ────────────────────────────────
-  -- restaurant_fee_cents and courier_payout_cents are 0 (placeholder).
-  -- Iulian will set final values from the admin UI before activating these zones.
-  -- Geometry = approximate circle centred on each locality.
-
+  -- ── Z2 — Sânpetru, Ghimbav, Stupini (6-10 km) ──────────────────────────
   insert into public.delivery_zones
-    (city_id, name, zone_type, geometry, max_distance_km, restaurant_fee_cents, courier_payout_cents, active)
-  values
-    (v_brasov_id, 'Brașov - Săcele',   'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.6992,45.6132],"radius_m":5000}'::jsonb,  12, 0, 0, false),
-    (v_brasov_id, 'Brașov - Codlea',   'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.4475,45.7037],"radius_m":4000}'::jsonb,  15, 0, 0, false),
-    (v_brasov_id, 'Brașov - Cristian', 'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.4961,45.7386],"radius_m":3000}'::jsonb,  10, 0, 0, false),
-    (v_brasov_id, 'Brașov - Sânpetru', 'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.6500,45.6550],"radius_m":3000}'::jsonb,   8, 0, 0, false),
-    (v_brasov_id, 'Brașov - Hărman',   'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.6658,45.6908],"radius_m":3500}'::jsonb,  11, 0, 0, false),
-    (v_brasov_id, 'Brașov - Predeal/Râșnov', 'EXTRA_URBAN',
-      '{"type":"Circle","center":[25.4549,45.5081],"radius_m":6000}'::jsonb,  20, 0, 0, false)
+    (city_id, name, zone_type, geometry, max_distance_km,
+     restaurant_fee_cents, courier_payout_cents, localities, active)
+  values (
+    v_brasov_id,
+    'Brașov - Zona 2 (6-10 km)',
+    'EXTRA_URBAN',
+    '{"type":"Ring","center":[25.6112,45.6536],"radius_m_min":6000,"radius_m_max":10000}'::jsonb,
+    10,
+    3000, 2400,
+    array['Sânpetru', 'Ghimbav', 'Stupini']::text[],
+    true
+  )
+  on conflict do nothing;
+
+  -- ── Z3 — Hărman, Săcele, Timișu de Jos, Cristian, Tărlungeni (10-14 km) ─
+  insert into public.delivery_zones
+    (city_id, name, zone_type, geometry, max_distance_km,
+     restaurant_fee_cents, courier_payout_cents, localities, active)
+  values (
+    v_brasov_id,
+    'Brașov - Zona 3 (10-14 km)',
+    'EXTRA_URBAN',
+    '{"type":"Ring","center":[25.6112,45.6536],"radius_m_min":10000,"radius_m_max":14000}'::jsonb,
+    14,
+    3500, 2800,
+    array['Hărman', 'Săcele', 'Timișu de Jos', 'Cristian', 'Tărlungeni']::text[],
+    true
+  )
+  on conflict do nothing;
+
+  -- ── Z4 — Codlea, Bod, Hălchiu, Poiana Brașov, Râșnov (14+ km, cap 30) ───
+  insert into public.delivery_zones
+    (city_id, name, zone_type, geometry, max_distance_km,
+     restaurant_fee_cents, courier_payout_cents, localities, active)
+  values (
+    v_brasov_id,
+    'Brașov - Zona 4 (14+ km)',
+    'EXTRA_URBAN',
+    '{"type":"Ring","center":[25.6112,45.6536],"radius_m_min":14000,"radius_m_max":30000}'::jsonb,
+    30,
+    5000, 4000,
+    array['Codlea', 'Bod', 'Hălchiu', 'Poiana Brașov', 'Râșnov']::text[],
+    true
+  )
   on conflict do nothing;
 
 end;
