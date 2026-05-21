@@ -389,15 +389,51 @@ export function RiderMap({
         mapRef.current = map;
 
         // Active-order layer: pickup + dropoff rendered as Wolt-style
-        // stylized "drop" pins (coloured circle with a glyph + a small
-        // tail pointing at the actual coordinate), connected by a
-        // dashed polyline so the rider sees the route at a glance.
-        // Straight lines for MVP — switching to OSRM-fetched paths is
-        // a follow-up (per maps-geo-dev tickets).
-        const dropPinHtml = (color: string, glyph: string): string => `
-          <div style="position:relative;width:32px;height:40px;">
-            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:32px;height:32px;border-radius:9999px;background:${color};border:2.5px solid #ffffff;box-shadow:0 4px 10px rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">${glyph}</div>
-            <div style="position:absolute;left:50%;top:26px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:14px solid ${color};filter:drop-shadow(0 2px 2px rgba(0,0,0,0.35));"></div>
+        // teardrop pins (coloured disc with a vector icon glyph, set on
+        // a sharp tail pointing at the actual coordinate). The route
+        // between them is drawn as two stacked polylines — a soft white
+        // halo underneath and a solid violet core on top — for the
+        // clean Bolt/Uber look (rounded caps, no dashes).
+        //
+        // Glyphs are inline SVGs, not emoji: emojis render with the OS
+        // font and look amateur on the dark map. The storefront/house
+        // SVGs read instantly as restaurant/home from a phone distance.
+        const STOREFRONT_SVG = `
+          <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Awning -->
+            <path d="M3 8 L21 8 L20 10 L4 10 Z" fill="#ffffff" opacity="0.95"/>
+            <!-- Awning scallops -->
+            <path d="M5 10 q1 -1.6 2 0 q1 -1.6 2 0 q1 -1.6 2 0 q1 -1.6 2 0 q1 -1.6 2 0 q1 -1.6 2 0 q1 -1.6 2 0" stroke="#ffffff" stroke-width="0.7" fill="none" opacity="0.6"/>
+            <!-- Storefront body -->
+            <path d="M4 10 L4 21 L20 21 L20 10 Z" fill="#ffffff" opacity="0.95"/>
+            <!-- Door -->
+            <rect x="10" y="13" width="4" height="8" rx="0.5" fill="#7c3aed"/>
+            <!-- Windows -->
+            <rect x="5.5" y="12" width="3" height="3" rx="0.4" fill="#7c3aed"/>
+            <rect x="15.5" y="12" width="3" height="3" rx="0.4" fill="#7c3aed"/>
+          </svg>
+        `;
+        const HOUSE_SVG = `
+          <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Roof -->
+            <path d="M12 3 L21 11 L19 11 L19 21 L5 21 L5 11 L3 11 Z" fill="#ffffff" opacity="0.95"/>
+            <!-- Door -->
+            <rect x="10" y="14" width="4" height="7" rx="0.5" fill="#10b981"/>
+            <!-- Window -->
+            <rect x="6.5" y="13" width="2.5" height="2.5" rx="0.3" fill="#10b981"/>
+            <rect x="15" y="13" width="2.5" height="2.5" rx="0.3" fill="#10b981"/>
+          </svg>
+        `;
+        const dropPinHtml = (color: string, glyphSvg: string, ringColor: string): string => `
+          <div style="position:relative;width:36px;height:46px;">
+            <!-- Soft shadow under the pin -->
+            <div style="position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:18px;height:5px;border-radius:9999px;background:rgba(0,0,0,0.45);filter:blur(2.5px);"></div>
+            <!-- Tail (pointer at the exact coordinate) -->
+            <div style="position:absolute;left:50%;top:30px;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid ${color};"></div>
+            <!-- Outer halo ring -->
+            <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:36px;height:36px;border-radius:9999px;background:${ringColor};"></div>
+            <!-- Main disc -->
+            <div style="position:absolute;left:50%;top:2px;transform:translateX(-50%);width:32px;height:32px;border-radius:9999px;background:${color};border:2.5px solid #ffffff;box-shadow:0 6px 14px rgba(0,0,0,0.35), inset 0 2px 3px rgba(255,255,255,0.35), inset 0 -3px 4px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;">${glyphSvg}</div>
           </div>
         `;
         const polyBounds: Array<[number, number]> = [];
@@ -407,9 +443,9 @@ export function RiderMap({
             L.marker([pin.pickupLat, pin.pickupLng], {
               icon: L.divIcon({
                 className: 'rider-pickup-pin',
-                html: dropPinHtml('#7c3aed', '📦'),
-                iconSize: [32, 40],
-                iconAnchor: [16, 40],
+                html: dropPinHtml('#7c3aed', STOREFRONT_SVG, 'rgba(124,58,237,0.22)'),
+                iconSize: [36, 46],
+                iconAnchor: [18, 44],
               }),
             }).addTo(map);
           }
@@ -418,9 +454,9 @@ export function RiderMap({
             L.marker([pin.dropoffLat, pin.dropoffLng], {
               icon: L.divIcon({
                 className: 'rider-dropoff-pin',
-                html: dropPinHtml('#10b981', '🏠'),
-                iconSize: [32, 40],
-                iconAnchor: [16, 40],
+                html: dropPinHtml('#10b981', HOUSE_SVG, 'rgba(16,185,129,0.22)'),
+                iconSize: [36, 46],
+                iconAnchor: [18, 44],
               }),
             }).addTo(map);
           }
@@ -430,18 +466,27 @@ export function RiderMap({
             pin.dropoffLat != null &&
             pin.dropoffLng != null
           ) {
-            L.polyline(
-              [
-                [pin.pickupLat, pin.pickupLng],
-                [pin.dropoffLat, pin.dropoffLng],
-              ],
-              {
-                color: '#7c3aed',
-                weight: 3,
-                opacity: 0.65,
-                dashArray: '6 8',
-              },
-            ).addTo(map);
+            const segment: Array<[number, number]> = [
+              [pin.pickupLat, pin.pickupLng],
+              [pin.dropoffLat, pin.dropoffLng],
+            ];
+            // Halo: wider white stroke underneath the core line. Reads
+            // as a soft glow on the dark CARTO basemap.
+            L.polyline(segment, {
+              color: '#ffffff',
+              weight: 8,
+              opacity: 0.35,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }).addTo(map);
+            // Core: solid violet brand line. Rounded caps + no dashes.
+            L.polyline(segment, {
+              color: '#7c3aed',
+              weight: 4,
+              opacity: 0.95,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }).addTo(map);
           }
         }
 
