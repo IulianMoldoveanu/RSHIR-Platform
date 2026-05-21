@@ -1,22 +1,30 @@
-// Realistic 3D-style vehicle markers for the rider's pin on the live map.
-// Total redesign — the previous version (rectangular 3/4 view) was rejected
-// for looking "extrem de facil si neplacut". This pass aims for a Tesla-
-// Model-3-class silhouette + EV-bike + e-scooter aesthetic so the marker
-// reads as a real, modern vehicle instead of a logo.
+// Realistic top-down vehicle markers for the rider's pin on the live map.
+//
+// This pass replaces the previous 3/4-perspective fastback (rejected as
+// "extrem de facil si neplacut") with a clean orthographic top-down view —
+// the perspective Uber, Bolt, Lyft, Wolt and Glovo all use for their
+// rider markers. From directly above, a car reads as a recognisable real
+// object: roof + windshield + hood + wheels at the corners. The previous
+// version mixed perspectives (the body was 3/4 but the roof was top-down)
+// which is what made it feel like a logo rather than a vehicle.
 //
 // Design principles
 // ─────────────────
-//   * Curves over rectangles. Body shapes use Bézier paths (Q/C) so the
-//     silhouettes are smooth, aerodynamic, fastback-like.
-//   * Multi-stop metallic gradients (5-stop where it counts) so the paint
-//     reads as painted metal under studio light, not flat fill.
-//   * Layered specular highlights: a long, soft band of light along the
-//     top edge, a small bright spot near the front, faint reflection
-//     bands along the door.
-//   * Multi-spoke alloy wheels (5-spoke design with concave dish) instead
-//     of generic disks, with a tiny rim-highlight on the front face.
-//   * Soft, blurred ground shadow per icon (Gaussian filter).
-//   * Front of the artwork points UP, so the marker container in
+//   * Pure top-down orthographic view — no 3/4 mixing.
+//   * Smooth Bézier capsule body (no rectangles) so silhouettes read as
+//     aerodynamic, not boxy.
+//   * Multi-stop metallic paint gradient (violet brand, 5 stops) for the
+//     "painted metal under studio light" look.
+//   * 4 wheels visible at the corners as dark rounded rectangles peeking
+//     from under the body, just like a real car seen from a drone.
+//   * Layered glass: windshield + roof + rear window with cool blue
+//     reflection. Pillars between glass panels in dark indigo.
+//   * Subtle hood crease + door character line for sheet-metal feel.
+//   * Side mirrors as tiny rounded rectangles outside the body.
+//   * LED headlight strip at the front nose, full-width LED tail bar at
+//     the rear — modern EV signature.
+//   * Direction arrow notch at the front so rotation reads correctly.
+//   * Front of the artwork points UP, so the rotor wrapper in
 //     rider-map.tsx can rotate the whole SVG to match GPS heading.
 //
 // Public API
@@ -64,46 +72,63 @@ function commonDefs(id: string): string {
     <defs>
       <!-- Soft drop shadow under the chassis -->
       <filter id="${id}-soft" x="-30%" y="-30%" width="160%" height="180%">
-        <feGaussianBlur in="SourceAlpha" stdDeviation="1.6"/>
-        <feOffset dx="0" dy="3" result="off"/>
+        <feGaussianBlur in="SourceAlpha" stdDeviation="1.4"/>
+        <feOffset dx="0" dy="2.4" result="off"/>
         <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
         <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
       <!-- Floor shadow blur (separate from body shadow so it's stronger) -->
       <filter id="${id}-floor" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="2.2"/>
+        <feGaussianBlur stdDeviation="2.4"/>
       </filter>
 
-      <!-- Paint: metallic violet, 5 stops. Top edge nearly white, mids
-           rich purple, undercarriage near-black indigo. -->
+      <!-- Paint: metallic violet, 5 stops. Brightest along the top edge
+           of the body (sunlight), darkest along the bottom edge (shadow).
+           From directly above, real cars show a long bright band along
+           the hood/roof centre and darker paint near the doors. -->
       <linearGradient id="${id}-paint" x1="50%" y1="0%" x2="50%" y2="100%">
-        <stop offset="0%"   stop-color="#f5f3ff"/>
-        <stop offset="18%"  stop-color="#c4b5fd"/>
-        <stop offset="42%"  stop-color="#8b5cf6"/>
-        <stop offset="72%"  stop-color="#6d28d9"/>
-        <stop offset="100%" stop-color="#2e1065"/>
+        <stop offset="0%"   stop-color="#ede9fe"/>
+        <stop offset="22%"  stop-color="#a78bfa"/>
+        <stop offset="50%"  stop-color="#7c3aed"/>
+        <stop offset="78%"  stop-color="#5b21b6"/>
+        <stop offset="100%" stop-color="#1e1b4b"/>
       </linearGradient>
 
-      <!-- Side-light overlay: bright on the lit side, shadow on the far
-           side. Applied on top of the paint to fake studio lighting. -->
-      <linearGradient id="${id}-rim-light" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.55"/>
-        <stop offset="30%"  stop-color="#ffffff" stop-opacity="0.0"/>
-        <stop offset="70%"  stop-color="#0b0420" stop-opacity="0.0"/>
-        <stop offset="100%" stop-color="#0b0420" stop-opacity="0.55"/>
+      <!-- Centre-line specular: a thin bright strip along the middle of
+           the car body, simulating the long highlight you get from the
+           sky reflecting on a painted convex roof. -->
+      <linearGradient id="${id}-spec" x1="0%" y1="50%" x2="100%" y2="50%">
+        <stop offset="0%"   stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="50%"  stop-color="#ffffff" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+
+      <!-- Side-edge darkening: the door sills sit in shadow because the
+           body curves inward at the bottom (like a real car's tumblehome). -->
+      <linearGradient id="${id}-edge" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%"   stop-color="#0c0420" stop-opacity="0.45"/>
+        <stop offset="15%"  stop-color="#0c0420" stop-opacity="0.0"/>
+        <stop offset="85%"  stop-color="#0c0420" stop-opacity="0.0"/>
+        <stop offset="100%" stop-color="#0c0420" stop-opacity="0.45"/>
       </linearGradient>
 
       <!-- Glass: dark blue tint with a faint sky reflection along the
-           top edge. Real cars do this — windshield mirrors the sky. -->
+           top edge. Real windshields mirror the sky when seen from above. -->
       <linearGradient id="${id}-glass" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%"   stop-color="#dbeafe"/>
-        <stop offset="20%"  stop-color="#93c5fd"/>
-        <stop offset="55%"  stop-color="#1e40af"/>
-        <stop offset="100%" stop-color="#0c1a4d"/>
+        <stop offset="0%"   stop-color="#bfdbfe"/>
+        <stop offset="35%"  stop-color="#60a5fa"/>
+        <stop offset="100%" stop-color="#1e3a8a"/>
+      </linearGradient>
+
+      <!-- Roof: panoramic glass / dark painted roof, slightly lighter
+           than the windshield so the eye reads it as a separate panel. -->
+      <linearGradient id="${id}-roof" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%"   stop-color="#312e81"/>
+        <stop offset="100%" stop-color="#1e1b4b"/>
       </linearGradient>
 
       <!-- Tire rubber: subtle radial so the wheels look round, not flat. -->
-      <radialGradient id="${id}-tire" cx="35%" cy="32%" r="80%">
+      <radialGradient id="${id}-tire" cx="50%" cy="30%" r="80%">
         <stop offset="0%"   stop-color="#3f3f46"/>
         <stop offset="55%"  stop-color="#18181b"/>
         <stop offset="100%" stop-color="#000000"/>
@@ -116,17 +141,11 @@ function commonDefs(id: string): string {
         <stop offset="100%" stop-color="#3f3f46"/>
       </radialGradient>
 
-      <!-- Wheel-well shadow (where the body curves over the tire). -->
-      <radialGradient id="${id}-well" cx="50%" cy="50%" r="50%">
-        <stop offset="0%"   stop-color="#000000" stop-opacity="0.6"/>
-        <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
-      </radialGradient>
-
-      <!-- LED headlight: hot white core, golden falloff. -->
+      <!-- LED headlight: hot white core, cool falloff. -->
       <radialGradient id="${id}-led" cx="50%" cy="50%" r="55%">
         <stop offset="0%"   stop-color="#ffffff"/>
-        <stop offset="40%"  stop-color="#fef9c3"/>
-        <stop offset="100%" stop-color="#fbbf24" stop-opacity="0.0"/>
+        <stop offset="45%"  stop-color="#e0f2fe"/>
+        <stop offset="100%" stop-color="#7dd3fc" stop-opacity="0.0"/>
       </radialGradient>
 
       <!-- Tail-light: hot red with falloff. -->
@@ -135,17 +154,24 @@ function commonDefs(id: string): string {
         <stop offset="40%"  stop-color="#ef4444"/>
         <stop offset="100%" stop-color="#7f1d1d"/>
       </radialGradient>
+
+      <!-- Wheel-well shadow (where the body curves over the tire). -->
+      <radialGradient id="${id}-well" cx="50%" cy="50%" r="50%">
+        <stop offset="0%"   stop-color="#000000" stop-opacity="0.55"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
+      </radialGradient>
     </defs>
   `;
 }
 
-// 5-spoke alloy wheel with a concave dish look.
+// 5-spoke alloy wheel — kept for SCOOTER / BIKE which still use a
+// 3/4 perspective. The top-down CAR draws wheels inline as dark rounded
+// rectangles instead, because real top-down photos show the tire tread,
+// not the rim face.
 function wheel(cx: number, cy: number, r: number, id: string): string {
   const rimR = r * 0.74;
   const dishR = r * 0.58;
   const hubR = r * 0.18;
-  // 5 spokes — angle offset 18° so the top of the rim shows two spokes
-  // catching the light rather than a single dead-center spoke.
   const spokeAngles = [18, 90, 162, 234, 306];
   const spokes = spokeAngles
     .map((deg) => {
@@ -156,171 +182,178 @@ function wheel(cx: number, cy: number, r: number, id: string): string {
     })
     .join('');
   return `
-    <!-- Tire -->
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id}-tire)"/>
-    <!-- Tire sidewall highlight -->
     <circle cx="${cx}" cy="${cy - r * 0.05}" r="${r * 0.93}" fill="none" stroke="#52525b" stroke-width="0.5" opacity="0.6"/>
-    <!-- Outer rim ring -->
     <circle cx="${cx}" cy="${cy}" r="${rimR}" fill="url(#${id}-rim)"/>
-    <!-- Concave dish (slightly darker) -->
     <circle cx="${cx}" cy="${cy}" r="${dishR}" fill="#71717a"/>
-    <!-- 5 spokes -->
     ${spokes}
-    <!-- Center hub -->
     <circle cx="${cx}" cy="${cy}" r="${hubR}" fill="#27272a"/>
     <circle cx="${cx}" cy="${cy}" r="${hubR * 0.55}" fill="#71717a"/>
-    <!-- Rim hot-spot (top-left) — sells "polished aluminium" -->
     <ellipse cx="${cx - r * 0.2}" cy="${cy - r * 0.42}" rx="${r * 0.22}" ry="${r * 0.10}" fill="#ffffff" opacity="0.55"/>
   `;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// CAR — modern sedan/fastback profile, 3/4 view from above-rear.
-// Inspired by Tesla Model 3 / Polestar 2 silhouettes.
+// CAR — pure top-down orthographic view. This is the perspective used by
+// every major mobility app (Uber, Bolt, Lyft, Wolt, Glovo) for their rider
+// markers because it reads instantly as "car from above" at small sizes.
+//
+// Geometry (viewBox 0 0 96 96, front = up):
+//   - Body capsule: x ≈ 24..72 (width 48), y ≈ 8..86 (length 78)
+//   - 4 wheels at the corners, peeking out from under the body
+//   - Windshield trapezoid: y 24..40, slightly narrower at top
+//   - Glass roof: y 40..58
+//   - Rear window trapezoid: y 58..72
 // ─────────────────────────────────────────────────────────────────────────
 function carSvg(): string {
   const id = 'car';
+  // Helper: a single wheel rendered as a dark rounded rectangle (the
+  // tire tread you'd actually see from directly above a real car).
+  // The wheel pokes slightly outside the body silhouette so it reads
+  // as separate from the chassis.
+  const tire = (cx: number, cy: number): string => `
+    <rect x="${cx - 4.5}" y="${cy - 6.5}" width="9" height="13" rx="2.4"
+          fill="#0a0a0a" stroke="#1c1c1c" stroke-width="0.6"/>
+    <rect x="${cx - 3.6}" y="${cy - 5.6}" width="7.2" height="1.6" rx="0.8"
+          fill="#3f3f46" opacity="0.55"/>
+  `;
   return `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="100%" height="100%">
   ${commonDefs(id)}
 
-  <!-- Soft ground shadow under the whole car -->
-  <ellipse cx="48" cy="87" rx="34" ry="4.2" fill="#000" opacity="0.32" filter="url(#${id}-floor)"/>
+  <!-- Soft ground shadow: stretched ellipse beneath the car, offset down
+       a touch so it reads as "car floating above ground" rather than flat. -->
+  <ellipse cx="48" cy="90" rx="28" ry="3.6" fill="#000" opacity="0.38" filter="url(#${id}-floor)"/>
 
   <g filter="url(#${id}-soft)">
-    <!-- Chassis underbody (visible as a dark band beneath the paint) -->
-    <path d="M16 28 Q15 24 18 22 L78 22 Q81 24 80 28 L80 70 Q81 76 75 78 L21 78 Q15 76 16 70 Z"
-          fill="#1c1130"/>
+    <!-- WHEELS — drawn FIRST so the body sits on top and clips them at
+         the wheel-well openings. Slightly offset outboard from the body
+         centre to read as protruding tires. -->
+    ${tire(24, 22)}
+    ${tire(72, 22)}
+    ${tire(24, 72)}
+    ${tire(72, 72)}
 
-    <!-- Wheels first (so body sits on top, creating wheel-well overlap) -->
-    ${wheel(22, 30, 7.6, id)}
-    ${wheel(74, 30, 7.6, id)}
-    ${wheel(22, 64, 8, id)}
-    ${wheel(74, 64, 8, id)}
-
-    <!-- Wheel-well shadows -->
-    <circle cx="22" cy="30" r="9.5" fill="url(#${id}-well)"/>
-    <circle cx="74" cy="30" r="9.5" fill="url(#${id}-well)"/>
-    <circle cx="22" cy="64" r="10" fill="url(#${id}-well)"/>
-    <circle cx="74" cy="64" r="10" fill="url(#${id}-well)"/>
-
-    <!-- MAIN BODY — modern fastback silhouette using Bézier curves -->
-    <!--
-      Path walk: start front-left fender, curve over hood to front-right
-      fender, down the right side with a subtle door crease bulge, around
-      the rear bumper, back up the left side mirroring the right.
-    -->
+    <!-- MAIN BODY — sleek top-down capsule. Slightly narrower at the
+         front (aerodynamic nose) and rear (kammback), wider through the
+         middle (door area). Built with Bézier curves for smooth sheet
+         metal. -->
     <path d="
-      M 30 14
-      Q 32 9 38 9
-      L 58 9
-      Q 64 9 66 14
-      L 70 22
-      Q 72 24 72 28
-      L 76 30
-      Q 80 32 80 38
-      L 80 60
-      Q 80 66 76 68
+      M 36 8
+      Q 30 8 28 14
+      L 26 22
+      Q 24 24 24 28
+      L 24 44
+      Q 24 46 25 47
+      L 25 65
+      Q 24 67 24 70
+      L 24 76
+      Q 24 82 28 84
+      L 32 87
+      Q 36 89 42 89
+      L 54 89
+      Q 60 89 64 87
+      L 68 84
+      Q 72 82 72 76
       L 72 70
-      Q 72 74 70 78
-      L 66 84
-      Q 64 87 58 87
-      L 38 87
-      Q 32 87 30 84
-      L 26 78
-      Q 24 74 24 70
-      L 20 68
-      Q 16 66 16 60
-      L 16 38
-      Q 16 32 20 30
-      L 24 28
-      Q 24 24 26 22
-      L 30 14
+      Q 72 67 71 65
+      L 71 47
+      Q 72 46 72 44
+      L 72 28
+      Q 72 24 70 22
+      L 68 14
+      Q 66 8 60 8
       Z" fill="url(#${id}-paint)"/>
 
-    <!-- Side-rim light overlay (left bright, right shadow) -->
+    <!-- Centre-line specular highlight: a soft white band running the
+         length of the hood/roof. Sells "painted metal in the sun". -->
+    <rect x="42" y="10" width="12" height="78" rx="6" fill="url(#${id}-spec)" opacity="0.45"/>
+
+    <!-- Side-edge darkening (tumblehome shadow on both flanks). -->
     <path d="
-      M 30 14
-      Q 32 9 38 9
-      L 58 9
-      Q 64 9 66 14
-      L 70 22
-      Q 72 24 72 28
-      L 76 30
-      Q 80 32 80 38
-      L 80 60
-      Q 80 66 76 68
-      L 72 70
-      Q 72 74 70 78
-      L 66 84
-      Q 64 87 58 87
-      L 38 87
-      Q 32 87 30 84
-      L 26 78
-      Q 24 74 24 70
-      L 20 68
-      Q 16 66 16 60
-      L 16 38
-      Q 16 32 20 30
-      L 24 28
-      Q 24 24 26 22
-      L 30 14
-      Z" fill="url(#${id}-rim-light)"/>
+      M 36 8
+      Q 30 8 28 14
+      L 26 22
+      Q 24 24 24 28
+      L 24 76
+      Q 24 82 28 84
+      L 32 87
+      Q 36 89 42 89
+      L 54 89
+      Q 60 89 64 87
+      L 68 84
+      Q 72 82 72 76
+      L 72 28
+      Q 72 24 70 22
+      L 68 14
+      Q 66 8 60 8
+      Z" fill="url(#${id}-edge)"/>
 
-    <!-- Hood crease line (long subtle highlight along the centerline) -->
-    <path d="M 48 12 L 48 22" stroke="#ede9fe" stroke-width="0.4" opacity="0.55"/>
+    <!-- WHEEL-WELL shadows: dark crescents where the body arches over
+         the tires. Drawn after the body so they sit on the paint. -->
+    <ellipse cx="24" cy="22" rx="6" ry="7" fill="url(#${id}-well)"/>
+    <ellipse cx="72" cy="22" rx="6" ry="7" fill="url(#${id}-well)"/>
+    <ellipse cx="24" cy="72" rx="6" ry="7" fill="url(#${id}-well)"/>
+    <ellipse cx="72" cy="72" rx="6" ry="7" fill="url(#${id}-well)"/>
 
-    <!-- Front bumper accent band -->
-    <rect x="34" y="11.5" width="28" height="1.2" rx="0.6" fill="#ffffff" opacity="0.7"/>
+    <!-- HOOD CREASES — twin character lines running from the nose to
+         the base of the windshield. Real performance cars have these. -->
+    <path d="M 38 14 Q 39 19 40 23" stroke="#0c0420" stroke-width="0.5" fill="none" opacity="0.55"/>
+    <path d="M 58 14 Q 57 19 56 23" stroke="#0c0420" stroke-width="0.5" fill="none" opacity="0.55"/>
+    <path d="M 38 14 Q 39 19 40 23" stroke="#ede9fe" stroke-width="0.3" fill="none" opacity="0.45" transform="translate(0.4 0)"/>
+    <path d="M 58 14 Q 57 19 56 23" stroke="#ede9fe" stroke-width="0.3" fill="none" opacity="0.45" transform="translate(-0.4 0)"/>
 
-    <!-- WINDSHIELD (front) — trapezoid with sky-blue gradient -->
-    <path d="M 30 26 L 66 26 L 60 40 L 36 40 Z" fill="url(#${id}-glass)"/>
-    <!-- Windshield wiper rest -->
-    <rect x="36" y="39.5" width="24" height="0.6" fill="#0c1a4d" opacity="0.7"/>
-    <!-- A-pillar shadow -->
-    <line x1="30" y1="26" x2="36" y2="40" stroke="#1e1b4b" stroke-width="0.8"/>
-    <line x1="66" y1="26" x2="60" y2="40" stroke="#1e1b4b" stroke-width="0.8"/>
+    <!-- DOOR character line: long horizontal seam along the door panel. -->
+    <path d="M 25 56 L 71 56" stroke="#0c0420" stroke-width="0.4" opacity="0.5"/>
 
-    <!-- ROOF — sleeker than a box: subtle curve top edge with highlight -->
-    <path d="M 36 40 L 60 40 L 60 56 L 36 56 Z" fill="#1e1b4b" opacity="0.55"/>
-    <rect x="38" y="41" width="20" height="2" rx="1" fill="#ffffff" opacity="0.4"/>
+    <!-- WINDSHIELD (front glass) — trapezoid wider at the bottom. -->
+    <path d="M 38 24 L 58 24 L 60 40 L 36 40 Z" fill="url(#${id}-glass)"/>
+    <!-- Specular streak on the windshield (sky reflection). -->
+    <path d="M 39 25 L 57 25 L 54 28 L 42 28 Z" fill="#ffffff" opacity="0.55"/>
+    <!-- A-pillars (between windshield and roof). -->
+    <line x1="38" y1="24" x2="36" y2="40" stroke="#0c0420" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="58" y1="24" x2="60" y2="40" stroke="#0c0420" stroke-width="1.2" stroke-linecap="round"/>
 
-    <!-- REAR WINDSHIELD — fastback slope -->
-    <path d="M 36 56 L 60 56 L 64 70 L 32 70 Z" fill="url(#${id}-glass)"/>
-    <line x1="36" y1="56" x2="32" y2="70" stroke="#1e1b4b" stroke-width="0.8"/>
-    <line x1="60" y1="56" x2="64" y2="70" stroke="#1e1b4b" stroke-width="0.8"/>
+    <!-- GLASS ROOF / PANORAMIC PANEL — the middle "cabin" section. -->
+    <path d="M 36 40 L 60 40 L 60 58 L 36 58 Z" fill="url(#${id}-roof)"/>
+    <!-- Faint roof reflection (subtle, dark glass doesn't reflect much). -->
+    <rect x="38" y="42" width="20" height="2.4" rx="1.2" fill="#ffffff" opacity="0.18"/>
 
-    <!-- Door character line (long horizontal crease in the paint) -->
-    <path d="M 18 48 Q 48 50 78 48" stroke="#1e1b4b" stroke-width="0.6" fill="none" opacity="0.55"/>
-    <!-- And the highlight directly above it (sells the metal sheet) -->
-    <path d="M 18 47 Q 48 49 78 47" stroke="#ede9fe" stroke-width="0.4" fill="none" opacity="0.45"/>
+    <!-- B-pillars (between roof glass and rear window). -->
+    <line x1="36" y1="58" x2="34" y2="72" stroke="#0c0420" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="60" y1="58" x2="62" y2="72" stroke="#0c0420" stroke-width="1.2" stroke-linecap="round"/>
 
-    <!-- Mirrors (one each side, just outside the windshield) -->
-    <ellipse cx="28" cy="30" rx="2.6" ry="1.6" fill="#3b3b54"/>
-    <ellipse cx="27.6" cy="29.3" rx="1.8" ry="0.7" fill="#ffffff" opacity="0.45"/>
-    <ellipse cx="68" cy="30" rx="2.6" ry="1.6" fill="#3b3b54"/>
-    <ellipse cx="67.6" cy="29.3" rx="1.8" ry="0.7" fill="#ffffff" opacity="0.45"/>
+    <!-- REAR WINDSHIELD — fastback slope, trapezoid wider at top. -->
+    <path d="M 36 58 L 60 58 L 62 72 L 34 72 Z" fill="url(#${id}-glass)"/>
+    <path d="M 37 59 L 59 59 L 56 62 L 40 62 Z" fill="#ffffff" opacity="0.4"/>
 
-    <!-- LED headlight signature — modern Y-shaped DRL strip per side -->
-    <!-- Left headlight -->
-    <path d="M 22 14 Q 24 13 28 14 L 30 18 Q 28 19 25 18.5 L 22 18 Z" fill="url(#${id}-led)"/>
-    <ellipse cx="25" cy="15.5" rx="3" ry="1" fill="#ffffff" opacity="0.9"/>
-    <!-- Right headlight -->
-    <path d="M 74 14 Q 72 13 68 14 L 66 18 Q 68 19 71 18.5 L 74 18 Z" fill="url(#${id}-led)"/>
-    <ellipse cx="71" cy="15.5" rx="3" ry="1" fill="#ffffff" opacity="0.9"/>
+    <!-- TRUNK seam: tiny detail across the rear deck. -->
+    <path d="M 30 78 L 66 78" stroke="#0c0420" stroke-width="0.4" opacity="0.55"/>
 
-    <!-- Front grille hint (subtle dark slit) -->
-    <rect x="38" y="11" width="20" height="0.8" rx="0.4" fill="#0c0a1a" opacity="0.8"/>
+    <!-- SIDE MIRRORS — small rounded rectangles outboard of the windshield. -->
+    <rect x="22" y="26" width="3.2" height="2.2" rx="1" fill="#1e1b4b"/>
+    <rect x="22.4" y="26.3" width="2.4" height="0.8" rx="0.4" fill="#a78bfa" opacity="0.8"/>
+    <rect x="70.8" y="26" width="3.2" height="2.2" rx="1" fill="#1e1b4b"/>
+    <rect x="70.8" y="26.3" width="2.4" height="0.8" rx="0.4" fill="#a78bfa" opacity="0.8"/>
 
-    <!-- TAIL-LIGHTS — full-width LED bar across the rear (modern EV signature) -->
-    <rect x="22" y="80" width="52" height="1.6" rx="0.8" fill="url(#${id}-tail)"/>
-    <rect x="22" y="80" width="52" height="0.6" rx="0.3" fill="#fecaca" opacity="0.9"/>
-    <!-- Tail-light caps at each end -->
-    <ellipse cx="22" cy="80.8" rx="2.2" ry="1.2" fill="#ef4444"/>
-    <ellipse cx="74" cy="80.8" rx="2.2" ry="1.2" fill="#ef4444"/>
+    <!-- LED HEADLIGHTS — twin slim strips across the nose. The hot
+         white core glows; the surrounding violet of the paint reads
+         as the lamp housing. -->
+    <rect x="30" y="11" width="10" height="2.2" rx="1.1" fill="url(#${id}-led)"/>
+    <rect x="31" y="11.4" width="8" height="0.8" rx="0.4" fill="#ffffff" opacity="0.95"/>
+    <rect x="56" y="11" width="10" height="2.2" rx="1.1" fill="url(#${id}-led)"/>
+    <rect x="57" y="11.4" width="8" height="0.8" rx="0.4" fill="#ffffff" opacity="0.95"/>
 
-    <!-- Subtle direction notch on the hood (front of vehicle) -->
-    <path d="M 48 5 L 51 9 L 45 9 Z" fill="#ede9fe" opacity="0.9"/>
+    <!-- FRONT GRILLE accent — slim dark band between the headlights. -->
+    <rect x="41" y="11.4" width="14" height="1.4" rx="0.7" fill="#0a0a0a" opacity="0.85"/>
+
+    <!-- FULL-WIDTH LED TAIL BAR — modern EV signature across the rear. -->
+    <rect x="28" y="83" width="40" height="1.6" rx="0.8" fill="url(#${id}-tail)"/>
+    <rect x="28" y="83.2" width="40" height="0.6" rx="0.3" fill="#fecaca" opacity="0.95"/>
+
+    <!-- DIRECTION ARROW — tiny notch on the very front edge so users
+         can tell which way the car is pointing even at small sizes. -->
+    <path d="M 48 4 L 51 9 L 45 9 Z" fill="#ffffff" opacity="0.95"/>
   </g>
 </svg>`.trim();
 }
@@ -344,8 +377,6 @@ function scooterSvg(): string {
     <!-- DECK — aluminum, slightly tapered, with rounded ends -->
     <path d="M 32 38 Q 32 34 36 34 L 60 34 Q 64 34 64 38 L 64 70 Q 64 74 60 74 L 36 74 Q 32 74 32 70 Z"
           fill="url(#${id}-paint)"/>
-    <path d="M 32 38 Q 32 34 36 34 L 60 34 Q 64 34 64 38 L 64 70 Q 64 74 60 74 L 36 74 Q 32 74 32 70 Z"
-          fill="url(#${id}-rim-light)"/>
 
     <!-- Aluminum grain on the deck (faint horizontal lines) -->
     ${Array.from({ length: 5 }, (_, i) => i)
@@ -371,7 +402,6 @@ function scooterSvg(): string {
     <!-- Steering column — vertical bar from deck up to handlebar -->
     <path d="M 44 34 L 43 18 Q 43 14 47 14 L 49 14 Q 53 14 53 18 L 52 34 Z"
           fill="url(#${id}-paint)"/>
-    <rect x="44.5" y="14" width="7" height="20" fill="url(#${id}-rim-light)"/>
     <!-- Column highlight stripe -->
     <rect x="46" y="14" width="0.7" height="20" fill="#ede9fe" opacity="0.6"/>
 
@@ -389,7 +419,7 @@ function scooterSvg(): string {
     <rect x="70" y="9" width="6" height="6.6" rx="2.6" fill="#0c0420"/>
     <rect x="70.6" y="9.5" width="4.8" height="1.4" rx="0.7" fill="#3b3b54" opacity="0.6"/>
 
-    <!-- Brake lever (small detail off the handlebar) -->
+    <!-- Brake levers -->
     <path d="M 26 12 Q 30 10 32 13" stroke="#27272a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
     <path d="M 70 12 Q 66 10 64 13" stroke="#27272a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
 
@@ -458,7 +488,7 @@ function bikeSvg(): string {
     <circle cx="70" cy="14" r="2.2" fill="#0c0420"/>
     <ellipse cx="25.6" cy="13.5" rx="1.4" ry="0.5" fill="#3b3b54" opacity="0.7"/>
 
-    <!-- Brake calipers (tiny detail near each hub) -->
+    <!-- Brake caliper -->
     <rect x="44" y="22" width="2" height="1.4" rx="0.3" fill="#52525b"/>
 
     <!-- LED headlight -->
