@@ -27,12 +27,13 @@ async function ScheduleLoader({ weekStart }: { weekStart: string }) {
   return <ScheduleGrid initialSlots={slots} weekStart={weekStart} />;
 }
 
-export default function SchedulePage({
+export default async function SchedulePage({
   searchParams,
 }: {
-  searchParams?: { week?: string };
+  searchParams?: Promise<{ week?: string }>;
 }) {
-  const rawWeek = searchParams?.week;
+  const params = await searchParams;
+  const rawWeek = params?.week;
   // Validate: must be a valid ISO date string, else fall back to current week.
   const weekStart =
     rawWeek && !Number.isNaN(Date.parse(rawWeek))
