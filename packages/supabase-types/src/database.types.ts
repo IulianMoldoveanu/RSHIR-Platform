@@ -9345,6 +9345,10 @@ export type Database = {
         Returns: undefined
       }
       get_public_order: { Args: { p_token: string }; Returns: Json }
+      hir_delete_tenant_rollback: {
+        Args: { p_tenant_id: string }
+        Returns: number
+      }
       hir_delete_vault_secret: {
         Args: { secret_name: string }
         Returns: undefined
