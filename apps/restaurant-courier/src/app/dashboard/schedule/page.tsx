@@ -1,6 +1,6 @@
 // Migrated 2026-05-22 from mailto+localStorage to DB-backed slots (see PR #716)
 import { Suspense } from 'react';
-import { listMySlots } from './_actions';
+import { listMySlots } from './actions';
 import { ScheduleGrid } from './_grid';
 
 export const metadata = {

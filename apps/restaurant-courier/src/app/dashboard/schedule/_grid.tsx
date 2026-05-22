@@ -7,8 +7,8 @@ import { useRouter } from 'next/navigation';
 import { Check, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react';
 import { toast } from '@hir/ui';
 import { select as hapticSelect, toggle as hapticToggle } from '@/lib/haptics';
-import type { ShiftSlot } from './_actions';
-import { createShiftSlot, requestSlotChange, cancelSlot } from './_actions';
+import type { ShiftSlot } from './actions';
+import { createShiftSlot, requestSlotChange, cancelSlot } from './actions';
 
 // Grid covers 08:00–21:00 (14 hour-cells per day).
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
