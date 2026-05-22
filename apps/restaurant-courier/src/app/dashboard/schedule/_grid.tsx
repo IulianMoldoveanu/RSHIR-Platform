@@ -1,109 +1,230 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
-import { Check, Send } from 'lucide-react';
-import {
-  MAX_SLOTS,
-  slotKey,
-  readSlots,
-  writeSlots,
-  toggleSlot,
-  buildMailtoBody,
-} from '@/lib/schedule-slots';
-import { select as hapticSelect, toggle as hapticToggle } from '@/lib/haptics';
+// Migrated 2026-05-22 from mailto+localStorage to DB-backed slots (see PR #716)
 
-// Grid covers 8:00–21:00 inclusive (14 slots per day).
+import { Fragment, useCallback, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, ChevronLeft, ChevronRight, Clock, X } from 'lucide-react';
+import { toast } from '@hir/ui';
+import { select as hapticSelect, toggle as hapticToggle } from '@/lib/haptics';
+import type { ShiftSlot } from './_actions';
+import { createShiftSlot, requestSlotChange, cancelSlot } from './_actions';
+
+// Grid covers 08:00–21:00 (14 hour-cells per day).
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 8);
 const RO_DAYS_SHORT = ['Lu', 'Ma', 'Mi', 'Jo', 'Vi', 'Sâ', 'Du'];
 const RO_DAYS_LONG = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
 
-/** Return midnight of date + offsetDays from today (local time). */
-function dayOffset(today: Date, offsetDays: number): Date {
-  const d = new Date(today);
-  d.setDate(d.getDate() + offsetDays);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+// ── Date helpers ─────────────────────────────────────────────────────────────
 
-/** Format Date as DD/MM for column header. */
 function fmtDDMM(d: Date): string {
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
   return `${dd}/${mm}`;
 }
 
-export function ScheduleGrid() {
-  const [slots, setSlots] = useState<Set<string>>(new Set());
-  const [days, setDays] = useState<Date[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+/** ISO Monday 00:00:00 UTC for the week offset by `deltaDays` (±7). */
+function shiftWeek(weekStart: string, deltaDays: number): string {
+  const d = new Date(weekStart);
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString();
+}
 
-  // Hydrate from LocalStorage once mounted (avoid SSR mismatch).
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    setDays(Array.from({ length: 7 }, (_, i) => dayOffset(today, i)));
-    setSlots(readSlots());
-    setHydrated(true);
-  }, []);
+/** Array of 7 UTC midnight Date objects starting at weekStart. */
+function weekDays(weekStart: string): Date[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setUTCDate(d.getUTCDate() + i);
+    return d;
+  });
+}
 
-  // Sync to LocalStorage whenever slots change.
-  useEffect(() => {
-    if (hydrated) writeSlots(slots);
-  }, [slots, hydrated]);
+/** Build the ISO slot_start / slot_end strings for a given day+hour (UTC). */
+function slotRange(day: Date, hour: number): { start: string; end: string } {
+  const start = new Date(day);
+  start.setUTCHours(hour, 0, 0, 0);
+  const end = new Date(day);
+  end.setUTCHours(hour + 1, 0, 0, 0);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
 
-  const handleToggle = useCallback(
-    (key: string) => {
-      setSlots((prev) => {
-        const next = toggleSlot(prev, key);
-        if (next.has(key)) hapticToggle();
-        else hapticSelect();
-        return next;
-      });
+// ── Slot lookup helpers ───────────────────────────────────────────────────────
+
+/** Find the first slot that covers the given day+hour cell. */
+function findSlot(slots: ShiftSlot[], day: Date, hour: number): ShiftSlot | undefined {
+  const { start } = slotRange(day, hour);
+  return slots.find((s) => s.slot_start === start);
+}
+
+/** True if a slot was CANCELLED within the last 24h (show ghost). */
+function isFreshCancel(slot: ShiftSlot): boolean {
+  if (slot.status !== 'CANCELLED') return false;
+  return Date.now() - new Date(slot.updated_at).getTime() < 24 * 60 * 60 * 1000;
+}
+
+// ── Modal types ───────────────────────────────────────────────────────────────
+
+type ModalState =
+  | { kind: 'confirm-create'; day: Date; hour: number }
+  | { kind: 'active-actions'; slot: ShiftSlot; day: Date; hour: number }
+  | { kind: 'request-change'; slot: ShiftSlot; day: Date; hour: number };
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface ScheduleGridProps {
+  initialSlots: ShiftSlot[];
+  weekStart: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function ScheduleGrid({ initialSlots, weekStart }: ScheduleGridProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [modal, setModal] = useState<ModalState | null>(null);
+  // changeHour tracks the new hour selected in the "request-change" modal.
+  const [changeHour, setChangeHour] = useState<number>(8);
+
+  const days = weekDays(weekStart);
+
+  // ── Week navigation ─────────────────────────────────────────────────────────
+  const todayUtcMidnight = new Date();
+  todayUtcMidnight.setUTCHours(0, 0, 0, 0);
+  const MIN_WEEK_START = new Date(todayUtcMidnight);
+  MIN_WEEK_START.setUTCDate(MIN_WEEK_START.getUTCDate() - 30);
+
+  const prevWeek = shiftWeek(weekStart, -7);
+  const nextWeek = shiftWeek(weekStart, 7);
+  const isPrevDisabled = new Date(prevWeek) < MIN_WEEK_START;
+
+  const navigate = useCallback(
+    (week: string) => {
+      router.push(`/dashboard/schedule?week=${encodeURIComponent(week)}`);
     },
-    [],
+    [router],
   );
 
-  const handleSendToDispatcher = useCallback(() => {
-    const body = buildMailtoBody(slots);
-    const subject = encodeURIComponent('Rezervare tură HIR Curier');
-    const encodedBody = encodeURIComponent(body);
-    window.location.href = `mailto:dispecer@hirforyou.ro?subject=${subject}&body=${encodedBody}`;
-  }, [slots]);
+  // ── Cell click ──────────────────────────────────────────────────────────────
+  const handleCellClick = useCallback(
+    (day: Date, hour: number) => {
+      const slot = findSlot(initialSlots, day, hour);
+      if (!slot || isFreshCancel(slot)) {
+        // Empty or recently cancelled — offer to create.
+        hapticSelect();
+        setModal({ kind: 'confirm-create', day, hour });
+      } else if (slot.status === 'ACTIVE' || slot.status === 'REQUESTED') {
+        hapticToggle();
+        setModal({ kind: 'active-actions', slot, day, hour });
+      }
+      // REQUESTED_CHANGE / SUPERSEDED / REJECTED → no action (disabled).
+    },
+    [initialSlots],
+  );
 
-  const reserved = slots.size;
-  const atCap = reserved >= MAX_SLOTS;
+  // ── Actions ─────────────────────────────────────────────────────────────────
+  const handleCreate = useCallback(
+    (day: Date, hour: number) => {
+      const { start, end } = slotRange(day, hour);
+      setModal(null);
+      startTransition(async () => {
+        try {
+          await createShiftSlot(start, end);
+          hapticToggle();
+          toast.success('Tură adăugată.');
+          router.refresh();
+        } catch (err) {
+          toast.error((err as Error).message ?? 'Eroare la salvare.');
+        }
+      });
+    },
+    [router],
+  );
 
-  if (!hydrated) {
-    // Skeleton to avoid layout shift.
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="h-8 w-48 animate-pulse rounded-lg bg-hir-border" />
-        <div className="h-64 animate-pulse rounded-2xl bg-hir-border" />
-      </div>
-    );
-  }
+  const handleCancel = useCallback(
+    (slotId: string) => {
+      setModal(null);
+      startTransition(async () => {
+        try {
+          await cancelSlot(slotId);
+          hapticSelect();
+          toast.success('Tură anulată.');
+          router.refresh();
+        } catch (err) {
+          toast.error((err as Error).message ?? 'Eroare la anulare.');
+        }
+      });
+    },
+    [router],
+  );
+
+  const handleRequestChange = useCallback(
+    (slot: ShiftSlot, day: Date, newHour: number) => {
+      const { start: newStart, end: newEnd } = slotRange(day, newHour);
+      const reason = `Modificare orar: ${String(newHour).padStart(2, '0')}:00–${String(newHour + 1).padStart(2, '0')}:00`;
+      setModal(null);
+      startTransition(async () => {
+        try {
+          await requestSlotChange(slot.id, newStart, newEnd, reason);
+          hapticToggle();
+          toast.success('Cerere de modificare trimisă. Dispecerul va confirma.');
+          router.refresh();
+        } catch (err) {
+          toast.error((err as Error).message ?? 'Eroare la modificare.');
+        }
+      });
+    },
+    [router],
+  );
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  const activeCount = initialSlots.filter(
+    (s) => s.status === 'ACTIVE' || s.status === 'REQUESTED',
+  ).length;
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Counter */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface px-4 py-3">
-        <p className="text-sm font-medium text-hir-fg">
-          <span
-            className={`tabular-nums ${atCap ? 'font-bold text-amber-300' : 'font-bold text-violet-300'}`}
-          >
-            {reserved}
-          </span>
-          <span className="text-hir-muted-fg"> / {MAX_SLOTS}</span>{' '}
-          <span className="text-xs text-hir-muted-fg">ore săptămâna asta</span>
+    <div className={`flex flex-col gap-5 ${isPending ? 'pointer-events-none opacity-70' : ''}`}>
+      {/* Empty state */}
+      {initialSlots.length === 0 && (
+        <p className="rounded-2xl border border-dashed border-hir-border px-4 py-6 text-center text-sm text-hir-muted-fg">
+          Marchează orele când vrei să livrezi. Dispecerul vede direct ce ai selectat.
         </p>
-        {atCap ? (
-          <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-300 ring-1 ring-amber-500/30">
-            Limită atinsă
-          </span>
-        ) : null}
+      )}
+
+      {/* Active slot counter */}
+      {activeCount > 0 && (
+        <div className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-4 py-3">
+          <p className="text-sm font-medium text-hir-fg">
+            <span className="tabular-nums font-bold text-violet-300">{activeCount}</span>
+            <span className="text-hir-muted-fg"> ture active săptămâna asta</span>
+          </p>
+        </div>
+      )}
+
+      {/* Week navigation */}
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          disabled={isPrevDisabled}
+          onClick={() => navigate(prevWeek)}
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-surface text-hir-muted-fg transition hover:bg-hir-border disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Săptămâna anterioară"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-medium text-hir-fg">
+          {fmtDDMM(days[0])} – {fmtDDMM(days[6])}
+        </span>
+        <button
+          type="button"
+          onClick={() => navigate(nextWeek)}
+          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-surface text-hir-muted-fg transition hover:bg-hir-border"
+          aria-label="Săptămâna următoare"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
-      {/* Scroll-snapping grid wrapper */}
+      {/* Grid */}
       <div
         className="overflow-x-auto"
         style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
@@ -112,11 +233,13 @@ export function ScheduleGrid() {
           className="grid min-w-[480px]"
           style={{ gridTemplateColumns: '3rem repeat(7, 1fr)' }}
         >
-          {/* Header row — empty corner + 7 day labels */}
+          {/* Header row */}
           <div className="h-12" aria-hidden />
-          {days.map((day, di) => {
-            const dowIndex = (day.getDay() + 6) % 7; // 0=Mon
-            const isToday = di === 0;
+          {days.map((day) => {
+            const dowIndex = (day.getUTCDay() + 6) % 7; // 0=Mon
+            const isToday =
+              day.toISOString().slice(0, 10) ===
+              todayUtcMidnight.toISOString().slice(0, 10);
             return (
               <div
                 key={day.toISOString()}
@@ -143,7 +266,6 @@ export function ScheduleGrid() {
           {/* Hour rows */}
           {HOURS.map((hour) => (
             <Fragment key={`row-${hour}`}>
-              {/* Hour label */}
               <div
                 className="flex items-center justify-end pr-2 text-[11px] font-medium text-hir-muted-fg"
                 style={{ height: '44px' }}
@@ -152,37 +274,58 @@ export function ScheduleGrid() {
                 {String(hour).padStart(2, '0')}:00
               </div>
 
-              {/* 7 day cells for this hour */}
-              {days.map((day, di) => {
-                const key = slotKey(day, hour);
-                const isReserved = slots.has(key);
-                const dowIndex = (day.getDay() + 6) % 7;
-                const isToday = di === 0;
+              {days.map((day) => {
+                const dowIndex = (day.getUTCDay() + 6) % 7;
+                const slot = findSlot(initialSlots, day, hour);
+                const freshCancel = slot ? isFreshCancel(slot) : false;
+                const status = slot?.status;
+
+                const isActive = status === 'ACTIVE' || status === 'REQUESTED';
+                const isChangeRequested = status === 'REQUESTED_CHANGE';
+                const isCancelled = freshCancel;
+                const isDisabled =
+                  isChangeRequested ||
+                  (status === 'SUPERSEDED') ||
+                  (status === 'REJECTED') ||
+                  (!!slot && !isActive && !freshCancel);
+
+                let cellClass =
+                  'relative mx-0.5 my-0.5 flex items-center justify-center rounded-lg transition-all active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-1 min-h-[44px]';
+
+                if (isActive) {
+                  cellClass += ' bg-green-600 text-white shadow-md shadow-green-600/30 hover:bg-green-500';
+                } else if (isChangeRequested) {
+                  cellClass += ' bg-amber-500/20 text-amber-300 cursor-not-allowed';
+                } else if (isCancelled) {
+                  cellClass += ' bg-hir-surface text-hir-muted-fg/50';
+                } else if (isDisabled) {
+                  cellClass += ' bg-hir-surface text-hir-muted-fg/30 cursor-not-allowed';
+                } else {
+                  cellClass += ' bg-hir-surface text-hir-muted-fg hover:bg-hir-border';
+                }
 
                 return (
                   <button
-                    key={key}
+                    key={`${day.toISOString()}-${hour}`}
                     type="button"
-                    onClick={() => handleToggle(key)}
-                    disabled={!isReserved && atCap}
-                    aria-pressed={isReserved}
-                    aria-label={`${RO_DAYS_LONG[dowIndex]} ${fmtDDMM(day)} ${String(hour).padStart(2, '0')}:00 — ${isReserved ? 'rezervat' : 'liber'}`}
-                    className={[
-                      'relative mx-0.5 my-0.5 flex items-center justify-center rounded-lg transition-all active:scale-[0.94] focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-1',
-                      // min tap target 44px
-                      'min-h-[44px]',
-                      isReserved
-                        ? 'bg-violet-600 text-white shadow-md shadow-violet-600/30 hover:bg-violet-500'
-                        : isToday && !atCap
-                          ? 'bg-violet-500/10 text-hir-muted-fg hover:bg-violet-500/20'
-                          : atCap
-                            ? 'cursor-not-allowed bg-hir-surface text-hir-muted-fg/40'
-                            : 'bg-hir-surface text-hir-muted-fg hover:bg-hir-border',
-                    ].join(' ')}
+                    onClick={() => handleCellClick(day, hour)}
+                    disabled={isDisabled && !freshCancel}
+                    aria-pressed={isActive}
+                    aria-label={`${RO_DAYS_LONG[dowIndex]} ${fmtDDMM(day)} ${String(hour).padStart(2, '0')}:00`}
+                    className={cellClass}
                   >
-                    {isReserved ? (
+                    {isActive && (
                       <Check className="h-4 w-4 text-white" aria-hidden strokeWidth={3} />
-                    ) : null}
+                    )}
+                    {isChangeRequested && (
+                      <Clock className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                    )}
+                    {isCancelled && !isChangeRequested && (
+                      <span
+                        className="absolute inset-x-1 bottom-[6px] border-b border-dashed border-hir-muted-fg/40"
+                        aria-hidden
+                      />
+                    )}
                   </button>
                 );
               })}
@@ -194,36 +337,155 @@ export function ScheduleGrid() {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-hir-muted-fg">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-3 w-3 rounded bg-violet-600" aria-hidden />
-          Rezervat
+          <span className="inline-block h-3 w-3 rounded bg-green-600" aria-hidden />
+          Activ
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded bg-amber-500/25 ring-1 ring-amber-400/40" aria-hidden />
+          Modificare în așteptare
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="relative inline-block h-3 w-3 rounded border border-dashed border-hir-muted-fg/50" aria-hidden />
+          Anulat (24h)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded border border-hir-border bg-hir-surface" aria-hidden />
           Liber
         </span>
-        <span className="text-hir-muted-fg/70">Apasă o celulă pentru a rezerva / anula.</span>
       </div>
 
-      {/* Trimite la dispecer */}
-      <button
-        type="button"
-        onClick={handleSendToDispatcher}
-        disabled={reserved === 0}
-        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 px-5 text-sm font-semibold text-white shadow-lg shadow-violet-600/30 transition-all hover:bg-violet-500 hover:shadow-violet-500/40 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-      >
-        <Send className="h-4 w-4" aria-hidden />
-        Trimite la dispecer
-      </button>
-
-      {reserved === 0 ? (
-        <p className="text-center text-xs text-hir-muted-fg">
-          Rezervă cel puțin o oră pentru a putea trimite.
-        </p>
-      ) : (
-        <p className="text-center text-xs text-hir-muted-fg">
-          Se va deschide aplicația de e-mail cu sloturile selectate.
-        </p>
+      {/* ── Modals ── */}
+      {modal?.kind === 'confirm-create' && (
+        <Modal onClose={() => setModal(null)}>
+          <p className="text-sm font-semibold text-hir-fg">
+            Marchezi disponibilitatea?
+          </p>
+          <p className="mt-1 text-sm text-hir-muted-fg">
+            {RO_DAYS_LONG[(modal.day.getUTCDay() + 6) % 7]}{' '}
+            {fmtDDMM(modal.day)}{' '}
+            {String(modal.hour).padStart(2, '0')}:00 –{' '}
+            {String(modal.hour + 1).padStart(2, '0')}:00
+          </p>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setModal(null)}
+              className="flex-1 rounded-xl border border-hir-border bg-hir-surface px-4 py-2.5 text-sm font-medium text-hir-muted-fg hover:bg-hir-border"
+            >
+              Renunț
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCreate(modal.day, modal.hour)}
+              className="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-500"
+            >
+              Da, marchează
+            </button>
+          </div>
+        </Modal>
       )}
+
+      {modal?.kind === 'active-actions' && (
+        <Modal onClose={() => setModal(null)}>
+          <p className="text-sm font-semibold text-hir-fg">
+            {RO_DAYS_LONG[(modal.day.getUTCDay() + 6) % 7]}{' '}
+            {fmtDDMM(modal.day)}{' '}
+            {String(modal.hour).padStart(2, '0')}:00–{String(modal.hour + 1).padStart(2, '0')}:00
+          </p>
+          <p className="mt-1 text-xs text-hir-muted-fg">Tură activă — ce vrei să faci?</p>
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setChangeHour(modal.hour);
+                setModal({ kind: 'request-change', slot: modal.slot, day: modal.day, hour: modal.hour });
+              }}
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-hir-border bg-hir-surface px-4 text-sm font-medium text-hir-fg hover:bg-hir-border"
+            >
+              <Clock className="h-4 w-4" aria-hidden />
+              Cere modificare orar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCancel(modal.slot.id)}
+              className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 text-sm font-semibold text-red-400 hover:bg-red-500/20"
+            >
+              <X className="h-4 w-4" aria-hidden />
+              Anulează tura
+            </button>
+            <button
+              type="button"
+              onClick={() => setModal(null)}
+              className="min-h-[44px] rounded-xl border border-hir-border bg-hir-surface px-4 text-sm text-hir-muted-fg hover:bg-hir-border"
+            >
+              Înapoi
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.kind === 'request-change' && (
+        <Modal onClose={() => setModal(null)}>
+          <p className="text-sm font-semibold text-hir-fg">Cere modificare orar</p>
+          <p className="mt-1 text-xs text-hir-muted-fg">
+            Ora curentă: {String(modal.hour).padStart(2, '0')}:00–{String(modal.hour + 1).padStart(2, '0')}:00.
+            Modificarea trece prin dispecer înainte să fie activată.
+          </p>
+          <div className="mt-3">
+            <label className="text-xs text-hir-muted-fg" htmlFor="new-hour-select">
+              Oră nouă
+            </label>
+            <select
+              id="new-hour-select"
+              value={changeHour}
+              onChange={(e) => setChangeHour(Number(e.target.value))}
+              className="mt-1 w-full rounded-xl border border-hir-border bg-hir-surface px-3 py-2.5 text-sm text-hir-fg focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              {HOURS.map((h) => (
+                <option key={h} value={h} disabled={h === modal.hour}>
+                  {String(h).padStart(2, '0')}:00 – {String(h + 1).padStart(2, '0')}:00
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setModal({ kind: 'active-actions', slot: modal.slot, day: modal.day, hour: modal.hour })}
+              className="flex-1 rounded-xl border border-hir-border bg-hir-surface px-4 py-2.5 text-sm font-medium text-hir-muted-fg hover:bg-hir-border"
+            >
+              Înapoi
+            </button>
+            <button
+              type="button"
+              disabled={changeHour === modal.hour}
+              onClick={() => handleRequestChange(modal.slot, modal.day, changeHour)}
+              className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Trimite cerere
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Inline modal shell ────────────────────────────────────────────────────────
+
+function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-safe"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      role="dialog"
+      aria-modal
+    >
+      <div className="w-full max-w-md rounded-t-2xl bg-hir-bg p-5 shadow-2xl">
+        {children}
+      </div>
     </div>
   );
 }
