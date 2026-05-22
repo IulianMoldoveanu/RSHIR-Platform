@@ -1,6 +1,11 @@
 'use server';
 
 // Migrated 2026-05-22 from mailto+localStorage to DB-backed slots (see PR #716 schema)
+//
+// Supabase client is cast to `any` for chained queries — matches codebase
+// pattern (see apps/restaurant-courier/src/app/admin/observability/courier-health/page.tsx
+// and apps/restaurant-admin/src/app/dashboard/admin/control-room/page.tsx) which works
+// around the @supabase/ssr@0.5.2 + supabase-js typing mismatch.
 
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
@@ -23,15 +28,13 @@ export type ShiftSlot = {
   updated_at: string;
 };
 
-/**
- * List slots for the current courier between week_start and +7 days.
- * week_start must be an ISO string (midnight local time rendered as UTC).
- */
 export async function listMySlots(week_start: string): Promise<ShiftSlot[]> {
   const supabase = await createServerClient();
   const week_end = new Date(new Date(week_start).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data, error } = await sb
     .from('courier_shift_slots')
     .select(
       'id, courier_user_id, slot_start, slot_end, status, prev_slot_id, courier_note, created_at, updated_at',
@@ -44,22 +47,23 @@ export async function listMySlots(week_start: string): Promise<ShiftSlot[]> {
   return (data ?? []) as ShiftSlot[];
 }
 
-/**
- * Create a new availability slot for one hour block.
- * Default status in DB is REQUESTED; this action immediately promotes it
- * to ACTIVE (no admin approval needed at creation — only modifications
- * go through the approval workflow per PR #716 state machine).
- */
 export async function createShiftSlot(
   slot_start: string,
   slot_end: string,
   courier_note?: string,
 ): Promise<{ id: string }> {
   const supabase = await createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('not authenticated');
 
-  const { data: inserted, error: insertErr } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data: inserted, error: insertErr } = await sb
     .from('courier_shift_slots')
     .insert({
+      courier_user_id: user.id,
       slot_start,
       slot_end,
       status: 'REQUESTED',
@@ -71,7 +75,7 @@ export async function createShiftSlot(
   if (insertErr) throw new Error(insertErr.message);
 
   // Immediately promote to ACTIVE — creation requires no admin action.
-  const { error: updateErr } = await supabase
+  const { error: updateErr } = await sb
     .from('courier_shift_slots')
     .update({ status: 'ACTIVE' })
     .eq('id', inserted.id);
@@ -82,11 +86,6 @@ export async function createShiftSlot(
   return { id: inserted.id };
 }
 
-/**
- * Request a change to an ACTIVE slot. Uses the RPC from PR #716
- * which inserts a REQUESTED_CHANGE row while keeping the old row ACTIVE
- * until admin approves or rejects.
- */
 export async function requestSlotChange(
   slot_id: string,
   new_start: string,
@@ -95,7 +94,9 @@ export async function requestSlotChange(
 ): Promise<{ new_slot_id: string }> {
   const supabase = await createServerClient();
 
-  const { data, error } = await supabase.rpc('request_slot_change', {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { data, error } = await sb.rpc('request_slot_change', {
     p_slot_id: slot_id,
     p_new_start: new_start,
     p_new_end: new_end,
@@ -108,14 +109,12 @@ export async function requestSlotChange(
   return { new_slot_id: data as string };
 }
 
-/**
- * Cancel an ACTIVE or REQUESTED slot. RLS enforces courier_user_id = auth.uid()
- * and status must become CANCELLED (any other status transition is rejected).
- */
 export async function cancelSlot(slot_id: string): Promise<void> {
   const supabase = await createServerClient();
 
-  const { error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const { error } = await sb
     .from('courier_shift_slots')
     .update({ status: 'CANCELLED' })
     .eq('id', slot_id);

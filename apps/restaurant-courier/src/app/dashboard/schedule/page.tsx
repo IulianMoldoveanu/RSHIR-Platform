@@ -1,6 +1,6 @@
 // Migrated 2026-05-22 from mailto+localStorage to DB-backed slots (see PR #716)
 import { Suspense } from 'react';
-import { listMySlots } from './actions';
+import { listMySlots, type ShiftSlot } from './actions';
 import { ScheduleGrid } from './_grid';
 
 export const metadata = {
@@ -18,7 +18,7 @@ function isoWeekStart(d: Date): string {
 }
 
 async function ScheduleLoader({ weekStart }: { weekStart: string }) {
-  let slots;
+  let slots: ShiftSlot[];
   try {
     slots = await listMySlots(weekStart);
   } catch {
