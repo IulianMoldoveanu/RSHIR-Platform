@@ -115,7 +115,7 @@ export default async function LiveOrdersPage({
 
   if (ordersError) throw friendlyDbError(ordersError, 'Live Orders');
 
-  const rawOrders = (ordersData ?? []) as Array<{
+  const rawOrders = (ordersData ?? []) as unknown as Array<{
     id: string;
     status: string;
     customer_first_name: string | null;
@@ -218,7 +218,7 @@ export default async function LiveOrdersPage({
       .limit(200);
 
     if (yData) {
-      const yOrders = yData as Array<{ status: string; created_at: string; updated_at: string }>;
+      const yOrders = yData as unknown as Array<{ status: string; created_at: string; updated_at: string }>;
       const yDelivered = yOrders.filter((o) => o.status === 'DELIVERED');
       const yAvgMs =
         yDelivered.length > 0
