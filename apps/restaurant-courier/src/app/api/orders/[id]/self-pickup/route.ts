@@ -78,7 +78,8 @@ export async function POST(
 
   // Atomic claim: UPDATE returns the row only if all conditions match.
   // The fleet_id check replaces the RLS that the admin client bypasses.
-  const updateQuery = admin
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let updateQuery: any = admin
     .from('courier_orders')
     .update({
       status: 'ACCEPTED',
@@ -87,18 +88,16 @@ export async function POST(
     })
     .in('status', ['CREATED', 'OFFERED'])
     .is('assigned_courier_user_id', null)
-    .eq('id', orderId)
-    .select('id')
-    .maybeSingle();
+    .eq('id', orderId);
 
   // Only add fleet filter when the courier has a fleet (platform-default
   // couriers have fleet_id null at times; skip the filter so they can still
   // self-pickup cross-fleet in that edge case — matches acceptOrderAction).
   if (profileRow.fleet_id) {
-    updateQuery.eq('fleet_id', profileRow.fleet_id);
+    updateQuery = updateQuery.eq('fleet_id', profileRow.fleet_id);
   }
 
-  const { data: claimed } = await updateQuery;
+  const { data: claimed } = await updateQuery.select('id').maybeSingle();
 
   if (!claimed) {
     // Race condition: another courier claimed it first, or it's in a wrong state.
