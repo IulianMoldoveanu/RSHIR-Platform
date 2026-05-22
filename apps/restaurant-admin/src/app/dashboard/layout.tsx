@@ -90,6 +90,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       label: 'Operațiuni',
       icon: 'sliders' as const,
       items: [
+        { href: '/dashboard/operations/live-orders', label: 'Livrări live' },
         { href: '/dashboard/zones', label: 'Zone livrare' },
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
         { href: '/dashboard/settings/notifications', label: 'Notificări' },
@@ -161,6 +162,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       label: 'Operațiuni',
       icon: 'sliders' as const,
       items: [
+        { href: '/dashboard/operations/live-orders', label: 'Livrări live' },
         { href: '/dashboard/zones', label: 'Zone livrare' },
         { href: '/dashboard/settings/operations', label: 'Program & pickup' },
         { href: '/dashboard/settings/notifications', label: 'Notificări' },
