@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { ZonesClient } from './zones-client';
-import type { Zone, Tier } from './types';
+import type { Zone, Tier, ZonePause } from './types';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,10 +16,11 @@ export default async function ZonesPage() {
 
   let zones: Zone[] = [];
   let tiers: Tier[] = [];
+  let activePauses: ZonePause[] = [];
   let loadError: string | null = null;
 
   try {
-    const [zonesRes, tiersRes] = await Promise.all([
+    const [zonesRes, tiersRes, pausesRes] = await Promise.all([
       supabase
         .from('delivery_zones')
         .select('id, name, polygon, is_active, sort_order, created_at')
@@ -31,6 +32,10 @@ export default async function ZonesPage() {
         .select('id, min_km, max_km, price_ron, sort_order')
         .eq('tenant_id', tenant.id)
         .order('min_km', { ascending: true }),
+      supabase
+        .from('tenant_zone_active_pauses')
+        .select('id, zone_id, reason, paused_until, paused_at, paused_via, notes')
+        .eq('tenant_id', tenant.id),
     ]);
 
     if (zonesRes.error) {
@@ -54,6 +59,17 @@ export default async function ZonesPage() {
       (z) => z.polygon && Array.isArray(z.polygon.coordinates),
     );
     tiers = (tiersRes.data ?? []) as unknown as Tier[];
+    // Pause view load failure is non-fatal — show zones without pause badges
+    // rather than blocking the whole page on a follow-up migration's table.
+    if (pausesRes.error) {
+      console.warn('[zones] active pauses load failed', {
+        tenantId: tenant.id,
+        code: pausesRes.error.code,
+        message: pausesRes.error.message,
+      });
+    } else {
+      activePauses = (pausesRes.data ?? []) as unknown as ZonePause[];
+    }
   } catch (err) {
     console.error('[zones] unexpected load failure', {
       tenantId: tenant.id,
@@ -107,6 +123,7 @@ export default async function ZonesPage() {
       <ZonesClient
         initialZones={zones}
         initialTiers={tiers}
+        initialPauses={activePauses}
         tenantCenter={tenantCenter}
         tenantCity={tenantCity}
       />

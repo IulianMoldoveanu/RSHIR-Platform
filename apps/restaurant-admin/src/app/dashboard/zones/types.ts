@@ -19,3 +19,13 @@ export type Tier = {
   price_ron: number;
   sort_order: number;
 };
+
+export type ZonePause = {
+  id: string;
+  zone_id: string;
+  reason: string;
+  paused_until: string | null;
+  paused_at: string;
+  paused_via: 'CONTROL_ROOM' | 'HEPY' | 'ADMIN';
+  notes: string | null;
+};
