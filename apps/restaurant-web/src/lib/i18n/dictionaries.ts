@@ -528,7 +528,7 @@ export const dictionaries = {
         nav_case_studies: 'Studiu de caz',
         nav_contact: 'Contact',
         cta_become_partner: 'Devino partener',
-        cta_signup_restaurant: 'Înscrie restaurantul',
+        cta_signup_restaurant: 'Conectează-te / Creează cont',
         locale_switcher_label: 'Schimbă limba',
         footer_tagline:
           'Soluție completă pentru restaurante: comenzi online, livrare proprie, CRM, loyalty și migrare GloriaFood. Construit în România.',
@@ -1525,7 +1525,7 @@ export const dictionaries = {
         nav_case_studies: 'Case study',
         nav_contact: 'Contact',
         cta_become_partner: 'Become a partner',
-        cta_signup_restaurant: 'Sign up your restaurant',
+        cta_signup_restaurant: 'Log in / Sign up',
         locale_switcher_label: 'Switch language',
         footer_tagline:
           'Complete solution for restaurants: online orders, in-house delivery, CRM, loyalty and GloriaFood migration. Built in Romania.',

@@ -89,7 +89,7 @@ export function MarketingHeader({
             {t(currentLocale, 'marketing.shell.cta_become_partner')}
           </Link>
           <Link
-            href="/contact"
+            href="/intra-in-cont"
             className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
           >
             {t(currentLocale, 'marketing.shell.cta_signup_restaurant')}
