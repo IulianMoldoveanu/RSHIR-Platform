@@ -200,6 +200,9 @@ export const dictionaries = {
       err_quote_default: 'A apărut o eroare la calcularea comenzii.',
       err_outside_zone_template: 'Adresa este în afara zonei de livrare. Sună-ne la {phone}.',
       err_no_tier_template: 'Nu există tarif configurat pentru {distance} km. Sună-ne la {phone}.',
+      err_zone_paused_template:
+        'Momentan nu primim comenzi noi în zona ta. Estimat reluare: {eta}. Ne poți suna la {phone}.',
+      err_zone_paused_eta_manual: 'în scurt timp',
       err_item_unavailable: 'Un produs din coș nu mai este disponibil. Te rugăm revizuiește coșul.',
       err_empty_menu: 'Niciun produs din coș nu a putut fi găsit în meniu.',
       err_create_order: 'Eroare la creare comandă',
@@ -1200,6 +1203,9 @@ export const dictionaries = {
       err_quote_default: 'Something went wrong while calculating your order.',
       err_outside_zone_template: 'The address is outside the delivery zone. Call us at {phone}.',
       err_no_tier_template: 'No fare configured for {distance} km. Call us at {phone}.',
+      err_zone_paused_template:
+        'We are not accepting new orders in your area right now. Expected to resume around {eta}. You can call us at {phone}.',
+      err_zone_paused_eta_manual: 'shortly',
       err_item_unavailable: 'An item in your cart is no longer available. Please review your cart.',
       err_empty_menu: 'No item in your cart was found in the menu.',
       err_create_order: 'Error creating order',

@@ -74,7 +74,8 @@ type QuoteFailureReason =
   | { kind: 'ITEM_UNAVAILABLE'; itemId: string }
   | { kind: 'EMPTY_MENU' }
   | { kind: 'PROMO_INVALID'; reason: PromoFailureReason }
-  | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' };
+  | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' }
+  | { kind: 'ZONE_PAUSED'; reason: string; pausedUntil: string | null };
 
 // Lane J — drop the in-app 'payment' step. CARD path redirects directly to
 // the Stripe-hosted Checkout URL after the intent call succeeds.
@@ -1458,7 +1459,22 @@ function formatQuoteError(
           : 'checkout.err_group_too_many_template',
         { group: reason.groupName },
       );
+    case 'ZONE_PAUSED':
+      return t(locale, 'checkout.err_zone_paused_template', {
+        eta: formatPauseEta(reason.pausedUntil, locale),
+        phone: phoneOrFallback,
+      });
   }
+}
+
+function formatPauseEta(pausedUntil: string | null, locale: Locale): string {
+  if (!pausedUntil) return t(locale, 'checkout.err_zone_paused_eta_manual');
+  const eta = new Date(pausedUntil);
+  if (!Number.isFinite(eta.getTime())) return t(locale, 'checkout.err_zone_paused_eta_manual');
+  return eta.toLocaleTimeString(locale === 'ro' ? 'ro-RO' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export type { Quote };
