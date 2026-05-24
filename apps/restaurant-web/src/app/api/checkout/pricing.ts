@@ -52,7 +52,8 @@ export type QuoteFailure =
   | { kind: 'ITEM_UNAVAILABLE'; itemId: string }
   | { kind: 'EMPTY_MENU' }
   | { kind: 'PROMO_INVALID'; reason: PromoLookupFailure }
-  | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' };
+  | { kind: 'GROUP_CONSTRAINT'; itemId: string; groupName: string; reason: 'too_few' | 'too_many' }
+  | { kind: 'ZONE_PAUSED'; reason: string; pausedUntil: string | null };
 
 export type QuoteResult = { ok: true; quote: Quote } | { ok: false; reason: QuoteFailure };
 
@@ -237,6 +238,18 @@ export async function computeQuote(
 
   const dropoff: LatLng = { lat: address.lat, lng: address.lng };
   const zoneId = await findEnclosingZoneId(admin, tenant.id, dropoff);
+  if (zoneId) {
+    // The patron may have paused this zone temporarily (storm, lipsa curier,
+    // sold out). Surface a friendly block w/ ETA so the customer knows when
+    // to retry, instead of allowing the order through and failing dispatch.
+    const pause = await checkZonePause(admin, tenant.id, zoneId);
+    if (pause) {
+      return {
+        ok: false,
+        reason: { kind: 'ZONE_PAUSED', reason: pause.reason, pausedUntil: pause.paused_until },
+      };
+    }
+  }
   if (!zoneId) return { ok: false, reason: { kind: 'OUTSIDE_ZONE' } };
 
   const pickup = tenantLocationFromSettings(tenant.slug, tenant.settings);
@@ -325,6 +338,40 @@ async function findEnclosingZoneId(
     if (pointInPolygon(point, coercePolygon(z.polygon))) return z.id;
   }
   return null;
+}
+
+async function checkZonePause(
+  admin: SupabaseClient<Database>,
+  tenantId: string,
+  zoneId: string,
+): Promise<{ reason: string; paused_until: string | null } | null> {
+  // Calls the SECURITY DEFINER RPC so the anon-key storefront can see the
+  // pause status of a single (tenant, zone) without leaking other tenants'
+  // pause history. RPC returns NULL when there's no active pause, or a JSON
+  // payload { paused, reason, paused_until, paused_at } when one exists.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin as any).rpc('is_tenant_zone_paused', {
+    p_tenant_id: tenantId,
+    p_zone_id: zoneId,
+  });
+  if (error) {
+    // RPC missing on older deploys = treat as not paused (forward-compatible
+    // fallback so PR 1 schema isn't a hard dependency for storefront deploys).
+    console.warn('[checkout/pricing] is_tenant_zone_paused RPC failed', {
+      tenantId,
+      zoneId,
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+  if (!data) return null;
+  const payload = data as { paused?: unknown; reason?: unknown; paused_until?: unknown };
+  if (payload.paused !== true) return null;
+  return {
+    reason: typeof payload.reason === 'string' ? payload.reason : 'manual',
+    paused_until: typeof payload.paused_until === 'string' ? payload.paused_until : null,
+  };
 }
 
 async function findTierForDistance(
