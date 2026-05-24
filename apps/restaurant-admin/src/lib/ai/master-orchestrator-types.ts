@@ -49,6 +49,8 @@ export const KNOWN_INTENTS: RegistryEntry[] = [
   { name: 'ops.suggest_delivery_zones', agent: 'ops', defaultCategory: 'ops.read', description: 'Sugerează zone noi de livrare pe baza comenzilor din 30 de zile.', readOnly: true },
   { name: 'ops.optimize_courier_schedule', agent: 'ops', defaultCategory: 'ops.read', description: 'Propune program curieri pe baza istoricului 14 zile.', readOnly: true },
   { name: 'ops.flag_kitchen_bottlenecks', agent: 'ops', defaultCategory: 'ops.read', description: 'Identifică produsele care încetinesc fluxul (proxy 7 zile).', readOnly: true },
+  { name: 'ops.pause_delivery_zone', agent: 'ops', defaultCategory: 'ops.zone_pause', description: 'Pune pe pauză livrările într-o zonă (rezolvare fuzzy după nume).' },
+  { name: 'ops.resume_delivery_zone', agent: 'ops', defaultCategory: 'ops.zone_resume', description: 'Reia livrările într-o zonă pusă anterior pe pauză.' },
   { name: 'ops.order_create', agent: 'ops', defaultCategory: 'ops.order_create', description: 'Creează o comandă nouă din apel vocal AI (gated by tenant.settings.voice.enabled).' },
   { name: 'cs.reservation_create', agent: 'cs', defaultCategory: 'reservation.create', description: 'Creează o rezervare nouă.' },
   { name: 'cs.reservation_list', agent: 'cs', defaultCategory: 'reservation.read', description: 'Listează rezervările următoare.', readOnly: true },
