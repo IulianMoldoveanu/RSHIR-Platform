@@ -1,6 +1,8 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { ZonesClient } from './zones-client';
+import { ZoneInsightsCard } from './zone-insights-card';
+import { loadZoneInsights } from './insights';
 import type { Zone, Tier, ZonePause } from './types';
 
 export const dynamic = 'force-dynamic';
@@ -119,6 +121,8 @@ export default async function ZonesPage() {
           Datele zonelor nu s-au putut încărca complet. Poți totuși desena zone noi pe hartă.
         </div>
       ) : null}
+
+      <ZoneInsightsCard insights={await loadZoneInsights(supabase, tenant.id)} />
 
       <ZonesClient
         initialZones={zones}
