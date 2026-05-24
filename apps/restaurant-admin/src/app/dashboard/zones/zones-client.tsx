@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
 import { TiersCard } from './tiers-card';
 import { lookupCityCenter } from './default-city-centers';
-import type { Zone, Tier, Polygon } from './types';
+import type { Zone, Tier, Polygon, ZonePause } from './types';
 
 const ZoneMap = dynamic(() => import('./zone-map').then((m) => m.ZoneMap), {
   ssr: false,
@@ -19,9 +19,34 @@ const ZoneMap = dynamic(() => import('./zone-map').then((m) => m.ZoneMap), {
 type Props = {
   initialZones: Zone[];
   initialTiers: Tier[];
+  initialPauses?: ZonePause[];
   tenantCenter: { lat: number; lng: number } | null;
   tenantCity?: string | null;
 };
+
+// Prefab pause reasons match the API + Hepy NL tool. Free text supported via the
+// custom modal field. Order = frequency in the field per ops feedback.
+const PAUSE_REASONS: { key: string; label: string }[] = [
+  { key: 'lipsa_curier', label: 'Lipsă curier' },
+  { key: 'furtuna', label: 'Vreme rea / furtună' },
+  { key: 'sold_out', label: 'Sold out (rămas fără stoc)' },
+  { key: 'manual', label: 'Alt motiv' },
+];
+
+const PAUSE_DURATIONS: { minutes: number; label: string }[] = [
+  { minutes: 15, label: '15 min' },
+  { minutes: 30, label: '30 min' },
+  { minutes: 60, label: '1 oră' },
+  { minutes: 0, label: 'Până dau eu drumul' },
+];
+
+function formatPauseEta(pause: ZonePause): string {
+  if (!pause.paused_until) return 'manual';
+  const eta = new Date(pause.paused_until);
+  const mins = Math.max(0, Math.round((eta.getTime() - Date.now()) / 60_000));
+  if (mins < 60) return `${mins} min`;
+  return eta.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+}
 
 // Polish 2026-05-06: build a closed 24-sided polygon approximating a circle
 // of `radiusKm` around `center`. Used by the empty-state "default zone" CTA
@@ -50,15 +75,30 @@ function buildCirclePolygon(
   return { type: 'Polygon', coordinates: [ring] };
 }
 
-export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCity }: Props) {
+export function ZonesClient({
+  initialZones,
+  initialTiers,
+  initialPauses = [],
+  tenantCenter,
+  tenantCity,
+}: Props) {
   const [zones, setZones] = useState<Zone[]>(initialZones);
+  const [pauses, setPauses] = useState<ZonePause[]>(initialPauses);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftPolygon, setDraftPolygon] = useState<Polygon | null>(null);
   const [draftName, setDraftName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pauseModalZoneId, setPauseModalZoneId] = useState<string | null>(null);
+  const [pauseReasonKey, setPauseReasonKey] = useState<string>(PAUSE_REASONS[0]!.key);
+  const [pauseReasonCustom, setPauseReasonCustom] = useState('');
+  const [pauseDurationMinutes, setPauseDurationMinutes] = useState<number>(
+    PAUSE_DURATIONS[0]!.minutes,
+  );
   const [isPending, startTransition] = useTransition();
 
   const selected = zones.find((z) => z.id === selectedId) ?? null;
+  const pauseForZone = (zoneId: string) => pauses.find((p) => p.zone_id === zoneId);
+  const selectedPause = selected ? pauseForZone(selected.id) : undefined;
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, {
@@ -147,6 +187,51 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCi
     });
   }
 
+  function openPauseModal(zoneId: string) {
+    setError(null);
+    setPauseModalZoneId(zoneId);
+    setPauseReasonKey(PAUSE_REASONS[0]!.key);
+    setPauseReasonCustom('');
+    setPauseDurationMinutes(PAUSE_DURATIONS[0]!.minutes);
+  }
+
+  function submitPause() {
+    const zoneId = pauseModalZoneId;
+    if (!zoneId) return;
+    const reason =
+      pauseReasonKey === 'manual' && pauseReasonCustom.trim()
+        ? pauseReasonCustom.trim()
+        : pauseReasonKey;
+    startTransition(async () => {
+      try {
+        const { pause } = await api<{ pause: ZonePause }>(`/api/zones/${zoneId}/pause`, {
+          method: 'POST',
+          body: JSON.stringify({
+            reason,
+            reason_preset: pauseReasonKey,
+            duration_minutes: pauseDurationMinutes,
+          }),
+        });
+        setPauses((prev) => [...prev.filter((p) => p.zone_id !== zoneId), pause]);
+        setPauseModalZoneId(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Pauza nu s-a putut activa.');
+      }
+    });
+  }
+
+  function resumeZone(zoneId: string) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await api(`/api/zones/${zoneId}/pause`, { method: 'DELETE' });
+        setPauses((prev) => prev.filter((p) => p.zone_id !== zoneId));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Reluarea comenzilor a eșuat.');
+      }
+    });
+  }
+
   function deleteZone(id: string) {
     if (!confirm('Ștergi această zonă?')) return;
     startTransition(async () => {
@@ -190,27 +275,40 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCi
               </div>
             ) : (
               <ul className="flex flex-col gap-1">
-                {zones.map((z) => (
-                  <li key={z.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedId(z.id === selectedId ? null : z.id)}
-                      className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${
-                        selectedId === z.id
-                          ? 'bg-zinc-900 text-white'
-                          : 'text-zinc-700 hover:bg-zinc-100'
-                      }`}
-                    >
-                      <span className="truncate">{z.name}</span>
-                      <span
-                        className={`ml-2 inline-block h-2 w-2 shrink-0 rounded-full ${
-                          z.is_active ? 'bg-green-500' : 'bg-zinc-400'
+                {zones.map((z) => {
+                  const pause = pauseForZone(z.id);
+                  return (
+                    <li key={z.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(z.id === selectedId ? null : z.id)}
+                        className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm ${
+                          selectedId === z.id
+                            ? 'bg-zinc-900 text-white'
+                            : 'text-zinc-700 hover:bg-zinc-100'
                         }`}
-                        aria-label={z.is_active ? 'Activă' : 'Inactivă'}
-                      />
-                    </button>
-                  </li>
-                ))}
+                      >
+                        <span className="truncate">{z.name}</span>
+                        {pause ? (
+                          <span
+                            className="ml-2 inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800"
+                            aria-label={`Pauză activă: ${pause.reason}`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            Pauză
+                          </span>
+                        ) : (
+                          <span
+                            className={`ml-2 inline-block h-2 w-2 shrink-0 rounded-full ${
+                              z.is_active ? 'bg-green-500' : 'bg-zinc-400'
+                            }`}
+                            aria-label={z.is_active ? 'Activă' : 'Inactivă'}
+                          />
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
@@ -243,6 +341,35 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCi
                 />
                 Activă
               </label>
+
+              {selectedPause ? (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                  <p className="font-semibold">Comenzi oprite din această zonă</p>
+                  <p className="mt-0.5">Motiv: {selectedPause.reason}</p>
+                  <p className="mt-0.5">Reluare: {formatPauseEta(selectedPause)}</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => resumeZone(selected.id)}
+                    disabled={isPending}
+                    className="mt-2"
+                  >
+                    Reia comenzile
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openPauseModal(selected.id)}
+                  disabled={isPending || !selected.is_active}
+                  title={!selected.is_active ? 'Zona este oprită complet — activeaz-o întâi' : undefined}
+                >
+                  Pune pauză temporară
+                </Button>
+              )}
+
               <Button
                 type="button"
                 variant="outline"
@@ -313,6 +440,93 @@ export function ZonesClient({ initialZones, initialTiers, tenantCenter, tenantCi
       </div>
 
       <TiersCard initialTiers={initialTiers} />
+
+      {pauseModalZoneId ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pause-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isPending) setPauseModalZoneId(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+            <h3 id="pause-modal-title" className="text-base font-semibold text-zinc-900">
+              Oprește comenzile în zonă
+            </h3>
+            <p className="mt-1 text-xs text-zinc-600">
+              Comenzile noi din această zonă vor fi blocate la checkout. Reluarea
+              se face automat la finalul intervalului sau manual.
+            </p>
+
+            <div className="mt-4">
+              <p className="text-xs font-medium text-zinc-700">De ce oprești?</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {PAUSE_REASONS.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => setPauseReasonKey(r.key)}
+                    className={`rounded-md border px-3 py-2 text-xs ${
+                      pauseReasonKey === r.key
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              {pauseReasonKey === 'manual' ? (
+                <input
+                  type="text"
+                  placeholder="Scrie motivul (opțional)"
+                  value={pauseReasonCustom}
+                  onChange={(e) => setPauseReasonCustom(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm"
+                  maxLength={200}
+                />
+              ) : null}
+            </div>
+
+            <div className="mt-4">
+              <p className="text-xs font-medium text-zinc-700">Cât timp?</p>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {PAUSE_DURATIONS.map((d) => (
+                  <button
+                    key={d.minutes}
+                    type="button"
+                    onClick={() => setPauseDurationMinutes(d.minutes)}
+                    className={`rounded-md border px-2 py-2 text-xs ${
+                      pauseDurationMinutes === d.minutes
+                        ? 'border-zinc-900 bg-zinc-900 text-white'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPauseModalZoneId(null)}
+                disabled={isPending}
+              >
+                Renunță
+              </Button>
+              <Button type="button" size="sm" onClick={submitPause} disabled={isPending}>
+                {isPending ? 'Se aplică…' : 'Oprește comenzile'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
