@@ -10,6 +10,7 @@ import { PolishChecklist } from './polish-checklist';
 import { KpiCards } from './kpi-cards';
 import { ActiveOrdersPanel } from './active-orders-panel';
 import { ActiveOrdersRealtime } from './active-orders-realtime';
+import { CourierPresenceWidget } from './courier-presence-widget';
 import { CodPendingPanel } from './cod-pending-panel';
 import { TodayReservationsPanel } from './today-reservations-panel';
 import { OwnerValueHero } from './owner-value-hero';
@@ -112,6 +113,11 @@ export default async function DashboardOverviewPage(
       <Suspense fallback={null}>
         <CodPendingPanel tenantId={tenant.id} />
       </Suspense>
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-900">Comenzi active</h2>
+        <CourierPresenceWidget />
+      </div>
 
       <Suspense fallback={<ActiveSkeleton />}>
         <ActiveOrdersPanel tenantId={tenant.id} />
