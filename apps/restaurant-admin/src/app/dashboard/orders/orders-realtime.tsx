@@ -102,6 +102,22 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           router.refresh();
         },
       )
+      // Wave 1.1 — also pick up UPDATE events so the list reflects
+      // courier-driven status changes (PICKED_UP → IN_DELIVERY → DELIVERED)
+      // without the user having to refresh. No chime / flash here — that's
+      // reserved for INSERT (genuinely new orders).
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'restaurant_orders',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        () => {
+          router.refresh();
+        },
+      )
       .subscribe((status: string) => {
         // After a CHANNEL_ERROR / TIMED_OUT and the client auto-reconnects,
         // the channel re-subscribes — but any orders inserted while we were
