@@ -245,6 +245,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           icon: 'rocket' as const,
         },
         {
+          href: '/dashboard/admin/onboard/connect',
+          label: '+ HIR Connect',
+          icon: 'sparkles' as const,
+        },
+        {
           href: '/dashboard/admin/partners',
           label: 'Parteneri',
           icon: 'users' as const,
