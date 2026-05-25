@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
 import type {
@@ -118,6 +119,7 @@ export function ZonesClient({
     PAUSE_DURATIONS[0]!.minutes,
   );
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const selected = zones.find((z) => z.id === selectedId) ?? null;
   const pauseForZone = (zoneId: string) => pauses.find((p) => p.zone_id === zoneId);
@@ -181,12 +183,41 @@ export function ZonesClient({
           }
         },
       )
-      .subscribe();
+      .subscribe((status: string) => {
+        // After CHANNEL_ERROR / TIMED_OUT and a transparent client
+        // reconnect, the channel re-subscribes — but any pauses written
+        // while we were disconnected don't replay through the live
+        // stream. On every SUBSCRIBED (initial + reconnect) re-read the
+        // active-pauses view to reconcile missed writes. orders-realtime
+        // uses router.refresh() because its UI is server-rendered; here
+        // the pauses live in client state, so we hit the view directly.
+        // (Codex PR #735 P2.)
+        if (status === 'SUBSCRIBED') {
+          void (async () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const sb = supabase as any;
+            const { data, error } = await sb
+              .from('tenant_zone_active_pauses')
+              .select('id, zone_id, reason, paused_until, paused_at, paused_via, notes')
+              .eq('tenant_id', tenantId);
+            if (error) {
+              console.warn('[zones-realtime] resync read failed:', error.message);
+              return;
+            }
+            setPauses((data ?? []) as ZonePause[]);
+          })();
+          // Also invalidate the SSR page so the Insights card (server
+          // component) and any sibling reads pick up the new state.
+          router.refresh();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[zones-realtime] channel disrupted:', status);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [tenantId]);
+  }, [tenantId, router]);
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, {
