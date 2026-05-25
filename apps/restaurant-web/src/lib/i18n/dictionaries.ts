@@ -527,6 +527,7 @@ export const dictionaries = {
         nav_home: 'Acasă',
         nav_features: 'Funcționalități',
         nav_pricing: 'Tarife',
+        nav_connect: 'HIR Connect',
         nav_migrate: 'Migrare GloriaFood',
         nav_case_studies: 'Studiu de caz',
         nav_contact: 'Contact',
@@ -540,6 +541,7 @@ export const dictionaries = {
         footer_col_legal: 'Legal',
         footer_link_features: 'Funcționalități',
         footer_link_pricing: 'Tarife',
+        footer_link_connect: 'HIR Connect (ai deja site?)',
         footer_link_migrate: 'Migrare GloriaFood',
         footer_link_case_studies: 'Studiu de caz',
         footer_link_status: 'Status serviciu',
@@ -660,6 +662,29 @@ export const dictionaries = {
         pricing_card2_cta: '',
         pricing_disclaimer:
           'Toate tarifele exclud TVA. Plata se face lunar pe factură SRL.',
+        connect_eyebrow: 'HIR Connect — pentru cei care au deja site',
+        connect_title:
+          'Ai deja site de comenzi? Păstrează-l. Noi îți oferim doar logistica și AI.',
+        connect_body:
+          'HIR Connect este stratul invizibil pentru restaurantele care au deja interfața lor de comenzi. Comenzile vin din site-ul tău printr-un API simplu, intră direct în flota HIR pentru livrare și sunt analizate de agenții AI. Tu controlezi brandul; noi controlăm operațiunile.',
+        connect_point_1:
+          'Același tarif: 2 lei/comandă procesată. Fără abonament, fără setup. Gratuit primele 50 de restaurante.',
+        connect_point_2:
+          'Acces complet la dashboard HIR și asistentul Hepy — fără nicio modificare pe site-ul tău.',
+        connect_point_3:
+          'Pilot activ: deliveryhouse.ro (Brașov, 5 restaurante, 300+ comenzi/zi). Integrarea durează sub 24h.',
+        connect_cta_primary: 'Vezi cum funcționează',
+        connect_cta_secondary: 'Vorbește cu echipa',
+        connect_compare_title: 'Ce primești',
+        connect_row1_label: 'Dispatch curieri',
+        connect_row1_value:
+          'Flota HIR preia fiecare comandă automat. Tracking live, notificări client, dovadă de livrare.',
+        connect_row2_label: 'Agenți AI pe fluxul tău',
+        connect_row2_value:
+          'Hepy + 4 sub-agenți analizează comenzile, prevăd vârfurile, reactivează clienții inactivi.',
+        connect_row3_label: 'Site-ul tău rămâne al tău',
+        connect_row3_value:
+          'Niciun widget, niciun redirect, niciun cobranding. Clientul vede doar site-ul tău.',
         case_study_eyebrow: 'Studiu de caz · Brașov',
         case_study_title: 'Foișorul A — primul restaurant HIR live',
         case_study_body:
@@ -1527,6 +1552,7 @@ export const dictionaries = {
         nav_home: 'Home',
         nav_features: 'Features',
         nav_pricing: 'Pricing',
+        nav_connect: 'HIR Connect',
         nav_migrate: 'GloriaFood migration',
         nav_case_studies: 'Case study',
         nav_contact: 'Contact',
@@ -1540,6 +1566,7 @@ export const dictionaries = {
         footer_col_legal: 'Legal',
         footer_link_features: 'Features',
         footer_link_pricing: 'Pricing',
+        footer_link_connect: 'HIR Connect (have your own site?)',
         footer_link_migrate: 'GloriaFood migration',
         footer_link_case_studies: 'Case study',
         footer_link_status: 'Platform status',
@@ -1657,6 +1684,29 @@ export const dictionaries = {
         pricing_card2_cta: '',
         pricing_disclaimer:
           'All prices exclude VAT. Billed monthly to a Romanian SRL invoice.',
+        connect_eyebrow: 'HIR Connect — for restaurants with an existing site',
+        connect_title:
+          'Already have an ordering site? Keep it. We add only delivery and AI.',
+        connect_body:
+          'HIR Connect is the invisible service layer for restaurants that already have their own checkout. Orders flow from your site through a simple API, land in HIR’s courier fleet, and are analysed by AI agents. You own the brand; we run operations.',
+        connect_point_1:
+          'Same pricing: 2 lei per processed order. No subscription, no setup fee. Free for the first 50 restaurants.',
+        connect_point_2:
+          'Full access to the HIR dashboard and the Hepy assistant — without changing a single line on your site.',
+        connect_point_3:
+          'Live pilot: deliveryhouse.ro (Brașov, 5 restaurants, 300+ orders/day). Integration takes under 24h.',
+        connect_cta_primary: 'See how it works',
+        connect_cta_secondary: 'Talk to the team',
+        connect_compare_title: 'What you get',
+        connect_row1_label: 'Courier dispatch',
+        connect_row1_value:
+          'HIR’s fleet picks up every order automatically. Live tracking, customer notifications, proof of delivery.',
+        connect_row2_label: 'AI agents on your order stream',
+        connect_row2_value:
+          'Hepy + 4 sub-agents analyse orders, forecast peaks, reactivate dormant customers.',
+        connect_row3_label: 'Your site stays yours',
+        connect_row3_value:
+          'No widget, no redirect, no co-branding. Customers only see your site.',
         case_study_eyebrow: 'Case study · Brașov',
         case_study_title: 'Foișorul A — first HIR restaurant live',
         case_study_body:

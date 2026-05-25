@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
   { href: '/features', labelKey: 'marketing.shell.nav_features' },
   { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
+  { href: '/connect', labelKey: 'marketing.shell.nav_connect' },
   { href: '/migrate-from-gloriafood', labelKey: 'marketing.shell.nav_migrate' },
   { href: '/case-studies/foisorul-a', labelKey: 'marketing.shell.nav_case_studies' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
@@ -145,6 +146,7 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             links={[
               { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
               { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
+              { href: '/connect', label: t(currentLocale, 'marketing.shell.footer_link_connect') },
               { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
               { href: '/case-studies/foisorul-a', label: t(currentLocale, 'marketing.shell.footer_link_case_studies') },
               // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the

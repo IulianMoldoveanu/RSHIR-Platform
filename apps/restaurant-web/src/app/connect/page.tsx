@@ -60,18 +60,29 @@ export default function ConnectPage() {
             <span className="text-indigo-600">Folosește HIR doar pentru livrare + AI.</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-zinc-600">
-            Site-ul tău rămâne neschimbat. HIR Connect se ocupă de dispatch curiteri,
+            Site-ul tău rămâne neschimbat. HIR Connect se ocupă de dispatch curieri,
             tracking live și insights AI — direct pe fluxul tău de comenzi.
           </p>
-          <a
-            href="mailto:connect@hirforyou.ro?subject=Acces%20API%20HIR%20Connect"
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
-          >
-            Solicită acces API
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </a>
+          <p className="mx-auto mt-4 inline-flex max-w-xl items-center gap-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            Același tarif: 2 lei/comandă · Setup GRATUIT primele 50 de restaurante
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <a
+              href="mailto:connect@hirforyou.ro?subject=Acces%20API%20HIR%20Connect"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
+            >
+              Solicită acces API
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </a>
+            <a
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-6 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+            >
+              Vorbește cu echipa
+            </a>
+          </div>
           <p className="mt-3 text-xs text-zinc-400">
-            Pilot activ: deliveryhouse.ro (Brașov, 5 restaurante). Înscrie-te pentru acces timpuriu.
+            Pilot activ: deliveryhouse.ro (Brașov, 5 restaurante, 300+ comenzi/zi). Înscrie-te pentru acces timpuriu.
           </p>
         </section>
 
@@ -113,6 +124,50 @@ export default function ConnectPage() {
               Comenzile vin din platforma ta, intră în HIR prin API, ajung la curier în
               câteva secunde. Tu controlezi brandul, UX-ul și relația cu clientul.
               HIR controlează logistica și AI-ul.
+            </p>
+          </div>
+        </section>
+
+        {/* Pricing */}
+        <section className="border-t border-zinc-100 bg-white px-4 py-16">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="mb-2 text-center text-2xl font-bold text-zinc-900">
+              Tarif simplu, identic pentru toți
+            </h2>
+            <p className="mb-10 text-center text-sm text-zinc-500">
+              Fără abonament. Fără diferențe între SaaS clasic și Connect. Plătești doar comenzile procesate.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
+                <div className="text-3xl font-bold text-zinc-900">2 lei</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
+                  per comandă procesată
+                </div>
+                <p className="mt-3 text-xs text-zinc-600">
+                  Restaurantul plătește pe fiecare comandă livrată cu succes.
+                </p>
+              </div>
+              <div className="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-6 text-center">
+                <div className="text-3xl font-bold text-emerald-700">GRATUIT</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-emerald-700">
+                  setup primele 50
+                </div>
+                <p className="mt-3 text-xs text-emerald-800">
+                  Integrarea API, plugin WordPress și onboarding — fără cost pentru primii 50 de parteneri.
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
+                <div className="text-3xl font-bold text-zinc-900">+1 leu</div>
+                <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
+                  livrare prin HIR (opțional)
+                </div>
+                <p className="mt-3 text-xs text-zinc-600">
+                  Doar dacă alegi flota HIR pentru livrare. Restul aranjamentului — al tău.
+                </p>
+              </div>
+            </div>
+            <p className="mt-6 text-center text-xs text-zinc-400">
+              Toate tarifele exclud TVA. Plata se face lunar pe factură SRL.
             </p>
           </div>
         </section>
