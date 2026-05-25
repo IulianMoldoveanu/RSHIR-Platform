@@ -31,6 +31,7 @@ import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
 import { OrderStepper } from '@/components/order-stepper';
 import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
+import { OrderChat } from './order-chat';
 
 export const dynamic = 'force-dynamic';
 
@@ -309,6 +310,8 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           <span className="font-medium text-hir-fg">{order.payment_method ?? '—'}</span>
         </div>
       </section>
+
+      {isMine ? <OrderChat courierOrderId={order.id} currentUserId={user.id} /> : null}
 
       {/* Sticky action bar: stays visible at the bottom while the courier
           scrolls through pickup/dropoff/item details above. Uses

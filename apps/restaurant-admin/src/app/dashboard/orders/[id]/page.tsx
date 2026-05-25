@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { friendlyDbError } from '@/lib/db-error';
 import { nextStatuses, type OrderStatus } from '../status-machine';
 import { markCodOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
 import { FiscalReceiptButton } from './fiscal-receipt-button';
+import { OrderChat } from './order-chat';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,6 +125,23 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   };
 
   const isPickup = order.delivery_address_id === null;
+
+  // Wave 1.2 — look up the parent courier_orders row for the chat panel.
+  // Returns NULL if the order hasn't been dispatched yet — chat hides itself.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: courierLink } = await (admin as any)
+    .from('courier_orders')
+    .select('id')
+    .eq('source_type', 'HIR_TENANT')
+    .eq('source_tenant_id', tenant.id)
+    .eq('source_order_id', order.id)
+    .maybeSingle();
+  const courierOrderId: string | null = courierLink?.id ?? null;
+
+  const supabaseServer = await createServerClient();
+  const {
+    data: { user: currentUser },
+  } = await supabaseServer.auth.getUser();
 
   const items = Array.isArray(order.items) ? (order.items as OrderItemSnapshot[]) : [];
   const allowedNext = nextStatuses(order.status);
@@ -321,6 +340,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
               <h2 className="mb-2 text-sm font-semibold text-zinc-900">Note</h2>
               <p className="whitespace-pre-wrap text-sm text-zinc-700">{order.notes}</p>
             </div>
+          )}
+
+          {currentUser && (
+            <OrderChat courierOrderId={courierOrderId} currentUserId={currentUser.id} />
           )}
         </section>
       </div>
