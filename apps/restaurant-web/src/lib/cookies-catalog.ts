@@ -47,15 +47,6 @@ export const COOKIES_CATALOG: readonly CatalogEntry[] = [
     lifetime: { ro: '180 de zile', en: '180 days' },
   },
   {
-    name: '__stripe_mid / __stripe_sid',
-    category: 'essential',
-    purpose: {
-      ro: 'Folosite de Stripe pentru prevenirea fraudei la plată.',
-      en: 'Used by Stripe to prevent payment fraud.',
-    },
-    lifetime: { ro: 'sesiune / 1 an', en: 'session / 1 year' },
-  },
-  {
     name: '_pa / _ga (planificat)',
     category: 'analytics',
     purpose: {

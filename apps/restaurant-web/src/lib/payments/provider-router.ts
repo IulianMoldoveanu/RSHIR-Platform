@@ -37,6 +37,10 @@ export type ProviderRouterInput = {
   cancelUrl: string;
   customer: { email: string; firstName: string; phone: string };
   metadata?: Record<string, string>;
+  /** Tenant id — passed to MARKETPLACE split adapters for tracking. */
+  tenantId?: string;
+  /** Override PSP-to-server notification URL. Defaults to /api/webhooks/{provider}. */
+  notifyUrl?: string;
 };
 
 export type ProviderRouterResult =
@@ -60,20 +64,48 @@ export function resolveProvider(
 function loadProviderCredentials(
   provider: PaymentProvider,
   mode: PaymentMode,
+  tenantId?: string,
 ): PspCredentials | null {
   // ENV convention: NETOPIA_SANDBOX_SIGNATURE / NETOPIA_SANDBOX_API_KEY,
   // NETOPIA_LIVE_SIGNATURE / NETOPIA_LIVE_API_KEY, and the same for VIVA_*.
-  // Per the existing Vault pattern (PR #379) these env reads are the
-  // fallback path; per-tenant Vault secrets win when wired in V2.
+  // When {PREFIX}_MARKETPLACE_ENABLED=true, reads sub-merchant id from
+  // {PREFIX}_{ENV}_SUB_MERCHANT_ID (platform-wide fallback; per-tenant Vault
+  // in V2 once commercial config lands — PR #379 pattern).
   const prefix = provider === 'netopia' ? 'NETOPIA' : 'VIVA';
   const env = mode === 'card_live' ? 'LIVE' : 'SANDBOX';
   const signature = process.env[`${prefix}_${env}_SIGNATURE`];
   const apiKey = process.env[`${prefix}_${env}_API_KEY`];
   if (!signature || !apiKey) return null;
+
+  const webhookSecret =
+    process.env[`${prefix}_WEBHOOK_SECRET`] ??
+    process.env[`${prefix}_WEBHOOK_KEY`] ??
+    undefined;
+  const sourceCode = process.env[`${prefix}_${env}_SOURCE_CODE`] ?? undefined;
+
+  const marketplaceEnabled = process.env[`${prefix}_MARKETPLACE_ENABLED`] === 'true';
+  if (marketplaceEnabled) {
+    // Sub-merchant id: env fallback until per-tenant Vault wired in V2.
+    // `tenantId` is passed for future Vault lookup keyed by tenant.
+    void tenantId;
+    const subMerchantId = process.env[`${prefix}_${env}_SUB_MERCHANT_ID`] ?? undefined;
+    return {
+      mode: 'MARKETPLACE',
+      signature,
+      apiKey,
+      subMerchantId,
+      webhookSecret,
+      sourceCode,
+      live: mode === 'card_live',
+    };
+  }
+
   return {
     mode: 'STANDARD',
     signature,
     apiKey,
+    webhookSecret,
+    sourceCode,
     live: mode === 'card_live',
   };
 }
@@ -105,17 +137,19 @@ export async function createCheckoutSession(
   if (!adapter) {
     return { ok: false, provider, error: 'provider_not_supported' };
   }
-  const credentials = loadProviderCredentials(provider, mode);
+  const credentials = loadProviderCredentials(provider, mode, input.tenantId);
   if (!credentials) {
     return { ok: false, provider, error: 'provider_credentials_missing' };
   }
   const ctx = makeCtx(credentials);
   const result = await adapter(ctx, {
+    tenantId: input.tenantId,
     orderId: input.orderId,
     amountBani: input.amountBani,
     currency: input.currency,
     successUrl: input.successUrl,
     cancelUrl: input.cancelUrl,
+    notifyUrl: input.notifyUrl,
     customer: input.customer,
     metadata: input.metadata,
   });

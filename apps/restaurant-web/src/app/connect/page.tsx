@@ -168,7 +168,7 @@ export default function ConnectPage() {
               </div>
             </div>
             <p className="mt-6 text-center text-xs text-zinc-400">
-              Toate tarifele exclud TVA. Plata se face lunar pe factură SRL.
+              Toate tarifele exclud TVA. Pentru HIR Connect (site propriu) facturarea este automată — generăm și emitem factura periodic, fără intervenție manuală. Pentru restaurantele care folosesc portalul HIR direct, cei 2 lei se rețin în timp real prin split payment (Netopia / Viva).
             </p>
           </div>
         </section>
