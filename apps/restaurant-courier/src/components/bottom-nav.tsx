@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Package, Clock, MessageSquare, Wallet, Settings } from 'lucide-react';
+import { Package, Clock, Sparkles, Wallet, Settings } from 'lucide-react';
 
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', Icon: Package },
   { href: '/dashboard/shift', label: 'Tură', Icon: Clock },
-  { href: '/dashboard/messages', label: 'Mesaje', Icon: MessageSquare },
+  { href: '/dashboard/hepi', label: 'Hepi', Icon: Sparkles },
   { href: '/dashboard/earnings', label: 'Câștiguri', Icon: Wallet },
   { href: '/dashboard/settings', label: 'Setări', Icon: Settings },
 ] as const;
