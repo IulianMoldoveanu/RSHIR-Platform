@@ -985,6 +985,272 @@ const flagKitchenBottlenecksHandler: IntentHandler = {
 };
 
 // ---------------------------------------------------------------------------
+// Intents 4 + 5 — ops.pause_delivery_zone / ops.resume_delivery_zone (WRITE)
+//
+// Per-tenant zone pause primitives surfaced through the orchestrator so
+// Hepy can say "oprește Răcădău o oră" from a chat channel. The Next.js
+// server actions at apps/restaurant-admin/.../zones/actions.ts implement
+// the same write against tenant_zone_pauses; this Deno handler is the
+// edge-side counterpart for telegram / voice channels which never reach
+// the Next.js server-action surface.
+//
+// Trust gate: defaultCategory is `ops.zone_pause` / `ops.zone_resume`.
+// Without a tenant_agent_trust row for that category the dispatcher
+// routes to PROPOSED (patron approves in dashboard). Once the patron
+// trusts Hepy on this category they can flip it to AUTO_FULL and the
+// pause executes inline.
+//
+// Why fuzzy resolution lives in plan() and not execute(): plan must
+// produce a stable resolvedPayload that an approval flow can replay
+// minutes/hours later. We resolve the zone name to a UUID at plan time
+// so the patron sees "pause Răcădău" in the approval card, not "pause
+// (whatever Răcădău resolves to when you click Approve)".
+// ---------------------------------------------------------------------------
+
+type ZoneMatch = { id: string; name: string };
+
+type ZoneResolution =
+  | { ok: true; zone: ZoneMatch }
+  | { ok: false; error: 'no_match' | 'multiple_matches'; matches: ZoneMatch[] };
+
+// `activeOnly=true` (pause): only zones currently accepting orders are
+// candidates. `activeOnly=false` (resume): also include inactive zones so
+// the patron can resume a pause set against a zone they later disabled
+// (Codex PR #734 P2 — without this, an active pause on an inactive zone
+// is unreachable from chat and the only way out is the dashboard).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveZoneFuzzy(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tenantId: string,
+  query: string,
+  activeOnly: boolean,
+): Promise<ZoneResolution> {
+  const q = query.trim();
+  if (!q) return { ok: false, error: 'no_match', matches: [] };
+  let qb = supabase
+    .from('delivery_zones')
+    .select('id, name')
+    .eq('tenant_id', tenantId);
+  if (activeOnly) qb = qb.eq('is_active', true);
+  const { data, error } = await qb;
+  if (error) throw new Error(`zone_lookup_failed: ${error.message}`);
+  const list = ((data ?? []) as ZoneMatch[]).filter((z) => !!z.id && !!z.name);
+  if (list.length === 0) return { ok: false, error: 'no_match', matches: [] };
+  const qLower = q.toLowerCase();
+  const exact = list.filter((z) => z.name.toLowerCase() === qLower);
+  const matches = exact.length > 0 ? exact : list.filter((z) => z.name.toLowerCase().includes(qLower));
+  if (matches.length === 0) return { ok: false, error: 'no_match', matches: [] };
+  if (matches.length > 1) return { ok: false, error: 'multiple_matches', matches };
+  return { ok: true, zone: matches[0]! };
+}
+
+// OWNER bypasses can_manage_zones; any other role needs the explicit flag.
+// Mirrors apps/restaurant-admin/src/lib/tenant.ts:canManageZones so Hepy's
+// edge-side write enforces the same capability as the Next.js dashboard.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertCanManageZones(supabase: any, tenantId: string, userId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('tenant_members')
+    .select('role, can_manage_zones')
+    .eq('user_id', userId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (error) throw new Error(`capability_lookup_failed: ${error.message}`);
+  if (!data) throw new Error('forbidden: not a tenant member');
+  const row = data as { role: string; can_manage_zones?: boolean | null };
+  if (row.role !== 'OWNER' && row.can_manage_zones !== true) {
+    throw new Error('forbidden: missing can_manage_zones');
+  }
+}
+
+const VALID_PAUSE_REASONS = new Set([
+  'furtuna',
+  'lipsa_curier',
+  'sold_out',
+  'inchidere_temporara',
+  'manual',
+]);
+
+const pauseDeliveryZoneHandler: IntentHandler = {
+  plan: async (ctx, payload) => {
+    if (!ctx.actorUserId) throw new Error('invalid_payload: actorUserId required');
+    const p = payload as Record<string, unknown>;
+    const zoneQuery = nonEmptyString(p.zone_query, 200);
+    const reason = nonEmptyString(p.reason, 80) ?? 'manual';
+    const notes = nonEmptyString(p.notes, 600);
+    // duration_minutes is optional: 0 / undefined = pause until manual resume.
+    const durationRaw = p.duration_minutes;
+    let durationMinutes: number | null = null;
+    if (durationRaw !== undefined && durationRaw !== null && durationRaw !== 0) {
+      const d = clampNumber(durationRaw, 1, 7 * 24 * 60); // cap 7 days
+      if (d === null) throw new Error('invalid_payload: duration_minutes must be 1..10080 minutes');
+      durationMinutes = d;
+    }
+    if (!zoneQuery) throw new Error('invalid_payload: zone_query missing');
+    if (!VALID_PAUSE_REASONS.has(reason)) {
+      // Don't reject — Hepy may surface a free-text reason ("inundatie") that
+      // the UI doesn't prefab. Accept it as long as it's non-empty.
+    }
+    await assertCanManageZones(ctx.supabase, ctx.tenantId, ctx.actorUserId);
+
+    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery, true);
+    if (!resolution.ok) {
+      if (resolution.error === 'multiple_matches') {
+        const names = resolution.matches.map((m) => m.name).slice(0, 5).join(', ');
+        throw new Error(`invalid_payload: multiple zones match "${zoneQuery}": ${names}`);
+      }
+      throw new Error(`invalid_payload: no active zone matches "${zoneQuery}"`);
+    }
+
+    // Codex PR #734 P1: pass duration_minutes through to execute() and
+    // compute paused_until at execute time, not at plan time. Plan can
+    // sit in the PROPOSED queue for hours; if we baked the timestamp
+    // here, a 60-min pause approved 45 min later would effectively only
+    // pause for 15 min. Showing the duration in the summary keeps the
+    // OWNER-facing context correct.
+    const durationLabel = durationMinutes !== null ? ` (${durationMinutes} min)` : ' (până la reluare manuală)';
+
+    return {
+      actionCategory: 'ops.zone_pause',
+      summary: `Oprește livrările în zona "${resolution.zone.name}"${durationLabel}. Motiv: ${reason}.`,
+      resolvedPayload: {
+        zone_id: resolution.zone.id,
+        zone_name: resolution.zone.name,
+        reason,
+        duration_minutes: durationMinutes,
+        notes,
+      },
+    };
+  },
+  execute: async (ctx, plan) => {
+    if (!ctx.actorUserId) throw new Error('execute_no_actor');
+    const rp = (plan.resolvedPayload ?? {}) as Record<string, unknown>;
+    const zoneId = String(rp.zone_id ?? '');
+    const zoneName = String(rp.zone_name ?? '');
+    const reason = String(rp.reason ?? 'manual');
+    const durationMinutes = typeof rp.duration_minutes === 'number' ? rp.duration_minutes : null;
+    // Compute paused_until NOW so a delayed approval still honours the
+    // requested duration window. See P1 note above.
+    const pausedUntil =
+      durationMinutes !== null && durationMinutes > 0
+        ? new Date(Date.now() + durationMinutes * 60_000).toISOString()
+        : null;
+    const notes = (rp.notes as string | null) ?? null;
+    if (!isUuid(zoneId)) throw new Error('execute_invalid_zone_id');
+
+    const { data, error } = await ctx.supabase
+      .from('tenant_zone_pauses')
+      .insert({
+        tenant_id: ctx.tenantId,
+        zone_id: zoneId,
+        reason,
+        paused_until: pausedUntil,
+        paused_by: ctx.actorUserId,
+        paused_via: 'HEPY',
+        notes,
+      })
+      .select('id')
+      .maybeSingle();
+    if (error) {
+      // 23505 = unique violation on idx_tenant_zone_pauses_active (zone
+      // already paused). Surface a clean message — caller can choose to
+      // resume + repause if they want to change reason/duration.
+      if ((error as { code?: string }).code === '23505') {
+        throw new Error(`already_paused: zone "${zoneName}" is already paused`);
+      }
+      throw new Error(`pause_insert_failed: ${error.message}`);
+    }
+
+    return {
+      summary: `Zona "${zoneName}" pusă pe pauză${pausedUntil ? ` până la ${pausedUntil}` : ''}.`,
+      data: {
+        kind: 'pause_delivery_zone' as const,
+        pause_id: data?.id ?? null,
+        zone_id: zoneId,
+        zone_name: zoneName,
+        paused_until: pausedUntil,
+        reason,
+      },
+    };
+  },
+};
+
+const resumeDeliveryZoneHandler: IntentHandler = {
+  plan: async (ctx, payload) => {
+    if (!ctx.actorUserId) throw new Error('invalid_payload: actorUserId required');
+    const p = payload as Record<string, unknown>;
+    const zoneQuery = nonEmptyString(p.zone_query, 200);
+    if (!zoneQuery) throw new Error('invalid_payload: zone_query missing');
+    await assertCanManageZones(ctx.supabase, ctx.tenantId, ctx.actorUserId);
+
+    // activeOnly=false on resume — a zone may have been marked inactive
+    // while paused; the patron still needs a way to clear the pause row
+    // (Codex PR #734 P2).
+    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery, false);
+    if (!resolution.ok) {
+      if (resolution.error === 'multiple_matches') {
+        const names = resolution.matches.map((m) => m.name).slice(0, 5).join(', ');
+        throw new Error(`invalid_payload: multiple zones match "${zoneQuery}": ${names}`);
+      }
+      throw new Error(`invalid_payload: no zone matches "${zoneQuery}"`);
+    }
+
+    return {
+      actionCategory: 'ops.zone_resume',
+      summary: `Reia livrările în zona "${resolution.zone.name}".`,
+      resolvedPayload: {
+        zone_id: resolution.zone.id,
+        zone_name: resolution.zone.name,
+      },
+    };
+  },
+  execute: async (ctx, plan) => {
+    if (!ctx.actorUserId) throw new Error('execute_no_actor');
+    const rp = (plan.resolvedPayload ?? {}) as Record<string, unknown>;
+    const zoneId = String(rp.zone_id ?? '');
+    const zoneName = String(rp.zone_name ?? '');
+    if (!isUuid(zoneId)) throw new Error('execute_invalid_zone_id');
+
+    const { data, error } = await ctx.supabase
+      .from('tenant_zone_pauses')
+      .update({
+        resumed_at: new Date().toISOString(),
+        resumed_by: ctx.actorUserId,
+        resumed_via: 'HEPY',
+      })
+      .eq('tenant_id', ctx.tenantId)
+      .eq('zone_id', zoneId)
+      .is('resumed_at', null)
+      .select('id')
+      .maybeSingle();
+    if (error) throw new Error(`resume_update_failed: ${error.message}`);
+    if (!data) {
+      // No active pause to resume — surface as a clean no-op, not an error.
+      return {
+        summary: `Zona "${zoneName}" nu era pe pauză.`,
+        data: {
+          kind: 'resume_delivery_zone' as const,
+          zone_id: zoneId,
+          zone_name: zoneName,
+          resumed: false,
+        },
+      };
+    }
+    return {
+      summary: `Zona "${zoneName}" reactivată — livrările acceptă din nou comenzi.`,
+      data: {
+        kind: 'resume_delivery_zone' as const,
+        pause_id: data.id ?? null,
+        zone_id: zoneId,
+        zone_name: zoneName,
+        resumed: true,
+      },
+    };
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
@@ -1020,6 +1286,20 @@ export function registerOpsAgentIntents(): void {
     readOnly: true,
     handler: flagKitchenBottlenecksHandler,
   });
+  registerIntent({
+    name: 'ops.pause_delivery_zone',
+    agent: 'ops',
+    defaultCategory: 'ops.zone_pause',
+    description: 'Pune pe pauză livrările într-o zonă (rezolvare fuzzy după nume).',
+    handler: pauseDeliveryZoneHandler,
+  });
+  registerIntent({
+    name: 'ops.resume_delivery_zone',
+    agent: 'ops',
+    defaultCategory: 'ops.zone_resume',
+    description: 'Reia livrările într-o zonă pusă anterior pe pauză.',
+    handler: resumeDeliveryZoneHandler,
+  });
 }
 
 // Test-only export of internal refs.
@@ -1027,6 +1307,10 @@ export const __TESTING__ = {
   suggestDeliveryZonesHandler,
   optimizeCourierScheduleHandler,
   flagKitchenBottlenecksHandler,
+  pauseDeliveryZoneHandler,
+  resumeDeliveryZoneHandler,
+  resolveZoneFuzzy,
+  assertCanManageZones,
   checkDailyCap,
   costUsdOf,
   validateZonesShape,
