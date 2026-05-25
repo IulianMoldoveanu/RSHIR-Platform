@@ -168,7 +168,7 @@ export default function ConnectPage() {
               </div>
             </div>
             <p className="mt-6 text-center text-xs text-zinc-400">
-              Toate tarifele exclud TVA. Plata se face lunar pe factură SRL.
+              Toate tarifele exclud TVA. Cei 2 lei se rețin automat la momentul plății clientului, prin split în timp real — fără factură lunară.
             </p>
           </div>
         </section>

@@ -182,27 +182,27 @@ export const TERMS_RO: ReadonlyArray<LegalSection> = [
       },
       {
         kind: 'h3',
-        text: '6.2 Facturare',
+        text: '6.2 Mecanismul de decontare — split de plată în timp real',
       },
       {
         kind: 'p',
-        text: 'Tariful se facturează lunar, în primele 5 zile lucrătoare ale lunii următoare prestării Serviciilor, pe baza raportului de Comenzi Livrate Efectiv extras din Platformă. Factura este emisă electronic și transmisă prin e-Factura ANAF, conform OUG 120/2021, pentru Restaurantele persoane juridice.',
+        text: 'Tariful HIR se reține automat la momentul fiecărei plăți online efectuate de Consumatorul Final, prin mecanismul de split de plată implementat de Procesatorul de Plăți autorizat (Viva Wallet sau Netopia Payments). La fiecare tranzacție electronică, Procesatorul de Plăți virează direct: (i) tariful HIR de 2 RON fără TVA în contul HIR & BUILD YOUR DREAMS S.R.L. și (ii) suma netă (valoarea Comenzii minus tariful HIR și comisioanele PSP aplicabile) în contul Restaurantului. Decontarea are loc în timp real, fără intermediere HIR asupra fondurilor Consumatorului Final.',
       },
       {
         kind: 'p',
-        text: 'Termenul de plată este de 14 zile calendaristice de la data emiterii facturii. Plata se efectuează prin transfer bancar în contul indicat pe factură.',
+        text: 'Comenzile cu plata numerar la livrare (cash) nu fac obiectul split-ului automat. Pentru aceste comenzi, HIR emite factură lunară în primele 5 zile lucrătoare ale lunii următoare, pe baza raportului de Comenzi Cash Livrate Efectiv. Factura este emisă electronic și transmisă prin e-Factura ANAF conform OUG 120/2021 pentru Restaurantele persoane juridice. Termenul de plată al facturii de cash este de 14 zile calendaristice.',
       },
       {
         kind: 'h3',
-        text: '6.3 Penalități de întârziere',
+        text: '6.3 Penalități (aplicabile exclusiv comenzilor cash facturate lunar)',
       },
       {
         kind: 'p',
-        text: 'În caz de neplată la scadență, Restaurantul datorează penalități de întârziere de 0,04% pe zi (echivalent dobândă legală penalizatoare conform OG 13/2011), calculate la valoarea sumelor restante, începând cu prima zi de întârziere. Penalitățile sunt plafonate la valoarea sumei principale.',
+        text: 'Tariful HIR aferent plăților online nu poate genera întârziere, întrucât se reține automat prin split PSP. Pentru facturile lunare de comenzi cash, în caz de neplată la scadență, Restaurantul datorează penalități de 0,04% pe zi (conform OG 13/2011), calculate la valoarea sumelor restante, plafonate la valoarea sumei principale.',
       },
       {
         kind: 'p',
-        text: 'În caz de întârziere mai mare de 30 de zile, HIR poate suspenda accesul Restaurantului la Platformă, cu notificare prealabilă de 5 zile lucrătoare.',
+        text: 'În caz de întârziere mai mare de 30 de zile la facturile de cash, HIR poate suspenda accesul Restaurantului la Platformă, cu notificare prealabilă de 5 zile lucrătoare.',
       },
       {
         kind: 'h3',
