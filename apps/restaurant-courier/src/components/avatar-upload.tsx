@@ -70,6 +70,10 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
       await saveAvatarUrl(publicUrl);
       setUrl(publicUrl);
     } catch (err) {
+      // Surface the raw error to DevTools so we can diagnose mobile uploads
+      // where the user can't easily copy the on-screen message. The friendly
+      // mapper hides specifics by design — log keeps them retrievable.
+      console.error('[avatar-upload] failed', err);
       setError(friendlyError(err));
     } finally {
       setUploading(false);
@@ -204,25 +208,32 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// Map opaque storage errors to a message the courier can act on. Supabase
-// returns "the database schema is invalid or incompatible" when the
-// `courier-avatars` bucket is missing in the target project — almost
-// always a deployment issue rather than a real client mistake. Surface
-// that explicitly so the courier doesn't blame their phone.
+// Map opaque storage errors to a message the courier can act on. The
+// previous match for "schema invalid|incompatible" was too broad and hid
+// the real cause (any error containing both words was relabeled as a
+// missing-bucket problem). Match only the exact Supabase phrases now;
+// everything else falls through to the raw message so the courier — or
+// support — can see what actually went wrong.
 function friendlyError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err ?? '');
   const m = raw.toLowerCase();
-  if (m.includes('schema') && (m.includes('invalid') || m.includes('incompatible'))) {
+  if (m.includes('bucket not found') || m.includes('the database schema is invalid')) {
     return 'Stocarea pentru poze nu este configurată pe server. Contactează suportul.';
+  }
+  if (m.includes('row-level security') || m.includes('rls') || m.includes('unauthorized')) {
+    return 'Sesiunea a expirat. Deconectează-te și conectează-te din nou, apoi reîncearcă.';
   }
   if (m.includes('img-load-failed')) {
     return 'Nu am putut citi poza. Încearcă alt format (JPG sau PNG).';
   }
-  if (m.includes('exceeded') || m.includes('size')) {
+  if (m.includes('exceeded') || m.includes('size') || m.includes('payload too large')) {
     return 'Poza este prea mare. Folosește una mai mică de 2 MB.';
   }
-  if (m.includes('mime') || m.includes('type')) {
+  if (m.includes('mime') || (m.includes('type') && m.includes('not supported'))) {
     return 'Format neacceptat. Folosește JPG, PNG sau WEBP.';
   }
-  return raw || 'Eroare la încărcare.';
+  if (m.includes('network') || m.includes('failed to fetch') || m.includes('load failed')) {
+    return 'Conexiune slabă. Verifică internetul și reîncearcă.';
+  }
+  return raw || 'Eroare la încărcare. Reîncearcă peste câteva secunde.';
 }
