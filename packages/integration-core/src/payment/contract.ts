@@ -31,27 +31,36 @@ export type PspCredentials = {
   mode: PspMode;
   /**
    * Provider-specific merchant identifier.
-   *   - Netopia: signature (merchant id)
-   *   - Stripe Connect: platform account id (read from env, not per-tenant)
-   *   - Viva: merchant id
+   *   - Netopia: posSignature (merchant id)
+   *   - Viva: OAuth2 clientId (= merchant id)
    * Required in both modes.
    */
   signature: string;
   /**
-   * Decrypted API key. Loaded server-side from Vault (per-tenant secret name)
-   * via the admin client. Never echoed to the merchant UI.
-   * For Stripe Connect this is the platform-level secret key (sk_test_* /
-   * sk_live_*), read from env at the route layer — not stored per-tenant.
+   * Decrypted API key / OAuth2 client secret.
+   * Loaded server-side from env or Vault — never echoed to the UI.
+   * Also overloaded as the webhook verification secret in `verifyWebhook`
+   * calls (see stripe-connect adapter precedent).
    */
   apiKey: string;
   /**
    * MARKETPLACE only. Per-tenant sub-merchant id assigned by the gateway.
-   *   - Netopia: sub-merchant id
-   *   - Stripe Connect: connected account id (acct_*)
-   *   - Viva: child merchant id
+   *   - Netopia: SELLER_ACCOUNT_ID
+   *   - Viva: connected account id
    */
   subMerchantId?: string;
   live: boolean;
+  /**
+   * Shared secret for incoming webhook HMAC / Bearer verification.
+   * Populated by the route layer from env (NETOPIA_WEBHOOK_SECRET /
+   * VIVA_WEBHOOK_KEY) so adapters never read process.env directly.
+   */
+  webhookSecret?: string;
+  /**
+   * Viva-specific payment source code (configured in Viva dashboard).
+   * Populated by the route layer from VIVA_{SANDBOX|LIVE}_SOURCE_CODE.
+   */
+  sourceCode?: string;
 };
 
 export type PspIntentInput = {

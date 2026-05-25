@@ -439,6 +439,7 @@ export async function POST(req: NextRequest) {
         firstName: parsed.data.customer.firstName,
         phone: parsed.data.customer.phone,
       },
+      tenantId: tenant.id,
       metadata: {
         order_id: order.id,
         tenant_id: tenant.id,
