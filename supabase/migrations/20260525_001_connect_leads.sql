@@ -2,12 +2,15 @@
 -- Prospects with their own ordering site submit interest; we contact them
 -- within 24h to onboard via /dashboard/admin/onboard/connect (PR #739).
 
-create type if not exists public.connect_lead_status as enum (
-  'NEW',
-  'CONTACTED',
-  'ONBOARDED',
-  'REJECTED'
-);
+do $$ begin
+  create type public.connect_lead_status as enum (
+    'NEW',
+    'CONTACTED',
+    'ONBOARDED',
+    'REJECTED'
+  );
+exception when duplicate_object then null;
+end $$;
 
 create table if not exists public.connect_leads (
   id uuid primary key default gen_random_uuid(),
