@@ -22,6 +22,7 @@
 // Auto-injected: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { loadZoneInsights, type ZoneInsight } from '../_shared/zone-insights.ts';
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), {
@@ -294,6 +295,7 @@ function formatBriefMessage(
   tenantTitle: string,
   m: WeeklyMetrics,
   s: Suggestion[],
+  zoneInsights: ZoneInsight[],
 ): string {
   const lines: string[] = [];
   lines.push(`<b>🤖 Brief AI CEO — ${tenantTitle}</b>`);
@@ -303,6 +305,19 @@ function formatBriefMessage(
       (m.topItem ? ` · top: <i>${m.topItem.name}</i>` : ''),
   );
   lines.push('');
+  // Zone insights block — only when there's something to say. Up to 3
+  // bullets, surfaced BEFORE the 3 promo/menu/outreach suggestions because
+  // they're observational ("X-ul s-a întâmplat") not action proposals, and
+  // patrons skim from the top.
+  if (zoneInsights.length > 0) {
+    lines.push('<b>📍 Zone:</b>');
+    for (const zi of zoneInsights) {
+      const icon = zi.severity === 'warn' ? '⚠️' : 'ℹ️';
+      lines.push(`${icon} <b>${zi.title}</b>`);
+      lines.push(zi.body);
+      lines.push('');
+    }
+  }
   lines.push('<b>3 sugestii pentru azi:</b>');
   lines.push('');
   s.forEach((sug, i) => {
@@ -350,6 +365,7 @@ async function logRun(
   agentId: string | null,
   suggestions: Suggestion[],
   metrics: WeeklyMetrics,
+  zoneInsights: ZoneInsight[],
   delivered: boolean,
 ): Promise<void> {
   const { error } = await supabase.from('copilot_agent_runs').insert({
@@ -359,6 +375,18 @@ async function logRun(
       kind: 'daily_brief',
       suggestions: suggestions.map((s) => ({ id: s.id, type: s.type, title: s.title, payload: s.payload })),
       metrics,
+      // Persisted alongside suggestions so the AI CEO widget + history
+      // page can render zone observations even after the Telegram brief
+      // scrolls out of the patron's chat. Same logic as the zones-page
+      // SSR card (see _shared/zone-insights.ts).
+      zone_insights: zoneInsights.map((zi) => ({
+        id: zi.id,
+        severity: zi.severity,
+        title: zi.title,
+        body: zi.body,
+        ctaHref: zi.ctaHref ?? null,
+        ctaLabel: zi.ctaLabel ?? null,
+      })),
       delivered,
     },
     suggestion_status: suggestions.map(() => 'pending'),
@@ -427,9 +455,16 @@ Deno.serve(async (req: Request) => {
         continue;
       }
       const suggestions = buildSuggestions(m);
-      const text = formatBriefMessage(s.title || 'Restaurant', m, suggestions);
+      // Zone insights are best-effort — a failed load shouldn't drop the
+      // entire brief. loadZoneInsights already swallows on a pause table
+      // missing-permission / view-rebuild scenario and returns [].
+      const zoneInsights = await loadZoneInsights(supabase, s.tenant_id).catch((e) => {
+        console.warn('[daily-brief] zone insights load failed', s.tenant_id, (e as Error).message);
+        return [] as ZoneInsight[];
+      });
+      const text = formatBriefMessage(s.title || 'Restaurant', m, suggestions, zoneInsights);
       const ok = await postToTelegram(BOT_TOKEN, s.telegram_chat_id, text);
-      await logRun(supabase, s.tenant_id, agentId, suggestions, m, ok);
+      await logRun(supabase, s.tenant_id, agentId, suggestions, m, zoneInsights, ok);
 
       if (ok) {
         sent += 1;
