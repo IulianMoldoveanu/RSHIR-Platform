@@ -75,14 +75,6 @@ export const SUBPROCESSORS: ReadonlyArray<Subprocessor> = [
     url: 'https://www.viva.com/privacy-policy/',
   },
   {
-    name: 'Stripe Payments Europe, Ltd.',
-    role: 'Procesare plăți + Stripe Connect Express (split payouts) — opțional per tenant.',
-    dataCategories: 'Datele tranzacției + datele KYC ale comerciantului-tenant.',
-    location: 'Irlanda (UE) cu suport SUA.',
-    transferBasis: 'SCC + EU-US DPF.',
-    url: 'https://stripe.com/privacy',
-  },
-  {
     name: 'Anthropic PBC',
     role: 'Asistenți AI (Claude) pentru funcționalitățile Hepy și sub-agenți.',
     dataCategories: 'Prompt-uri și răspunsuri AI; date NU sunt folosite pentru antrenament.',

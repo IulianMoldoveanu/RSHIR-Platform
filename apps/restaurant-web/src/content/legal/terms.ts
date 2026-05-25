@@ -77,7 +77,7 @@ export const TERMS_RO: ReadonlyArray<LegalSection> = [
           '"Consumator Final" — persoana fizică ce plasează o comandă prin Storefront. Contractul de vânzare pentru bunurile comandate (mâncare, băuturi) se naște direct între Consumatorul Final și Restaurant; HIR este intermediar tehnic conform art. 11-15 din Legea 365/2002.',
           '"Comandă" — solicitare confirmată plasată de un Consumator Final prin Storefront, pentru produse oferite de Restaurant.',
           '"Comandă Livrată Efectiv" — comandă pentru care a fost confirmată predarea fizică către Consumatorul Final și care nu a fost integral storrnată/refundată.',
-          '"Procesator de Plăți" sau „PSP" — instituție de plată autorizată BNR sau autoritate echivalentă (Netopia Payments, Viva.com, Stripe Connect, ș.a.) care procesează plățile online către Restaurant.',
+          '"Procesator de Plăți" sau „PSP" — instituție de plată autorizată BNR sau autoritate echivalentă (Netopia Payments sau Viva.com) care procesează plățile online către Restaurant.',
           '"Flotă HIR" — curieri angajați sau colaboratori ai HIR; „Flotă Restaurant" — curieri ai Restaurantului; „Flotă Parteneră" — operatori terți.',
           '"Date Tenant" — date colectate de la administratorul Restaurantului și angajații săi — HIR este Operator în sensul art. 4(7) RGPD.',
           '"Date Consumator Final" — date colectate prin Storefront de la consumatorii Restaurantului — Restaurantul este Operator, HIR este Persoană Împuternicită în sensul art. 4(8) RGPD. Reglementarea detaliată se află în Acordul de Procesare a Datelor (Anexa 1 — /legal/dpa).',

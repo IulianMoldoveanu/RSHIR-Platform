@@ -446,7 +446,7 @@ export const dictionaries = {
         compare_whitelabel_gf: 'Parțial',
         compare_whitelabel_agg: 'Nu',
         compare_payment: 'Procesare plăți online',
-        compare_payment_hir: 'Da — Stripe',
+        compare_payment_hir: 'Da — Netopia / Viva (split payment)',
         compare_payment_gf: 'Parțial',
         compare_payment_agg: 'Da (exclusiv platformă)',
         compare_support: 'Suport în română',
@@ -747,7 +747,7 @@ export const dictionaries = {
           'Comandă nouă → ping pe dashboard + push pe telefon + sunet configurabil. Nu mai ratați niciodată o comandă.',
         item_payments_title: 'Plăți card + cash',
         item_payments_body:
-          'Stripe inclus pentru card. Cash la livrare opțional. Fără rate de procesare ascunse, fără markup.',
+          'Card prin Netopia sau Viva (split payment în timp real). Cash la livrare opțional. Fără rate de procesare ascunse, fără markup.',
         group2_title: 'Pentru curieri',
         group2_intro:
           'Aplicația de curier inclusă: dispatch, hartă, GPS, dovadă livrare.',
@@ -785,7 +785,7 @@ export const dictionaries = {
       operator_title: 'Cine operează acest site',
       operator_body_template: 'Site-ul este operat de {tenant}. Infrastructura tehnică este furnizată de HIR, care prelucrează datele în calitate de împuternicit conform GDPR.',
       data_collected_title: 'Ce date colectăm',
-      data_collected_body: 'Pentru a procesa comenzile tale colectăm: nume, telefon, email (opțional), adresa de livrare, conținutul comenzii și statusul plății prin Stripe (datele cardului NU sunt stocate de noi). Folosim cookie-uri esențiale pentru coș și limbă, plus, cu acordul tău, cookie-uri opționale pentru analiză.',
+      data_collected_body: 'Pentru a procesa comenzile tale colectăm: nume, telefon, email (opțional), adresa de livrare, conținutul comenzii și statusul plății prin procesatorul de plăți (Netopia sau Viva — datele cardului NU sunt stocate de noi). Folosim cookie-uri esențiale pentru coș și limbă, plus, cu acordul tău, cookie-uri opționale pentru analiză.',
       retention_title: 'Cât păstrăm datele',
       retention_body: 'Comenzile sunt păstrate pe termen nelimitat pentru obligații fiscale și de raportare. Datele tale personale (nume, telefon, email, adresă) pot fi șterse la cerere prin formularul de mai jos.',
       rights_title: 'Drepturile tale',
@@ -1474,7 +1474,7 @@ export const dictionaries = {
         compare_whitelabel_gf: 'Partial',
         compare_whitelabel_agg: 'No',
         compare_payment: 'Online payment processing',
-        compare_payment_hir: 'Yes — Stripe',
+        compare_payment_hir: 'Yes — Netopia / Viva (split payment)',
         compare_payment_gf: 'Partial',
         compare_payment_agg: 'Yes (platform-exclusive)',
         compare_support: 'Local language support',
@@ -1769,7 +1769,7 @@ export const dictionaries = {
           'New order → ping on the dashboard + phone push + configurable sound. Never miss an order again.',
         item_payments_title: 'Card + cash payments',
         item_payments_body:
-          'Stripe included for cards. Cash on delivery optional. No hidden processing rates, no markup.',
+          'Card payments via Netopia or Viva (real-time split payment). Cash on delivery optional. No hidden processing rates, no markup.',
         group2_title: 'For couriers',
         group2_intro:
           'The included courier app: dispatch, map, GPS, proof of delivery.',
@@ -1807,7 +1807,7 @@ export const dictionaries = {
       operator_title: 'Who runs this site',
       operator_body_template: 'This site is run by {tenant}. The underlying infrastructure is provided by HIR, which acts as a data processor under the GDPR.',
       data_collected_title: 'What data we collect',
-      data_collected_body: 'To fulfil your orders we collect: name, phone, email (optional), delivery address, the order contents and the Stripe payment status (we do NOT store card details). We use essential cookies for the cart and language and, with your consent, optional analytics cookies.',
+      data_collected_body: 'To fulfil your orders we collect: name, phone, email (optional), delivery address, the order contents and the payment status from the payment processor (Netopia or Viva — we do NOT store card details). We use essential cookies for the cart and language and, with your consent, optional analytics cookies.',
       retention_title: 'How long we keep it',
       retention_body: 'Orders are kept indefinitely for tax and regulatory reporting. Your personal data (name, phone, email, address) can be erased on request via the form below.',
       rights_title: 'Your rights',

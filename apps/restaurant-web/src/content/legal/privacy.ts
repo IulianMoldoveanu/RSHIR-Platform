@@ -263,7 +263,7 @@ export const PRIVACY_RO: ReadonlyArray<LegalSection> = [
         items: [
           'Angajații și colaboratorii HIR autorizați pe baza nevoii de a cunoaște.',
           'Sub-procesatori tehnologici (hosting, baze de date, e-mail transactional, monitorizare, AI assistants). Lista completă cu locație și certificări este publicată la /legal/subprocesori și actualizată odată cu noile contracte.',
-          'PSP-ul Restaurantului (Netopia, Viva, Stripe etc.) — pentru procesarea plății.',
+          'PSP-ul Restaurantului (Netopia Payments sau Viva.com) — pentru procesarea plății.',
           'Curieri (în limita numelui + telefonul + adresei livrare).',
           'Autorități (ANAF, ANSPDCP, ANPC, organe de cercetare penală, instanțe) — la cerere legală.',
           'Auditori, contabili, avocați — sub clauze de confidențialitate.',

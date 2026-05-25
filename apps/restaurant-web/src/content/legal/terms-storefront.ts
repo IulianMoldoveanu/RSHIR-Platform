@@ -109,7 +109,7 @@ export const TERMS_STOREFRONT_RO: ReadonlyArray<LegalSection> = [
       {
         kind: 'ol',
         items: [
-          'Plata se efectuează online prin Procesatorul de Plăți integrat pe Storefront (Netopia Payments, Viva.com, Stripe sau alt PSP autorizat — afișat la checkout) sau, dacă Restaurantul oferă această opțiune, ramburs la livrare (cash / POS mobil).',
+          'Plata se efectuează online prin Procesatorul de Plăți integrat pe Storefront (Netopia Payments sau Viva.com — afișat la checkout) sau, dacă Restaurantul oferă această opțiune, ramburs la livrare (cash / POS mobil).',
           'Banii achitați online ajung direct în contul comerciantului (Restaurantului) prin PSP. HIR NU intermediază fluxul financiar și NU păstrează fonduri ale Consumatorului. Aceasta este o decizie deliberată pentru a evita încadrarea HIR ca instituție de plată conform Regulamentului BNR 4/2019.',
           'Pentru plățile online se aplică Termenii Procesatorului de Plăți respectiv (de regulă afișați într-o fereastră dedicată în momentul plății). Datele cardului dumneavoastră NU sunt văzute, stocate sau transmise de HIR; ele sunt prelucrate exclusiv de PSP, care este certificat PCI-DSS.',
           'Factura sau bonul fiscal aferent comenzii este emis de Restaurant și vă este transmis fie electronic (la adresa de e-mail furnizată), fie fizic la livrare, conform opțiunii dumneavoastră și a politicii Restaurantului.',
@@ -413,7 +413,7 @@ export const TERMS_STOREFRONT_EN: ReadonlyArray<LegalSection> = [
     body: [
       {
         kind: 'p',
-        text: 'Online payments are processed by an authorised payment service provider (PSP) integrated into the storefront (Netopia, Viva, Stripe or similar). The funds you pay are routed directly to the Restaurant\'s merchant account at the PSP. HIR does NOT intermediate the payment flow and does NOT hold consumer funds — this is a deliberate choice to avoid being classified as a payment institution under Romanian National Bank Regulation 4/2019.',
+        text: 'Online payments are processed by an authorised payment service provider (PSP) integrated into the storefront (Netopia Payments or Viva.com). The funds you pay are routed directly to the Restaurant\'s merchant account at the PSP. HIR does NOT intermediate the payment flow and does NOT hold consumer funds — this is a deliberate choice to avoid being classified as a payment institution under Romanian National Bank Regulation 4/2019.',
       },
       {
         kind: 'p',
