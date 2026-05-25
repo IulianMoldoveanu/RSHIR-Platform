@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { getTenantDeliveryMode, isHeadless } from '@/lib/tenant-mode';
+import { hasMultipleLocations } from '@/lib/brand';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { logoutAction } from './actions';
@@ -60,6 +61,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     ? 'full_saas' as const
     : await getTenantDeliveryMode(tenant.id);
   const connectMode = isHeadless(deliveryMode);
+  const isBrandMultiLocation = isPlatformAdminMode
+    ? false
+    : await hasMultipleLocations(tenant.id);
 
   let onboarding: Awaited<ReturnType<typeof computeOnboardingState>>;
   if (isPlatformAdminMode) {
@@ -139,6 +143,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           },
         ]),
     { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
+    ...(isBrandMultiLocation
+      ? [
+          {
+            href: '/dashboard/brand',
+            label: 'Brand (multi-locație)',
+            icon: 'layoutDashboard' as const,
+          },
+        ]
+      : []),
     { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
     { href: '/dashboard/orders/manual-entry', label: 'Comandă manuală' },
     { href: '/dashboard/orders/aggregator-inbox', label: 'Inbox preluare email' },
@@ -248,6 +261,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           href: '/dashboard/admin/onboard/connect',
           label: '+ HIR Connect',
           icon: 'sparkles' as const,
+        },
+        {
+          href: '/dashboard/admin/onboard/sibling',
+          label: '+ Locație (brand existent)',
+          icon: 'layoutDashboard' as const,
         },
         {
           href: '/dashboard/admin/partners',
