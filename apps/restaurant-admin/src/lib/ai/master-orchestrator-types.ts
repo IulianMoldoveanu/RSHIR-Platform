@@ -94,6 +94,8 @@ export const TRUST_CATEGORIES: TrustCategoryMeta[] = [
   { agent: 'cs', category: 'feedback.digest', label: 'Service clienți — sumar feedback (read-only)', destructive: false },
   { agent: 'ops', category: 'item.sold_out', label: 'Operațiuni — marcare epuizat temporar', destructive: false },
   { agent: 'ops', category: 'hours.change', label: 'Operațiuni — schimbare program', destructive: true },
+  { agent: 'ops', category: 'ops.zone_pause', label: 'Operațiuni — pauză zonă livrare (Hepy)', destructive: false },
+  { agent: 'ops', category: 'ops.zone_resume', label: 'Operațiuni — reluare zonă livrare (Hepy)', destructive: false },
   { agent: 'finance', category: 'refund.issue', label: 'Financiar — emitere rambursare', destructive: true },
   { agent: 'analytics', category: 'analytics.read', label: 'Analiză — rapoarte (read-only)', destructive: false },
   { agent: 'analytics', category: 'analytics.explain_anomaly.read', label: 'Analiză — explicație cifră (AI, read-only)', destructive: false },

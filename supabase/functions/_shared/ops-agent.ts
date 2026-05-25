@@ -1013,15 +1013,27 @@ type ZoneResolution =
   | { ok: true; zone: ZoneMatch }
   | { ok: false; error: 'no_match' | 'multiple_matches'; matches: ZoneMatch[] };
 
+// `activeOnly=true` (pause): only zones currently accepting orders are
+// candidates. `activeOnly=false` (resume): also include inactive zones so
+// the patron can resume a pause set against a zone they later disabled
+// (Codex PR #734 P2 — without this, an active pause on an inactive zone
+// is unreachable from chat and the only way out is the dashboard).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveZoneFuzzy(supabase: any, tenantId: string, query: string): Promise<ZoneResolution> {
+async function resolveZoneFuzzy(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tenantId: string,
+  query: string,
+  activeOnly: boolean,
+): Promise<ZoneResolution> {
   const q = query.trim();
   if (!q) return { ok: false, error: 'no_match', matches: [] };
-  const { data, error } = await supabase
+  let qb = supabase
     .from('delivery_zones')
     .select('id, name')
-    .eq('tenant_id', tenantId)
-    .eq('is_active', true);
+    .eq('tenant_id', tenantId);
+  if (activeOnly) qb = qb.eq('is_active', true);
+  const { data, error } = await qb;
   if (error) throw new Error(`zone_lookup_failed: ${error.message}`);
   const list = ((data ?? []) as ZoneMatch[]).filter((z) => !!z.id && !!z.name);
   if (list.length === 0) return { ok: false, error: 'no_match', matches: [] };
@@ -1082,7 +1094,7 @@ const pauseDeliveryZoneHandler: IntentHandler = {
     }
     await assertCanManageZones(ctx.supabase, ctx.tenantId, ctx.actorUserId);
 
-    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery);
+    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery, true);
     if (!resolution.ok) {
       if (resolution.error === 'multiple_matches') {
         const names = resolution.matches.map((m) => m.name).slice(0, 5).join(', ');
@@ -1091,8 +1103,12 @@ const pauseDeliveryZoneHandler: IntentHandler = {
       throw new Error(`invalid_payload: no active zone matches "${zoneQuery}"`);
     }
 
-    const pausedUntilIso =
-      durationMinutes !== null ? new Date(Date.now() + durationMinutes * 60_000).toISOString() : null;
+    // Codex PR #734 P1: pass duration_minutes through to execute() and
+    // compute paused_until at execute time, not at plan time. Plan can
+    // sit in the PROPOSED queue for hours; if we baked the timestamp
+    // here, a 60-min pause approved 45 min later would effectively only
+    // pause for 15 min. Showing the duration in the summary keeps the
+    // OWNER-facing context correct.
     const durationLabel = durationMinutes !== null ? ` (${durationMinutes} min)` : ' (până la reluare manuală)';
 
     return {
@@ -1102,7 +1118,7 @@ const pauseDeliveryZoneHandler: IntentHandler = {
         zone_id: resolution.zone.id,
         zone_name: resolution.zone.name,
         reason,
-        paused_until: pausedUntilIso,
+        duration_minutes: durationMinutes,
         notes,
       },
     };
@@ -1113,7 +1129,13 @@ const pauseDeliveryZoneHandler: IntentHandler = {
     const zoneId = String(rp.zone_id ?? '');
     const zoneName = String(rp.zone_name ?? '');
     const reason = String(rp.reason ?? 'manual');
-    const pausedUntil = (rp.paused_until as string | null) ?? null;
+    const durationMinutes = typeof rp.duration_minutes === 'number' ? rp.duration_minutes : null;
+    // Compute paused_until NOW so a delayed approval still honours the
+    // requested duration window. See P1 note above.
+    const pausedUntil =
+      durationMinutes !== null && durationMinutes > 0
+        ? new Date(Date.now() + durationMinutes * 60_000).toISOString()
+        : null;
     const notes = (rp.notes as string | null) ?? null;
     if (!isUuid(zoneId)) throw new Error('execute_invalid_zone_id');
 
@@ -1162,13 +1184,16 @@ const resumeDeliveryZoneHandler: IntentHandler = {
     if (!zoneQuery) throw new Error('invalid_payload: zone_query missing');
     await assertCanManageZones(ctx.supabase, ctx.tenantId, ctx.actorUserId);
 
-    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery);
+    // activeOnly=false on resume — a zone may have been marked inactive
+    // while paused; the patron still needs a way to clear the pause row
+    // (Codex PR #734 P2).
+    const resolution = await resolveZoneFuzzy(ctx.supabase, ctx.tenantId, zoneQuery, false);
     if (!resolution.ok) {
       if (resolution.error === 'multiple_matches') {
         const names = resolution.matches.map((m) => m.name).slice(0, 5).join(', ');
         throw new Error(`invalid_payload: multiple zones match "${zoneQuery}": ${names}`);
       }
-      throw new Error(`invalid_payload: no active zone matches "${zoneQuery}"`);
+      throw new Error(`invalid_payload: no zone matches "${zoneQuery}"`);
     }
 
     return {
