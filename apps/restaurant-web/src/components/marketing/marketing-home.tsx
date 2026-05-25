@@ -17,6 +17,7 @@ import {
   Sparkles,
   ArrowRight,
   Monitor,
+  Webhook,
 } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { MarketingHeader, MarketingFooter } from './marketing-shell';
@@ -220,6 +221,86 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
           <p className="mt-6 text-xs text-[#94A3B8]">
             {t(currentLocale, 'marketing.home.pricing_disclaimer')}
           </p>
+        </div>
+      </section>
+
+      {/* ── HIR Connect teaser ─────────────────────────────────────────── */}
+      <section className="border-b border-[#E2E8F0] bg-gradient-to-b from-[#EEF2FF] to-white">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="grid items-start gap-10 md:grid-cols-[1.1fr_1fr]">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE]">
+                <Webhook className="h-3.5 w-3.5" aria-hidden />
+                <span>{t(currentLocale, 'marketing.home.connect_eyebrow')}</span>
+              </div>
+              <h2 className="max-w-xl text-2xl font-semibold tracking-tight md:text-3xl">
+                {t(currentLocale, 'marketing.home.connect_title')}
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#475569] md:text-base">
+                {t(currentLocale, 'marketing.home.connect_body')}
+              </p>
+              <ul className="mt-6 space-y-2 text-sm text-[#0F172A]">
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
+                  <span>{t(currentLocale, 'marketing.home.connect_point_1')}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
+                  <span>{t(currentLocale, 'marketing.home.connect_point_2')}</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
+                  <span>{t(currentLocale, 'marketing.home.connect_point_3')}</span>
+                </li>
+              </ul>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link
+                  href="/connect"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+                >
+                  {t(currentLocale, 'marketing.home.connect_cta_primary')}
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
+                >
+                  {t(currentLocale, 'marketing.home.connect_cta_secondary')}
+                </Link>
+              </div>
+            </div>
+            <div className="rounded-lg border border-[#E2E8F0] bg-white p-6 shadow-sm">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-[#94A3B8]">
+                {t(currentLocale, 'marketing.home.connect_compare_title')}
+              </div>
+              <dl className="mt-4 space-y-4 text-sm">
+                <div>
+                  <dt className="font-medium text-[#0F172A]">
+                    {t(currentLocale, 'marketing.home.connect_row1_label')}
+                  </dt>
+                  <dd className="mt-0.5 text-[#475569]">
+                    {t(currentLocale, 'marketing.home.connect_row1_value')}
+                  </dd>
+                </div>
+                <div className="border-t border-[#F1F5F9] pt-4">
+                  <dt className="font-medium text-[#0F172A]">
+                    {t(currentLocale, 'marketing.home.connect_row2_label')}
+                  </dt>
+                  <dd className="mt-0.5 text-[#475569]">
+                    {t(currentLocale, 'marketing.home.connect_row2_value')}
+                  </dd>
+                </div>
+                <div className="border-t border-[#F1F5F9] pt-4">
+                  <dt className="font-medium text-[#0F172A]">
+                    {t(currentLocale, 'marketing.home.connect_row3_label')}
+                  </dt>
+                  <dd className="mt-0.5 text-[#475569]">
+                    {t(currentLocale, 'marketing.home.connect_row3_value')}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
         </div>
       </section>
 
