@@ -125,6 +125,7 @@ export default async function ZonesPage() {
       <ZoneInsightsCard insights={await loadZoneInsights(supabase, tenant.id)} />
 
       <ZonesClient
+        tenantId={tenant.id}
         initialZones={zones}
         initialTiers={tiers}
         initialPauses={activePauses}
