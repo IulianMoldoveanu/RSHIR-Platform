@@ -53,11 +53,17 @@ async function probeStorage(): Promise<Probe> {
   const t0 = Date.now();
   try {
     const admin = createAdminClient();
-    const { error } = await admin.storage.listBuckets();
+    // Verify the courier-avatars bucket is accessible — this is the bucket
+    // used for courier profile pictures. If it's missing, uploads fail with
+    // "database schema is invalid or incompatible" in the client.
+    const { data, error } = await admin.storage.getBucket('courier-avatars');
     const latency_ms = Date.now() - t0;
     if (error) {
       console.error('[healthz] storage error', error.message);
-      return { ok: false, latency_ms, error: 'storage_error' };
+      return { ok: false, latency_ms, error: 'courier_avatars_bucket_missing' };
+    }
+    if (!data?.id) {
+      return { ok: false, latency_ms, error: 'courier_avatars_bucket_not_found' };
     }
     return { ok: true, latency_ms };
   } catch (e: unknown) {
