@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import dynamic from 'next/dynamic';
 import { Button, EmptyState } from '@hir/ui';
+import type {
+  RealtimeChannel,
+  RealtimePostgresInsertPayload,
+  RealtimePostgresUpdatePayload,
+} from '@supabase/supabase-js';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { TiersCard } from './tiers-card';
 import { lookupCityCenter } from './default-city-centers';
 import type { Zone, Tier, Polygon, ZonePause } from './types';
@@ -17,11 +23,27 @@ const ZoneMap = dynamic(() => import('./zone-map').then((m) => m.ZoneMap), {
 });
 
 type Props = {
+  tenantId: string;
   initialZones: Zone[];
   initialTiers: Tier[];
   initialPauses?: ZonePause[];
   tenantCenter: { lat: number; lng: number } | null;
   tenantCity?: string | null;
+};
+
+// Shape of tenant_zone_pauses row payload arriving over realtime. We only
+// project the columns the UI's `ZonePause` row needs; extra columns sent
+// by Postgres (paused_by, resumed_*, etc.) are ignored.
+type ZonePauseRow = {
+  id: string;
+  tenant_id: string;
+  zone_id: string;
+  reason: string;
+  paused_until: string | null;
+  paused_at: string;
+  paused_via: 'CONTROL_ROOM' | 'HEPY' | 'ADMIN';
+  notes: string | null;
+  resumed_at: string | null;
 };
 
 // Prefab pause reasons match the API + Hepy NL tool. Free text supported via the
@@ -76,6 +98,7 @@ function buildCirclePolygon(
 }
 
 export function ZonesClient({
+  tenantId,
   initialZones,
   initialTiers,
   initialPauses = [],
@@ -99,6 +122,71 @@ export function ZonesClient({
   const selected = zones.find((z) => z.id === selectedId) ?? null;
   const pauseForZone = (zoneId: string) => pauses.find((p) => p.zone_id === zoneId);
   const selectedPause = selected ? pauseForZone(selected.id) : undefined;
+
+  // Realtime: keep `pauses` in sync with `tenant_zone_pauses` writes from
+  // any other surface (HEPY chat, sibling tablet open in another tab, the
+  // patron's phone). Without this, a pause set by Hepy in chat would only
+  // appear after a manual page reload — defeating the "<1s propagation"
+  // goal of the zone-pause feature. Mirrors apps/.../orders-realtime.tsx.
+  //
+  // INSERT: a new pause row → add to local state (replace any stale entry
+  //   for the same zone, since a resume+repause cycle could leave one).
+  // UPDATE: existing row mutated. The only mutation path we care about
+  //   today is the resume (resumed_at flipped from NULL to a timestamp);
+  //   when that happens, drop the row from the active list. If the row's
+  //   `paused_until` was extended in place (not currently a UI path, but
+  //   future), the row's `resumed_at` stays NULL and we keep showing it.
+  useEffect(() => {
+    if (!tenantId) return;
+    const supabase = getBrowserSupabase();
+    const channel: RealtimeChannel = supabase
+      .channel(`tenant:${tenantId}:zone_pauses`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tenant_zone_pauses',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload: RealtimePostgresInsertPayload<ZonePauseRow>) => {
+          const row = payload.new;
+          if (!row || row.resumed_at) return;
+          const projected: ZonePause = {
+            id: row.id,
+            zone_id: row.zone_id,
+            reason: row.reason,
+            paused_until: row.paused_until,
+            paused_at: row.paused_at,
+            paused_via: row.paused_via,
+            notes: row.notes,
+          };
+          setPauses((prev) => [...prev.filter((p) => p.zone_id !== row.zone_id), projected]);
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tenant_zone_pauses',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload: RealtimePostgresUpdatePayload<ZonePauseRow>) => {
+          const row = payload.new;
+          if (!row) return;
+          // Resume = resumed_at flipped non-null. Drop from active list.
+          if (row.resumed_at) {
+            setPauses((prev) => prev.filter((p) => p.id !== row.id));
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [tenantId]);
 
   async function api<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, {
