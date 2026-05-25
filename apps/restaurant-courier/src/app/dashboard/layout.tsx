@@ -22,6 +22,7 @@ import { BatteryBadge } from '@/components/battery-badge';
 import { GpsStalnessPill } from '@/components/gps-staleness-pill';
 import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
 import { LocationTrackerWired } from '@/components/location-tracker-wired';
+import { CourierPresenceBroadcaster } from '@/components/courier-presence-broadcaster';
 import { PageTransition } from '@/components/page-transition';
 import { BottomNav } from '@/components/bottom-nav';
 
@@ -197,6 +198,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <BatteryCriticalToast />
         <PushBootstrap />
         <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
+        <CourierPresenceBroadcaster userId={user.id} />
         <ProofSync />
         <TransitionSync />
 
