@@ -4,6 +4,7 @@ import {
   MarketingHeader,
   MarketingFooter,
 } from '@/components/marketing/marketing-shell';
+import { ConnectLeadForm } from '@/components/marketing/connect-lead-form';
 import { getLocale } from '@/lib/i18n/server';
 
 export const runtime = 'nodejs';
@@ -68,7 +69,7 @@ export default function ConnectPage() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <a
-              href="mailto:connect@hirforyou.ro?subject=Acces%20API%20HIR%20Connect"
+              href="#cere-acces"
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
             >
               Solicită acces API
@@ -172,21 +173,32 @@ export default function ConnectPage() {
           </div>
         </section>
 
-        {/* CTA footer */}
-        <section className="bg-indigo-600 px-4 py-16 text-center">
-          <h2 className="mb-3 text-2xl font-bold text-white">
-            Gata să integrezi?
-          </h2>
-          <p className="mb-6 text-indigo-200">
-            Trimite-ne un email și îți răspundem în 24h cu documentația API și credențialele de test.
-          </p>
-          <a
-            href="mailto:connect@hirforyou.ro?subject=Acces%20API%20HIR%20Connect"
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-50"
-          >
-            Obține acces API
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </a>
+        {/* Lead form */}
+        <section id="cere-acces" className="border-t border-zinc-100 bg-gradient-to-b from-white to-indigo-50 px-4 py-16">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-6 text-center">
+              <h2 className="text-2xl font-bold text-zinc-900">
+                Cere acces API HIR Connect
+              </h2>
+              <p className="mt-2 text-sm text-zinc-600">
+                Completează formularul de mai jos. Te contactăm în maxim 24h cu
+                documentația, credențiale de test și pașii de integrare.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+              <ConnectLeadForm />
+            </div>
+            <p className="mt-4 text-center text-xs text-zinc-500">
+              Preferi email? Scrie la{' '}
+              <a
+                href="mailto:connect@hirforyou.ro"
+                className="font-medium text-indigo-700 hover:text-indigo-900"
+              >
+                connect@hirforyou.ro
+              </a>
+              .
+            </p>
+          </div>
         </section>
       </main>
       <MarketingFooter currentLocale={currentLocale} />
