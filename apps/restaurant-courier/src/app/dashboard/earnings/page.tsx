@@ -11,6 +11,7 @@ import { Sparkline7d } from './_sparkline-7d';
 import { DailyGoalCard } from '@/components/daily-goal-card';
 import { WeeklyGoalCard } from '@/components/weekly-goal-card';
 import { WeekKm } from './_week-km';
+import { CalculatorCard } from './_calculator-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +88,7 @@ export default async function EarningsPage() {
     { data: allAssigned30 },
     { count: allTimeDeliveredCount },
     { data: shifts30 },
+    { data: tipsMonth },
   ] = await Promise.all([
     admin
       .from('courier_orders')
@@ -126,6 +128,12 @@ export default async function EarningsPage() {
       .eq('courier_user_id', user.id)
       .eq('status', 'OFFLINE')
       .gte('started_at', start30d.toISOString()),
+    // Tips scoped to the same month window as monthRows.
+    admin
+      .from('courier_tips')
+      .select('delivery_id, amount_ron')
+      .eq('courier_user_id', user.id)
+      .gte('recorded_at', startOfMonth.toISOString()),
   ]);
 
   const all = (monthRows ?? []) as DeliveredRow[];
@@ -202,6 +210,14 @@ export default async function EarningsPage() {
   const month = sumFor(startOfMonth);
 
   const recent = all.slice(0, 5);
+
+  // Calculator window slices: today / this week / this month (DELIVERED).
+  const todayDeliveries = all.filter((r) => new Date(r.updated_at) >= startOfToday);
+  const weekDeliveries = all.filter((r) => new Date(r.updated_at) >= startOfWeek);
+  const tipsAll = (tipsMonth ?? []) as Array<{ delivery_id: string; amount_ron: number }>;
+  // Same set of tips applies — calculator filters per-delivery via the
+  // delivery_id map, so passing the same tip list to each window slice
+  // works because only deliveries within the window are aggregated.
 
   // Best day of the current month — bucket by YYYY-MM-DD so a single
   // 23:55 → 00:05 spillover doesn't double-count.
@@ -321,6 +337,21 @@ export default async function EarningsPage() {
           dedus aici, mereu vizibil înainte de plată.
         </p>
       </section>
+
+      {/* Calculator: Brut + Bacșiș + Net per-window. Per Iulian 2026-05-22
+          ("el trebuie sa vada cat a facut brut + bacsis total"). Tips are
+          persisted in courier_tips (PR Calculator). Reserve % = 10% PFA
+          estimate; configurable later. */}
+      <CalculatorCard
+        deliveries={todayDeliveries}
+        tips={tipsAll}
+        windowLabel="Azi"
+      />
+      <CalculatorCard
+        deliveries={weekDeliveries}
+        tips={tipsAll}
+        windowLabel="Săpt."
+      />
 
       {/* Gamification cards — stacked above recent deliveries list. */}
       <DailyGoalCard todayEarnings={today.earnings} />
