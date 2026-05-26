@@ -6,9 +6,9 @@ import { Send, Sparkles, User, AlertTriangle } from 'lucide-react';
 type Msg = { role: 'user' | 'assistant'; content: string; toolsUsed?: string[] };
 
 const STARTERS = [
-  'Ce comenzi am acum?',
+  'Ce comenzi am acum și pe unde merg întâi?',
   'Cât am câștigat azi?',
-  'Ce e disponibil în zona mea?',
+  'Pot lua și altă comandă pe drum?',
   'Cum răspund unui client supărat?',
 ];
 
@@ -16,6 +16,8 @@ const TOOL_LABEL: Record<string, string> = {
   get_my_active_orders: 'comenzi active',
   get_my_earnings_summary: 'câștiguri',
   get_available_orders_nearby: 'comenzi disponibile',
+  suggest_pickup_order: 'rută optimă',
+  find_combo_candidates: 'combo posibil',
 };
 
 export function HepiCurierClient() {
