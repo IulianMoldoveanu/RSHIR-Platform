@@ -76,10 +76,21 @@ export async function POST(
     }
   }
 
+  // Couriers without a fleet_id cannot self-pickup. The previous code
+  // silently dropped the fleet filter for these riders, which turned the
+  // claim into a global order grab by ID (any unassigned order, any fleet).
+  // Codex P1: cross-fleet authorization bypass for profiles with missing
+  // fleet_id. Enforce fleet presence at the route layer instead.
+  if (!profileRow.fleet_id) {
+    return NextResponse.json(
+      { error: 'fleet_required', detail: 'Profile incomplete — fleet_id missing' },
+      { status: 403 },
+    );
+  }
+
   // Atomic claim: UPDATE returns the row only if all conditions match.
   // The fleet_id check replaces the RLS that the admin client bypasses.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let updateQuery: any = admin
+  const { data: claimed } = await admin
     .from('courier_orders')
     .update({
       status: 'ACCEPTED',
@@ -88,16 +99,10 @@ export async function POST(
     })
     .in('status', ['CREATED', 'OFFERED'])
     .is('assigned_courier_user_id', null)
-    .eq('id', orderId);
-
-  // Only add fleet filter when the courier has a fleet (platform-default
-  // couriers have fleet_id null at times; skip the filter so they can still
-  // self-pickup cross-fleet in that edge case — matches acceptOrderAction).
-  if (profileRow.fleet_id) {
-    updateQuery = updateQuery.eq('fleet_id', profileRow.fleet_id);
-  }
-
-  const { data: claimed } = await updateQuery.select('id').maybeSingle();
+    .eq('id', orderId)
+    .eq('fleet_id', profileRow.fleet_id)
+    .select('id')
+    .maybeSingle();
 
   if (!claimed) {
     // Race condition: another courier claimed it first, or it's in a wrong state.

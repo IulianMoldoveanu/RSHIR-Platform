@@ -38,15 +38,12 @@ export default async function AvailablePoolPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: openData }, riderMode, { data: profileData }, { data: activeCountData }] =
+  // Resolve profile + rider mode + active count first so we can scope the
+  // pool query to the courier's fleet. The admin client bypasses RLS, so
+  // without this filter riders would see other fleets' open orders and hit
+  // misleading claim failures (Codex P1).
+  const [riderMode, { data: profileData }, { data: activeCountData }] =
     await Promise.all([
-      admin
-        .from('courier_orders')
-        .select(ORDER_COLUMNS)
-        .is('assigned_courier_user_id', null)
-        .in('status', ['CREATED', 'OFFERED'])
-        .order('created_at', { ascending: true })
-        .limit(40),
       resolveRiderMode(user.id),
       admin
         .from('courier_profiles')
@@ -59,6 +56,29 @@ export default async function AvailablePoolPage() {
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
     ]);
+
+  // Build the pool query with the courier's fleet scope applied. Missing
+  // fleet_id → empty pool (safer than global), matching the self-pickup
+  // endpoint guard.
+  const fleetId = (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
+
+  const poolQuery = admin
+    .from('courier_orders')
+    .select(ORDER_COLUMNS)
+    .is('assigned_courier_user_id', null)
+    .in('status', ['CREATED', 'OFFERED'])
+    .order('created_at', { ascending: true })
+    .limit(40);
+
+  if (fleetId) {
+    poolQuery.eq('fleet_id', fleetId);
+  } else {
+    // No fleet → courier cannot be eligible for any pool order.
+    // Force-empty result instead of leaking cross-fleet visibility.
+    poolQuery.eq('fleet_id', '00000000-0000-0000-0000-000000000000');
+  }
+
+  const { data: openData } = await poolQuery;
 
   // Mode C riders are dispatched by their fleet manager — they don't
   // browse open orders; surfacing the pool is a useless affordance.
@@ -88,7 +108,7 @@ export default async function AvailablePoolPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-5">
       <OrdersRealtime
         courierUserId={user.id}
-        fleetId={profile.fleet_id}
+        fleetId={fleetId}
         watchFleetOpenOrders={true}
       />
 
