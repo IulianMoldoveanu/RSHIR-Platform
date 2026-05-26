@@ -30,6 +30,8 @@ import {
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 import { useTrackBroadcast } from '@/lib/realtime/track-subscription';
+import { CourierTrackPanel } from './CourierTrackPanel';
+import { ClientCourierChat } from './ClientCourierChat';
 
 const TrackMap = dynamic(() => import('./TrackMap').then((m) => m.TrackMap), {
   ssr: false,
@@ -101,6 +103,21 @@ function TrackInner({
     },
     refetchInterval: 30_000,
   });
+
+  // Resolve the linked HIR Curier track token so we can mount the live ETA
+  // map + client↔courier chat. Returns null for PICKUP or undispatched orders.
+  const { data: ctokenData } = useQuery<{ courierTrackToken: string | null }>({
+    queryKey: ['track', token, 'courier-token'],
+    queryFn: async () => {
+      const res = await fetch(`/api/track/${token}/courier-token`, { cache: 'no-store' });
+      if (!res.ok) return { courierTrackToken: null };
+      return res.json();
+    },
+    // Re-resolve every 60s — once a courier is assigned the token sticks; this
+    // is just to pick up the moment dispatch fires after the page loaded.
+    refetchInterval: 60_000,
+  });
+  const courierTrackToken = ctokenData?.courierTrackToken ?? null;
 
   // Lane RT-PUSH — real-time status nudge.
   // The Edge Function `track-broadcast` (see supabase/functions/) publishes
@@ -236,11 +253,23 @@ function TrackInner({
               : t(locale, 'track.pickup_at_label')}
           </p>
         </section>
+      ) : courierTrackToken ? (
+        <CourierTrackPanel ctoken={courierTrackToken} />
       ) : (
         <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <TrackMap pickup={pickup} dropoff={null} restaurantName={order.tenant?.name ?? 'Restaurant'} />
         </section>
       )}
+
+      {courierTrackToken &&
+        order.fulfillment !== 'PICKUP' &&
+        order.status !== 'CANCELLED' && (
+          <ClientCourierChat
+            ctoken={courierTrackToken}
+            courierFirstName={null}
+            orderClosed={order.status === 'DELIVERED'}
+          />
+        )}
 
       <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-600">{t(locale, 'track.products')}</p>

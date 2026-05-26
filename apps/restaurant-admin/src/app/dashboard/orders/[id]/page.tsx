@@ -9,6 +9,7 @@ import { markCodOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
 import { FiscalReceiptButton } from './fiscal-receipt-button';
 import { OrderChat } from './order-chat';
+import { CourierMiniMap } from './courier-mini-map';
 
 export const dynamic = 'force-dynamic';
 
@@ -340,6 +341,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
               <h2 className="mb-2 text-sm font-semibold text-zinc-900">Note</h2>
               <p className="whitespace-pre-wrap text-sm text-zinc-700">{order.notes}</p>
             </div>
+          )}
+
+          {courierOrderId && !isPickup && (
+            <CourierMiniMap courierOrderId={courierOrderId} />
           )}
 
           {currentUser && (

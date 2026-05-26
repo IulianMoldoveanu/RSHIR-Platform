@@ -81,10 +81,14 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-async function sendTelegram(alert: AlertCandidate): Promise<void> {
+async function sendTelegram(alert: AlertCandidate, alertId: string | null): Promise<void> {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_IULIAN_CHAT_ID) return;
   const sev = alert.severity === 'CRIT' ? '🔴' : '🟠';
-  const text = `${sev} <b>Ops alert</b>\n${escapeHtml(alert.message)}\n<code>${alert.alert_type}</code>`;
+  const shortId = alertId ? alertId.slice(0, 8) : null;
+  const resolveHint = shortId
+    ? `\n\n<i>Pentru a rezolva: <code>/rezolvat ${shortId}</code></i>`
+    : '';
+  const text = `${sev} <b>Ops alert</b>\n${escapeHtml(alert.message)}\n<code>${alert.alert_type}</code>${resolveHint}`;
   try {
     const res = await fetch(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
@@ -157,19 +161,23 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
     if (dup) continue;
 
-    const { error: insErr } = await supa.from('ops_alerts').insert({
-      tenant_id: c.tenant_id,
-      alert_type: c.alert_type,
-      severity: c.severity,
-      message: c.message,
-      metadata: c.metadata,
-    });
+    const { data: inserted, error: insErr } = await supa
+      .from('ops_alerts')
+      .insert({
+        tenant_id: c.tenant_id,
+        alert_type: c.alert_type,
+        severity: c.severity,
+        message: c.message,
+        metadata: c.metadata,
+      })
+      .select('id')
+      .maybeSingle();
     if (insErr) {
       console.error('[ops-alerts-tick] insert failed', insErr.message);
       continue;
     }
     fired += 1;
-    await sendTelegram(c);
+    await sendTelegram(c, (inserted?.id as string | undefined) ?? null);
   }
 
   return new Response(

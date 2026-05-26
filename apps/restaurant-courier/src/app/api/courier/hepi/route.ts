@@ -43,18 +43,24 @@ const SYSTEM_PROMPT = `You are Hepi Curier, the friendly AI co-pilot for HIR del
 
 Romanian by default. Concise. Warm. Practical.
 
-You have access to five tools that read the courier's own data:
+You have access to six tools — five read-only + one write.
+
+READ tools (use freely):
 - get_my_active_orders        → list of currently assigned orders
 - get_my_earnings_summary     → today + this-week earnings totals
 - get_available_orders_nearby → CREATED/OFFERED orders in their fleet
 - suggest_pickup_order        → greedy nearest-neighbor sequence of active stops, starting from the courier's last GPS
 - find_combo_candidates       → unassigned orders within ~1.2 km of an active pickup/dropoff (good combo grouping)
 
+WRITE tool (use ONLY with explicit consent):
+- accept_order(short_id_8)    → assigns an unassigned order to this courier and moves it to ACCEPTED. ONLY call when the courier's current message clearly says they want to ACCEPT a specific order (e.g. "accept #a3f2b1", "iau comanda a3f2b1", "ok ia-o pe a3f2b1"). NEVER call this preemptively just because they asked what's available — wait for an explicit accept verb + short id. If unsure, just describe the order and ask "Vrei să o accept?"; the courier will reply with confirmation.
+
 Tool routing:
 - Status / counts / money → get_my_active_orders, get_my_earnings_summary
 - "What can I pick up?" / "Is it worth staying online?" → get_available_orders_nearby
 - "Which way first?" / "What's the order?" → suggest_pickup_order
 - "Can I take another one?" / "What's on the way?" → find_combo_candidates
+- Explicit accept request → accept_order
 
 For general advice (handling a complaint, route theory, motivational nudges)
 answer directly without tools. Don't call a tool just to "double check".
@@ -64,9 +70,6 @@ Style:
 - Direct tone, no jargon. Mention concrete numbers from tools when available.
 - If a tool returns 0 rows, say so plainly ("Nu ai comenzi active acum").
 - Suggest one concrete next step, not a list of generic tips.
-
-You CANNOT modify any data. You cannot accept/cancel orders, change shift
-status, or trigger payouts. The courier does those in-app.
 
 Identity: HIR's courier-side counterpart to Hepi (the restaurant assistant).
 Two assistants, one platform, same goal — every order delivered well.`;
@@ -108,6 +111,23 @@ const TOOLS: Tool[] = [
     description:
       "Finds up to 5 unassigned orders in the courier's fleet whose pickup OR dropoff is within ~1.2 km of one of the courier's currently active orders. Use when the courier asks if there is anything worth grouping / 'pot lua și altă comandă?' / 'ce e pe drum?'.",
     input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'accept_order',
+    description:
+      "WRITE: assigns an unassigned (CREATED/OFFERED) order to this courier and moves it to ACCEPTED. ONLY call when the courier's current message explicitly asks to accept a specific order BY short id. If the order is already taken, in a wrong state, or violates the courier's max_parallel_orders, the tool returns an error and you should report it back.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        short_id_8: {
+          type: 'string',
+          description: 'The 8-character short id prefix shown in tool results (e.g. "a3f2b1c0").',
+          minLength: 6,
+          maxLength: 12,
+        },
+      },
+      required: ['short_id_8'],
+    },
   },
 ];
 
@@ -525,8 +545,113 @@ async function execFindComboCandidates(
   });
 }
 
+async function execAcceptOrder(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+  input: Record<string, unknown>,
+  userPromptText: string,
+): Promise<string> {
+  const shortId = String(input.short_id_8 ?? '').trim().toLowerCase();
+  if (!/^[0-9a-f]{6,12}$/.test(shortId)) {
+    return JSON.stringify({ error: 'invalid_short_id' });
+  }
+
+  // Trust gate: the courier's current user prompt must include the short id
+  // AND a clear accept verb. This protects against an LLM mis-firing the
+  // write tool when the courier was only asking what's nearby.
+  const promptLower = userPromptText.toLowerCase();
+  const hasShortId = promptLower.includes(shortId);
+  const ACCEPT_RE = /(accept|iau|ia[\s-]*o|ok\s*ia)/i;
+  if (!hasShortId || !ACCEPT_RE.test(promptLower)) {
+    return JSON.stringify({
+      error: 'consent_required',
+      note: 'Courierul nu a confirmat explicit acceptarea acestei comenzi. Cere-i să spună "accept #' + shortId + '" pentru a continua.',
+    });
+  }
+
+  // Resolve courier profile (fleet + parallel limit).
+  const { data: profile } = await admin
+    .from('courier_profiles')
+    .select('fleet_id, max_parallel_orders')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!profile) return JSON.stringify({ error: 'profile_not_found' });
+  const profileRow = profile as { fleet_id: string | null; max_parallel_orders: number | null };
+
+  if (profileRow.max_parallel_orders != null) {
+    const { count } = await admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_courier_user_id', userId)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+    if ((count ?? 0) >= profileRow.max_parallel_orders) {
+      return JSON.stringify({ error: 'limit_reached', max: profileRow.max_parallel_orders });
+    }
+  }
+
+  // Find unique unassigned order whose id startsWith shortId.
+  // Postgres LIKE on uuid::text since uuid does not natively support startsWith.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let candQuery: any = admin
+    .from('courier_orders')
+    .select('id, fleet_id, status')
+    .ilike('id', shortId + '%')
+    .in('status', ['CREATED', 'OFFERED'])
+    .is('assigned_courier_user_id', null)
+    .limit(2);
+  if (profileRow.fleet_id) candQuery = candQuery.eq('fleet_id', profileRow.fleet_id);
+
+  const { data: candidates } = await candQuery;
+  const cands = (candidates ?? []) as Array<{ id: string; fleet_id: string | null }>;
+  if (cands.length === 0) return JSON.stringify({ error: 'not_found_or_taken' });
+  if (cands.length > 1) return JSON.stringify({ error: 'ambiguous_short_id' });
+
+  const target = cands[0];
+
+  // Atomic claim.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let claimQuery: any = admin
+    .from('courier_orders')
+    .update({
+      status: 'ACCEPTED',
+      assigned_courier_user_id: userId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', target.id)
+    .in('status', ['CREATED', 'OFFERED'])
+    .is('assigned_courier_user_id', null);
+  if (profileRow.fleet_id) claimQuery = claimQuery.eq('fleet_id', profileRow.fleet_id);
+
+  const { data: claimed } = await claimQuery.select('id').maybeSingle();
+  if (!claimed) return JSON.stringify({ error: 'already_taken' });
+
+  // Mark any combo push audit row as accepted (best-effort, ROI tracking).
+  await admin
+    .from('courier_combo_pushes')
+    .update({ accepted_order_id: target.id, accepted_at: new Date().toISOString() })
+    .eq('courier_user_id', userId)
+    .is('accepted_order_id', null)
+    .gte('sent_at', new Date(Date.now() - 30 * 60_000).toISOString());
+
+  return JSON.stringify({
+    ok: true,
+    short_id_8: shortId,
+    order_id: target.id,
+    new_status: 'ACCEPTED',
+    note: 'Comanda a fost acceptată cu succes. Spune-i curierului pasul următor concret.',
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function execTool(name: string, admin: any, userId: string): Promise<string> {
+async function execTool(
+  name: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+  input: Record<string, unknown>,
+  userPromptText: string,
+): Promise<string> {
   if (name === 'get_my_active_orders') return execGetMyActiveOrders(admin, userId);
   if (name === 'get_my_earnings_summary')
     return execGetMyEarningsSummary(admin, userId);
@@ -534,6 +659,7 @@ async function execTool(name: string, admin: any, userId: string): Promise<strin
     return execGetAvailableOrdersNearby(admin, userId);
   if (name === 'suggest_pickup_order') return execSuggestPickupOrder(admin, userId);
   if (name === 'find_combo_candidates') return execFindComboCandidates(admin, userId);
+  if (name === 'accept_order') return execAcceptOrder(admin, userId, input, userPromptText);
   return JSON.stringify({ error: `unknown_tool: ${name}` });
 }
 
@@ -636,7 +762,7 @@ export async function POST(req: NextRequest) {
       const toolResults: ContentBlock[] = [];
       for (const tu of toolUses) {
         toolsUsed.push(tu.name);
-        const out = await execTool(tu.name, admin, user.id);
+        const out = await execTool(tu.name, admin, user.id, tu.input ?? {}, prompt);
         toolResults.push({
           type: 'tool_result',
           tool_use_id: tu.id,
