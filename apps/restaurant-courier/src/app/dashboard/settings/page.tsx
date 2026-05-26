@@ -3,12 +3,10 @@ import {
   Activity,
   Bell,
   CalendarClock,
-  CalendarOff,
   Camera,
   ChevronRight,
   ExternalLink,
   FileText,
-  Flame,
   HelpCircle,
   History,
   LogOut,
@@ -215,19 +213,11 @@ export default async function SettingsPage() {
             description="Ultimele 100 de comenzi finalizate"
           />
 
-          <SettingsRow
-            href="/dashboard/busy-hours"
-            icon={<Flame className="h-5 w-5 text-violet-400" aria-hidden />}
-            label="Ore cu volum mare"
-            description="Planifică-ți tura după cererea zilei"
-          />
-
-          <SettingsRow
-            href="/dashboard/time-off"
-            icon={<CalendarOff className="h-5 w-5 text-violet-400" aria-hidden />}
-            label="Cerere zile libere"
-            description="Concediu medical, vacanță, cauze personale"
-          />
+          {/* Hidden from courier-facing menu per audit 2026-05-26:
+              - busy-hours: înlocuit cu Heatmap care va apărea în Map view
+              - time-off: irelevant pentru PFA-uri (își iau ture singuri din Program);
+                pagina rămâne accesibilă direct via URL pentru cazuri excepționale.
+              Routes still routable; just not promoted in the menu. */}
 
           <SettingsRow
             href="/dashboard/help"
@@ -259,18 +249,22 @@ export default async function SettingsPage() {
             description="Versiune, noutăți, librării open source"
           />
 
-          <SettingsRow
-            href="/dashboard/diagnostics"
-            icon={<Stethoscope className="h-5 w-5 text-violet-400" aria-hidden />}
-            label="Diagnostic dispozitiv"
-            description="GPS, sunet, notificări, baterie"
-          />
+          {/* Diagnostic mutat sub Activitate ca element secundar — utilitate
+              de debug, nu chestie pentru utilizatorul de zi cu zi. Audit 2026-05-26. */}
 
           <SettingsRow
             href="/dashboard/settings/activity"
             icon={<Activity className="h-5 w-5 text-violet-400" aria-hidden />}
             label="Istoricul activității mele"
             description="Ultimele 100 de acțiuni înregistrate"
+          />
+
+          <SettingsRow
+            href="/dashboard/diagnostics"
+            icon={<Stethoscope className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
+            iconBg="bg-hir-border"
+            label="Diagnostic dispozitiv"
+            description="Debug GPS / cameră / notificări — folosește dacă ai probleme"
           />
 
           {/* Tax export placeholder — #477 */}
