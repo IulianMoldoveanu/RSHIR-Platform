@@ -750,3 +750,56 @@ export async function logGeofenceAlertAction(
     // Geofence audit must never block the delivery flow.
   }
 }
+
+const ARRIVAL_MESSAGES: Record<string, string> = {
+  NEAR_PICKUP: '📍 Curierul este la restaurant',
+  NEAR_DROPOFF: '📍 Curierul este la ușa ta',
+};
+
+/**
+ * Posts a SYSTEM message into order_messages when the courier enters a
+ * pickup or dropoff geofence. Called fire-and-forget from <GeofenceWatcher>
+ * right next to logGeofenceAlertAction so both audit + chat share the same
+ * dedup gate (wasRecentlyFired in localStorage). The message is visible to
+ * everyone subscribed to that order's chat — tenant on /dashboard/orders/[id]
+ * AND the customer on /track/[token]'s new ClientCourierChat panel.
+ *
+ * Auth: the courier must be the assigned_courier_user_id on the parent
+ * courier_orders row. Anyone else's call is a no-op (best-effort, no throw).
+ *
+ * RLS sidestep: we use the admin client + role='SYSTEM' so this message
+ * doesn't impersonate the courier (the chat UI shows SYSTEM-role messages as
+ * centered, italic, no avatar). The courier's auth check is done explicitly
+ * above the insert.
+ */
+export async function postGeofenceArrivalMessageAction(
+  orderId: string,
+  alertType: 'NEAR_PICKUP' | 'NEAR_DROPOFF',
+): Promise<void> {
+  try {
+    const userId = await requireUserId();
+    const body = ARRIVAL_MESSAGES[alertType];
+    if (!body) return;
+
+    const admin = createAdminClient();
+    // Verify the caller is the assigned courier on this order.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: order } = await (admin as any)
+      .from('courier_orders')
+      .select('id, assigned_courier_user_id, status')
+      .eq('id', orderId)
+      .maybeSingle();
+    if (!order || order.assigned_courier_user_id !== userId) return;
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('order_messages').insert({
+      courier_order_id: orderId,
+      from_role: 'SYSTEM',
+      from_user_id: null,
+      body,
+    });
+  } catch {
+    // Chat-message side-effect must never block the geofence audit / delivery.
+  }
+}
