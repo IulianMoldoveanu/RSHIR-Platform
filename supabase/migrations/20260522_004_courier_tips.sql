@@ -27,18 +27,36 @@ create policy "courier_tips_owner_select"
   to authenticated
   using (courier_user_id = auth.uid());
 
+-- Insert/update tip ONLY for a delivery that is actually assigned to this
+-- courier. Without this check, any authenticated user could write a tip row
+-- for any delivery_id (the unique constraint then squats the slot and the
+-- real assigned courier can no longer upsert their own tip). Codex P1.
 drop policy if exists "courier_tips_owner_insert" on public.courier_tips;
 create policy "courier_tips_owner_insert"
   on public.courier_tips for insert
   to authenticated
-  with check (courier_user_id = auth.uid());
+  with check (
+    courier_user_id = auth.uid()
+    and exists (
+      select 1 from public.courier_orders co
+       where co.id = delivery_id
+         and co.assigned_courier_user_id = auth.uid()
+    )
+  );
 
 drop policy if exists "courier_tips_owner_update" on public.courier_tips;
 create policy "courier_tips_owner_update"
   on public.courier_tips for update
   to authenticated
   using (courier_user_id = auth.uid())
-  with check (courier_user_id = auth.uid());
+  with check (
+    courier_user_id = auth.uid()
+    and exists (
+      select 1 from public.courier_orders co
+       where co.id = delivery_id
+         and co.assigned_courier_user_id = auth.uid()
+    )
+  );
 
 drop policy if exists "courier_tips_owner_delete" on public.courier_tips;
 create policy "courier_tips_owner_delete"
