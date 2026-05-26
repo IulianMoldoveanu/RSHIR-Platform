@@ -50,10 +50,22 @@ function slotRange(day: Date, hour: number): { start: string; end: string } {
 
 // ── Slot lookup helpers ───────────────────────────────────────────────────────
 
-/** Find the first slot that covers the given day+hour cell. */
+/** Find the first slot that covers the given day+hour cell.
+ *
+ * Compare by epoch milliseconds, NOT by string equality: Postgres returns
+ * `timestamptz` as ISO with a timezone suffix (e.g. "+00:00") whose textual
+ * form can differ from what `Date#toISOString()` produces locally (always
+ * "Z"). String equality would miss already-booked cells and render them as
+ * free, letting the user click an existing slot and hit avoidable conflicts.
+ */
 function findSlot(slots: ShiftSlot[], day: Date, hour: number): ShiftSlot | undefined {
   const { start } = slotRange(day, hour);
-  return slots.find((s) => s.slot_start === start);
+  const target = new Date(start).getTime();
+  if (!Number.isFinite(target)) return undefined;
+  return slots.find((s) => {
+    const t = new Date(s.slot_start).getTime();
+    return Number.isFinite(t) && t === target;
+  });
 }
 
 /** True if a slot was CANCELLED within the last 24h (show ghost). */

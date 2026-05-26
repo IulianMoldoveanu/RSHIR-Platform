@@ -58,6 +58,11 @@ export async function createShiftSlot(
   } = await supabase.auth.getUser();
   if (!user) throw new Error('not authenticated');
 
+  // Workflow per decision-courier-ops-dodo-pattern-2026-05-22: no approval
+  // required at creation. Insert directly with status='ACTIVE' (RLS policy
+  // css_courier_insert permits this since PR #716 fix). The previous
+  // INSERT(REQUESTED) → UPDATE(ACTIVE) round-trip was denied by the UPDATE
+  // policy and left orphaned REQUESTED rows behind.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
   const { data: inserted, error: insertErr } = await sb
@@ -66,21 +71,13 @@ export async function createShiftSlot(
       courier_user_id: user.id,
       slot_start,
       slot_end,
-      status: 'REQUESTED',
+      status: 'ACTIVE',
       courier_note: courier_note ?? null,
     })
     .select('id')
     .single();
 
   if (insertErr) throw new Error(insertErr.message);
-
-  // Immediately promote to ACTIVE — creation requires no admin action.
-  const { error: updateErr } = await sb
-    .from('courier_shift_slots')
-    .update({ status: 'ACTIVE' })
-    .eq('id', inserted.id);
-
-  if (updateErr) throw new Error(updateErr.message);
 
   revalidatePath('/dashboard/schedule');
   return { id: inserted.id };
