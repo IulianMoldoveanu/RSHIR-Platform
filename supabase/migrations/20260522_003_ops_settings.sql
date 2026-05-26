@@ -154,6 +154,11 @@ end;
 $$;
 
 -- Intentionally NOT granted to anon/authenticated — service-role only.
+-- Postgres grants EXECUTE to PUBLIC by default on new functions in `public`,
+-- so we must revoke from PUBLIC explicitly. Revoking only from anon/authenticated
+-- leaves the SECURITY DEFINER RPC callable, which would let any client reset
+-- arbitrary tenant PINs.
+revoke execute on function public.set_display_pin(uuid, text) from public;
 revoke execute on function public.set_display_pin(uuid, text) from anon, authenticated;
 
 -- ============================================================
