@@ -3,7 +3,13 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { Bike } from 'lucide-react';
-import { Skeleton } from '@hir/ui';
+import {
+  Skeleton,
+  haversineKm,
+  etaMinutesFromKm,
+  isAfterPickup,
+  COURIER_STATUS_LABEL_RO,
+} from '@hir/ui';
 
 const MiniMap = dynamic(() => import('./courier-mini-map-leaflet').then((m) => m.CourierMiniMapLeaflet), {
   ssr: false,
@@ -22,17 +28,6 @@ type Track = {
     last_seen_at: string | null;
   } | null;
 };
-
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371;
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
 
 export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
   const [data, setData] = useState<Track | null>(null);
@@ -65,12 +60,12 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
     const cl = data.courier?.last_lat;
     const cg = data.courier?.last_lng;
     if (cl == null || cg == null) return null;
-    const isAfterPickup = data.status === 'PICKED_UP' || data.status === 'IN_TRANSIT';
-    const target = isAfterPickup ? data.dropoff : data.pickup;
+    const afterPickup = isAfterPickup(data.status);
+    const target = afterPickup ? data.dropoff : data.pickup;
     if (target.lat == null || target.lng == null) return null;
     const km = haversineKm({ lat: cl, lng: cg }, { lat: target.lat, lng: target.lng });
-    const minutes = Math.max(2, Math.round((km / 22) * 60 + 2));
-    return { km, minutes, isAfterPickup };
+    const minutes = etaMinutesFromKm(km);
+    return { km, minutes, isAfterPickup: afterPickup };
   }, [data]);
 
   if (loading || !data) {
@@ -103,7 +98,7 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
           <div>
             <p className="text-sm font-semibold text-zinc-900">{data.courier.first_name}</p>
             <p className="text-[11px] text-zinc-500">
-              {STATUS_LABEL[data.status] ?? data.status}
+              {COURIER_STATUS_LABEL_RO[data.status as keyof typeof COURIER_STATUS_LABEL_RO] ?? data.status}
               {data.courier.last_seen_at &&
                 ` · ultima poziție acum ${timeAgo(data.courier.last_seen_at)}`}
             </p>
@@ -134,16 +129,6 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
     </div>
   );
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  CREATED: 'Comandă transmisă',
-  OFFERED: 'Oferită curierilor',
-  ACCEPTED: 'Curier alocat',
-  PICKED_UP: 'A ridicat mâncarea',
-  IN_TRANSIT: 'În drum spre client',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};
 
 function timeAgo(iso: string): string {
   const diff = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

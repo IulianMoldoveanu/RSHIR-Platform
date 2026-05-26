@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import { Bike, MapPin, Clock } from 'lucide-react';
-import { Skeleton } from '@hir/ui';
+import { Skeleton, haversineKm, etaMinutesFromKm } from '@hir/ui';
 import { getBrowserSupabase } from '@/lib/realtime/supabase-browser';
 
 const CourierMap = dynamic(() => import('./CourierMap').then((m) => m.CourierMap), {
@@ -29,23 +29,6 @@ type CourierTrack = {
 };
 
 const ACTIVE_STATUSES = new Set(['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
-
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371;
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
-function etaMinutes(km: number) {
-  // Brașov urban average ~22 km/h with stops; add 2 min handover buffer.
-  const minutes = (km / 22) * 60 + 2;
-  return Math.max(2, Math.round(minutes));
-}
 
 export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
   const [data, setData] = useState<CourierTrack | null>(null);
@@ -119,7 +102,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
       { lat: cl, lng: cg },
       { lat: target.lat, lng: target.lng },
     );
-    return { minutes: etaMinutes(km), km };
+    return { minutes: etaMinutesFromKm(km), km };
   }, [data]);
 
   if (loading) {
