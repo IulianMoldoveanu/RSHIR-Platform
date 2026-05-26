@@ -12,6 +12,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ControlRoomClient } from './_components/control-room-client';
+import { CrossSystemPanel } from './_components/cross-system-panel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -66,9 +67,33 @@ export default async function ControlRoomPage() {
     fetched_at: new Date().toISOString(),
   };
 
+  // Wave 4 — cross-system telemetry + unresolved alerts initial payload.
+  const [telemetryRes, alertsRes] = await Promise.all([
+    sb
+      .from('live_ops_telemetry')
+      .select(
+        'tenant_id, tenant_name, tenant_slug, kitchen_queue, in_courier_flow, dispatched_unpicked_over_5m, kitchen_overdue_over_15m, delivered_24h, revenue_24h_ron, last_order_at',
+      ),
+    sb
+      .from('ops_alerts')
+      .select('id, tenant_id, alert_type, severity, message, created_at')
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50),
+  ]);
+
+  const crossInitial = {
+    telemetry: telemetryRes.data ?? [],
+    alerts: alertsRes.data ?? [],
+    fetched_at: new Date().toISOString(),
+  };
+
   return (
     <main className="min-h-screen bg-zinc-50">
-      <ControlRoomClient initialData={initialData} />
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6">
+        <CrossSystemPanel initial={crossInitial} />
+        <ControlRoomClient initialData={initialData} />
+      </div>
     </main>
   );
 }
