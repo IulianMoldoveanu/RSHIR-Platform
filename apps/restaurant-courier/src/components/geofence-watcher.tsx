@@ -13,7 +13,10 @@ import {
 } from '@/lib/geofence';
 import * as haptics from '@/lib/haptics';
 import { isVoiceNavEnabled, speak } from '@/lib/voice-nav';
-import { logGeofenceAlertAction } from '@/app/dashboard/actions';
+import {
+  logGeofenceAlertAction,
+  postGeofenceArrivalMessageAction,
+} from '@/app/dashboard/actions';
 
 type Props = {
   orderId: string;
@@ -107,6 +110,23 @@ export function GeofenceWatcher({ orderId, pickup, dropoff, status }: Props) {
         const target = alert === 'NEAR_DROPOFF' ? dropoff : pickup;
         const distM = haversineMeters(lat, lng, target.lat, target.lng);
         void logGeofenceAlertAction(orderId, alert, distM);
+
+        // Auto-post a SYSTEM "Curierul este la …" message into the order
+        // chat (visible to tenant + client). Dedup is already handled by
+        // wasRecentlyFired above — same gate, no double-post on oscillation.
+        if (alert === 'NEAR_PICKUP' || alert === 'NEAR_DROPOFF') {
+          void postGeofenceArrivalMessageAction(orderId, alert);
+          // Broadcast in-process so OrderActions can highlight the relevant
+          // SwipeButton without a parent re-render. No event listeners on
+          // the server side; this is a pure client-side handshake.
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('hir:geofence-entered', {
+                detail: { orderId, alert },
+              }),
+            );
+          }
+        }
       },
       () => {
         // GPS lookup failed — skip silently, retry on next fix.

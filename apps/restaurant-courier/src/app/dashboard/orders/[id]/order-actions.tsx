@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Banknote, Info } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Banknote, Info, MapPin } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
 import { Button } from '@hir/ui';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
@@ -71,6 +71,36 @@ export function OrderActions({
 
   const { mode, fleetName } = useRiderMode();
   const acceptLabel = '→ Glisează pentru a accepta';
+
+  // Listen for geofence-entered events fired by <GeofenceWatcher>. We don't
+  // change behavior — the courier still glides the SwipeButton — but we
+  // surface "tu ești aici, e momentul" by pulsing the relevant CTA. The
+  // dedup logic upstream guarantees this fires at most once per state.
+  const [geofenceState, setGeofenceState] = useState<
+    'NEAR_PICKUP' | 'NEAR_DROPOFF' | null
+  >(null);
+  useEffect(() => {
+    function onGeofence(e: Event) {
+      const detail = (e as CustomEvent<{ orderId: string; alert: string }>).detail;
+      if (!detail || detail.orderId !== orderId) return;
+      if (detail.alert === 'NEAR_PICKUP' || detail.alert === 'NEAR_DROPOFF') {
+        setGeofenceState(detail.alert);
+      }
+    }
+    window.addEventListener('hir:geofence-entered', onGeofence);
+    return () => window.removeEventListener('hir:geofence-entered', onGeofence);
+  }, [orderId]);
+  // Clear the hint as soon as the relevant status moves past it.
+  useEffect(() => {
+    if (geofenceState === 'NEAR_PICKUP' && status !== 'ACCEPTED') setGeofenceState(null);
+    if (
+      geofenceState === 'NEAR_DROPOFF' &&
+      status !== 'PICKED_UP' &&
+      status !== 'IN_TRANSIT'
+    ) {
+      setGeofenceState(null);
+    }
+  }, [status, geofenceState]);
 
   const isDeliveryPhase = isMine && (status === 'PICKED_UP' || status === 'IN_TRANSIT');
   const isCashOnDelivery = paymentMethod === 'COD';
@@ -168,10 +198,15 @@ export function OrderActions({
       ) : null}
 
       {isMine && status === 'ACCEPTED' ? (
-        <SwipeButton
-          label="→ Glisează pentru a confirma ridicare"
-          onConfirm={handlePickedUpConfirm}
-        />
+        <div className={geofenceState === 'NEAR_PICKUP' ? 'space-y-2' : ''}>
+          {geofenceState === 'NEAR_PICKUP' && (
+            <ArrivalHint label="Ești la restaurant — glisează pentru ridicare ↓" />
+          )}
+          <SwipeButton
+            label="→ Glisează pentru a confirma ridicare"
+            onConfirm={handlePickedUpConfirm}
+          />
+        </div>
       ) : null}
 
       {isDeliveryPhase ? (
@@ -215,11 +250,16 @@ export function OrderActions({
               For COD orders, only after the cash gate is confirmed. */}
           {(vertical === 'restaurant' || pharmaOk) &&
           (!isCashOnDelivery || cashConfirmed) ? (
-            <SwipeButton
-              label="→ Glisează pentru a confirma livrare"
-              onConfirm={handleDeliverConfirm}
-              variant="success"
-            />
+            <div className={geofenceState === 'NEAR_DROPOFF' ? 'space-y-2' : ''}>
+              {geofenceState === 'NEAR_DROPOFF' && (
+                <ArrivalHint label="Ești la adresa de livrare — glisează pentru a confirma ↓" />
+              )}
+              <SwipeButton
+                label="→ Glisează pentru a confirma livrare"
+                onConfirm={handleDeliverConfirm}
+                variant="success"
+              />
+            </div>
           ) : null}
         </>
       ) : null}
@@ -237,6 +277,19 @@ export function OrderActions({
           onDismiss={() => setMilestoneCount(null)}
         />
       ) : null}
+    </div>
+  );
+}
+
+function ArrivalHint({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-2 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-100 ring-1 ring-inset ring-emerald-500/20 shadow-sm shadow-emerald-500/10 motion-safe:animate-pulse"
+    >
+      <MapPin className="h-3.5 w-3.5 flex-none" aria-hidden strokeWidth={2.25} />
+      <span>{label}</span>
     </div>
   );
 }
