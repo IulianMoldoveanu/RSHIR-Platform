@@ -8,8 +8,6 @@ type SendResult =
   | { ok: true; conversationId: string; status: string; showCallButton: boolean }
   | { ok: false; error: string };
 
-const SUPPORT_PHONE = '+40-xxx-xxx-xxx'; // Iulian fills via env later.
-
 /**
  * sendUserMessage — append the user's message to the conversation, run the
  * bot rules engine, append the bot reply, and escalate if needed. Creates a
@@ -148,8 +146,4 @@ export async function closeConversation(conversationId: string): Promise<{ ok: b
 
   revalidatePath('/dashboard/support');
   return { ok: true };
-}
-
-export function getSupportPhone(): string {
-  return process.env.NEXT_PUBLIC_HIR_SUPPORT_PHONE ?? SUPPORT_PHONE;
 }
