@@ -798,6 +798,8 @@ export async function postGeofenceArrivalMessageAction(
       from_role: 'SYSTEM',
       from_user_id: null,
       body,
+      // Geofence arrivals are intentionally seen by tenant + courier + client.
+      channel: 'BROADCAST',
     });
   } catch {
     // Chat-message side-effect must never block the geofence audit / delivery.

@@ -89,6 +89,8 @@ export function OrderChat({
       from_role: 'TENANT',
       from_user_id: currentUserId,
       body: trimmed,
+      // Tenant chat is internal — keep client out of this thread.
+      channel: 'TENANT_COURIER',
     });
     setSending(false);
     if (e) {
