@@ -3,14 +3,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Send, Sparkles, User, AlertTriangle } from 'lucide-react';
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; toolsUsed?: string[] };
 
 const STARTERS = [
-  'Cum câștig mai mult astăzi?',
-  'Ce să fac dacă restaurantul întârzie cu comanda?',
-  'Cum grupez 3 comenzi în aceeași zonă?',
+  'Ce comenzi am acum?',
+  'Cât am câștigat azi?',
+  'Ce e disponibil în zona mea?',
   'Cum răspund unui client supărat?',
 ];
+
+const TOOL_LABEL: Record<string, string> = {
+  get_my_active_orders: 'comenzi active',
+  get_my_earnings_summary: 'câștiguri',
+  get_available_orders_nearby: 'comenzi disponibile',
+};
 
 export function HepiCurierClient() {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -37,7 +43,9 @@ export function HepiCurierClient() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           prompt: text,
-          history: messages,
+          // Only send plain text history — content blocks (tool_use/tool_result)
+          // are server-side concern and aren't part of the user-visible thread.
+          history: messages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -51,9 +59,12 @@ export function HepiCurierClient() {
         );
         return;
       }
+      const toolsUsed = Array.isArray(data.tools_used)
+        ? (data.tools_used as string[])
+        : undefined;
       setMessages([
         ...nextHistory,
-        { role: 'assistant', content: data.response as string },
+        { role: 'assistant', content: data.response as string, toolsUsed },
       ]);
     } catch {
       setError('Conexiune întreruptă.');
@@ -111,12 +122,27 @@ export function HepiCurierClient() {
                 >
                   {mine ? <User className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
                 </span>
-                <div
-                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm shadow-sm ${
-                    mine ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'
-                  }`}
-                >
-                  {m.content}
+                <div className="flex max-w-[80%] flex-col gap-1">
+                  <div
+                    className={`whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                      mine ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                  {!mine && m.toolsUsed && m.toolsUsed.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 px-1 text-[10px] text-hir-muted">
+                      <span>folosit:</span>
+                      {Array.from(new Set(m.toolsUsed)).map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-full bg-violet-100 px-1.5 py-0.5 font-medium text-violet-800"
+                        >
+                          {TOOL_LABEL[t] ?? t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );
