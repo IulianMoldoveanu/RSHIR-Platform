@@ -2427,6 +2427,58 @@ Comenzi auxiliare:
     return { text: lines.join('\n'), status: 'OK' };
   }
 
+  if (cmd === '/rezolvat' || cmd === '/resolve') {
+    // Wave 5.3 — resolve an ops_alerts row by short id or full uuid from
+    // Telegram, so Iulian can clear alerts without opening the Control Room.
+    const id = args.trim().toLowerCase();
+    if (!/^[0-9a-f-]{4,}$/.test(id)) {
+      return {
+        text: 'Usage: <code>/rezolvat &lt;alert_id_prefix&gt;</code>\nIdentificatorul scurt apare în alerta primită (ex. <code>a3f2b1</code>).',
+        status: 'ERR',
+      };
+    }
+    const { data: row } = await supabase
+      .from('ops_alerts')
+      .select('id, tenant_id, alert_type, message, severity, resolved_at')
+      .ilike('id', id + '%')
+      .is('resolved_at', null)
+      .order('created_at', { ascending: false })
+      .limit(2);
+    const rows = (row ?? []) as Array<{
+      id: string;
+      tenant_id: string;
+      alert_type: string;
+      message: string;
+      severity: string;
+      resolved_at: string | null;
+    }>;
+    if (rows.length === 0) {
+      return {
+        text: `Nu am găsit nicio alertă activă cu id <code>${escapeHtml(id)}</code>. Poate a fost deja rezolvată.`,
+        status: 'OK',
+      };
+    }
+    if (rows.length > 1) {
+      return {
+        text: `Identificator ambiguu <code>${escapeHtml(id)}</code> — ${rows.length} alerte încep cu acest prefix. Folosește un prefix mai lung.`,
+        status: 'ERR',
+      };
+    }
+    const target = rows[0];
+    const { error } = await supabase
+      .from('ops_alerts')
+      .update({ resolved_at: new Date().toISOString() })
+      .eq('id', target.id)
+      .is('resolved_at', null);
+    if (error) {
+      return { text: `Eroare: ${escapeHtml(error.message)}`, status: 'ERR' };
+    }
+    return {
+      text: `✅ Alerta <code>${target.id.slice(0, 8)}</code> a fost marcată ca rezolvată.\n<i>${escapeHtml(target.alert_type)}</i> · ${escapeHtml((target.message || '').slice(0, 200))}`,
+      status: 'OK',
+    };
+  }
+
   return { text: `Comandă necunoscută: <code>${escapeHtml(cmd)}</code>\nFolosește /help`, status: 'UNKNOWN_COMMAND' };
 }
 
