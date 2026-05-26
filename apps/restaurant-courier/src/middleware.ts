@@ -2,7 +2,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient as createSsrClient, type CookieOptions } from '@supabase/ssr';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
-const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-'];
+// Display Mode (kiosk tablet in restaurant) bootstraps with a PIN, not a
+// Supabase session. /display/[tenantSlug] + /api/display/** must bypass the
+// session redirect so the PIN flow can run on a fresh tablet.
+// /api/orders/[id]/display-pickup is the kiosk-side self-pickup endpoint;
+// it authenticates inside the route via the display session cookie.
+const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/api/display', '/display'];
 
 /**
  * Auth guard for the courier PWA. /dashboard/** requires a Supabase session;

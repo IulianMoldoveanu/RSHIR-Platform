@@ -1,21 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// TODO: Replace hardcoded PIN with lookup in `tenant_display_pins` table:
-//   SELECT pin FROM tenant_display_pins WHERE tenant_slug = $1
-// Table schema (separate PR):
-//   CREATE TABLE tenant_display_pins (
-//     tenant_slug TEXT PRIMARY KEY,
-//     pin TEXT NOT NULL,
-//     updated_at TIMESTAMPTZ DEFAULT now()
-//   );
-const HARDCODED_PIN = '1234';
-
 // 12h session cookie
 const COOKIE_MAX_AGE = 60 * 60 * 12;
+// Cookie name used by /api/display/orders/[id]/self-pickup to authorise
+// kiosk-side claim requests. Value = tenant_id (UUID) so the claim handler
+// can verify the order belongs to the same tenant the PIN unlocked.
+export const DISPLAY_TENANT_COOKIE = 'hir-display-tenant';
 
 type Body = { tenantSlug: string; pin: string };
 
@@ -32,20 +27,38 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tenantSlug and pin required' }, { status: 400 });
   }
 
-  // Constant-time comparison to avoid timing attacks, even for the stub.
-  const pinOk = pin === HARDCODED_PIN;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
-  if (!pinOk) {
+  // Resolve tenant_id and verify PIN via verify_display_pin RPC (PR #717).
+  const { data: tenantRow } = await admin
+    .from('tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+
+  if (!tenantRow?.id) {
+    return NextResponse.json({ error: 'Tenant inexistent' }, { status: 404 });
+  }
+
+  const { data: pinOk, error: rpcErr } = await admin.rpc('verify_display_pin', {
+    p_tenant_slug: tenantSlug,
+    p_pin: pin,
+  });
+
+  if (rpcErr || pinOk !== true) {
     return NextResponse.json({ error: 'PIN incorect' }, { status: 401 });
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(`display-auth-${tenantSlug}`, '1', {
+  // Path '/' so the cookie is sent on /api/display/** routes too (kiosk
+  // self-pickup endpoint reads it to authorise the claim). httpOnly + secure
+  // in prod prevent JS access and over-the-wire interception.
+  cookieStore.set(DISPLAY_TENANT_COOKIE, tenantRow.id as string, {
     httpOnly: true,
     sameSite: 'lax',
-    path: `/display/${tenantSlug}`,
+    path: '/',
     maxAge: COOKIE_MAX_AGE,
-    // secure in prod; dev works over http
     secure: process.env.NODE_ENV === 'production',
   });
 

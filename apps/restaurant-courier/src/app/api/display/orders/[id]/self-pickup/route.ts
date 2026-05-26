@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { DISPLAY_TENANT_COOKIE } from '../../../auth/route';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +13,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: orderId } = await params;
+
+  // ── 1. Caller authorization: must come from an authenticated kiosk tablet.
+  // The display-tenant cookie is set by /api/display/auth after a successful
+  // PIN check and carries the tenant UUID the tablet is bound to. Without it,
+  // any app user could POST to this admin-client-backed endpoint and assign
+  // arbitrary orders to arbitrary couriers (order-hijack vector flagged by
+  // Codex P1 review).
+  const cookieStore = await cookies();
+  const tenantIdCookie = cookieStore.get(DISPLAY_TENANT_COOKIE)?.value;
+  if (!tenantIdCookie) {
+    return NextResponse.json(
+      { error: 'Tableta nu este autentificată cu PIN' },
+      { status: 401 },
+    );
+  }
 
   let body: Body;
   try {
@@ -24,9 +41,25 @@ export async function POST(
     return NextResponse.json({ error: 'courier_user_id required' }, { status: 400 });
   }
 
-  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
 
-  // Verify courier has an ONLINE shift.
+  // ── 2. Order scope: order must belong to the tenant whose PIN unlocked the
+  // tablet. Prevents a tablet at tenant A from claiming orders at tenant B.
+  const { data: orderRow } = await admin
+    .from('courier_orders')
+    .select('source_tenant_id')
+    .eq('id', orderId)
+    .maybeSingle();
+
+  if (!orderRow || orderRow.source_tenant_id !== tenantIdCookie) {
+    return NextResponse.json(
+      { error: 'Comanda nu aparține acestei locații' },
+      { status: 403 },
+    );
+  }
+
+  // ── 3. Courier must have an ONLINE shift.
   const { data: shift } = await admin
     .from('courier_shifts')
     .select('id')
@@ -42,14 +75,29 @@ export async function POST(
     );
   }
 
-  // TODO: check max_parallel_orders when column exists:
-  //   const { count } = await admin.from('courier_orders')
-  //     .select('id', { count: 'exact', head: true })
-  //     .eq('assigned_courier_user_id', courier_user_id)
-  //     .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
-  //   if (count >= profile.max_parallel_orders) return 422;
+  // ── 4. max_parallel_orders enforcement (PR #717 column).
+  const { data: profile } = await admin
+    .from('courier_profiles')
+    .select('max_parallel_orders')
+    .eq('user_id', courier_user_id)
+    .maybeSingle();
 
-  // Atomic assign — only succeeds if order is still unassigned.
+  if (profile?.max_parallel_orders != null) {
+    const { count: activeCount } = await admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_courier_user_id', courier_user_id)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+
+    if ((activeCount ?? 0) >= profile.max_parallel_orders) {
+      return NextResponse.json(
+        { error: 'limit_reached', max: profile.max_parallel_orders },
+        { status: 422 },
+      );
+    }
+  }
+
+  // ── 5. Atomic assign — only succeeds if order is still unassigned.
   const { data: updated, error } = await admin
     .from('courier_orders')
     .update({
@@ -58,6 +106,7 @@ export async function POST(
       assigned_at: new Date().toISOString(),
     })
     .eq('id', orderId)
+    .eq('source_tenant_id', tenantIdCookie)
     .is('assigned_courier_user_id', null)
     .in('status', ['CREATED', 'OFFERED'])
     .select('id, assigned_courier_user_id')
