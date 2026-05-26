@@ -18,39 +18,71 @@
 -- `cities` already exists (migration 20260506_011). This migration does NOT recreate it.
 
 
--- ── 1. delivery_zones ────────────────────────────────────────────────────────
--- One row per pricing ring within a city.
--- geometry JSONB accepts either:
---   { "type": "Polygon", "coordinates": [...] }  — GeoJSON polygon
---   { "type": "Circle",  "center": [lng, lat], "radius_m": 12000 }  — centre+radius
--- Full PostGIS support can be added in a follow-up migration once the exact
--- polygon boundaries are confirmed.
+-- ── 1. delivery_zones — EXTEND existing table (do NOT recreate) ──────────────
+-- The `delivery_zones` table already exists from `20260425_000_initial.sql`
+-- as a TENANT-scoped table with (tenant_id, polygon, is_active, sort_order).
+-- We extend it in-place with the new CITY-scoped pricing fields, keeping both
+-- ownership models alive simultaneously:
+--   - tenant_id IS NOT NULL  → legacy per-tenant zone (kept for back-compat)
+--   - city_id   IS NOT NULL  → new city-scoped pricing ring (PR #715)
+-- A row must belong to at least one (CHECK below).
+--
+-- Schema bridge:
+--   polygon (legacy, jsonb) ↔ geometry (new, jsonb) — both accepted; new code
+--   reads `geometry`, falls back to `polygon` if null. is_active (legacy) ↔
+--   active (new) — same: new code reads `active`, falls back to is_active.
 
-create table if not exists public.delivery_zones (
-  id                   uuid        primary key default gen_random_uuid(),
-  city_id              uuid        not null references public.cities(id) on delete restrict,
-  name                 text        not null,
-  zone_type            text        not null check (zone_type in ('URBAN', 'EXTRA_URBAN')),
-  -- GeoJSON polygon or { type: "Circle", center: [lng,lat], radius_m: N }
-  geometry             jsonb,
-  max_distance_km      numeric(6,2),
-  -- All money in RON cents to avoid float drift.
-  restaurant_fee_cents int         not null,
-  courier_payout_cents int         not null,
-  -- Locality names that fall inside this zone (informational; UI shows these to patron/courier).
-  -- Real zone matching is done via geometry (point-in-polygon or distance-from-origin).
-  localities           text[]      not null default array[]::text[],
-  active               boolean     not null default true,
-  created_at           timestamptz not null default now(),
-  updated_at           timestamptz not null default now(),
+-- Make legacy NOT NULL columns nullable so city-scoped rows can omit them.
+alter table public.delivery_zones
+  alter column tenant_id drop not null,
+  alter column polygon   drop not null;
 
-  -- HIR margin can never be negative: restaurant pays at least as much as courier earns.
-  constraint delivery_zones_margin_nonnegative
-    check (restaurant_fee_cents >= courier_payout_cents)
-);
+-- Add the new city-scoped pricing columns idempotently.
+alter table public.delivery_zones
+  add column if not exists city_id              uuid references public.cities(id) on delete restrict,
+  add column if not exists zone_type            text check (zone_type in ('URBAN', 'EXTRA_URBAN')),
+  add column if not exists geometry             jsonb,
+  add column if not exists max_distance_km      numeric(6,2),
+  add column if not exists restaurant_fee_cents int,
+  add column if not exists courier_payout_cents int,
+  add column if not exists localities           text[] not null default array[]::text[],
+  add column if not exists active               boolean not null default true,
+  add column if not exists updated_at           timestamptz not null default now();
+
+-- A zone must belong to either a tenant (legacy) OR a city (new) — never neither.
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'delivery_zones_ownership_check'
+       and conrelid = 'public.delivery_zones'::regclass
+  ) then
+    alter table public.delivery_zones
+      add constraint delivery_zones_ownership_check
+      check (tenant_id is not null or city_id is not null);
+  end if;
+end $$;
+
+-- HIR margin can never be negative — only enforced for city-scoped rows
+-- (legacy tenant rows pre-date this column and may have NULL).
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'delivery_zones_margin_nonnegative'
+       and conrelid = 'public.delivery_zones'::regclass
+  ) then
+    alter table public.delivery_zones
+      add constraint delivery_zones_margin_nonnegative
+      check (
+        restaurant_fee_cents is null
+        or courier_payout_cents is null
+        or restaurant_fee_cents >= courier_payout_cents
+      );
+  end if;
+end $$;
 
 create index if not exists idx_delivery_zones_city_active
-  on public.delivery_zones (city_id, active);
+  on public.delivery_zones (city_id, active)
+  where city_id is not null;
 
 comment on table public.delivery_zones is
   'Flat-fee pricing rings per city. Price ownership = city, not tenant or fleet. Writes restricted to service_role; reads open to all authenticated users.';
@@ -173,14 +205,23 @@ create table if not exists public.payout_items (
   id                   uuid  primary key default gen_random_uuid(),
   payout_period_id     uuid  not null references public.payout_periods(id) on delete cascade,
   delivery_pricing_id  uuid  not null references public.delivery_pricings(id) on delete restrict,
+  -- Denormalised: which delivery this payout item is for. Lets us enforce
+  -- "one payout per delivery" even when the same delivery has multiple
+  -- pricing rows in delivery_pricings (repricing audit chain). Backfilled
+  -- by trigger below from delivery_pricings.delivery_id.
+  delivery_id          uuid  not null references public.courier_orders(id) on delete restrict,
   amount_cents         int   not null,
   -- Snapshot of formula inputs at time of item creation (mirrors delivery_pricings.formula_snapshot
   -- but may include payout-period-specific adjustments like bonus/deduction).
   formula_snapshot     jsonb not null,
 
-  -- A delivery_pricing row can appear in at most one payout_item.
+  -- A delivery_pricing row can appear in at most one payout_item (no duplicate audits).
   constraint payout_items_unique_pricing
-    unique (delivery_pricing_id)
+    unique (delivery_pricing_id),
+  -- A delivery can be paid out at most once across all pricing rows
+  -- (fixes the repricing-chain duplicate-payout hole flagged in Codex review).
+  constraint payout_items_unique_delivery
+    unique (delivery_id)
 );
 
 create index if not exists idx_payout_items_period
@@ -199,6 +240,10 @@ alter table public.payout_periods         enable row level security;
 alter table public.payout_items           enable row level security;
 
 -- delivery_zones: read by all authenticated; writes via service_role only.
+-- Drop the legacy `delivery_zones_member_all` policy from earlier migrations
+-- (which granted authenticated tenant members FOR ALL — including writes).
+-- We replace it with read-only for authenticated/anon + service_role-only writes.
+drop policy if exists "delivery_zones_member_all" on public.delivery_zones;
 drop policy if exists "delivery_zones_authenticated_select" on public.delivery_zones;
 create policy "delivery_zones_authenticated_select"
   on public.delivery_zones for select
@@ -299,6 +344,12 @@ create policy "payout_items_service_role_all"
 -- as a first approximation; final boundaries follow real road catchments
 -- (Google My Maps / QGIS export) — Iulian replaces in a follow-up admin action.
 
+-- Ensure idempotent re-runs of the seed below by adding a partial unique
+-- index on (city_id, name). Legacy tenant-scoped rows are excluded.
+create unique index if not exists idx_delivery_zones_city_name_unique
+  on public.delivery_zones (city_id, name)
+  where city_id is not null;
+
 do $$
 declare
   v_brasov_id uuid;
@@ -324,7 +375,7 @@ begin
     array['Brașov']::text[],
     true
   )
-  on conflict do nothing;
+  on conflict (city_id, name) do nothing;
 
   -- ── Z2 — Sânpetru, Ghimbav, Stupini (6-10 km) ──────────────────────────
   insert into public.delivery_zones
@@ -340,7 +391,7 @@ begin
     array['Sânpetru', 'Ghimbav', 'Stupini']::text[],
     true
   )
-  on conflict do nothing;
+  on conflict (city_id, name) do nothing;
 
   -- ── Z3 — Hărman, Săcele, Timișu de Jos, Cristian, Tărlungeni (10-14 km) ─
   insert into public.delivery_zones
@@ -356,7 +407,7 @@ begin
     array['Hărman', 'Săcele', 'Timișu de Jos', 'Cristian', 'Tărlungeni']::text[],
     true
   )
-  on conflict do nothing;
+  on conflict (city_id, name) do nothing;
 
   -- ── Z4 — Codlea, Bod, Hălchiu, Poiana Brașov, Râșnov (14+ km, cap 30) ───
   insert into public.delivery_zones
@@ -372,7 +423,7 @@ begin
     array['Codlea', 'Bod', 'Hălchiu', 'Poiana Brașov', 'Râșnov']::text[],
     true
   )
-  on conflict do nothing;
+  on conflict (city_id, name) do nothing;
 
 end;
 $$;
