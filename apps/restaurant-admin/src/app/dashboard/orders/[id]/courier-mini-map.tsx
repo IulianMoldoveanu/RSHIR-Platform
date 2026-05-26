@@ -61,14 +61,14 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
   }, [courierOrderId]);
 
   const eta = useMemo(() => {
-    if (!data?.courier?.last_lat || !data?.courier?.last_lng) return null;
+    if (!data) return null;
+    const cl = data.courier?.last_lat;
+    const cg = data.courier?.last_lng;
+    if (cl == null || cg == null) return null;
     const isAfterPickup = data.status === 'PICKED_UP' || data.status === 'IN_TRANSIT';
     const target = isAfterPickup ? data.dropoff : data.pickup;
     if (target.lat == null || target.lng == null) return null;
-    const km = haversineKm(
-      { lat: data.courier.last_lat, lng: data.courier.last_lng },
-      { lat: target.lat, lng: target.lng },
-    );
+    const km = haversineKm({ lat: cl, lng: cg }, { lat: target.lat, lng: target.lng });
     const minutes = Math.max(2, Math.round((km / 22) * 60 + 2));
     return { km, minutes, isAfterPickup };
   }, [data]);
@@ -119,7 +119,7 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
         pickup={data.pickup}
         dropoff={data.dropoff}
         courier={
-          data.courier.last_lat && data.courier.last_lng
+          data.courier.last_lat != null && data.courier.last_lng != null
             ? { lat: data.courier.last_lat, lng: data.courier.last_lng }
             : null
         }

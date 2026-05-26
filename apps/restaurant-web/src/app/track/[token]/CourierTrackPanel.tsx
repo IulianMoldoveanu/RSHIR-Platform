@@ -106,14 +106,17 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
   }, [ctoken, courierOrderId]);
 
   const eta = useMemo(() => {
-    if (!data?.courier?.last_lat || !data?.courier?.last_lng) return null;
+    if (!data) return null;
+    const cl = data.courier?.last_lat;
+    const cg = data.courier?.last_lng;
+    if (cl == null || cg == null) return null;
     const target =
       data.status === 'PICKED_UP' || data.status === 'IN_TRANSIT'
         ? data.dropoff
         : data.pickup;
-    if (!target.lat || !target.lng) return null;
+    if (target.lat == null || target.lng == null) return null;
     const km = haversineKm(
-      { lat: data.courier.last_lat, lng: data.courier.last_lng },
+      { lat: cl, lng: cg },
       { lat: target.lat, lng: target.lng },
     );
     return { minutes: etaMinutes(km), km };
@@ -136,7 +139,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
 
   const courierFirst = data.courier.first_name || 'Curierul HIR';
   const courierGps =
-    data.courier.last_lat && data.courier.last_lng
+    data.courier.last_lat != null && data.courier.last_lng != null
       ? { lat: data.courier.last_lat, lng: data.courier.last_lng }
       : null;
 
