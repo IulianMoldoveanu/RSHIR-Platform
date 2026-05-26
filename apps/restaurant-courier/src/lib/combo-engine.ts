@@ -119,13 +119,24 @@ export function suggestCombos(
       for (const other of sorted) {
         if (cluster.length >= cap) break;
         if (other.id === seed.id || used.has(other.id)) continue;
-        const d = haversineKm(
-          seed.dropoff_lat as number,
-          seed.dropoff_lng as number,
-          other.dropoff_lat as number,
-          other.dropoff_lng as number,
-        );
-        if (d <= MAX_CLUSTER_DISTANCE_KM) cluster.push(other);
+        // Pairwise check: candidate must be within MAX_CLUSTER_DISTANCE_KM of
+        // EVERY existing cluster member, not just the seed. Codex P1 absorb:
+        // a star-shaped layout where two non-seed riders are >1.5 km apart
+        // but both near seed used to slip through.
+        let fitsAll = true;
+        for (const member of cluster) {
+          const d = haversineKm(
+            member.dropoff_lat as number,
+            member.dropoff_lng as number,
+            other.dropoff_lat as number,
+            other.dropoff_lng as number,
+          );
+          if (d > MAX_CLUSTER_DISTANCE_KM) {
+            fitsAll = false;
+            break;
+          }
+        }
+        if (fitsAll) cluster.push(other);
       }
       if (cluster.length < 2) continue;
 
@@ -137,21 +148,24 @@ export function suggestCombos(
         0,
       );
 
-      // ETA: ~3 min/stop + travel time between farthest two points / 2.
-      // Crude but good enough for a hint.
-      const maxPairDist = cluster.reduce((maxD, a) => {
-        for (const b of cluster) {
-          if (a.id === b.id) continue;
+      // ETA: ~3 min/stop + travel time between farthest two points.
+      // Codex P2 absorb: previous reducer returned early on first d > maxD,
+      // skipping the rest of the inner loop. Scan ALL pairs to find the true
+      // farthest distance (drives a more accurate estimated_minutes).
+      let maxPairDist = 0;
+      for (let i = 0; i < cluster.length; i++) {
+        for (let j = i + 1; j < cluster.length; j++) {
+          const a = cluster[i];
+          const b = cluster[j];
           const d = haversineKm(
             a.dropoff_lat as number,
             a.dropoff_lng as number,
             b.dropoff_lat as number,
             b.dropoff_lng as number,
           );
-          if (d > maxD) return d;
+          if (d > maxPairDist) maxPairDist = d;
         }
-        return maxD;
-      }, 0);
+      }
       const travelMin = Math.round((maxPairDist / AVG_SPEED_KMH) * 60);
       const eta = cluster.length * STOP_MIN + travelMin;
 
