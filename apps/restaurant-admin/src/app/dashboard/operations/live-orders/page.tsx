@@ -110,8 +110,13 @@ export default async function LiveOrdersPage({
     .eq('source_tenant_id', tenant.id)
     .gte('created_at', fromIso)
     .lte('created_at', toIso)
-    .order('created_at', { ascending: false })
-    .limit(200);
+    .order('created_at', { ascending: false });
+  // No LIMIT: KPIs, totals, status counts, timeline, and CSV export all read
+  // from this dataset. Capping at 200 silently underreports any tenant that
+  // does more than 200 orders in the selected interval (deliveryhouse pilot
+  // targets 200-500/day, so AZI alone could hit the cap on day one).
+  // Paginate the rendered table client-side instead — totals must reflect the
+  // full window.
 
   if (ordersError) throw friendlyDbError(ordersError, 'Live Orders');
 
@@ -247,6 +252,8 @@ export default async function LiveOrdersPage({
       yesterdaySummary={yesterdaySummary}
       zoneDistribution={zoneDistribution}
       range={range}
+      windowFromIso={fromIso}
+      windowToIso={toIso}
     />
   );
 }

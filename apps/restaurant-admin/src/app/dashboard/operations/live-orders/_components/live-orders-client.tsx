@@ -58,6 +58,11 @@ type Props = {
   yesterdaySummary: DaySummary | null;
   zoneDistribution: ZoneDistribution[];
   range: 'today' | 'yesterday' | 'week';
+  // ISO bounds of the active server-side query window. Realtime inserts
+  // outside these bounds (e.g. fresh orders arriving while viewing 'yesterday')
+  // must be ignored so KPIs and lists stay coherent with the chosen range.
+  windowFromIso: string;
+  windowToIso: string;
 };
 
 export function LiveOrdersClient({
@@ -68,6 +73,8 @@ export function LiveOrdersClient({
   yesterdaySummary,
   zoneDistribution,
   range,
+  windowFromIso,
+  windowToIso,
 }: Props) {
   const router = useRouter();
   const [orders, setOrders] = useState<LiveOrder[]>(initialOrders);
@@ -133,7 +140,22 @@ export function LiveOrdersClient({
   }
 
   const handleRealtimeOrder = useCallback(
-    (incoming: Partial<LiveOrder> & { id: string; status: string }) => {
+    (incoming: Partial<LiveOrder> & { id: string; status: string; created_at?: string }) => {
+      // Drop events outside the active time window. The Supabase channel is
+      // filtered only by source_tenant_id, so without this guard a fresh
+      // INSERT/UPDATE would pollute the 'yesterday' view (and skew totals)
+      // with orders that don't belong to the rendered range.
+      if (incoming.created_at) {
+        const ts = new Date(incoming.created_at).getTime();
+        if (
+          Number.isFinite(ts) &&
+          (ts < new Date(windowFromIso).getTime() ||
+            ts > new Date(windowToIso).getTime())
+        ) {
+          return;
+        }
+      }
+
       const isNew = !orders.some((o) => o.id === incoming.id);
       if (isNew) playChime();
 
@@ -186,7 +208,7 @@ export function LiveOrdersClient({
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [orders, chimeEnabled],
+    [orders, chimeEnabled, windowFromIso, windowToIso],
   );
 
   // Supabase Realtime subscription for courier_orders filtered by source_tenant_id.
