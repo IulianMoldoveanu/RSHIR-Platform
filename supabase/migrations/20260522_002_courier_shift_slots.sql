@@ -196,13 +196,25 @@ begin
     raise exception 'Slot not found or not in REQUESTED_CHANGE status (id=%)', p_change_slot_id;
   end if;
 
-  -- Supersede the old slot.
+  -- Supersede the old slot, but ONLY if it actually exists, is owned by the
+  -- same courier as the change row, and is currently ACTIVE. This prevents
+  -- a crafted REQUESTED_CHANGE row (e.g. inserted directly by a courier with
+  -- prev_slot_id pointing at someone else's slot) from corrupting an
+  -- unrelated slot when an admin approves it.
   if v_change.prev_slot_id is not null then
     update public.courier_shift_slots
        set status = 'SUPERSEDED',
            reviewed_by  = auth.uid(),
            reviewed_at  = now()
-     where id = v_change.prev_slot_id;
+     where id              = v_change.prev_slot_id
+       and courier_user_id = v_change.courier_user_id
+       and status          = 'ACTIVE';
+
+    if not found then
+      raise exception
+        'prev_slot_id % is not an ACTIVE slot owned by courier % — refusing to approve change %',
+        v_change.prev_slot_id, v_change.courier_user_id, p_change_slot_id;
+    end if;
   end if;
 
   -- Activate the new slot.
