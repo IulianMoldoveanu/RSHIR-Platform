@@ -11,6 +11,8 @@ import { Sparkline7d } from './_sparkline-7d';
 import { DailyGoalCard } from '@/components/daily-goal-card';
 import { WeeklyGoalCard } from '@/components/weekly-goal-card';
 import { WeekKm } from './_week-km';
+import { ShiftProjectionCard } from './_shift-projection-card';
+import { PfaInfoCard } from './_pfa-info-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -329,7 +331,12 @@ export default async function EarningsPage() {
       <Sparkline7d rows={last30} />
       <StreakCard rows={last30} />
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
+      <ShiftProjectionCard trailing7Rows={trailing7Rows} />
       <BestDayCard bestDay={bestDayData} />
+
+      {/* PFA tease — hidden for couriers cu status confirmed. TODO: read
+          pfa_status from courier_profiles when column lands. */}
+      <PfaInfoCard pfaStatus="unknown" />
 
       <PerformanceStats rows={perfRows} allAssignedRows={allAssignedRows} />
 
