@@ -29,12 +29,14 @@ export async function POST(
     return NextResponse.json({ error: 'max_parallel_orders must be 1..10 or null' }, { status: 400 });
   }
 
+  // courier_profiles is keyed by user_id (PK), not a separate `id` column.
+  // The [id] route param carries the courier's auth.users.id directly.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = createAdminClient() as any;
   const { error } = await sb
     .from('courier_profiles')
     .update({ max_parallel_orders: body.max_parallel_orders ?? null })
-    .eq('id', id);
+    .eq('user_id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

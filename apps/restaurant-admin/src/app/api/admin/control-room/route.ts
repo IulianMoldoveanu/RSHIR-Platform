@@ -28,9 +28,12 @@ export async function GET() {
   const todayIso = todayStart.toISOString();
 
   const [profilesRes, shiftsRes, ordersRes] = await Promise.all([
+    // courier_profiles is keyed by user_id (PK); the public-facing name is
+    // `full_name` (not `display_name`). avatar_url + max_parallel_orders
+    // are added in later migrations (20260505_005, 20260522_003).
     sb
       .from('courier_profiles')
-      .select('id, user_id, display_name, phone, avatar_url, status, max_parallel_orders')
+      .select('user_id, full_name, phone, avatar_url, status, max_parallel_orders')
       .eq('status', 'ACTIVE'),
 
     sb
@@ -39,10 +42,15 @@ export async function GET() {
       .gte('started_at', todayIso)
       .order('started_at', { ascending: false }),
 
+    // courier_orders uses `pickup_line1` / `dropoff_line1` for addresses
+    // (per 20260428_001_courier_app_scaffold.sql); `customer_address` /
+    // `pickup_address` were never created. There are no dedicated
+    // picked_up_at / delivered_at columns — we proxy with status + updated_at
+    // and the client derives transition times if needed.
     sb
       .from('courier_orders')
       .select(
-        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, customer_address, pickup_address, created_at, picked_up_at, delivered_at',
+        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, pickup_line1, dropoff_line1, dropoff_lat, dropoff_lng, created_at, updated_at',
       )
       .gte('created_at', todayIso)
       .order('created_at', { ascending: false }),

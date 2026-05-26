@@ -43,7 +43,7 @@ export default async function ControlRoomPage() {
   const [profilesRes, shiftsRes, ordersRes] = await Promise.all([
     sb
       .from('courier_profiles')
-      .select('id, user_id, display_name, phone, avatar_url, status, max_parallel_orders')
+      .select('id, user_id, full_name, phone, avatar_url, status, max_parallel_orders')
       .eq('status', 'ACTIVE'),
     sb
       .from('courier_shifts')
@@ -53,7 +53,7 @@ export default async function ControlRoomPage() {
     sb
       .from('courier_orders')
       .select(
-        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, customer_address, pickup_address, created_at, picked_up_at, delivered_at',
+        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, dropoff_line1, pickup_line1, created_at, updated_at',
       )
       .gte('created_at', todayIso)
       .order('created_at', { ascending: false }),

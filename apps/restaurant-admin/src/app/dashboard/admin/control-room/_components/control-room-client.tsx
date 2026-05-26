@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 type Profile = {
   id: string;
   user_id: string;
-  display_name: string | null;
+  full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
   status: string;
@@ -31,11 +31,13 @@ type Order = {
   assigned_courier_user_id: string | null;
   status: string;
   delivery_fee_ron: number | null;
-  customer_address: string | null;
-  pickup_address: string | null;
+  dropoff_line1: string | null;
+  pickup_line1: string | null;
   created_at: string;
-  picked_up_at: string | null;
-  delivered_at: string | null;
+  // No dedicated picked_up_at / delivered_at columns in courier_orders.
+  // updated_at is the proxy for the latest state transition; the timeline
+  // derives transition events by joining status + updated_at.
+  updated_at: string | null;
 };
 
 type Snapshot = {
@@ -226,7 +228,7 @@ function CourierPanel({
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-zinc-900">
-                  {p.display_name ?? 'Curier'}
+                  {p.full_name ?? 'Curier'}
                 </div>
                 <div className="text-xs text-zinc-500">
                   {p.phone ?? '—'} · last seen {relTime(shift?.last_seen_at ?? null)}
@@ -274,7 +276,7 @@ function OrdersPanel({
 
   const nameByUserId = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of profiles) m.set(p.user_id, p.display_name ?? 'Curier');
+    for (const p of profiles) m.set(p.user_id, p.full_name ?? 'Curier');
     return m;
   }, [profiles]);
 
@@ -349,7 +351,7 @@ function OrdersPanel({
                   <span className="text-xs text-zinc-400">· {relTime(o.created_at)}</span>
                 </div>
                 <div className="mt-0.5 truncate text-xs text-zinc-500">
-                  {o.customer_address ?? '—'}
+                  {o.dropoff_line1 ?? '—'}
                 </div>
                 <div className="mt-0.5 text-xs text-zinc-500">
                   Curier:{' '}
@@ -372,7 +374,7 @@ function OrdersPanel({
                   <option value="">Reasignează…</option>
                   {profiles.map((p) => (
                     <option key={p.id} value={p.user_id}>
-                      {p.display_name ?? p.user_id.slice(0, 8)}
+                      {p.full_name ?? p.user_id.slice(0, 8)}
                     </option>
                   ))}
                 </select>
