@@ -43,14 +43,21 @@ const SYSTEM_PROMPT = `You are Hepi Curier, the friendly AI co-pilot for HIR del
 
 Romanian by default. Concise. Warm. Practical.
 
-You have access to three tools that read the courier's own data:
-- get_my_active_orders   → list of currently assigned orders (ACCEPTED/PICKED_UP/IN_TRANSIT)
-- get_my_earnings_summary → today + this-week earnings totals
+You have access to five tools that read the courier's own data:
+- get_my_active_orders        → list of currently assigned orders
+- get_my_earnings_summary     → today + this-week earnings totals
 - get_available_orders_nearby → CREATED/OFFERED orders in their fleet
+- suggest_pickup_order        → greedy nearest-neighbor sequence of active stops, starting from the courier's last GPS
+- find_combo_candidates       → unassigned orders within ~1.2 km of an active pickup/dropoff (good combo grouping)
 
-Use tools when the question is about THIS COURIER's data ("ce comenzi am acum?",
-"cât am câștigat?", "ce e disponibil?"). For general advice (route theory,
-how to handle a complaint, etc.) answer directly without tools.
+Tool routing:
+- Status / counts / money → get_my_active_orders, get_my_earnings_summary
+- "What can I pick up?" / "Is it worth staying online?" → get_available_orders_nearby
+- "Which way first?" / "What's the order?" → suggest_pickup_order
+- "Can I take another one?" / "What's on the way?" → find_combo_candidates
+
+For general advice (handling a complaint, route theory, motivational nudges)
+answer directly without tools. Don't call a tool just to "double check".
 
 Style:
 - Short. 2-3 short paragraphs max unless asked for detail.
@@ -88,6 +95,18 @@ const TOOLS: Tool[] = [
     name: 'get_available_orders_nearby',
     description:
       'Returns up to 5 currently-unassigned orders (status CREATED or OFFERED) in the courier’s fleet. Use when the courier asks what is available to pick up or whether it is worth staying online.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'suggest_pickup_order',
+    description:
+      "Suggests the optimal order in which to handle the courier's active pickups/dropoffs using a greedy nearest-neighbor heuristic starting from the courier's last known GPS position. Use when the courier has 2+ active orders and asks how to sequence them or which one to go to first.",
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'find_combo_candidates',
+    description:
+      "Finds up to 5 unassigned orders in the courier's fleet whose pickup OR dropoff is within ~1.2 km of one of the courier's currently active orders. Use when the courier asks if there is anything worth grouping / 'pot lua și altă comandă?' / 'ce e pe drum?'.",
     input_schema: { type: 'object', properties: {}, required: [] },
   },
 ];
@@ -240,6 +259,272 @@ async function execGetAvailableOrdersNearby(
   });
 }
 
+// Haversine distance in km between two (lat,lng) coords.
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+}
+
+async function execSuggestPickupOrder(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<string> {
+  // Last known position from the active shift.
+  const { data: shift } = await admin
+    .from('courier_shifts')
+    .select('last_lat, last_lng, last_seen_at')
+    .eq('courier_user_id', userId)
+    .eq('status', 'ONLINE')
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const start =
+    shift?.last_lat != null && shift?.last_lng != null
+      ? { lat: Number(shift.last_lat), lng: Number(shift.last_lng) }
+      : null;
+
+  const { data: orders } = await admin
+    .from('courier_orders')
+    .select(
+      'id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1',
+    )
+    .eq('assigned_courier_user_id', userId)
+    .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+    .limit(20);
+
+  type Stop = {
+    short_id: string;
+    kind: 'pickup' | 'dropoff';
+    label: string;
+    lat: number;
+    lng: number;
+  };
+
+  const stops: Stop[] = [];
+  for (const o of (orders ?? []) as Array<{
+    id: string;
+    status: string;
+    pickup_lat: number | null;
+    pickup_lng: number | null;
+    dropoff_lat: number | null;
+    dropoff_lng: number | null;
+    pickup_line1: string | null;
+    dropoff_line1: string | null;
+  }>) {
+    // Only include pickup if the order hasn't been picked up yet.
+    if (
+      o.status === 'ACCEPTED' &&
+      o.pickup_lat != null &&
+      o.pickup_lng != null
+    ) {
+      stops.push({
+        short_id: o.id.slice(0, 8),
+        kind: 'pickup',
+        label: o.pickup_line1 ?? 'pickup',
+        lat: Number(o.pickup_lat),
+        lng: Number(o.pickup_lng),
+      });
+    }
+    if (o.dropoff_lat != null && o.dropoff_lng != null) {
+      stops.push({
+        short_id: o.id.slice(0, 8),
+        kind: 'dropoff',
+        label: o.dropoff_line1 ?? 'dropoff',
+        lat: Number(o.dropoff_lat),
+        lng: Number(o.dropoff_lng),
+      });
+    }
+  }
+
+  if (stops.length === 0) {
+    return JSON.stringify({
+      count: 0,
+      from: start ? 'last_gps' : 'no_gps',
+      sequence: [],
+      note: 'Nu ai opriri active cu coordonate disponibile.',
+    });
+  }
+
+  // Greedy nearest-neighbor from start (or from the first stop if no GPS).
+  const seq: Array<Stop & { distance_km: number }> = [];
+  const remaining = [...stops];
+  let cursor: { lat: number; lng: number } | null = start ?? null;
+  while (remaining.length > 0) {
+    let bestIdx = 0;
+    let bestDist = cursor ? haversineKm(cursor, remaining[0]) : 0;
+    for (let i = 1; i < remaining.length; i += 1) {
+      const d = cursor ? haversineKm(cursor, remaining[i]) : 0;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+    const next = remaining.splice(bestIdx, 1)[0];
+    seq.push({ ...next, distance_km: Number(bestDist.toFixed(2)) });
+    cursor = { lat: next.lat, lng: next.lng };
+  }
+
+  const totalKm = seq.reduce((a, b) => a + b.distance_km, 0);
+  return JSON.stringify({
+    count: seq.length,
+    from: start ? 'last_gps' : 'first_stop',
+    total_km: Number(totalKm.toFixed(2)),
+    sequence: seq.map((s, i) => ({
+      step: i + 1,
+      short_id: s.short_id,
+      kind: s.kind,
+      label: s.label,
+      distance_from_prev_km: s.distance_km,
+    })),
+  });
+}
+
+async function execFindComboCandidates(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<string> {
+  // Pull active orders to anchor on their pickup + dropoff coords.
+  const { data: mine } = await admin
+    .from('courier_orders')
+    .select('id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng')
+    .eq('assigned_courier_user_id', userId)
+    .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+    .limit(20);
+
+  const anchors: Array<{ lat: number; lng: number; kind: string; short_id: string }> = [];
+  for (const o of (mine ?? []) as Array<{
+    id: string;
+    pickup_lat: number | null;
+    pickup_lng: number | null;
+    dropoff_lat: number | null;
+    dropoff_lng: number | null;
+  }>) {
+    if (o.pickup_lat != null && o.pickup_lng != null) {
+      anchors.push({
+        lat: Number(o.pickup_lat),
+        lng: Number(o.pickup_lng),
+        kind: 'pickup',
+        short_id: o.id.slice(0, 8),
+      });
+    }
+    if (o.dropoff_lat != null && o.dropoff_lng != null) {
+      anchors.push({
+        lat: Number(o.dropoff_lat),
+        lng: Number(o.dropoff_lng),
+        kind: 'dropoff',
+        short_id: o.id.slice(0, 8),
+      });
+    }
+  }
+
+  if (anchors.length === 0) {
+    return JSON.stringify({
+      count: 0,
+      reason: 'no_active_orders_with_coords',
+      candidates: [],
+    });
+  }
+
+  // Resolve fleet for the candidate filter.
+  const { data: profile } = await admin
+    .from('courier_profiles')
+    .select('fleet_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const fleetId = (profile as { fleet_id: string | null } | null)?.fleet_id ?? null;
+
+  let q = admin
+    .from('courier_orders')
+    .select(
+      'id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron',
+    )
+    .is('assigned_courier_user_id', null)
+    .in('status', ['CREATED', 'OFFERED'])
+    .limit(40);
+  if (fleetId) q = q.eq('fleet_id', fleetId);
+
+  const { data: available } = await q;
+  const RADIUS_KM = 1.2;
+  type Candidate = {
+    short_id: string;
+    pickup: string;
+    dropoff: string;
+    total_ron: number;
+    delivery_fee_ron: number;
+    nearest_anchor_km: number;
+    nearest_anchor: string;
+  };
+  const candidates: Candidate[] = [];
+
+  for (const c of (available ?? []) as Array<{
+    id: string;
+    pickup_lat: number | null;
+    pickup_lng: number | null;
+    dropoff_lat: number | null;
+    dropoff_lng: number | null;
+    pickup_line1: string | null;
+    dropoff_line1: string | null;
+    total_ron: number | null;
+    delivery_fee_ron: number | null;
+  }>) {
+    let bestDist = Infinity;
+    let bestAnchor = '';
+    const points = [
+      c.pickup_lat != null && c.pickup_lng != null
+        ? { lat: Number(c.pickup_lat), lng: Number(c.pickup_lng), kind: 'pickup' }
+        : null,
+      c.dropoff_lat != null && c.dropoff_lng != null
+        ? { lat: Number(c.dropoff_lat), lng: Number(c.dropoff_lng), kind: 'dropoff' }
+        : null,
+    ].filter((p): p is { lat: number; lng: number; kind: string } => p !== null);
+    if (points.length === 0) continue;
+
+    for (const p of points) {
+      for (const a of anchors) {
+        const d = haversineKm(a, p);
+        if (d < bestDist) {
+          bestDist = d;
+          bestAnchor = `${p.kind}↔${a.kind} of #${a.short_id}`;
+        }
+      }
+    }
+
+    if (bestDist <= RADIUS_KM) {
+      candidates.push({
+        short_id: c.id.slice(0, 8),
+        pickup: c.pickup_line1 ?? '—',
+        dropoff: c.dropoff_line1 ?? '—',
+        total_ron: Number(c.total_ron ?? 0),
+        delivery_fee_ron: Number(c.delivery_fee_ron ?? 0),
+        nearest_anchor_km: Number(bestDist.toFixed(2)),
+        nearest_anchor: bestAnchor,
+      });
+    }
+  }
+
+  candidates.sort((a, b) => a.nearest_anchor_km - b.nearest_anchor_km);
+  return JSON.stringify({
+    count: Math.min(5, candidates.length),
+    radius_km: RADIUS_KM,
+    anchor_count: anchors.length,
+    candidates: candidates.slice(0, 5),
+  });
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function execTool(name: string, admin: any, userId: string): Promise<string> {
   if (name === 'get_my_active_orders') return execGetMyActiveOrders(admin, userId);
@@ -247,6 +532,8 @@ async function execTool(name: string, admin: any, userId: string): Promise<strin
     return execGetMyEarningsSummary(admin, userId);
   if (name === 'get_available_orders_nearby')
     return execGetAvailableOrdersNearby(admin, userId);
+  if (name === 'suggest_pickup_order') return execSuggestPickupOrder(admin, userId);
+  if (name === 'find_combo_candidates') return execFindComboCandidates(admin, userId);
   return JSON.stringify({ error: `unknown_tool: ${name}` });
 }
 
