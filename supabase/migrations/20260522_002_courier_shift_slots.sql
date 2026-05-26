@@ -275,13 +275,20 @@ create policy "css_courier_select"
   using (courier_user_id = auth.uid());
 
 -- Courier: insert new slots (REQUESTED or REQUESTED_CHANGE only — status enforced by check constraint).
+-- Courier insert: own slots only, status restricted to creation-time states.
+-- ACTIVE is allowed here because the agreed workflow ([[decision-courier-ops-dodo-pattern-2026-05-22]])
+-- is "no approval at creation; only modifications require approval". So a
+-- fresh slot lands directly as ACTIVE without a separate UPDATE round-trip
+-- (which the UPDATE policy below would have denied anyway).
+-- REQUESTED stays valid for legacy/import flows; REQUESTED_CHANGE for
+-- modification requests through request_slot_change RPC.
 drop policy if exists "css_courier_insert" on public.courier_shift_slots;
 create policy "css_courier_insert"
   on public.courier_shift_slots for insert
   to authenticated
   with check (
     courier_user_id = auth.uid()
-    and status in ('REQUESTED', 'REQUESTED_CHANGE')
+    and status in ('ACTIVE', 'REQUESTED', 'REQUESTED_CHANGE')
   );
 
 -- Courier: cancel own non-terminal slots (status → CANCELLED only).
