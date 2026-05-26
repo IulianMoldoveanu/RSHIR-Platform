@@ -21,6 +21,7 @@ import { AiCeoWidget } from './ai-ceo-widget';
 import { WeatherTile } from './weather-tile';
 import { EventsTile } from './events-tile';
 import { DemandForecastWidget } from './demand-forecast-widget';
+import { HepiNudgesPanel } from './hepi-nudges-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +109,10 @@ export default async function DashboardOverviewPage(
 
       <Suspense fallback={<KpiSkeleton />}>
         <KpiCards tenantId={tenant.id} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <HepiNudgesPanel tenantId={tenant.id} />
       </Suspense>
 
       <Suspense fallback={null}>
