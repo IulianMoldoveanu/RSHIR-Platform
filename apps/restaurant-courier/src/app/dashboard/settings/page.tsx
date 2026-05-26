@@ -230,6 +230,13 @@ export default async function SettingsPage() {
           />
 
           <SettingsRow
+            href="/dashboard/support"
+            icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Suport live"
+            description="Chat cu botul; operator real la nevoie. Sub 5 min."
+          />
+
+          <SettingsRow
             href="/dashboard/help"
             icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
             label="Ajutor & FAQ"
