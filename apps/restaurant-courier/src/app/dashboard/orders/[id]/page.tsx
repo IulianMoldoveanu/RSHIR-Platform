@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Package } from 'lucide-react';
+import { formatRon } from '@hir/ui';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
@@ -296,13 +297,13 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         <div className="flex items-center justify-between">
           <span className="text-hir-muted-fg">Total</span>
           <span className="text-base font-semibold tabular-nums text-hir-fg">
-            {order.total_ron != null ? `${Number(order.total_ron).toFixed(2)} RON` : '—'}
+            {order.total_ron != null ? formatRon(order.total_ron) : '—'}
           </span>
         </div>
         {order.delivery_fee_ron != null ? (
           <div className="mt-1.5 flex items-center justify-between text-xs">
             <span className="text-hir-muted-fg">Taxă livrare</span>
-            <span className="font-medium tabular-nums text-hir-fg">{Number(order.delivery_fee_ron).toFixed(2)} RON</span>
+            <span className="font-medium tabular-nums text-hir-fg">{formatRon(order.delivery_fee_ron)}</span>
           </div>
         ) : null}
         <div className="mt-1.5 flex items-center justify-between text-xs">

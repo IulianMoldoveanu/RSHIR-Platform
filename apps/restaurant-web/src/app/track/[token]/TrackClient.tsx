@@ -268,6 +268,7 @@ function TrackInner({
             ctoken={courierTrackToken}
             courierFirstName={null}
             orderClosed={order.status === 'DELIVERED'}
+            locale={locale}
           />
         )}
 

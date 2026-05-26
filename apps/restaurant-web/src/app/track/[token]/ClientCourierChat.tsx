@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
+import { formatLocalTime } from '@hir/ui';
+import type { Locale } from '@/lib/i18n';
 
 type Msg = {
   id: string;
@@ -20,11 +22,14 @@ export function ClientCourierChat({
   ctoken,
   courierFirstName,
   orderClosed,
+  locale = 'ro',
 }: {
   ctoken: string;
   courierFirstName: string | null;
   orderClosed: boolean;
+  locale?: Locale;
 }) {
+  const bcpLocale = locale === 'en' ? 'en-GB' : 'ro-RO';
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -131,7 +136,7 @@ export function ClientCourierChat({
             Niciun mesaj încă. Spune-i unde te poate găsi mai ușor.
           </p>
         ) : (
-          msgs.map((m) => <Bubble key={m.id} msg={m} />)
+          msgs.map((m) => <Bubble key={m.id} msg={m} locale={bcpLocale} />)
         )}
         <div ref={endRef} />
       </div>
@@ -189,7 +194,7 @@ export function ClientCourierChat({
   );
 }
 
-function Bubble({ msg }: { msg: Msg }) {
+function Bubble({ msg, locale }: { msg: Msg; locale: string }) {
   const fromClient = msg.from_role === 'CLIENT';
   const fromSystem = msg.from_role === 'SYSTEM';
   if (fromSystem) {
@@ -208,10 +213,7 @@ function Bubble({ msg }: { msg: Msg }) {
       >
         <p className="whitespace-pre-wrap">{msg.body}</p>
         <p className={`mt-0.5 text-[10px] ${fromClient ? 'text-purple-100/80' : 'text-zinc-400'}`}>
-          {new Date(msg.created_at).toLocaleTimeString('ro-RO', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {formatLocalTime(msg.created_at, locale)}
         </p>
       </div>
     </div>

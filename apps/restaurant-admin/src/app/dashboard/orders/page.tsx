@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Receipt } from 'lucide-react';
-import { EmptyState } from '@hir/ui';
+import { EmptyState, statusPillClasses } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { friendlyDbError } from '@/lib/db-error';
@@ -41,19 +41,11 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   CANCELLED: 'Anulate',
 };
 
-// Cross-cutting palette consolidation (audit §Color): drop from 7 hue
-// families to 4. amber=PENDING (needs attention), purple=in-progress,
-// emerald=DELIVERED (success), rose=CANCELLED.
-const STATUS_PILL: Record<OrderStatus, string> = {
-  PENDING: 'bg-amber-100 text-amber-800 ring-amber-200',
-  CONFIRMED: 'bg-purple-100 text-purple-800 ring-purple-200',
-  PREPARING: 'bg-purple-100 text-purple-800 ring-purple-200',
-  READY: 'bg-purple-100 text-purple-800 ring-purple-200',
-  DISPATCHED: 'bg-purple-100 text-purple-800 ring-purple-200',
-  IN_DELIVERY: 'bg-purple-100 text-purple-800 ring-purple-200',
-  DELIVERED: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
-  CANCELLED: 'bg-rose-100 text-rose-800 ring-rose-200',
-};
+// Status pill palette now sourced from @hir/ui (statusPillClasses, audience='operator').
+// PREPARING + READY moved from purple→amber to match the web /track palette
+// (kitchen-warmth signal). Operator surfaces use the 'operator' audience
+// which keeps PENDING=amber for "needs attention"; customer surfaces use
+// 'customer' (zinc PENDING).
 
 type Filter = 'active' | 'today' | 'all' | 'cash';
 
@@ -343,7 +335,7 @@ export default async function OrdersPage({
                             </span>
                             {showPill && (
                               <span
-                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_PILL[o.status]}`}
+                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${statusPillClasses(o.status, 'operator')}`}
                               >
                                 {STATUS_LABEL[o.status]}
                               </span>
