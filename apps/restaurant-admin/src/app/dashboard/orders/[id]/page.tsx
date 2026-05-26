@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { formatRon, RESTAURANT_ORDER_STATUS_LABEL_RO } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
@@ -13,16 +14,7 @@ import { CourierMiniMap } from './courier-mini-map';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING: 'În așteptare',
-  CONFIRMED: 'Confirmată',
-  PREPARING: 'În preparare',
-  READY: 'Gata',
-  DISPATCHED: 'Trimisă',
-  IN_DELIVERY: 'În livrare',
-  DELIVERED: 'Livrată',
-  CANCELLED: 'Anulată',
-};
+const STATUS_LABEL = RESTAURANT_ORDER_STATUS_LABEL_RO;
 
 const PAYMENT_LABEL: Record<string, string> = {
   UNPAID: 'Neplătită',
@@ -41,10 +33,6 @@ type OrderItemSnapshot = {
   modifiers?: Array<{ name?: string; price_delta_ron?: number }>;
   notes?: string;
 };
-
-function formatRon(n: number | string | null | undefined): string {
-  return `${Number(n ?? 0).toFixed(2)} RON`;
-}
 
 function lastInitial(s: string | null): string {
   if (!s) return '';

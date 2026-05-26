@@ -9,6 +9,7 @@ import {
   etaMinutesFromKm,
   isAfterPickup,
   COURIER_STATUS_LABEL_RO,
+  formatRelativeAge,
 } from '@hir/ui';
 
 const MiniMap = dynamic(() => import('./courier-mini-map-leaflet').then((m) => m.CourierMiniMapLeaflet), {
@@ -32,6 +33,8 @@ type Track = {
 export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
   const [data, setData] = useState<Track | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -42,18 +45,27 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
         });
         if (!res.ok) return;
         const j = (await res.json()) as Track;
-        if (!cancelled) setData(j);
+        if (!cancelled) {
+          setData(j);
+          setLastFetchAt(Date.now());
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     const id = setInterval(load, 12_000);
+    // 1s tick so the "live" badge fades correctly when polling stalls,
+    // without re-rendering the whole panel on every fetch.
+    const tickId = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
+      clearInterval(tickId);
     };
   }, [courierOrderId]);
+
+  const isLive = lastFetchAt != null && now - lastFetchAt < 30_000;
 
   const eta = useMemo(() => {
     if (!data) return null;
@@ -100,15 +112,26 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
             <p className="text-[11px] text-zinc-500">
               {COURIER_STATUS_LABEL_RO[data.status as keyof typeof COURIER_STATUS_LABEL_RO] ?? data.status}
               {data.courier.last_seen_at &&
-                ` · ultima poziție acum ${timeAgo(data.courier.last_seen_at)}`}
+                ` · ultima poziție acum ${formatRelativeAge(data.courier.last_seen_at)}`}
             </p>
           </div>
         </div>
-        {eta && (
-          <span className="rounded-full bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-800">
-            ~{eta.minutes} min
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {isLive && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700"
+              aria-label="Date actualizate live"
+            >
+              <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              live
+            </span>
+          )}
+          {eta && (
+            <span className="rounded-full bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-800">
+              ~{eta.minutes} min
+            </span>
+          )}
+        </div>
       </header>
       <MiniMap
         pickup={data.pickup}
@@ -130,9 +153,3 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
   );
 }
 
-function timeAgo(iso: string): string {
-  const diff = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (diff < 60) return `${diff}s`;
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  return `${Math.floor(diff / 3600)}h`;
-}
