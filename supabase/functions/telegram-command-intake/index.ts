@@ -2427,6 +2427,134 @@ Comenzi auxiliare:
     return { text: lines.join('\n'), status: 'OK' };
   }
 
+  if (cmd === '/curier' || cmd === '/courier') {
+    // Wave 5.5 — cross-talk: Hepi (restaurant ops) consults Hepi Curier data.
+    // Returns courier status + ETA for a given order (restaurant_orders short id
+    // OR courier_orders short id; the lookup tries both).
+    const id = args.trim().toLowerCase();
+    if (!/^[0-9a-f-]{4,}$/.test(id)) {
+      return {
+        text: 'Usage: <code>/curier &lt;order_short_id&gt;</code>\nFolosește primele caractere din id-ul comenzii.',
+        status: 'ERR',
+      };
+    }
+    // Try courier_orders directly, then resolve via restaurant_orders -> source_order_id.
+    let { data: coRows } = await supabase
+      .from('courier_orders')
+      .select('id, status, assigned_courier_user_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, source_order_id, source_tenant_id, created_at, updated_at')
+      .ilike('id', id + '%')
+      .limit(2);
+    if (!coRows || coRows.length === 0) {
+      const { data: roRows } = await supabase
+        .from('restaurant_orders')
+        .select('id, tenant_id')
+        .ilike('id', id + '%')
+        .limit(2);
+      if (roRows && roRows.length === 1) {
+        const ro = roRows[0] as { id: string; tenant_id: string };
+        const lookup = await supabase
+          .from('courier_orders')
+          .select('id, status, assigned_courier_user_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, source_order_id, source_tenant_id, created_at, updated_at')
+          .eq('source_type', 'HIR_TENANT')
+          .eq('source_tenant_id', ro.tenant_id)
+          .eq('source_order_id', ro.id)
+          .limit(1);
+        coRows = lookup.data ?? [];
+      } else if (roRows && roRows.length > 1) {
+        return { text: `Identificator ambiguu <code>${escapeHtml(id)}</code> — folosește un prefix mai lung.`, status: 'ERR' };
+      }
+    }
+    if (!coRows || coRows.length === 0) {
+      return { text: `Nu am găsit nicio comandă cu id <code>${escapeHtml(id)}</code>.`, status: 'OK' };
+    }
+    if (coRows.length > 1) {
+      return { text: `Identificator ambiguu — ${coRows.length} comenzi de curier încep cu <code>${escapeHtml(id)}</code>.`, status: 'ERR' };
+    }
+    const co = coRows[0] as {
+      id: string;
+      status: string;
+      assigned_courier_user_id: string | null;
+      pickup_lat: number | null;
+      pickup_lng: number | null;
+      dropoff_lat: number | null;
+      dropoff_lng: number | null;
+      pickup_line1: string | null;
+      dropoff_line1: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+
+    let courierName = 'necunoscut';
+    let lastLat: number | null = null;
+    let lastLng: number | null = null;
+    let lastSeen: string | null = null;
+    if (co.assigned_courier_user_id) {
+      const { data: prof } = await supabase
+        .from('courier_profiles')
+        .select('display_name')
+        .eq('user_id', co.assigned_courier_user_id)
+        .maybeSingle();
+      courierName = ((prof?.display_name as string | undefined) ?? '').split(' ')[0] || 'Curier';
+      const { data: shift } = await supabase
+        .from('courier_shifts')
+        .select('last_lat, last_lng, last_seen_at')
+        .eq('courier_user_id', co.assigned_courier_user_id)
+        .is('ended_at', null)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      lastLat = (shift?.last_lat as number | null) ?? null;
+      lastLng = (shift?.last_lng as number | null) ?? null;
+      lastSeen = (shift?.last_seen_at as string | null) ?? null;
+    }
+
+    // Haversine ETA.
+    const haversineKm = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371;
+      const toRad = (x: number) => (x * Math.PI) / 180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLng = toRad(b.lng - a.lng);
+      const s = Math.sin(dLat/2)**2 + Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLng/2)**2;
+      return 2 * R * Math.asin(Math.sqrt(s));
+    };
+    let etaText = '—';
+    if (lastLat != null && lastLng != null) {
+      const afterPickup = co.status === 'PICKED_UP' || co.status === 'IN_TRANSIT';
+      const tlat = afterPickup ? co.dropoff_lat : co.pickup_lat;
+      const tlng = afterPickup ? co.dropoff_lng : co.pickup_lng;
+      if (tlat != null && tlng != null) {
+        const km = haversineKm({ lat: lastLat, lng: lastLng }, { lat: tlat, lng: tlng });
+        const minutes = Math.max(2, Math.round((km / 22) * 60 + 2));
+        etaText = `~${minutes} min · ${km.toFixed(1)} km până la ${afterPickup ? 'client' : 'restaurant'}`;
+      }
+    }
+    const ageMin = Math.max(0, Math.floor((Date.now() - new Date(co.created_at).getTime()) / 60_000));
+    const gpsAge = lastSeen ? Math.max(0, Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60_000)) : null;
+
+    const warnings: string[] = [];
+    if (!co.assigned_courier_user_id && (co.status === 'CREATED' || co.status === 'OFFERED')) {
+      warnings.push(`⚠️ Niciun curier nu a acceptat încă (au trecut ${ageMin} min de la dispatch).`);
+    }
+    if (gpsAge != null && gpsAge >= 5) {
+      warnings.push(`⚠️ Curierul nu a transmis poziție în ultimele ${gpsAge} min (posibil offline).`);
+    }
+
+    const lines = [
+      `<b>🛵 Comandă ${co.id.slice(0, 8)}</b>`,
+      `Status: <b>${escapeHtml(co.status)}</b>  ·  vechime ${ageMin} min`,
+      `Curier: <b>${escapeHtml(courierName)}</b>`,
+    ];
+    if (gpsAge != null) lines.push(`Ultima poziție: acum ${gpsAge} min`);
+    lines.push(`ETA: ${escapeHtml(etaText)}`);
+    if (co.pickup_line1) lines.push(`Ridicare: <i>${escapeHtml(co.pickup_line1)}</i>`);
+    if (co.dropoff_line1) lines.push(`Livrare: <i>${escapeHtml(co.dropoff_line1)}</i>`);
+    if (warnings.length > 0) {
+      lines.push('');
+      for (const w of warnings) lines.push(w);
+    }
+    return { text: lines.join('\n').slice(0, 4000), status: 'OK' };
+  }
+
   if (cmd === '/rezolvat' || cmd === '/resolve') {
     // Wave 5.3 — resolve an ops_alerts row by short id or full uuid from
     // Telegram, so Iulian can clear alerts without opening the Control Room.
