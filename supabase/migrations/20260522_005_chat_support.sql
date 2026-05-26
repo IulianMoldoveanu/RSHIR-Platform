@@ -90,14 +90,22 @@ create policy "support_conversations_owner_insert"
   to authenticated
   with check (user_id = auth.uid() and status = 'BOT');
 
--- Update by user only allowed to bump status to RESOLVED/ABANDONED on own row.
--- Other transitions go through service_role (bot/operator backend).
+-- Update by user allowed to:
+--   - close (RESOLVED/ABANDONED) — explicit user action
+--   - escalate to OPERATOR_QUEUE — bot calls this from a server action when
+--     classify() flags request_operator/fallback. Without it, the server
+--     action ran as the user and the UPDATE was denied by RLS (Codex P1).
+-- All other transitions (OPERATOR_QUEUE → OPERATOR_ACTIVE → RESOLVED by
+-- operator) still go through service_role on the backend.
 drop policy if exists "support_conversations_owner_close" on public.support_conversations;
 create policy "support_conversations_owner_close"
   on public.support_conversations for update
   to authenticated
   using (user_id = auth.uid())
-  with check (user_id = auth.uid() and status in ('RESOLVED', 'ABANDONED'));
+  with check (
+    user_id = auth.uid()
+    and status in ('RESOLVED', 'ABANDONED', 'OPERATOR_QUEUE')
+  );
 
 -- Service-role full access (bot/operator backend, dashboards).
 drop policy if exists "support_conversations_service_role_all" on public.support_conversations;

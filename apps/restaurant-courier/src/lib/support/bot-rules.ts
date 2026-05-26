@@ -40,6 +40,25 @@ const OPERATOR_PHRASES = [
   'altceva',
 ];
 
+// Resolution acknowledgements — close the loop without escalating. Matches
+// quick-reply success values like "A funcționat, mulțumesc" or "OK, mulțumesc".
+// Codex P2: previously these fell into fallback and escalated to operator.
+const RESOLUTION_PHRASES = [
+  'a funcționat',
+  'a functionat',
+  'merge acum',
+  'mulțumesc',
+  'multumesc',
+  'mersi',
+  'ok, mul',
+  'clar',
+  'am sunat',
+  'am sunat, nu răspunde',
+  'văd câștigurile',
+  'vad castigurile',
+  'vad in app',
+];
+
 function matchAny(input: string, terms: string[]): boolean {
   const lower = input.toLowerCase();
   return terms.some((t) => lower.includes(t));
@@ -54,6 +73,21 @@ const DEFAULT_QUICK_REPLIES: QuickReply[] = [
 ];
 
 export function classify(message: string): BotResponse {
+  // 0. Resolution acknowledgement — short-circuit, no escalation.
+  // Quick-reply success buttons ("A funcționat", "Mulțumesc", etc.) must NOT
+  // fall through to the fallback escalate branch. Codex P2.
+  if (matchAny(message, RESOLUTION_PHRASES)) {
+    return {
+      intent: 'greeting', // reuse greeting intent — closes loop cleanly
+      body:
+        'Mă bucur că s-a rezolvat. Apasă "Închide" sus dacă vrei să termini conversația, ' +
+        'sau scrie altă întrebare dacă mai ai nevoie.',
+      topic: 'resolved',
+      escalate: false,
+      quick_replies: [],
+    };
+  }
+
   // 1. Explicit escalation always wins.
   if (matchAny(message, OPERATOR_PHRASES)) {
     return {

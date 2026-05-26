@@ -13,19 +13,24 @@ type Message = {
   created_at: string;
 };
 
-type Status = 'BOT' | 'OPERATOR_QUEUE' | 'OPERATOR_ACTIVE';
+type Status = 'BOT' | 'OPERATOR_QUEUE' | 'OPERATOR_ACTIVE' | 'RESOLVED' | 'ABANDONED';
+type ActiveStatus = 'BOT' | 'OPERATOR_QUEUE' | 'OPERATOR_ACTIVE';
 
 type Props = {
   initialConversationId: string | null;
-  initialStatus: Status;
+  initialStatus: ActiveStatus;
   initialOperatorMsgCount: number;
   initialMessages: Message[];
 };
 
+// Full status map (including terminal states) so realtime UPDATE events
+// don't crash the UI when a conversation closes (Codex P2).
 const STATUS_LABEL: Record<Status, { label: string; tone: string }> = {
   BOT: { label: 'Bot asistent', tone: 'text-violet-300' },
   OPERATOR_QUEUE: { label: 'În așteptare operator…', tone: 'text-amber-300' },
   OPERATOR_ACTIVE: { label: 'Operator conectat', tone: 'text-emerald-300' },
+  RESOLVED: { label: 'Conversație rezolvată', tone: 'text-emerald-400' },
+  ABANDONED: { label: 'Conversație abandonată', tone: 'text-hir-muted-fg' },
 };
 
 export function SupportChat({
@@ -35,7 +40,7 @@ export function SupportChat({
   initialMessages,
 }: Props) {
   const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
-  const [status, setStatus] = useState<Status>(initialStatus);
+  const [status, setStatus] = useState<Status>(initialStatus as Status);
   const [operatorMsgCount, setOperatorMsgCount] = useState(initialOperatorMsgCount);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState('');
@@ -122,13 +127,17 @@ export function SupportChat({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Status pill */}
+      {/* Status pill — graceful fallback for terminal states (RESOLVED/ABANDONED)
+          arriving via realtime so the UI doesn't crash on STATUS_LABEL[undefined]. */}
+      {(() => {
+        const meta = STATUS_LABEL[status] ?? STATUS_LABEL.BOT;
+        return (
       <div className="flex items-center justify-between rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-xs">
-        <span className={`flex items-center gap-1.5 font-medium ${STATUS_LABEL[status].tone}`}>
+        <span className={`flex items-center gap-1.5 font-medium ${meta.tone}`}>
           {status === 'BOT' ? <Bot className="h-3.5 w-3.5" aria-hidden /> : null}
           {status === 'OPERATOR_QUEUE' ? <Headphones className="h-3.5 w-3.5 animate-pulse" aria-hidden /> : null}
           {status === 'OPERATOR_ACTIVE' ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> : null}
-          {STATUS_LABEL[status].label}
+          {meta.label}
         </span>
         {conversationId ? (
           <button
@@ -148,6 +157,8 @@ export function SupportChat({
           </button>
         ) : null}
       </div>
+        );
+      })()}
 
       {/* Messages */}
       <div
