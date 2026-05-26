@@ -13,6 +13,7 @@ import { WeeklyGoalCard } from '@/components/weekly-goal-card';
 import { WeekKm } from './_week-km';
 import { ShiftProjectionCard } from './_shift-projection-card';
 import { PfaInfoCard } from './_pfa-info-card';
+import { CalculatorCard } from './_calculator-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,15 @@ export default async function EarningsPage() {
 
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  // Lower bound for the monthRows query — must cover BOTH the calendar month
+  // (for "Luna" stats / BestDay) AND the current ISO week (so "Săpt." totals
+  // include early-week deliveries that fall in the previous month).
+  // Codex P2 absorb: weekDeliveries was previously filtered from monthRows
+  // bounded by startOfMonth, dropping Mon/Tue rows when the week straddles
+  // a month boundary.
+  const monthRowsLowerBound =
+    startOfWeek < startOfMonth ? startOfWeek : startOfMonth;
+
   // Trailing-30-day window for streak computation.
   const start30d = new Date(startOfToday);
   start30d.setDate(start30d.getDate() - 30);
@@ -89,13 +99,14 @@ export default async function EarningsPage() {
     { data: allAssigned30 },
     { count: allTimeDeliveredCount },
     { data: shifts30 },
+    { data: tipsMonth },
   ] = await Promise.all([
     admin
       .from('courier_orders')
       .select('id, delivery_fee_ron, updated_at, customer_first_name, dropoff_line1')
       .eq('assigned_courier_user_id', user.id)
       .eq('status', 'DELIVERED')
-      .gte('updated_at', startOfMonth.toISOString())
+      .gte('updated_at', monthRowsLowerBound.toISOString())
       .order('updated_at', { ascending: false }),
     admin
       .from('courier_orders')
@@ -128,6 +139,14 @@ export default async function EarningsPage() {
       .eq('courier_user_id', user.id)
       .eq('status', 'OFFLINE')
       .gte('started_at', start30d.toISOString()),
+    // Tips scoped to the same lower bound as monthRows so the weekly slice
+    // can still find tip rows for early-week deliveries that fall in the
+    // previous month.
+    admin
+      .from('courier_tips')
+      .select('delivery_id, amount_ron')
+      .eq('courier_user_id', user.id)
+      .gte('recorded_at', monthRowsLowerBound.toISOString()),
   ]);
 
   const all = (monthRows ?? []) as DeliveredRow[];
@@ -205,11 +224,22 @@ export default async function EarningsPage() {
 
   const recent = all.slice(0, 5);
 
+  // Calculator window slices: today / this week / this month (DELIVERED).
+  const todayDeliveries = all.filter((r) => new Date(r.updated_at) >= startOfToday);
+  const weekDeliveries = all.filter((r) => new Date(r.updated_at) >= startOfWeek);
+  const tipsAll = (tipsMonth ?? []) as Array<{ delivery_id: string; amount_ron: number }>;
+  // Same set of tips applies — calculator filters per-delivery via the
+  // delivery_id map, so passing the same tip list to each window slice
+  // works because only deliveries within the window are aggregated.
+
   // Best day of the current month — bucket by YYYY-MM-DD so a single
-  // 23:55 → 00:05 spillover doesn't double-count.
+  // 23:55 → 00:05 spillover doesn't double-count. NOTE: filter to the calendar
+  // month explicitly since `all` may now include early-week deliveries from
+  // the previous month (monthRowsLowerBound).
   const byDay = new Map<string, { earnings: number; count: number }>();
   for (const row of all) {
     const d = new Date(row.updated_at);
+    if (d < startOfMonth) continue;
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     const key = `${d.getFullYear()}-${mm}-${dd}`;
@@ -323,6 +353,21 @@ export default async function EarningsPage() {
           dedus aici, mereu vizibil înainte de plată.
         </p>
       </section>
+
+      {/* Calculator: Brut + Bacșiș + Net per-window. Per Iulian 2026-05-22
+          ("el trebuie sa vada cat a facut brut + bacsis total"). Tips are
+          persisted in courier_tips (PR Calculator). Reserve % = 10% PFA
+          estimate; configurable later. */}
+      <CalculatorCard
+        deliveries={todayDeliveries}
+        tips={tipsAll}
+        windowLabel="Azi"
+      />
+      <CalculatorCard
+        deliveries={weekDeliveries}
+        tips={tipsAll}
+        windowLabel="Săpt."
+      />
 
       {/* Gamification cards — stacked above recent deliveries list. */}
       <DailyGoalCard todayEarnings={today.earnings} />
