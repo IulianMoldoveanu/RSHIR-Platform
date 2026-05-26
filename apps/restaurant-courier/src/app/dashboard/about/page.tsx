@@ -101,6 +101,46 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* PFA registration steps — linked from the Earnings page PfaInfoCard.
+          Must have id="pfa" so /dashboard/about#pfa scrolls here. */}
+      <section
+        id="pfa"
+        className={cardClasses({ padding: 'lg', className: 'scroll-mt-20 ring-1 ring-inset ring-amber-500/30' })}
+      >
+        <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-amber-300">
+          Pași înregistrare PFA
+        </h2>
+        <ol className="space-y-2 text-xs leading-relaxed text-hir-muted-fg">
+          <li>
+            <strong className="text-hir-fg">1. Deschide PFA la Registrul Comerțului.</strong>{' '}
+            Acte: CI, dovadă sediu (declarație proprie sau contract de comodat),
+            cerere standard. Cost: ~70-150 lei.
+          </li>
+          <li>
+            <strong className="text-hir-fg">2. Cod CAEN 5320</strong> — „Alte activități de
+            transport și curierat&rdquo;. Pune-l ca obiect principal.
+          </li>
+          <li>
+            <strong className="text-hir-fg">3. Înregistrează-te ca plătitor TVA</strong>{' '}
+            doar dacă depășești 300.000 lei/an cifră de afaceri. Sub plafon = neplătitor TVA.
+          </li>
+          <li>
+            <strong className="text-hir-fg">4. Cont bancar dedicat PFA</strong> — orice bancă;
+            HIR plătește săptămânal în contul tău PFA.
+          </li>
+          <li>
+            <strong className="text-hir-fg">5. Trimite-ne pozele actelor</strong> (CUI + CIF
+            + extras Reg. Comerțului) prin Suport → Operator. Activăm plata pe factură în
+            1-2 zile lucrătoare.
+          </li>
+        </ol>
+        <p className="mt-3 rounded-lg bg-amber-500/10 p-3 text-[11px] leading-relaxed text-amber-100 ring-1 ring-inset ring-amber-500/20">
+          <strong>Estimare taxe:</strong> CAS (~25% × salariu minim) + CASS (~10% × salariu minim)
+          + impozit 10% pe venit net. Pentru un venit de 4.000 lei/lună brut, taxele lunare
+          sunt ~400-500 lei (~10-12%).
+        </p>
+      </section>
+
       {/* OSS credits */}
       <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
         <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
