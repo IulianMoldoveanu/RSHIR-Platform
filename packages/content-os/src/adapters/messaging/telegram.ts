@@ -24,6 +24,22 @@ const TG_MAX_CALLBACK_DATA = 64;
 // Buttons per row — we keep one button per row for mobile-friendly tap target.
 const TG_BUTTONS_PER_ROW = 1;
 
+/**
+ * Escape characters that have HTML meaning so they are safe to send as
+ * Telegram message body when parse_mode='HTML' is enabled. Without this,
+ * a caption like "R&D Pizza <3" or "5 > 2" makes the Bot API reject the
+ * request with 400 Bad Request ("can't parse entities"). Mirrors the
+ * canonical escape set documented at
+ *   https://core.telegram.org/bots/api#html-style
+ */
+function escapeTgHtml(s: string): string {
+  return s.replace(/[<>&]/g, (ch) => {
+    if (ch === '<') return '&lt;';
+    if (ch === '>') return '&gt;';
+    return '&amp;';
+  });
+}
+
 interface TelegramUpdate {
   update_id?: number;
   message?: {
@@ -168,7 +184,7 @@ export class TelegramProvider implements MessagingProvider {
   }): Promise<void> {
     await this.postApi(accessToken, 'sendMessage', {
       chat_id: toUserId,
-      text,
+      text: escapeTgHtml(text),
       parse_mode: 'HTML',
     });
   }
@@ -208,7 +224,7 @@ export class TelegramProvider implements MessagingProvider {
 
     await this.postApi(accessToken, 'sendMessage', {
       chat_id: toUserId,
-      text: body,
+      text: escapeTgHtml(body),
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard },
     });
@@ -231,7 +247,7 @@ export class TelegramProvider implements MessagingProvider {
     const method = mediaType === 'image' ? 'sendPhoto' : 'sendVideo';
     const payload: Record<string, unknown> = {
       chat_id: toUserId,
-      caption,
+      caption: escapeTgHtml(caption),
       parse_mode: 'HTML',
     };
     payload[mediaType === 'image' ? 'photo' : 'video'] = mediaUrl;

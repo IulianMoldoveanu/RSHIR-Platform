@@ -112,3 +112,29 @@ describe('TelegramProvider.verifySignature', () => {
     ).toBe(false);
   });
 });
+
+describe('TelegramProvider HTML escaping', () => {
+  it('escapes <, >, & in sendText when parse_mode=HTML active', async () => {
+    const captured: Array<{ url: string; body: string }> = [];
+    const fakeFetch = (async (url: string, init?: RequestInit) => {
+      captured.push({ url, body: String(init?.body ?? '') });
+      return new Response('{"ok":true}', { status: 200 });
+    }) as unknown as typeof fetch;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fakeFetch;
+    try {
+      await provider.sendText({
+        channelExternalId: 'chat',
+        accessToken: 'tok',
+        toUserId: '1',
+        text: 'R&D <Pizza> 5 > 2',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+    expect(captured).toHaveLength(1);
+    const body = JSON.parse(captured[0].body);
+    expect(body.text).toBe('R&amp;D &lt;Pizza&gt; 5 &gt; 2');
+    expect(body.parse_mode).toBe('HTML');
+  });
+});
