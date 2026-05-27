@@ -34,11 +34,23 @@ create table if not exists public.content_brand_contexts (
   preferred_messaging  text        not null default 'whatsapp'
     check (preferred_messaging in ('whatsapp', 'telegram')),
   created_at           timestamptz not null default now(),
-  updated_at           timestamptz not null default now(),
-
-  constraint content_brand_contexts_tenant_brand_unique
-    unique (tenant_id, brand_code)
+  updated_at           timestamptz not null default now()
+  -- Uniqueness across (tenant_id, brand_code) — including HIR_INTERNAL
+  -- rows where tenant_id IS NULL — handled by partial indexes below.
+  -- A naive `unique(tenant_id, brand_code)` would treat NULL tenant ids
+  -- as distinct, letting two HIR_INTERNAL brands share the same brand_code.
 );
+
+-- Codex P2 absorb: enforce uniqueness for both tenant-owned and HIR-owned
+-- (tenant_id IS NULL) brands. Two partial indexes — tenant rows compare
+-- tenant_id naturally, HIR rows compare brand_code only since tenant_id
+-- is fixed at NULL.
+create unique index if not exists idx_content_brand_contexts_tenant_brand_unique
+  on public.content_brand_contexts (tenant_id, brand_code)
+  where tenant_id is not null;
+create unique index if not exists idx_content_brand_contexts_hir_brand_unique
+  on public.content_brand_contexts (brand_code)
+  where tenant_id is null;
 
 create index if not exists idx_content_brand_contexts_tenant_active
   on public.content_brand_contexts (tenant_id, is_active);
@@ -202,11 +214,22 @@ create table if not exists public.content_agent_prompts (
   performance jsonb,
   is_active   boolean     not null default false,
   created_by  text        not null,
-  created_at  timestamptz not null default now(),
-
-  constraint content_agent_prompts_unique_version
-    unique (agent_kind, brand_code, persona, version)
+  created_at  timestamptz not null default now()
+  -- Uniqueness across (agent_kind, brand_code, persona, version) — covered
+  -- by partial indexes below since persona may be NULL (default/no-persona
+  -- prompts) and a naive unique constraint treats NULL as distinct.
 );
+
+-- Codex P2 absorb: persona is nullable, so unique(agent_kind, brand_code,
+-- persona, version) didn't prevent duplicate default/no-persona versions.
+-- Use two partial unique indexes — one for persona-targeted rows, one
+-- for persona-null rows.
+create unique index if not exists idx_content_agent_prompts_unique_persona
+  on public.content_agent_prompts (agent_kind, brand_code, persona, version)
+  where persona is not null;
+create unique index if not exists idx_content_agent_prompts_unique_default
+  on public.content_agent_prompts (agent_kind, brand_code, version)
+  where persona is null;
 
 create index if not exists idx_content_agent_prompts_lookup
   on public.content_agent_prompts (agent_kind, brand_code, is_active)
@@ -334,13 +357,19 @@ create policy "content_drafts_member_select"
     )
   );
 
--- Members can approve/reject their own drafts (status field only — body_json frozen)
+-- Members can approve/reject their own drafts (status field only — body_json frozen).
+-- Codex P2 absorb: previously the USING predicate matched ANY tenant-scoped
+-- draft, allowing members to move already-queued or published rows back to
+-- 'approved'/'rejected', corrupting the publication state machine. Restrict
+-- USING to rows still in 'draft' so reviewers can only act on items
+-- awaiting decision.
 drop policy if exists "content_drafts_member_status_update" on public.content_drafts;
 create policy "content_drafts_member_status_update"
   on public.content_drafts for update
   to authenticated
   using (
-    brief_id in (
+    status = 'draft'
+    and brief_id in (
       select b.id from public.content_briefs b
         join public.content_brand_contexts bc on bc.id = b.brand_id
        where bc.tenant_id in (
