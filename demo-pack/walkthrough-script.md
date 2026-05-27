@@ -23,19 +23,19 @@
 
 ### Ce zici
 
-> "Salut, mă numesc Iulian. Înainte să-ți arăt nimic — am o întrebare. Cât plătești tu lunar la Glovo? Sau la GloriaFood, dacă mai folosești?"
+> "Salut, mă numesc Iulian. Înainte să-ți arăt nimic — îți spun de ce-am venit. Un coleg de-al tău de pe Brașov, Mihai, economisește 4.200 lei pe lună de când lucrează cu noi. Mi-a zis să trec și pe la tine."
 >
-> _(îl lași să răspundă. îți spune cifra. nu te arăți surprins.)_
+> _(pauză scurtă, lași informația să se așeze)_
 >
-> "Deci tu lucrezi pentru Glovo, nu pentru tine. Și știi că GloriaFood se închide în aprilie 2027? Nu te speria — nu vând frică. Vând o soluție pe care ți-o pot arăta în 15 minute. Vrei să o vezi?"
+> "Suntem HIR — un sistem românesc făcut pentru patroni ca tine. Site-ul tău, clienții tăi, controlul tău. Vrei să-ți arăt în 15 minute cum arată?"
 
 ### Întrebări frecvente aici
 
 **P:** _"Nu am timp pentru încă o platformă."_
-**R:** "De asta sunt aici. Eu îți instalez tot. Tu doar primești comenzi. Hai să-ți arăt cât de simplu e — 15 minute, atât."
+**R:** "De asta sunt aici. Eu îți instalez tot. Tu doar primești comenzi. Cinci minute pe zi îți ia. Hai să-ți arăt — 15 minute, atât."
 
-**P:** _"Cu GloriaFood încă merg bine."_
-**R:** "Da, până în aprilie 2027. După aia? Hai să nu fii prins pe picior greșit. Mai bine acum, pe relax."
+**P:** _"Cu ce lucrez acum merge bine."_
+**R:** "Perfect, păstrezi ce ai. HIR vine în plus. Vezi singur câte comenzi îți vin direct pe site-ul tău. Fără presiune."
 
 **P:** _"Cât costă?"_
 **R:** "2 lei pe comandă. Atât. Fără abonament. Fără comision. Și 90 de zile gratis ca să încerci. Îți arăt cum funcționează?"
@@ -53,7 +53,7 @@
 
 ### Ce zici
 
-> "Asta-i site-ul tău. **Pe domeniul tău** — nu pe glovo.ro, nu pe gloriafood.com. Clientul vine direct la tine.
+> "Asta-i site-ul tău. **Pe domeniul tău.** Clientul vine direct la tine — îți păstrezi brand-ul, îți păstrezi clienții.
 >
 > _(scroll prin meniu)_
 >
@@ -204,7 +204,7 @@
 
 ### Ce arăți pe ecran
 1. Deschide **`hirforyou.ro` (homepage)** — secțiunea cu prețul
-2. Scrolli la secțiunea de migrare GloriaFood
+2. Scrolli la secțiunea de migrare
 3. Scoți **1-pagerul printat** din servietă, îl pui pe masă
 
 ### Ce zici
@@ -217,9 +217,9 @@
 >
 > Și — atenție — **primele 90 de zile sunt gratis**. Fără card. Fără să-mi dai un ban. Dacă în 90 de zile nu ești mulțumit, dispar. Fără ceremonii.
 >
-> Pe deasupra: **migrăm meniul tău din GloriaFood în 24 de ore. Gratuit.** Eu personal mă ocup. Tu nu apeși un buton.
+> Pe deasupra: dacă vii de la altă platformă, **îți migrăm meniul și clienții în 24 de ore. Gratuit.** Eu personal mă ocup. Tu nu apeși un buton.
 >
-> Și mai una — pentru primele 50 de restaurante înscrise, **instalarea e gratuită**. Tu ai noroc — ești cam al 15-lea în Brașov. Mai avem locuri."
+> Și mai una — pentru primele 50 de restaurante înscrise, **instalarea e gratuită**. Tu ai noroc — mai avem locuri. Suntem brand românesc, creștem cu patronii care ne recomandă mai departe."
 >
 > _(pune 1-pagerul pe masă)_
 >
@@ -257,7 +257,7 @@
 - Email follow-up în 24h
 
 **Dacă a zis NU clar:**
-- "Înțeleg perfect. Un ultim lucru — pot să te sun peste 6 luni să văd cum stai cu Glovo și GloriaFood? Doar atât."
+- "Înțeleg perfect. Un ultim lucru — pot să te sun peste 6 luni să văd cum mai stai? Doar atât."
 - 99% spun da. Bagi în CRM. Suni peste 6 luni.
 
 ---

@@ -28,20 +28,20 @@
 ## 3. "Cu Glovo am 100 comenzi/zi, nu plec."
 
 **Răspuns scurt:**
-> "Nu pleci de la Glovo. Adaugi HIR pe lângă. Vezi singur cât economisești în prima lună."
+> "Nu pleci de nicăieri. Adaugi HIR pe lângă. Vezi singur cât economisești în prima lună."
 
 **Dacă persistă:**
-> "Calculează cu mine. 100 comenzi/zi × comandă medie 80 lei × 30 zile = 240.000 lei/lună. Din astea, Glovo îți ia 30% — adică 72.000 lei pe lună. Cu HIR ai plăti 6.000 lei (100 × 2 × 30). Diferența? 66.000 lei. Pe lună. Și clienții devin AI tăi, nu ai Glovo. În 6 luni îți recuperezi un restaurant întreg."
+> "Calculează cu mine. 100 comenzi/zi × comandă medie 80 lei × 30 zile = 240.000 lei/lună. Din astea, Glovo îți ia 30% — adică 72.000 lei pe lună. Cu HIR ai plăti 6.000 lei (100 × 2 × 30). Diferența? 66.000 lei. Pe lună. Și clienții devin ai tăi. În 6 luni îți recuperezi un restaurant întreg."
 
 ---
 
-## 4. "GloriaFood încă merge bine."
+## 4. "Cu ce am acum merge bine."
 
 **Răspuns scurt:**
-> "Da, până în aprilie 2027. Mai sunt 11 luni. Mai bine mutăm acum, pe relax, decât în panică."
+> "Perfect, păstrezi ce ai. HIR vine în plus, fără să muți nimic. Vezi singur câte comenzi îți vin direct pe site-ul tău."
 
 **Dacă persistă:**
-> "Și uite ce-ți garantez — îți migrăm tot meniul, toți clienții, gratuit, în 24 de ore. Nu pierzi nimic. Doar că rămâi cu un sistem care nu se închide."
+> "Și uite ce-ți garantez — dacă într-o zi vrei să muți tot la noi, îți migrăm meniul și clienții gratuit, în 24 de ore. Nu pierzi nimic. Tu decizi când și dacă."
 
 ---
 
@@ -98,10 +98,10 @@
 ## 10. "Mi-e frică să nu pierd clienții actuali."
 
 **Răspuns scurt:**
-> "Nu-i muți forțat. Glovo rămâne, GloriaFood rămâne. HIR vine în plus. Tu alegi când să-i transferi."
+> "Nu-i muți forțat. Tot ce ai acum rămâne. HIR vine în plus. Tu alegi când să-i transferi."
 
 **Dacă persistă:**
-> "Strategia recomandată: primele 30 de zile, HIR rulează în paralel. Vezi care comenzi vin pe HIR direct. Treptat, pui pe meniu fizic 'comandă pe site-ul nostru, 10% reducere'. Clienții vin singuri. În 3 luni, majoritatea sunt pe HIR și nu mai plătești nimic la Glovo. Nu pierzi pe nimeni."
+> "Strategia recomandată: primele 30 de zile, HIR rulează în paralel. Vezi care comenzi vin pe HIR direct. Treptat, pui pe meniu fizic 'comandă pe site-ul nostru, 10% reducere'. Clienții vin singuri. În 3 luni, majoritatea sunt pe HIR și păstrezi 100% din profit. Nu pierzi pe nimeni."
 
 ---
 
