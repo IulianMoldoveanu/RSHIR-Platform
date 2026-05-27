@@ -26,7 +26,7 @@
 >
 > "Salut patroane. Mă numesc Iulian, fondator HIR. Trei minute. Atât îți cer.
 >
-> Știi că Glovo îți ia 30% din fiecare comandă? Și că GloriaFood se închide în aprilie 2027? Eu îți arăt cum scapi de amândouă. În 60 de secunde îți arăt site-ul tău, panoul tău și asistentul AI care lucrează în locul tău.
+> Un coleg de-al tău, Mihai din Brașov, economisește 4.200 lei pe lună de când lucrează cu noi. Mi-a zis să trec și pe la tine. În 60 de secunde îți arăt site-ul tău, panoul tău și asistentul AI care lucrează în locul tău.
 >
 > Hai."
 
@@ -36,7 +36,7 @@
 
 > _(switch pe tab-ul 1 — storefront)_
 >
-> "Asta-i site-ul tău. Pe domeniul tău. Clientul comandă direct de la tine, fără Glovo.
+> "Asta-i site-ul tău. Pe domeniul tău. Clientul comandă direct de la tine — îți păstrezi brand-ul, clienții, baza ta de date.
 >
 > _(scrolla rapid prin meniu, adaugi un produs)_
 >
@@ -78,9 +78,9 @@
 >
 > "Cât costă? **Doi lei pe comandă.** Atât. Fără abonament. Fără comision. Plătești când vinzi.
 >
-> Și — **90 de zile gratis**. Fără card. Fără obligații. Migrăm meniul tău din GloriaFood în 24 de ore, gratuit. Eu personal mă ocup.
+> Și — **90 de zile gratis**. Fără card. Fără obligații. Dacă vii de la altă platformă, îți migrăm meniul în 24 de ore, gratuit. Eu personal mă ocup.
 >
-> Pentru primele 50 de restaurante — instalarea e gratuită. Mai sunt locuri."
+> Pentru primele 50 de restaurante — instalarea e gratuită. Suntem brand românesc, creștem cu patronii care ne recomandă. Mai sunt locuri."
 
 ---
 

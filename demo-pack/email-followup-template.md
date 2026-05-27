@@ -21,7 +21,7 @@ bucurat să stăm de vorbă și să-ți arăt cum lucrăm.
 Recapitulez ce am discutat:
 
 1. [Personalizat — primul beneficiu cheie pentru EL, ex: "Site propriu pe 
-   pizzeria-mihai.ro cu meniul tău migrat din GloriaFood în 24 de ore"]
+   pizzeria-mihai.ro pe care păstrezi clienții și brand-ul tău"]
 
 2. [Al doilea beneficiu, ex: "Hepi AI care răspunde clienților pe WhatsApp 
    și-ți face postări pe Facebook automat"]
@@ -83,9 +83,9 @@ nu se grăbește — îți respect asta sută la sută.
 🌐 Dacă vrei să te uiți la storefront-ul demo, e aici:
    https://hirforyou.ro/m/demo-pizzeria-brasov
 
-⏰ Reminder despre GloriaFood — se închide aprilie 2027. Sunt ~11 luni 
-   până atunci. Mai bine mutăm acum, pe relax, decât în iulie 2027 când 
-   toți restaurantele din RO migrează în panică.
+🤝 Suntem brand românesc, recomandat de patroni reali — deliveryhouse.ro 
+   Brașov (15.000 recenzii 5★) e clientul și prietenul nostru. Comunitate
+   de patroni care se ajută între ei.
 
 Nu te bat la cap. Te las să te gândești. 
 
@@ -125,9 +125,9 @@ Nu te mai bat la cap. Te las cu ce ai.
 
 Două gânduri de despărțire:
 
-1. GloriaFood se închide aprilie 2027. Cam 11 luni de aici. Dacă în 
-   primăvara lui '27 vezi că te grăbești, sun-mă. Te scot din încurcătură 
-   în 24 de ore.
+1. Dacă vreodată un coleg patron îți recomandă HIR, sau te uiți la noi din
+   curiozitate — sun-mă. Te onboard-uiesc personal în 24 de ore, fără
+   bătaie de cap.
 
 2. Dacă vreodată Glovo îți crește comisionul peste 30% (au mai făcut-o), 
    sau dacă schimbă termenii de plată — sun-mă. Eu sunt aici.

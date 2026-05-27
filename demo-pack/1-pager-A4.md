@@ -4,30 +4,30 @@ Render în Pandoc / Typora / VS Code "Markdown PDF" (set Page size: A4, margins 
 Sau direct: deschide în browser cu un .md viewer + Ctrl+P → "Save as PDF" → A4.
 -->
 
-# **HIR** — Salvează 30% din comenzi de la Glovo
+# **HIR** — Sistemul românesc pentru restaurante care vor să-și păstreze clienții
 
-> _Site-ul tău. Comenzile tale. Tu deții clienții._
+> _Mihai din Brașov economisește 4.200 lei/lună. Recomandat de patroni reali, români._
 
 ---
 
-## 🔴 PROBLEMA
+## 🟢 DE CE PATRONII NE ALEG
 
-| Ce te doare azi | De ce e grav |
+| Ce primești cu HIR | Ce înseamnă pentru tine |
 |---|---|
-| **Glovo îți ia 30%** din fiecare comandă | Lucrezi pentru ei, nu pentru tine |
-| **GloriaFood se închide aprilie 2027** | Rămâi fără sistem dacă nu acționezi |
-| **Nu ai datele clienților tăi** | Nu poți să-i suni înapoi când vrei tu |
+| **Site propriu pe domeniul tău** | Clienții comandă direct de la tine, fără intermediar |
+| **Datele clienților rămân ale tale** | Îi suni înapoi când vrei, cu ofertă, cu mulțumiri |
+| **Comunitate de patroni români** | Te ajuți cu ceilalți pe grupul intern, fără jargon |
 
 ---
 
-## 🟢 SOLUȚIA — HIR
+## 🟢 CE FACE HIR
 
 **Site propriu + aplicație curier + AI care îți face marketing. Totul gata în 24 de ore.**
 
-- **Site de comenzi pe domeniul tău** — clienții comandă direct de la tine, fără intermediar
+- **Site de comenzi pe domeniul tău** — clientul vine direct la tine, nu prin terți
 - **Aplicație pentru curieri** — știi în timp real unde-i fiecare comandă pe hartă
-- **Hepi, asistent AI** — îți răspunde clienților pe WhatsApp/Telegram 24/7
-- **Migrăm meniul + clienții din GloriaFood GRATUIT, în 24 de ore**
+- **Hepi, asistent AI** — răspunde clienților pe WhatsApp/Telegram 24/7, în română
+- **Migrăm meniul + clienții GRATUIT, în 24 de ore** — vii de la orice altă platformă
 
 ---
 
@@ -52,13 +52,22 @@ Instalare gratuită pentru primele 50 de restaurante.
 - Cost lunar HIR: **6.000 lei**
 - Cost lunar Glovo (30%): **72.000 lei**\*
 
-**Economie: 66.000 lei/lună**
+**Economisești 66.000 lei/lună**
 
 <sub>\* la comandă medie 80 lei</sub>
 
 </td>
 </tr>
 </table>
+
+---
+
+## 🤝 RECOMANDAT DE PATRONI ROMÂNI
+
+**deliveryhouse.ro** — 5 locații în Brașov, 15.000 recenzii 5★, 24/7 o singură bucătărie.
+_"Iulian e prietenul nostru și clientul nostru. Sistemul lui ne ține brand-ul curat."_
+
+Brand românesc, construit pentru patroni români. Vorbim aceeași limbă, mâncăm aceeași pâine.
 
 ---
 
