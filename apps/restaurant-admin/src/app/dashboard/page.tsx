@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
-import { Skeleton } from '@hir/ui';
+import { Skeleton, LiveBadge } from '@hir/ui';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
@@ -120,7 +120,10 @@ export default async function DashboardOverviewPage(
       </Suspense>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-900">Comenzi active</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-zinc-900">Comenzi active</h2>
+          <LiveBadge />
+        </div>
         <CourierPresenceWidget />
       </div>
 

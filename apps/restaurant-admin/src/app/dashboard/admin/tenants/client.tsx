@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition, type ChangeEvent } from 'react';
+import { formatRon } from '@hir/ui';
 import { openTenantAsPlatformAdmin, setTenantCity, setTenantStatus } from './actions';
 
 export type StatusFilter = 'all' | 'live' | 'onboarding' | 'suspended';
@@ -218,7 +219,7 @@ export function TenantsListClient({
                   <dt className="text-zinc-500">MRR est.</dt>
                   <dd className="text-zinc-900">
                     {r.orders7d > 0
-                      ? `${estimatedMrrRon(r.orders7d).toLocaleString('ro-RO')} RON`
+                      ? formatRon(estimatedMrrRon(r.orders7d))
                       : '—'}
                   </dd>
                   <dt className="text-zinc-500">Ultima comandă</dt>
@@ -293,7 +294,7 @@ export function TenantsListClient({
                     <td className="px-3 py-2.5 align-top text-right tabular-nums text-zinc-700">
                       {r.orders7d > 0 ? (
                         <span title="Estimare bazată pe comenzile ultimelor 7 zile">
-                          {estimatedMrrRon(r.orders7d).toLocaleString('ro-RO')} RON
+                          {formatRon(estimatedMrrRon(r.orders7d))}
                         </span>
                       ) : (
                         <span className="text-zinc-400">—</span>

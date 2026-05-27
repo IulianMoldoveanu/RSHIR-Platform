@@ -2,6 +2,7 @@
 // Server component: reads v_lost_customers for the active tenant.
 
 import { UserX } from 'lucide-react';
+import { formatRon } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { renderTemplate } from '@/lib/reactivation-templates';
@@ -160,7 +161,7 @@ export default async function ReactivationPage({
                       </td>
                       <td className="px-4 py-3 text-zinc-700">
                         {c.last_order_total_cents != null
-                          ? `${(c.last_order_total_cents / 100).toFixed(2)} RON`
+                          ? formatRon(c.last_order_total_cents / 100)
                           : '—'}
                       </td>
                       <td className="px-4 py-3">
@@ -218,7 +219,7 @@ export default async function ReactivationPage({
                       Valoare:{' '}
                       <strong>
                         {c.last_order_total_cents != null
-                          ? `${(c.last_order_total_cents / 100).toFixed(2)} RON`
+                          ? formatRon(c.last_order_total_cents / 100)
                           : '—'}
                       </strong>
                     </span>

@@ -16,9 +16,10 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
+import { formatRon } from '@hir/ui';
 import type { DailyRow, TopItemRow } from './types';
 
-const RON = (v: number) => `${v.toFixed(2)} RON`;
+const RON = (v: number) => formatRon(v);
 
 export function RevenueLineChart({ daily }: { daily: DailyRow[] }) {
   return (

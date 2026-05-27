@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Banknote } from 'lucide-react';
+import { formatRon } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Server component. Surfaces the unpaid Cash-on-Delivery total for today
@@ -12,10 +13,6 @@ function startOfTodayIso(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d.toISOString();
-}
-
-function formatRon(n: number): string {
-  return `${n.toFixed(2).replace('.', ',')} RON`;
 }
 
 async function loadCodTotals(

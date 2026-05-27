@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ChevronRight, Building2, Receipt, TrendingUp, MapPin } from 'lucide-react';
+import { formatRon } from '@hir/ui';
 import { getActiveTenant } from '@/lib/tenant';
 import { getBrandFamily, getBrandAggregateKpis } from '@/lib/brand';
 
@@ -14,14 +15,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const WINDOW_DAYS = 30;
-
-function formatRon(amount: number): string {
-  return new Intl.NumberFormat('ro-RO', {
-    style: 'currency',
-    currency: 'RON',
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 function formatInt(n: number): string {
   return new Intl.NumberFormat('ro-RO').format(n);
