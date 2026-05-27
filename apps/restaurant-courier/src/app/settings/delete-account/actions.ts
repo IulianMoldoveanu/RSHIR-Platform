@@ -29,19 +29,15 @@ export async function requestAccountDeletion(): Promise<{ ok: true } | { ok: fal
 
   const admin = createAdminClient();
 
-  // Mark profile as suspended. deletion_requested_at may not exist yet
-  // (added in a future migration) — use a try/catch so the suspend still works.
   try {
     await admin
       .from('courier_profiles')
       .update({
         status: 'SUSPENDED',
-        // @ts-expect-error column may not be in generated types yet
         deletion_requested_at: new Date().toISOString(),
-      })
+      } as never)
       .eq('user_id', user.id);
   } catch {
-    // Column doesn't exist yet — just suspend.
     await admin
       .from('courier_profiles')
       .update({ status: 'SUSPENDED' })
