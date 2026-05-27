@@ -54,32 +54,64 @@ export default async function ContentDashboardPage() {
 
   const brands: ContentBrand[] = (brandsData ?? []) as ContentBrand[];
 
-  // For each brand, fetch counts (lightweight HEAD queries).
+  // For each brand, fetch counts. Codex P1+P2 absorb:
+  //   - .in() needs an array of values, NOT a query builder; previous
+  //     pattern threw at runtime and 500'd the page.
+  //   - publication counts were unscoped (counted ALL tenants' rows).
+  //     Now we resolve brief ids + draft ids first, then count
+  //     publications whose draft_id ∈ that set.
   const counts: Record<string, Counts> = {};
   for (const brand of brands) {
-    const [pending, approved, live, scheduled] = await Promise.all([
-      sb.from('content_drafts')
-        .select('id', { count: 'exact', head: true })
-        .in('brief_id',
-          sb.from('content_briefs').select('id').eq('brand_id', brand.id))
-        .eq('status', 'draft'),
-      sb.from('content_drafts')
-        .select('id', { count: 'exact', head: true })
-        .in('brief_id',
-          sb.from('content_briefs').select('id').eq('brand_id', brand.id))
-        .eq('status', 'approved'),
-      sb.from('content_publications')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'published'),
-      sb.from('content_publications')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'queued'),
-    ]);
+    // 1. Brief ids for this brand.
+    const { data: briefRows } = await sb
+      .from('content_briefs')
+      .select('id')
+      .eq('brand_id', brand.id);
+    const briefIds: string[] = (briefRows ?? []).map((r: { id: string }) => r.id);
+
+    if (briefIds.length === 0) {
+      counts[brand.id] = {
+        draftsPending: 0,
+        draftsApproved: 0,
+        publicationsLive: 0,
+        publicationsScheduled: 0,
+      };
+      continue;
+    }
+
+    // 2. Draft ids for those briefs (any status — used by publication scope).
+    const { data: draftRows } = await sb
+      .from('content_drafts')
+      .select('id, status')
+      .in('brief_id', briefIds);
+    const allDrafts = (draftRows ?? []) as Array<{ id: string; status: string }>;
+    const draftIds = allDrafts.map((d) => d.id);
+    const draftsPending = allDrafts.filter((d) => d.status === 'draft').length;
+    const draftsApproved = allDrafts.filter((d) => d.status === 'approved').length;
+
+    // 3. Publication counts scoped to this brand's drafts only.
+    let publicationsLive = 0;
+    let publicationsScheduled = 0;
+    if (draftIds.length > 0) {
+      const [{ count: liveCount }, { count: schedCount }] = await Promise.all([
+        sb.from('content_publications')
+          .select('id', { count: 'exact', head: true })
+          .in('draft_id', draftIds)
+          .eq('status', 'published'),
+        sb.from('content_publications')
+          .select('id', { count: 'exact', head: true })
+          .in('draft_id', draftIds)
+          .eq('status', 'queued'),
+      ]);
+      publicationsLive = liveCount ?? 0;
+      publicationsScheduled = schedCount ?? 0;
+    }
+
     counts[brand.id] = {
-      draftsPending: pending.count ?? 0,
-      draftsApproved: approved.count ?? 0,
-      publicationsLive: live.count ?? 0,
-      publicationsScheduled: scheduled.count ?? 0,
+      draftsPending,
+      draftsApproved,
+      publicationsLive,
+      publicationsScheduled,
     };
   }
 
