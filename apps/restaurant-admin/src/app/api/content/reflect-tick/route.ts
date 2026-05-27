@@ -1,18 +1,20 @@
 // POST /api/content/reflect-tick
 //
-// Called by the Edge Function `content-os-reflect` cron at 22:00 UTC.
-// Pulls metrics from publishers for posts published in the last 7 days,
-// stores them in content_metrics, and promotes high-CTR templates
-// (Reflection learning loop).
+// Reflection tick — called by Supabase Edge Function `content-os-reflect`
+// daily at 22:00 UTC (see pg_cron migration 20260628_002).
 //
-// Stub for Lot 6 — same shape as the other ticks. Full metric pull
-// lands when publisher provider OAuth tokens are present per brand.
+// For each published publication older than 24h that lacks fresh metrics,
+// pull metrics from the publisher and insert content_metrics. Templates
+// with CTR > 3× the 30-day baseline get promoted into a new
+// content_templates row tagged `created_by='reflection_promoted'`.
 
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { runReflectTick } from '@/lib/content-os/reflect';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function isAuthorized(req: Request): boolean {
   const expected = process.env.CONTENT_OS_CRON_TOKEN;
@@ -26,25 +28,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
-
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { count, error } = await sb
-    .from('content_publications')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'published')
-    .gte('published_at', sevenDaysAgo);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const admin = createAdminClient();
+    const stats = await runReflectTick({ admin });
+    return NextResponse.json({
+      ok: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    stub: true,
-    publications_in_window: count ?? 0,
-    note: 'Metric pull + template promotion lands in follow-up PR.',
-    timestamp: new Date().toISOString(),
-  });
 }

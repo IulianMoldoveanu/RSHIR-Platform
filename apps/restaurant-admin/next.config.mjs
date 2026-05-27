@@ -6,7 +6,7 @@ const nextConfig = {
   // went out". Vercel does not expose a system env var with the deploy
   // timestamp; build time is the closest stable proxy on serverless.
   env: { BUILD_TIME: new Date().toISOString() },
-  transpilePackages: ['@hir/ui', '@hir/supabase-types', '@hir/integration-core'],
+  transpilePackages: ['@hir/ui', '@hir/supabase-types', '@hir/integration-core', '@hir/content-os'],
   experimental: {
     // 52+ files import from lucide-react across web + admin. Without this
     // flag Next bundles the full barrel; with it Next emits per-icon

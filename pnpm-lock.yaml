@@ -29,6 +29,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.91.0
         version: 0.91.1(zod@3.25.76)
+      '@hir/content-os':
+        specifier: workspace:*
+        version: link:../../packages/content-os
       '@hir/integration-core':
         specifier: workspace:*
         version: link:../../packages/integration-core
