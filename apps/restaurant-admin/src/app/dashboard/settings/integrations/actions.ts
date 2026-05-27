@@ -354,3 +354,134 @@ export async function revokeApiKey(
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
+
+/**
+ * Re-queue a DEAD integration_events row back to PENDING with attempts=0
+ * so the next dispatcher tick picks it up. Operator escape hatch when the
+ * destination came back online or the config was fixed after the row
+ * exhausted its retries.
+ *
+ * Hard requirements: row must belong to expectedTenantId AND currently be
+ * in DEAD state. Anything else is a no-op (don't mutate SENT rows by
+ * accident; don't bounce other tenants' rows).
+ */
+export async function retryDeadEvent(
+  expectedTenantId: string,
+  eventId: number,
+): Promise<IntegrationActionResult> {
+  const guard = await requireOwner(expectedTenantId);
+  if ('error' in guard) return { ok: false, error: guard.error };
+  if (!Number.isFinite(eventId) || eventId <= 0) {
+    return { ok: false, error: 'invalid_event_id' };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+  const { data, error } = await admin
+    .from('integration_events')
+    .update({
+      status: 'PENDING',
+      attempts: 0,
+      last_error: null,
+      scheduled_for: new Date().toISOString(),
+    })
+    .eq('id', eventId)
+    .eq('tenant_id', guard.tenantId)
+    .eq('status', 'DEAD')
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'event_not_found_or_not_dead' };
+
+  await logAudit({
+    tenantId: guard.tenantId,
+    actorUserId: guard.userId,
+    action: 'integration.event_retried',
+    entityType: 'integration_event',
+    entityId: String(eventId),
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
+
+/**
+ * Enqueue a synthetic order.created event against the given provider so
+ * the operator can verify the dispatcher path end-to-end without waiting
+ * for a real order. The synthetic payload is clearly tagged in metadata
+ * ({ _test_event: true }) so it never accidentally affects real
+ * downstream reconciliation.
+ *
+ * Works for any active provider; the existing dispatcher decides whether
+ * to deliver (mock + custom adapters), retry, or mark DEAD (iiko / freya /
+ * posnet / smartcash scaffolds).
+ */
+export async function enqueueTestEvent(
+  expectedTenantId: string,
+  providerId: string,
+): Promise<IntegrationActionResult> {
+  const guard = await requireOwner(expectedTenantId);
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
+
+  const { data: provider } = await admin
+    .from('integration_providers')
+    .select('id, provider_key, is_active')
+    .eq('id', providerId)
+    .eq('tenant_id', guard.tenantId)
+    .maybeSingle();
+  if (!provider) return { ok: false, error: 'provider_not_found' };
+  if (!provider.is_active) return { ok: false, error: 'provider_inactive' };
+  // Defense in depth — UI hides this button for custom (Codex P2 #765), but
+  // a direct API caller could still try. Custom dispatch forwards the payload
+  // to the operator's webhook with test_mode=false, which on receivers like
+  // the Datecs FP-700 companion would print a real fiscal receipt for the
+  // synthetic order. Operators should use testCustomWebhook() instead, which
+  // sets test_mode=true on the wire.
+  if (provider.provider_key === 'custom') {
+    return {
+      ok: false,
+      error: 'Pentru furnizori Custom, folosește butonul „Testează" — acela marchează corect test_mode în payload.',
+    };
+  }
+
+  const samplePayload: OrderPayload & { _test_event: true } = {
+    orderId: `test-${Date.now()}`,
+    source: 'INTERNAL_STOREFRONT',
+    status: 'NEW',
+    items: [{ name: 'Test item', qty: 1, priceRon: 1 }],
+    totals: { subtotalRon: 1, deliveryFeeRon: 0, totalRon: 1 },
+    customer: { firstName: 'Test', phone: '0700000000' },
+    dropoff: null,
+    notes: 'Eveniment de test — generat din panoul de integrări',
+    _test_event: true,
+  };
+
+  const { data, error } = await admin
+    .from('integration_events')
+    .insert({
+      tenant_id: guard.tenantId,
+      provider_key: provider.provider_key,
+      event_type: 'order.created',
+      payload: samplePayload,
+      status: 'PENDING',
+    })
+    .select('id')
+    .single();
+  if (error || !data) return { ok: false, error: error?.message ?? 'insert_failed' };
+
+  await logAudit({
+    tenantId: guard.tenantId,
+    actorUserId: guard.userId,
+    action: 'integration.test_event_enqueued',
+    entityType: 'integration_event',
+    entityId: String(data.id),
+    metadata: { provider_key: provider.provider_key },
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true, data: { eventId: data.id } };
+}

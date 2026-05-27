@@ -33,6 +33,8 @@ export type AuditAction =
   | 'integration.api_key_created'
   | 'integration.api_key_revoked'
   | 'integration.test_webhook'
+  | 'integration.event_retried'
+  | 'integration.test_event_enqueued'
   | 'loyalty.settings_updated'
   | 'loyalty.points_earned'
   | 'loyalty.points_redeemed'

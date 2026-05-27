@@ -14,6 +14,8 @@ import {
   createApiKey,
   revokeApiKey,
   testCustomWebhook,
+  retryDeadEvent,
+  enqueueTestEvent,
 } from './actions';
 
 type Provider = {
@@ -466,6 +468,8 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [, start] = useTransition();
+  const [retryingEventId, setRetryingEventId] = useState<number | null>(null);
+  const [enqueuingId, setEnqueuingId] = useState<string | null>(null);
 
   const [testingId, setTestingId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<
@@ -640,6 +644,38 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
                               {testingId === p.id ? 'Se testează…' : 'Testează'}
                             </button>
                           )}
+                          {/*
+                            "Eveniment de test" enqueues a synthetic order.created through the
+                            production dispatcher. Safe for mock/iiko/freya/posnet/smartcash —
+                            mock no-ops; the others mark DEAD on scaffold so no external call.
+                            INTENTIONALLY HIDDEN for `custom`: the production dispatcher forwards
+                            the payload to the operator's webhook URL with `test_mode: false` /
+                            `x-hir-test-mode: 0`, which on receivers like the Datecs FP-700
+                            companion would print a real fiscal receipt. Operators test custom
+                            providers via the dedicated "Testează" button (sets test_mode=true).
+                            Codex P2 #765.
+                          */}
+                          {p.is_active && p.provider_key !== 'custom' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActionError(null);
+                                setEnqueuingId(p.id);
+                                start(async () => {
+                                  const r = await enqueueTestEvent(tenantId, p.id);
+                                  setEnqueuingId(null);
+                                  if (!r.ok) setActionError(r.error);
+                                  else router.refresh();
+                                });
+                              }}
+                              disabled={enqueuingId === p.id}
+                              className="rounded px-2 py-1 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                              aria-label={`Trimite eveniment de test către ${p.display_name}`}
+                              title="Trimite un order.created sintetic în coada dispatcherului pentru verificare end-to-end"
+                            >
+                              {enqueuingId === p.id ? 'Se trimite…' : 'Eveniment de test'}
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleRemoveProvider(p.id)}
@@ -777,6 +813,7 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
                     <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Status</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Încercări</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-zinc-600">Eroare</th>
+                    {canEdit && <th className="px-4 py-2 text-right text-xs font-medium text-zinc-600">Acțiuni</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -796,6 +833,29 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
                         <td className="px-4 py-2 text-xs text-zinc-600 max-w-[280px] truncate" title={e.last_error ?? ''}>
                           {e.last_error ?? '—'}
                         </td>
+                        {canEdit && (
+                          <td className="px-4 py-2 text-right">
+                            {e.status === 'DEAD' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActionError(null);
+                                  setRetryingEventId(e.id);
+                                  start(async () => {
+                                    const r = await retryDeadEvent(tenantId, e.id);
+                                    setRetryingEventId(null);
+                                    if (!r.ok) setActionError(r.error);
+                                    else router.refresh();
+                                  });
+                                }}
+                                disabled={retryingEventId === e.id}
+                                className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50"
+                              >
+                                {retryingEventId === e.id ? 'Se reia…' : 'Reia'}
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
