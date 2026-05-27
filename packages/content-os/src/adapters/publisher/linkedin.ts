@@ -1,5 +1,7 @@
 // LinkedInProvider — publishes to LinkedIn Page or Personal profile via
-// REST API /v2/posts (Versioned 2024+, X-Restli-Protocol-Version: 2.0.0).
+// Versioned REST Posts API (/rest/posts + X-Restli-Protocol-Version: 2.0.0).
+// Codex P1 absorb: /v2/posts hits the legacy surface; the versioned
+// equivalent lives under /rest/posts.
 //
 // Docs: https://learn.microsoft.com/en-us/linkedin/marketing/integrations/community-management/shares/posts-api
 //
@@ -73,7 +75,7 @@ export class LinkedInProvider implements PublisherProvider {
       };
     }
 
-    const res = await fetch(`${LINKEDIN_API_BASE}/v2/posts`, {
+    const res = await fetch(`${LINKEDIN_API_BASE}/rest/posts`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${credentials.accessToken}`,
@@ -109,7 +111,7 @@ export class LinkedInProvider implements PublisherProvider {
     externalId: string,
   ): Promise<void> {
     const res = await fetch(
-      `${LINKEDIN_API_BASE}/v2/posts/${encodeURIComponent(externalId)}`,
+      `${LINKEDIN_API_BASE}/rest/posts/${encodeURIComponent(externalId)}`,
       {
         method: 'DELETE',
         headers: {

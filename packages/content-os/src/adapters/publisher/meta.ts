@@ -44,7 +44,9 @@ interface MetaInsightsResponse {
 abstract class MetaBaseProvider implements PublisherProvider {
   abstract readonly channel: PublishChannel;
   abstract readonly maxCaptionChars: number;
-  readonly supportsScheduling = true; // FB true, IG via cron at app layer
+  // FB Page /feed supports scheduled_publish_time; IG Graph API does not.
+  // Concrete classes override with their actual capability.
+  abstract readonly supportsScheduling: boolean;
   readonly supportsVideo = true;
   readonly supportsCarousel = true;
   readonly supportsDelete = true;
@@ -119,6 +121,7 @@ abstract class MetaBaseProvider implements PublisherProvider {
 export class FacebookProvider extends MetaBaseProvider {
   readonly channel: PublishChannel = 'facebook';
   readonly maxCaptionChars = FB_CAPTION_MAX;
+  readonly supportsScheduling = true;
 
   async publish(
     credentials: PublisherCredentials,
@@ -169,6 +172,12 @@ export class FacebookProvider extends MetaBaseProvider {
 export class InstagramProvider extends MetaBaseProvider {
   readonly channel: PublishChannel = 'instagram';
   readonly maxCaptionChars = IG_CAPTION_MAX;
+  // Codex P1 absorb: IG Graph API doesn't support `scheduled_publish_time`
+  // on the /media or /media_publish endpoints — only FB Page /feed does.
+  // Override the base class true so the scheduler doesn't hand IG posts
+  // to publish() expecting them to wait; the cron picks the row at
+  // scheduledFor instead.
+  readonly supportsScheduling = false;
 
   async publish(
     credentials: PublisherCredentials,

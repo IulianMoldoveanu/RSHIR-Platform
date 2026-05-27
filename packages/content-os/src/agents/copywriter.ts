@@ -164,6 +164,11 @@ export class CopywriterAgent {
   /**
    * Strip any forbidden term from a string. Case-insensitive whole-word
    * replacement. Multiple passes in case removal creates new matches.
+   *
+   * Unicode-aware: JS `\b` is ASCII-only and won't match boundaries around
+   * Romanian diacritics (ș, ț, ă, î, â). We replace `\b` with explicit
+   * Unicode-property lookarounds so a forbidden term like "subcontractări"
+   * is actually stripped. Codex P2 absorb.
    */
   sanitizeForbidden(text: string, forbidden: string[]): string {
     if (!forbidden || forbidden.length === 0) return text;
@@ -173,7 +178,12 @@ export class CopywriterAgent {
       for (const term of forbidden) {
         if (!term) continue;
         const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re = new RegExp(`\\b${escaped}\\b`, 'gi');
+        // Lookbehind/lookahead negate "this position is inside a word"
+        // using Unicode letter/number/underscore as the word definition.
+        const re = new RegExp(
+          `(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`,
+          'giu',
+        );
         const next = out.replace(re, '').replace(/\s{2,}/g, ' ').trim();
         if (next !== out) {
           out = next;
@@ -188,10 +198,14 @@ export class CopywriterAgent {
   /**
    * Replace {placeholder} occurrences. Leaves unknown placeholders intact
    * — caller may flag missing variables to the user before publish.
+   *
+   * Unicode-aware: the placeholder name can include Romanian letters
+   * (`orașName`, `cetățean`, etc.). ASCII `\w` would skip those keys
+   * and leave the raw placeholder in the rendered copy. Codex P2 absorb.
    */
   applyPlaceholders(template: string, vars: CopywriterPlaceholders): string {
     if (!template) return '';
-    return template.replace(/\{(\w+)\}/g, (_, name) => {
+    return template.replace(/\{([\p{L}\p{N}_]+)\}/gu, (_, name) => {
       const v = vars[name];
       return typeof v === 'string' ? v : `{${name}}`;
     });
