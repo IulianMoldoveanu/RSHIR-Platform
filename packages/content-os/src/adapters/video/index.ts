@@ -1,49 +1,92 @@
 // Video adapter — barrel + factory.
 //
-// Real provider implementations (runway.ts, pika.ts, veo.ts, heygen.ts)
-// land in a follow-up PR (Lot 5) once we have API credentials. For now
-// only `mock` is wired so the orchestrator and tests can run end-to-end.
+// Real provider implementations: Runway Gen-3, Pika 2.5. Veo and HeyGen
+// land in a future PR (Lot 7+) once we have access. Mock provider remains
+// available for unit tests and local dev without API keys.
 
 import type { Tier } from '../../types';
 import type { VideoProvider, VideoProviderName } from './base';
 import { MockVideoProvider } from './mock';
+import { RunwayProvider, type RunwayProviderOptions } from './runway';
+import { PikaProvider, type PikaProviderOptions } from './pika';
 
 export * from './base';
 export * from './mock';
+export * from './runway';
+export * from './pika';
+
+/**
+ * Provider options sourced from env at construction time. Pass an empty
+ * object to fall back to mock-only mode (useful for tests).
+ */
+export interface VideoProviderRegistryOptions {
+  runway?: RunwayProviderOptions;
+  pika?: PikaProviderOptions;
+}
 
 /**
  * Resolve a default video provider for a given brand tier. The orchestrator
  * may override this for special formats (e.g. always HeyGen for avatar).
+ *
+ * When env credentials for the tier's preferred real provider are missing,
+ * we fall back to mock — so dev environments keep working without keys.
  */
-const TIER_DEFAULT: Record<Tier, VideoProviderName> = {
-  basic: 'mock',       // → 'pika' once Lot 5 adds the real adapter
-  pro: 'mock',         // → 'runway'
-  enterprise: 'mock',  // → 'veo'
+const TIER_PREFERRED: Record<Tier, VideoProviderName> = {
+  basic: 'pika',
+  pro: 'runway',
+  enterprise: 'runway',  // until Veo wired
 };
 
-const REGISTRY: Record<VideoProviderName, () => VideoProvider> = {
-  mock: () => new MockVideoProvider(),
-  // The following throw until Lot 5 wires real implementations.
-  runway: () => {
-    throw new Error('RunwayProvider not yet implemented (Lot 5)');
-  },
-  pika: () => {
-    throw new Error('PikaProvider not yet implemented (Lot 5)');
-  },
-  veo: () => {
-    throw new Error('VeoProvider not yet implemented (Lot 5)');
-  },
-  heygen: () => {
-    throw new Error('HeyGenProvider not yet implemented (Lot 5)');
-  },
-};
+export function buildVideoProviderRegistry(
+  opts: VideoProviderRegistryOptions = {},
+): Record<VideoProviderName, () => VideoProvider> {
+  return {
+    mock: () => new MockVideoProvider(),
+    runway: () => {
+      if (!opts.runway?.apiKey) {
+        throw new Error('RunwayProvider: RUNWAY_API_KEY missing — pass via buildVideoProviderRegistry({ runway: { apiKey } })');
+      }
+      return new RunwayProvider(opts.runway);
+    },
+    pika: () => {
+      if (!opts.pika?.apiKey) {
+        throw new Error('PikaProvider: PIKA_API_KEY missing — pass via buildVideoProviderRegistry({ pika: { apiKey } })');
+      }
+      return new PikaProvider(opts.pika);
+    },
+    veo: () => {
+      throw new Error('VeoProvider not yet implemented');
+    },
+    heygen: () => {
+      throw new Error('HeyGenProvider not yet implemented');
+    },
+  };
+}
 
-export function getVideoProvider(name: VideoProviderName): VideoProvider {
-  const factory = REGISTRY[name];
+// Default registry — mock-only. Production code should call
+// buildVideoProviderRegistry(envOpts) once at boot and inject via
+// getVideoProvider's optional second arg.
+const DEFAULT_REGISTRY = buildVideoProviderRegistry();
+
+export function getVideoProvider(
+  name: VideoProviderName,
+  registry: Record<VideoProviderName, () => VideoProvider> = DEFAULT_REGISTRY,
+): VideoProvider {
+  const factory = registry[name];
   if (!factory) throw new Error(`getVideoProvider: unknown provider "${name}"`);
   return factory();
 }
 
-export function getDefaultVideoProvider(tier: Tier): VideoProvider {
-  return getVideoProvider(TIER_DEFAULT[tier]);
+export function getDefaultVideoProvider(
+  tier: Tier,
+  registry: Record<VideoProviderName, () => VideoProvider> = DEFAULT_REGISTRY,
+): VideoProvider {
+  const preferred = TIER_PREFERRED[tier];
+  try {
+    return getVideoProvider(preferred, registry);
+  } catch {
+    // Real provider unavailable (no API key) — fall back to mock so dev/test
+    // environments keep working. Production should never hit this path.
+    return getVideoProvider('mock', registry);
+  }
 }
