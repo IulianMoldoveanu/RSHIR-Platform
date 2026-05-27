@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
+import { formatRon } from '@hir/ui';
 import { createPartner, addReferral, markCommissionPaid } from './actions';
 import {
   markCommissionPaidAction,
@@ -52,7 +53,7 @@ type Payout = {
 };
 
 function centsToRon(cents: number): string {
-  return (cents / 100).toFixed(2) + ' RON';
+  return formatRon(cents / 100);
 }
 
 function statusBadge(status: string) {

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Receipt } from 'lucide-react';
-import { EmptyState } from '@hir/ui';
+import { EmptyState, formatRon } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const ACTIVE_STATUSES = [
@@ -104,7 +104,7 @@ export async function ActiveOrdersPanel({ tenantId }: { tenantId: string }) {
                       {fmtAge(o.created_at)}
                     </span>
                     <span className="font-mono tabular-nums text-zinc-700">
-                      {Number(o.total_ron ?? 0).toFixed(2)} RON
+                      {formatRon(o.total_ron)}
                     </span>
                   </div>
                 </Link>

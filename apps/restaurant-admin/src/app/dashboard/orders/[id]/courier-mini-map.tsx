@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bike } from 'lucide-react';
 import {
   Skeleton,
+  LiveBadge,
   haversineKm,
   etaMinutesFromKm,
   isAfterPickup,
@@ -117,15 +118,7 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isLive && (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700"
-              aria-label="Date actualizate live"
-            >
-              <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-              live
-            </span>
-          )}
+          {isLive && <LiveBadge />}
           {eta && (
             <span className="rounded-full bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-800">
               ~{eta.minutes} min

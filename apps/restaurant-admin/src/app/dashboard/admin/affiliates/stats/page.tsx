@@ -4,6 +4,7 @@
 // Read-only; platform-admin gated identically to ../page.tsx.
 
 import { redirect } from 'next/navigation';
+import { formatRon } from '@hir/ui';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
@@ -170,10 +171,10 @@ export default async function AffiliateStatsPage() {
         <section>
           <h2 className="mb-3 text-base font-semibold">Conducta de bounty (RON)</h2>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Kpi label="În așteptare" value={`${bountyByStatus.PENDING.toLocaleString('ro-RO')} RON`} sub="lock 30 zile" />
-            <Kpi label="Plătibil" value={`${bountyByStatus.PAYABLE.toLocaleString('ro-RO')} RON`} accent />
-            <Kpi label="Plătit" value={`${bountyByStatus.PAID.toLocaleString('ro-RO')} RON`} />
-            <Kpi label="Anulat" value={`${bountyByStatus.CANCELLED.toLocaleString('ro-RO')} RON`} />
+            <Kpi label="În așteptare" value={formatRon(bountyByStatus.PENDING)} sub="lock 30 zile" />
+            <Kpi label="Plătibil" value={formatRon(bountyByStatus.PAYABLE)} accent />
+            <Kpi label="Plătit" value={formatRon(bountyByStatus.PAID)} />
+            <Kpi label="Anulat" value={formatRon(bountyByStatus.CANCELLED)} />
           </div>
         </section>
       </div>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Button, EmptyState } from '@hir/ui';
+import { Button, EmptyState, formatRon } from '@hir/ui';
 import { filterDailyByRange, type RangePreset } from '@/lib/uiux-quickwins';
 import type { AnalyticsData, DailyRow, TopItemRow, PeakRow, ReviewsBlock } from './types';
 
@@ -34,7 +34,7 @@ const TopItemsBarChart = dynamic(
   { ssr: false, loading: ChartLoading },
 );
 
-const RON = (v: number) => `${v.toFixed(2)} RON`;
+const RON = (v: number) => formatRon(v);
 
 function downloadCsv(filename: string, rows: Record<string, string | number>[]) {
   if (rows.length === 0) return;
