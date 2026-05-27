@@ -29,4 +29,18 @@ describe('composeCaption', () => {
     const out = composeCaption(caption, tags, caption.length + 2 + tags[0].length);
     expect(out).toBe(`${caption}\n\n${tags[0]}`);
   });
+
+  it('drops hashtags from the right when they alone exceed maxChars (X-style 280 cap)', () => {
+    // Codex round-2 P2 absorb — long hashtag list on a 280-char budget.
+    const caption = 'short';
+    const tags = ['#aaaaaaaaaa', '#bbbbbbbbbb', '#cccccccccc', '#dddddddddd'];
+    const out = composeCaption(caption, tags, 40);
+    expect(out.length).toBeLessThanOrEqual(40);
+  });
+
+  it('hard-truncates if everything still over budget', () => {
+    // Pathological: 5-char cap, only an ellipsis fits.
+    const out = composeCaption('Hello world', ['#tag'], 5);
+    expect(out.length).toBeLessThanOrEqual(5);
+  });
 });

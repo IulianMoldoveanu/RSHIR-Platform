@@ -106,7 +106,13 @@ export class TikTokProvider implements PublisherProvider {
       throw new Error('TikTok init returned no publish_id');
     }
 
-    // Return processing status — caller polls via getStatus or webhook callback.
+    // Codex round-2 P2: publish_id is an UPLOAD JOB id, not the final
+    // public video id. Status='processing' tells the orchestrator NOT
+    // to treat this as the long-term externalId — it should call
+    // pollStatus() until the post is FINISHED, then UPDATE
+    // content_publications.external_id with publicaly_available_post_id.
+    // getMetrics() is documented to require the public video id; callers
+    // SHOULD NOT pass publish_id back to getMetrics().
     return {
       externalId: publishId,
       status: 'processing',

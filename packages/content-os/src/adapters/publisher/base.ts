@@ -82,13 +82,34 @@ export function composeCaption(
   hashtags: string[],
   maxChars: number,
 ): string {
-  const tags = hashtags.filter(Boolean).join(' ');
+  const cleanTags = hashtags.filter(Boolean);
+  const tags = cleanTags.join(' ');
   const separator = tags ? '\n\n' : '';
   const full = `${caption}${separator}${tags}`;
   if (full.length <= maxChars) return full;
-  // Trim caption to fit, keep all hashtags (they're load-bearing for discovery).
-  const tagSpace = tags.length + separator.length;
-  const captionBudget = Math.max(0, maxChars - tagSpace - 1);
-  const trimmedCaption = caption.slice(0, captionBudget).trimEnd() + '…';
-  return `${trimmedCaption}${separator}${tags}`;
+
+  // Codex P2 absorb: when hashtags alone already exceed maxChars (e.g.
+  // several long tags on X's 280-char cap), the previous implementation
+  // returned `…\n\n${tags}` which still busted the cap and let the
+  // platform reject the publish call. Drop tags from the right until the
+  // tag block plus a 1-char ellipsis fits, then trim the caption.
+  const ELLIPSIS = '…';
+  let keptTags = [...cleanTags];
+  while (keptTags.length > 0) {
+    const tagStr = keptTags.join(' ');
+    const sep = tagStr ? '\n\n' : '';
+    // Reserve at least 1 char for ellipsis (caption is being trimmed too).
+    const fits = tagStr.length + sep.length + 1 <= maxChars;
+    if (fits) break;
+    keptTags = keptTags.slice(0, -1); // drop the rightmost tag
+  }
+  const finalTags = keptTags.join(' ');
+  const finalSep = finalTags ? '\n\n' : '';
+  const captionBudget = Math.max(0, maxChars - finalTags.length - finalSep.length - ELLIPSIS.length);
+  const trimmedCaption = caption.slice(0, captionBudget).trimEnd() + ELLIPSIS;
+  const result = `${trimmedCaption}${finalSep}${finalTags}`;
+
+  // Final guard — if even the ellipsis-only caption can't fit (maxChars < 1),
+  // hard-truncate from the right.
+  return result.length <= maxChars ? result : result.slice(0, maxChars);
 }

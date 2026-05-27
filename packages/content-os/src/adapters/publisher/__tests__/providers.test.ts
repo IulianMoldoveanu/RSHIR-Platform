@@ -103,9 +103,12 @@ describe('InstagramProvider', () => {
     expect(mockFetch.mock.calls[1][0]).toContain('/igacct/media_publish');
   });
 
-  it('uses REELS media_type for video', async () => {
+  it('uses REELS media_type for video + polls container until FINISHED', async () => {
+    // Codex round-2 P1 absorb: IG Reels containers need status polling
+    // before /media_publish. Mock: container create → status FINISHED → publish.
     mockFetch
       .mockResolvedValueOnce(jsonResponse({ id: 'ctn' }))
+      .mockResolvedValueOnce(jsonResponse({ status_code: 'FINISHED' }))
       .mockResolvedValueOnce(jsonResponse({ id: 'media' }));
     await provider.publish(creds, {
       clientReferenceId: 'd1',
@@ -117,6 +120,25 @@ describe('InstagramProvider', () => {
     const containerBody = mockFetch.mock.calls[0][1].body as string;
     expect(containerBody).toContain('media_type=REELS');
     expect(containerBody).toContain('video_url=');
+    // The middle call should be the status-poll.
+    expect(mockFetch.mock.calls[1][0]).toContain('status_code');
+    // Last call should be /media_publish.
+    expect(mockFetch.mock.calls[2][0]).toContain('/media_publish');
+  });
+
+  it('throws if IG container never reaches FINISHED', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse({ id: 'ctn' }))
+      .mockResolvedValueOnce(jsonResponse({ status_code: 'ERROR' }));
+    await expect(
+      provider.publish(creds, {
+        clientReferenceId: 'd1',
+        caption: 'r',
+        hashtags: [],
+        mediaUrl: 'https://cdn/v.mp4',
+        mediaKind: 'video',
+      }),
+    ).rejects.toThrow(/did not reach FINISHED/);
   });
 });
 
