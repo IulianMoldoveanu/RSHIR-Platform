@@ -33,6 +33,14 @@ vi.mock('@/lib/ai/master-orchestrator-edge-bridge', () => ({
   dispatchViaEdge: (input: unknown) => dispatchViaEdgeMock(input),
 }));
 
+// Standard-plan Hepi cap — mocked to "always allowed" for legacy tests
+// below; the cap-specific assertions live in `usage-caps.test.ts`. A
+// dedicated test in this file exercises the 429 over-cap path.
+const checkAndIncrementUsageMock = vi.fn();
+vi.mock('@/lib/usage-caps', () => ({
+  checkAndIncrementUsage: (...args: unknown[]) => checkAndIncrementUsageMock(...args),
+}));
+
 // ── Import SUT after mocks ─────────────────────────────────────────
 
 import { POST } from './route';
@@ -51,6 +59,16 @@ beforeEach(() => {
   isPlatformAdminEmailMock.mockReset();
   isPlatformAdminEmailMock.mockReturnValue(false);
   dispatchViaEdgeMock.mockReset();
+  checkAndIncrementUsageMock.mockReset();
+  // Default: cap always allows so legacy assertions on the bridge/handler
+  // path are unaffected. Tests that exercise the 429 path override this.
+  checkAndIncrementUsageMock.mockResolvedValue({
+    allowed: true,
+    used: 1,
+    cap: 10,
+    periodKind: 'daily',
+    periodStart: '2026-05-27T00:00:00+00:00',
+  });
 });
 
 afterEach(() => {
@@ -232,5 +250,63 @@ describe('POST /api/ai/dispatch', () => {
     });
     const res = await POST(makeReq({ intent: 'analytics.summary', payload: {} }));
     expect(res.status).toBe(502);
+  });
+
+  it('returns 429 when the Standard-plan Hepi cap is exhausted', async () => {
+    getActiveTenantMock.mockResolvedValue({
+      user: { id: 'u1', email: 'owner@x.com' },
+      tenant: { id: 't1' },
+    });
+    getTenantRoleMock.mockResolvedValue('OWNER');
+    checkAndIncrementUsageMock.mockResolvedValue({
+      allowed: false,
+      used: 10,
+      cap: 10,
+      periodKind: 'daily',
+      periodStart: '2026-05-27T00:00:00+00:00',
+      message: 'Hai patroane, ai folosit toate cele 10 conversații...',
+    });
+    const res = await POST(makeReq({ intent: 'analytics.summary', payload: {} }));
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error).toBe('cap_exceeded');
+    expect(body.resource).toBe('hepi_conversations');
+    expect(body.cap).toBe(10);
+    expect(body.message).toMatch(/Hai patroane/);
+    // Bridge must NOT be called once the cap rejects.
+    expect(dispatchViaEdgeMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 503 when the cap RPC throws (fail-closed)', async () => {
+    getActiveTenantMock.mockResolvedValue({
+      user: { id: 'u1', email: 'owner@x.com' },
+      tenant: { id: 't1' },
+    });
+    getTenantRoleMock.mockResolvedValue('OWNER');
+    checkAndIncrementUsageMock.mockRejectedValue(new Error('rpc_offline'));
+    const res = await POST(makeReq({ intent: 'analytics.summary', payload: {} }));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe('cap_check_failed');
+    expect(dispatchViaEdgeMock).not.toHaveBeenCalled();
+  });
+
+  it('master.* bypasses the Hepi cap so the orchestrator keeps working at-cap', async () => {
+    getActiveTenantMock.mockResolvedValue({
+      user: { id: 'u1', email: 'owner@x.com' },
+      tenant: { id: 't1' },
+    });
+    getTenantRoleMock.mockResolvedValue('OWNER');
+    dispatchViaEdgeMock.mockResolvedValue({
+      ok: true,
+      state: 'EXECUTED',
+      runId: 'run_master',
+      data: {},
+    });
+    const res = await POST(makeReq({ intent: 'master.summary', payload: {} }));
+    expect(res.status).toBe(200);
+    // Cap helper must NOT be called for master traffic.
+    expect(checkAndIncrementUsageMock).not.toHaveBeenCalled();
+    expect(dispatchViaEdgeMock).toHaveBeenCalledOnce();
   });
 });

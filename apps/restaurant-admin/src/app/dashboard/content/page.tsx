@@ -6,10 +6,17 @@ import {
   BarChart3,
   Settings as SettingsIcon,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
+import {
+  getUsageSnapshot,
+  capResourceLabel,
+  capExceededMessage,
+  type CapSnapshot,
+} from '@/lib/usage-caps';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +49,11 @@ export default async function ContentDashboardPage() {
 
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
+
+  // Standard-plan usage snapshot — surface at-cap / near-cap resources
+  // as a friendly banner above the brand cards. See lib/usage-caps.ts.
+  const usageSnapshot = await getUsageSnapshot(tenant.id);
+  const capAlerts = usageSnapshot.filter((s) => s.atCap || s.nearCap);
 
   // Fetch this tenant's content brand contexts.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -158,6 +170,8 @@ export default async function ContentDashboardPage() {
         </Link>
       </header>
 
+      {capAlerts.length > 0 && <CapBanner alerts={capAlerts} />}
+
       <div className="grid gap-4 lg:grid-cols-2">
         {brands.map((brand) => {
           const c = counts[brand.id];
@@ -242,6 +256,58 @@ export default async function ContentDashboardPage() {
         WhatsApp/Telegram (ex: <em>&ldquo;Fă o reclamă pentru pizza Margherita 25 RON&rdquo;</em>)
         sau folosește butonul <em>Comandă nouă</em> din ecranul drafts.
       </div>
+    </div>
+  );
+}
+
+function CapBanner({ alerts }: { alerts: CapSnapshot[] }) {
+  // Split into at-cap (red) and near-cap (amber). The polite copy comes
+  // from `capExceededMessage` so the patron sees the same wording on the
+  // dashboard, in the 429 response body, and on WhatsApp.
+  const atCap = alerts.filter((a) => a.atCap);
+  const nearCap = alerts.filter((a) => a.nearCap);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {atCap.map((a) => (
+        <div
+          key={`atcap-${a.resourceKind}`}
+          className="rounded-lg border border-rose-200 bg-rose-50 p-4"
+          role="alert"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-rose-600" aria-hidden />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-rose-900">
+                {capResourceLabel(a.resourceKind)}: {a.used}/{a.cap} utilizate{' '}
+                {a.periodKind === 'daily' ? 'astăzi' : 'luna asta'}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-rose-800">
+                {capExceededMessage(a.resourceKind, a.cap, a.periodKind)}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+      {nearCap.map((a) => (
+        <div
+          key={`near-${a.resourceKind}`}
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" aria-hidden />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900">
+                {capResourceLabel(a.resourceKind)}: {a.used}/{a.cap} utilizate{' '}
+                {a.periodKind === 'daily' ? 'astăzi' : 'luna asta'}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                Te apropii de cap-ul planului Standard. Dacă ai nevoie de mai mult, scrie la +40 723 XXX XXX.
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

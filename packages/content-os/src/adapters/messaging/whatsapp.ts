@@ -8,6 +8,11 @@
 //   - Utility conversation: ~$0.008 (free in 24h user-initiated window)
 //   - Service conversation: free
 //
+// Standard-plan cap (2026-05-27): 30 marketing conversations / tenant /
+// month. Enforced via `sendMarketing(...)` which takes a `capChecker`
+// callback the caller wires to checkAndIncrementUsage('whatsapp_marketing').
+// Utility and service messages bypass the cap.
+//
 // Webhook signature: X-Hub-Signature-256: sha256=<hex>, computed over the
 // raw request body using the App Secret. NEVER skip verification.
 
@@ -23,6 +28,29 @@ const META_GRAPH_VERSION = 'v21.0';
 const WA_MAX_BUTTON_LABEL = 20;
 const WA_MAX_BUTTONS = 3;
 const WA_MAX_BUTTON_ID = 256;
+
+/** Result of an external cap check (e.g. usage-caps RPC). Same shape as VideoGen. */
+export interface WaCapCheckOutcome {
+  allowed: boolean;
+  message?: string;
+  used?: number;
+  cap?: number;
+}
+
+/** Caller-supplied gate for marketing sends. Receives tenantId, returns the outcome. */
+export type WaMarketingCapChecker = (tenantId: string) => Promise<WaCapCheckOutcome>;
+
+export class WhatsAppCapExceededError extends Error {
+  readonly kind = 'cap_exceeded' as const;
+  readonly used?: number;
+  readonly cap?: number;
+  constructor(message: string, opts?: { used?: number; cap?: number }) {
+    super(message);
+    this.name = 'WhatsAppCapExceededError';
+    this.used = opts?.used;
+    this.cap = opts?.cap;
+  }
+}
 
 interface WhatsAppWebhookBody {
   object?: string;
@@ -262,6 +290,74 @@ export class WhatsAppProvider implements MessagingProvider {
       to: toUserId,
       type: mediaType,
       [mediaType]: { link: mediaUrl, caption },
+    });
+  }
+
+  /**
+   * Marketing-category send. Gated by the Standard-plan cap of 30
+   * marketing conversations / tenant / month. Throws
+   * `WhatsAppCapExceededError` BEFORE hitting the Meta API on over-cap,
+   * so no paid conversation is consumed.
+   *
+   * Use this instead of `sendText` / `sendButtons` / `sendMediaPreview`
+   * whenever the message is a promotion, broadcast, or content-os push.
+   * Utility (order updates, OTP) and service (reply within 24h window)
+   * messages must keep using the plain `sendText` path — they're free
+   * on WhatsApp and outside the cap envelope.
+   */
+  async sendMarketing(opts: {
+    /** Tenant whose cap to consume. Omit for HIR_INTERNAL brands. */
+    tenantId: string | null;
+    channelExternalId: string;
+    accessToken: string;
+    toUserId: string;
+    /** Either text body OR (mediaUrl + mediaType) must be set. */
+    text?: string;
+    mediaUrl?: string;
+    mediaType?: 'image' | 'video';
+    caption?: string;
+    buttons?: ButtonSpec[];
+    /** Cap gate. Caller wires this to checkAndIncrementUsage('whatsapp_marketing'). */
+    capChecker?: WaMarketingCapChecker;
+  }): Promise<void> {
+    if (opts.capChecker && opts.tenantId) {
+      const outcome = await opts.capChecker(opts.tenantId);
+      if (!outcome.allowed) {
+        throw new WhatsAppCapExceededError(
+          outcome.message ??
+            `Cap atins pentru WhatsApp marketing (${outcome.used ?? '?'}/${outcome.cap ?? '?'} luna asta).`,
+          { used: outcome.used, cap: outcome.cap },
+        );
+      }
+    }
+
+    if (opts.mediaUrl && opts.mediaType) {
+      return this.sendMediaPreview({
+        channelExternalId: opts.channelExternalId,
+        accessToken: opts.accessToken,
+        toUserId: opts.toUserId,
+        mediaUrl: opts.mediaUrl,
+        mediaType: opts.mediaType,
+        caption: opts.caption ?? opts.text ?? '',
+      });
+    }
+    if (opts.buttons && opts.buttons.length > 0) {
+      return this.sendButtons({
+        channelExternalId: opts.channelExternalId,
+        accessToken: opts.accessToken,
+        toUserId: opts.toUserId,
+        body: opts.text ?? opts.caption ?? '',
+        buttons: opts.buttons,
+      });
+    }
+    if (!opts.text) {
+      throw new Error('sendMarketing: text or media is required');
+    }
+    return this.sendText({
+      channelExternalId: opts.channelExternalId,
+      accessToken: opts.accessToken,
+      toUserId: opts.toUserId,
+      text: opts.text,
     });
   }
 

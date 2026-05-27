@@ -27,6 +27,7 @@ import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { dispatchViaEdge } from '@/lib/ai/master-orchestrator-edge-bridge';
 import type { AgentName } from '@/lib/ai/master-orchestrator-types';
+import { checkAndIncrementUsage } from '@/lib/usage-caps';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -136,7 +137,39 @@ export async function POST(req: Request): Promise<NextResponse> {
     );
   }
 
-  // 4. Forward to edge fn bridge.
+  // 4. Standard-plan cap: every dispatch counts as one Hepi conversation
+  //    (the user-facing Hepi UI funnels here). Master-agent traffic is
+  //    excluded because the dispatcher's own bookkeeping calls must keep
+  //    working even when the patron has hit the daily cap.
+  if (agent !== 'master') {
+    try {
+      const cap = await checkAndIncrementUsage(tenantId, 'hepi_conversations');
+      if (!cap.allowed) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: 'cap_exceeded',
+            resource: 'hepi_conversations',
+            used: cap.used,
+            cap: cap.cap,
+            period_kind: cap.periodKind,
+            message: cap.message,
+          },
+          { status: 429 },
+        );
+      }
+    } catch (e) {
+      // Fail-closed: cap RPC is the only thing standing between us and a
+      // cost runaway, so a transport blip surfaces as 503 (caller retries)
+      // rather than silently allowing the call through.
+      return NextResponse.json(
+        { error: 'cap_check_failed', message: e instanceof Error ? e.message : String(e) },
+        { status: 503 },
+      );
+    }
+  }
+
+  // 5. Forward to edge fn bridge.
   const result = await dispatchViaEdge({
     tenantId,
     intent,

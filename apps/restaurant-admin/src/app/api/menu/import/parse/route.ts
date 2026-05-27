@@ -6,6 +6,7 @@ import { parseMenuImage, MenuParseError, type MenuParseFailureKind } from '@/lib
 import { checkLimit } from '@/lib/rate-limit';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { logAudit } from '@/lib/audit';
+import { recordUsageOrLog } from '@/lib/usage-caps';
 
 // RSHIR-20: per-tenant Claude budget. Soft cost ceiling is 10 parses/hour
 // ≈ $0.30 worst case at Claude Sonnet 4.5 vision pricing (8 MB PDF input,
@@ -124,6 +125,16 @@ export async function POST(req: NextRequest) {
         item_count: itemCount,
       }),
     );
+
+    // Standard-plan token cap — best-effort post-record. The wrapper never
+    // throws (it logs on over-cap) so we don't break the response for
+    // existing in-flight parses. See lib/usage-caps.ts > recordUsageOrLog.
+    const inputTokens = result.usage?.input_tokens ?? 0;
+    const outputTokens = result.usage?.output_tokens ?? 0;
+    const totalTokens = (inputTokens ?? 0) + outputTokens;
+    if (totalTokens > 0) {
+      void recordUsageOrLog(auth.tenantId, 'anthropic_tokens', totalTokens, 'menu-parse');
+    }
 
     return NextResponse.json({
       uploadId,
