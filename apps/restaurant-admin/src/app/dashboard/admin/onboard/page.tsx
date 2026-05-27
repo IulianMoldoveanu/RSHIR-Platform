@@ -1,11 +1,14 @@
-// Platform-admin in-person tenant onboarding wizard.
-// Iulian: 4 fields → tenant + OWNER user → switch into it → master-key import
-// → branding → go-live. Total time <10 min. See actions.ts for the contract.
+// Platform-admin in-person tenant onboarding wizard (3 steps).
+// Step 1: restaurant info + slug + type + city + phone
+// Step 2: owner email + Telegram Hepi prompt
+// Step 3: logo + brand color + tagline + summary → submit
+// Gate: HIR_PLATFORM_ADMIN_EMAILS (same as /dashboard/admin/partners).
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
-import { OnboardClient } from './client';
+import { listActiveCities } from '@/lib/cities';
+import { OnboardWizard } from './wizard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +29,7 @@ export default async function PlatformAdminOnboardPage() {
   }
 
   const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hiraisolutions.ro';
+  const cities = await listActiveCities();
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,17 +38,17 @@ export default async function PlatformAdminOnboardPage() {
           Admin · Onboarding rapid
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Tenant nou (in-person)
+          Restaurant nou (in-person)
         </h1>
-        <p className="text-sm text-zinc-600">
-          Introdu cele 4 detalii ale restaurantului. Creăm contul OWNER cu email
-          confirmat (vouchezi în persoană) și o parolă temporară pe care o dai
-          patronului. Apoi continui pe acest dispozitiv: import meniu din
-          GloriaFood, identitate vizuală, activare comenzi.
+        <p className="max-w-xl text-sm text-zinc-600">
+          3 pași simpli — sub 5 minute. La final patronul are cont activ,
+          storefrontul e gata și Hepi e pregătit să preia comenzi.
         </p>
       </header>
 
-      <OnboardClient primaryDomain={primaryDomain} />
+      <div className="max-w-2xl">
+        <OnboardWizard primaryDomain={primaryDomain} cities={cities} />
+      </div>
     </div>
   );
 }

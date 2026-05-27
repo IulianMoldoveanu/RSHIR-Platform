@@ -23,12 +23,30 @@ import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+const BRANDING_BUCKET = 'tenant-branding';
+
+export type RestaurantType =
+  | 'pizzerie'
+  | 'burger'
+  | 'kebab-shaorma'
+  | 'sushi'
+  | 'cafenea'
+  | 'mixt';
 
 export type CreateTenantInput = {
   email: string;
   restaurantName: string;
   slug: string;
   phone?: string;
+  // Step 1 extras
+  restaurantType?: RestaurantType;
+  cityId?: string;
+  address?: string;
+  // Step 3 extras
+  brandColor?: string;
+  tagline?: string;
+  // logo is uploaded separately after tenant creation via uploadWizardLogo
 };
 
 export type CreateTenantResult =
@@ -121,12 +139,24 @@ export async function createTenantWithOwner(
   const ownerUserId = created.user.id;
 
   // ── Tenant row ──────────────────────────────────────────────
+  const brandColor = input.brandColor && HEX_RE.test(input.brandColor)
+    ? input.brandColor.toLowerCase()
+    : null;
+
   const initialSettings: Record<string, unknown> = {
     onboarding_meta: {
       created_via: 'platform_admin_in_person',
       created_by_email: caller.email,
       patron_phone: phone,
+      restaurant_type: input.restaurantType ?? null,
+      address: input.address ?? null,
     },
+    branding: {
+      logo_url: null,
+      cover_url: null,
+      brand_color: brandColor ?? '#7c3aed',
+    },
+    ...(input.tagline ? { tagline: input.tagline.trim() } : {}),
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: tenantRow, error: tenantErr } = await (admin as any)
@@ -137,6 +167,7 @@ export async function createTenantWithOwner(
       status: 'ACTIVE',
       vertical: 'RESTAURANT',
       settings: initialSettings,
+      ...(input.cityId ? { city_id: input.cityId } : {}),
     })
     .select('id')
     .single();
@@ -241,4 +272,64 @@ export async function switchToTenantAction(formData: FormData): Promise<void> {
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
   });
+}
+
+// Upload logo for a freshly created tenant. Called client-side after
+// createTenantWithOwner succeeds. Uses admin client so it bypasses the tenant
+// cookie (which hasn't been set yet at wizard time).
+export type UploadLogoResult =
+  | { ok: true; logoUrl: string }
+  | { ok: false; error: string };
+
+function matchesMime(mime: string, bytes: ArrayBuffer): boolean {
+  const head = new Uint8Array(bytes.slice(0, 12));
+  if (head.length < 4) return false;
+  if (mime === 'image/png')
+    return head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47;
+  if (mime === 'image/jpeg') return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  if (mime === 'image/webp')
+    return head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50;
+  return false;
+}
+
+function extFrom(mime: string) {
+  const sub = mime.split('/')[1];
+  return sub === 'jpeg' ? 'jpg' : sub;
+}
+
+export async function uploadWizardLogo(formData: FormData): Promise<UploadLogoResult> {
+  const supa = await createServerClient();
+  const { data: { user } } = await supa.auth.getUser();
+  if (!user) return { ok: false, error: 'Sesiune expirată — autentifică-te din nou.' };
+  if (!isPlatformAdminEmail(user.email)) return { ok: false, error: 'Acces interzis.' };
+
+  const tenantId = String(formData.get('tenantId') ?? '');
+  const file = formData.get('file');
+  if (!tenantId || !(file instanceof File)) return { ok: false, error: 'Date invalide.' };
+
+  const ALLOWED = new Set(['image/png', 'image/jpeg', 'image/webp']);
+  if (!ALLOWED.has(file.type)) return { ok: false, error: 'Format neacceptat. Folosește PNG, JPEG sau WebP.' };
+  if (file.size > 4 * 1024 * 1024) return { ok: false, error: 'Fișierul depășește 4 MB.' };
+
+  const bytes = await file.arrayBuffer();
+  if (!matchesMime(file.type, bytes)) return { ok: false, error: 'Fișierul nu corespunde tipului declarat.' };
+
+  const path = `${tenantId}/logo.${extFrom(file.type)}`;
+  const admin = createAdminClient();
+  const { error: uploadErr } = await admin.storage
+    .from(BRANDING_BUCKET)
+    .upload(path, bytes, { contentType: file.type, upsert: true });
+  if (uploadErr) return { ok: false, error: `Upload eșuat: ${uploadErr.message}` };
+
+  const logoUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${BRANDING_BUCKET}/${path}?v=${Date.now()}`;
+
+  // Patch the tenant's settings.branding.logo_url
+  const { data: row } = await admin.from('tenants').select('settings').eq('id', tenantId).maybeSingle();
+  const existing = (row?.settings as Record<string, unknown> | null) ?? {};
+  const existingBranding = (existing.branding as Record<string, unknown> | undefined) ?? {};
+  const merged = { ...existing, branding: { ...existingBranding, logo_url: logoUrl } };
+  await (admin as any).from('tenants').update({ settings: merged }).eq('id', tenantId);
+
+  return { ok: true, logoUrl };
 }
