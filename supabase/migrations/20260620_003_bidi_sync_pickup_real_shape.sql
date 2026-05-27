@@ -1,18 +1,27 @@
 -- Wave 1.0 follow-up — match bidi-sync trigger to the real `tenants.settings`
--- shape produced by `saveOperationsAction`
--- (apps/restaurant-admin/src/app/dashboard/settings/operations/actions.ts).
+-- shapes that ship in production.
 --
--- The original trigger (20260526_002) read pickup data as a nested object:
---   settings.pickup_address = { line1, lat, lng }
--- but operations UI saves:
---   settings.pickup_address = "Strada ... Brașov" (free-form string)
---   settings.location       = { lat: <number>, lng: <number> }
---   settings.physical_address = "Strada ... Brașov" (free-form, legacy)
+-- The original trigger (20260526_002) read pickup as a nested object:
+--   settings.pickup_address.{line1, lat, lng}
+-- but neither writer in the codebase produces that shape. Real shapes:
+--   - settings.pickup_address = "Strada ..."             (free-form string,
+--                                                         saveOperationsAction)
+--   - settings.physical_address = "Strada ..."           (legacy, free-form)
+--   - settings.location_lat / settings.location_lng      (flat numerics)
+--   - settings.location.{lat, lng, formatted}            (nested, onboarding
+--                                                         wizard / GloriaFood)
 --
--- Result: every courier_orders row produced by Wave-1 had NULL pickup_line1,
--- pickup_lat, pickup_lng — couriers wouldn't know where to pick up.
--- Discovered 2026-05-27 while seeding the first bidi-sync e2e test on prod;
--- no rows had been produced yet so no historical cleanup is needed.
+-- Both flat + nested coexist on the same tenant (deep-merge preserves
+-- legacy keys). The storefront resolver
+-- `apps/restaurant-web/src/lib/zones/tenant-location.ts` reads flat-first
+-- then nested; this trigger now matches that precedent so courier dispatch
+-- and storefront agree on the pickup origin.
+--
+-- Effect of the bug: every `courier_orders` row produced by Wave-1 would
+-- have NULL pickup_line1 / pickup_lat / pickup_lng. Couriers wouldn't know
+-- where to pick up. Discovered 2026-05-27 while seeding the first real
+-- e2e test on prod (FOISORUL A); zero historical rows — trigger had never
+-- fired on real data, so no backfill needed.
 --
 -- This migration replaces only the FORWARD function. The reverse function
 -- (sync_courier_to_restaurant_status) is untouched.
@@ -63,15 +72,20 @@ begin
       v_settings->'location'->>'formatted'
     );
 
-    -- lat/lng: nested object first, then top-level `location.{lat,lng}`.
+    -- lat/lng cascade matching storefront precedent (tenant-location.ts):
+    --   1. nested pickup_address.{lat,lng} (forward-compat)
+    --   2. flat settings.location_lat / settings.location_lng (Operations save)
+    --   3. nested settings.location.{lat,lng} (onboarding wizard / GloriaFood)
     v_pickup_lat := coalesce(
       case when jsonb_typeof(v_pickup) = 'object'
         then nullif(v_pickup->>'lat','')::numeric end,
+      nullif(v_settings->>'location_lat','')::numeric,
       nullif(v_settings->'location'->>'lat','')::numeric
     );
     v_pickup_lng := coalesce(
       case when jsonb_typeof(v_pickup) = 'object'
         then nullif(v_pickup->>'lng','')::numeric end,
+      nullif(v_settings->>'location_lng','')::numeric,
       nullif(v_settings->'location'->>'lng','')::numeric
     );
 
@@ -120,6 +134,7 @@ $$;
 comment on function public.sync_restaurant_to_courier_order is
   'Wave 1.0 bidi sync (revised 2026-05-27 to match real settings shape): '
   'on restaurant_orders DISPATCHED edge auto-inserts a courier_orders row. '
-  'Reads pickup line1 from settings.pickup_address (object or string) with '
+  'Reads pickup line1 from settings.pickup_address (object|string) with '
   'fallback to settings.physical_address / settings.location.formatted; '
-  'reads lat/lng from settings.pickup_address (if object) or settings.location.';
+  'reads lat/lng cascade nested → flat location_lat/lng → settings.location '
+  '(matches storefront tenant-location.ts).';
