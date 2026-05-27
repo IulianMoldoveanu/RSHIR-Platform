@@ -9,8 +9,8 @@
 --
 -- Resolution policy (mirrors how /api/external/orders selects fleet for
 -- HIR_TENANT-sourced inserts — see apps/restaurant-courier/src/lib/api-key.ts):
---   1. fleet_restaurant_assignments where status='ACTIVE' for this tenant
---      (newest assignment), or
+--   1. fleet_restaurant_assignments where status='active' for this tenant
+--      (lowercase per CHECK constraint; newest assignment), or
 --   2. fall back to the system owner fleet (courier_fleets.tier='owner').
 -- If neither exists the trigger aborts the UPDATE with a clear message
 -- so the operator sees the misconfiguration instead of a silent loss.
@@ -55,11 +55,13 @@ begin
     end if;
 
     -- Fleet resolution: tenant assignment → owner fleet fallback.
+    -- Note: fleet_restaurant_assignments.status is lowercase
+    -- ('active' / 'paused' / 'terminated' per CHECK constraint).
     select fra.fleet_id into v_fleet_id
       from public.fleet_restaurant_assignments fra
       join public.courier_fleets cf on cf.id = fra.fleet_id
       where fra.restaurant_tenant_id = new.tenant_id
-        and fra.status = 'ACTIVE'
+        and fra.status = 'active'
         and cf.is_active = true
       order by fra.assigned_at desc nulls last
       limit 1;
