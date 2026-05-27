@@ -215,7 +215,21 @@ export class InstagramProvider extends MetaBaseProvider {
       throw new Error('Instagram container returned no id');
     }
 
-    // Step 2: publish container.
+    // Step 2 (video only): poll container until FINISHED. Codex P1 absorb:
+    // IG Reels containers return immediately but processing happens async;
+    // calling /media_publish on a non-FINISHED container fails with 400
+    // "Media not ready" intermittently. Per Meta docs, poll status_code
+    // up to ~5 min with a short backoff before publishing.
+    if (request.mediaKind === 'video') {
+      const containerStatus = await this.waitForContainerReady(containerId, credentials.accessToken);
+      if (containerStatus !== 'FINISHED') {
+        throw new Error(
+          `Instagram REELS container did not reach FINISHED (saw ${containerStatus}); aborting publish`,
+        );
+      }
+    }
+
+    // Step 3: publish container.
     const publishEndpoint = `https://graph.facebook.com/${META_GRAPH_VERSION}/${encodeURIComponent(credentials.accountId)}/media_publish`;
     const publishRes = await fetch(publishEndpoint, {
       method: 'POST',
@@ -239,4 +253,42 @@ export class InstagramProvider extends MetaBaseProvider {
       status: 'published',
     };
   }
+
+  /**
+   * Poll an IG media container until it reaches FINISHED (max ~5 min,
+   * exponential backoff starting at 2s). Returns the final status_code so
+   * callers can decide whether to publish or surface a useful error.
+   */
+  private async waitForContainerReady(
+    containerId: string,
+    accessToken: string,
+  ): Promise<string> {
+    const deadline = Date.now() + 5 * 60 * 1000;
+    let waitMs = 2000;
+    let lastStatus = 'UNKNOWN';
+
+    while (Date.now() < deadline) {
+      const res = await fetch(
+        `https://graph.facebook.com/${META_GRAPH_VERSION}/${encodeURIComponent(containerId)}?fields=status_code`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+      );
+      if (!res.ok) {
+        // Transient network issue — try again rather than failing immediately.
+        await sleep(waitMs);
+        waitMs = Math.min(waitMs * 1.5, 15_000);
+        continue;
+      }
+      const json = (await res.json()) as { status_code?: string };
+      lastStatus = json.status_code ?? lastStatus;
+      if (lastStatus === 'FINISHED') return lastStatus;
+      if (lastStatus === 'ERROR' || lastStatus === 'EXPIRED') return lastStatus;
+      await sleep(waitMs);
+      waitMs = Math.min(waitMs * 1.5, 15_000);
+    }
+    return lastStatus;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
