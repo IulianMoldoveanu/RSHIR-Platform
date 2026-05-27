@@ -137,4 +137,31 @@ describe('CopywriterAgent.sanitizeForbidden', () => {
   it('handles empty forbidden list', () => {
     expect(agent.sanitizeForbidden('fleet stays', [])).toBe('fleet stays');
   });
+
+  it('strips Romanian terms with diacritics (Unicode boundary)', () => {
+    // Codex P2 absorb — ASCII \b would miss the boundary around ș/ă/ț.
+    const out = agent.sanitizeForbidden(
+      'Folosim subcontractări și flote partenere.',
+      ['subcontractări', 'flote'],
+    );
+    expect(out).not.toMatch(/subcontractări/i);
+    expect(out).not.toMatch(/flote/i);
+  });
+});
+
+describe('CopywriterAgent.applyPlaceholders — Unicode names', () => {
+  it('substitutes Romanian placeholder keys like {orașName}', () => {
+    expect(
+      agent.applyPlaceholders('Livrare în {orașName}.', {
+        businessName: 'X',
+        orașName: 'Brașov',
+      }),
+    ).toBe('Livrare în Brașov.');
+  });
+
+  it('leaves unknown Romanian placeholders intact', () => {
+    expect(
+      agent.applyPlaceholders('Cetățean {țară}.', { businessName: 'X' }),
+    ).toBe('Cetățean {țară}.');
+  });
 });
