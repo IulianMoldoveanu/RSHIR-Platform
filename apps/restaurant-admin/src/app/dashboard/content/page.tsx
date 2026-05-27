@@ -207,7 +207,7 @@ export default async function ContentDashboardPage() {
 
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs text-zinc-600">
         <strong>Cum comanzi reclame către Hepi:</strong> scrie direct pe
-        WhatsApp/Telegram (ex: <em>"Fă o reclamă pentru pizza Margherita 25 RON"</em>)
+        WhatsApp/Telegram (ex: <em>&ldquo;Fă o reclamă pentru pizza Margherita 25 RON&rdquo;</em>)
         sau folosește butonul <em>Comandă nouă</em> din ecranul drafts.
       </div>
     </div>
