@@ -269,19 +269,12 @@ create policy "content_brand_contexts_service_role_all"
   using (true)
   with check (true);
 
--- content_messaging_channels: tenant members read own brand; writes via service_role
+-- content_messaging_channels: SERVICE_ROLE ONLY.
+-- Codex P1 absorb: the row carries `credentials` (WA/TG bot tokens) and
+-- `webhook_secret` — a STAFF/FLEET_MANAGER tenant member must NEVER be
+-- able to SELECT these via the direct Supabase client. UI surfaces
+-- non-secret metadata through a dedicated RPC/view in a follow-up.
 drop policy if exists "content_messaging_channels_member_select" on public.content_messaging_channels;
-create policy "content_messaging_channels_member_select"
-  on public.content_messaging_channels for select
-  to authenticated
-  using (
-    brand_id in (
-      select id from public.content_brand_contexts
-       where tenant_id in (
-         select tenant_id from public.tenant_members where user_id = auth.uid()
-       )
-    )
-  );
 
 drop policy if exists "content_messaging_channels_service_role_all" on public.content_messaging_channels;
 create policy "content_messaging_channels_service_role_all"
@@ -356,6 +349,43 @@ create policy "content_drafts_member_status_update"
     )
   )
   with check (status in ('approved', 'rejected'));
+
+-- Codex P1 absorb: RLS WITH CHECK only validates the NEW row's status.
+-- A crafted UPDATE could still mutate body_json / brief_id / cost_cents
+-- while setting status='approved'. Enforce column immutability via trigger
+-- so member-level UPDATEs can only touch (status, reviewed_by, reviewed_at).
+create or replace function public.guard_content_drafts_member_update()
+returns trigger
+language plpgsql
+as $$
+begin
+  -- Service role bypasses RLS, so this trigger is the only enforcement
+  -- point. We still allow service_role updates (sets session role).
+  if current_setting('role', true) = 'service_role' then
+    return new;
+  end if;
+
+  if new.brief_id     is distinct from old.brief_id     then raise exception 'content_drafts.brief_id is immutable'; end if;
+  if new.agent_kind   is distinct from old.agent_kind   then raise exception 'content_drafts.agent_kind is immutable'; end if;
+  if new.format       is distinct from old.format       then raise exception 'content_drafts.format is immutable'; end if;
+  if new.body_json    is distinct from old.body_json    then raise exception 'content_drafts.body_json is immutable post-creation'; end if;
+  if new.language     is distinct from old.language     then raise exception 'content_drafts.language is immutable'; end if;
+  if new.variant_of   is distinct from old.variant_of   then raise exception 'content_drafts.variant_of is immutable'; end if;
+  if new.cost_cents   is distinct from old.cost_cents   then raise exception 'content_drafts.cost_cents is immutable'; end if;
+  if new.created_at   is distinct from old.created_at   then raise exception 'content_drafts.created_at is immutable'; end if;
+
+  -- reviewed_by must be set to the acting user; reviewed_at auto-stamped.
+  new.reviewed_by := auth.uid();
+  new.reviewed_at := coalesce(new.reviewed_at, now());
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_guard_content_drafts_member_update on public.content_drafts;
+create trigger trg_guard_content_drafts_member_update
+  before update on public.content_drafts
+  for each row
+  execute function public.guard_content_drafts_member_update();
 
 drop policy if exists "content_drafts_service_role_all" on public.content_drafts;
 create policy "content_drafts_service_role_all"
