@@ -117,9 +117,13 @@ export class XProvider implements PublisherProvider {
     credentials: PublisherCredentials,
     externalId: string,
   ): Promise<PostMetrics> {
-    const fields = 'impression_count,like_count,reply_count,retweet_count,quote_count,bookmark_count';
+    // Codex P2 absorb: impression_count / like_count etc. are subfields
+    // of tweet.public_metrics, NOT valid user.fields values. Passing
+    // them as user.fields makes the API reject the request before
+    // returning the metrics block. Request only tweet.fields=public_metrics
+    // and read the subfields directly from data.public_metrics.
     const res = await fetch(
-      `${X_API_BASE}/2/tweets/${encodeURIComponent(externalId)}?tweet.fields=public_metrics&user.fields=${encodeURIComponent(fields)}`,
+      `${X_API_BASE}/2/tweets/${encodeURIComponent(externalId)}?tweet.fields=public_metrics`,
       {
         headers: { Authorization: `Bearer ${credentials.accessToken}` },
       },

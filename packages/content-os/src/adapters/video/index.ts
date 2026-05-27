@@ -40,19 +40,34 @@ const TIER_PREFERRED: Record<Tier, VideoProviderName> = {
 export function buildVideoProviderRegistry(
   opts: VideoProviderRegistryOptions = {},
 ): Record<VideoProviderName, () => VideoProvider> {
+  // Cache provider instances per registry. Codex P2 absorb: returning
+  // a fresh MockVideoProvider on every call breaks submit-then-poll —
+  // VideoGenAgent.generate() recorded the job in one instance and
+  // getStatus() constructed another with an empty job map, returning
+  // 'unknown job id'. Real providers (Runway/Pika) are stateless on
+  // the client side so sharing is benign for them too.
+  let mockSingleton: MockVideoProvider | null = null;
+  let runwaySingleton: RunwayProvider | null = null;
+  let pikaSingleton: PikaProvider | null = null;
+
   return {
-    mock: () => new MockVideoProvider(),
+    mock: () => {
+      if (!mockSingleton) mockSingleton = new MockVideoProvider();
+      return mockSingleton;
+    },
     runway: () => {
       if (!opts.runway?.apiKey) {
         throw new Error('RunwayProvider: RUNWAY_API_KEY missing — pass via buildVideoProviderRegistry({ runway: { apiKey } })');
       }
-      return new RunwayProvider(opts.runway);
+      if (!runwaySingleton) runwaySingleton = new RunwayProvider(opts.runway);
+      return runwaySingleton;
     },
     pika: () => {
       if (!opts.pika?.apiKey) {
         throw new Error('PikaProvider: PIKA_API_KEY missing — pass via buildVideoProviderRegistry({ pika: { apiKey } })');
       }
-      return new PikaProvider(opts.pika);
+      if (!pikaSingleton) pikaSingleton = new PikaProvider(opts.pika);
+      return pikaSingleton;
     },
     veo: () => {
       throw new Error('VeoProvider not yet implemented');
