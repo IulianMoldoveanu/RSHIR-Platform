@@ -26,20 +26,21 @@
 -- promotions live outside this bucket so they can add variant templates
 -- on the same dimension freely.
 
--- Guard: skip cleanly if the table doesn't exist yet (Codex P1 absorb).
--- The schema migration (20260528_001_content_os_schema.sql) creates
--- content_templates. When `supabase db push` runs in filename order
--- that migration applies first, so this seed will see the table — but
--- if someone applies this file out of order (manual repair, branch
--- swap during dev) we want a clean NOTICE rather than a hard failure.
+-- Guard: fail FAST if the table doesn't exist yet (Codex round-2 P2 absorb).
+-- Previous version used `return` inside a DO block to "skip" gracefully,
+-- but `return` only exits the DO — the rest of the file (CREATE INDEX +
+-- INSERTs) still ran and hit `relation "public.content_templates" does
+-- not exist`. A clean RAISE EXCEPTION stops the whole migration before
+-- the dependent DDL/DML runs, giving operators a single actionable error
+-- and matching the deps documented in the file header.
 do $$
 begin
   if not exists (
     select 1 from information_schema.tables
      where table_schema = 'public' and table_name = 'content_templates'
   ) then
-    raise notice 'content_templates not found — skipping seed. Apply 20260528_001 first.';
-    return;
+    raise exception
+      'content_templates not found — apply 20260528_001_content_os_schema.sql first';
   end if;
 end $$;
 
