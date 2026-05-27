@@ -26,6 +26,23 @@
 -- promotions live outside this bucket so they can add variant templates
 -- on the same dimension freely.
 
+-- Guard: skip cleanly if the table doesn't exist yet (Codex P1 absorb).
+-- The schema migration (20260528_001_content_os_schema.sql) creates
+-- content_templates. When `supabase db push` runs in filename order
+-- that migration applies first, so this seed will see the table — but
+-- if someone applies this file out of order (manual repair, branch
+-- swap during dev) we want a clean NOTICE rather than a hard failure.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.tables
+     where table_schema = 'public' and table_name = 'content_templates'
+  ) then
+    raise notice 'content_templates not found — skipping seed. Apply 20260528_001 first.';
+    return;
+  end if;
+end $$;
+
 create unique index if not exists idx_content_templates_seed_unique
   on public.content_templates (business_type, persona, goal, pillar, format)
   where created_by = 'seed';
@@ -161,7 +178,7 @@ values
    'seed'),
 
   ('general', 'arhaic', 'retention', 'testimonial', 'static_fb',
-   '{"hook_template":"„Vin de 5 ani aici și nu mă schimb""","body_template":"Cuvintele Mariei, client din 2020. Mulțumim, Maria.","cta_template":"Spune-ne și tu povestea ta în comentarii","hashtags":["#clienti","#{businessName}","#multumesc"],"visual_brief":"1:1 portrait of customer with thumb up, casual smile, business interior bokeh background"}'::jsonb,
+   '{"hook_template":"„Vin de 5 ani aici și nu mă schimb”","body_template":"Cuvintele Mariei, client din 2020. Mulțumim, Maria.","cta_template":"Spune-ne și tu povestea ta în comentarii","hashtags":["#clienti","#{businessName}","#multumesc"],"visual_brief":"1:1 portrait of customer with thumb up, casual smile, business interior bokeh background"}'::jsonb,
    'seed'),
 
   ('general', 'tehnic', 'awareness', 'behind_scenes', 'video_tiktok',
@@ -171,7 +188,7 @@ values
   -- ── HIR_INTERNAL templates for self-marketing (RSHIR B2B) ─────────────
   -- These target restaurant owners, NOT end consumers. Used by Mode A.
   ('general', 'arhaic', 'conversion', 'promo', 'reel_ig',
-   '{"hook_template":"Patroane, ai văzut câți bani le dai la Glovo?","body_template":"30% la fiecare comandă. {monthlyLossRon} RON pe lună. HIR: 2 lei.","cta_template":"Calculează economia ta pe hirforyou.ro/calculator","hashtags":["#patroni","#restaurant","#glovo","#hir"],"visual_brief":"9:16 desk close-up of cash receipts, red ALARM text overlay '30%', cut to HIR dashboard showing 2 lei"}'::jsonb,
+   '{"hook_template":"Patroane, ai văzut câți bani le dai la Glovo?","body_template":"30% la fiecare comandă. {monthlyLossRon} RON pe lună. HIR: 2 lei.","cta_template":"Calculează economia ta pe hirforyou.ro/calculator","hashtags":["#patroni","#restaurant","#glovo","#hir"],"visual_brief":"9:16 desk close-up of cash receipts, red ALARM text overlay ''30%'', cut to HIR dashboard showing 2 lei"}'::jsonb,
    'seed'),
 
   ('general', 'modern', 'conversion', 'promo', 'reel_ig',
@@ -192,11 +209,11 @@ values
    'seed'),
 
   ('pizza', 'arhaic', 'retention', 'testimonial', 'static_fb',
-   '{"hook_template":"Ioane, mulțumesc!","body_template":"„Cea mai bună pizza din cartier"" — Ana, client din 2022. Mai aveți doar 5 mese libere astăzi.","cta_template":"Rezervă: {phoneNumber}","hashtags":["#multumesc","#pizza","#{businessName}"],"visual_brief":"1:1 candid customer photo with pizza, warm restaurant interior, friendly genuine smile"}'::jsonb,
+   '{"hook_template":"Ioane, mulțumesc!","body_template":"„Cea mai bună pizza din cartier” — Ana, client din 2022. Mai aveți doar 5 mese libere astăzi.","cta_template":"Rezervă: {phoneNumber}","hashtags":["#multumesc","#pizza","#{businessName}"],"visual_brief":"1:1 candid customer photo with pizza, warm restaurant interior, friendly genuine smile"}'::jsonb,
    'seed'),
 
   ('burger', 'arhaic', 'retention', 'testimonial', 'static_fb',
-   '{"hook_template":"„Doar la voi mănânc smash burger""","body_template":"Vorba lui Vlad, client de 2 ani. Vino să descoperi de ce.","cta_template":"Comandă pe {websiteUrl} sau {phoneNumber}","hashtags":["#client","#burger","#{businessName}"],"visual_brief":"1:1 customer holding burger, big bite shot, candid laugh, natural light"}'::jsonb,
+   '{"hook_template":"„Doar la voi mănânc smash burger”","body_template":"Vorba lui Vlad, client de 2 ani. Vino să descoperi de ce.","cta_template":"Comandă pe {websiteUrl} sau {phoneNumber}","hashtags":["#client","#burger","#{businessName}"],"visual_brief":"1:1 customer holding burger, big bite shot, candid laugh, natural light"}'::jsonb,
    'seed'),
 
   ('cafe', 'tehnic', 'awareness', 'event', 'reel_ig',
@@ -217,7 +234,7 @@ values
    'seed'),
 
   ('pharmacy', 'modern', 'retention', 'testimonial', 'static_fb',
-   '{"hook_template":"„Farmacista mea îmi explică mereu""","body_template":"Mihaela, client de 3 ani. La {businessName} sfatul e gratuit.","cta_template":"Vizitează-ne sau comandă pe {websiteUrl}","hashtags":["#farmacie","#sfat","#{businessName}"],"visual_brief":"1:1 customer in pharmacy, friendly pharmacist gesturing, professional warm light"}'::jsonb,
+   '{"hook_template":"„Farmacista mea îmi explică mereu”","body_template":"Mihaela, client de 3 ani. La {businessName} sfatul e gratuit.","cta_template":"Vizitează-ne sau comandă pe {websiteUrl}","hashtags":["#farmacie","#sfat","#{businessName}"],"visual_brief":"1:1 customer in pharmacy, friendly pharmacist gesturing, professional warm light"}'::jsonb,
    'seed'),
 
   -- ── HIR_INTERNAL: courier recruiting (B2B2C) ──────────────────────────
