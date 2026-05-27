@@ -77,6 +77,30 @@ export function MarketingHeader({
               </Link>
             );
           })}
+          {/* Lane HIRforYOU-MARKETPLACE (2026-05-28) — consumer-facing
+              discovery links. Hard-coded copy (RO-first) to avoid
+              extending the typed NAV dictionary until the surface
+              stabilizes. Followup: lift to marketing.shell.nav_*. */}
+          <Link
+            href="/restaurante"
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              active === '/restaurante'
+                ? 'bg-[#EEF2FF] text-[#4338CA]'
+                : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
+            }`}
+          >
+            {currentLocale === 'en' ? 'Restaurants' : 'Restaurante'}
+          </Link>
+          <Link
+            href="/cont"
+            className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+              active === '/cont'
+                ? 'bg-[#EEF2FF] text-[#4338CA]'
+                : 'text-[#475569] hover:bg-[#F1F5F9] hover:text-[#0F172A]'
+            }`}
+          >
+            {currentLocale === 'en' ? 'My account' : 'Contul meu'}
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <LocaleSwitcher
@@ -118,6 +142,26 @@ export function MarketingHeader({
             </Link>
           );
         })}
+        <Link
+          href="/restaurante"
+          className={`whitespace-nowrap rounded-md px-3 py-1 text-xs transition-colors ${
+            active === '/restaurante'
+              ? 'bg-[#EEF2FF] text-[#4338CA]'
+              : 'text-[#475569] hover:text-[#0F172A]'
+          }`}
+        >
+          {currentLocale === 'en' ? 'Restaurants' : 'Restaurante'}
+        </Link>
+        <Link
+          href="/cont"
+          className={`whitespace-nowrap rounded-md px-3 py-1 text-xs transition-colors ${
+            active === '/cont'
+              ? 'bg-[#EEF2FF] text-[#4338CA]'
+              : 'text-[#475569] hover:text-[#0F172A]'
+          }`}
+        >
+          {currentLocale === 'en' ? 'My account' : 'Contul meu'}
+        </Link>
       </nav>
     </header>
     </>
