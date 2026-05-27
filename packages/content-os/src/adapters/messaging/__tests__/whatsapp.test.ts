@@ -1,6 +1,10 @@
 import { createHmac } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
-import { WhatsAppProvider } from '../whatsapp';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  WhatsAppProvider,
+  WhatsAppCapExceededError,
+  type WaMarketingCapChecker,
+} from '../whatsapp';
 
 const provider = new WhatsAppProvider();
 
@@ -141,5 +145,118 @@ describe('WhatsAppProvider.verifySignature', () => {
         webhookSecret: 'topsecret',
       }),
     ).toBe(true);
+  });
+});
+
+describe('WhatsAppProvider.sendMarketing', () => {
+  // We stub `fetch` so the test doesn't hit Meta. The cap-checker is
+  // exercised BEFORE fetch — when it rejects, fetch must NEVER be called
+  // (avoiding paid conversation consumption).
+  const originalFetch = globalThis.fetch;
+  let fetchCalls: Array<{ url: string; init?: RequestInit }>;
+
+  beforeEach(() => {
+    fetchCalls = [];
+    globalThis.fetch = ((url: string, init?: RequestInit) => {
+      fetchCalls.push({ url, init });
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('throws CapExceededError BEFORE calling Meta when cap-checker rejects', async () => {
+    const checker: WaMarketingCapChecker = async () => ({
+      allowed: false,
+      message: 'cap atins',
+      used: 30,
+      cap: 30,
+    });
+    await expect(
+      provider.sendMarketing({
+        tenantId: 'tnt-1',
+        channelExternalId: 'PHONE_ID',
+        accessToken: 'tkn',
+        toUserId: '40773000000',
+        text: 'Pizza azi 25 RON',
+        capChecker: checker,
+      }),
+    ).rejects.toBeInstanceOf(WhatsAppCapExceededError);
+    expect(fetchCalls).toHaveLength(0);
+  });
+
+  it('calls Meta sendText when cap-checker allows', async () => {
+    let called = 0;
+    const checker: WaMarketingCapChecker = async (tenantId) => {
+      called++;
+      expect(tenantId).toBe('tnt-1');
+      return { allowed: true, used: 1, cap: 30 };
+    };
+    await provider.sendMarketing({
+      tenantId: 'tnt-1',
+      channelExternalId: 'PHONE_ID',
+      accessToken: 'tkn',
+      toUserId: '40773000000',
+      text: 'Pizza azi 25 RON',
+      capChecker: checker,
+    });
+    expect(called).toBe(1);
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0].url).toContain('PHONE_ID/messages');
+    const body = JSON.parse((fetchCalls[0].init?.body as string) ?? '{}');
+    expect(body.type).toBe('text');
+    expect(body.text.body).toBe('Pizza azi 25 RON');
+  });
+
+  it('dispatches buttons send when buttons[] is supplied', async () => {
+    const checker: WaMarketingCapChecker = async () => ({ allowed: true });
+    await provider.sendMarketing({
+      tenantId: 'tnt-1',
+      channelExternalId: 'PHONE_ID',
+      accessToken: 'tkn',
+      toUserId: '40773000000',
+      text: 'Approve draft?',
+      buttons: [{ id: 'yes', label: 'Da' }, { id: 'no', label: 'Nu' }],
+      capChecker: checker,
+    });
+    const body = JSON.parse((fetchCalls[0].init?.body as string) ?? '{}');
+    expect(body.type).toBe('interactive');
+    expect(body.interactive.action.buttons).toHaveLength(2);
+  });
+
+  it('skips the cap-checker for HIR_INTERNAL (tenantId null)', async () => {
+    let called = 0;
+    const checker: WaMarketingCapChecker = async () => {
+      called++;
+      return { allowed: false };
+    };
+    await provider.sendMarketing({
+      tenantId: null,
+      channelExternalId: 'PHONE_ID',
+      accessToken: 'tkn',
+      toUserId: '40773000000',
+      text: 'HIR self-marketing',
+      capChecker: checker,
+    });
+    expect(called).toBe(0);
+    expect(fetchCalls).toHaveLength(1);
+  });
+
+  it('throws when neither text nor media is supplied', async () => {
+    await expect(
+      provider.sendMarketing({
+        tenantId: 'tnt-1',
+        channelExternalId: 'PHONE_ID',
+        accessToken: 'tkn',
+        toUserId: '40773000000',
+      }),
+    ).rejects.toThrow(/text or media is required/);
   });
 });

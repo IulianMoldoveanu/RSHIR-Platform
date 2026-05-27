@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { VideoGenAgent } from '../video-gen';
+import { VideoGenAgent, CapExceededError, type CapChecker } from '../video-gen';
 import type { VisualPrompt } from '../visual-director';
 import type { BrandContext } from '../../types';
 
@@ -93,5 +93,56 @@ describe('VideoGenAgent.generate', () => {
     expect(out.status).toBe('succeeded');
     expect(out.videoUrl).toBeUndefined();
     expect(out.durationSec).toBe(0);
+  });
+
+  it('runs the cap-checker and proceeds when allowed', async () => {
+    let called = 0;
+    const checker: CapChecker = async (tenantId) => {
+      called++;
+      expect(tenantId).toBe('t1');
+      return { allowed: true, used: 1, cap: 3 };
+    };
+    const out = await agent.generate({
+      brand: baseBrand,
+      prompt: samplePrompt,
+      clientReferenceId: 'cap-ok',
+      capChecker: checker,
+    });
+    expect(called).toBe(1);
+    expect(out.status).toBe('succeeded');
+  });
+
+  it('throws CapExceededError BEFORE calling the provider when over cap', async () => {
+    const checker: CapChecker = async () => ({
+      allowed: false,
+      message: 'over cap',
+      used: 3,
+      cap: 3,
+    });
+    await expect(
+      agent.generate({
+        brand: baseBrand,
+        prompt: samplePrompt,
+        clientReferenceId: 'cap-blocked',
+        capChecker: checker,
+      }),
+    ).rejects.toBeInstanceOf(CapExceededError);
+  });
+
+  it('skips the cap-checker for HIR_INTERNAL brands (tenantId null)', async () => {
+    let called = 0;
+    const checker: CapChecker = async () => {
+      called++;
+      return { allowed: false };
+    };
+    const hirBrand: BrandContext = { ...baseBrand, tenantId: null, kind: 'HIR_INTERNAL' };
+    const out = await agent.generate({
+      brand: hirBrand,
+      prompt: samplePrompt,
+      clientReferenceId: 'hir-internal',
+      capChecker: checker,
+    });
+    expect(called).toBe(0);
+    expect(out.status).toBe('succeeded');
   });
 });
