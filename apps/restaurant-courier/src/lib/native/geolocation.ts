@@ -1,25 +1,21 @@
 'use client';
 
 /**
- * Capacitor-aware geolocation shim.
+ * Unified geolocation bridge: Capacitor native (iOS/Android) or browser PWA.
  *
- * When running in a Capacitor native shell (iOS/Android), the Capacitor
- * Geolocation plugin is preferred because:
- *   - Android: background location requires the native plugin.
- *   - iOS: WKWebView restricts background geolocation for PWAs; native
- *     plugin works even when the app is backgrounded during a delivery.
+ * In a Capacitor native shell:
+ *   - Uses @capacitor/geolocation for background tracking support.
+ *   - Android: ACCESS_BACKGROUND_LOCATION needed for shift-active tracking.
+ *   - iOS: WKWebView cannot run geolocation in background; native plugin can.
  *
- * When running in a browser (PWA, dev), falls back to
- * navigator.geolocation — no Capacitor dependency needed.
+ * In a browser / PWA:
+ *   - Falls back to navigator.geolocation.watchPosition.
  *
- * Usage — drop-in replacement for the existing useCourierGeolocation hook.
- * The hook already calls this indirectly via the browser API; this file
- * provides the Capacitor path once the native plugin is installed.
- *
- * ACTIVATION: remove the `typeof window === 'undefined'` early return guard
- * and import Capacitor Geolocation from '@capacitor/geolocation' once the
- * package is installed.
+ * This module is a drop-in replacement for any existing usage of
+ * navigator.geolocation. Callers never need to check Capacitor directly.
  */
+
+import { Capacitor } from '@capacitor/core';
 
 export type GeoPosition = {
   lat: number;
@@ -40,61 +36,68 @@ const WATCH_OPTIONS: PositionOptions = {
   timeout: 10000,
 };
 
-/** Returns true when running inside a Capacitor native shell. */
-function isNativeShell(): boolean {
-  if (typeof window === 'undefined') return false;
-  // Capacitor sets window.Capacitor.isNativePlatform() once loaded.
-  const cap = (window as unknown as Record<string, unknown>)['Capacitor'] as
-    | { isNativePlatform?: () => boolean }
-    | undefined;
-  return cap?.isNativePlatform?.() ?? false;
-}
-
 /**
- * Start watching position.
+ * Start watching position. Returns a cleanup function that stops the watch.
  *
- * In the native shell: delegates to Capacitor Geolocation (when installed).
- * In the browser: uses navigator.geolocation.watchPosition.
- *
- * Returns a cleanup function that stops the watch.
+ * Throttle: the caller (useCourierGeolocation) is responsible for the
+ * 1-post/sec server throttle — this bridge emits every raw position.
  */
 export function watchPosition(
   onPosition: WatchCallback,
   onError: ErrorCallback,
 ): () => void {
+  // ── Native path (Capacitor Geolocation) ──────────────────────────────────
+  if (Capacitor.isNativePlatform()) {
+    let cancelled = false;
+    let nativeWatchId: string | null = null;
+
+    void (async () => {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const perm = await Geolocation.requestPermissions({ permissions: ['location'] });
+        if (perm.location !== 'granted') {
+          onError('denied', 'Permisiunea pentru locație a fost refuzată. Activați locația din setările telefonului.');
+          return;
+        }
+        if (cancelled) return;
+        nativeWatchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+          (pos, err) => {
+            if (err) {
+              onError('granted', err.message);
+              return;
+            }
+            if (!pos) return;
+            onPosition({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              heading: pos.coords.heading,
+              speed: pos.coords.speed,
+            });
+          },
+        );
+      } catch (e) {
+        onError('unavailable', e instanceof Error ? e.message : 'Geolocation error');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (nativeWatchId !== null) {
+        void import('@capacitor/geolocation').then(({ Geolocation }) =>
+          Geolocation.clearWatch({ id: nativeWatchId as string }),
+        );
+      }
+    };
+  }
+
+  // ── Browser / PWA path ───────────────────────────────────────────────────
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    onError('unavailable', 'Geolocation is not supported on this device.');
+    onError('unavailable', 'Geolocation nu este suportată pe acest dispozitiv.');
     return () => {};
   }
 
-  // --- Native path (Capacitor Geolocation plugin) ---
-  // When @capacitor/geolocation is installed, uncomment this block:
-  //
-  // if (isNativeShell()) {
-  //   import('@capacitor/geolocation').then(({ Geolocation }) => {
-  //     Geolocation.requestPermissions().then((perm) => {
-  //       if (perm.location !== 'granted') {
-  //         onError('denied', 'Location permission denied.');
-  //         return;
-  //       }
-  //       let watchId: string;
-  //       Geolocation.watchPosition(
-  //         { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
-  //         (pos, err) => {
-  //           if (err) { onError('granted', err.message); return; }
-  //           if (!pos) return;
-  //           onPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude,
-  //             accuracy: pos.coords.accuracy, heading: pos.coords.heading,
-  //             speed: pos.coords.speed });
-  //         },
-  //       ).then((id) => { watchId = id; });
-  //       cleanup = () => Geolocation.clearWatch({ id: watchId });
-  //     });
-  //   });
-  //   return cleanup;
-  // }
-
-  // --- Browser path (PWA / dev) ---
   const watchId = navigator.geolocation.watchPosition(
     (pos) => {
       onPosition({
@@ -118,4 +121,45 @@ export function watchPosition(
   );
 
   return () => navigator.geolocation.clearWatch(watchId);
+}
+
+/**
+ * Request a one-time position (used for initial fix on shift start).
+ */
+export async function getCurrentPosition(): Promise<GeoPosition | null> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      const pos = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+      return {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        heading: pos.coords.heading,
+        speed: pos.coords.speed,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          heading: pos.coords.heading,
+          speed: pos.coords.speed,
+        }),
+      () => resolve(null),
+      WATCH_OPTIONS,
+    );
+  });
 }

@@ -1,0 +1,217 @@
+name: Courier Android Build (Play Store)
+
+# Triggered by tags matching courier-android-v* (e.g. courier-android-v1.0.0)
+# or manually via workflow_dispatch.
+#
+# Produces:
+#   - android-debug:   debug APK, no signing required, for QA installs.
+#   - android-release: signed AAB suitable for Google Play Store upload.
+#
+# SIGNING GATES — Iulian must provision these GitHub Secrets before release builds work:
+#   ANDROID_KEYSTORE_BASE64   — base64-encoded .keystore file
+#   ANDROID_KEY_ALIAS         — key alias (e.g. hir-courier)
+#   ANDROID_KEY_PASSWORD      — key password
+#   ANDROID_STORE_PASSWORD    — store password
+#   GOOGLE_SERVICES_JSON      — content of android/app/google-services.json (from Firebase)
+#
+# Without those secrets the workflow still builds a debug APK for QA.
+#
+# iOS: disabled (requires macOS runner + Xcode + Apple Developer account).
+# See apps/restaurant-courier/STORE-DEPLOYMENT.md for the full runbook.
+
+on:
+  push:
+    tags:
+      - 'courier-android-v*'
+  workflow_dispatch:
+    inputs:
+      build_target:
+        description: 'Build target'
+        required: true
+        default: 'android-debug'
+        type: choice
+        options:
+          - android-debug
+          - android-release
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+  JAVA_VERSION: '17'
+  APP_ID: ro.hirforyou.curier
+
+jobs:
+  # ── Android Debug APK ──────────────────────────────────────────────────────
+  android-debug:
+    name: Android Debug APK
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && inputs.build_target == 'android-debug' ||
+      github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write google-services.json
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        working-directory: apps/restaurant-courier
+        run: |
+          mkdir -p android/app
+          if [ -n "$GSJ" ]; then
+            printf '%s' "$GSJ" > android/app/google-services.json
+          else
+            # Minimal stub so Gradle does not fail; push will not work without real file.
+            cat > android/app/google-services.json << 'STUB'
+          {
+            "project_info": { "project_id": "hir-courier-stub" },
+            "client": [{
+              "client_info": { "mobilesdk_app_id": "1:000000000000:android:0000000000000000" },
+              "api_key": [{ "current_key": "stub" }],
+              "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+            }],
+            "configuration_version": "1"
+          }
+          STUB
+          fi
+
+      - name: Cap add android (if not present) + sync
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Build debug APK
+        working-directory: apps/restaurant-courier/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: courier-android-debug-${{ github.ref_name }}
+          path: apps/restaurant-courier/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+  # ── Android Release AAB (Play Store) ──────────────────────────────────────
+  android-release:
+    name: Android Release AAB (Play Store)
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/courier-android-v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_target == 'android-release')
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write google-services.json
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        working-directory: apps/restaurant-courier
+        run: |
+          mkdir -p android/app
+          if [ -n "$GSJ" ]; then
+            printf '%s' "$GSJ" > android/app/google-services.json
+          else
+            echo "WARNING: GOOGLE_SERVICES_JSON secret not set. Push notifications will not work."
+            cat > android/app/google-services.json << 'STUB'
+          {
+            "project_info": { "project_id": "hir-courier-stub" },
+            "client": [{
+              "client_info": { "mobilesdk_app_id": "1:000000000000:android:0000000000000000" },
+              "api_key": [{ "current_key": "stub" }],
+              "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+            }],
+            "configuration_version": "1"
+          }
+          STUB
+          fi
+
+      - name: Cap add android (if not present) + sync
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Decode keystore
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode \
+            > apps/restaurant-courier/android/app/hir-courier.keystore
+
+      - name: Build release AAB (signed)
+        if: ${{ env.HAS_KEYSTORE == 'true' }}
+        working-directory: apps/restaurant-courier/android
+        run: |
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=app/hir-courier.keystore \
+            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_STORE_PASSWORD }}" \
+            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
+            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+
+      - name: Build release AAB (unsigned — no keystore)
+        if: ${{ env.HAS_KEYSTORE != 'true' }}
+        working-directory: apps/restaurant-courier/android
+        run: ./gradlew bundleRelease --no-daemon
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: courier-android-release-aab-${{ github.ref_name }}
+          path: apps/restaurant-courier/android/app/build/outputs/bundle/release/app-release*.aab
+          retention-days: 90
+
+  # ── iOS (disabled — macOS runner required) ────────────────────────────────
+  ios:
+    name: iOS IPA (disabled — macOS runner required)
+    runs-on: ubuntu-latest
+    if: false
+    steps:
+      - name: iOS build not configured
+        run: |
+          echo "iOS requires macOS + Xcode + Apple Developer account."
+          echo "See apps/restaurant-courier/STORE-DEPLOYMENT.md for steps."
+          exit 1

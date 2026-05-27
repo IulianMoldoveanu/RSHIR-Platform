@@ -1,64 +1,49 @@
 'use client';
 
 /**
- * Capacitor-aware preferences (key-value storage) shim.
+ * Unified key-value storage bridge: Capacitor native encrypted store or
+ * browser localStorage.
  *
- * @capacitor/preferences is an encrypted native key-value store. It replaces
- * localStorage for storing the session tokens (accessToken, refreshToken) in
- * the native shell. Native secure storage is harder to extract than
- * localStorage on a rooted device.
+ * In a Capacitor native shell, @capacitor/preferences uses an encrypted
+ * native store (Keychain on iOS, EncryptedSharedPreferences on Android).
+ * This is harder to extract than localStorage on rooted devices.
  *
- * Browser path: delegates to localStorage — same interface, same keys.
- *
- * ACTIVATION: once @capacitor/preferences is installed, uncomment the native
- * path. No API changes needed — callers use get/set/remove exactly as today.
+ * In a browser / PWA, falls back to localStorage with the same interface.
  */
 
-/** Returns true when running inside a Capacitor native shell. */
-function isNativeShell(): boolean {
-  if (typeof window === 'undefined') return false;
-  const cap = (window as unknown as Record<string, unknown>)['Capacitor'] as
-    | { isNativePlatform?: () => boolean }
-    | undefined;
-  return cap?.isNativePlatform?.() ?? false;
-}
-
-async function nativeGet(key: string): Promise<string | null> {
-  // const { Preferences } = await import('@capacitor/preferences');
-  // const { value } = await Preferences.get({ key });
-  // return value;
-  return localStorage.getItem(key);
-}
-
-async function nativeSet(key: string, value: string): Promise<void> {
-  // const { Preferences } = await import('@capacitor/preferences');
-  // await Preferences.set({ key, value });
-  localStorage.setItem(key, value);
-}
-
-async function nativeRemove(key: string): Promise<void> {
-  // const { Preferences } = await import('@capacitor/preferences');
-  // await Preferences.remove({ key });
-  localStorage.removeItem(key);
-}
+import { Capacitor } from '@capacitor/core';
 
 /** Get a stored value by key. Returns null if not found. */
 export async function get(key: string): Promise<string | null> {
   if (typeof window === 'undefined') return null;
-  // Native path would be: if (isNativeShell()) return nativeGet(key);
-  return nativeGet(key);
+  if (Capacitor.isNativePlatform()) {
+    const { Preferences } = await import('@capacitor/preferences');
+    const { value } = await Preferences.get({ key });
+    return value;
+  }
+  return localStorage.getItem(key);
 }
 
 /** Set a stored value. */
 export async function set(key: string, value: string): Promise<void> {
   if (typeof window === 'undefined') return;
-  return nativeSet(key, value);
+  if (Capacitor.isNativePlatform()) {
+    const { Preferences } = await import('@capacitor/preferences');
+    await Preferences.set({ key, value });
+    return;
+  }
+  localStorage.setItem(key, value);
 }
 
 /** Remove a stored value. */
 export async function remove(key: string): Promise<void> {
   if (typeof window === 'undefined') return;
-  return nativeRemove(key);
+  if (Capacitor.isNativePlatform()) {
+    const { Preferences } = await import('@capacitor/preferences');
+    await Preferences.remove({ key });
+    return;
+  }
+  localStorage.removeItem(key);
 }
 
 /** Convenience: get a JSON-parsed value. Returns null if not found or parse fails. */

@@ -1,7 +1,12 @@
 # HIR Curier — Native Mobile Shell
 
-**Status:** PWA live at `courier-beta-seven.vercel.app`. Capacitor config
-committed. Native build is a 1-day job once Iulian green-lights it.
+**Status:** Capacitor packages added to package.json. Native bridge shims
+active in `src/lib/native/`. Android build workflow ready at
+`.github/workflows/courier-android-build.yml`. See `STORE-DEPLOYMENT.md`
+for the full Play Store submission runbook.
+
+**Production URL:** `https://courier.hirforyou.ro`
+**App ID:** `ro.hirforyou.curier`
 
 ## Architecture: hosted-webview
 
@@ -14,20 +19,10 @@ geolocation scope, new capabilities) require a rebuild and store review.
 
 ### Step 1 — Install Capacitor packages (run once per repo clone)
 
-```sh
-cd apps/restaurant-courier
+Packages are now declared in `package.json`. Just run from repo root:
 
-pnpm add @capacitor/core
-pnpm add -D @capacitor/cli
-pnpm add \
-  @capacitor/ios \
-  @capacitor/android \
-  @capacitor/geolocation \
-  @capacitor/push-notifications \
-  @capacitor/preferences \
-  @capacitor/app \
-  @capacitor/splash-screen \
-  @capacitor/status-bar
+```sh
+pnpm install
 ```
 
 ### Step 2 — Add platforms
@@ -63,14 +58,16 @@ npx cap open ios       # Xcode (macOS only)
 | Android keystore generation | free | Dev | NOT DONE |
 | Splash screen 2732x2732 PNG (designer) | ~150 EUR | Designer | NOT DONE |
 | App icon 1024x1024 (designer, if not reusing 512 PNG) | included | Designer | NOT DONE |
-| Privacy Policy URL (required by both stores) | free | Iulian | NOT DONE |
+| Privacy Policy URL | free | auto | DONE — /privacy |
+| Terms of Service URL | free | auto | DONE — /terms |
+| Account deletion flow | free | auto | DONE — /settings/delete-account |
 
 ## Push notification keys
 
 ### Android (FCM)
 
 1. Create a Firebase project at console.firebase.google.com.
-2. Add an Android app with package name `ro.hir.courier`.
+2. Add an Android app with package name `ro.hirforyou.curier`.
 3. Download `google-services.json` and place it at
    `apps/restaurant-courier/android/app/google-services.json`.
 4. Store the file content as GitHub secret `GOOGLE_SERVICES_JSON`.
@@ -83,7 +80,7 @@ npx cap open ios       # Xcode (macOS only)
 2. Note the Key ID and Team ID.
 3. Store the .p8 content as GitHub secret `APPLE_APNS_KEY_P8`.
 4. Configure `capacitor.config.ts` > `plugins.PushNotifications` with the
-   key ID, team ID, and bundle ID `ro.hir.courier`.
+   key ID, team ID, and bundle ID `ro.hirforyou.curier`.
 5. Update `courier-push-dispatch` to send APNs payloads to iOS devices.
 
 ## Android keystore (release signing)
@@ -119,18 +116,25 @@ B. Manual: build locally on a Mac (`npx cap open ios`, archive in Xcode),
 C. Pay for GitHub-hosted macOS minutes (~$0.08/min). Practical for monthly
    store builds but expensive for every PR.
 
+Android builds use `.github/workflows/courier-android-build.yml` and require
+only an Ubuntu runner (free). Tag `courier-android-v*` to trigger.
+
 ## Native plugin activation checklist
 
-When native plugins are installed, the shims in `src/lib/native/` need to be
-updated:
+All shims in `src/lib/native/` are now active — they use
+`Capacitor.isNativePlatform()` to branch between native and browser paths.
+No further activation steps needed for:
 
-- `geolocation.ts`: uncomment the Capacitor Geolocation path.
-- `push.ts`: uncomment the Capacitor PushNotifications path.
-- `preferences.ts`: uncomment the Capacitor Preferences path (enables
-  encrypted token storage).
+- `geolocation.ts` — @capacitor/geolocation native path active
+- `push.ts` — @capacitor/push-notifications native path active
+- `preferences.ts` — @capacitor/preferences native path active
+- `camera.ts` — @capacitor/camera native path active (new)
+- `local-notify.ts` — @capacitor/local-notifications native path active (new)
+- `network.ts` — @capacitor/network native path active (new)
+- `deep-link.ts` — @capacitor/app deep link listener active (new)
 
-Each shim has the exact lines to uncomment marked with the comment
-`// Uncomment once @capacitor/<plugin> is installed:`.
+Required before first production build:
+- `google-services.json` from Firebase (see STORE-DEPLOYMENT.md step 2)
 
 ## Permission strings
 
