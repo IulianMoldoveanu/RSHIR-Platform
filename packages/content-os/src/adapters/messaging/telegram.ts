@@ -56,7 +56,7 @@ interface TelegramUpdate {
   callback_query?: {
     id?: string;
     from?: { id?: number };
-    message?: { message_id?: number; chat?: { id?: number } };
+    message?: { message_id?: number; chat?: { id?: number }; date?: number };
     data?: string;
   };
 }
@@ -93,10 +93,12 @@ export class TelegramProvider implements MessagingProvider {
         messageType: 'button_click',
         buttonPayload: data,
         externalMessageId: cq.id ?? String(cq.message?.message_id ?? ''),
-        // callback_query doesn't include a server timestamp; the underlying
-        // message.date is the closest signal we have for "when did this user
-        // last interact with the bot."
-        sentAt: new Date(),
+        // Codex P2 absorb: Telegram callback_query carries the originating
+        // message which itself has a `date`. Use it so downstream stale-event
+        // filters reject outdated approval taps (e.g. Telegram re-delivered
+        // a callback from an old prompt). Fall back to now() only when the
+        // platform omits date (inaccessible old messages).
+        sentAt: cq.message?.date ? new Date(cq.message.date * 1000) : new Date(),
       };
       return { kind: 'message', message };
     }
