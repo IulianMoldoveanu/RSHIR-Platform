@@ -435,6 +435,18 @@ export async function enqueueTestEvent(
     .maybeSingle();
   if (!provider) return { ok: false, error: 'provider_not_found' };
   if (!provider.is_active) return { ok: false, error: 'provider_inactive' };
+  // Defense in depth — UI hides this button for custom (Codex P2 #765), but
+  // a direct API caller could still try. Custom dispatch forwards the payload
+  // to the operator's webhook with test_mode=false, which on receivers like
+  // the Datecs FP-700 companion would print a real fiscal receipt for the
+  // synthetic order. Operators should use testCustomWebhook() instead, which
+  // sets test_mode=true on the wire.
+  if (provider.provider_key === 'custom') {
+    return {
+      ok: false,
+      error: 'Pentru furnizori Custom, folosește butonul „Testează" — acela marchează corect test_mode în payload.',
+    };
+  }
 
   const samplePayload: OrderPayload & { _test_event: true } = {
     orderId: `test-${Date.now()}`,

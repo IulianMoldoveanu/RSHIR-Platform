@@ -644,7 +644,18 @@ export function IntegrationsClient({ tenantId, canEdit, providers, apiKeys, even
                               {testingId === p.id ? 'Se testează…' : 'Testează'}
                             </button>
                           )}
-                          {p.is_active && (
+                          {/*
+                            "Eveniment de test" enqueues a synthetic order.created through the
+                            production dispatcher. Safe for mock/iiko/freya/posnet/smartcash —
+                            mock no-ops; the others mark DEAD on scaffold so no external call.
+                            INTENTIONALLY HIDDEN for `custom`: the production dispatcher forwards
+                            the payload to the operator's webhook URL with `test_mode: false` /
+                            `x-hir-test-mode: 0`, which on receivers like the Datecs FP-700
+                            companion would print a real fiscal receipt. Operators test custom
+                            providers via the dedicated "Testează" button (sets test_mode=true).
+                            Codex P2 #765.
+                          */}
+                          {p.is_active && p.provider_key !== 'custom' && (
                             <button
                               type="button"
                               onClick={() => {
