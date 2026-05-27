@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.0",
+    "@hir/content-os": "workspace:*",
     "@hir/integration-core": "workspace:*",
     "@hir/restaurant-templates": "workspace:*",
     "@hir/supabase-types": "workspace:*",

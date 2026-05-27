@@ -172,6 +172,15 @@ export default async function ContentDashboardPage() {
 
       {capAlerts.length > 0 && <CapBanner alerts={capAlerts} />}
 
+      <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+        <span className="font-semibold">Hepi îți generează drafts</span> în
+        fiecare dimineață la 06:00 UTC.{' '}
+        <Link href="/dashboard/content/drafts" className="font-semibold underline hover:no-underline">
+          Vezi drafts-urile
+        </Link>{' '}
+        sau scrie-i pe WhatsApp/Telegram cu <code className="rounded bg-violet-100 px-1 py-0.5 text-xs">/reclama</code>.
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         {brands.map((brand) => {
           const c = counts[brand.id];

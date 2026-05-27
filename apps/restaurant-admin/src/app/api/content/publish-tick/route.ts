@@ -1,19 +1,23 @@
 // POST /api/content/publish-tick
 //
-// Called by the Edge Function `content-os-publish-queue` cron at 12:00 UTC.
-// Finds content_publications with status='queued' AND scheduled_for<=now()
-// and dispatches each via the appropriate PublisherProvider (Meta/TikTok/
-// LinkedIn/X), then marks the row published / failed.
+// Publish-queue tick — called by Supabase Edge Function
+// `content-os-publish-queue` hourly (see pg_cron migration
+// 20260628_002_content_os_cron_schedule.sql).
 //
-// Stub for Lot 6: counts the queue so the cron has a signal. Full publish
-// dispatch lands in a follow-up PR once provider OAuth tokens are in
-// content_provider_credentials (post-onboarding wizard completion).
+// Picks up content_publications rows with status='queued' AND
+// scheduled_for<=now() and dispatches each via the matching
+// PublisherProvider (Meta/IG/TikTok/LinkedIn/X), updating status on
+// success/failure. When credentials are missing for a (brand, channel)
+// pair, the row is marked failed with a clear "conectează X din onboarding"
+// message — expected state until the OAuth onboarding wizard ships.
 
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { runPublishTick } from '@/lib/content-os/publish';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 function isAuthorized(req: Request): boolean {
   const expected = process.env.CONTENT_OS_CRON_TOKEN;
@@ -27,25 +31,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
-
-  const nowIso = new Date().toISOString();
-  const { count, error } = await sb
-    .from('content_publications')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'queued')
-    .lte('scheduled_for', nowIso);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const admin = createAdminClient();
+    const stats = await runPublishTick({ admin });
+    return NextResponse.json({
+      ok: true,
+      stats,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    stub: true,
-    queued_publications_due: count ?? 0,
-    note: 'Publisher dispatch lands in follow-up PR once OAuth tokens ship.',
-    timestamp: nowIso,
-  });
 }
