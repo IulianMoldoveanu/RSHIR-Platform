@@ -17,6 +17,7 @@ import {
   Settings,
   Shield,
   Stethoscope,
+  Trash2,
   User,
 } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
@@ -283,6 +284,16 @@ export default async function SettingsPage() {
             disabled
           />
 
+          {/* Delete account */}
+          <SettingsRow
+            href="/settings/delete-account"
+            icon={<Trash2 className="h-5 w-5 text-rose-400" aria-hidden />}
+            iconBg="bg-rose-500/10"
+            label="Șterge cont"
+            description="Solicită ștergerea permanentă a contului și datelor tale"
+            variant="danger"
+          />
+
           {/* Logout */}
           <form action={logoutAction}>
             <button
@@ -319,12 +330,12 @@ export default async function SettingsPage() {
             <LegalLink
               icon={<FileText className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
               label="Termeni și condiții"
-              href="https://hirforyou.ro/termeni"
+              href="/terms"
             />
             <LegalLink
               icon={<Shield className="h-4 w-4 text-hir-muted-fg" aria-hidden />}
               label="Politica de confidențialitate"
-              href="https://hirforyou.ro/confidentialitate"
+              href="/privacy"
             />
             <LegalLink
               icon={<ExternalLink className="h-4 w-4 text-hir-muted-fg" aria-hidden />}

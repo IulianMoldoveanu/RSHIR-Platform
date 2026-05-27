@@ -1,28 +1,18 @@
 'use client';
 
 /**
- * Capacitor-aware push notification shim.
+ * Unified push notification bridge: Capacitor native FCM/APNs or browser VAPID.
  *
- * In a native Capacitor shell (iOS/Android), web push (VAPID) is replaced
- * by native push channels:
- *   - iOS: APNs (Apple Push Notification Service)
- *   - Android: FCM (Firebase Cloud Messaging)
+ * Native shell (Android → FCM, iOS → APNs):
+ *   - Requests permission via @capacitor/push-notifications.
+ *   - On registration, POSTs the device token to the courier-push-register
+ *     Edge Function which upserts into courier_push_tokens table.
  *
- * The Capacitor PushNotifications plugin wraps both. This shim bridges the
- * existing web-push registration flow to native when the plugin is installed.
- *
- * Current state: browser-only path is active. Native path is commented out
- * and ready to enable once @capacitor/push-notifications is installed and
- * FCM google-services.json + APNs .p8 key are provisioned.
- *
- * ACTIVATION steps (see mobile/README.md):
- *   1. Install @capacitor/push-notifications.
- *   2. Add google-services.json to android/app/.
- *   3. Add APNs Auth Key to Xcode project (or use Capacitor config).
- *   4. Update the Supabase Edge Function `courier-push-dispatch` to send
- *      FCM/APNs payloads using the device token stored here.
- *   5. Uncomment the native path below.
+ * Browser / PWA:
+ *   - Delegates to the existing VAPID web-push flow (src/lib/push/register-sw).
  */
+
+import { Capacitor } from '@capacitor/core';
 
 export type PushRegistrationResult =
   | { status: 'registered'; token: string; platform: 'ios' | 'android' }
@@ -31,55 +21,58 @@ export type PushRegistrationResult =
   | { status: 'unsupported' }
   | { status: 'not-configured' };
 
-/** Returns true when running inside a Capacitor native shell. */
-function isNativeShell(): boolean {
-  if (typeof window === 'undefined') return false;
-  const cap = (window as unknown as Record<string, unknown>)['Capacitor'] as
-    | { isNativePlatform?: () => boolean }
-    | undefined;
-  return cap?.isNativePlatform?.() ?? false;
-}
-
 /**
  * Register for push notifications.
  *
- * Native shell: gets an FCM/APNs device token via Capacitor plugin and
- * POSTs it to the server. (Commented out until plugin is installed.)
- *
- * Browser: delegates to the existing web-push subscribe flow in
- * src/lib/push/subscribe.ts (VAPID).
+ * Pass the Supabase access token so the Edge Function can authenticate
+ * the token registration call.
  */
 export async function registerForPush(
   supabaseAccessToken: string,
 ): Promise<PushRegistrationResult> {
-  // --- Native path (Capacitor PushNotifications plugin) ---
-  // Uncomment once @capacitor/push-notifications is installed:
-  //
-  // if (isNativeShell()) {
-  //   const { PushNotifications } = await import('@capacitor/push-notifications');
-  //   const perm = await PushNotifications.requestPermissions();
-  //   if (perm.receive !== 'granted') return { status: 'denied' };
-  //   await PushNotifications.register();
-  //   return new Promise((resolve) => {
-  //     PushNotifications.addListener('registration', async (token) => {
-  //       const platform = (window as any).Capacitor.getPlatform();
-  //       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  //       await fetch(`${supabaseUrl}/functions/v1/courier-push-register`, {
-  //         method: 'POST',
-  //         headers: { 'Content-Type': 'application/json',
-  //                     Authorization: `Bearer ${supabaseAccessToken}` },
-  //         body: JSON.stringify({ native_token: token.value, platform }),
-  //       });
-  //       resolve({ status: 'registered', token: token.value,
-  //                 platform: platform === 'ios' ? 'ios' : 'android' });
-  //     });
-  //     PushNotifications.addListener('registrationError', () => {
-  //       resolve({ status: 'unsupported' });
-  //     });
-  //   });
-  // }
+  // ── Native path (Capacitor PushNotifications) ────────────────────────────
+  if (Capacitor.isNativePlatform()) {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    const perm = await PushNotifications.requestPermissions();
+    if (perm.receive !== 'granted') return { status: 'denied' };
 
-  // --- Browser path (web push / VAPID) ---
+    await PushNotifications.register();
+
+    return new Promise<PushRegistrationResult>((resolve) => {
+      const registrationHandler = PushNotifications.addListener(
+        'registration',
+        async (token) => {
+          void registrationHandler.then((h) => h.remove());
+
+          const platform = Capacitor.getPlatform() as 'ios' | 'android';
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+          if (supabaseUrl) {
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/courier-push-register`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${supabaseAccessToken}`,
+                },
+                body: JSON.stringify({ native_token: token.value, platform }),
+              });
+            } catch {
+              // Non-fatal: token still returned to caller so UI can reflect registration.
+            }
+          }
+
+          resolve({ status: 'registered', token: token.value, platform });
+        },
+      );
+
+      void PushNotifications.addListener('registrationError', () => {
+        resolve({ status: 'unsupported' });
+      });
+    });
+  }
+
+  // ── Browser / PWA path (VAPID web push) ─────────────────────────────────
   const { registerPushServiceWorker } = await import('./sw-push-bridge');
   return registerPushServiceWorker(supabaseAccessToken);
 }
