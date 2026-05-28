@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HIR — 1-pager pentru patroni</title>
+<style>
+  /* Reset + base */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    color: #111;
+    background: #fff;
+  }
+
+  /* A4 page container */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 12mm 14mm 10mm 14mm;
+    background: #fff;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Print rules */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    html, body { margin: 0; padding: 0; }
+    .page { margin: 0; page-break-after: avoid; }
+    .no-print { display: none !important; }
+  }
+
+  /* ---- Typography ---- */
+  h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: #111; }
+  h2 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #5b21b6; margin-bottom: 5px; margin-top: 0; }
+  h3 { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 2px; }
+  p, li { font-size: 12.5px; line-height: 1.5; color: #333; }
+  sub { font-size: 10px; color: #666; }
+
+  /* ---- Header ---- */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    border-bottom: 2.5px solid #7c3aed;
+    margin-bottom: 8px;
+  }
+  .header-left { flex: 1; }
+  .logo {
+    font-size: 28px;
+    font-weight: 900;
+    color: #7c3aed;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .tagline {
+    font-size: 12px;
+    color: #555;
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .header-badge {
+    background: #7c3aed;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    align-self: flex-start;
+  }
+
+  /* ---- Separator ---- */
+  .sep {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 7px 0;
+  }
+
+  /* ---- Proof bar ---- */
+  .proof-bar {
+    background: #f5f3ff;
+    border-left: 4px solid #7c3aed;
+    padding: 5px 10px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 8px;
+  }
+  .proof-bar p {
+    font-size: 11.5px;
+    color: #4c1d95;
+    font-style: italic;
+  }
+  .proof-bar .source {
+    font-size: 10.5px;
+    color: #7c3aed;
+    font-style: normal;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  /* ---- Features grid ---- */
+  .features-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 14px;
+    margin-bottom: 8px;
+  }
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .feature-icon {
+    width: 16px;
+    height: 16px;
+    background: #7c3aed;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .feature-icon::after {
+    content: '';
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+    display: block;
+  }
+  .feature-text { font-size: 11.5px; line-height: 1.4; color: #222; }
+  .feature-text strong { font-weight: 700; color: #111; }
+
+  /* ---- Pricing block ---- */
+  .pricing-block {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 8px;
+  }
+  .price-main {
+    flex: 0 0 auto;
+    background: #7c3aed;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 120px;
+  }
+  .price-main .price-number {
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  .price-main .price-unit {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 2px;
+  }
+  .price-main .price-note {
+    font-size: 10px;
+    opacity: 0.75;
+    margin-top: 4px;
+  }
+  .price-compare {
+    flex: 1;
+    background: #fefce8;
+    border: 1.5px solid #fde047;
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  .price-compare .compare-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #713f12;
+    margin-bottom: 4px;
+  }
+  .compare-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    margin-bottom: 2px;
+  }
+  .compare-row .platform { color: #555; }
+  .compare-row .cost-hir { color: #15803d; font-weight: 700; }
+  .compare-row .cost-glovo { color: #dc2626; font-weight: 700; }
+  .compare-savings {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid #fde047;
+    font-size: 12px;
+    font-weight: 800;
+    color: #15803d;
+  }
+
+  /* ---- Comparison table ---- */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .comp-table th {
+    background: #7c3aed;
+    color: #fff;
+    font-weight: 700;
+    padding: 4px 6px;
+    text-align: left;
+    font-size: 10.5px;
+  }
+  .comp-table th:first-child { border-radius: 4px 0 0 0; }
+  .comp-table th:last-child { border-radius: 0 4px 0 0; }
+  .comp-table td {
+    padding: 3.5px 6px;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+    font-size: 11px;
+  }
+  .comp-table tr:nth-child(even) td { background: #fafafa; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .col-hir { font-weight: 700; color: #15803d; }
+  .comp-table .col-no { color: #dc2626; }
+  .comp-table .col-warn { color: #d97706; }
+
+  /* ---- Guarantee strip ---- */
+  .guarantee-strip {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .guarantee-item {
+    flex: 1;
+    text-align: center;
+    background: #f0fdf4;
+    border: 1.5px solid #86efac;
+    border-radius: 6px;
+    padding: 6px 4px;
+  }
+  .guarantee-item .g-number {
+    font-size: 18px;
+    font-weight: 900;
+    color: #15803d;
+    line-height: 1;
+  }
+  .guarantee-item .g-label {
+    font-size: 9.5px;
+    color: #166534;
+    margin-top: 1px;
+    line-height: 1.3;
+  }
+
+  /* ---- CTA footer ---- */
+  .cta-footer {
+    display: flex;
+    gap: 0;
+    border: 2px solid #7c3aed;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: auto;
+  }
+  .cta-col {
+    flex: 1;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .cta-col:not(:last-child) { border-right: 1.5px solid #7c3aed; }
+  .cta-col:first-child { background: #7c3aed; color: #fff; }
+  .cta-col .cta-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.85;
+    margin-bottom: 2px;
+  }
+  .cta-col:first-child .cta-label { opacity: 0.8; color: #fff; }
+  .cta-col .cta-value {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.3px;
+  }
+  .cta-col:first-child .cta-value { color: #fff; font-size: 16px; }
+  .cta-col .cta-sub {
+    font-size: 9.5px;
+    color: #666;
+    margin-top: 1px;
+  }
+  .cta-col:first-child .cta-sub { color: #ddd6fe; }
+
+  /* ---- Footnote ---- */
+  .footnote {
+    font-size: 9px;
+    color: #999;
+    margin-top: 5px;
+    text-align: center;
+  }
+
+  /* ---- Print button (screen only) ---- */
+  .print-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    z-index: 999;
+  }
+  .print-btn:hover { background: #6d28d9; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">Printeaza A4</button>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">HIR</div>
+      <div class="tagline">Sistemul romanesc pentru restaurante care vor sa-si pastreze clientii</div>
+    </div>
+    <div class="header-badge">90 ZILE GRATIS</div>
+  </div>
+
+  <!-- Social proof -->
+  <div class="proof-bar">
+    <p>"Sistemul lui ne tine brand-ul curat. Clientii comanda direct la noi."</p>
+    <div class="source">deliveryhouse.ro — 5 locatii Brasov, 15.000 recenzii 5 stele</div>
+  </div>
+
+  <!-- Section: Ce face HIR -->
+  <h2>Ce primesti cu HIR</h2>
+  <div class="features-grid">
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Site propriu pe domeniul tau</strong> — clientii comanda direct, fara intermediar</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Datele clientilor raman ale tale</strong> — ii suni, le trimiti oferte, ii fidelizezi</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Hepi — asistent AI 24/7 pe WhatsApp</strong> — preia comenzi, raspunde, face marketing</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Aplicatie curier cu harta live</strong> — stii exact unde e fiecare comanda</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Migrare meniu + clienti GRATUIT</strong> — vii de la orice platforma, in 24 de ore</div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-icon"></div>
+      <div class="feature-text"><strong>Panou comenzi + KPI in timp real</strong> — bucatarul, casiera, managerul — toti conectati</div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- Section: Pricing -->
+  <h2>Pretul</h2>
+  <div class="pricing-block">
+    <div class="price-main">
+      <div class="price-number">2<span style="font-size:18px"> lei</span></div>
+      <div class="price-unit">per comanda</div>
+      <div class="price-note">fara abonament<br>fara comision %</div>
+    </div>
+    <div class="price-compare">
+      <div class="compare-title">La 100 comenzi/zi, comanda medie 80 lei:</div>
+      <div class="compare-row">
+        <span class="platform">HIR (2 lei/comanda)</span>
+        <span class="cost-hir">6.000 lei/luna</span>
+      </div>
+      <div class="compare-row">
+        <span class="platform">Glovo (30% comision)</span>
+        <span class="cost-glovo">72.000 lei/luna</span>
+      </div>
+      <div class="compare-savings">Economisesti 66.000 lei pe luna</div>
+    </div>
+  </div>
+
+  <!-- Guarantees -->
+  <div class="guarantee-strip">
+    <div class="guarantee-item">
+      <div class="g-number">90</div>
+      <div class="g-label">zile gratis<br>fara card</div>
+    </div>
+    <div class="guarantee-item">
+      <div class="g-number">0</div>
+      <div class="g-label">abonament<br>lunar</div>
+    </div>
+    <div class="guarantee-item">
+      <div class="g-number">24h</div>
+      <div class="g-label">migrare<br>gratuita</div>
+    </div>
+    <div class="guarantee-item">
+      <div class="g-number">0</div>
+      <div class="g-label">contract<br>minim</div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- Comparison table -->
+  <h2>Comparatie rapida</h2>
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Functionalitate</th>
+        <th>HIR</th>
+        <th>GloriaFood</th>
+        <th>Glovo</th>
+        <th>Site propriu (DIY)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Site pe domeniul tau</td>
+        <td class="col-hir">DA</td>
+        <td class="col-warn">widget</td>
+        <td class="col-no">NU</td>
+        <td class="col-hir">DA</td>
+      </tr>
+      <tr>
+        <td>Clientii tai, datele tale</td>
+        <td class="col-hir">DA</td>
+        <td class="col-hir">DA</td>
+        <td class="col-no">NU (ai lor)</td>
+        <td class="col-hir">DA</td>
+      </tr>
+      <tr>
+        <td>AI marketing 24/7 (Hepi)</td>
+        <td class="col-hir">DA — inclus</td>
+        <td class="col-no">NU</td>
+        <td class="col-no">NU</td>
+        <td class="col-no">NU</td>
+      </tr>
+      <tr>
+        <td>App curier integrata cu harta</td>
+        <td class="col-hir">DA — ai tai</td>
+        <td class="col-no">NU</td>
+        <td class="col-warn">doar ai lor</td>
+        <td class="col-no">NU</td>
+      </tr>
+      <tr>
+        <td>Trial gratuit fara card</td>
+        <td class="col-hir">90 zile</td>
+        <td class="col-warn">7 zile</td>
+        <td class="col-no">NU</td>
+        <td class="col-no">NU</td>
+      </tr>
+      <tr>
+        <td>Contract minim</td>
+        <td class="col-hir">0 luni</td>
+        <td class="col-no">12 luni</td>
+        <td class="col-warn">0 luni</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Suport romanesc live</td>
+        <td class="col-hir">DA — fondator</td>
+        <td class="col-warn">email</td>
+        <td class="col-no">chat AI</td>
+        <td>depinde</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- CTA footer -->
+  <div class="cta-footer">
+    <div class="cta-col">
+      <div class="cta-label">Suna acum</div>
+      <div class="cta-value">0743 700 916</div>
+      <div class="cta-sub">Iulian Moldoveanu — fondator</div>
+    </div>
+    <div class="cta-col">
+      <div class="cta-label">WhatsApp</div>
+      <div class="cta-value" style="font-size:12px;">Scrie "DEMO"</div>
+      <div class="cta-sub">la 0743 700 916</div>
+    </div>
+    <div class="cta-col">
+      <div class="cta-label">Demo online</div>
+      <div class="cta-value" style="font-size:12px;">hirforyou.ro/demo</div>
+      <div class="cta-sub">
+        <!-- QR placeholder — inlocuieste cu QR real la hirforyou.ro/demo -->
+        <svg width="52" height="52" viewBox="0 0 52 52" style="display:block;margin:2px auto 0;" aria-label="QR code hirforyou.ro/demo">
+          <!-- QR finder patterns (placeholder visual) -->
+          <rect x="2" y="2" width="18" height="18" fill="none" stroke="#7c3aed" stroke-width="2.5" rx="2"/>
+          <rect x="6" y="6" width="10" height="10" fill="#7c3aed" rx="1"/>
+          <rect x="32" y="2" width="18" height="18" fill="none" stroke="#7c3aed" stroke-width="2.5" rx="2"/>
+          <rect x="36" y="6" width="10" height="10" fill="#7c3aed" rx="1"/>
+          <rect x="2" y="32" width="18" height="18" fill="none" stroke="#7c3aed" stroke-width="2.5" rx="2"/>
+          <rect x="6" y="36" width="10" height="10" fill="#7c3aed" rx="1"/>
+          <!-- Data modules (decorative placeholder) -->
+          <rect x="22" y="2" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="28" y="2" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="8" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="14" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="28" y="14" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="2" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="8" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="14" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="28" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="34" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="40" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="46" y="22" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="28" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="34" y="28" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="46" y="28" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="34" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="28" y="34" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="40" y="34" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="40" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="34" y="40" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="46" y="40" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="22" y="46" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="28" y="46" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+          <rect x="40" y="46" width="4" height="4" fill="#7c3aed" rx="0.5"/>
+        </svg>
+        <span style="font-size:9px;color:#7c3aed;display:block;text-align:center;">inlocuieste cu QR real</span>
+      </div>
+    </div>
+    <div class="cta-col">
+      <div class="cta-label">Email</div>
+      <div class="cta-value" style="font-size:11px;">office@hirforyou.ro</div>
+      <div class="cta-sub">raspuns in sub 2 ore</div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    HIR for You &middot; Brand romanesc, fabricat pentru patroni romani &middot; hirforyou.ro &middot;
+    Cifrele Glovo sunt estimative la comision standard 30%. HIR pricing: 2 lei/comanda, fara TVA, blocat pana la 100 restaurante onboarded.
+  </div>
+
+</div>
+
+</body>
+</html>
