@@ -37,7 +37,7 @@ const CANONICAL_BASE = PRIMARY_DOMAIN
 const PAGE_URL = `${CANONICAL_BASE}/orase`;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const title = t(locale, 'marketing.cities.index_page_title');
   const description = t(locale, 'marketing.cities.index_page_description');
   const og = marketingOgImageUrl({
@@ -76,7 +76,7 @@ async function loadCitiesWithCounts(): Promise<CityWithCount[]> {
 }
 
 export default async function OraseIndexPage() {
-  const currentLocale = getLocale();
+  const currentLocale = await getLocale();
   const cities = await loadCitiesWithCounts();
   const totalCount = cities.length;
 

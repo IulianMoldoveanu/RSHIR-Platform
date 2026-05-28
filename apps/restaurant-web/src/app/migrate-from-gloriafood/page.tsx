@@ -14,7 +14,7 @@ function daysUntilShutdown(): number {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `https://${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}/migrate-from-gloriafood`;
   const ogImage = marketingOgImageUrl({
     title: t(locale, 'marketing.migrate.og_title'),
@@ -182,7 +182,7 @@ export default async function MigrateFromGloriaFoodPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const locale = getLocale();
+  const locale = await getLocale();
   const refCode = typeof searchParams.ref === 'string' ? searchParams.ref : '';
   const days = daysUntilShutdown();
 

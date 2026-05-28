@@ -44,7 +44,7 @@ import { hasAnalyticsConsent, hasMarketingConsent } from '@/lib/consent.server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { tenant } = await resolveTenantFromHost();
-  const locale = getLocale();
+  const locale = await getLocale();
   if (!tenant) {
     // Lane H marketing landing — only on canonical hosts with no tenant.
     // SEO audit 2026-05-10 #1 — RO is the only canonical metadata language
@@ -184,7 +184,7 @@ export default async function StorefrontHomePage() {
     );
   }
 
-  const locale = getLocale();
+  const locale = await getLocale();
   const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
   // Lane PERF (2026-05-05) — preload the LCP cover image so the browser
   // starts the fetch before parsing <body>. ReactDOM.preload emits a

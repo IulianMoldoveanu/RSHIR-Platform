@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function EmbedDocsPage() {
-  const currentLocale = getLocale();
+export default async function EmbedDocsPage() {
+  const currentLocale = await getLocale();
   return (
     <div className="min-h-screen bg-white">
       <MarketingHeader currentLocale={currentLocale} />

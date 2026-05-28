@@ -67,7 +67,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata(props: Params): Promise<Metadata> {
   const params = await props.params;
-  const locale = getLocale();
+  const locale = await getLocale();
   const city = await getCityBySlug(params.citySlug);
   if (!city) {
     return { robots: { index: false, follow: false } };
@@ -139,7 +139,7 @@ function tenantLocalBusinessJsonLd(input: {
 
 export default async function CityLandingPage(props: Params) {
   const params = await props.params;
-  const currentLocale = getLocale();
+  const currentLocale = await getLocale();
   const city = await getCityBySlug(params.citySlug);
   if (!city) {
     notFound();

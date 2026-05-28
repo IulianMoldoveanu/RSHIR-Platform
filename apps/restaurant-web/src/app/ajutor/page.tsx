@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function HelpPublicPage() {
-  const locale = getLocale();
+export default async function HelpPublicPage() {
+  const locale = await getLocale();
 
   const faqs = [
     { q: t(locale, 'help.faq_q1'), a: t(locale, 'help.faq_a1') },

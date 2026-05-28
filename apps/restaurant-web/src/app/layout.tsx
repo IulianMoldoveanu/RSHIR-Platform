@@ -93,7 +93,7 @@ async function rootLocale(): Promise<Locale> {
     (await headers()).get('host')?.split(':')[0] ??
     '';
   if (isCanonicalHost(host)) return 'ro';
-  return getLocale();
+  return await getLocale();
 }
 
 export async function generateMetadata(): Promise<Metadata> {

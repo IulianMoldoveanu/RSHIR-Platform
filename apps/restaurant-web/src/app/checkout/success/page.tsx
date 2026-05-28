@@ -23,7 +23,7 @@ export default async function CheckoutSuccessPage(
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
-  const locale = getLocale();
+  const locale = await getLocale();
   const orderId = searchParams.order_id ?? '';
   const token = searchParams.token ?? '';
   const shortId = orderId.slice(0, 8);

@@ -63,8 +63,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function FoisorulACaseStudyPage() {
-  const locale = getLocale();
+export default async function FoisorulACaseStudyPage() {
+  const locale = await getLocale();
   const articleJsonLd = buildArticleJsonLd({
     headline: 'Foișorul A — primul restaurant HIR live',
     description:

@@ -15,7 +15,7 @@ export default async function CheckoutCancelPage() {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
-  const locale = getLocale();
+  const locale = await getLocale();
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-10 text-center">

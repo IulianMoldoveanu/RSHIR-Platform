@@ -92,8 +92,8 @@ const EN: Copy = {
     'Either way, you are on the same platform. No per-order commission, no minimum targets.',
 };
 
-export default function IncepeCuHirPage() {
-  const currentLocale = getLocale();
+export default async function IncepeCuHirPage() {
+  const currentLocale = await getLocale();
   const c = currentLocale === 'en' ? EN : RO;
 
   return (
