@@ -19,6 +19,8 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/', priority: 1.0 },
   { path: '/features', priority: 0.8 },
   { path: '/pricing', priority: 0.8 },
+  // Calculator ROI interactiv (2026-05-28) — top-funnel sales tool.
+  { path: '/calculator-roi', priority: 0.9 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   { path: '/alternativa-gloriafood-romania', priority: 0.9 },
   { path: '/case-studies/foisorul-a', priority: 0.6 },
