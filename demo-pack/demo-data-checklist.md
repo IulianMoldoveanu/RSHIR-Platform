@@ -7,9 +7,9 @@
 
 ## 🟢 Verificări tehnice (15 minute)
 
-### Tenant demo pe Vercel — `demo-pizzeria-brasov`
+### Tenant demo pe Vercel — `foisorul-a`
 
-- [ ] Storefront live la **`hirforyou.ro/m/demo-pizzeria-brasov`** — se încarcă în <3s
+- [ ] Storefront live la **`hir-restaurant-web.vercel.app/?tenant=foisorul-a`** — se încarcă în <3s
 - [ ] Meniu populat: **12 produse minim**, în **3 categorii** (Pizza / Burger / Băuturi)
 - [ ] Fiecare produs are: poză, preț, descriere scurtă
 - [ ] Cel puțin un produs este marcat „Recomandat" / „Cel mai vândut"
@@ -17,7 +17,7 @@
 - [ ] Checkout merge până la „Comandă trimisă" cu plată ramburs
 - [ ] Plata cu cardul **funcționează în mod sandbox** (Netopia / Viva test mode)
 
-### Admin dashboard — `admin.hirforyou.ro`
+### Admin dashboard — `app.hirforyou.ro`
 
 - [ ] Login funcționează cu contul demo (`demo@hirforyou.ro` / parolă în vault)
 - [ ] Dashboard arată **KPI cards** cu cifre realiste (nu zerouri peste tot)
@@ -40,7 +40,7 @@
 ### Hepi AI — Telegram & WhatsApp
 
 - [ ] Bot Telegram `@MasterHIRbot` (sau cel demo) **online** — răspunde imediat la `/start`
-- [ ] Bot conectat la tenantul `demo-pizzeria-brasov` (verifică în setări tenant)
+- [ ] Bot conectat la tenantul `foisorul-a` (verifică în setări tenant)
 - [ ] Test conversație ca CLIENT: scrii „vreau pizza Margherita" → Hepi confirmă + plasează comandă mock → comanda apare în admin
 - [ ] Test ca PATRON: scrii „fă-mi postare Facebook pentru pizza zilei" → primești 3 variante text
 - [ ] WhatsApp Business (dacă activ pe tenantul demo) — testează același flow
@@ -81,8 +81,8 @@
 - [ ] Notificările toate dezactivate (mod „Do Not Disturb")
 - [ ] Brightness setat la 80% (vizibil în restaurant cu lumina aprinsă)
 - [ ] Tab-uri pre-deschise în ordinea demo-ului:
-  1. `hirforyou.ro/m/demo-pizzeria-brasov`
-  2. `admin.hirforyou.ro/dashboard`
+  1. `hir-restaurant-web.vercel.app/?tenant=foisorul-a`
+  2. `app.hirforyou.ro/dashboard`
   3. App curier (telefon separat sau tab tabletă)
   4. Telegram web cu Hepi conectat
   5. `hirforyou.ro` (homepage pentru pricing)

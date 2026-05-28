@@ -45,7 +45,7 @@
 ## ⏱️ SEGMENT 2 — STOREFRONT (5 min)
 
 ### Ce arăți pe ecran
-1. Deschide **`hirforyou.ro/m/demo-pizzeria-brasov`** (sau slug-ul demo curent)
+1. Deschide **`hir-restaurant-web.vercel.app/?tenant=foisorul-a`** (storefront demo activ)
 2. Scrolla încet — meniul, categoriile, fotografiile produselor
 3. Tap pe un produs → adaugă în coș → arată coșul
 4. Tap "Comandă" → completează rapid: telefon + adresă + plată
@@ -83,7 +83,7 @@
 ## ⏱️ SEGMENT 3 — ADMIN PANEL (10 min)
 
 ### Ce arăți pe ecran
-1. Deschide **`admin.hirforyou.ro/dashboard`** logat cu tenantul demo
+1. Deschide **`app.hirforyou.ro/dashboard`** logat cu tenantul demo
 2. Arată **dashboard principal** — KPI cards (comenzi azi / venit / coș mediu)
 3. Tap pe **"Comenzi"** → vezi comanda fresh de la storefront, plus alte 3 mock în statusuri diferite (Nou / Pregătire / Livrat)
 4. Click pe o comandă → vezi detaliile, click "Marchează gata"
@@ -236,7 +236,7 @@
 **R:** "Da, facem factură lunară cu TVA. O dăm și contabilului tău direct dacă vrei. Suntem firmă românească, plătim impozite în România."
 
 **P:** _"Și dacă pică serverul?"_
-**R:** "Avem 99.9% uptime, vezi-l live la `hirforyou.ro/status`. Eu personal primesc alertă pe telefon dacă pică ceva."
+**R:** "Avem 99.9% uptime, vezi-l live la `hirforyou.ro/status` — deschis acum în tab dacă vrei. Eu personal primesc alertă pe telefon dacă pică ceva."
 
 **P:** _"Cum încep?"_
 **R:** "Trei pași. Unu — îmi dai datele restaurantului tău acum sau pe WhatsApp. Doi — mâine ai site-ul gata. Trei — primești prima comandă. Hai să începem chiar acum?"
