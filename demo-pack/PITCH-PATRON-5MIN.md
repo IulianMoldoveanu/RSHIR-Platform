@@ -6,7 +6,10 @@
 
 ## Setup (30 sec, înainte să intri)
 
-- Laptop sau tabletă deschisă pe `https://hirforyou.ro/m/deliveryhouse` (sau `deliveryhouse.ro`)
+- Laptop/tabletă cu 3 tab-uri pre-loaded:
+  - Storefront LIVE: `https://hir-restaurant-web.vercel.app/?tenant=foisorul-a` (Foișorul A, 700+ comenzi reale ultimele 30 zile)
+  - Admin: `https://app.hirforyou.ro/` (login pre-loaded cu cont demo)
+  - Courier PWA: `https://hir-restaurant-courier.vercel.app/`
 - Telefon cu Telegram deschis la `@MasterHIRbot`
 - 1-pager A4 printat în mână (1 buc per patron + 1 buc spare)
 
@@ -14,7 +17,7 @@
 
 ## 1. HOOK (60 sec) — așezat, înainte să arăți ecranul
 
-> "Patroane, te rog 5 minute. Vreau să-ți arăt ce am construit pentru patroni ca tine. Lucrez cu unul din Brașov, Mihai de la Delivery House — știi 5 locații Civic Center, 15.000 review-uri 5 stele. Am început acum 6 luni. Acum economisește 4.200 lei pe lună față de Glovo."
+> "Patroane, te rog 5 minute. Vreau să-ți arăt ce am construit pentru patroni ca tine. Lucrez cu Foișorul A din Civic Center Brașov — 700 de comenzi reale luna asta, NU plătesc 30% nimănui. Diferența rămasă la patron: ~15.000 lei pe lună."
 >
 > "Asta nu e abordare de mall sau de telefon. Vreau să-ți arăt LIVE. Dacă nu-ți place în 5 minute, plec, ai pierdut doar timpul. OK?"
 
@@ -24,21 +27,21 @@
 
 ## 2. STOREFRONT LIVE (90 sec) — deschide laptop/tabletă
 
-Arăți URL `deliveryhouse.ro` sau `hirforyou.ro/m/deliveryhouse`:
+Arăți URL `https://hir-restaurant-web.vercel.app/?tenant=foisorul-a`:
 
-> "Asta e site-ul lui Mihai. Clientul intră aici, nu pe Glovo. Vezi meniul, alege, plătește, gata. Mihai primește comanda direct în dashboard, fără să dea 30% nimănui."
+> "Asta e site-ul Foișorului. Clientul intră aici, nu pe Glovo. Vezi meniul, alege, plătește, gata. Patronul primește comanda direct în dashboard, fără să dea 30% nimănui."
 
-**[Scroll meniu. Add pizza Margherita la coș. Mergi pe checkout.]**
+**[Scroll meniu. Add un produs la coș. Mergi pe checkout — arăți cum funcționează.]**
 
-> "Plata se face cu cardul direct la el. Sau ramburs. Mihai primește banii în 2 zile, nu așteaptă 2 săptămâni la Glovo. Și are baza de date — vede cine a comandat, când, ce. Sună-i, le trimite mesaj. NU e închisă platformei."
+> "Plata se face cu cardul direct la patron. Sau ramburs. Patronul primește banii în 2 zile, nu așteaptă 2 săptămâni la Glovo. Și are baza de date — vede cine a comandat, când, ce. Sună-i, le trimite mesaj. NU e închis platformei."
 
 ---
 
 ## 3. ADMIN LIVE (90 sec) — deschide tab admin
 
-URL `admin.hirforyou.ro` cu cont demo:
+URL `https://app.hirforyou.ro/` cu cont demo:
 
-> "Aici stă patronul. Vezi comenzile cum vin LIVE. Apasă 'preparing', 'gata', 'livrată'. Mihai are tableta în bucătărie, vede direct, nu mai trebuie să-i sune cineva."
+> "Aici stă patronul. Vezi comenzile cum vin LIVE. Apasă 'preparing', 'gata', 'livrată'. Patronul are tableta în bucătărie, vede direct, nu mai trebuie să-i sune cineva."
 
 **[Click rapid prin: orders → analytics → menu.]**
 
@@ -95,7 +98,7 @@ Hepi răspunde instant cu cifre concrete.
 | "Cu Glovo merge bine acum" | "Înțeleg. Cât ai vândut anul ăsta prin Glovo? [pauză] Înmulțit cu 25% = câți bani le-ai dat. Pe 90 zile gratis, ai timp să compari. Nu pleci de la Glovo, le păstrezi în paralel. Asta e cu mine." |
 | "N-am timp acum" | "5 minute am avut. Setup-ul îl fac EU pentru tine. 30 minute, restaurant up. Vreau să ajut, nu să-ți consum timpul." |
 | "Cât plătesc dacă nu vând?" | "Nimic. Zero. 0 lei. Plătești DOAR când iau eu banii — adică doar pe comenzi care vin. Nu ai nicio surpriză." |
-| "Cine te garantează că ești serios?" | "Mihai de la Delivery House. Sună-l. Numărul lui e pe site-ul deliveryhouse.ro. Spune că de la mine. Vorbește 5 minute cu el. Asta e garanția mea cea mai bună." |
+| "Cine te garantează că ești serios?" | "Foișorul A din Civic Center Brașov. 700 comenzi confirmate luna asta. Vorbește 5 minute cu patronul. Asta e garanția mea cea mai bună. Plus 90 zile gratis fără card." |
 | "OK, hai să încercăm" | "Excelent! Ne vedem [data], stăm 30 de minute, te onboardez personal. Pot să-ți iau numărul? [data întâlnire]. Îți trimit acum un mesaj să ai contactul meu." |
 
 ---
@@ -104,7 +107,7 @@ Hepi răspunde instant cu cifre concrete.
 
 Mesaj WhatsApp/SMS imediat:
 
-> "Salut [Patron], mulțumesc pentru timpul tău. Cum ne-am înțeles — [data] la [ora]. Aici e site-ul lui Mihai, ca să vezi exemplul concret: deliveryhouse.ro. Dacă mai ai întrebări înainte, scrie-mi. Iulian"
+> "Salut [Patron], mulțumesc pentru timpul tău. Cum ne-am înțeles — [data] la [ora]. Aici e link la storefront-ul Foișorul A ca să vezi exemplul concret: hir-restaurant-web.vercel.app/?tenant=foisorul-a. Dacă mai ai întrebări înainte, scrie-mi. Iulian"
 
 ---
 
@@ -129,8 +132,9 @@ Patron sense fear. Patron sense pressure. Patron NU sense calm + value. Mergi ca
 
 - [ ] Laptop / tabletă încărcată >80%
 - [ ] WiFi sau hotspot 4G testat
-- [ ] `hirforyou.ro/m/deliveryhouse` se încarcă rapid
-- [ ] `admin.hirforyou.ro` deschis cu cont demo
+- [ ] `hir-restaurant-web.vercel.app/?tenant=foisorul-a` se încarcă rapid (Foișorul A storefront)
+- [ ] `app.hirforyou.ro` deschis cu cont demo (admin login)
+- [ ] `hir-restaurant-courier.vercel.app` se încarcă (courier PWA)
 - [ ] Telegram `@MasterHIRbot` test răspunde
 - [ ] 1-pager A4 printat × 2
 - [ ] Cărti de vizită × 5
