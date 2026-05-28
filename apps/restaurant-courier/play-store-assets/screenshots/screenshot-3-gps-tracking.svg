@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <!-- Map background -->
+  <rect x="0" y="0" width="1080" height="1920" fill="#E5E7EB"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF" opacity="0.95"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">10:14</text>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">98%</text>
+
+  <!-- Map gridlines (street pattern) -->
+  <g opacity="0.4">
+    <line x1="0" y1="300" x2="1080" y2="300" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="0" y1="600" x2="1080" y2="600" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="0" y1="900" x2="1080" y2="900" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="0" y1="1200" x2="1080" y2="1200" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="0" y1="1500" x2="1080" y2="1500" stroke="#9CA3AF" stroke-width="3"/>
+
+    <line x1="200" y1="60" x2="200" y2="1920" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="500" y1="60" x2="500" y2="1920" stroke="#9CA3AF" stroke-width="3"/>
+    <line x1="800" y1="60" x2="800" y2="1920" stroke="#9CA3AF" stroke-width="3"/>
+  </g>
+
+  <!-- Route polyline -->
+  <path d="M 280 1380 Q 400 1100 540 900 Q 680 700 820 540" stroke="#4F46E5" stroke-width="14" fill="none" stroke-linecap="round"/>
+  <path d="M 280 1380 Q 400 1100 540 900 Q 680 700 820 540" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="20,16"/>
+
+  <!-- Courier marker (current position) -->
+  <circle cx="280" cy="1380" r="50" fill="#4F46E5" opacity="0.25"/>
+  <circle cx="280" cy="1380" r="32" fill="#4F46E5"/>
+  <circle cx="280" cy="1380" r="22" fill="#FFFFFF"/>
+  <circle cx="280" cy="1380" r="14" fill="#4F46E5"/>
+  <text x="280" y="1480" font-family="Inter, sans-serif" font-weight="700" font-size="24" fill="#1F2937" text-anchor="middle">Tu</text>
+
+  <!-- Destination marker -->
+  <circle cx="820" cy="540" r="44" fill="#16A34A"/>
+  <text x="820" y="554" font-family="Inter, sans-serif" font-weight="800" font-size="32" fill="#FFFFFF" text-anchor="middle">L</text>
+  <text x="820" y="630" font-family="Inter, sans-serif" font-weight="700" font-size="24" fill="#1F2937" text-anchor="middle">Maria · Aleea Brebina 8</text>
+
+  <!-- Top banner -->
+  <rect x="40" y="120" width="1000" height="180" rx="20" fill="#FFFFFF"/>
+  <rect x="40" y="120" width="12" height="180" rx="6" fill="#16A34A"/>
+  <text x="80" y="180" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">COMANDA #1248</text>
+  <text x="80" y="230" font-family="Inter, sans-serif" font-weight="800" font-size="42" fill="#1F2937">Pe drum spre client</text>
+  <text x="80" y="280" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#16A34A">ETA: 8 min · 1.4 km rămas</text>
+
+  <!-- Action buttons sticky bottom -->
+  <rect x="0" y="1620" width="1080" height="300" fill="#FFFFFF"/>
+  <rect x="0" y="1618" width="1080" height="2" fill="#E5E7EB"/>
+
+  <!-- Navigate button -->
+  <rect x="40" y="1660" width="480" height="120" rx="20" fill="#EEF2FF"/>
+  <text x="280" y="1735" font-family="Inter, sans-serif" font-weight="700" font-size="30" fill="#4F46E5" text-anchor="middle">Navighează</text>
+
+  <!-- Call client button -->
+  <rect x="560" y="1660" width="480" height="120" rx="20" fill="#EEF2FF"/>
+  <text x="800" y="1735" font-family="Inter, sans-serif" font-weight="700" font-size="30" fill="#4F46E5" text-anchor="middle">Sună clientul</text>
+
+  <!-- Mark arrived -->
+  <rect x="40" y="1800" width="1000" height="100" rx="20" fill="#16A34A"/>
+  <text x="540" y="1865" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#FFFFFF" text-anchor="middle">Am ajuns la client</text>
+</svg>

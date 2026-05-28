@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect x="0" y="0" width="1080" height="1920" fill="#F3F4F6"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">08:32</text>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">94%</text>
+
+  <!-- Header -->
+  <rect x="0" y="60" width="1080" height="120" fill="#4F46E5"/>
+  <text x="540" y="135" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#FFFFFF" text-anchor="middle">Tura mea</text>
+
+  <!-- Shift status hero card -->
+  <rect x="40" y="220" width="1000" height="380" rx="32" fill="#16A34A"/>
+
+  <!-- Pulsing dot -->
+  <circle cx="540" cy="320" r="40" fill="#FFFFFF" opacity="0.25"/>
+  <circle cx="540" cy="320" r="24" fill="#FFFFFF"/>
+  <circle cx="540" cy="320" r="12" fill="#16A34A"/>
+
+  <text x="540" y="420" font-family="Inter, sans-serif" font-weight="800" font-size="56" fill="#FFFFFF" text-anchor="middle">Tură activă</text>
+  <text x="540" y="490" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#DCFCE7" text-anchor="middle">Pornită la 08:00 · 32 min</text>
+
+  <!-- Toggle pill -->
+  <rect x="290" y="530" width="500" height="50" rx="25" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="740" cy="555" r="20" fill="#FFFFFF"/>
+  <text x="320" y="565" font-family="Inter, sans-serif" font-weight="700" font-size="22" fill="#FFFFFF">ONLINE</text>
+
+  <!-- Live stats row -->
+  <rect x="40" y="640" width="320" height="180" rx="24" fill="#FFFFFF"/>
+  <text x="200" y="710" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280" text-anchor="middle">Comenzi</text>
+  <text x="200" y="775" font-family="Inter, sans-serif" font-weight="800" font-size="56" fill="#1F2937" text-anchor="middle">4</text>
+
+  <rect x="380" y="640" width="320" height="180" rx="24" fill="#FFFFFF"/>
+  <text x="540" y="710" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280" text-anchor="middle">Câștiguri</text>
+  <text x="540" y="775" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#16A34A" text-anchor="middle">82 RON</text>
+
+  <rect x="720" y="640" width="320" height="180" rx="24" fill="#FFFFFF"/>
+  <text x="880" y="710" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280" text-anchor="middle">Distanță</text>
+  <text x="880" y="775" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#1F2937" text-anchor="middle">14 km</text>
+
+  <!-- Location section -->
+  <rect x="40" y="860" width="1000" height="160" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="915" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">LOCAȚIA CURENTĂ</text>
+
+  <circle cx="100" cy="970" r="14" fill="#4F46E5"/>
+  <text x="140" y="980" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">Str. Republicii 14, Brașov</text>
+
+  <text x="80" y="1010" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">Actualizat acum 3 sec</text>
+
+  <!-- Zone info -->
+  <rect x="40" y="1060" width="1000" height="180" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="1115" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">ZONĂ ACTIVĂ</text>
+  <text x="80" y="1170" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#1F2937">Centru Brașov · 0-3 km</text>
+  <rect x="80" y="1190" width="280" height="40" rx="20" fill="#DCFCE7"/>
+  <text x="220" y="1218" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#16A34A" text-anchor="middle">15 RON/livrare</text>
+
+  <!-- Settings row -->
+  <rect x="40" y="1280" width="1000" height="120" rx="20" fill="#FFFFFF"/>
+  <text x="80" y="1330" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">Auto-accept comenzi</text>
+  <text x="80" y="1370" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">Acceptă automat sub 3 km</text>
+  <rect x="900" y="1310" width="100" height="56" rx="28" fill="#4F46E5"/>
+  <circle cx="970" cy="1338" r="22" fill="#FFFFFF"/>
+
+  <rect x="40" y="1420" width="1000" height="120" rx="20" fill="#FFFFFF"/>
+  <text x="80" y="1470" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">Pauză programată</text>
+  <text x="80" y="1510" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">12:30 - 13:00 (masa de prânz)</text>
+  <rect x="900" y="1450" width="100" height="56" rx="28" fill="#E5E7EB"/>
+  <circle cx="930" cy="1478" r="22" fill="#FFFFFF"/>
+
+  <!-- End shift button -->
+  <rect x="40" y="1640" width="1000" height="120" rx="30" fill="#FFFFFF" stroke="#DC2626" stroke-width="3"/>
+  <text x="540" y="1715" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#DC2626" text-anchor="middle">Încheie tura</text>
+</svg>

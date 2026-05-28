@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg192" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="192" height="192" rx="36" ry="36" fill="url(#bg192)"/>
+  <text x="96" y="100" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="800" font-size="60" fill="#FFFFFF" text-anchor="middle" letter-spacing="-1.5">HIR</text>
+  <text x="96" y="134" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="600" font-size="20" fill="#FFFFFF" text-anchor="middle" letter-spacing="3" opacity="0.95">CURIER</text>
+</svg>

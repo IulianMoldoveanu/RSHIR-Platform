@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect x="0" y="0" width="1080" height="1920" fill="#F3F4F6"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">19:30</text>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">76%</text>
+
+  <!-- Header -->
+  <rect x="0" y="60" width="1080" height="120" fill="#4F46E5"/>
+  <text x="540" y="135" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#FFFFFF" text-anchor="middle">Câștigurile mele</text>
+
+  <!-- Today total card -->
+  <rect x="40" y="220" width="1000" height="240" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="280" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#6B7280">Total astăzi</text>
+  <text x="80" y="370" font-family="Inter, sans-serif" font-weight="800" font-size="88" fill="#16A34A">245 RON</text>
+  <text x="80" y="420" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">12 livrări · Medie 20.4 RON / livrare</text>
+
+  <!-- Weekly chart -->
+  <rect x="40" y="490" width="1000" height="440" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="550" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#1F2937">Ultimele 7 zile</text>
+  <text x="80" y="590" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">Total săptămână: 1.420 RON</text>
+
+  <!-- Bar chart -->
+  <g transform="translate(80, 640)">
+    <!-- Bars -->
+    <rect x="0" y="120" width="100" height="120" rx="8" fill="#C7D2FE"/>
+    <text x="50" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">L</text>
+    <text x="50" y="105" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">180</text>
+
+    <rect x="130" y="60" width="100" height="180" rx="8" fill="#C7D2FE"/>
+    <text x="180" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">M</text>
+    <text x="180" y="45" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">220</text>
+
+    <rect x="260" y="90" width="100" height="150" rx="8" fill="#C7D2FE"/>
+    <text x="310" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">M</text>
+    <text x="310" y="75" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">195</text>
+
+    <rect x="390" y="30" width="100" height="210" rx="8" fill="#C7D2FE"/>
+    <text x="440" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">J</text>
+    <text x="440" y="15" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">260</text>
+
+    <rect x="520" y="80" width="100" height="160" rx="8" fill="#C7D2FE"/>
+    <text x="570" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">V</text>
+    <text x="570" y="65" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">200</text>
+
+    <rect x="650" y="40" width="100" height="200" rx="8" fill="#C7D2FE"/>
+    <text x="700" y="270" font-family="Inter, sans-serif" font-weight="600" font-size="20" fill="#6B7280" text-anchor="middle">S</text>
+    <text x="700" y="25" font-family="Inter, sans-serif" font-weight="700" font-size="18" fill="#4F46E5" text-anchor="middle">240</text>
+
+    <!-- Today (highlighted) -->
+    <rect x="780" y="50" width="100" height="190" rx="8" fill="#4F46E5"/>
+    <text x="830" y="270" font-family="Inter, sans-serif" font-weight="700" font-size="20" fill="#4F46E5" text-anchor="middle">D</text>
+    <text x="830" y="35" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#4F46E5" text-anchor="middle">245</text>
+  </g>
+
+  <!-- Section title -->
+  <text x="60" y="1000" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#1F2937">Livrări de astăzi</text>
+
+  <!-- Delivery row 1 -->
+  <rect x="40" y="1030" width="1000" height="120" rx="16" fill="#FFFFFF"/>
+  <text x="80" y="1080" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">#1248 · Pizza Hut</text>
+  <text x="80" y="1120" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">19:14 · Aleea Brebina 8</text>
+  <text x="1000" y="1100" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#16A34A" text-anchor="end">+18 RON</text>
+
+  <rect x="40" y="1170" width="1000" height="120" rx="16" fill="#FFFFFF"/>
+  <text x="80" y="1220" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">#1247 · Burger King</text>
+  <text x="80" y="1260" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">18:42 · Str. Lungă 102</text>
+  <text x="1000" y="1240" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#16A34A" text-anchor="end">+15 RON</text>
+
+  <rect x="40" y="1310" width="1000" height="120" rx="16" fill="#FFFFFF"/>
+  <text x="80" y="1360" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">#1246 · KFC</text>
+  <text x="80" y="1400" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">18:12 · Str. Florilor 5</text>
+  <text x="1000" y="1380" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#16A34A" text-anchor="end">+22 RON</text>
+
+  <rect x="40" y="1450" width="1000" height="120" rx="16" fill="#FFFFFF"/>
+  <text x="80" y="1500" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#1F2937">#1245 · Pizza Hut</text>
+  <text x="80" y="1540" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">17:38 · Calea București 14</text>
+  <text x="1000" y="1520" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#16A34A" text-anchor="end">+19 RON</text>
+
+  <!-- Payout info -->
+  <rect x="40" y="1600" width="1000" height="120" rx="16" fill="#EEF2FF"/>
+  <text x="80" y="1650" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#4338CA">Plată săptămânală</text>
+  <text x="80" y="1690" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#4338CA">Următoarea încasare: Luni, 02 iunie</text>
+</svg>

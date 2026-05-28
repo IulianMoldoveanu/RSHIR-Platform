@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect x="0" y="0" width="1080" height="1920" fill="#F3F4F6"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">14:22</text>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">82%</text>
+
+  <!-- Chat header -->
+  <rect x="0" y="60" width="1080" height="160" fill="#4F46E5"/>
+  <circle cx="120" cy="140" r="50" fill="#FFFFFF"/>
+  <text x="120" y="158" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#4F46E5" text-anchor="middle">H</text>
+  <text x="200" y="130" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#FFFFFF">Hepi</text>
+  <text x="200" y="172" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#C7D2FE">Asistentul tău AI · online</text>
+
+  <!-- Date separator -->
+  <text x="540" y="290" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#9CA3AF" text-anchor="middle">Azi · 14:18</text>
+
+  <!-- Hepi welcome message -->
+  <rect x="40" y="320" width="700" height="140" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="370" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">Salut Andrei! Cu ce te pot</text>
+  <text x="80" y="410" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">ajuta astăzi?</text>
+  <text x="80" y="445" font-family="Inter, sans-serif" font-weight="500" font-size="20" fill="#9CA3AF">14:18</text>
+
+  <!-- Quick suggestion chips -->
+  <rect x="40" y="490" width="320" height="70" rx="35" fill="#EEF2FF"/>
+  <text x="200" y="535" font-family="Inter, sans-serif" font-weight="600" font-size="24" fill="#4F46E5" text-anchor="middle">Câte comenzi am azi?</text>
+
+  <rect x="380" y="490" width="280" height="70" rx="35" fill="#EEF2FF"/>
+  <text x="520" y="535" font-family="Inter, sans-serif" font-weight="600" font-size="24" fill="#4F46E5" text-anchor="middle">Cât am câștigat?</text>
+
+  <!-- Courier message (right side, indigo) -->
+  <rect x="340" y="600" width="700" height="100" rx="24" fill="#4F46E5"/>
+  <text x="380" y="650" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#FFFFFF">câte comenzi am azi?</text>
+  <text x="1000" y="685" font-family="Inter, sans-serif" font-weight="500" font-size="20" fill="#C7D2FE" text-anchor="end">14:21</text>
+
+  <!-- Hepi response -->
+  <rect x="40" y="730" width="800" height="280" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="780" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">Ai 12 comenzi finalizate</text>
+  <text x="80" y="820" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">până acum azi.</text>
+  <text x="80" y="870" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#16A34A">245 RON câștigați</text>
+  <text x="80" y="910" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">Rating mediu: 4.9 ★</text>
+  <text x="80" y="965" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">Cea mai bună zi a săptămânii! 🎉</text>
+  <text x="80" y="995" font-family="Inter, sans-serif" font-weight="500" font-size="20" fill="#9CA3AF">14:21</text>
+
+  <!-- Courier message 2 -->
+  <rect x="240" y="1050" width="800" height="100" rx="24" fill="#4F46E5"/>
+  <text x="280" y="1100" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#FFFFFF">când e următorul payout?</text>
+  <text x="1000" y="1135" font-family="Inter, sans-serif" font-weight="500" font-size="20" fill="#C7D2FE" text-anchor="end">14:22</text>
+
+  <!-- Hepi response 2 -->
+  <rect x="40" y="1180" width="800" height="240" rx="24" fill="#FFFFFF"/>
+  <text x="80" y="1230" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">Următoarea plată este</text>
+  <text x="80" y="1270" font-family="Inter, sans-serif" font-weight="700" font-size="28" fill="#4F46E5">Luni, 02 iunie</text>
+  <text x="80" y="1320" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#1F2937">Suma estimată: 1.420 RON</text>
+  <text x="80" y="1370" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">(din 84 livrări săptămâna asta)</text>
+  <text x="80" y="1405" font-family="Inter, sans-serif" font-weight="500" font-size="20" fill="#9CA3AF">14:22</text>
+
+  <!-- Input bar bottom -->
+  <rect x="0" y="1720" width="1080" height="200" fill="#FFFFFF"/>
+  <rect x="0" y="1718" width="1080" height="2" fill="#E5E7EB"/>
+
+  <rect x="40" y="1760" width="900" height="120" rx="60" fill="#F3F4F6"/>
+  <text x="100" y="1832" font-family="Inter, sans-serif" font-weight="500" font-size="28" fill="#9CA3AF">Scrie un mesaj…</text>
+
+  <circle cx="990" cy="1820" r="60" fill="#4F46E5"/>
+  <text x="990" y="1837" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#FFFFFF" text-anchor="middle">→</text>
+</svg>
