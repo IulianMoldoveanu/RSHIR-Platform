@@ -146,7 +146,7 @@ Deno.serve(async (req: Request) => {
   const { data: order, error: orderErr } = await supabase
     .from('restaurant_orders')
     .select(
-      `id, tenant_id, status, payment_status, items, total_ron, public_track_token,
+      `id, tenant_id, status, payment_status, payment_method, items, total_ron, public_track_token,
        customers ( first_name, last_name )`,
     )
     .eq('id', body.order_id)
@@ -156,9 +156,16 @@ Deno.serve(async (req: Request) => {
     if (orderErr) console.error('[notify-new-order] order lookup failed:', orderErr.message);
     return json(404, { error: 'order_not_found' });
   }
-  if (order.payment_status !== 'PAID') {
-    // Trigger guarantees this, but stay defensive.
-    return json(200, { ok: true, skipped: 'not_paid' });
+  // Two triggers fire this function:
+  //   1. trg_orders_notify_paid    — AFTER UPDATE of payment_status → 'PAID'
+  //   2. trg_orders_notify_cod_intake — AFTER INSERT when payment_method='COD'
+  // The COD path lands with payment_status='UNPAID' on first INSERT, so a
+  // strict `!== 'PAID'` guard would skip the cash-on-delivery owner email.
+  // Accept both modes here and pick a different subject below.
+  const isPaid = order.payment_status === 'PAID';
+  const isCodIntake = order.payment_method === 'COD' && !isPaid;
+  if (!isPaid && !isCodIntake) {
+    return json(200, { ok: true, skipped: 'unsupported_state' });
   }
 
   // OWNER members → email addresses (auth.users.email).
@@ -192,12 +199,18 @@ Deno.serve(async (req: Request) => {
     ? `${WEB_BASE}/track/${order.public_track_token}`
     : '(link tracking indisponibil)';
 
-  const subject = `Comandă nouă — ${tenant.name}`;
+  const subject = isCodIntake
+    ? `Comandă nouă (numerar) — ${tenant.name}`
+    : `Comandă nouă plătită — ${tenant.name}`;
+  const headline = isCodIntake
+    ? `Comandă nouă cu plată la livrare (#${shortId(order.id)}).`
+    : `Ai o comandă nouă plătită (#${shortId(order.id)}).`;
   const text = [
-    `Ai o comandă nouă plătită (#${shortId(order.id)}).`,
+    headline,
     '',
     `Client: ${customerLabel}`,
     `Total: ${fmtRon(order.total_ron)}`,
+    isCodIntake ? `Plată: numerar la livrare` : `Plată: card (achitat)`,
     '',
     'Articole:',
     renderItems(order.items),
@@ -214,6 +227,7 @@ Deno.serve(async (req: Request) => {
     customerLabel,
     totalRon: fmtRon(order.total_ron),
     items: order.items,
+    paymentLabel: isCodIntake ? 'Numerar la livrare' : 'Card (achitat)',
     adminLink: ADMIN_BASE ? adminLink : undefined,
     trackLink: WEB_BASE ? trackLink : undefined,
   });
@@ -249,6 +263,7 @@ function renderNewOrderHtml(opts: {
   customerLabel: string;
   totalRon: string;
   items: unknown;
+  paymentLabel: string;
   adminLink?: string;
   trackLink?: string;
 }): string {
@@ -304,7 +319,7 @@ function renderNewOrderHtml(opts: {
           <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7">
             <tr>
               <td style="padding:20px 24px;background:#10b981;color:#ffffff">
-                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.9">Comandă plătită · #${escapeHtmlNo(opts.orderShortId)}</p>
+                <p style="margin:0;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.9">Comandă · ${escapeHtmlNo(opts.paymentLabel)} · #${escapeHtmlNo(opts.orderShortId)}</p>
                 <p style="margin:4px 0 0;font-size:18px;font-weight:600">${escapeHtmlNo(opts.tenantName)}</p>
               </td>
             </tr>
