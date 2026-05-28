@@ -97,7 +97,7 @@ export default async function CheckoutPage() {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 
-  const locale = getLocale();
+  const locale = await getLocale();
   const tenantPhone = readPhone(tenant.settings) ?? '';
   const pickup = readPickup(tenant.settings);
   const { logoUrl } = brandingFor(tenant.settings);

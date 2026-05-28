@@ -15,7 +15,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/terms/storefront`;
   const title =
     locale === 'en'
@@ -46,7 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TermsStorefrontPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   const sections = isEn ? TERMS_STOREFRONT_EN : TERMS_STOREFRONT_RO;
   const title = isEn

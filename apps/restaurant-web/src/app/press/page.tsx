@@ -75,8 +75,8 @@ const BRAND_COLORS = [
   { name: 'Slate Line', hex: '#E2E8F0', role: 'Borders', text: '#0F172A' },
 ];
 
-export default function PressPage() {
-  const currentLocale = getLocale();
+export default async function PressPage() {
+  const currentLocale = await getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"

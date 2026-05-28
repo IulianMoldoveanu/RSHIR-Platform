@@ -21,7 +21,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/politica-cookies`;
   const title = locale === 'en' ? 'Cookies Policy' : 'Politica de cookie-uri';
   const description =
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CookiesPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   const essential = COOKIES_CATALOG.filter((c) => c.category === 'essential');
   const analytics = COOKIES_CATALOG.filter((c) => c.category === 'analytics');

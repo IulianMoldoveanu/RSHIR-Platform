@@ -106,7 +106,7 @@ function ledgerKindLabel(kind: LoyaltyLedgerEntry['kind'], locale: Locale): stri
 export default async function AccountPage() {
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
-  const locale = getLocale();
+  const locale = await getLocale();
 
   const customerId = readCustomerCookie(tenant.id);
   const [orders, loyalty, loyaltyHistory] = await Promise.all([

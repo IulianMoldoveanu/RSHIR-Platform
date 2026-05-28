@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PreOrderPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 

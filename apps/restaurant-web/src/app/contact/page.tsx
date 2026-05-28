@@ -49,8 +49,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function ContactPage() {
-  const locale = getLocale();
+export default async function ContactPage() {
+  const locale = await getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"

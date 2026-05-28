@@ -70,7 +70,7 @@ function fmtDateTime(iso: string): string {
 }
 
 export default async function StatusPage() {
-  const currentLocale = getLocale();
+  const currentLocale = await getLocale();
   let snapshot;
   let loadError: string | null = null;
   try {

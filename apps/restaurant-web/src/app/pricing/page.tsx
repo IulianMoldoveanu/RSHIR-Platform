@@ -56,8 +56,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function PricingPage() {
-  const locale = getLocale();
+export default async function PricingPage() {
+  const locale = await getLocale();
   const canonicalBase = PRIMARY_DOMAIN
     ? `https://${PRIMARY_DOMAIN}`
     : 'https://hir-restaurant-web.vercel.app';

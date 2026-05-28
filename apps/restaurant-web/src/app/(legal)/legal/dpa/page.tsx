@@ -8,7 +8,7 @@ import { DPA_RO, DPA_LAST_UPDATED, DPA_VERSION } from '@/content/legal/dpa';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/legal/dpa`;
   const title =
     locale === 'en'
@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function DpaPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   return (
     <LegalShell

@@ -13,7 +13,7 @@ import { getLocale } from '@/lib/i18n/server';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) return { title: 'HIR' };
   const url = `${tenantBaseUrl()}/bio`;
@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function BioPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const { tenant } = await resolveTenantFromHost();
   if (!tenant) notFound();
 

@@ -45,8 +45,8 @@ const steps = [
   },
 ];
 
-export default function ConnectPage() {
-  const currentLocale = getLocale();
+export default async function ConnectPage() {
+  const currentLocale = await getLocale();
   return (
     <>
       <MarketingHeader currentLocale={currentLocale} />

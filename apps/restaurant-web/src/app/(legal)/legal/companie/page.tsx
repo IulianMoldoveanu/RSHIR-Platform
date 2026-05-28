@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/legal/companie`;
   const title = locale === 'en' ? 'Company & legal details' : 'Companie și date legale';
   const description =
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CompanyPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   return (
     <LegalShell

@@ -12,7 +12,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/legal/utilizare-acceptabila`;
   const title = locale === 'en' ? 'Acceptable Use Policy' : 'Politica de Utilizare Acceptabilă';
   const description =
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AupPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   return (
     <LegalShell

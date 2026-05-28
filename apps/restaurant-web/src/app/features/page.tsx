@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
 // `generateMetadata()` so the SERP snippet matches the visitor locale
 // (RO ↔ EN).
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const title = t(locale, 'marketing.features.page_title');
   const description = t(locale, 'marketing.features.page_description');
   const ogImage = marketingOgImageUrl({
@@ -153,8 +153,8 @@ const GROUPS: FeatureGroup[] = [
   },
 ];
 
-export default function FeaturesPage() {
-  const currentLocale = getLocale();
+export default async function FeaturesPage() {
+  const currentLocale = await getLocale();
   return (
     <main
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"

@@ -13,7 +13,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/legal/subprocesori`;
   const title = locale === 'en' ? 'Sub-processors' : 'Lista sub-procesatorilor';
   const description =
@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SubprocessorsPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
   const dateLabel = formatDate(SUBPROCESSORS_LAST_UPDATED, isEn ? 'en' : 'ro');
 

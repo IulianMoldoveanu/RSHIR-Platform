@@ -36,7 +36,7 @@ export async function generateMetadata(
   }
 ): Promise<Metadata> {
   const params = await props.params;
-  const locale = getLocale();
+  const locale = await getLocale();
   const loaded = await loadItem(params.slug);
   if (!loaded) return { title: t(locale, 'meta.item_not_found') };
   const { tenant, item } = loaded;
@@ -79,7 +79,7 @@ export async function generateMetadata(
 
 export default async function ItemPage(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
-  const locale = getLocale();
+  const locale = await getLocale();
   const loaded = await loadItem(params.slug);
   if (!loaded) notFound();
   const { tenant, item } = loaded;

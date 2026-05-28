@@ -15,7 +15,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = getLocale();
+  const locale = await getLocale();
   const url = `${tenantBaseUrl()}/privacy`;
   return {
     title: t(locale, 'privacy.title'),
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PrivacyPage() {
-  const locale = getLocale();
+  const locale = await getLocale();
   const isEn = locale === 'en';
 
   return (

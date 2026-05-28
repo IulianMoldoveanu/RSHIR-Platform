@@ -12,7 +12,7 @@ export default async function TrackPage(props: { params: Promise<{ token: string
   const params = await props.params;
   const parsed = z.string().uuid().safeParse(params.token);
   if (!parsed.success) notFound();
-  const locale = getLocale();
+  const locale = await getLocale();
   const { tenant } = await resolveTenantFromHost();
   const showAccountNudge = tenant ? readCustomerCookie(tenant.id) !== null : false;
 

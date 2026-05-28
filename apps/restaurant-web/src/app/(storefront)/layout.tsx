@@ -26,7 +26,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
     return <>{children}</>;
   }
 
-  const locale = getLocale();
+  const locale = await getLocale();
   const { brandColor } = brandingFor(tenant.settings);
 
   // Theme picker wizard preview (2026-05-07): if the OWNER has the

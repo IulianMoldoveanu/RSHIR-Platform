@@ -82,8 +82,8 @@ const EN: Copy = {
   helpLink: 'Contact us',
 };
 
-export default function IntraInContPage() {
-  const currentLocale = getLocale();
+export default async function IntraInContPage() {
+  const currentLocale = await getLocale();
   const c = currentLocale === 'en' ? EN : RO;
 
   return (
