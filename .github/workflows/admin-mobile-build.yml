@@ -30,7 +30,7 @@ on:
           - android-release
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   PNPM_VERSION: '9'
   JAVA_VERSION: '17'
   APP_ID: ro.hir.admin
@@ -44,13 +44,13 @@ jobs:
       run:
         working-directory: apps/restaurant-admin
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -79,13 +79,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: web-build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -156,13 +156,13 @@ jobs:
     env:
       HAS_KEYSTORE: ${{ secrets.ADMIN_ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
@@ -247,7 +247,7 @@ jobs:
     needs: web-build
     if: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: iOS build not yet configured
         run: |
           echo "iOS build requires macOS runner + Xcode + Apple Developer account."

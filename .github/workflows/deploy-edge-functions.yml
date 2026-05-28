@@ -50,15 +50,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Need at least 2 commits to diff HEAD against HEAD~1 on a push
           # event. fetch-depth: 2 keeps the checkout cheap.
           fetch-depth: 2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Compute set of functions to redeploy
         id: detect
