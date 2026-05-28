@@ -7,9 +7,9 @@
 ## Setup (30 sec, înainte să intri)
 
 - Laptop/tabletă cu 3 tab-uri pre-loaded:
-  - Storefront LIVE: `https://hir-restaurant-web.vercel.app/?tenant=foisorul-a` (Foișorul A, 700+ comenzi reale ultimele 30 zile)
+  - Storefront LIVE: `https://foisorul-a.hirforyou.ro/` (Foișorul A, 700+ comenzi reale ultimele 30 zile)
   - Admin: `https://app.hirforyou.ro/` (login pre-loaded cu cont demo)
-  - Courier PWA: `https://hir-restaurant-courier.vercel.app/`
+  - Courier PWA: `https://curier.hirforyou.ro/`
 - Telefon cu Telegram deschis la `@MasterHIRbot`
 - 1-pager A4 printat în mână (1 buc per patron + 1 buc spare)
 
@@ -27,7 +27,7 @@
 
 ## 2. STOREFRONT LIVE (90 sec) — deschide laptop/tabletă
 
-Arăți URL `https://hir-restaurant-web.vercel.app/?tenant=foisorul-a`:
+Arăți URL `https://foisorul-a.hirforyou.ro/`:
 
 > "Asta e site-ul Foișorului. Clientul intră aici, nu pe Glovo. Vezi meniul, alege, plătește, gata. Patronul primește comanda direct în dashboard, fără să dea 30% nimănui."
 
@@ -107,7 +107,7 @@ Hepi răspunde instant cu cifre concrete.
 
 Mesaj WhatsApp/SMS imediat:
 
-> "Salut [Patron], mulțumesc pentru timpul tău. Cum ne-am înțeles — [data] la [ora]. Aici e link la storefront-ul Foișorul A ca să vezi exemplul concret: hir-restaurant-web.vercel.app/?tenant=foisorul-a. Dacă mai ai întrebări înainte, scrie-mi. Iulian"
+> "Salut [Patron], mulțumesc pentru timpul tău. Cum ne-am înțeles — [data] la [ora]. Aici e link la storefront-ul Foișorul A ca să vezi exemplul concret: foisorul-a.hirforyou.ro. Dacă mai ai întrebări înainte, scrie-mi. Iulian"
 
 ---
 
@@ -132,9 +132,9 @@ Patron sense fear. Patron sense pressure. Patron NU sense calm + value. Mergi ca
 
 - [ ] Laptop / tabletă încărcată >80%
 - [ ] WiFi sau hotspot 4G testat
-- [ ] `hir-restaurant-web.vercel.app/?tenant=foisorul-a` se încarcă rapid (Foișorul A storefront)
+- [ ] `foisorul-a.hirforyou.ro` se încarcă rapid (Foișorul A storefront LIVE)
 - [ ] `app.hirforyou.ro` deschis cu cont demo (admin login)
-- [ ] `hir-restaurant-courier.vercel.app` se încarcă (courier PWA)
+- [ ] `curier.hirforyou.ro` se încarcă (courier PWA)
 - [ ] Telegram `@MasterHIRbot` test răspunde
 - [ ] 1-pager A4 printat × 2
 - [ ] Cărti de vizită × 5
