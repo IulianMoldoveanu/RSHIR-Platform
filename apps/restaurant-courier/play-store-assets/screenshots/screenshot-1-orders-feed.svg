@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <!-- Phone background -->
+  <rect x="0" y="0" width="1080" height="1920" fill="#F3F4F6"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">09:42</text>
+  <circle cx="980" cy="30" r="10" fill="#16A34A"/>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">100%</text>
+
+  <!-- App header -->
+  <rect x="0" y="60" width="1080" height="140" fill="#4F46E5"/>
+  <text x="60" y="120" font-family="Inter, sans-serif" font-weight="800" font-size="48" fill="#FFFFFF">HIR Curier</text>
+  <text x="60" y="170" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#C7D2FE">Bună, Andrei!</text>
+
+  <!-- Online status pill -->
+  <rect x="780" y="100" width="240" height="64" rx="32" fill="#FFFFFF"/>
+  <circle cx="820" cy="132" r="10" fill="#16A34A"/>
+  <text x="850" y="142" font-family="Inter, sans-serif" font-weight="700" font-size="26" fill="#16A34A">Online</text>
+
+  <!-- Today summary -->
+  <rect x="40" y="240" width="1000" height="160" rx="20" fill="#FFFFFF"/>
+  <text x="80" y="290" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">Astăzi</text>
+  <text x="80" y="350" font-family="Inter, sans-serif" font-weight="800" font-size="56" fill="#1F2937">245 RON</text>
+  <text x="80" y="385" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280">12 livrări · 3h 24min activ</text>
+
+  <text x="900" y="290" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280" text-anchor="end">Rating</text>
+  <text x="900" y="350" font-family="Inter, sans-serif" font-weight="800" font-size="56" fill="#F59E0B" text-anchor="end">4.9 ★</text>
+
+  <!-- Section title -->
+  <text x="60" y="470" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#1F2937">Comenzi disponibile (3)</text>
+
+  <!-- Order card 1 -->
+  <rect x="40" y="500" width="1000" height="220" rx="20" fill="#FFFFFF"/>
+  <rect x="40" y="500" width="8" height="220" rx="4" fill="#4F46E5"/>
+  <text x="80" y="555" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#1F2937">#1248 · Pizza Hut</text>
+  <rect x="780" y="525" width="220" height="50" rx="25" fill="#EEF2FF"/>
+  <text x="890" y="558" font-family="Inter, sans-serif" font-weight="700" font-size="24" fill="#4F46E5" text-anchor="middle">ETA 12 min</text>
+  <text x="80" y="610" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Pickup: Str. Mureșenilor 12</text>
+  <text x="80" y="650" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Livrare: Aleea Brebina 8 · 2.3 km</text>
+  <text x="80" y="700" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#16A34A">18 RON</text>
+
+  <!-- Order card 2 -->
+  <rect x="40" y="750" width="1000" height="220" rx="20" fill="#FFFFFF"/>
+  <rect x="40" y="750" width="8" height="220" rx="4" fill="#4F46E5"/>
+  <text x="80" y="805" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#1F2937">#1249 · Burger King</text>
+  <rect x="780" y="775" width="220" height="50" rx="25" fill="#EEF2FF"/>
+  <text x="890" y="808" font-family="Inter, sans-serif" font-weight="700" font-size="24" fill="#4F46E5" text-anchor="middle">ETA 8 min</text>
+  <text x="80" y="860" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Pickup: Bd. Eroilor 24</text>
+  <text x="80" y="900" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Livrare: Str. Lungă 102 · 1.1 km</text>
+  <text x="80" y="950" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#16A34A">15 RON</text>
+
+  <!-- Order card 3 -->
+  <rect x="40" y="1000" width="1000" height="220" rx="20" fill="#FFFFFF"/>
+  <rect x="40" y="1000" width="8" height="220" rx="4" fill="#4F46E5"/>
+  <text x="80" y="1055" font-family="Inter, sans-serif" font-weight="800" font-size="34" fill="#1F2937">#1250 · KFC</text>
+  <rect x="780" y="1025" width="220" height="50" rx="25" fill="#EEF2FF"/>
+  <text x="890" y="1058" font-family="Inter, sans-serif" font-weight="700" font-size="24" fill="#4F46E5" text-anchor="middle">ETA 18 min</text>
+  <text x="80" y="1110" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Pickup: Calea Victoriei 88</text>
+  <text x="80" y="1150" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Livrare: Str. Florilor 5 · 3.5 km</text>
+  <text x="80" y="1200" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#16A34A">22 RON</text>
+
+  <!-- Bottom nav -->
+  <rect x="0" y="1750" width="1080" height="170" fill="#FFFFFF"/>
+  <rect x="0" y="1748" width="1080" height="2" fill="#E5E7EB"/>
+
+  <rect x="60" y="1780" width="200" height="80" rx="40" fill="#EEF2FF"/>
+  <text x="160" y="1832" font-family="Inter, sans-serif" font-weight="700" font-size="26" fill="#4F46E5" text-anchor="middle">Comenzi</text>
+
+  <text x="430" y="1832" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#9CA3AF" text-anchor="middle">Hartă</text>
+  <text x="650" y="1832" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#9CA3AF" text-anchor="middle">Câștiguri</text>
+  <text x="900" y="1832" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#9CA3AF" text-anchor="middle">Profil</text>
+</svg>

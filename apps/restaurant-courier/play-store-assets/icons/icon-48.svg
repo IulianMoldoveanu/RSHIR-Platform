@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="bg48" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="48" height="48" rx="9" ry="9" fill="url(#bg48)"/>
+  <text x="24" y="30" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="800" font-size="18" fill="#FFFFFF" text-anchor="middle" letter-spacing="-0.5">HIR</text>
+</svg>

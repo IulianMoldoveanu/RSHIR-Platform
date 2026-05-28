@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 500" width="1024" height="500">
+  <defs>
+    <linearGradient id="featureBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5"/>
+      <stop offset="50%" stop-color="#4338CA"/>
+      <stop offset="100%" stop-color="#3730A3"/>
+    </linearGradient>
+    <linearGradient id="phoneScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1024" height="500" fill="url(#featureBg)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="900" cy="100" r="160" fill="#FFFFFF" opacity="0.04"/>
+  <circle cx="100" cy="450" r="120" fill="#FFFFFF" opacity="0.04"/>
+  <circle cx="800" cy="420" r="60" fill="#C7D2FE" opacity="0.08"/>
+
+  <!-- Left side: text -->
+  <text x="64" y="180" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="800" font-size="84" fill="#FFFFFF" letter-spacing="-2">HIR Curier</text>
+
+  <text x="64" y="240" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="500" font-size="28" fill="#C7D2FE" letter-spacing="0">Comenzi, GPS, castiguri —</text>
+  <text x="64" y="278" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-weight="500" font-size="28" fill="#C7D2FE" letter-spacing="0">toate intr-un singur loc.</text>
+
+  <!-- Feature badges -->
+  <g transform="translate(64, 340)">
+    <rect x="0" y="0" width="180" height="44" rx="22" fill="#FFFFFF" opacity="0.12"/>
+    <text x="90" y="29" font-family="Inter, sans-serif" font-weight="600" font-size="16" fill="#FFFFFF" text-anchor="middle">Comenzi live</text>
+  </g>
+  <g transform="translate(258, 340)">
+    <rect x="0" y="0" width="150" height="44" rx="22" fill="#FFFFFF" opacity="0.12"/>
+    <text x="75" y="29" font-family="Inter, sans-serif" font-weight="600" font-size="16" fill="#FFFFFF" text-anchor="middle">GPS hartă</text>
+  </g>
+  <g transform="translate(422, 340)">
+    <rect x="0" y="0" width="180" height="44" rx="22" fill="#FFFFFF" opacity="0.12"/>
+    <text x="90" y="29" font-family="Inter, sans-serif" font-weight="600" font-size="16" fill="#FFFFFF" text-anchor="middle">Hepi AI chat</text>
+  </g>
+
+  <!-- Right side: phone mockup -->
+  <g transform="translate(720, 60)">
+    <!-- Phone body -->
+    <rect x="0" y="0" width="240" height="400" rx="32" ry="32" fill="#1F2937" stroke="#374151" stroke-width="3"/>
+    <!-- Phone screen -->
+    <rect x="12" y="14" width="216" height="372" rx="22" ry="22" fill="url(#phoneScreen)"/>
+
+    <!-- Status bar -->
+    <rect x="12" y="14" width="216" height="28" rx="22" ry="0" fill="#FFFFFF" opacity="0.06"/>
+    <circle cx="120" cy="28" r="4" fill="#1F2937"/>
+
+    <!-- App header -->
+    <text x="120" y="68" font-family="Inter, sans-serif" font-weight="700" font-size="14" fill="#FFFFFF" text-anchor="middle">Comenzi azi</text>
+    <circle cx="208" cy="64" r="5" fill="#16A34A"/>
+
+    <!-- Order cards -->
+    <g transform="translate(24, 88)">
+      <rect x="0" y="0" width="192" height="60" rx="10" fill="#FFFFFF" opacity="0.95"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#1F2937">#1248 · Pizza Hut</text>
+      <text x="12" y="36" font-family="Inter, sans-serif" font-weight="500" font-size="9" fill="#6B7280">2.3 km · ETA 12 min</text>
+      <text x="12" y="50" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#4F46E5">18 RON</text>
+    </g>
+
+    <g transform="translate(24, 158)">
+      <rect x="0" y="0" width="192" height="60" rx="10" fill="#FFFFFF" opacity="0.95"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#1F2937">#1249 · Burger King</text>
+      <text x="12" y="36" font-family="Inter, sans-serif" font-weight="500" font-size="9" fill="#6B7280">1.1 km · ETA 8 min</text>
+      <text x="12" y="50" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#4F46E5">15 RON</text>
+    </g>
+
+    <g transform="translate(24, 228)">
+      <rect x="0" y="0" width="192" height="60" rx="10" fill="#FFFFFF" opacity="0.95"/>
+      <text x="12" y="20" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#1F2937">#1250 · KFC</text>
+      <text x="12" y="36" font-family="Inter, sans-serif" font-weight="500" font-size="9" fill="#6B7280">3.5 km · ETA 18 min</text>
+      <text x="12" y="50" font-family="Inter, sans-serif" font-weight="700" font-size="11" fill="#4F46E5">22 RON</text>
+    </g>
+
+    <!-- Bottom nav -->
+    <rect x="12" y="338" width="216" height="48" rx="0" fill="#FFFFFF" opacity="0.08"/>
+    <text x="50" y="368" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#FFFFFF" text-anchor="middle">Comenzi</text>
+    <text x="100" y="368" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#FFFFFF" text-anchor="middle" opacity="0.7">Harta</text>
+    <text x="150" y="368" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#FFFFFF" text-anchor="middle" opacity="0.7">RON</text>
+    <text x="200" y="368" font-family="Inter, sans-serif" font-weight="600" font-size="9" fill="#FFFFFF" text-anchor="middle" opacity="0.7">Profil</text>
+  </g>
+</svg>

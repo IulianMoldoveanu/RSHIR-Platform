@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect x="0" y="0" width="1080" height="1920" fill="#F3F4F6"/>
+
+  <!-- Status bar -->
+  <rect x="0" y="0" width="1080" height="60" fill="#FFFFFF"/>
+  <text x="60" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="28" fill="#1F2937">09:48</text>
+  <text x="1020" y="40" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#1F2937" text-anchor="end">100%</text>
+
+  <!-- Header -->
+  <rect x="0" y="60" width="1080" height="120" fill="#4F46E5"/>
+  <text x="60" y="135" font-family="Inter, sans-serif" font-weight="800" font-size="40" fill="#FFFFFF">← Comandă #1248</text>
+
+  <!-- Restaurant info -->
+  <rect x="40" y="220" width="1000" height="180" rx="20" fill="#FFFFFF"/>
+  <circle cx="120" cy="310" r="50" fill="#FEE2E2"/>
+  <text x="120" y="325" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#DC2626" text-anchor="middle">P</text>
+  <text x="200" y="290" font-family="Inter, sans-serif" font-weight="800" font-size="36" fill="#1F2937">Pizza Hut · Centrul Vechi</text>
+  <text x="200" y="340" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Str. Mureșenilor 12, Brașov</text>
+  <text x="200" y="380" font-family="Inter, sans-serif" font-weight="600" font-size="24" fill="#16A34A">Comanda gata în 4 min</text>
+
+  <!-- Map placeholder -->
+  <rect x="40" y="430" width="1000" height="500" rx="20" fill="#E5E7EB"/>
+  <text x="540" y="540" font-family="Inter, sans-serif" font-weight="600" font-size="24" fill="#9CA3AF" text-anchor="middle">Brașov</text>
+
+  <!-- Route line -->
+  <circle cx="240" cy="640" r="22" fill="#4F46E5"/>
+  <text x="240" y="650" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#FFFFFF" text-anchor="middle">P</text>
+  <path d="M 240 640 Q 540 580 840 720" stroke="#4F46E5" stroke-width="6" fill="none" stroke-dasharray="12,8"/>
+  <circle cx="840" cy="720" r="22" fill="#16A34A"/>
+  <text x="840" y="730" font-family="Inter, sans-serif" font-weight="800" font-size="20" fill="#FFFFFF" text-anchor="middle">L</text>
+
+  <text x="540" y="900" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#6B7280" text-anchor="middle">2.3 km · 12 min</text>
+
+  <!-- Delivery details -->
+  <rect x="40" y="960" width="1000" height="240" rx="20" fill="#FFFFFF"/>
+  <text x="80" y="1015" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">LIVRARE LA</text>
+  <text x="80" y="1065" font-family="Inter, sans-serif" font-weight="800" font-size="32" fill="#1F2937">Maria Popescu</text>
+  <text x="80" y="1110" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Aleea Brebina 8, sc. B, ap. 24</text>
+  <text x="80" y="1155" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280">Tel: 07XX XXX 234</text>
+
+  <!-- Order items summary -->
+  <rect x="40" y="1230" width="1000" height="240" rx="20" fill="#FFFFFF"/>
+  <text x="80" y="1285" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#6B7280">COMANDA</text>
+  <text x="80" y="1335" font-family="Inter, sans-serif" font-weight="600" font-size="26" fill="#1F2937">1× Pizza Capricciosa mare</text>
+  <text x="80" y="1380" font-family="Inter, sans-serif" font-weight="600" font-size="26" fill="#1F2937">1× Coca-Cola 0.5L</text>
+  <text x="80" y="1425" font-family="Inter, sans-serif" font-weight="600" font-size="26" fill="#1F2937">2× Sos usturoi</text>
+
+  <!-- Accept button -->
+  <rect x="40" y="1530" width="1000" height="140" rx="30" fill="#4F46E5"/>
+  <text x="540" y="1620" font-family="Inter, sans-serif" font-weight="800" font-size="44" fill="#FFFFFF" text-anchor="middle">Accept comanda · 18 RON</text>
+
+  <!-- Skip link -->
+  <text x="540" y="1740" font-family="Inter, sans-serif" font-weight="500" font-size="26" fill="#6B7280" text-anchor="middle">Mai târziu</text>
+</svg>
