@@ -75,6 +75,9 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     {
       courier_order_id: co.id,
       status: co.status,
+      // Exposed so the mini-map can subscribe to courier_shifts UPDATE for
+      // GPS pings (audit P0 #8 realtime upgrade).
+      assigned_courier_user_id: co.assigned_courier_user_id ?? null,
       pickup: { lat: co.pickup_lat, lng: co.pickup_lng, address: co.pickup_line1 },
       dropoff: { lat: co.dropoff_lat, lng: co.dropoff_lng, address: co.dropoff_line1 },
       courier,

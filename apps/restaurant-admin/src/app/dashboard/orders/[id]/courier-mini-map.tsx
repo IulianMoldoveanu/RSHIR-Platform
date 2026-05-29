@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { Bike } from 'lucide-react';
 import {
   Skeleton,
@@ -12,6 +13,7 @@ import {
   COURIER_STATUS_LABEL_RO,
   formatRelativeAge,
 } from '@hir/ui';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 
 const MiniMap = dynamic(() => import('./courier-mini-map-leaflet').then((m) => m.CourierMiniMapLeaflet), {
   ssr: false,
@@ -21,6 +23,7 @@ const MiniMap = dynamic(() => import('./courier-mini-map-leaflet').then((m) => m
 type Track = {
   courier_order_id: string;
   status: string;
+  assigned_courier_user_id: string | null;
   pickup: { lat: number | null; lng: number | null; address: string | null };
   dropoff: { lat: number | null; lng: number | null; address: string | null };
   courier: {
@@ -31,42 +34,205 @@ type Track = {
   } | null;
 };
 
+// Audit P0 #8 — replace 12s polling with Supabase Realtime subscriptions.
+//
+// We subscribe to two streams:
+//   1. courier_orders UPDATE filtered by id — catches status/assignment
+//      changes (e.g. ACCEPTED → PICKED_UP, courier reassignment).
+//   2. courier_shifts UPDATE filtered by courier_user_id (once we know who
+//      is assigned) — catches GPS pings as the courier moves. The track
+//      API server-side joins both, so any event triggers a single refetch
+//      to keep the response shape stable.
+//
+// Render throttle: at most 1 fetch/state update per 1000ms so a burst of
+// GPS pings on slow Leaflet builds can't thrash the map.
+//
+// Watchdog: if no realtime event arrives for 60s, log a warning and
+// refetch + recreate subscription. Reconnect backoff mirrors the courier
+// app's order-feed.ts pattern (1s → 2s → 4s … cap 30s).
+const RENDER_THROTTLE_MS = 1000;
+const WATCHDOG_INTERVAL_MS = 30_000;
+const WATCHDOG_STALL_MS = 60_000;
+
 export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
   const [data, setData] = useState<Track | null>(null);
   const [loading, setLoading] = useState(true);
-  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
+  const [lastEventAt, setLastEventAt] = useState<number | null>(null);
   const [now, setNow] = useState<number>(() => Date.now());
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch(`/api/dashboard/courier-orders/${courierOrderId}/track`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) return;
-        const j = (await res.json()) as Track;
-        if (!cancelled) {
-          setData(j);
-          setLastFetchAt(Date.now());
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // Refs survive across reconnect closures without re-firing the effect.
+  const unmountedRef = useRef(false);
+  const ordersChannelRef = useRef<RealtimeChannel | null>(null);
+  const shiftsChannelRef = useRef<RealtimeChannel | null>(null);
+  const lastFetchAtRef = useRef(0);
+  const pendingFetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backoffRef = useRef(1000);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const assignedCourierIdRef = useRef<string | null>(null);
+
+  // Single fetch function used by initial mount, realtime events, watchdog
+  // and reconnect paths. Throttled to once per RENDER_THROTTLE_MS.
+  const fetchTrack = useCallback(async () => {
+    if (unmountedRef.current) return;
+    const since = Date.now() - lastFetchAtRef.current;
+    if (since < RENDER_THROTTLE_MS) {
+      // Coalesce: schedule one trailing fetch at the boundary.
+      if (pendingFetchRef.current) return;
+      pendingFetchRef.current = setTimeout(() => {
+        pendingFetchRef.current = null;
+        void fetchTrack();
+      }, RENDER_THROTTLE_MS - since);
+      return;
     }
-    load();
-    const id = setInterval(load, 12_000);
-    // 1s tick so the "live" badge fades correctly when polling stalls,
-    // without re-rendering the whole panel on every fetch.
-    const tickId = setInterval(() => setNow(Date.now()), 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-      clearInterval(tickId);
-    };
+    lastFetchAtRef.current = Date.now();
+    try {
+      const res = await fetch(`/api/dashboard/courier-orders/${courierOrderId}/track`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const j = (await res.json()) as Track;
+      if (unmountedRef.current) return;
+      setData(j);
+      setLastEventAt(Date.now());
+      // If the assigned courier changed, re-subscribe to their shift row.
+      const newCourierUserId = j.assigned_courier_user_id ?? null;
+      if (newCourierUserId !== assignedCourierIdRef.current) {
+        assignedCourierIdRef.current = newCourierUserId;
+        resubscribeShifts();
+      }
+    } finally {
+      if (!unmountedRef.current) setLoading(false);
+    }
+    // resubscribeShifts is stable via ref — declared below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courierOrderId]);
 
-  const isLive = lastFetchAt != null && now - lastFetchAt < 30_000;
+  // Re-attach to the assigned courier's shift row whenever the
+  // assignment changes. Filtered server-side by courier_user_id so the
+  // browser only receives this courier's GPS pings (other couriers'
+  // pings never traverse RLS into this client).
+  const resubscribeShifts = useCallback(() => {
+    if (unmountedRef.current) return;
+    const supabase = getBrowserSupabase();
+    if (shiftsChannelRef.current) {
+      void supabase.removeChannel(shiftsChannelRef.current);
+      shiftsChannelRef.current = null;
+    }
+    const courierUserId = assignedCourierIdRef.current;
+    if (!courierUserId) return;
+
+    const channel = supabase
+      .channel(`courier:${courierOrderId}:shift`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'courier_shifts',
+          filter: `courier_user_id=eq.${courierUserId}`,
+        },
+        () => {
+          setLastEventAt(Date.now());
+          void fetchTrack();
+        },
+      )
+      .subscribe();
+    shiftsChannelRef.current = channel;
+  }, [courierOrderId, fetchTrack]);
+
+  const subscribe = useCallback(() => {
+    if (unmountedRef.current) return;
+    const supabase = getBrowserSupabase();
+
+    // Initial load — also primes assignedCourierIdRef so the shift channel
+    // can attach.
+    void fetchTrack();
+
+    const channel = supabase
+      .channel(`courier:${courierOrderId}:track`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'courier_orders',
+          filter: `id=eq.${courierOrderId}`,
+        },
+        () => {
+          setLastEventAt(Date.now());
+          void fetchTrack();
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          backoffRef.current = 1000;
+        }
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          if (unmountedRef.current) return;
+          if (ordersChannelRef.current) {
+            void ordersChannelRef.current.unsubscribe();
+            ordersChannelRef.current = null;
+          }
+          if (shiftsChannelRef.current) {
+            void supabase.removeChannel(shiftsChannelRef.current);
+            shiftsChannelRef.current = null;
+          }
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+          const delay = backoffRef.current;
+          backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
+          reconnectTimerRef.current = setTimeout(subscribe, delay);
+        }
+      });
+    ordersChannelRef.current = channel;
+  }, [courierOrderId, fetchTrack]);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    subscribe();
+
+    // 1s tick so the "live" badge fades correctly without re-rendering the
+    // whole panel on every event.
+    const tickId = setInterval(() => setNow(Date.now()), 1000);
+
+    // Watchdog: every WATCHDOG_INTERVAL_MS, if no event landed for
+    // WATCHDOG_STALL_MS, warn + refetch + force-reconnect the orders
+    // channel. Belt-and-suspenders against silent realtime drops.
+    const watchdogId = setInterval(() => {
+      const since = Date.now() - (lastFetchAtRef.current || Date.now());
+      if (since > WATCHDOG_STALL_MS) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[courier-mini-map] no realtime event in ${Math.round(since / 1000)}s, refetching + reconnecting`,
+        );
+        void fetchTrack();
+        const supabase = getBrowserSupabase();
+        if (ordersChannelRef.current) {
+          void supabase.removeChannel(ordersChannelRef.current);
+          ordersChannelRef.current = null;
+        }
+        subscribe();
+      }
+    }, WATCHDOG_INTERVAL_MS);
+
+    return () => {
+      unmountedRef.current = true;
+      clearInterval(tickId);
+      clearInterval(watchdogId);
+      if (pendingFetchRef.current) clearTimeout(pendingFetchRef.current);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      const supabase = getBrowserSupabase();
+      if (ordersChannelRef.current) {
+        void supabase.removeChannel(ordersChannelRef.current);
+        ordersChannelRef.current = null;
+      }
+      if (shiftsChannelRef.current) {
+        void supabase.removeChannel(shiftsChannelRef.current);
+        shiftsChannelRef.current = null;
+      }
+    };
+  }, [subscribe, fetchTrack]);
+
+  const isLive = lastEventAt != null && now - lastEventAt < 30_000;
 
   const eta = useMemo(() => {
     if (!data) return null;
@@ -145,4 +311,3 @@ export function CourierMiniMap({ courierOrderId }: { courierOrderId: string }) {
     </div>
   );
 }
-

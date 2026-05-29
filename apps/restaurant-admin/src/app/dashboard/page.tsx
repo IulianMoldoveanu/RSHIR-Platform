@@ -124,7 +124,9 @@ export default async function DashboardOverviewPage(
           <h2 className="text-sm font-semibold text-zinc-900">Comenzi active</h2>
           <LiveBadge />
         </div>
-        <CourierPresenceWidget />
+        <Suspense fallback={null}>
+          <CourierPresenceWidget />
+        </Suspense>
       </div>
 
       <Suspense fallback={<ActiveSkeleton />}>
