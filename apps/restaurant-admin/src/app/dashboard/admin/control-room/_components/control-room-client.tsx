@@ -6,9 +6,8 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 
 type Profile = {
-  id: string;
   user_id: string;
-  display_name: string | null;
+  full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
   status: string;
@@ -217,7 +216,7 @@ function CourierPanel({
           const shift = onlineByUser.get(p.user_id);
           const online = !!shift;
           return (
-            <li key={p.id} className="flex items-center gap-3 px-4 py-3">
+            <li key={p.user_id} className="flex items-center gap-3 px-4 py-3">
               <span
                 aria-hidden
                 className={`inline-block h-2.5 w-2.5 rounded-full ${
@@ -226,17 +225,17 @@ function CourierPanel({
               />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-zinc-900">
-                  {p.display_name ?? 'Curier'}
+                  {p.full_name ?? 'Curier'}
                 </div>
                 <div className="text-xs text-zinc-500">
                   {p.phone ?? '—'} · last seen {relTime(shift?.last_seen_at ?? null)}
                 </div>
               </div>
-              <label className="text-xs text-zinc-500" htmlFor={`limit-${p.id}`}>
+              <label className="text-xs text-zinc-500" htmlFor={`limit-${p.user_id}`}>
                 Max paralel
               </label>
               <input
-                id={`limit-${p.id}`}
+                id={`limit-${p.user_id}`}
                 type="number"
                 min={1}
                 max={10}
@@ -247,7 +246,7 @@ function CourierPanel({
                   const raw = e.target.value.trim();
                   const value = raw === '' ? null : Math.max(1, Math.min(10, Number(raw)));
                   if (value !== (p.max_parallel_orders ?? null)) {
-                    updateLimit(p.id, value);
+                    updateLimit(p.user_id, value);
                   }
                 }}
                 disabled={pending}
@@ -274,7 +273,7 @@ function OrdersPanel({
 
   const nameByUserId = useMemo(() => {
     const m = new Map<string, string>();
-    for (const p of profiles) m.set(p.user_id, p.display_name ?? 'Curier');
+    for (const p of profiles) m.set(p.user_id, p.full_name ?? 'Curier');
     return m;
   }, [profiles]);
 
@@ -371,8 +370,8 @@ function OrdersPanel({
                 >
                   <option value="">Reasignează…</option>
                   {profiles.map((p) => (
-                    <option key={p.id} value={p.user_id}>
-                      {p.display_name ?? p.user_id.slice(0, 8)}
+                    <option key={p.user_id} value={p.user_id}>
+                      {p.full_name ?? p.user_id.slice(0, 8)}
                     </option>
                   ))}
                 </select>

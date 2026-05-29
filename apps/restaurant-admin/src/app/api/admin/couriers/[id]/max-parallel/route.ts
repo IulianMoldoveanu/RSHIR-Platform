@@ -34,7 +34,7 @@ export async function POST(
   const { error } = await sb
     .from('courier_profiles')
     .update({ max_parallel_orders: body.max_parallel_orders ?? null })
-    .eq('id', id);
+    .eq('user_id', id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
