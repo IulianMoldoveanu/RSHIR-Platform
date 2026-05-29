@@ -26,8 +26,10 @@ export const metadata: Metadata = {
   icons: [
     { rel: 'icon', url: '/icon-192.png', sizes: '192x192' },
     { rel: 'icon', url: '/icon-512.png', sizes: '512x512' },
-    { rel: 'apple-touch-icon', url: '/icon-192.png', sizes: '192x192' },
-    { rel: 'apple-touch-icon', url: '/icon-512.png', sizes: '512x512' },
+    // iOS expects a 180×180 PNG at this exact rel — Safari + the Add-to-
+    // Home-Screen flow downscale poorly from 192/512, producing blurry
+    // icons. The 180px file is generated from icon-512.png.
+    { rel: 'apple-touch-icon', url: '/apple-touch-icon.png', sizes: '180x180' },
   ],
 };
 
