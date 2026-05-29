@@ -126,6 +126,10 @@ export function CheckoutClient(props: {
   prefill: Prefill | null;
   loyalty: LoyaltyContext | null;
   locale: Locale;
+  // P0 audit #5: phone OTP verification. Defaults to true (storefronts get
+  // OTP gating out of the box). Tenants can opt out via
+  // settings.checkout_otp_enabled = false until they migrate copy.
+  otpEnabled: boolean;
 }) {
   const router = useRouter();
   const { cart, loading: cartLoading } = useCart();
@@ -140,6 +144,7 @@ export function CheckoutClient(props: {
     showTestBanner,
     prefill,
     loyalty,
+    otpEnabled,
   } = props;
 
   // Loyalty redemption toggle — wired up after the quote state below.
@@ -199,6 +204,33 @@ export function CheckoutClient(props: {
   }, [coords, coordsForText, currentAddressKey]);
 
   const [notes, setNotes] = useState('');
+
+  // P0 audit #5 — phone OTP. We keep verified state keyed by the
+  // 9-digit local phone so a customer who edits the phone after
+  // verifying must re-verify. otpDevCode is only set when the server
+  // returned a dev-mode echo (no Twilio configured) so the client can
+  // surface the code for local testing.
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpWorking, setOtpWorking] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpDevCode, setOtpDevCode] = useState<string | null>(null);
+  const [verifiedPhone, setVerifiedPhone] = useState<string | null>(null);
+  const phoneVerified = otpEnabled
+    ? verifiedPhone !== null && verifiedPhone === phone
+    : true;
+  // When the customer edits the phone after verifying, drop the verified
+  // state silently — they need to re-OTP. We don't surface an error
+  // because the form is still mid-edit; the gate on the CTA tells them.
+  useEffect(() => {
+    if (verifiedPhone && verifiedPhone !== phone) {
+      setVerifiedPhone(null);
+      setOtpRequested(false);
+      setOtpCode('');
+      setOtpDevCode(null);
+      setOtpError(null);
+    }
+  }, [phone, verifiedPhone]);
 
   // Lane L PR 1: newsletter opt-in checkbox. Default ON — Iulian's call:
   // converts ~30% of one-shot guests into a warm email list, the welcome
@@ -321,6 +353,87 @@ export function CheckoutClient(props: {
       }
     } finally {
       setGeocoding(false);
+    }
+  }
+
+  async function handleRequestOtp() {
+    if (otpWorking) return;
+    setOtpError(null);
+    setOtpDevCode(null);
+    if (phone.length !== 9) {
+      setOtpError(t(locale, 'checkout.otp_err_invalid_phone'));
+      return;
+    }
+    setOtpWorking(true);
+    try {
+      const res = await fetch('/api/checkout/otp/request', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ phone: `+40${phone}` }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const code = String(data?.error ?? '');
+        const key =
+          code === 'rate_limited' || code === 'rate_limited_phone'
+            ? 'checkout.otp_err_rate_limited'
+            : code === 'sms_provider_unavailable'
+              ? 'checkout.otp_err_sms_unavailable'
+              : code === 'sms_send_failed'
+                ? 'checkout.otp_err_send_failed'
+                : code === 'invalid_phone'
+                  ? 'checkout.otp_err_invalid_phone'
+                  : 'checkout.otp_err_default';
+        setOtpError(t(locale, key));
+        return;
+      }
+      setOtpRequested(true);
+      if (data?.devMode && typeof data.devCode === 'string') {
+        setOtpDevCode(data.devCode);
+      }
+    } catch (err) {
+      setOtpError((err as Error).message);
+    } finally {
+      setOtpWorking(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (otpWorking) return;
+    setOtpError(null);
+    if (!/^\d{6}$/.test(otpCode)) {
+      setOtpError(t(locale, 'checkout.otp_err_code_format'));
+      return;
+    }
+    setOtpWorking(true);
+    try {
+      const res = await fetch('/api/checkout/otp/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ phone: `+40${phone}`, code: otpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const code = String(data?.error ?? '');
+        const key =
+          code === 'expired'
+            ? 'checkout.otp_err_expired'
+            : code === 'attempts_exhausted'
+              ? 'checkout.otp_err_attempts_exhausted'
+              : code === 'invalid_code'
+                ? 'checkout.otp_err_invalid_code'
+                : code === 'no_active_code'
+                  ? 'checkout.otp_err_no_active_code'
+                  : 'checkout.otp_err_default';
+        setOtpError(t(locale, key));
+        return;
+      }
+      setVerifiedPhone(phone);
+      setOtpDevCode(null);
+    } catch (err) {
+      setOtpError((err as Error).message);
+    } finally {
+      setOtpWorking(false);
     }
   }
 
@@ -475,12 +588,13 @@ export function CheckoutClient(props: {
         return;
       }
       const response = data as IntentResponse;
-      // Clear the cart immediately for both branches — once the order is
-      // persisted in restaurant_orders the cart no longer represents
-      // pending intent. If the customer abandons the PSP checkout, the
-      // /checkout/cancel landing offers a return-to-menu link.
-      sessionStorage.removeItem(CART_STORAGE_KEY);
-      writeStoredPromo(null);
+      // P0 audit #12 — DO NOT wipe the cart before the PSP redirect for the
+      // CARD branch. If the customer cancels/back-buttons on the PSP page
+      // they return to /checkout/cancel with no cart, while the order row
+      // already exists in PENDING/UNPAID. They re-add items and submit
+      // again → two PENDING duplicates. Cart cleanup now lives in
+      // /checkout/success/page.tsx (CARD success) and the COD branch below
+      // (immediate confirmation path).
       // QW7 — persist the address used for this successful intent so the
       // next visit (cookie-stripped or new device) pre-fills automatically.
       // PICKUP orders skip this since the customer didn't enter an address.
@@ -493,6 +607,11 @@ export function CheckoutClient(props: {
       }
 
       if (response.paymentMethod === 'COD') {
+        // COD path: order is final the moment the intent returns OK. Cart
+        // cleanup is safe here because the user is leaving for /track and
+        // can't re-submit the same cart.
+        sessionStorage.removeItem(CART_STORAGE_KEY);
+        writeStoredPromo(null);
         // COD orders skip the PSP entirely. Order is already PENDING in the
         // DB; the customer goes straight to /track and the restaurant
         // confirms via the admin UI.
@@ -924,6 +1043,21 @@ export function CheckoutClient(props: {
               </span>
             </button>
           )}
+          {otpEnabled && (
+            <OtpVerificationBlock
+              locale={locale}
+              phoneLocal={phone}
+              requested={otpRequested}
+              code={otpCode}
+              setCode={setOtpCode}
+              working={otpWorking}
+              error={otpError}
+              devCode={otpDevCode}
+              verified={phoneVerified}
+              onRequest={() => void handleRequestOtp()}
+              onVerify={() => void handleVerifyOtp()}
+            />
+          )}
           <div className="flex gap-2 pt-3 sm:col-span-2">
             <button
               type="button"
@@ -935,12 +1069,15 @@ export function CheckoutClient(props: {
             <button
               type="button"
               onClick={() => void handleProceedToPayment()}
-              disabled={working}
+              disabled={working || !phoneVerified}
+              title={!phoneVerified ? t(locale, 'checkout.otp_cta_blocked_hint') : undefined}
               className="flex h-12 flex-1 items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:opacity-60"
             >
               {working
                 ? t(locale, 'checkout.preparing_payment')
-                : paymentMethod === 'COD'
+                : !phoneVerified
+                  ? t(locale, 'checkout.otp_cta_blocked')
+                  : paymentMethod === 'COD'
                   ? t(locale, 'checkout.place_order_cod_template', {
                       amount: formatRon(
                         Math.max(
@@ -981,6 +1118,126 @@ export function CheckoutClient(props: {
 
 const inputCls =
   'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500';
+
+// P0 audit #5 — phone OTP verification block. Renders inside the review
+// step. Three states:
+//   * not requested → "Trimite cod" button
+//   * requested + not verified → 6-digit input + "Verifică" button
+//   * verified → success badge ("Telefonul a fost confirmat ✓")
+function OtpVerificationBlock({
+  locale,
+  phoneLocal,
+  requested,
+  code,
+  setCode,
+  working,
+  error,
+  devCode,
+  verified,
+  onRequest,
+  onVerify,
+}: {
+  locale: Locale;
+  phoneLocal: string;
+  requested: boolean;
+  code: string;
+  setCode: (v: string) => void;
+  working: boolean;
+  error: string | null;
+  devCode: string | null;
+  verified: boolean;
+  onRequest: () => void;
+  onVerify: () => void;
+}) {
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 sm:col-span-2">
+      <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+        {t(locale, 'checkout.section_phone_verify')}
+      </h2>
+      {verified ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+          <svg
+            aria-hidden
+            className="h-4 w-4 flex-none text-emerald-600"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          <span className="font-medium">
+            {t(locale, 'checkout.otp_verified_template', { phone: `+40 ${phoneLocal}` })}
+          </span>
+        </div>
+      ) : !requested ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-zinc-600">
+            {t(locale, 'checkout.otp_request_hint_template', {
+              phone: `+40 ${phoneLocal || 'XXXXXXXXX'}`,
+            })}
+          </p>
+          <button
+            type="button"
+            onClick={onRequest}
+            disabled={working || phoneLocal.length !== 9}
+            className="self-start rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {working ? t(locale, 'checkout.otp_sending') : t(locale, 'checkout.otp_send_cta')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-zinc-600">
+            {t(locale, 'checkout.otp_enter_hint')}
+          </p>
+          {devCode && (
+            <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              {t(locale, 'checkout.otp_dev_code_template', { code: devCode })}
+            </p>
+          )}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              pattern="[0-9]{6}"
+              placeholder="123456"
+              aria-label={t(locale, 'checkout.otp_code_aria')}
+              className={`${inputCls} flex-1 font-mono tracking-[0.3em]`}
+            />
+            <button
+              type="button"
+              onClick={onVerify}
+              disabled={working || code.length !== 6}
+              className="rounded-md bg-purple-700 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-purple-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {working ? t(locale, 'checkout.otp_verifying') : t(locale, 'checkout.otp_verify_cta')}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onRequest}
+            disabled={working}
+            className="self-start text-xs font-medium text-purple-700 underline-offset-2 hover:underline disabled:opacity-60"
+          >
+            {t(locale, 'checkout.otp_resend_cta')}
+          </button>
+        </div>
+      )}
+      {error && (
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-rose-700">
+          <span aria-hidden>⚠</span>
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
 
 function PaymentMethodChip({
   active,

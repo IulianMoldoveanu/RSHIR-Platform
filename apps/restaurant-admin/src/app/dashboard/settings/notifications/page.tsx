@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { DailyDigestToggle } from './daily-digest-toggle';
 import { NotificationsToggle } from './notifications-toggle';
+import { ChimeSoundToggle } from './chime-sound-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,6 +42,7 @@ export default async function NotificationsSettingsPage() {
 
       <NotificationsToggle canEdit={role === 'OWNER'} initialEnabled={enabled} tenantId={tenant.id} />
       <DailyDigestToggle canEdit={role === 'OWNER'} initialEnabled={digestEnabled} tenantId={tenant.id} />
+      <ChimeSoundToggle />
     </div>
   );
 }

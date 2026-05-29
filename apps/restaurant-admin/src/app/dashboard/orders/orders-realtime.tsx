@@ -56,11 +56,12 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
 
   useEffect(() => {
     baseTitleRef.current = document.title.replace(/^\(\d+\)\s*/, '');
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {
-        /* user dismissed — ignore */
-      });
-    }
+    // P0 audit #15 — DO NOT auto-call Notification.requestPermission() at
+    // mount. Chrome 95+/Firefox/Safari ignore (or hard-reject) permission
+    // prompts that are not tied to a user gesture, so the prompt silently
+    // never appears and the admin thinks alerts are broken. The explicit
+    // "Activează alerte" button (notification-permission-button.tsx) is
+    // the gesture path now.
 
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
