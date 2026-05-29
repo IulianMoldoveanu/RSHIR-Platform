@@ -583,12 +583,27 @@ function isAllowedAvatarUrl(url: string): boolean {
 
 export async function updateAvatarUrlAction(url: string | null): Promise<void> {
   const userId = await requireUserId();
-  if (url !== null && !isAllowedAvatarUrl(url)) return;
+  // Validate first so the client surfaces a real error instead of silently
+  // "succeeding" and dropping the URL on refresh. Previous behaviour: bare
+  // `return` left courier_profiles untouched while the client set local state
+  // — Iulian reported uploads vanishing on navigation away/back from settings.
+  if (url !== null && !isAllowedAvatarUrl(url)) {
+    console.warn('[updateAvatarUrlAction] rejected URL', {
+      userId,
+      url,
+      reason: 'failed isAllowedAvatarUrl check',
+    });
+    throw new Error('avatar-url-rejected');
+  }
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from('courier_profiles')
     .update({ avatar_url: url })
     .eq('user_id', userId);
+  if (error) {
+    console.error('[updateAvatarUrlAction] DB update failed', { userId, error });
+    throw new Error(`avatar-save-failed: ${error.message}`);
+  }
   revalidatePath('/dashboard/settings');
   revalidatePath('/dashboard');
 }
