@@ -56,6 +56,18 @@ jobs:
           # event. fetch-depth: 2 keeps the checkout cheap.
           fetch-depth: 2
 
+      # Install pnpm BEFORE setup-node. Since package.json declares
+      # `packageManager: pnpm@10.x`, actions/setup-node@v5 auto-detects pnpm
+      # for its cache feature and looks for the binary on PATH at the end
+      # of its run step. Installing pnpm first means the auto-cache path
+      # finds an executable instead of erroring `Unable to locate pnpm`.
+      # Symptom before this fix: every deploy run since the v5 bump
+      # exit 1 on the setup-node step. The script itself only uses node
+      # (no pnpm install) so all we need is the binary present.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
