@@ -102,6 +102,11 @@ export default async function CheckoutPage() {
   const pickup = readPickup(tenant.settings);
   const { logoUrl } = brandingFor(tenant.settings);
   const paymentSurface = resolvePaymentSurface(tenant.settings);
+  // P0 audit #5 — phone OTP gate. Default ON; tenants can opt out via
+  // settings.checkout_otp_enabled = false (e.g. when the Twilio cap is
+  // a binding cost concern and the tenant is comfortable with the fraud
+  // risk).
+  const otpEnabled = readOtpEnabled(tenant.settings);
 
   const customerId = readCustomerCookie(tenant.id);
   const [prefill, loyalty] = await Promise.all([
@@ -162,9 +167,18 @@ export default async function CheckoutPage() {
             : null
         }
         locale={locale}
+        otpEnabled={otpEnabled}
       />
     </main>
   );
+}
+
+function readOtpEnabled(settings: unknown): boolean {
+  if (settings && typeof settings === 'object') {
+    const s = settings as Record<string, unknown>;
+    if (typeof s.checkout_otp_enabled === 'boolean') return s.checkout_otp_enabled;
+  }
+  return true;
 }
 
 function readPhone(settings: unknown): string | null {

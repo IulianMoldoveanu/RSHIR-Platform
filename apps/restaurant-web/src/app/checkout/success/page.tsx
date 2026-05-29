@@ -3,12 +3,19 @@
 // source of truth for flipping payment_status → PAID. This page is purely a
 // landing UX — confirm to the customer that the order was received and link
 // them to /track for live status.
+//
+// P0 audit #12 — cart cleanup. The /checkout/intent route used to wipe the
+// sessionStorage cart pre-PSP-redirect, which created PENDING duplicates
+// whenever the customer cancelled on the PSP and re-submitted. We now wipe
+// the cart HERE (CARD success confirmed) and in the COD branch of
+// CheckoutClient (immediate confirmation).
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CheckCircle2, ChevronLeft } from 'lucide-react';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { isEmbedMode } from '@/lib/embed';
 import { EmbedOrderPlaced } from '@/components/storefront/embed-order-placed';
+import { CartCleanupOnMount } from '@/components/storefront/cart-cleanup-on-mount';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 
@@ -31,6 +38,7 @@ export default async function CheckoutSuccessPage(
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-10 text-center">
+      <CartCleanupOnMount />
       {embed && <EmbedOrderPlaced orderId={orderId || null} total={null} />}
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-200">
         <CheckCircle2 className="h-10 w-10" aria-hidden strokeWidth={2.25} />

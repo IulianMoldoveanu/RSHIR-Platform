@@ -14,6 +14,7 @@ import { MobileSidebar } from './mobile-sidebar';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { FeedbackFab } from '@/components/feedback-fab';
 import { CmdKPalette } from '@/components/cmd-k';
+import { NotificationPermissionButton } from '@/components/notification-permission-button';
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   let active: Awaited<ReturnType<typeof getActiveTenant>>;
@@ -353,6 +354,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             )}
           </div>
           <div className="flex items-center gap-3 text-xs text-zinc-500">
+            <NotificationPermissionButton />
             {storefrontUrl && !connectMode ? (
               <a
                 href={storefrontUrl}
