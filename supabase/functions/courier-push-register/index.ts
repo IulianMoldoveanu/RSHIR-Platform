@@ -1,19 +1,36 @@
 /**
  * Edge Function: courier-push-register
  *
- * Accepts a Web Push subscription from a courier browser and upserts it
- * into `courier_push_subscriptions`. Called by the client-side
- * `src/lib/push/subscribe.ts` after the browser's PushManager.subscribe().
+ * Accepts a push registration from the courier client and stores it.
+ *
+ * Two flavours, distinguished by request body shape:
+ *
+ *   1. Web/PWA (VAPID Web Push):
+ *      Body: { subscription: { endpoint: string; keys: { p256dh, auth } } }
+ *      Storage: `courier_push_subscriptions`
+ *
+ *   2. Native (Capacitor — Android FCM / iOS APNs):
+ *      Body: { native_token: string; platform: 'android' | 'ios' | 'web' }
+ *      Storage: `courier_push_tokens` (upsert on (courier_id, platform))
+ *
+ * The web path is preserved verbatim — existing PWA users continue to work.
  *
  * POST /functions/v1/courier-push-register
  * Auth: Bearer <supabase access token>
- * Body: { subscription: { endpoint: string; keys: { p256dh: string; auth: string } } }
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
+};
+
+type RegisterBody = {
+  // Web VAPID path
+  subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+  // Native FCM/APNs path
+  native_token?: string;
+  platform?: 'android' | 'ios' | 'web';
 };
 
 Deno.serve(async (req: Request) => {
@@ -34,7 +51,6 @@ Deno.serve(async (req: Request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  // Verify the JWT and get the user.
   const token = authHeader.replace('Bearer ', '');
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
   if (authErr || !user) {
@@ -44,9 +60,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  let body: { subscription?: { endpoint?: string; keys?: { p256dh?: string; auth?: string } } };
+  let body: RegisterBody;
   try {
-    body = await req.json();
+    body = (await req.json()) as RegisterBody;
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
@@ -54,6 +70,58 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // ── Native path: FCM/APNs token ──────────────────────────────────────
+  if (body.native_token && body.platform) {
+    const { native_token, platform } = body;
+    if (!['android', 'ios', 'web'].includes(platform)) {
+      return new Response(JSON.stringify({ error: 'invalid_platform' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Resolve courier_profile.id from the authenticated user.
+    const { data: profile, error: profileErr } = await supabase
+      .from('courier_profiles')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (profileErr || !profile) {
+      console.error('[courier-push-register] profile lookup failed', profileErr);
+      return new Response(JSON.stringify({ error: 'no_courier_profile' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { error } = await supabase
+      .from('courier_push_tokens')
+      .upsert(
+        {
+          courier_id: profile.id,
+          fcm_token: native_token,
+          platform,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: 'courier_id,platform' },
+      );
+
+    if (error) {
+      console.error('[courier-push-register] native upsert failed', error);
+      return new Response(JSON.stringify({ error: 'Failed to save native token' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ ok: true, kind: 'native' }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ── Web VAPID path (preserved) ───────────────────────────────────────
   const { endpoint, keys } = body.subscription ?? {};
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return new Response(JSON.stringify({ error: 'Missing subscription fields' }), {
@@ -83,7 +151,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  return new Response(JSON.stringify({ ok: true }), {
+  return new Response(JSON.stringify({ ok: true, kind: 'web' }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });

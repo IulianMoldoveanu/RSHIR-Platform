@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { Bell, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { registerPushServiceWorker } from '@/lib/push/register-sw';
 import { subscribeToPush } from '@/lib/push/subscribe';
+import { registerForPush } from '@/lib/native/push';
 import { isCategoryEnabled } from '@/lib/push/preferences';
 import { Button } from '@hir/ui';
 
@@ -43,6 +45,23 @@ export function PushBootstrap() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // ── Native (Capacitor) path: defer to PushNotifications plugin.
+    // The plugin handles its own permission UI; we still show the priming
+    // splash unless the courier has already dismissed it or opted out.
+    if (Capacitor.isNativePlatform()) {
+      if (!isCategoryEnabled('new_orders')) return;
+      if (window.localStorage.getItem(DISMISS_KEY)) {
+        // Already accepted in a prior session → silent re-register so the
+        // FCM/APNs token rotation gets refreshed on the server.
+        void enableSilentlyNative();
+        return;
+      }
+      setPhase('splash');
+      return;
+    }
+
+    // ── Web/PWA path (existing behaviour) ─────────────────────────────
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       return;
     }
@@ -80,18 +99,44 @@ export function PushBootstrap() {
     await subscribeToPush(reg, token);
   }
 
+  async function enableSilentlyNative() {
+    const supabase = getBrowserSupabase();
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) return;
+    try {
+      await registerForPush(accessToken);
+    } catch {
+      // Non-fatal — courier can re-enable from settings.
+    }
+  }
+
   async function handleEnable() {
     setPhase('asking');
     try {
-      const reg = await registerPushServiceWorker();
-      if (!reg) {
+      const supabase = getBrowserSupabase();
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) {
         setPhase('done');
         return;
       }
-      const supabase = getBrowserSupabase();
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (token) await subscribeToPush(reg, token);
+
+      if (Capacitor.isNativePlatform()) {
+        await registerForPush(accessToken);
+        // Treat first successful native enable as "splash satisfied" so we
+        // don't re-prompt next launch.
+        try {
+          window.localStorage.setItem(DISMISS_KEY, '1');
+        } catch {
+          // localStorage blocked — non-fatal.
+        }
+        return;
+      }
+
+      const reg = await registerPushServiceWorker();
+      if (!reg) return;
+      await subscribeToPush(reg, accessToken);
     } finally {
       setPhase('done');
     }
