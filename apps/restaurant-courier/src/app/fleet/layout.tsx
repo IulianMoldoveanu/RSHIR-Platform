@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Package, Users, Wallet, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Wallet, Banknote, Settings as SettingsIcon } from 'lucide-react';
 import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { Button } from '@hir/ui';
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/fleet/orders', label: 'Comenzi', icon: Package },
   { href: '/fleet/couriers', label: 'Curieri', icon: Users },
   { href: '/fleet/earnings', label: 'Decontări', icon: Wallet },
+  { href: '/fleet/payouts', label: 'Plăți', icon: Banknote },
   { href: '/fleet/settings', label: 'Setări', icon: SettingsIcon },
 ] as const;
 
