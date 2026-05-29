@@ -117,6 +117,81 @@ export async function updateOrderStatus(
 }
 
 // ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
+// confirmOrderAction — PENDING -> CONFIRMED with operator-chosen prep time.
+// Driven from the Confirm modal in status-actions.tsx. prepTimeMinutes is
+// optional: when null the public track page falls back to
+// tenant.settings.delivery_eta_min_minutes (existing behaviour). The column
+// lives in 20260629_002_restaurant_orders_prep_time.sql and is exposed to
+// the customer via get_public_order.
+// ────────────────────────────────────────────────────────────
+
+export async function confirmOrderAction(
+  orderId: string,
+  expectedTenantId: string,
+  prepTimeMinutes: number | null,
+): Promise<void> {
+  const { tenantId, userId } = await requireTenant(expectedTenantId);
+  const order = await loadOrderForTenant(orderId, tenantId);
+
+  if (!(ALLOWED_TRANSITIONS[order.status] ?? []).includes("CONFIRMED")) {
+    throw new OrderTransitionError(
+      `Tranzitie invalida ${order.status} ? CONFIRMED.`,
+      order.status,
+      "CONFIRMED",
+    );
+  }
+
+  // Clamp to the column CHECK (1..240) so we surface a clear Romanian error
+  // rather than the raw Postgres constraint message.
+  let prep: number | null = null;
+  if (prepTimeMinutes !== null && prepTimeMinutes !== undefined) {
+    if (!Number.isFinite(prepTimeMinutes) || prepTimeMinutes < 1 || prepTimeMinutes > 240) {
+      throw new Error("Timpul de pregatire trebuie sa fie intre 1 si 240 minute.");
+    }
+    prep = Math.round(prepTimeMinutes);
+  }
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  const { error } = await sb
+    .from("restaurant_orders")
+    .update({
+      status: "CONFIRMED",
+      prep_time_minutes: prep,
+      confirmed_at: new Date().toISOString(),
+    })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId);
+  if (error) throw friendlyDbError(error, "confirmarea comenzii");
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: "order.confirmed",
+    entityType: "order",
+    entityId: orderId,
+    metadata: { from: order.status, prep_time_minutes: prep },
+  });
+
+  // Same POS-adapter notification as updateOrderStatus so a Custom webhook
+  // (Datecs companion etc.) still fires on the CONFIRMED transition.
+  await dispatchOrderEvent(tenantId, "status_changed", {
+    orderId,
+    source: "INTERNAL_STOREFRONT",
+    status: "CONFIRMED",
+    items: [],
+    totals: { subtotalRon: 0, deliveryFeeRon: 0, totalRon: 0 },
+    customer: { firstName: "", phone: "" },
+    dropoff: null,
+    notes: null,
+  });
+
+  revalidatePath("/dashboard/orders");
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
 // fireExternalDispatch — load order detail + post to external FM.
 // Pulled into its own function so the success-path of updateOrderStatus
 // stays linear. Never throws — it's a side-effect.
