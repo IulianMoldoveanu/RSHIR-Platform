@@ -662,7 +662,7 @@ export async function manualCreateOrder(formData: FormData): Promise<void> {
       status: 'PENDING',
       customer_id: customerId,
       delivery_address_id: deliveryAddressId,
-      payment_status: paymentMethod === 'COD' ? 'UNPAID' : 'UNPAID',
+      payment_status: paymentMethod === 'COD' ? 'UNPAID' : 'PENDING',
       subtotal_ron: subtotalRon,
       delivery_fee_ron: deliveryFeeRon,
       total_ron: totalRon,
