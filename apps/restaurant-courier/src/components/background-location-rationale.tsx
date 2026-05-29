@@ -87,13 +87,13 @@ export function BackgroundLocationRationale() {
         </div>
 
         <h2 className="text-base font-semibold tracking-tight text-hir-fg">
-          De ce avem nevoie de locație „Permite tot timpul"
+          De ce avem nevoie de locație &bdquo;Permite tot timpul&rdquo;
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-hir-muted-fg">
           În timpul turei trimitem poziția ta către dispecerat la fiecare 30 de
           secunde, ca să primești comenzile cele mai apropiate. Android oprește
           locația dacă aplicația merge în fundal — deci la următorul ecran cere
-          alege <strong className="text-hir-fg">„Permite tot timpul"</strong>.
+          alege <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
         </p>
         <p className="mt-2 text-xs leading-relaxed text-hir-muted-fg">
           Locația este folosită doar cât ești online cu tură pornită. Când
