@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 
 type Profile = {
+  user_id: string;
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;

@@ -8,6 +8,7 @@ import { createAdminClient } from './supabase/admin';
 
 export type AuditAction =
   | 'order.status_changed'
+  | 'order.confirmed'
   | 'order.cancelled'
   | 'order.cod_marked_paid'
   | 'order.fiscal_receipt_reprint_requested'
