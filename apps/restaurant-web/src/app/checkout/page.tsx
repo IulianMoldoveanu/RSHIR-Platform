@@ -142,6 +142,7 @@ export default async function CheckoutPage() {
         tenantSlug={tenant.slug}
         tenantName={tenant.name}
         tenantPhone={tenantPhone}
+        tenantCity={readCity(tenant.settings)}
         pickupEnabled={pickup.enabled}
         pickupAddress={pickup.address}
         pickupLat={pickup.lat}
@@ -174,6 +175,15 @@ function readPhone(settings: unknown): string | null {
     return wa ?? ph ?? null;
   }
   return null;
+}
+
+function readCity(settings: unknown): string {
+  if (settings && typeof settings === 'object') {
+    const s = settings as Record<string, unknown>;
+    const c = typeof s.city === 'string' ? s.city : null;
+    if (c) return c;
+  }
+  return '';
 }
 
 function readPickup(settings: unknown): {
