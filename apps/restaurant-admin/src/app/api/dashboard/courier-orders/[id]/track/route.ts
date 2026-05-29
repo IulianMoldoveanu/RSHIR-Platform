@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     const [{ data: profile }, { data: shift }] = await Promise.all([
       admin
         .from('courier_profiles')
-        .select('display_name')
+        .select('full_name')
         .eq('user_id', co.assigned_courier_user_id)
         .maybeSingle(),
       admin
@@ -64,7 +64,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
         .maybeSingle(),
     ]);
     courier = {
-      first_name: ((profile?.display_name as string | undefined) ?? '').split(' ')[0] || 'Curier',
+      first_name: ((profile?.full_name as string | undefined) ?? '').split(' ')[0] || 'Curier',
       last_lat: (shift?.last_lat as number | null) ?? null,
       last_lng: (shift?.last_lng as number | null) ?? null,
       last_seen_at: (shift?.last_seen_at as string | null) ?? null,

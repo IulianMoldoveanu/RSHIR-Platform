@@ -44,7 +44,7 @@ export default async function ControlRoomPage() {
   const [profilesRes, shiftsRes, ordersRes] = await Promise.all([
     sb
       .from('courier_profiles')
-      .select('id, user_id, display_name, phone, avatar_url, status, max_parallel_orders')
+      .select('user_id, full_name, phone, avatar_url, status, max_parallel_orders')
       .eq('status', 'ACTIVE'),
     sb
       .from('courier_shifts')
