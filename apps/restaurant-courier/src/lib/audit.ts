@@ -58,6 +58,9 @@ export type CourierAuditAction =
   | 'courier.geofence_alert'
   | 'pharma.callback_sent'
   | 'earnings.exported'
+  | 'fleet.payout_period_approved'
+  | 'fleet.payout_period_paid'
+  | 'fleet.payouts_exported'
   | 'courier.time_off_requested';
 
 async function deriveTenantId(
