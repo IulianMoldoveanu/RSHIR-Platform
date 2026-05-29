@@ -62,7 +62,7 @@ type WebSubscription = {
 
 type NativeToken = {
   id: string;
-  courier_id: string;
+  courier_user_id: string;
   fcm_token: string;
   platform: 'android' | 'ios' | 'web';
 };
@@ -159,9 +159,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Fetch active couriers in the fleet ───────────────────────────────
+    // courier_profiles PK is user_id (no separate id column). Both
+    // courier_push_subscriptions and courier_push_tokens key off the same
+    // user_id, so we only need one list.
     const { data: profiles, error: profilesErr } = await supabase
       .from('courier_profiles')
-      .select('id, user_id')
+      .select('user_id')
       .eq('fleet_id', fleet_id)
       .eq('status', 'ACTIVE');
 
@@ -181,7 +184,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const userIds = profiles.map((p: { user_id: string }) => p.user_id);
-    const courierIds = profiles.map((p: { id: string }) => p.id);
 
     // ── Fetch web push subscriptions + native FCM tokens in parallel ─────
     const [{ data: subscriptions, error: subsErr }, { data: tokens, error: tokensErr }] =
@@ -192,8 +194,8 @@ Deno.serve(async (req: Request) => {
           .in('user_id', userIds),
         supabase
           .from('courier_push_tokens')
-          .select('id, courier_id, fcm_token, platform')
-          .in('courier_id', courierIds),
+          .select('id, courier_user_id, fcm_token, platform')
+          .in('courier_user_id', userIds),
       ]);
 
     if (subsErr) console.error('[push-dispatch] web subs fetch failed', subsErr);
