@@ -25,6 +25,7 @@ import { LocationTrackerWired } from '@/components/location-tracker-wired';
 import { CourierPresenceBroadcaster } from '@/components/courier-presence-broadcaster';
 import { PageTransition } from '@/components/page-transition';
 import { BottomNav } from '@/components/bottom-nav';
+import { CapacitorBootstrap } from '@/components/capacitor-bootstrap';
 
 // Force layout to re-fetch shift state on every navigation. Without this,
 // Next.js may serve a cached layout (with stale isOnline) under a freshly
@@ -196,6 +197,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <OfflineBanner />
         <BatterySaverBadge />
         <BatteryCriticalToast />
+        <CapacitorBootstrap />
         <PushBootstrap />
         <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
         <CourierPresenceBroadcaster userId={user.id} fleetId={profile?.fleet_id ?? null} />

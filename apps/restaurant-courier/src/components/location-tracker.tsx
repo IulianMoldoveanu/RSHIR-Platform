@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { watchPosition as bridgeWatchPosition } from '@/lib/native/geolocation';
 
 const LOCATION_DISMISS_KEY = 'hir.courier.locationPromptDismissedAt';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -128,7 +129,7 @@ type Props = {
 
 export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) {
   const lastSentAtRef = useRef<number>(0);
-  const watchIdRef = useRef<number | null>(null);
+  const stopWatchRef = useRef<(() => void) | null>(null);
   const battery = useBatterySnapshot();
 
   // Effective interval reacts to battery state. The watchPosition handler
@@ -140,14 +141,12 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
   useEffect(() => {
     if (!enabled) {
       // Stop any in-flight watch when shift goes offline.
-      if (watchIdRef.current != null && typeof navigator !== 'undefined' && navigator.geolocation) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
       return;
     }
 
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return;
+    if (typeof window === 'undefined') return;
 
     // Honour a prior dismissal of the prompt for 7 days.
     const dismissedAtRaw = window.localStorage.getItem(LOCATION_DISMISS_KEY);
@@ -156,7 +155,11 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
       return;
     }
 
-    const id = navigator.geolocation.watchPosition(
+    // Unified bridge: native Capacitor Geolocation on Android/iOS (supports
+    // background tracking with ACCESS_BACKGROUND_LOCATION), navigator.
+    // geolocation in the web/PWA fallback. The bridge handles permission
+    // resolution per platform.
+    const stop = bridgeWatchPosition(
       (pos) => {
         const now = Date.now();
         // Read the live interval — adaptive on battery state — instead of
@@ -165,32 +168,25 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         if (now - lastSentAtRef.current < effectiveIntervalRef.current) return;
         lastSentAtRef.current = now;
         // Best-effort; never throw inside the callback (would kill the watch).
-        Promise.resolve(onFix(pos.coords.latitude, pos.coords.longitude)).catch((err) => {
+        Promise.resolve(onFix(pos.lat, pos.lng)).catch((err) => {
           console.error('[location-tracker] onFix failed', err);
         });
       },
-      (err) => {
-        // PERMISSION_DENIED (1) — record dismissal so we don't re-prompt next mount.
-        if (err.code === err.PERMISSION_DENIED) {
+      (permission, message) => {
+        if (permission === 'denied') {
+          // Record dismissal so we don't re-prompt for 7 days.
           window.localStorage.setItem(LOCATION_DISMISS_KEY, String(Date.now()));
         } else {
-          console.warn('[location-tracker] watchPosition error', err.code, err.message);
+          console.warn('[location-tracker] watchPosition error', permission, message);
         }
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 15_000,
-        timeout: 20_000,
       },
     );
 
-    watchIdRef.current = id;
+    stopWatchRef.current = stop;
 
     return () => {
-      if (watchIdRef.current != null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
     };
     // Only re-create the watch when `enabled` flips or `onFix` rotates.
     // Battery changes are absorbed via the ref above so the watch keeps

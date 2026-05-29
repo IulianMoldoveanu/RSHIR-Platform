@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
 import { toast, Button } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
+import { takePhoto } from '@/lib/native/camera';
 
 /** Per-slot upload progress, 0-100. Null when not uploading. */
 type SlotProgress = Record<ProofFolder, number | null>;
@@ -56,7 +57,43 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
     prescription: null,
   });
 
-  function pickFile(ref: React.RefObject<HTMLInputElement>) {
+  // Native (Capacitor) opens the OS camera and yields a Blob; we wrap it in a
+  // File so the rest of the pipeline (uploadOrEnqueue → IndexedDB → Supabase
+  // storage) is identical to the web/PWA path. Web falls back to the hidden
+  // file input below via .click(). The setter argument distinguishes which
+  // SlotState the captured photo belongs to.
+  async function pickFile(
+    ref: React.RefObject<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<SlotState>>,
+  ) {
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      if (Capacitor.isNativePlatform()) {
+        const result = await takePhoto();
+        if (result.status === 'cancelled') return;
+        if (result.status === 'denied') {
+          setError('Permisiunea pentru cameră a fost refuzată. Activeaz-o din setările telefonului.');
+          return;
+        }
+        if (result.status === 'error') {
+          setError(`Eroare cameră: ${result.message}`);
+          return;
+        }
+        if (result.blob.size > MAX_PROOF_BYTES) {
+          setError('Fișierul este prea mare (max 10 MB). Încearcă o fotografie mai mică.');
+          return;
+        }
+        const file = new File([result.blob], `proof-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        setter((prev) => {
+          if (prev.preview) URL.revokeObjectURL(prev.preview);
+          return { file, preview: URL.createObjectURL(file), url: null };
+        });
+        setError(null);
+        return;
+      }
+    } catch {
+      // @capacitor/core not available — fall through to web path.
+    }
     ref.current?.click();
   }
 
@@ -216,7 +253,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
           <Button
             type="button"
             variant="ghost"
-            onClick={() => pickFile(deliveryRef)}
+            onClick={() => { void pickFile(deliveryRef, setDelivery); }}
             className="flex h-24 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-hir-border text-xs font-medium text-hir-muted-fg transition-all hover:-translate-y-px hover:border-violet-500/60 hover:bg-violet-500/5 hover:text-violet-200 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             <Camera className="h-5 w-5" strokeWidth={2.25} /> Fă o fotografie
@@ -286,7 +323,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             label="ID destinatar"
             slot={idSlot}
             inputRef={idRef}
-            onPick={() => pickFile(idRef)}
+            onPick={() => { void pickFile(idRef, setIdSlot); }}
             onChange={(e) => handleChange(e, setIdSlot)}
             onClear={() => clearSlot(setIdSlot, idRef)}
           />
@@ -296,7 +333,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
             label="Confirmare medicamente"
             slot={rxSlot}
             inputRef={rxRef}
-            onPick={() => pickFile(rxRef)}
+            onPick={() => { void pickFile(rxRef, setRxSlot); }}
             onChange={(e) => handleChange(e, setRxSlot)}
             onClear={() => clearSlot(setRxSlot, rxRef)}
           />

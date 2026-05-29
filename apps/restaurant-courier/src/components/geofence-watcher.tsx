@@ -13,6 +13,7 @@ import {
 } from '@/lib/geofence';
 import * as haptics from '@/lib/haptics';
 import { isVoiceNavEnabled, speak } from '@/lib/voice-nav';
+import { getCurrentPosition } from '@/lib/native/geolocation';
 import {
   logGeofenceAlertAction,
   postGeofenceArrivalMessageAction,
@@ -77,62 +78,64 @@ export function GeofenceWatcher({ orderId, pickup, dropoff, status }: Props) {
     // Only active for own ACCEPTED or PICKED_UP orders.
     if (currentStatus !== 'ACCEPTED' && currentStatus !== 'PICKED_UP') return;
 
-    // getCurrentPosition at relaxed accuracy — we just need a fresh lat/lng
-    // to evaluate zone entry. The high-accuracy watchPosition in
-    // LocationTracker is the authoritative fix for server-side updates;
-    // this second call is lightweight and fast (maximumAge allows a cache).
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        const evaluator = evaluatorRef.current;
-        if (!evaluator) return;
+    // Fetch a fresh lat/lng to evaluate zone entry. The high-accuracy
+    // watchPosition in LocationTracker is the authoritative fix for
+    // server-side updates; this second call is lightweight and fast.
+    // Uses the unified bridge so Capacitor native (Android background
+    // location, iOS plugin) and web (navigator.geolocation) share one
+    // code path — no per-platform branching at the call site.
+    let cancelled = false;
+    void (async () => {
+      const pos = await getCurrentPosition();
+      if (cancelled || !pos) return; // GPS lookup failed — skip silently, retry on next fix.
 
-        const alert = evaluator.evaluate(lat, lng, statusRef.current);
-        if (!alert) return;
-        if (wasRecentlyFired(orderId, alert)) return;
+      const { lat, lng } = pos;
+      const evaluator = evaluatorRef.current;
+      if (!evaluator) return;
 
-        markFired(orderId, alert);
+      const alert = evaluator.evaluate(lat, lng, statusRef.current);
+      if (!alert) return;
+      if (wasRecentlyFired(orderId, alert)) return;
 
-        // Double-pulse haptic: attention without emergency.
-        haptics.warning();
+      markFired(orderId, alert);
 
-        const message = ALERT_MESSAGES[alert];
-        if (alert === 'LEFT_PICKUP_WITHOUT_MARK') {
-          toast(message, { duration: 6_000 });
-        } else {
-          toast.success(message, { duration: 5_000 });
+      // Double-pulse haptic: attention without emergency.
+      haptics.warning();
+
+      const message = ALERT_MESSAGES[alert];
+      if (alert === 'LEFT_PICKUP_WITHOUT_MARK') {
+        toast(message, { duration: 6_000 });
+      } else {
+        toast.success(message, { duration: 5_000 });
+      }
+
+      // Hands-free voice prompt when opt-in. Same RO message as the toast.
+      if (isVoiceNavEnabled()) speak(message);
+
+      // Distance from courier to the relevant zone centre for audit.
+      const target = alert === 'NEAR_DROPOFF' ? dropoff : pickup;
+      const distM = haversineMeters(lat, lng, target.lat, target.lng);
+      void logGeofenceAlertAction(orderId, alert, distM);
+
+      // Auto-post a SYSTEM "Curierul este la …" message into the order
+      // chat (visible to tenant + client). Dedup is already handled by
+      // wasRecentlyFired above — same gate, no double-post on oscillation.
+      if (alert === 'NEAR_PICKUP' || alert === 'NEAR_DROPOFF') {
+        void postGeofenceArrivalMessageAction(orderId, alert);
+        // Broadcast in-process so OrderActions can highlight the relevant
+        // SwipeButton without a parent re-render. No event listeners on
+        // the server side; this is a pure client-side handshake.
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('hir:geofence-entered', {
+              detail: { orderId, alert },
+            }),
+          );
         }
+      }
+    })();
 
-        // Hands-free voice prompt when opt-in. Same RO message as the toast.
-        if (isVoiceNavEnabled()) speak(message);
-
-        // Distance from courier to the relevant zone centre for audit.
-        const target = alert === 'NEAR_DROPOFF' ? dropoff : pickup;
-        const distM = haversineMeters(lat, lng, target.lat, target.lng);
-        void logGeofenceAlertAction(orderId, alert, distM);
-
-        // Auto-post a SYSTEM "Curierul este la …" message into the order
-        // chat (visible to tenant + client). Dedup is already handled by
-        // wasRecentlyFired above — same gate, no double-post on oscillation.
-        if (alert === 'NEAR_PICKUP' || alert === 'NEAR_DROPOFF') {
-          void postGeofenceArrivalMessageAction(orderId, alert);
-          // Broadcast in-process so OrderActions can highlight the relevant
-          // SwipeButton without a parent re-render. No event listeners on
-          // the server side; this is a pure client-side handshake.
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(
-              new CustomEvent('hir:geofence-entered', {
-                detail: { orderId, alert },
-              }),
-            );
-          }
-        }
-      },
-      () => {
-        // GPS lookup failed — skip silently, retry on next fix.
-      },
-      { enableHighAccuracy: false, maximumAge: 8_000, timeout: 3_000 },
-    );
+    return () => { cancelled = true; };
   }, [lastFixAt, orderId, pickup, dropoff]);
 
   return null;

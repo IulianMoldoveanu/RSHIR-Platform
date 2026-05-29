@@ -237,22 +237,41 @@ function PushReAskBanner() {
       return;
     }
 
-    // Poll sessionStorage for the delivered flag (set by order-actions.tsx).
-    // We poll rather than listen to a custom event so the banner still works
-    // even when the tab navigates between pages within the same session.
-    const timer = setInterval(() => {
-      try {
-        const flagged = sessionStorage.getItem(SESSION_DELIVERED_FLAG);
-        if (flagged) {
-          clearInterval(timer);
-          setVisible(true);
-        }
-      } catch {
-        clearInterval(timer);
-      }
-    }, 1500);
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let disposed = false;
 
-    return () => clearInterval(timer);
+    // Native shell owns push registration end-to-end. Don't show the
+    // web-VAPID re-ask banner there.
+    void (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.isNativePlatform()) return;
+      } catch {
+        // @capacitor/core not loadable — fall through to web banner.
+      }
+      if (disposed) return;
+      // Poll sessionStorage for the delivered flag (set by order-actions.tsx).
+      // We poll rather than listen to a custom event so the banner still
+      // works even when the tab navigates between pages within the session.
+      timer = setInterval(() => {
+        try {
+          const flagged = sessionStorage.getItem(SESSION_DELIVERED_FLAG);
+          if (flagged) {
+            if (timer) clearInterval(timer);
+            timer = null;
+            setVisible(true);
+          }
+        } catch {
+          if (timer) clearInterval(timer);
+          timer = null;
+        }
+      }, 1500);
+    })();
+
+    return () => {
+      disposed = true;
+      if (timer) clearInterval(timer);
+    };
   }, []);
 
   async function handleEnable() {
