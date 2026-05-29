@@ -198,7 +198,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <BatteryCriticalToast />
         <PushBootstrap />
         <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
-        <CourierPresenceBroadcaster userId={user.id} />
+        <CourierPresenceBroadcaster userId={user.id} fleetId={profile?.fleet_id ?? null} />
         <ProofSync />
         <TransitionSync />
 
