@@ -80,31 +80,20 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Resolve courier_profile.id from the authenticated user.
-    const { data: profile, error: profileErr } = await supabase
-      .from('courier_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (profileErr || !profile) {
-      console.error('[courier-push-register] profile lookup failed', profileErr);
-      return new Response(JSON.stringify({ error: 'no_courier_profile' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
+    // courier_profiles.user_id IS the PK (no separate id column). The
+    // applied schema for courier_push_tokens uses courier_user_id FK →
+    // courier_profiles(user_id). Skip the redundant lookup — auth.uid()
+    // already gives us the right value.
     const { error } = await supabase
       .from('courier_push_tokens')
       .upsert(
         {
-          courier_id: profile.id,
+          courier_user_id: user.id,
           fcm_token: native_token,
           platform,
           last_seen_at: new Date().toISOString(),
         },
-        { onConflict: 'courier_id,platform' },
+        { onConflict: 'courier_user_id,platform' },
       );
 
     if (error) {
