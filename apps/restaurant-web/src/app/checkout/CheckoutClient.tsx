@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, ShoppingBag, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/storefront/empty-state';
-import { geocodeAddressRo } from '@/lib/zones/nominatim';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
@@ -116,6 +115,13 @@ export function CheckoutClient(props: {
   tenantSlug: string;
   tenantName: string;
   tenantPhone: string;
+  /**
+   * Default city for new customers — sourced from tenant.settings.city
+   * (resolved server-side in page.tsx). Hard-coded 'Brașov' was correct
+   * for the first pilot but fails as soon as we onboard Cluj/București.
+   * Falls back to 'Brașov' only when the tenant hasn't set anything.
+   */
+  tenantCity: string;
   pickupEnabled: boolean;
   pickupAddress: string | null;
   pickupLat: number | null;
@@ -131,6 +137,7 @@ export function CheckoutClient(props: {
   const { cart, loading: cartLoading } = useCart();
   const {
     locale,
+    tenantCity,
     pickupEnabled,
     pickupAddress,
     pickupLat,
@@ -181,7 +188,9 @@ export function CheckoutClient(props: {
     if (aptUnit.trim()) parts.push(`Ap. ${aptUnit.trim()}`);
     return parts.join(', ');
   }, [aptBlock, aptStair, aptFloor, aptUnit]);
-  const [city, setCity] = useState(prefill?.city || 'Brașov');
+  // Default city: prior order > tenant location > final 'Brașov' safety net
+  // (covers the legacy case where settings.city was never written).
+  const [city, setCity] = useState(prefill?.city || tenantCity || 'Brașov');
   const [postalCode, setPostalCode] = useState(prefill?.postalCode ?? '');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   // Captures the address text the coords were geocoded against. If the user
@@ -305,12 +314,35 @@ export function CheckoutClient(props: {
   // Step transitions
   // ────────────────────────────────────────────────
 
+  // Calls the server-side proxy at /api/checkout/geocode instead of
+  // hitting OSM directly. The proxy enforces the OSM 1 req/sec policy,
+  // caches results for 24h, and uses a hard-coded compliant User-Agent.
+  // Returns null on 404, 429, or network/transport errors — caller is
+  // responsible for surfacing the right UI message.
+  async function proxyGeocode(): Promise<{ lat: number; lng: number } | null> {
+    try {
+      const res = await fetch('/api/checkout/geocode', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          address: { line1, city, postalCode, country: 'Romania' },
+        }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { lat: number; lng: number };
+      if (typeof data.lat !== 'number' || typeof data.lng !== 'number') return null;
+      return { lat: data.lat, lng: data.lng };
+    } catch {
+      return null;
+    }
+  }
+
   async function handleGeocode() {
     setError(null);
     if (!line1.trim() || !city.trim()) return;
     setGeocoding(true);
     try {
-      const hit = await geocodeAddressRo(`${line1}, ${city}, Romania`);
+      const hit = await proxyGeocode();
       if (!hit) {
         setError(t(locale, 'checkout.err_address_not_found'));
         setCoords(null);
@@ -352,7 +384,7 @@ export function CheckoutClient(props: {
       if (!point) {
         setGeocoding(true);
         try {
-          point = await geocodeAddressRo(`${line1}, ${city}, Romania`);
+          point = await proxyGeocode();
         } finally {
           setGeocoding(false);
         }
@@ -422,13 +454,35 @@ export function CheckoutClient(props: {
           : {}),
       };
       if (fulfillment === 'DELIVERY') {
+        // Defensive: the user may have reached the review step with coords
+        // populated, then edited an address field, which fires the
+        // invalidation effect (line ~195) and resets coords to null.
+        // Submitting with `coords!` would crash with a runtime TypeError.
+        // Re-geocode here as a last attempt; if that still fails we
+        // surface an inline error and bail rather than blow up.
+        let point = coords;
+        if (!point) {
+          setGeocoding(true);
+          try {
+            point = await proxyGeocode();
+          } finally {
+            setGeocoding(false);
+          }
+          if (!point) {
+            setError(t(locale, 'checkout.err_geocode_failed'));
+            setStep('form');
+            return;
+          }
+          setCoords(point);
+          setCoordsForText(currentAddressKey);
+        }
         intentBody.address = {
           line1,
           line2,
           city,
           postalCode,
-          lat: coords!.lat,
-          lng: coords!.lng,
+          lat: point.lat,
+          lng: point.lng,
         };
       }
       const res = await fetch('/api/checkout/intent', {
