@@ -60,6 +60,8 @@ export function PresentationGallery({ items }: { items: PresentationGalleryItem[
               <img
                 src={item.url}
                 alt={item.alt ?? ''}
+                width={400}
+                height={400}
                 loading="lazy"
                 decoding="async"
                 className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
@@ -125,6 +127,8 @@ export function PresentationGallery({ items }: { items: PresentationGalleryItem[
             <img
               src={active.url}
               alt={active.alt ?? ''}
+              width={1200}
+              height={900}
               className="max-h-[80vh] max-w-full rounded-lg object-contain shadow-2xl"
             />
             {active.caption ? (

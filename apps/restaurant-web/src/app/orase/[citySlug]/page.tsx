@@ -291,6 +291,8 @@ function TenantCard({
             (<img
               src={logoUrl}
               alt=""
+              width={56}
+              height={56}
               loading="lazy"
               className="h-14 w-14 flex-none rounded-xl object-cover ring-1 ring-[#E2E8F0]"
             />)
