@@ -36,7 +36,7 @@ on:
 
 env:
   NODE_VERSION: '22'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '10'
   JAVA_VERSION: '17'
   APP_ID: ro.hirforyou.curier
 
