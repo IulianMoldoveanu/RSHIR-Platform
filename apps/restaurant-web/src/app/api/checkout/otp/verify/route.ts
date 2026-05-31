@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Match. Stamp verified_at (idempotent — re-verify of the same code is
-  // a no-op). The checkout/intent route can later gate on
-  // verified_at IS NOT NULL when this enforcement lands; for now the
-  // client gate is enough to close the audit finding.
+  // a no-op). The checkout/intent route enforces this server-side:
+  // when tenant.settings.checkout.otp_enabled = true it refuses orders
+  // where no verified row exists within the last 30 minutes.
   const verifiedAt = new Date().toISOString();
   const { error: updErr } = await sb
     .from('customer_phone_verifications')

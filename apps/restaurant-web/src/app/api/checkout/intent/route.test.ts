@@ -1,9 +1,15 @@
-// Smoke test for checkout/intent. Covers tenant_not_found and the 503 closed
-// gate. Deeper validation (computeQuote, payment intent creation) needs a
-// Supabase + Stripe mock harness — left for a follow-up.
+// Smoke test for checkout/intent. Covers tenant_not_found, the 503 closed
+// gate, and the OTP server gate. Deeper validation (computeQuote, payment
+// intent creation) needs a Supabase + PSP mock harness — left for a follow-up.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+
+// Mutable admin mock — default throws so early-return tests catch accidental
+// DB calls; OTP tests override adminMockImpl per-case.
+let adminMockImpl: () => unknown = () => {
+  throw new Error('admin client should not be called for early-return paths');
+};
 
 vi.mock('@/lib/tenant', () => ({
   resolveTenantFromHost: vi.fn(async () => ({
@@ -19,9 +25,7 @@ vi.mock('@/lib/operations', () => ({
 }));
 
 vi.mock('@/lib/supabase-admin', () => ({
-  getSupabaseAdmin: vi.fn(() => {
-    throw new Error('admin client should not be called for early-return paths');
-  }),
+  getSupabaseAdmin: vi.fn(() => adminMockImpl()),
 }));
 
 vi.mock('@/lib/payments/provider-router', () => ({
@@ -32,6 +36,7 @@ vi.mock('@/lib/payments/provider-router', () => ({
 
 vi.mock('@/lib/customer-recognition', () => ({
   maybeSetCustomerCookie: vi.fn(),
+  readCustomerCookie: vi.fn(() => null),
 }));
 
 vi.mock('@/lib/integration-bus', () => ({
@@ -40,6 +45,17 @@ vi.mock('@/lib/integration-bus', () => ({
 
 vi.mock('../pricing', () => ({
   computeQuote: vi.fn(),
+}));
+
+vi.mock('@/lib/idempotency', () => ({
+  checkIdempotency: vi.fn(),
+  hashRequestBody: vi.fn(() => 'hash'),
+  readIdempotencyKey: vi.fn(() => null),
+  storeIdempotency: vi.fn(),
+}));
+
+vi.mock('@/lib/loyalty', () => ({
+  validateRedemption: vi.fn(),
 }));
 
 import { POST } from './route';
@@ -64,9 +80,36 @@ const FAKE_TENANT = {
   settings: { pickup_enabled: true, cod_enabled: true },
 };
 
+const VALID_BODY = {
+  items: [{ itemId: '11111111-1111-1111-1111-111111111111', quantity: 1 }],
+  fulfillment: 'DELIVERY',
+  customer: { firstName: 'Ion', lastName: 'Pop', phone: '+40712345678' },
+  address: { line1: 'Strada X 1', city: 'Brasov', lat: 45.6, lng: 25.6 },
+  paymentMethod: 'COD',
+};
+
+// Builds a chainable Supabase query stub whose terminal call (.maybeSingle)
+// resolves to { data, error }.
+function makeQueryStub(result: { data: unknown; error: unknown }) {
+  const stub: Record<string, unknown> = {};
+  const chain = () => stub;
+  stub.from = chain;
+  stub.select = chain;
+  stub.eq = chain;
+  stub.not = chain;
+  stub.gte = chain;
+  stub.limit = chain;
+  stub.maybeSingle = vi.fn(async () => result);
+  return stub;
+}
+
 describe('POST /api/checkout/intent', () => {
   beforeEach(() => {
     process.env.ALLOWED_ORIGINS = ALLOWED;
+    // Restore default (throw) for early-return tests.
+    adminMockImpl = () => {
+      throw new Error('admin client should not be called for early-return paths');
+    };
   });
   afterEach(() => {
     delete process.env.ALLOWED_ORIGINS;
@@ -131,10 +174,7 @@ describe('POST /api/checkout/intent', () => {
     });
     const res = await POST(
       makeReq({
-        items: [{ itemId: '11111111-1111-1111-1111-111111111111', quantity: 1 }],
-        fulfillment: 'DELIVERY',
-        customer: { firstName: 'Ion', lastName: 'Pop', phone: '+40712345678' },
-        address: { line1: 'Strada X 1', city: 'Brasov', lat: 45.6, lng: 25.6 },
+        ...VALID_BODY,
         paymentMethod: 'CARD',
       }),
     );
@@ -142,5 +182,73 @@ describe('POST /api/checkout/intent', () => {
     expect(res.status).toBe(422);
     const json = (await res.json()) as { error: string };
     expect(json.error).toBe('card_disabled');
+  });
+
+  // --- OTP server gate ---
+
+  it('skips OTP check and proceeds when otp_enabled is not set in tenant settings', async () => {
+    // otp_enabled absent → gate is skipped; the request reaches computeQuote.
+    // computeQuote is mocked to return a failure so we get a 422 (not 500),
+    // which proves the gate was passed.
+    const tenant = await import('@/lib/tenant');
+    const pricing = await import('../pricing');
+    adminMockImpl = () => makeQueryStub({ data: null, error: null });
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tenant: FAKE_TENANT, // settings has no checkout.otp_enabled
+      host: 's1.hir.ro',
+      slug: 's1',
+    });
+    (pricing.computeQuote as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      reason: { kind: 'ITEMS_UNAVAILABLE' },
+    });
+    const res = await POST(makeReq(VALID_BODY));
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('quote_failed');
+  });
+
+  it('returns 403 otp_required when otp_enabled=true and no verified row exists', async () => {
+    const tenant = await import('@/lib/tenant');
+    const queryStub = makeQueryStub({ data: null, error: null }); // no row
+    adminMockImpl = () => queryStub;
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tenant: {
+        ...FAKE_TENANT,
+        settings: { ...FAKE_TENANT.settings, checkout: { otp_enabled: true } },
+      },
+      host: 's1.hir.ro',
+      slug: 's1',
+    });
+    const res = await POST(makeReq(VALID_BODY));
+    expect(res.status).toBe(403);
+    const json = (await res.json()) as { error: string; message: string };
+    expect(json.error).toBe('otp_required');
+    expect(typeof json.message).toBe('string');
+  });
+
+  it('passes the OTP gate and proceeds when otp_enabled=true and a verified row exists', async () => {
+    // Verified row returned → gate is cleared; the request reaches computeQuote.
+    const tenant = await import('@/lib/tenant');
+    const pricing = await import('../pricing');
+    const queryStub = makeQueryStub({ data: { id: 'v1' }, error: null }); // verified row
+    adminMockImpl = () => queryStub;
+    (tenant.resolveTenantFromHost as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      tenant: {
+        ...FAKE_TENANT,
+        settings: { ...FAKE_TENANT.settings, checkout: { otp_enabled: true } },
+      },
+      host: 's1.hir.ro',
+      slug: 's1',
+    });
+    (pricing.computeQuote as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      reason: { kind: 'ITEMS_UNAVAILABLE' },
+    });
+    const res = await POST(makeReq(VALID_BODY));
+    // Gate was cleared; response comes from computeQuote failure, not OTP gate.
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('quote_failed');
   });
 });

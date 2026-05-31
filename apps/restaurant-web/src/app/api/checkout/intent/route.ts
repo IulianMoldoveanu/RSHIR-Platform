@@ -1,3 +1,17 @@
+// POST /api/checkout/intent
+//
+// Creates an order + PSP checkout session (or COD order) for the tenant
+// resolved from the request host.
+//
+// OTP gate contract (when tenant.settings.checkout.otp_enabled = true):
+//   - Client must first call POST /api/checkout/otp/request with the phone,
+//     then POST /api/checkout/otp/verify to stamp verified_at.
+//   - This handler looks up customer_phone_verifications WHERE
+//     phone = body.customer.phone AND tenant_id = tenant.id
+//     AND verified_at IS NOT NULL
+//     AND verified_at > NOW() - INTERVAL '30 minutes'.
+//   - If no matching row → 403 { error: 'otp_required' }.
+//   - When otp_enabled is absent/false the gate is skipped entirely.
 import { NextResponse, type NextRequest } from 'next/server';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
@@ -24,6 +38,7 @@ import {
   readIdempotencyKey,
   storeIdempotency,
 } from '@/lib/idempotency';
+import { normalizeRoPhoneE164 } from '@/lib/checkout/otp';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -117,7 +132,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'card_disabled' }, { status: 422 });
   }
 
+  const tenantSettings = tenant.settings as Record<string, unknown> | null;
   const admin = getSupabaseAdmin();
+
+  // OTP server gate — enforced when tenant.settings.checkout.otp_enabled = true.
+  // Client-side gate is not enough: a script bypassing the UI could submit
+  // orders to arbitrary phone numbers. Verification window: 30 minutes from
+  // verified_at stamp written by /api/checkout/otp/verify.
+  const checkoutSettings = tenantSettings?.checkout;
+  const otpEnabled =
+    checkoutSettings !== null &&
+    typeof checkoutSettings === 'object' &&
+    (checkoutSettings as Record<string, unknown>).otp_enabled === true;
+  if (otpEnabled) {
+    const phoneE164 = normalizeRoPhoneE164(parsed.data.customer.phone);
+    if (!phoneE164) {
+      return NextResponse.json({ error: 'invalid_phone' }, { status: 422 });
+    }
+    const windowStart = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = admin as any;
+    const { data: verificationRow, error: otpErr } = await sb
+      .from('customer_phone_verifications')
+      .select('id')
+      .eq('phone', phoneE164)
+      .eq('tenant_id', tenant.id)
+      .not('verified_at', 'is', null)
+      .gte('verified_at', windowStart)
+      .limit(1)
+      .maybeSingle();
+    if (otpErr) {
+      console.error('[checkout/intent] otp check failed', otpErr.message);
+      return NextResponse.json({ error: 'db_error' }, { status: 500 });
+    }
+    if (!verificationRow) {
+      return NextResponse.json(
+        { error: 'otp_required', message: 'Vă rugăm verificați numărul de telefon.' },
+        { status: 403 },
+      );
+    }
+  }
 
   const quoted = await computeQuote(
     admin,
@@ -136,7 +190,6 @@ export async function POST(req: NextRequest) {
   // Defense-in-depth: cart drawer hides the checkout CTA below min_order_ron,
   // but a determined client can still POST. Reject so we never charge a
   // customer for a sub-threshold cart.
-  const tenantSettings = tenant.settings as Record<string, unknown> | null;
   const minOrderRon =
     typeof tenantSettings?.min_order_ron === 'number' && tenantSettings.min_order_ron > 0
       ? Number(tenantSettings.min_order_ron)
