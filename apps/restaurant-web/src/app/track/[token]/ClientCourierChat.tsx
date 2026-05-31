@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import { formatLocalTime } from '@hir/ui';
-import type { Locale } from '@/lib/i18n';
+import { t, type Locale } from '@/lib/i18n';
 
 type Msg = {
   id: string;
@@ -12,11 +12,18 @@ type Msg = {
   created_at: string;
 };
 
-const STARTER_PRESETS = [
-  'Sunt la poartă, te aștept.',
-  'Sună la interfon, te rog.',
-  'Mai stau ~5 minute, vin imediat.',
-];
+const STARTER_PRESETS: Record<Locale, string[]> = {
+  ro: [
+    'Sunt la poartă, te aștept.',
+    'Sună la interfon, te rog.',
+    'Mai stau ~5 minute, vin imediat.',
+  ],
+  en: [
+    "I'm at the gate, waiting.",
+    'Please ring the intercom.',
+    "I'll be back in ~5 minutes.",
+  ],
+};
 
 export function ClientCourierChat({
   ctoken,
@@ -85,10 +92,8 @@ export function ClientCourierChat({
         body: JSON.stringify({ body: trimmed }),
       });
       if (!res.ok) {
-        if (res.status === 429) setError('Mai așteaptă câteva secunde înainte să trimiți din nou.');
-        else if (res.status === 400) setError('Mesajul este invalid.');
-        else if (res.status === 404) setError('Comanda nu mai este activă.');
-        else setError('Nu am putut trimite. Încearcă din nou.');
+        if (res.status === 429) setError(t(locale, 'track.chat_sending'));
+        else setError(t(locale, 'track.chat_send_failed'));
         return;
       }
       const j = (await res.json().catch(() => ({}))) as { id?: string };
@@ -104,7 +109,7 @@ export function ClientCourierChat({
       ]);
       setBody('');
     } catch {
-      setError('Eroare de rețea.');
+      setError(t(locale, 'track.chat_send_failed'));
     } finally {
       setSending(false);
     }
@@ -120,20 +125,24 @@ export function ClientCourierChat({
         </span>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-zinc-900">
-            {courierFirstName ? `Scrie-i ${courierFirstName}` : 'Scrie curierului'}
+            {courierFirstName
+              ? (locale === 'en' ? `Message ${courierFirstName}` : `Scrie-i ${courierFirstName}`)
+              : t(locale, 'track.chat_title')}
           </p>
           <p className="text-[11px] text-zinc-500">
-            Mesajele sunt văzute doar de curier.
+            {locale === 'en' ? 'Only the courier can see your messages.' : 'Mesajele sunt văzute doar de curier.'}
           </p>
         </div>
       </header>
 
       <div className="max-h-80 space-y-2 overflow-y-auto px-4 py-3" aria-live="polite">
         {msgs === null ? (
-          <p className="text-center text-xs text-zinc-400">Se încarcă…</p>
+          <p className="text-center text-xs text-zinc-400">
+            {locale === 'en' ? 'Loading…' : 'Se încarcă…'}
+          </p>
         ) : msgs.length === 0 ? (
           <p className="text-center text-xs text-zinc-400">
-            Niciun mesaj încă. Spune-i unde te poate găsi mai ușor.
+            {t(locale, 'track.chat_empty')}
           </p>
         ) : (
           msgs.map((m) => <Bubble key={m.id} msg={m} locale={bcpLocale} />)
@@ -143,7 +152,7 @@ export function ClientCourierChat({
 
       {!orderClosed && (msgs?.length ?? 0) === 0 && (
         <div className="flex flex-wrap gap-1.5 border-t border-zinc-100 px-4 py-2">
-          {STARTER_PRESETS.map((p) => (
+          {STARTER_PRESETS[locale].map((p) => (
             <button
               key={p}
               type="button"
@@ -170,7 +179,7 @@ export function ClientCourierChat({
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={2000}
-            placeholder="Scrie un mesaj…"
+            placeholder={t(locale, 'track.chat_input_placeholder')}
             className="h-10 flex-1 rounded-md border border-zinc-300 px-3 text-sm focus:border-purple-500 focus:outline-none"
             disabled={sending}
           />
@@ -180,7 +189,7 @@ export function ClientCourierChat({
             className="flex h-10 items-center justify-center gap-1 rounded-md bg-purple-700 px-3 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-95 disabled:opacity-40"
           >
             <Send className="h-4 w-4" aria-hidden />
-            <span className="sr-only">Trimite</span>
+            <span className="sr-only">{t(locale, 'track.chat_send')}</span>
           </button>
         </form>
       )}

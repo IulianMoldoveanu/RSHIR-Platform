@@ -308,7 +308,7 @@ function TrackInner({
         </section>
       )}
 
-      <PushOptInTile token={token} orderStatus={order.status} />
+      <PushOptInTile token={token} orderStatus={order.status} locale={locale} />
 
       {order.status === 'DELIVERED' && order.tenant && (
         <ReorderRail tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
@@ -916,7 +916,7 @@ const ACTIVE_STATUSES = new Set([
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? '';
 
-function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: string }) {
+function PushOptInTile({ token, orderStatus, locale }: { token: string; orderStatus: string; locale: Locale }) {
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -987,7 +987,7 @@ function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: str
       }
       setSubscribed(true);
     } catch (e) {
-      setError('Nu am putut activa notificările. Încearcă din nou.');
+      setError(t(locale, 'track.push_optin_error'));
       console.error('[PushOptInTile]', e);
     } finally {
       setBusy(false);
@@ -997,7 +997,7 @@ function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: str
   if (subscribed) {
     return (
       <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-        Notificările sunt activate. Te anunțăm când comanda e gata.
+        {t(locale, 'track.push_optin_activated')}
       </section>
     );
   }
@@ -1007,9 +1007,9 @@ function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: str
       <div className="flex items-start gap-3">
         <Bell className="mt-0.5 h-5 w-5 flex-none text-purple-600" aria-hidden />
         <div className="flex-1">
-          <p className="font-semibold text-zinc-900">Primește notificare când e gata comanda</p>
+          <p className="font-semibold text-zinc-900">{t(locale, 'track.push_optin_title')}</p>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Îți trimitem o notificare în browser când statusul comenzii se schimbă.
+            {t(locale, 'track.push_optin_body')}
           </p>
           {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
           <button
@@ -1018,7 +1018,7 @@ function PushOptInTile({ token, orderStatus }: { token: string; orderStatus: str
             disabled={busy}
             className="mt-3 inline-flex h-10 items-center justify-center rounded-full bg-purple-700 px-5 text-sm font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
           >
-            {busy ? 'Se activează…' : 'Activează notificări'}
+            {busy ? t(locale, 'track.push_optin_enabling') : t(locale, 'track.push_optin_enable')}
           </button>
         </div>
       </div>
