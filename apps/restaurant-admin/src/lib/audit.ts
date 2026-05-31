@@ -150,7 +150,8 @@ export type AuditAction =
   | 'customer.reactivation_contacted'
   | 'demand_forecast.refreshed'
   | 'voice.order_extracted'
-  | 'order.voice_created';
+  | 'order.voice_created'
+  | 'courier.reassign';
 
 export async function logAudit(args: {
   tenantId: string;
