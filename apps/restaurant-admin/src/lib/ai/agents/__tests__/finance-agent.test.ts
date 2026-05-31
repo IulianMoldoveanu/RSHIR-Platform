@@ -450,9 +450,21 @@ describe('finance-agent / tax_summary_month', () => {
     state.tenantSettings = { fiscal: { vat_rate_pct: 11 } };
     // Only orders inside the month bound show up; we set a single PAID
     // order priced 111 RON gross => net = 100, VAT = 11.
-    const now = new Date();
-    const yyyy = now.getUTCFullYear();
-    const mm = now.getUTCMonth(); // 0-based
+    //
+    // The handler resolves "current month" from Bucharest local time
+    // (Codex P2 fix in PR #366) — `new Date().getUTCMonth()` here would
+    // disagree for ~3h on the last-day-of-month UTC evening when
+    // Bucharest has already crossed midnight, dropping the order outside
+    // the queried range and yielding 0 rows. Read Bucharest's month
+    // directly to match the handler.
+    const nowBucharest = new Date().toLocaleString('en-CA', {
+      timeZone: 'Europe/Bucharest',
+      year: 'numeric',
+      month: '2-digit',
+    }); // e.g. "2026-06" (no `day` field => "yyyy-mm")
+    const [bucharestYearStr, bucharestMonthStr] = nowBucharest.split('-');
+    const yyyy = Number(bucharestYearStr);
+    const mm = Number(bucharestMonthStr) - 1; // 0-based for Date.UTC
     const dayInsideMonth = new Date(Date.UTC(yyyy, mm, 15, 12, 0, 0)).toISOString();
     state.orders = [
       {
