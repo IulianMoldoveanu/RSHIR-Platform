@@ -55,6 +55,17 @@ export async function POST(
     return NextResponse.json({ error: 'Courier profile not found' }, { status: 403 });
   }
 
+  // KYC gate (per-fleet, default off): blocks taking orders when the courier's
+  // fleet requires KYC and the courier is not VERIFIED. No-op while every fleet
+  // has kyc_required=false.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: canTake } = await (admin.rpc as any)('courier_can_take_orders', {
+    p_user_id: user.id,
+  });
+  if (canTake === false) {
+    return NextResponse.json({ error: 'kyc_required' }, { status: 403 });
+  }
+
   const profileRow = profile as {
     fleet_id: string | null;
     max_parallel_orders: number | null;
