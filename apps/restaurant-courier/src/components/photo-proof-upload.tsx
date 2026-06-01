@@ -1,5 +1,11 @@
 'use client';
 
+// Hidden per directive 2026-05-20 — see _disabled-features/REGISTRY.md (delivery-photo-proof).
+// Customers and couriers no longer interact with photo proof of delivery for restaurant orders.
+// Pharma vertical (requiresId / requiresPrescription) is NOT disabled — legal requirement.
+// Original implementation kept in tree for easy re-enable when 100+ orders/day make
+// dispute-resolution proof necessary.
+
 import { useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
 import { toast, Button } from '@hir/ui';
@@ -40,7 +46,20 @@ type Props = {
  * have been uploaded. For restaurant, onComplete fires immediately with empty
  * urls and the caller treats the proof as optional.
  */
+const DELIVERY_PHOTO_PROOF_ENABLED = process.env.NEXT_PUBLIC_DELIVERY_PHOTO_PROOF === 'true';
+
 export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescription, onComplete }: Props) {
+  // Pharma vertical with required ID/prescription is LEGAL requirement — keep enabled.
+  // Restaurant proof + optional pharma photo are disabled per 2026-05-20 directive.
+  const isLegallyRequired = vertical === 'pharma' && (requiresId || requiresPrescription);
+  if (!DELIVERY_PHOTO_PROOF_ENABLED && !isLegallyRequired) {
+    // Notify parent immediately with empty URLs so the delivery flow proceeds.
+    if (typeof window !== 'undefined') {
+      setTimeout(() => onComplete({}), 0);
+    }
+    return null;
+  }
+
   const deliveryRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
   const rxRef = useRef<HTMLInputElement>(null);

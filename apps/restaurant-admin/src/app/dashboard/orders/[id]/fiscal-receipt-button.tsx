@@ -1,17 +1,14 @@
 'use client';
 
-// Per-order admin button — manually re-trigger the bon-fiscal print
-// through any active Custom-webhook adapter (Datecs companion, etc.).
-// Renders only when the tenant has at least one active Custom provider
-// configured (probed server-side and passed via prop).
-//
-// Click → server action `printFiscalReceipt` → existing
-// dispatchOrderEvent pipeline → dispatcher → companion. No direct
-// adapter call from the browser.
+// Hidden per directive 2026-05-20 — see _disabled-features/REGISTRY.md (fiscal-export-ui).
+// Component remains in tree for easy re-enable but renders null unless explicitly enabled.
+// Original implementation moved to _disabled-features/fiscal-export-ui/ for reference.
 
 import { useState, useTransition } from 'react';
 import { Printer } from 'lucide-react';
 import { printFiscalReceipt } from '../actions';
+
+const FISCAL_EXPORT_UI_ENABLED = process.env.NEXT_PUBLIC_FISCAL_EXPORT_UI === 'true';
 
 type Props = {
   orderId: string;
@@ -19,6 +16,7 @@ type Props = {
 };
 
 export function FiscalReceiptButton({ orderId, tenantId }: Props) {
+  if (!FISCAL_EXPORT_UI_ENABLED) return null;
   const [pending, start] = useTransition();
   const [result, setResult] = useState<
     | null
