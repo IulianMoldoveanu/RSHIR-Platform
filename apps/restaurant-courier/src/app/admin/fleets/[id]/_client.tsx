@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { updateFleet, inviteCourier, createFleetApiKey, revokeFleetApiKey } from '../actions';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@hir/ui';
+import { courierDisplayName } from '@/lib/courier-display';
 
 type Fleet = {
   id: string;
@@ -281,7 +282,15 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
 
 // ── InviteCourierSection ─────────────────────────────────────────────────────
 
-function InviteCourierSection({ fleetId, couriers }: { fleetId: string; couriers: Courier[] }) {
+function InviteCourierSection({
+  fleetId,
+  couriers,
+  displayPrefix,
+}: {
+  fleetId: string;
+  couriers: Courier[];
+  displayPrefix: string | null;
+}) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [email, setEmail] = useState('');
@@ -390,7 +399,7 @@ function InviteCourierSection({ fleetId, couriers }: { fleetId: string; couriers
               {couriers.map((c) => (
                 <tr key={c.user_id}>
                   <td className="px-4 py-3 text-xs text-zinc-400">{c.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-zinc-200">{c.full_name}</td>
+                  <td className="px-4 py-3 text-zinc-200">{courierDisplayName(displayPrefix, c.full_name)}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${
@@ -667,7 +676,7 @@ export function FleetDetailClient({
       </div>
 
       <EditFleetSection fleet={fleet} />
-      <InviteCourierSection fleetId={fleet.id} couriers={couriers} />
+      <InviteCourierSection fleetId={fleet.id} couriers={couriers} displayPrefix={fleet.display_prefix} />
       <ApiKeysSection fleetId={fleet.id} apiKeys={apiKeys} />
     </div>
   );
