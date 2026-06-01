@@ -29,7 +29,9 @@ export async function loginAsTestCourier(page: Page): Promise<void> {
 
   await page.goto('/login');
   await page.getByLabel(/email/i).fill(E2E_COURIER_EMAIL);
-  await page.getByLabel(/parol/i).fill(E2E_COURIER_PASSWORD);
+  // Target the input by id: the new show/hide toggle button also carries a
+  // "parola" aria-label, so getByLabel(/parol/i) would match two elements.
+  await page.locator('#password').fill(E2E_COURIER_PASSWORD);
   await page.getByRole('button', { name: /intr|conect|continuă/i }).click();
   await page.waitForURL((url) => url.pathname.startsWith('/dashboard'), { timeout: 30_000 });
 }
