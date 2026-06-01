@@ -54,10 +54,12 @@ export async function verifyCourierKyc(
   if (rejReason && typeof rejReason === 'object') return { ok: false, error: rejReason.error };
 
   const now = new Date().toISOString();
+  // Stamp who decided (PLATFORM here) for the liability record.
+  const stamp = { validated_by: 'PLATFORM', validated_by_user_id: guard.userId };
   const updates =
     decision === 'VERIFIED'
-      ? { kyc_status: 'VERIFIED', verified_at: now, rejected_reason: null, updated_at: now }
-      : { kyc_status: 'REJECTED', rejected_reason: rejReason as string, verified_at: null, updated_at: now };
+      ? { kyc_status: 'VERIFIED', verified_at: now, rejected_reason: null, updated_at: now, ...stamp }
+      : { kyc_status: 'REJECTED', rejected_reason: rejReason as string, verified_at: null, updated_at: now, ...stamp };
 
   const admin = createAdminClient();
   const { data, error } = await (admin as unknown as UpdateChain)

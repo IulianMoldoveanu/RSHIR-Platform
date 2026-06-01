@@ -950,6 +950,120 @@ export async function inviteCourierToFleetAction(
   return { ok: true, userId };
 }
 
+/**
+ * Fleet self-validation of a courier's identity (KYC) — only when the platform
+ * has granted this fleet `can_validate_couriers`. The manager (fleet owner)
+ * approves/rejects their OWN courier and thereby assumes responsibility for
+ * that courier's data (the liability shift). The decision is stamped with
+ * validated_by='FLEET' + the manager's user id on the KYC row.
+ *
+ * Defence in depth: the action re-checks the per-fleet flag server-side AND
+ * scopes both the courier lookup and the KYC write by fleet_id — a manager can
+ * never validate a courier outside their fleet, and can never self-validate at
+ * all unless the platform turned the flag on.
+ */
+export async function verifyOwnCourierKycAction(
+  courierUserId: string,
+  decision: 'VERIFIED' | 'REJECTED',
+  reason?: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+  if (decision !== 'VERIFIED' && decision !== 'REJECTED') {
+    return { ok: false, error: 'Decizie invalidă.' };
+  }
+  const trimmedReason = reason?.trim() ?? '';
+  if (decision === 'REJECTED' && !trimmedReason) {
+    return { ok: false, error: 'Motivul respingerii este obligatoriu.' };
+  }
+
+  const admin = createAdminClient();
+
+  // The fleet may self-validate only if the platform granted it the right.
+  const { data: fleetRow } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (c: string, v: string) => {
+          maybeSingle: () => Promise<{ data: { can_validate_couriers: boolean } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_fleets')
+    .select('can_validate_couriers')
+    .eq('id', ctx.fleetId)
+    .maybeSingle();
+
+  if (!fleetRow?.can_validate_couriers) {
+    return { ok: false, error: 'Validarea curierilor pentru această flotă o face platforma.' };
+  }
+
+  // Courier must belong to this fleet.
+  const { data: courierRow } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (c: string) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            maybeSingle: () => Promise<{ data: { user_id: string } | null }>;
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .select('user_id')
+    .eq('user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .maybeSingle();
+
+  if (!courierRow) return { ok: false, error: 'Curierul nu aparține flotei.' };
+
+  const now = new Date().toISOString();
+  const stamp = { validated_by: 'FLEET', validated_by_user_id: ctx.userId };
+  const updates =
+    decision === 'VERIFIED'
+      ? { kyc_status: 'VERIFIED', verified_at: now, rejected_reason: null, updated_at: now, ...stamp }
+      : { kyc_status: 'REJECTED', rejected_reason: trimmedReason, verified_at: null, updated_at: now, ...stamp };
+
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (r: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            select: (c: string) => {
+              maybeSingle: () => Promise<{
+                data: { courier_user_id: string } | null;
+                error: { message: string } | null;
+              }>;
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_kyc')
+    .update(updates)
+    .eq('courier_user_id', courierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .select('courier_user_id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Curierul nu are o cerere de verificare.' };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: decision === 'VERIFIED' ? 'fleet.courier_kyc_self_validated' : 'fleet.courier_kyc_self_rejected',
+    entityType: 'courier_kyc',
+    entityId: courierUserId,
+    metadata: { fleet_id: ctx.fleetId, decision, reason: decision === 'REJECTED' ? trimmedReason : null },
+  });
+
+  revalidatePath(`/fleet/couriers/${courierUserId}`);
+  revalidatePath('/fleet/couriers');
+  return { ok: true };
+}
+
 /** Unassign — order falls back to OFFERED so another rider can pick it up. */
 export async function unassignOrderAction(orderId: string): Promise<FleetActionResult> {
   const ctx = await getFleetManagerContext();

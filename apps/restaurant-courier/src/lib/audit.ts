@@ -65,7 +65,9 @@ export type CourierAuditAction =
   | 'admin.courier_kyc_verified'
   | 'admin.courier_kyc_rejected'
   | 'admin.fleet_kyf_verified'
-  | 'admin.fleet_kyf_rejected';
+  | 'admin.fleet_kyf_rejected'
+  | 'fleet.courier_kyc_self_validated'
+  | 'fleet.courier_kyc_self_rejected';
 
 async function deriveTenantId(
   admin: ReturnType<typeof createAdminClient>,
