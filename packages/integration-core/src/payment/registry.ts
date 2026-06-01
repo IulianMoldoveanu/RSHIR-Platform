@@ -5,19 +5,13 @@
 // unknown providers so a misconfigured tenant fails loudly rather than
 // silently no-op'ing.
 //
-// Iulian directive 2026-05-16: Stripe Connect is excluded from the active
-// payment path. The adapter file is preserved for historic reference, but
-// it is no longer registered here — `getPspAdapter('stripe_connect')` now
-// throws the same "unknown provider" error a typo would. Callers must
-// migrate to 'netopia' or 'viva'.
+// Active providers: netopia, viva. Stripe Connect excluded per
+// Iulian directive 2026-05-16 — see _archived/NOTICE.md.
 
 import type { PspAdapter, PspProviderKey } from './contract';
 import { netopiaAdapter } from './netopia';
 import { vivaAdapter } from './viva';
 
-// 'stripe_connect' intentionally absent — see header note. The provider
-// key remains in the union type for compile-time compatibility with any
-// historic tenant rows; runtime lookup throws.
 const REGISTRY: Partial<Record<PspProviderKey, PspAdapter>> = {
   netopia: netopiaAdapter,
   viva: vivaAdapter,
@@ -32,8 +26,5 @@ export function getPspAdapter(key: PspProviderKey): PspAdapter {
 }
 
 export function isPspProviderImplemented(key: PspProviderKey): boolean {
-  // 'stripe_connect' is deliberately unregistered. 'netopia' + 'viva' both
-  // expose a sandbox-mode helper at the storefront's createCheckoutSession
-  // boundary; live mode is still gated on commercial config.
   return REGISTRY[key] !== undefined;
 }

@@ -3,17 +3,16 @@
 // the shape of the work is fundamentally different (intent → capture →
 // refund → webhook reconciliation, vs POS push/pull).
 //
-// Multi-gateway support (Lane PSP-MULTIGATES-V1, 2026-05-10):
-//   - 'netopia'        — RO marketplace primary; commercial config pending
-//   - 'stripe_connect' — fallback/demo only, request-queue-gated onboarding
-//   - 'viva'           — RO marketplace alternative; awaiting commercial config
+// Active gateways (Lane PSP-MULTIGATES-V1, updated 2026-05-16):
+//   - 'netopia' — RO marketplace primary; commercial config pending
+//   - 'viva'    — RO marketplace alternative; awaiting commercial config
 //
-// Iulian directive 2026-05-10: "implement only PSP abstraction and split-
-// payment-ready architecture. Stripe Connect is fallback/demo only.
-// Primary target remains Viva/Netopia marketplace once commercial config
-// arrives."
+// Stripe Connect excluded per Iulian directive 2026-05-16. The adapter file
+// is preserved in _archived/ for historical reference; do not re-import.
+// Historic tenant rows that stored 'stripe_connect' in psp_credentials are
+// handled at runtime by getPspAdapter throwing — no active tenants used it.
 
-export type PspProviderKey = 'netopia' | 'stripe_connect' | 'viva';
+export type PspProviderKey = 'netopia' | 'viva';
 
 /**
  * Operating mode per tenant. Picked at onboarding.
@@ -40,7 +39,7 @@ export type PspCredentials = {
    * Decrypted API key / OAuth2 client secret.
    * Loaded server-side from env or Vault — never echoed to the UI.
    * Also overloaded as the webhook verification secret in `verifyWebhook`
-   * calls (see stripe-connect adapter precedent).
+   * calls (Netopia + Viva adapters follow this same pattern).
    */
   apiKey: string;
   /**

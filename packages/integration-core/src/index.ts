@@ -38,8 +38,9 @@ export type {
 } from './receipts/datecs';
 
 // Payment Service Provider (PSP) adapters — separate contract from the
-// POS integration adapters above. Multi-gateway since Lane PSP-MULTIGATES-V1:
-// Netopia (RO primary), Stripe Connect (fallback/demo), Viva (stub).
+// POS integration adapters above. Active gateways: Netopia (RO primary),
+// Viva (RO alternative). Stripe Connect excluded per 2026-05-16 directive;
+// see packages/integration-core/src/payment/_archived/NOTICE.md.
 export type {
   PspAdapter,
   PspContext,
@@ -53,7 +54,6 @@ export type {
 } from './payment/contract';
 export { netopiaAdapter, createNetopiaCheckoutSession } from './payment/netopia';
 export type { CheckoutSessionInput, CheckoutSessionResult } from './payment/netopia';
-export { stripeConnectAdapter } from './payment/stripe-connect';
 export { vivaAdapter, createVivaCheckoutSession } from './payment/viva';
 export { getPspAdapter, isPspProviderImplemented } from './payment/registry';
 
