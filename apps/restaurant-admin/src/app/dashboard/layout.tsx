@@ -249,6 +249,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const adminNavEntries: SidebarEntry[] = isPlatformAdmin
     ? [
         { href: '/dashboard/admin/hub', label: 'Command Center', icon: 'layoutDashboard' as const },
+        { href: '/dashboard/admin/hepi', label: 'Hepi (copilot rețea)', icon: 'sparkles' as const },
         {
           label: 'Operare',
           icon: 'receipt' as const,
