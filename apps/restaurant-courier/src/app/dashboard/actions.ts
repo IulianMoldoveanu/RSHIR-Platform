@@ -715,6 +715,14 @@ export async function acceptOrderAction(orderId: string) {
         .eq('user_id', userId)
         .maybeSingle();
       if (!profile) return; // not a courier — silent no-op preserves prior contract
+      // KYC gate (per-fleet, default off): no-op if the courier's fleet requires
+      // KYC and they aren't VERIFIED. The self-pickup route surfaces a clear
+      // message; this older server-action path keeps its silent-no-op contract.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: canTakeKyc } = await (admin.rpc as any)('courier_can_take_orders', {
+        p_user_id: userId,
+      });
+      if (canTakeKyc === false) return;
       const fleetId = (profile as { fleet_id: string }).fleet_id;
 
       // Only accept if currently CREATED or OFFERED, unassigned, AND the order

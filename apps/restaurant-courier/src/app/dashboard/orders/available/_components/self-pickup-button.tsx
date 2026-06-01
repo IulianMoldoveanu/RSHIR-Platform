@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Hand, Check, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { Hand, Check, AlertTriangle, Shield } from 'lucide-react';
 
-type State = 'idle' | 'submitting' | 'claimed' | 'race' | 'limit' | 'error';
+type State = 'idle' | 'submitting' | 'claimed' | 'race' | 'limit' | 'kyc' | 'error';
 
 export function SelfPickupButton({
   orderId,
@@ -44,6 +45,10 @@ export function SelfPickupButton({
         startTransition(() => onClaimed());
         return;
       }
+      if (body.error === 'kyc_required') {
+        setState('kyc');
+        return;
+      }
       if (res.status === 422 || body.error === 'limit_reached') {
         setState('limit');
         return;
@@ -75,6 +80,17 @@ export function SelfPickupButton({
       <div className="rounded-lg bg-rose-500/15 px-4 py-3 text-center text-sm font-medium text-rose-200">
         Limita ta de comenzi paralele a fost atinsă
       </div>
+    );
+  }
+  if (state === 'kyc') {
+    return (
+      <Link
+        href="/dashboard/kyc"
+        className="flex items-center justify-center gap-2 rounded-lg bg-amber-500/15 px-4 py-3 text-center text-sm font-medium text-amber-200 hover:bg-amber-500/25"
+      >
+        <Shield className="h-4 w-4 flex-none" aria-hidden />
+        Verifică-ți identitatea ca să poți lua comenzi
+      </Link>
     );
   }
 
