@@ -61,6 +61,12 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
+    label: 'Verificări (KYC + KYF)',
+    href: '/dashboard/admin/verifications',
+    description: 'Aprobă/respinge identitate curieri + legitimitate flote — documente + decizie.',
+    tone: 'emerald',
+  },
+  {
     label: 'Tenants / Vendori',
     href: '/dashboard/admin/tenants',
     description: 'Toți vendorii — status, oraș, integrări, comenzi 7z.',
@@ -177,13 +183,6 @@ const RSHIR_TILES: Tile[] = [
 ];
 
 const CROSS_PROJECT: Tile[] = [
-  {
-    label: 'Verificări curieri + flote (KYC/KYF)',
-    href: `${COURIER_PWA_URL.replace(/\/$/, '')}/admin/verifications`,
-    external: true,
-    description: 'Coadă PENDING: aprobă/respinge identitate curieri + legitimitate flote.',
-    tone: 'amber',
-  },
   {
     label: 'Flote + alocare (app curier)',
     href: `${COURIER_PWA_URL.replace(/\/$/, '')}/admin/fleets`,
@@ -533,13 +532,11 @@ export default async function AdminHubPage() {
               {fmtCount(infra.activeCouriers)}
             </p>
           </div>
-          <a
-            href={`${COURIER_PWA_URL.replace(/\/$/, '')}/admin/verifications`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/dashboard/admin/verifications"
             className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 transition hover:bg-amber-500/10"
           >
-            <p className="text-xs uppercase tracking-wide text-slate-400">Verificări ↗</p>
+            <p className="text-xs uppercase tracking-wide text-slate-400">Verificări</p>
             <p className="mt-1 font-display text-2xl font-bold text-slate-100">
               {fmtCount(
                 infra.pendingKyc === null && infra.pendingKyf === null
@@ -550,7 +547,7 @@ export default async function AdminHubPage() {
             <p className="mt-0.5 text-[11px] text-slate-500">
               KYC {fmtCount(infra.pendingKyc)} · KYF {fmtCount(infra.pendingKyf)}
             </p>
-          </a>
+          </Link>
         </div>
       </section>
 
