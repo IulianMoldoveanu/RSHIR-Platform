@@ -8,7 +8,7 @@
 //
 // All I/O dependencies are mocked — the test is hermetic and fast.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 // ── Mocks (declared before SUT import) ─────────────────────────────────────
 
@@ -26,8 +26,7 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let adminFromMock: vi.Mock;
+let adminFromMock: Mock;
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({ from: (t: string) => adminFromMock(t) }),
 }));
