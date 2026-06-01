@@ -1,4 +1,4 @@
-import { Bike, Car, MessageSquare, Phone, Truck, UserPlus } from 'lucide-react';
+import { Bike, Car, MessageSquare, Phone, Truck, UserPlus, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
@@ -147,7 +147,14 @@ export default async function FleetCouriersPage() {
             <span className="text-emerald-300">{onlineSet.size} online</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Link
+            href="/fleet/deletions"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-sm font-medium text-hir-fg hover:bg-hir-border"
+          >
+            <UserX className="h-4 w-4" aria-hidden />
+            Ștergeri
+          </Link>
           <Link
             href="/fleet/feedback"
             className="inline-flex items-center gap-1.5 rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-sm font-medium text-hir-fg hover:bg-hir-border"
