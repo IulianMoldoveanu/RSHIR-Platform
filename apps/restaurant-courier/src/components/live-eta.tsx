@@ -87,15 +87,19 @@ export function LiveEta({ dropoffLat, dropoffLng, vehicleType }: Props) {
 
     // Force an immediate first reading so the pill isn't stuck on
     // "loading" for the full 30-second interval.
+    // enableHighAccuracy: false — ETA only needs coarse (cell/wifi) position;
+    // the high-accuracy GPS fix is owned by <LocationTracker> (dispatch
+    // reporter). Three parallel high-accuracy watchers on this page drained
+    // battery. maximumAge widened so we can reuse a recent cached fix.
     navigator.geolocation.getCurrentPosition(compute, onError, {
-      enableHighAccuracy: true,
-      maximumAge: 5_000,
+      enableHighAccuracy: false,
+      maximumAge: 30_000,
       timeout: 10_000,
     });
 
     watchIdRef.current = navigator.geolocation.watchPosition(compute, onError, {
-      enableHighAccuracy: true,
-      maximumAge: 5_000,
+      enableHighAccuracy: false,
+      maximumAge: 30_000,
       timeout: 10_000,
     });
 

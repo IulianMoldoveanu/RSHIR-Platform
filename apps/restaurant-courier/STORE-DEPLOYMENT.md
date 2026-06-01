@@ -235,10 +235,14 @@ Utilizatorul poate solicita stergere datelor: DA (link /settings/delete-account)
 ### "Package name already taken" in Play Console
 - Package name `ro.hirforyou.curier` este unic — daca apare aceasta eroare inseamna ca o versiune anterioara a fost publicata cu acelasi package name de catre alt cont. Contacteaza Google Play Support.
 
-### Geolocation nu functioneaza in background pe Android
-- Verifica ca `ACCESS_BACKGROUND_LOCATION` este in AndroidManifest.xml (setat de Capacitor)
-- Pe Android 10+: utilizatorul trebuie sa selecteze "Allow all the time" (nu doar "While using")
-- Dialogul de rationale pentru background location este in `dashboard/shift/page.tsx`
+### Geolocation (launch = foreground-only)
+- Launch build foloseste DOAR locatie in foreground ("While using the app" /
+  "Permite in timpul utilizarii"). `ACCESS_BACKGROUND_LOCATION` NU este cerut.
+- Tracking-ul ruleaza cat timp aplicatia e deschisa cu tura pornita.
+- Dialogul de rationale (foreground) este in `dashboard/shift/page.tsx`.
+- post-launch: background geolocation via
+  `@capacitor-community/background-geolocation` — atunci re-adaugi
+  `ACCESS_BACKGROUND_LOCATION` + rationale "Allow all the time".
 
 ### Push notifications nu sosesc
 - Verifica `google-services.json` este real (nu stub-ul din CI)

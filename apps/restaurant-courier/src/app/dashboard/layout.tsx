@@ -110,7 +110,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             z-1000 in some plugin builds). Same value on the bottom-nav.
             Chrome surfaces (header bg + border) use semantic tokens so
             the theme toggle (F4.5) flips them without per-class overrides. */}
-        <header className="sticky top-0 z-[1100] flex h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur">
+        {/* paddingTop = OS safe-area inset: capacitor.config StatusBar
+            overlaysWebView:true draws the WebView under the status bar, so
+            without this the logo sits behind the clock/battery on native.
+            min-h-14 (not h-14) so the inset is added on top of the 56px chrome
+            row instead of compressing it (Tailwind box-sizing: border-box). */}
+        <header
+          className="sticky top-0 z-[1100] flex min-h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
           <div className="flex items-center gap-2">
             <Link href="/dashboard" className="flex items-center gap-2">
               {tenantBrand?.logoUrl ? (

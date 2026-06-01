@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { MapPin, Phone } from 'lucide-react';
 
 /**
@@ -56,16 +59,58 @@ function formatRoPhone(phone: string): string {
   return phone;
 }
 
-export function PhoneLink({ phone }: { phone: string | null | undefined }) {
+const CALL_MASKING_ENABLED =
+  process.env.NEXT_PUBLIC_CALL_MASKING_ENABLED === 'true';
+
+const PHONE_LINK_CLASS =
+  'inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold tabular-nums text-emerald-200 transition-all hover:-translate-y-px hover:border-emerald-500/60 hover:bg-emerald-500/20 hover:shadow-md hover:shadow-emerald-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2 disabled:opacity-60';
+
+export function PhoneLink({
+  phone,
+  orderId,
+}: {
+  phone: string | null | undefined;
+  orderId?: string;
+}) {
+  const [busy, setBusy] = useState(false);
   if (!phone) return null;
   const display = formatRoPhone(phone);
+
+  // Flag off (or no orderId to look up a session): direct dial, unchanged UX.
+  if (!CALL_MASKING_ENABLED || !orderId) {
+    return (
+      <a href={`tel:${phone}`} className={PHONE_LINK_CLASS}>
+        <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
+        {display}
+      </a>
+    );
+  }
+
+  // Flag on: ask the server for a Twilio Proxy number, then dial that. Any
+  // failure (masking off server-side, not-active, network) falls back to the
+  // real number so a call is never blocked by the masking layer.
+  async function handleCall() {
+    if (busy) return;
+    setBusy(true);
+    let dial = phone as string;
+    try {
+      const res = await fetch(`/api/orders/${orderId}/masked-call`, { method: 'POST' });
+      if (res.ok) {
+        const data = (await res.json()) as { enabled?: boolean; number?: string };
+        if (data.enabled && data.number) dial = data.number;
+      }
+    } catch {
+      // keep real-number fallback
+    } finally {
+      setBusy(false);
+      window.location.href = `tel:${dial}`;
+    }
+  }
+
   return (
-    <a
-      href={`tel:${phone}`}
-      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold tabular-nums text-emerald-200 transition-all hover:-translate-y-px hover:border-emerald-500/60 hover:bg-emerald-500/20 hover:shadow-md hover:shadow-emerald-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
-    >
+    <button type="button" onClick={handleCall} disabled={busy} className={PHONE_LINK_CLASS}>
       <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
       {display}
-    </a>
+    </button>
   );
 }

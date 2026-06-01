@@ -19,6 +19,7 @@ export function CapacitorBootstrap() {
 
   useEffect(() => {
     let cleanupDeepLink: (() => void) | null = null;
+    let cleanupPushTap: (() => void) | null = null;
     let cancelled = false;
 
     void (async () => {
@@ -29,6 +30,11 @@ export function CapacitorBootstrap() {
       const { initDeepLinkListener } = await import('@/lib/native/deep-link');
       if (cancelled) return;
       cleanupDeepLink = initDeepLinkListener((path) => router.push(path));
+
+      // Push tap → navigate. notification.data.orderId from courier-push-dispatch.
+      const { initPushTapListener } = await import('@/lib/native/push');
+      if (cancelled) return;
+      cleanupPushTap = initPushTapListener((path) => router.push(path));
 
       // Native push registration. Token is upserted into courier_push_tokens
       // by the Edge Function; failures are non-fatal — the courier can still
@@ -49,6 +55,7 @@ export function CapacitorBootstrap() {
     return () => {
       cancelled = true;
       cleanupDeepLink?.();
+      cleanupPushTap?.();
     };
     // router is stable for the lifetime of the app.
     // eslint-disable-next-line react-hooks/exhaustive-deps

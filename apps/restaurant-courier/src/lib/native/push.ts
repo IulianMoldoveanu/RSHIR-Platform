@@ -76,3 +76,48 @@ export async function registerForPush(
   const { registerPushServiceWorker } = await import('./sw-push-bridge');
   return registerPushServiceWorker(supabaseAccessToken);
 }
+
+type NavigateFn = (path: string) => void;
+
+/**
+ * Wire the native "notification tapped" → in-app navigation.
+ *
+ * When a courier taps an FCM/APNs notification, Capacitor fires
+ * `pushNotificationActionPerformed`. The courier-push-dispatch Edge Function
+ * sends `data: { orderId }` (FCM data values arrive as strings), so we route
+ * to /dashboard/orders/<orderId>. A `route` override is also honoured if a
+ * future payload carries an explicit absolute path.
+ *
+ * Browser / PWA: no-op (the service worker's notificationclick handles taps).
+ * Returns a cleanup function; safe to call on web (returns a no-op).
+ */
+export function initPushTapListener(navigate: NavigateFn): () => void {
+  if (!Capacitor.isNativePlatform()) return () => {};
+
+  let listenerHandle: { remove: () => void } | null = null;
+  let cancelled = false;
+
+  void (async () => {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    const handle = await PushNotifications.addListener(
+      'pushNotificationActionPerformed',
+      (action) => {
+        const data = (action.notification?.data ?? {}) as Record<string, unknown>;
+        const route = typeof data.route === 'string' ? data.route : null;
+        const orderId = typeof data.orderId === 'string' ? data.orderId : null;
+        const path = route ?? (orderId ? `/dashboard/orders/${orderId}` : null);
+        if (path) navigate(path);
+      },
+    );
+    if (cancelled) {
+      handle.remove();
+      return;
+    }
+    listenerHandle = handle;
+  })();
+
+  return () => {
+    cancelled = true;
+    listenerHandle?.remove();
+  };
+}

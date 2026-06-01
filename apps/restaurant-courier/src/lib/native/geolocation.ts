@@ -3,16 +3,25 @@
 /**
  * Unified geolocation bridge: Capacitor native (iOS/Android) or browser PWA.
  *
+ * Launch posture is FOREGROUND-ONLY. We request the `location` permission
+ * (Android "While using the app" / iOS "When in use"). We do NOT request
+ * ACCESS_BACKGROUND_LOCATION — tracking is scoped to while the app is open
+ * with the shift active.
+ *
  * In a Capacitor native shell:
- *   - Uses @capacitor/geolocation for background tracking support.
- *   - Android: ACCESS_BACKGROUND_LOCATION needed for shift-active tracking.
- *   - iOS: WKWebView cannot run geolocation in background; native plugin can.
+ *   - Uses @capacitor/geolocation (foreground watch).
+ *   - iOS: WKWebView background geolocation not used in the launch build.
  *
  * In a browser / PWA:
  *   - Falls back to navigator.geolocation.watchPosition.
  *
  * This module is a drop-in replacement for any existing usage of
  * navigator.geolocation. Callers never need to check Capacitor directly.
+ *
+ * TODO(post-launch): background geolocation via
+ * @capacitor-community/background-geolocation — see STORE-DEPLOYMENT.md /
+ * NATIVE_SHELL.md ("post-launch"). Requires ACCESS_BACKGROUND_LOCATION grant
+ * + foreground service; intentionally deferred for the Google Play launch.
  */
 
 import { Capacitor } from '@capacitor/core';

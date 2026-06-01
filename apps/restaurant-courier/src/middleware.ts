@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient as createSsrClient, type CookieOptions } from '@supabase/ssr';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
-const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-'];
+const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/privacy', '/terms'];
 
 /**
  * Auth guard for the courier PWA. /dashboard/** requires a Supabase session;

@@ -4,19 +4,27 @@ import { useEffect, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { Button } from '@hir/ui';
 
-const RATIONALE_SHOWN_KEY = 'hir_bg_loc_rationale_shown_v1';
+// NOTE: key bumped to v2 because the rationale copy changed from
+// "Allow all the time" (background) to foreground-only "While using the app".
+const RATIONALE_SHOWN_KEY = 'hir_loc_rationale_shown_v2';
 
 /**
- * One-time rationale dialog explaining WHY we need background location
- * before triggering the Android 10+ "Allow all the time" permission prompt.
+ * One-time rationale dialog explaining WHY we need location access before
+ * triggering the Android foreground location permission prompt.
  *
- * Android 10+ requires a separate ACCESS_BACKGROUND_LOCATION grant, and
- * the OS only routes the user to the "Allow all the time" toggle if the
- * app first asks for foreground location AND then explicitly requests
- * background. Without context, riders silently pick "Only this time"
- * and the location stream dies when the app goes to the background mid-
- * shift. This dialog ALWAYS shows first on Android so the rider knows
- * what to pick.
+ * Foreground-only (launch posture): we ask for "While using the app" /
+ * "Permite în timpul utilizării" — the app tracks position only while it is
+ * open and the shift is active. We do NOT request ACCESS_BACKGROUND_LOCATION
+ * for the Google Play launch build; the location stream is foreground-scoped.
+ *
+ * Without context, riders may silently deny the prompt and never receive
+ * nearby orders. This dialog shows first on Android so the rider knows what
+ * to pick.
+ *
+ * TODO(post-launch): background geolocation via
+ * @capacitor-community/background-geolocation — see STORE-DEPLOYMENT.md /
+ * NATIVE_SHELL.md ("post-launch"). When that lands, restore the
+ * "Allow all the time" escalation copy + key bump.
  *
  * Trigger conditions:
  *   - Capacitor.isNativePlatform() === true
@@ -67,7 +75,7 @@ export function BackgroundLocationRationale() {
       className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Permisiune locație în fundal"
+      aria-label="Permisiune locație în timpul utilizării"
     >
       <div className="w-full max-w-md rounded-2xl border border-hir-border bg-hir-bg p-5 shadow-2xl ring-1 ring-inset ring-violet-500/15">
         <div className="mb-4 flex items-start justify-between">
@@ -87,17 +95,16 @@ export function BackgroundLocationRationale() {
         </div>
 
         <h2 className="text-base font-semibold tracking-tight text-hir-fg">
-          De ce avem nevoie de locație &bdquo;Permite tot timpul&rdquo;
+          De ce avem nevoie de locația ta în timpul turei
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-hir-muted-fg">
-          În timpul turei trimitem poziția ta către dispecerat la fiecare 30 de
-          secunde, ca să primești comenzile cele mai apropiate. Android oprește
-          locația dacă aplicația merge în fundal — deci la următorul ecran cere
-          alege <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
+          Cât ai aplicația deschisă și tura pornită trimitem poziția ta către
+          dispecerat, ca să primești comenzile cele mai apropiate. La următorul
+          ecran alege <strong className="text-hir-fg">&bdquo;Permite în timpul utilizării&rdquo;</strong>.
         </p>
         <p className="mt-2 text-xs leading-relaxed text-hir-muted-fg">
-          Locația este folosită doar cât ești online cu tură pornită. Când
-          închizi tura, urmărirea se oprește complet.
+          Locația este folosită doar cât ești online cu tura pornită și
+          aplicația deschisă. Când închizi tura, urmărirea se oprește complet.
         </p>
 
         <div className="mt-5">

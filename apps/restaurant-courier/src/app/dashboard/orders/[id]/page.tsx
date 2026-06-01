@@ -261,7 +261,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           lat={order.dropoff_lat}
           lng={order.dropoff_lng}
         />
-        <PhoneLink phone={order.customer_phone} />
+        <PhoneLink phone={order.customer_phone} orderId={order.id} />
         <CopyAddressButton address={order.dropoff_line1} />
         <ShareOrderButton
           orderShortId={order.id.slice(0, 8)}

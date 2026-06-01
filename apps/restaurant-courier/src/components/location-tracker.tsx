@@ -114,8 +114,13 @@ export function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): nu
  *   - On `denied` → render nothing, log to console; no nag.
  *
  * Battery + privacy notes:
- *   - We use `enableHighAccuracy: false` (cell + wifi triangulation is
- *     enough at street level; high-accuracy GPS drains battery fast).
+ *   - This is the dispatch reporter, so the underlying bridge
+ *     (`lib/native/geolocation.ts`) uses `enableHighAccuracy: true` for an
+ *     accurate street-level fix. Battery is managed instead by the adaptive
+ *     throttle below (we forward at most one fix per `effectiveIntervalRef`,
+ *     which lengthens on low/discharging battery) and by only running while
+ *     a shift is ONLINE. The ETA/map watchers use low accuracy — see
+ *     `live-eta.tsx` / `rider-map.tsx`.
  *   - We never call `getCurrentPosition` outside a shift.
  *   - `unmount` cleanly clears the watch.
  *
@@ -155,10 +160,11 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
       return;
     }
 
-    // Unified bridge: native Capacitor Geolocation on Android/iOS (supports
-    // background tracking with ACCESS_BACKGROUND_LOCATION), navigator.
-    // geolocation in the web/PWA fallback. The bridge handles permission
-    // resolution per platform.
+    // Unified bridge: native Capacitor Geolocation on Android/iOS (foreground
+    // tracking only at launch — see geolocation.ts), navigator.geolocation in
+    // the web/PWA fallback. The bridge handles permission resolution per
+    // platform. TODO(post-launch): background tracking via
+    // @capacitor-community/background-geolocation.
     const stop = bridgeWatchPosition(
       (pos) => {
         const now = Date.now();

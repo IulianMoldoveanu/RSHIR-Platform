@@ -163,7 +163,9 @@ These are mandatory for App Store and Play Store approval.
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!-- post-launch: ACCESS_BACKGROUND_LOCATION OMITTED for launch (foreground-only).
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+-->
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 <uses-permission android:name="android.permission.VIBRATE" />
@@ -171,10 +173,13 @@ These are mandatory for App Store and Play Store approval.
 <uses-feature android:name="android.hardware.location.gps" android:required="true" />
 ```
 
-Background location (ACCESS_BACKGROUND_LOCATION) requires an in-app
-rationale dialog shown before the permission prompt. This dialog is
-already built into the shift-start flow in `dashboard/shift/page.tsx`.
-Verify it appears on first shift start before submitting to Play Store.
+Launch posture is foreground-only location. The in-app rationale dialog
+in the shift-start flow (`dashboard/shift/page.tsx`) explains why we need
+location during a shift and asks for "While using the app". Verify it
+appears on first shift start before submitting to Play Store.
+post-launch: background location (ACCESS_BACKGROUND_LOCATION) +
+"Allow all the time" rationale return with
+@capacitor-community/background-geolocation.
 
 ## Splash screen and icon assets
 

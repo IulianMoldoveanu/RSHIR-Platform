@@ -286,3 +286,26 @@ self.addEventListener('sync', (event) => {
   // extra guarantee so a thrown exception never fails the notification pipeline.
   event.waitUntil(drainTransitionQueue().catch(() => {}));
 });
+
+// TODO(post-launch): background-drain the proof-upload queue
+// ('hir.courier.proof-queue', see src/lib/proof-queue.ts) here too.
+//
+// SKIPPED for the launch build (P2) because — unlike the transition queue,
+// which is a simple same-origin JSON POST to /api/courier/transitions/drain —
+// proof drain requires a multipart Blob upload to Supabase Storage
+// (proof-uploader.directUpload) which needs NEXT_PUBLIC_SUPABASE_URL +
+// NEXT_PUBLIC_SUPABASE_ANON_KEY. Those env vars are inlined into the client
+// bundle at build time and are NOT available in this static public/ service
+// worker, and a successful upload also has to write the resulting URL back to
+// the order. Doing that safely in the SW is non-trivial and risky.
+//
+// Until then the page-context <ProofSync> drains on mount, on the `online`
+// event, and on a 60s interval — so queued proofs are retried whenever the app
+// is foregrounded (no data loss, just not while fully backgrounded). Pharma
+// proof flows are gated client-side regardless.
+//
+// To implement: register a 'proof-queue-drain' sync tag from proof-uploader on
+// enqueue, give the SW the Supabase URL + anon key (e.g. via a build-time
+// replace or a postMessage from a client), and POST each Blob to
+// `${SUPABASE_URL}/storage/v1/object/courier-proofs/<orderId>/<folder>/...`
+// then persist the public URL on the order (mirror ProofSync.runSync).
