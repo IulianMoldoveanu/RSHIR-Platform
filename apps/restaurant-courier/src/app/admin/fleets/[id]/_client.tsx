@@ -18,6 +18,8 @@ type Fleet = {
   created_at: string;
   display_prefix: string | null;
   can_validate_couriers: boolean;
+  kyc_required: boolean;
+  kyf_required: boolean;
 };
 
 type Courier = {
@@ -103,6 +105,8 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
   const [isActive, setIsActive] = useState(fleet.is_active);
   const [displayPrefix, setDisplayPrefix] = useState(fleet.display_prefix ?? '');
   const [canValidate, setCanValidate] = useState(fleet.can_validate_couriers);
+  const [kycRequired, setKycRequired] = useState(fleet.kyc_required);
+  const [kyfRequired, setKyfRequired] = useState(fleet.kyf_required);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [pending, start] = useTransition();
@@ -121,6 +125,8 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
     fd.append('is_active', String(isActive));
     fd.append('display_prefix', displayPrefix);
     fd.append('can_validate_couriers', String(canValidate));
+    fd.append('kyc_required', String(kycRequired));
+    fd.append('kyf_required', String(kyfRequired));
     start(async () => {
       const result = await updateFleet(fleet.id, fd);
       if (!result.ok) {
@@ -253,6 +259,36 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
           Flota își poate valida singură curierii
           <span className="block text-[11px] text-zinc-500">
             Dacă e bifat, flota validează conturile curierilor săi și își asumă responsabilitatea datelor. Implicit, validezi tu (platforma).
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-2 text-sm text-zinc-300 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={kycRequired}
+          onChange={(e) => setKycRequired(e.target.checked)}
+          className="mt-0.5 accent-violet-500"
+        />
+        <span>
+          Impune KYC curieri (identitate verificată)
+          <span className="block text-[11px] text-zinc-500">
+            Dacă e bifat, doar curierii cu identitate VERIFICATĂ pot primi comenzi în această flotă. Bifează după ce curierii sunt verificați, altfel se blochează.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-2 text-sm text-zinc-300 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={kyfRequired}
+          onChange={(e) => setKyfRequired(e.target.checked)}
+          className="mt-0.5 accent-violet-500"
+        />
+        <span>
+          Impune KYF firmă (flotă verificată)
+          <span className="block text-[11px] text-zinc-500">
+            Dacă e bifat, flota poate opera doar cu KYF VERIFICAT. Bifează după aprobarea firmei, altfel curierii ei nu primesc comenzi.
           </span>
         </span>
       </label>

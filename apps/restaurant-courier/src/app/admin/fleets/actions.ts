@@ -149,6 +149,8 @@ export async function updateFleet(
   const isActive = isActiveRaw !== null ? isActiveRaw === 'true' : undefined;
   const displayPrefixRaw = formData.get('display_prefix');
   const canValidateRaw = formData.get('can_validate_couriers');
+  const kycRequiredRaw = formData.get('kyc_required');
+  const kyfRequiredRaw = formData.get('kyf_required');
 
   if (allowedVerticals.length === 0) {
     return { ok: false, error: 'Selectați cel puțin un vertical.' };
@@ -165,6 +167,8 @@ export async function updateFleet(
   if (isActive !== undefined) updates.is_active = isActive;
   if (displayPrefixRaw !== null) updates.display_prefix = (displayPrefixRaw as string).trim() || null;
   if (canValidateRaw !== null) updates.can_validate_couriers = canValidateRaw === 'true';
+  if (kycRequiredRaw !== null) updates.kyc_required = kycRequiredRaw === 'true';
+  if (kyfRequiredRaw !== null) updates.kyf_required = kyfRequiredRaw === 'true';
 
   const sb = adminSb();
   const { error } = await sb.from('courier_fleets').update(updates).eq('id', fleetId);
