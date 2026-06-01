@@ -16,6 +16,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { CourierStatusActions } from '../_actions';
 import { ManagerNoteEditor } from './_note';
+import { CourierKycPanel, type KycPanelData } from './_kyc-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,8 @@ export default async function FleetCourierDetailPage(
     { data: deliveredMetricsData },
     { data: deliveredData },
     { data: activeData },
+    { data: fleetFlagData },
+    { data: kycData },
   ] = await Promise.all([
     admin
       .from('courier_profiles')
@@ -164,10 +167,58 @@ export default async function FleetCourierDetailPage(
       .eq('assigned_courier_user_id', params.id)
       .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
       .order('updated_at', { ascending: false }),
+    // Whether this fleet may self-validate its couriers (platform-granted).
+    admin
+      .from('courier_fleets')
+      .select('can_validate_couriers')
+      .eq('id', fleet.fleetId)
+      .maybeSingle(),
+    // The courier's KYC record (for the identity panel).
+    admin
+      .from('courier_kyc')
+      .select('kyc_status, id_doc_url, selfie_url, rejected_reason, validated_by')
+      .eq('courier_user_id', params.id)
+      .maybeSingle(),
   ]);
 
   const profile = profileData as ProfileRow | null;
   if (!profile) notFound();
+
+  // KYC identity panel: per-fleet self-validation flag + the courier's KYC row
+  // with short-lived signed URLs for the private-bucket documents.
+  const canValidate =
+    (fleetFlagData as { can_validate_couriers: boolean } | null)?.can_validate_couriers ?? false;
+  const kycRow = kycData as {
+    kyc_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    id_doc_url: string | null;
+    selfie_url: string | null;
+    rejected_reason: string | null;
+    validated_by: 'PLATFORM' | 'FLEET' | null;
+  } | null;
+  let kycPanel: KycPanelData = null;
+  if (kycRow) {
+    const [idDocUrl, selfieUrl] = await Promise.all([
+      kycRow.id_doc_url
+        ? admin.storage
+            .from('courier-kyc')
+            .createSignedUrl(kycRow.id_doc_url, 3600)
+            .then((r) => r.data?.signedUrl ?? null)
+        : Promise.resolve(null),
+      kycRow.selfie_url
+        ? admin.storage
+            .from('courier-kyc')
+            .createSignedUrl(kycRow.selfie_url, 3600)
+            .then((r) => r.data?.signedUrl ?? null)
+        : Promise.resolve(null),
+    ]);
+    kycPanel = {
+      status: kycRow.kyc_status,
+      idDocUrl,
+      selfieUrl,
+      rejectedReason: kycRow.rejected_reason,
+      validatedBy: kycRow.validated_by,
+    };
+  }
 
   const allShifts = (shiftsData ?? []) as ShiftRow[];
   const lastShift = allShifts[0] ?? null;
@@ -259,6 +310,12 @@ export default async function FleetCourierDetailPage(
       </div>
 
       <ManagerNoteEditor userId={profile.user_id} initial={profile.manager_note} />
+
+      <CourierKycPanel
+        courierUserId={profile.user_id}
+        canValidate={canValidate}
+        kyc={kycPanel}
+      />
 
       {/* Current shift card */}
       {lastShift ? (
