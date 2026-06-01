@@ -68,6 +68,7 @@ create index if not exists idx_courier_deletion_requests_purge
 
 -- 4. RLS: fleet manager (own fleet) + platform admin can read requests ---------
 -- (The 20260629_003 migration already granted the courier read of their own row.)
+drop policy if exists "courier_deletion_requests_fleet_read" on public.courier_account_deletion_requests;
 create policy "courier_deletion_requests_fleet_read"
   on public.courier_account_deletion_requests for select
   using (
@@ -78,6 +79,7 @@ create policy "courier_deletion_requests_fleet_read"
     )
   );
 
+drop policy if exists "courier_deletion_requests_admin_read" on public.courier_account_deletion_requests;
 create policy "courier_deletion_requests_admin_read"
   on public.courier_account_deletion_requests for select
   using (
@@ -111,7 +113,7 @@ begin
   anon as (
     update public.courier_profiles p
        set full_name = 'Cont șters',
-           phone = null,
+           phone = '',          -- courier_profiles.phone is NOT NULL; '' = erased
            avatar_url = null,
            status = 'SUSPENDED'
       from due

@@ -41,6 +41,7 @@ alter table public.courier_transfers enable row level security;
 -- The courier can read their own transfer history (so the app can surface
 -- "you were moved to <fleet/city> on <date>"). Inserts happen via the service
 -- role (platform-admin server action), which bypasses RLS.
+drop policy if exists "courier_transfers_own_read" on public.courier_transfers;
 create policy "courier_transfers_own_read"
   on public.courier_transfers for select
   using (courier_user_id = auth.uid());

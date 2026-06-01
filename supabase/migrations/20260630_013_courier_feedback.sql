@@ -31,15 +31,18 @@ create index if not exists idx_courier_feedback_courier
 alter table public.courier_feedback enable row level security;
 
 -- A courier may submit and read back their own feedback.
+drop policy if exists "courier_feedback_own_insert" on public.courier_feedback;
 create policy "courier_feedback_own_insert"
   on public.courier_feedback for insert
   with check (courier_user_id = auth.uid());
 
+drop policy if exists "courier_feedback_own_read" on public.courier_feedback;
 create policy "courier_feedback_own_read"
   on public.courier_feedback for select
   using (courier_user_id = auth.uid());
 
 -- A fleet manager (owner of the fleet) reads feedback from their own riders.
+drop policy if exists "courier_feedback_fleet_read" on public.courier_feedback;
 create policy "courier_feedback_fleet_read"
   on public.courier_feedback for select
   using (
@@ -51,6 +54,7 @@ create policy "courier_feedback_fleet_read"
   );
 
 -- Platform admins read everything.
+drop policy if exists "courier_feedback_admin_read" on public.courier_feedback;
 create policy "courier_feedback_admin_read"
   on public.courier_feedback for select
   using (

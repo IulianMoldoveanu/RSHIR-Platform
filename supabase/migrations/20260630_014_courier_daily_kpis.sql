@@ -36,6 +36,7 @@ alter table public.courier_daily_kpis enable row level security;
 -- Couriers may read their own daily stats (future "my performance" surface).
 -- Fleet managers + platform admins read via the service role (RLS bypassed),
 -- so no broad SELECT policy is granted here.
+drop policy if exists "courier_daily_kpis_own_read" on public.courier_daily_kpis;
 create policy "courier_daily_kpis_own_read"
   on public.courier_daily_kpis for select
   using (courier_user_id = auth.uid());
@@ -75,12 +76,23 @@ begin
     group by assigned_courier_user_id
   ),
   shifts_agg as (
+    -- Clamp each shift to the target Bucharest day so a shift that spans
+    -- midnight is split correctly and an open shift (ended_at null) on a PAST
+    -- day is not counted up to the current now() during backfill/re-runs.
     select
       courier_user_id,
-      round(sum(extract(epoch from (coalesce(ended_at, now()) - started_at)) / 60.0))::int
-        as online_minutes
+      round(sum(
+        greatest(
+          extract(epoch from (
+            least(coalesce(ended_at, now()), ((target_date + 1)::timestamp) at time zone v_tz)
+            - greatest(started_at, (target_date::timestamp) at time zone v_tz)
+          )) / 60.0,
+          0
+        )
+      ))::int as online_minutes
     from public.courier_shifts
-    where (started_at at time zone v_tz)::date = target_date
+    where started_at < ((target_date + 1)::timestamp) at time zone v_tz
+      and coalesce(ended_at, now()) > (target_date::timestamp) at time zone v_tz
     group by courier_user_id
   ),
   ratings_agg as (
@@ -171,7 +183,7 @@ select
     else null
   end as completion_rate_7d
 from public.courier_daily_kpis k
-where k.kpi_date >= (now() at time zone 'Europe/Bucharest')::date - 7
+where k.kpi_date >= (now() at time zone 'Europe/Bucharest')::date - 6  -- today + prior 6 = 7 days
 group by k.courier_user_id;
 
 comment on view public.v_courier_kpi_7d is

@@ -17,9 +17,9 @@ export type FeedbackRow = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  NEW: 'bg-violet-900/60 text-violet-300',
-  TRIAGED: 'bg-amber-900/60 text-amber-300',
-  RESOLVED: 'bg-emerald-900/60 text-emerald-300',
+  NEW: 'bg-violet-500/10 text-violet-300',
+  TRIAGED: 'bg-amber-500/10 text-amber-300',
+  RESOLVED: 'bg-emerald-500/10 text-emerald-300',
   DISMISSED: 'bg-hir-border text-hir-muted-fg',
 };
 const STATUS_LABEL: Record<string, string> = {
@@ -81,7 +81,7 @@ function FeedbackCard({ row, showFleet }: { row: FeedbackRow; showFleet: boolean
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-              isBug ? 'bg-rose-900/60 text-rose-300' : 'bg-violet-900/60 text-violet-300'
+              isBug ? 'bg-rose-500/10 text-rose-300' : 'bg-violet-500/10 text-violet-300'
             }`}
           >
             {isBug ? (

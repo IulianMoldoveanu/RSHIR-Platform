@@ -174,9 +174,9 @@ export default function PrivacyPage() {
                 pe durata turei active.
               </li>
               <li>
-                <strong className="text-[#E4E4F0]">Localizare în fundal (background)</strong> — necesar
-                pe Android pentru tracking continuu când aplicația nu este în prim-plan.
-                Poți revoca din Setări → Aplicații → HIR Curier → Permisiuni.
+                <strong className="text-[#E4E4F0]">Localizarea funcționează doar în prim-plan</strong> —
+                doar pe durata turei active, cât timp aplicația este deschisă; se oprește când închei
+                tura sau închizi aplicația. Poți revoca din Setări → Aplicații → HIR Curier → Permisiuni.
               </li>
               <li>
                 <strong className="text-[#E4E4F0]">Cameră</strong> — necesar pentru dovada de livrare.

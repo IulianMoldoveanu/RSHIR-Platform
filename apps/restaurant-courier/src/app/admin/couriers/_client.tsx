@@ -20,9 +20,14 @@ type FleetOpt = { id: string; name: string; is_active: boolean };
 type CityOpt = { id: string; name: string; county: string | null; is_active: boolean };
 
 const STATUS_STYLE: Record<string, string> = {
-  ACTIVE: 'bg-emerald-900/60 text-emerald-300',
+  ACTIVE: 'bg-emerald-500/10 text-emerald-300',
   INACTIVE: 'bg-hir-border text-hir-muted-fg',
-  SUSPENDED: 'bg-rose-900/60 text-rose-300',
+  SUSPENDED: 'bg-amber-500/10 text-amber-300',
+};
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Activ',
+  INACTIVE: 'Inactiv',
+  SUSPENDED: 'Suspendat',
 };
 
 const SELECT_CLASS =
@@ -48,8 +53,8 @@ export function CouriersTransferClient({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-hir-border bg-hir-surface">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto rounded-xl border border-hir-border bg-hir-surface">
+      <table className="w-full min-w-[640px] text-sm">
         <thead className="border-b border-hir-border">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-medium text-hir-muted-fg">Nume</th>
@@ -137,7 +142,7 @@ function CourierRow({
               STATUS_STYLE[courier.status] ?? 'bg-hir-border text-hir-muted-fg'
             }`}
           >
-            {courier.status}
+            {STATUS_LABEL[courier.status] ?? courier.status}
           </span>
         </td>
         <td className="px-4 py-3 text-right">

@@ -16,10 +16,10 @@ export type DeletionRow = {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  PENDING: 'bg-amber-900/60 text-amber-300',
-  APPROVED: 'bg-violet-900/60 text-violet-300',
+  PENDING: 'bg-amber-500/10 text-amber-300',
+  APPROVED: 'bg-violet-500/10 text-violet-300',
   REJECTED: 'bg-hir-border text-hir-muted-fg',
-  COMPLETED: 'bg-emerald-900/60 text-emerald-300',
+  COMPLETED: 'bg-emerald-500/10 text-emerald-300',
 };
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'În așteptare',

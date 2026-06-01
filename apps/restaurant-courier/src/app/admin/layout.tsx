@@ -18,10 +18,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           </span>
           <span className="text-sm font-semibold tracking-tight text-hir-fg">HIR Admin</span>
         </Link>
-        <span className="rounded-full bg-violet-900/60 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+        <span className="hidden rounded-full bg-violet-900/60 px-2 py-0.5 text-[10px] font-medium text-violet-300 sm:inline-block">
           PLATFORM_ADMIN
         </span>
-        <nav className="ml-2 hidden items-center gap-1 sm:flex">
+        <nav className="ml-1 flex items-center gap-0.5 overflow-x-auto sm:ml-2 sm:gap-1">
           <Link
             href="/admin/fleets"
             className="rounded-md px-2.5 py-1.5 text-xs font-medium text-hir-muted-fg hover:bg-hir-border hover:text-hir-fg"

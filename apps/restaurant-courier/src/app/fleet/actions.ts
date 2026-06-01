@@ -858,7 +858,7 @@ export async function inviteCourierToFleetAction(
     user_id: userId,
     fleet_id: ctx.fleetId,
     full_name: fullName,
-    phone: phoneRaw || null,
+    phone: phoneRaw || '', // courier_profiles.phone is NOT NULL; '' when omitted
     vehicle_type: vehicleType,
     city_id: cityId,
     status: 'INACTIVE',

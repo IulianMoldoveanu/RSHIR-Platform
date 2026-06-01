@@ -32,8 +32,9 @@ export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
       <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
         <p className="mb-2 text-base font-semibold text-emerald-300">Cerere înregistrată</p>
         <p className="text-sm text-[#9090AA]">
-          Cererea ta de ștergere a contului a fost înregistrată. Contul va fi dezactivat în 48h
-          și datele șterse conform politicii de retenție. Vei primi confirmare pe email la{' '}
+          Cererea ta de ștergere a fost înregistrată și contul a fost dezactivat imediat. Datele
+          se păstrează cel puțin 30 de zile, apoi sunt șterse (datele fiscale se păstrează 5 ani,
+          conform legii). Vei primi confirmare pe email la{' '}
           <strong className="text-[#E4E4F0]">{userEmail}</strong>.
         </p>
       </div>
@@ -71,8 +72,8 @@ export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
             <ul className="list-disc pl-4 space-y-1 text-amber-300/80">
               <li>Profilul tău de curier este dezactivat imediat.</li>
               <li>Nu vei mai putea accepta comenzi.</li>
-              <li>Datele tale de activitate sunt șterse conform politicii (5 ani pentru date fiscale).</li>
-              <li>Fotografiile dovadă de livrare sunt șterse în 30 de zile.</li>
+              <li>Cererea este verificată de platformă (sau managerul flotei) înainte de ștergerea definitivă.</li>
+              <li>Datele se păstrează cel puțin 30 de zile, apoi sunt șterse (date fiscale: 5 ani, conform legii).</li>
               <li>Câștigurile neachitate vor fi procesate în ciclul de plată următor.</li>
             </ul>
           </div>

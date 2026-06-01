@@ -11,7 +11,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 // Orders that are mid-flight for THIS courier — moving them to another fleet
 // while one of these is open would orphan an in-progress delivery in the old
 // fleet, so we block the transfer until it is finished.
-const LIVE_ORDER_STATUSES = ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+const LIVE_ORDER_STATUSES = ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
 
 /**
  * Transfer a courier to another fleet (and optionally another city).
