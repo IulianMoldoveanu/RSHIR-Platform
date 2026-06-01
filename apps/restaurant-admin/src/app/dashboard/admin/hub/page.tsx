@@ -55,6 +55,12 @@ const COURIER_PWA_URL =
 
 const RSHIR_TILES: Tile[] = [
   {
+    label: 'Hepi — copilot de rețea',
+    href: '/dashboard/admin/hepi',
+    description: 'Întreabă-l orice despre rețea: comenzi, flote, curieri, orașe, verificări — cross-vertical, read-only. Explică alocarea, nu o schimbă.',
+    tone: 'violet',
+  },
+  {
     label: 'Comenzi (cross-vertical)',
     href: '/dashboard/admin/orders',
     description: 'Toate livrările — restaurant + farmacie — pe flote, orașe și status, într-un singur loc.',
