@@ -128,20 +128,26 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                   alt={tenantBrand.name ?? 'Logo'}
                   className="h-7 w-7 rounded-md object-cover"
                 />
-              ) : (
+              ) : tenantBrand?.name ? (
+                // Mode-A rider without a logo: keep the employer's accent + initial.
                 <span
                   aria-hidden
                   className="flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold text-white"
-                  // Default violet matches the rest of the app accent; a
-                  // tenant-supplied accent color overrides ONLY this square
-                  // so Mode-A riders see their employer's color in the
-                  // header without the rest of the UI being repainted.
                   style={{
-                    background: tenantBrand?.accentColor ?? 'rgb(139, 92, 246)',
+                    background: tenantBrand.accentColor ?? 'rgb(139, 92, 246)',
                   }}
                 >
-                  {(tenantBrand?.name ?? 'H').slice(0, 1).toUpperCase()}
+                  {tenantBrand.name.slice(0, 1).toUpperCase()}
                 </span>
+              ) : (
+                // HIR-direct courier: the MOV-1 brand icon (same asset as the
+                // launcher / PWA icon) so the header matches the chosen brand.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/icon-192.png"
+                  alt="HIR Curier"
+                  className="h-7 w-7 rounded-md object-cover"
+                />
               )}
               <span className="text-sm font-semibold tracking-tight text-hir-fg">
                 {tenantBrand?.name ?? 'HIR Curier'}
