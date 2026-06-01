@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { verifyPin } from '@/lib/display-pin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-// TODO: Replace hardcoded PIN with lookup in `tenant_display_pins` table:
-//   SELECT pin FROM tenant_display_pins WHERE tenant_slug = $1
-// Table schema (separate PR):
-//   CREATE TABLE tenant_display_pins (
-//     tenant_slug TEXT PRIMARY KEY,
-//     pin TEXT NOT NULL,
-//     updated_at TIMESTAMPTZ DEFAULT now()
-//   );
-const HARDCODED_PIN = '1234';
 
 // 12h session cookie
 const COOKIE_MAX_AGE = 60 * 60 * 12;
@@ -32,10 +24,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tenantSlug and pin required' }, { status: 400 });
   }
 
-  // Constant-time comparison to avoid timing attacks, even for the stub.
-  const pinOk = pin === HARDCODED_PIN;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const supabase = createAdminClient() as any;
 
-  if (!pinOk) {
+  // Resolve tenantSlug → tenant_id
+  const { data: tenant, error: tenantErr } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('slug', tenantSlug)
+    .maybeSingle();
+
+  if (tenantErr || !tenant) {
+    return NextResponse.json({ error: 'PIN incorect' }, { status: 401 });
+  }
+
+  // Look up the PIN record for this tenant
+  const { data: pinRow, error: pinErr } = await supabase
+    .from('tenant_display_pins')
+    .select('pin_hash')
+    .eq('tenant_id', tenant.id)
+    .maybeSingle();
+
+  if (pinErr || !pinRow) {
+    // No PIN configured for this tenant
+    return NextResponse.json({ error: 'Display PIN not configured for this tenant' }, { status: 404 });
+  }
+
+  const ok = await verifyPin(pin, pinRow.pin_hash as string);
+  if (!ok) {
     return NextResponse.json({ error: 'PIN incorect' }, { status: 401 });
   }
 
@@ -45,7 +61,6 @@ export async function POST(req: NextRequest) {
     sameSite: 'lax',
     path: `/display/${tenantSlug}`,
     maxAge: COOKIE_MAX_AGE,
-    // secure in prod; dev works over http
     secure: process.env.NODE_ENV === 'production',
   });
 
