@@ -19,3 +19,5 @@ export * from './components/ui/tabs';
 export * from './components/ui/table';
 export * from './components/ui/toaster';
 export * from './components/ui/live-badge';
+export { default as CourierMarker } from './components/ui/courier-marker';
+export type { Vehicle, CourierStatus, CourierMarkerProps } from './components/ui/courier-marker';

@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { vehicleIconHtml, type VehicleType as VehicleIconType } from './vehicle-icon';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { type VehicleType as VehicleIconType } from './vehicle-icon';
+import CourierMarker, { type Vehicle } from './courier-marker';
 
 const LEAFLET_VERSION = '1.9.4';
 const LEAFLET_ROTATE_VERSION = '0.2.8';
@@ -216,87 +219,33 @@ type ActivePin = {
   dropoffLng: number | null;
 };
 
-// CSS keyframes for the pulse halo. Injected once per page the first time
-// `makeRiderIcon` is called. Wolt / Glovo / Uber Eats markers are stacked:
-//   1. Animated outer pulse (continuous "I'm live" pulse),
-//   2. Accuracy ring (semi-transparent — sized loosely by GPS accuracy),
-//   3. White halo (separates the vehicle silhouette from the map tile),
-//   4. The 3D vehicle SVG, rotated by the live heading.
-const RIDER_PIN_STYLE_ID = 'rider-vehicle-pin-styles';
-function ensureRiderPinStyles(): void {
-  if (typeof document === 'undefined') return;
-  if (document.getElementById(RIDER_PIN_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = RIDER_PIN_STYLE_ID;
-  style.textContent = `
-    @keyframes rider-pin-pulse {
-      0%   { transform: scale(0.55); opacity: 0.55; }
-      80%  { transform: scale(2.1); opacity: 0; }
-      100% { transform: scale(2.1); opacity: 0; }
-    }
-    .rider-vehicle-pin .rider-pulse {
-      animation: rider-pin-pulse 1.6s ease-out infinite;
-      transform-origin: center;
-    }
-    .rider-vehicle-pin .rider-rotor {
-      transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
-      transform-origin: center;
-      will-change: transform;
-    }
-    .rider-vehicle-pin .rider-accuracy {
-      transition: inset 400ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-  `;
-  document.head.appendChild(style);
+// Map VehicleType (BIKE / SCOOTER / CAR) to CourierMarker Vehicle (bike / moto / car).
+function toMarkerVehicle(type: VehicleType): Vehicle {
+  if (type === 'CAR') return 'car';
+  if (type === 'SCOOTER') return 'moto';
+  return 'bike';
 }
 
-// Builds the divIcon HTML wrapping the 3D miniature SVG. The wrapper has
-// stacked layers: pulse → accuracy ring → halo → vehicle (rotor). We
-// query the rotor + accuracy elements back from the DOM to rotate the
-// vehicle and resize the accuracy ring without forcing Leaflet to
-// re-render the whole marker on every fix.
-function makeRiderIcon(L: LeafletGlobal, type: VehicleType): unknown {
-  ensureRiderPinStyles();
-  const inner = vehicleIconHtml(type);
+// Build a Leaflet divIcon from CourierMarker. Heading is embedded in the
+// SVG (the directional wedge rotates), so we rebuild the icon on each fix
+// when heading changes rather than DOM-patching a rotor element.
+// animate=true: single rider marker deserves the pulse halo.
+function makeRiderIcon(L: LeafletGlobal, type: VehicleType, heading: number): unknown {
+  const html = renderToStaticMarkup(
+    React.createElement(CourierMarker, {
+      vehicle: toMarkerVehicle(type),
+      status: 'online',
+      heading,
+      animate: true,
+      size: 64,
+    }),
+  );
   return L.divIcon({
-    className: 'rider-vehicle-pin',
-    html: `<div style="position:relative;width:56px;height:56px;">
-      <div class="rider-pulse" style="position:absolute;inset:0;border-radius:9999px;background:rgba(124,58,237,0.45);pointer-events:none;"></div>
-      <div class="rider-accuracy" data-rider-accuracy="1" style="position:absolute;inset:2px;border-radius:9999px;background:rgba(124,58,237,0.18);border:1px solid rgba(124,58,237,0.45);pointer-events:none;"></div>
-      <div style="position:absolute;inset:6px;border-radius:9999px;background:#ffffff;box-shadow:0 0 0 2px rgba(124,58,237,0.55), 0 6px 14px rgba(0,0,0,0.40);"></div>
-      <div class="rider-rotor" data-rider-rotor="1" style="position:absolute;inset:8px;display:flex;align-items:center;justify-content:center;border-radius:9999px;overflow:hidden;background:radial-gradient(circle at 30% 25%, rgba(167,139,250,0.20), rgba(124,58,237,0.05) 70%);">${inner}</div>
-    </div>`,
-    iconSize: [56, 56],
-    iconAnchor: [28, 28],
+    className: '',
+    html,
+    iconSize: [64, 80],
+    iconAnchor: [32, 80],
   });
-}
-
-// Helpers: find the rotor + accuracy ring inside a Leaflet marker DOM
-// node. We use data attributes rather than class names because Leaflet
-// may inject its own classes/transforms on the outer marker icon.
-function getMarkerRotorEl(marker: LeafletMarker): HTMLElement | null {
-  const m = marker as unknown as { getElement?: () => HTMLElement | null };
-  const el = m.getElement?.();
-  if (!el) return null;
-  return el.querySelector<HTMLElement>('[data-rider-rotor="1"]');
-}
-function getMarkerAccuracyEl(marker: LeafletMarker): HTMLElement | null {
-  const m = marker as unknown as { getElement?: () => HTMLElement | null };
-  const el = m.getElement?.();
-  if (!el) return null;
-  return el.querySelector<HTMLElement>('[data-rider-accuracy="1"]');
-}
-
-// Map raw GPS accuracy (meters) to a CSS inset for the accuracy ring.
-// The wrapper is 56 px so the ring shrinks/expands over a small range —
-// it's a visual hint, not a metrically scaled radius. Wolt uses the
-// same pattern: tighter ring when GPS is sharp, wider when it's fuzzy.
-function accuracyInsetPx(accuracyMeters: number | null | undefined): number {
-  if (accuracyMeters == null || !Number.isFinite(accuracyMeters)) return 4;
-  if (accuracyMeters <= 15) return 6;
-  if (accuracyMeters <= 50) return 4;
-  if (accuracyMeters <= 150) return 2;
-  return 0;
 }
 
 export function RiderMap({
@@ -661,7 +610,7 @@ export function RiderMap({
             // the snap-to-old-target bug when fixes arrive faster than
             // INTERPOLATE_MS — Codex review on PR #275.
             if (!markerRef.current) {
-              const icon = makeRiderIcon(L, vehicleType);
+              const icon = makeRiderIcon(L, vehicleType, lastHeadingDeg ?? 0);
               markerRef.current = L.marker([lat, lng], { icon }).addTo(map);
               if (polyBounds.length < 2) map.setView([lat, lng], RIDER_ZOOM);
             } else {
@@ -694,21 +643,12 @@ export function RiderMap({
               }
             }
 
-            // Apply rotation on the rotor div + accuracy ring inset on
-            // the accuracy div. Wait for the next frame so Leaflet has
-            // attached the marker DOM after addTo.
-            requestAnimationFrame(() => {
-              if (!markerRef.current) return;
-              if (lastHeadingDeg != null) {
-                const rotor = getMarkerRotorEl(markerRef.current);
-                if (rotor) rotor.style.transform = `rotate(${lastHeadingDeg}deg)`;
-              }
-              const accuracy = getMarkerAccuracyEl(markerRef.current);
-              if (accuracy) {
-                const inset = accuracyInsetPx(accuracyMeters);
-                accuracy.style.inset = `${inset}px`;
-              }
-            });
+            // Rebuild the icon with the updated heading so the directional
+            // wedge in CourierMarker points the right way. setIcon is cheap
+            // because the SVG is generated synchronously via renderToStaticMarkup.
+            if (nextHeading != null && markerRef.current?.setIcon) {
+              markerRef.current.setIcon(makeRiderIcon(L, vehicleType, lastHeadingDeg ?? 0));
+            }
           },
           (err) => {
             if (err.code === err.PERMISSION_DENIED) {

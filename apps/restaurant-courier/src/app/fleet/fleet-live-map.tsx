@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import CourierMarker, { type Vehicle } from '@/components/courier-marker';
 
 // CDN-loaded Leaflet keeps us off the dependency graph (no package.json
 // change, no bundle bloat). The shape mirrors RiderMap's loader.
@@ -88,6 +91,10 @@ export type FleetRiderPin = {
   lng: number;
   online: boolean;
   inProgressCount: number;
+  /** courier_profiles.vehicle_type — defaults to 'bike' when absent. */
+  vehicle?: Vehicle;
+  /** courier_shifts.last_heading_deg — defaults to 0 when absent. */
+  heading?: number;
 };
 
 /**
@@ -133,26 +140,27 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
         );
 
         for (const pin of pins) {
-          // Color: violet when actively carrying ≥1 order, emerald when
-          // online + free, zinc when offline (last known position only).
-          const color = pin.online
-            ? pin.inProgressCount > 0
-              ? '#7c3aed'
-              : '#10b981'
-            : '#52525b';
-          const ring = pin.online ? `0 0 0 6px ${color}40` : 'none';
+          const markerHtml = renderToStaticMarkup(
+            React.createElement(CourierMarker, {
+              vehicle: pin.vehicle ?? 'bike',
+              status: pin.online ? 'online' : 'offline',
+              heading: pin.heading ?? 0,
+              animate: false,
+              size: 32,
+            }),
+          );
           const icon = L.divIcon({
-            className: 'fleet-rider-pin',
-            html: `<span style="display:block;width:14px;height:14px;border-radius:9999px;background:${color};border:2px solid #ffffff;box-shadow:${ring}, 0 1px 3px rgba(0,0,0,0.5)"></span>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7],
+            className: '',
+            html: markerHtml,
+            iconSize: [32, 40],
+            iconAnchor: [16, 40],
           });
           const tooltip =
             pin.inProgressCount > 0
               ? `${pin.name} · ${pin.inProgressCount} în curs`
               : `${pin.name} · ${pin.online ? 'liber' : 'offline'}`;
           L.marker([pin.lat, pin.lng], { icon })
-            .bindTooltip(tooltip, { direction: 'top', offset: [0, -10] })
+            .bindTooltip(tooltip, { direction: 'top', offset: [0, -42] })
             .addTo(map);
           bounds.extend([pin.lat, pin.lng]);
         }

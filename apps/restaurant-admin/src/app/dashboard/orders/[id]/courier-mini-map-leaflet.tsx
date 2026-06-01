@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { CourierMarker } from '@hir/ui';
 
 const defaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -15,11 +18,21 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+// Build courier divIcon using CourierMarker. animate=false: admin mini-maps
+// may show multiple couriers; keep it calm. No heading data available here.
 const courierIcon = L.divIcon({
   className: '',
-  html: '<div style="width:28px;height:28px;border-radius:50%;background:#7c3aed;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:white;font-size:14px">🛵</div>',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
+  html: renderToStaticMarkup(
+    React.createElement(CourierMarker, {
+      vehicle: 'bike',
+      status: 'online',
+      heading: 0,
+      animate: false,
+      size: 48,
+    }),
+  ),
+  iconSize: [48, 60],
+  iconAnchor: [24, 60],
 });
 
 type LatLng = { lat: number; lng: number };
