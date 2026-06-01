@@ -318,6 +318,13 @@ function TrackInner({
         <ReviewWidget token={token} initialDone={order.hasReview} locale={locale} />
       )}
 
+      {/* Courier rating — only for delivered DELIVERY orders that had a courier.
+          Distinct from the restaurant ReviewWidget above (rates the courier, not
+          the food). Feeds the fleet SLA/scoring engine. */}
+      {order.status === 'DELIVERED' && order.fulfillment === 'DELIVERY' && courierTrackToken && (
+        <CourierRatingWidget token={token} locale={locale} />
+      )}
+
       {order.paymentStatus === 'PAID' && order.tenant && order.status !== 'CANCELLED' && (
         <ShareCard tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
@@ -825,6 +832,152 @@ function ReviewWidget({
         className="mt-3 inline-flex h-12 items-center justify-center rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
       >
         {submitting ? t(locale, 'track.review_submitting') : t(locale, 'track.review_submit')}
+      </button>
+    </section>
+  );
+}
+
+const COURIER_TAGS: { value: 'POLITE' | 'ON_TIME' | 'CAREFUL'; key: TKey }[] = [
+  { value: 'POLITE', key: 'track.courier_rating_tag_polite' },
+  { value: 'ON_TIME', key: 'track.courier_rating_tag_on_time' },
+  { value: 'CAREFUL', key: 'track.courier_rating_tag_careful' },
+];
+
+/**
+ * Courier rating widget (post-DELIVERED, DELIVERY-with-courier only).
+ *
+ * Distinct from ReviewWidget (which rates the restaurant). Posts to
+ * /api/track/:token/courier-rating, which resolves the linked courier order
+ * and calls submit_delivery_rating. Feeds the fleet SLA/scoring engine.
+ * localStorage flag avoids re-prompting on the same device after submit.
+ */
+function CourierRatingWidget({ token, locale }: { token: string; locale: Locale }) {
+  const storageKey = `hir_courier_rated_${token}`;
+  const [done, setDone] = useState(false);
+  const [rating, setRating] = useState<number>(0);
+  const [tags, setTags] = useState<Array<'POLITE' | 'ON_TIME' | 'CAREFUL'>>([]);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(storageKey)) {
+      setDone(true);
+    }
+  }, [storageKey]);
+
+  function toggleTag(tag: 'POLITE' | 'ON_TIME' | 'CAREFUL') {
+    setTags((prev) => (prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]));
+  }
+
+  function markDone() {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(storageKey, '1');
+    setDone(true);
+  }
+
+  if (done) {
+    return (
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        {t(locale, 'track.courier_rating_thanks')}
+      </section>
+    );
+  }
+
+  async function submit() {
+    if (rating < 1 || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/track/${token}/courier-rating`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ stars: rating, tags, comment: comment.trim() || undefined }),
+      });
+      if (res.ok) {
+        markDone();
+        return;
+      }
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      // Already rated on another device — treat as done, not an error.
+      if (body.error === 'already_rated') {
+        markDone();
+        return;
+      }
+      setError(t(locale, 'track.courier_rating_error_generic'));
+    } catch {
+      setError(t(locale, 'track.courier_rating_error_generic'));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+      <div className="flex items-center gap-2">
+        <Bike className="h-5 w-5 flex-none text-purple-700" aria-hidden />
+        <p className="text-base font-semibold text-zinc-900">{t(locale, 'track.courier_rating_prompt')}</p>
+      </div>
+      <p className="mt-1 text-xs text-zinc-600">{t(locale, 'track.courier_rating_help')}</p>
+
+      <div className="mt-3 flex gap-1" role="radiogroup" aria-label={t(locale, 'track.courier_rating_prompt')}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={rating === n}
+            aria-label={`${n}`}
+            onClick={() => setRating(n)}
+            className="flex h-11 w-11 items-center justify-center rounded-md transition-colors hover:bg-zinc-50"
+          >
+            <Star
+              className={`h-7 w-7 transition-colors ${
+                n <= rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-300'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {COURIER_TAGS.map((tg) => {
+          const active = tags.includes(tg.value);
+          return (
+            <button
+              key={tg.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => toggleTag(tg.value)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                active
+                  ? 'border-purple-600 bg-purple-50 text-purple-800'
+                  : 'border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50'
+              }`}
+            >
+              {t(locale, tg.key)}
+            </button>
+          );
+        })}
+      </div>
+
+      <textarea
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder={t(locale, 'track.courier_rating_comment_placeholder')}
+        className="mt-3 w-full rounded-md border border-zinc-300 p-2 text-sm focus:border-purple-600 focus:outline-none"
+      />
+
+      {error && <p className="mt-2 text-xs text-rose-700">{error}</p>}
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={rating < 1 || submitting}
+        className="mt-3 inline-flex h-12 items-center justify-center rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-y-0"
+      >
+        {submitting ? t(locale, 'track.courier_rating_submitting') : t(locale, 'track.courier_rating_submit')}
       </button>
     </section>
   );
