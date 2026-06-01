@@ -177,7 +177,7 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
           placeholder="HIR"
           className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm uppercase text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
-        <span className="text-[11px] text-zinc-500">Apare în fața numelui curierului (ex. „HIR Ion P.").</span>
+        <span className="text-[11px] text-zinc-500">Apare în fața numelui curierului (ex. „HIR Ion P.”).</span>
       </div>
 
       <fieldset className="flex flex-col gap-2">
