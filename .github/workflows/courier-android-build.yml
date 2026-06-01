@@ -192,8 +192,11 @@ jobs:
         if: ${{ env.HAS_KEYSTORE == 'true' }}
         working-directory: apps/restaurant-courier/android
         run: |
+          # Absolute path: AGP resolves an injected store.file RELATIVE to the
+          # :app module dir, so a bare "app/..." became "android/app/app/..."
+          # (doubled) and failed. $GITHUB_WORKSPACE is unambiguous.
           ./gradlew bundleRelease --no-daemon \
-            -Pandroid.injected.signing.store.file=app/hir-courier.keystore \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/apps/restaurant-courier/android/app/hir-courier.keystore" \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_STORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
