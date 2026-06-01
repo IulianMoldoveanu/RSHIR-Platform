@@ -154,6 +154,14 @@ export default async function SettingsPage() {
             />
           </Card>
 
+          {/* Identity verification (KYC) */}
+          <SettingsRow
+            href="/dashboard/kyc"
+            icon={<Shield className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Verificare identitate"
+            description="Documente + selfie pentru un cont de încredere"
+          />
+
           {/* Document expiry tracker hidden — see import comment above. */}
         </div>
       </section>
