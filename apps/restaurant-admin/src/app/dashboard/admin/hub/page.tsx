@@ -55,9 +55,15 @@ const COURIER_PWA_URL =
 
 const RSHIR_TILES: Tile[] = [
   {
-    label: 'Tenants',
+    label: 'Comenzi (cross-vertical)',
+    href: '/dashboard/admin/orders',
+    description: 'Toate livrările — restaurant + farmacie — pe flote, orașe și status, într-un singur loc.',
+    tone: 'emerald',
+  },
+  {
+    label: 'Tenants / Vendori',
     href: '/dashboard/admin/tenants',
-    description: 'Toate restaurantele — status, integrări, comenzi 7z.',
+    description: 'Toți vendorii — status, oraș, integrări, comenzi 7z.',
     tone: 'emerald',
   },
   {
@@ -171,6 +177,20 @@ const RSHIR_TILES: Tile[] = [
 ];
 
 const CROSS_PROJECT: Tile[] = [
+  {
+    label: 'Verificări curieri + flote (KYC/KYF)',
+    href: `${COURIER_PWA_URL.replace(/\/$/, '')}/admin/verifications`,
+    external: true,
+    description: 'Coadă PENDING: aprobă/respinge identitate curieri + legitimitate flote.',
+    tone: 'amber',
+  },
+  {
+    label: 'Flote + alocare (app curier)',
+    href: `${COURIER_PWA_URL.replace(/\/$/, '')}/admin/fleets`,
+    external: true,
+    description: 'Flote: prefix, validare, porți KYC/KYF, roster, API keys.',
+    tone: 'violet',
+  },
   {
     label: 'HIR Pharma — Admin Hub',
     href: PHARMA_HUB_URL,
@@ -350,6 +370,69 @@ async function fetchLast24hStats(): Promise<Last24hStats> {
   return { newOrders, newTenants, openOpsAlerts, failedFunctionRuns };
 }
 
+// Cross-vertical delivery-infrastructure snapshot. This is what makes the hub a
+// true Command Center: it reads the shared `courier_orders` spine (where BOTH
+// restaurant and pharma deliveries converge) + fleets/couriers/verifications,
+// so Iulian sees the whole multi-vendor delivery network in one place. Each
+// count is independent + error-swallowed (renders "—" on failure).
+type DeliveryInfraStats = {
+  ordersRestaurant24h: number | null;
+  ordersPharma24h: number | null;
+  ordersInProgress: number | null;
+  activeFleets: number | null;
+  activeCouriers: number | null;
+  pendingKyc: number | null;
+  pendingKyf: number | null;
+};
+
+async function fetchDeliveryInfraStats(): Promise<DeliveryInfraStats> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = createAdminClient() as any;
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function count(table: string, build: (q: any) => any): Promise<number | null> {
+    try {
+      const { count: c, error } = await build(
+        sb.from(table).select('*', { count: 'exact', head: true }),
+      );
+      if (error) return null;
+      return c ?? 0;
+    } catch {
+      return null;
+    }
+  }
+
+  const IN_PROGRESS = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
+  const [
+    ordersRestaurant24h,
+    ordersPharma24h,
+    ordersInProgress,
+    activeFleets,
+    activeCouriers,
+    pendingKyc,
+    pendingKyf,
+  ] = await Promise.all([
+    count('courier_orders', (q) => q.eq('vertical', 'restaurant').gte('created_at', since)),
+    count('courier_orders', (q) => q.eq('vertical', 'pharma').gte('created_at', since)),
+    count('courier_orders', (q) => q.in('status', IN_PROGRESS)),
+    count('courier_fleets', (q) => q.eq('is_active', true)),
+    count('courier_profiles', (q) => q.eq('status', 'ACTIVE')),
+    count('courier_kyc', (q) => q.eq('kyc_status', 'PENDING')),
+    count('fleet_kyf', (q) => q.eq('kyf_status', 'PENDING')),
+  ]);
+
+  return {
+    ordersRestaurant24h,
+    ordersPharma24h,
+    ordersInProgress,
+    activeFleets,
+    activeCouriers,
+    pendingKyc,
+    pendingKyf,
+  };
+}
+
 function fmtCount(n: number | null): string {
   return n === null ? '—' : n.toString();
 }
@@ -372,7 +455,7 @@ export default async function AdminHubPage() {
     );
   }
 
-  const stats = await fetchLast24hStats();
+  const [stats, infra] = await Promise.all([fetchLast24hStats(), fetchDeliveryInfraStats()]);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -385,8 +468,8 @@ export default async function AdminHubPage() {
             >
               H
             </span>
-            <span className="font-display text-base font-bold">RSHIR Admin Hub</span>
-            <span className="text-xs text-slate-500">/dashboard/admin/hub</span>
+            <span className="font-display text-base font-bold">HIR Command Center</span>
+            <span className="text-xs text-slate-500">infrastructură de livrare multi-vendor</span>
           </div>
           <Link href="/dashboard" className="text-sm text-slate-400 hover:text-slate-200">
             ← Dashboard
@@ -397,10 +480,78 @@ export default async function AdminHubPage() {
       <section className="mx-auto max-w-6xl px-6 pt-10 pb-6">
         <h1 className="font-display text-3xl font-bold">Bun venit, Iulian.</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-400">
-          Cockpit central RSHIR. Toate suprafețele admin într-un singur grid —
-          fără scroll prin sidebar. Linkuri laterale către HIR Pharma și HIR
-          Curier pentru orchestrare cross-product.
+          Centrul unic de control al infrastructurii de livrare HIR. Restaurante
+          și farmacii converg în același bazin de curieri — le orchestrezi pe toate
+          de aici. Mai jos: pulsul live al rețelei, apoi toate suprafețele de operare.
         </p>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-6 py-6">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-purple-300">
+            Infrastructură de livrare — live (toate verticalele)
+          </h2>
+          <Link
+            href="/dashboard/admin/orders"
+            className="text-xs font-medium text-purple-300 hover:underline"
+          >
+            Comenzi cross-vertical →
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <Link
+            href="/dashboard/admin/orders"
+            className="rounded-2xl border border-purple-500/40 bg-purple-500/5 p-5 transition hover:bg-purple-500/10"
+          >
+            <p className="text-xs uppercase tracking-wide text-slate-400">În curs</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(infra.ordersInProgress)}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-500">comenzi active</p>
+          </Link>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <p className="text-xs uppercase tracking-wide text-slate-400">🍕 Restaurant 24h</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(infra.ordersRestaurant24h)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <p className="text-xs uppercase tracking-wide text-slate-400">💊 Pharma 24h</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(infra.ordersPharma24h)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <p className="text-xs uppercase tracking-wide text-slate-400">Flote active</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(infra.activeFleets)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <p className="text-xs uppercase tracking-wide text-slate-400">Curieri activi</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(infra.activeCouriers)}
+            </p>
+          </div>
+          <a
+            href={`${COURIER_PWA_URL.replace(/\/$/, '')}/admin/verifications`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 transition hover:bg-amber-500/10"
+          >
+            <p className="text-xs uppercase tracking-wide text-slate-400">Verificări ↗</p>
+            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
+              {fmtCount(
+                infra.pendingKyc === null && infra.pendingKyf === null
+                  ? null
+                  : (infra.pendingKyc ?? 0) + (infra.pendingKyf ?? 0),
+              )}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              KYC {fmtCount(infra.pendingKyc)} · KYF {fmtCount(infra.pendingKyf)}
+            </p>
+          </a>
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 py-6">
