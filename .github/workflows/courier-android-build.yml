@@ -84,6 +84,13 @@ jobs:
           fi
           npx cap sync android
 
+      # Generate the MOV-1 launcher icon (adaptive + legacy) from assets/ into
+      # the freshly-scaffolded android/ res. Only icon-* sources are present,
+      # so this generates icons only (no splash override).
+      - name: Generate launcher icons (MOV-1) from assets/
+        working-directory: apps/restaurant-courier
+        run: npx --yes @capacitor/assets@3 generate --android
+
       - name: Write google-services.json
         env:
           GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -158,6 +165,13 @@ jobs:
             npx cap add android
           fi
           npx cap sync android
+
+      # Generate the MOV-1 launcher icon (adaptive + legacy) from assets/ into
+      # the freshly-scaffolded android/ res. Only icon-* sources are present,
+      # so this generates icons only (no splash override).
+      - name: Generate launcher icons (MOV-1) from assets/
+        working-directory: apps/restaurant-courier
+        run: npx --yes @capacitor/assets@3 generate --android
 
       - name: Write google-services.json
         env:
