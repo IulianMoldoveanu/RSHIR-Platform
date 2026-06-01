@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { InviteCourierForm } from './_form';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,22 @@ export const dynamic = 'force-dynamic';
 // then upserts a courier_profiles row pointing at THIS fleet.
 export default async function FleetInvitePage() {
   await requireFleetManager();
+
+  // Full city catalog (active first) so the manager can place the courier in
+  // their operating city — 1 account = 1 city.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = createAdminClient() as any;
+  const { data: cityRows } = await sb
+    .from('cities')
+    .select('id, name, county, is_active')
+    .order('is_active', { ascending: false })
+    .order('name', { ascending: true });
+  const cities = (cityRows ?? []) as {
+    id: string;
+    name: string;
+    county: string | null;
+    is_active: boolean;
+  }[];
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -32,7 +49,7 @@ export default async function FleetInvitePage() {
         </p>
       </div>
 
-      <InviteCourierForm />
+      <InviteCourierForm cities={cities} />
 
       <section className="rounded-2xl border border-dashed border-zinc-800 bg-zinc-950 p-4 text-xs text-zinc-500">
         <p className="font-semibold text-zinc-400">Note rapide</p>

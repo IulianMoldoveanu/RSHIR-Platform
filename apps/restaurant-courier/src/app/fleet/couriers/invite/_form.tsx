@@ -7,7 +7,9 @@ import { Bike, Car, Check, Loader2, Truck } from 'lucide-react';
 import { inviteCourierToFleetAction } from '../../actions';
 import { Button } from '@hir/ui';
 
-export function InviteCourierForm() {
+type CityOpt = { id: string; name: string; county: string | null; is_active: boolean };
+
+export function InviteCourierForm({ cities }: { cities: CityOpt[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,9 @@ export function InviteCourierForm() {
     );
   }
 
+  const activeCities = cities.filter((c) => c.is_active);
+  const otherCities = cities.filter((c) => !c.is_active);
+
   return (
     <form action={handleSubmit} className="flex flex-col gap-4">
       <Field label="Email" hint="Curierul folosește acest email la conectare.">
@@ -121,6 +126,39 @@ export function InviteCourierForm() {
             label="Mașină"
           />
         </div>
+      </Field>
+
+      <Field
+        label="Oraș"
+        hint="Un curier operează într-un singur oraș. Pentru alt oraș, transferă-l din panoul de control."
+      >
+        <select
+          name="city_id"
+          required
+          defaultValue=""
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 focus:border-violet-500 focus:outline-none"
+        >
+          <option value="" disabled>
+            Alege orașul…
+          </option>
+          {activeCities.length > 0 ? (
+            <optgroup label="Orașe active">
+              {activeCities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+          <optgroup label="Toate orașele">
+            {otherCities.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.county ? ` · ${c.county}` : ''}
+              </option>
+            ))}
+          </optgroup>
+        </select>
       </Field>
 
       {error ? (

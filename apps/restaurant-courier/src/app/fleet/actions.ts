@@ -759,6 +759,10 @@ export async function inviteCourierToFleetAction(
   const fullName = (formData.get('full_name') as string | null)?.trim() ?? '';
   const phoneRaw = (formData.get('phone') as string | null)?.trim() ?? '';
   const vehicleType = (formData.get('vehicle_type') as string | null)?.trim() ?? 'BIKE';
+  // City the courier operates in (1 account = 1 city). Optional at the action
+  // level for backward-compat, but the invite form marks it required. Invalid
+  // ids are rejected by the courier_profiles.city_id FK on upsert.
+  const cityId = (formData.get('city_id') as string | null)?.trim() || null;
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: 'Email invalid.' };
@@ -856,6 +860,7 @@ export async function inviteCourierToFleetAction(
     full_name: fullName,
     phone: phoneRaw || null,
     vehicle_type: vehicleType,
+    city_id: cityId,
     status: 'INACTIVE',
   } as const;
 
