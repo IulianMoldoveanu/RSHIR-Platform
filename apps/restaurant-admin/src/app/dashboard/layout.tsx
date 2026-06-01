@@ -266,7 +266,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           icon: 'users' as const,
           items: [
             { href: '/dashboard/admin/tenants', label: 'Toți vendorii' },
-            { href: '/dashboard/admin/cities/events', label: 'Orașe' },
+            { href: '/dashboard/admin/cities', label: 'Orașe — vendori & comenzi' },
+            { href: '/dashboard/admin/cities/events', label: 'Orașe — evenimente' },
             { href: '/dashboard/admin/onboard', label: '+ Tenant nou' },
             { href: '/dashboard/admin/onboard/connect', label: '+ HIR Connect' },
             { href: '/dashboard/admin/onboard/sibling', label: '+ Locație (brand existent)' },
