@@ -64,9 +64,11 @@ jobs:
       # Symptom before this fix: every deploy run since the v5 bump
       # exit 1 on the setup-node step. The script itself only uses node
       # (no pnpm install) so all we need is the binary present.
+      # Version is read from package.json `packageManager` (pnpm@10.x). Do NOT
+      # also pass `version:` here — pnpm/action-setup@v4 errors with "Multiple
+      # versions of pnpm specified" when both are set, which silently broke
+      # every edge-function deploy (verified 2026-06-01).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v5
         with:
