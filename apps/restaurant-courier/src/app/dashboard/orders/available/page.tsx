@@ -38,8 +38,13 @@ export default async function AvailablePoolPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: openData }, riderMode, { data: profileData }, { data: activeCountData }] =
-    await Promise.all([
+  const [
+    { data: openData },
+    riderMode,
+    { data: profileData },
+    { data: activeCountData },
+    { data: canTakeData },
+  ] = await Promise.all([
       admin
         .from('courier_orders')
         .select(ORDER_COLUMNS)
@@ -58,6 +63,11 @@ export default async function AvailablePoolPage() {
         .select('id', { count: 'exact', head: true })
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
+      // Same gate the self-pickup route enforces (returns false when the
+      // courier's fleet requires KYC and they aren't VERIFIED). Surfaced
+      // upfront so the rider isn't surprised at tap time.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (admin.rpc as any)('courier_can_take_orders', { p_user_id: user.id }),
     ]);
 
   // Mode C riders are dispatched by their fleet manager — they don't
@@ -83,6 +93,8 @@ export default async function AvailablePoolPage() {
 
   const open = (openData ?? []) as OrderRow[];
   const activeCount = (activeCountData as unknown as { count?: number } | null)?.count ?? 0;
+  // RPC returns false only when KYC blocks the courier; null/true → allowed.
+  const kycBlocked = canTakeData === false;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -103,6 +115,7 @@ export default async function AvailablePoolPage() {
         orders={open}
         currentActiveCount={activeCount}
         maxParallel={profile.max_parallel_orders}
+        kycBlocked={kycBlocked}
       />
     </div>
   );

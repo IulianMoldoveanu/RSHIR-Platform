@@ -17,6 +17,22 @@ type SlotState = { uploading: boolean; path: string | null; error: string | null
 
 const EMPTY_SLOT: SlotState = { uploading: false, path: null, error: null };
 
+/** Map submitKycAction error codes → Romanian user-facing messages. */
+function kycErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case 'not_a_courier':
+      return 'Contul tău nu este încă un cont de curier. Contactează suportul.';
+    case 'not_authenticated':
+      return 'Sesiunea a expirat. Autentifică-te din nou și reîncearcă.';
+    case 'invalid_name':
+      return 'Introdu numele complet (ca în acte).';
+    case 'db_error':
+      return 'A apărut o problemă de server. Încearcă din nou în câteva momente.';
+    default:
+      return 'Nu am putut trimite documentele. Încearcă din nou.';
+  }
+}
+
 /** Stable per-browser id (best-effort anti re-brokering signal). */
 function getDeviceId(): string {
   if (typeof localStorage === 'undefined' || typeof crypto === 'undefined') return '';
@@ -129,11 +145,7 @@ export function KycForm({ userId, initial }: { userId: string; initial: InitialK
         setSubmitted(true);
         return;
       }
-      setError(
-        res.error === 'not_a_courier'
-          ? 'Contul tău nu este încă un cont de curier. Contactează suportul.'
-          : 'Nu am putut trimite documentele. Încearcă din nou.',
-      );
+      setError(kycErrorMessage(res.error));
     } catch {
       setError('Nu am putut trimite documentele. Încearcă din nou.');
     } finally {

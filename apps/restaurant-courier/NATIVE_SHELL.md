@@ -102,7 +102,11 @@ language and English):
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<!-- post-launch: ACCESS_BACKGROUND_LOCATION is intentionally OMITTED for the
+     Google Play launch build (foreground-only tracking). Re-add when
+     @capacitor-community/background-geolocation lands.
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+-->
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 <uses-permission android:name="android.permission.VIBRATE" />
@@ -110,10 +114,11 @@ language and English):
 <uses-feature android:name="android.hardware.location.gps" android:required="true" />
 ```
 
-Play Store will additionally require an **in-app rationale** for
-background location — show a one-time bottom sheet on first shift
-start explaining why. This is built into `dashboard/shift/page.tsx`
-already; verify before submission.
+Launch posture is **foreground-only** location ("While using the app").
+The in-app rationale bottom sheet in `dashboard/shift/page.tsx` explains
+why we need location during a shift and asks for "Permite în timpul
+utilizării". post-launch: when background geolocation lands, restore the
+ACCESS_BACKGROUND_LOCATION grant + "Allow all the time" rationale.
 
 ## Push notification keys — current state vs needed
 

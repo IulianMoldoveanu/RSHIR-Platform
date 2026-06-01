@@ -6,7 +6,6 @@ import { Capacitor } from '@capacitor/core';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { registerPushServiceWorker } from '@/lib/push/register-sw';
 import { subscribeToPush } from '@/lib/push/subscribe';
-import { registerForPush } from '@/lib/native/push';
 import { isCategoryEnabled } from '@/lib/push/preferences';
 import { Button } from '@hir/ui';
 
@@ -46,18 +45,13 @@ export function PushBootstrap() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // ── Native (Capacitor) path: defer to PushNotifications plugin.
-    // The plugin handles its own permission UI; we still show the priming
-    // splash unless the courier has already dismissed it or opted out.
+    // ── Native (Capacitor) path: <CapacitorBootstrap> owns native push
+    // registration end-to-end (it calls registerForPush() on mount). If we
+    // ALSO registered here we'd race two PushNotifications.requestPermissions()
+    // calls on the same launch. So on native this component is a no-op for
+    // registration; it only renders the web re-ask banner (which itself
+    // short-circuits on native). Web VAPID flow is untouched below.
     if (Capacitor.isNativePlatform()) {
-      if (!isCategoryEnabled('new_orders')) return;
-      if (window.localStorage.getItem(DISMISS_KEY)) {
-        // Already accepted in a prior session → silent re-register so the
-        // FCM/APNs token rotation gets refreshed on the server.
-        void enableSilentlyNative();
-        return;
-      }
-      setPhase('splash');
       return;
     }
 
@@ -99,19 +93,9 @@ export function PushBootstrap() {
     await subscribeToPush(reg, token);
   }
 
-  async function enableSilentlyNative() {
-    const supabase = getBrowserSupabase();
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token;
-    if (!accessToken) return;
-    try {
-      await registerForPush(accessToken);
-    } catch {
-      // Non-fatal — courier can re-enable from settings.
-    }
-  }
-
   async function handleEnable() {
+    // Web-only: the splash never shows on native (CapacitorBootstrap owns
+    // native registration), so this always drives the VAPID web-push flow.
     setPhase('asking');
     try {
       const supabase = getBrowserSupabase();
@@ -119,18 +103,6 @@ export function PushBootstrap() {
       const accessToken = data.session?.access_token;
       if (!accessToken) {
         setPhase('done');
-        return;
-      }
-
-      if (Capacitor.isNativePlatform()) {
-        await registerForPush(accessToken);
-        // Treat first successful native enable as "splash satisfied" so we
-        // don't re-prompt next launch.
-        try {
-          window.localStorage.setItem(DISMISS_KEY, '1');
-        } catch {
-          // localStorage blocked — non-fatal.
-        }
         return;
       }
 

@@ -1,11 +1,24 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Navigation, Inbox, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { Navigation, Inbox, MapPin, Shield } from 'lucide-react';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { EmptyState } from '@/components/empty-state';
 import { SelfPickupButton } from './self-pickup-button';
+
+function KycBanner() {
+  return (
+    <Link
+      href="/dashboard/kyc"
+      className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-200 hover:bg-amber-500/20"
+    >
+      <Shield className="h-4 w-4 flex-none" aria-hidden />
+      Verifică-ți contul ca să poți accepta comenzi
+    </Link>
+  );
+}
 
 type OrderRow = {
   id: string;
@@ -50,10 +63,12 @@ export function PoolList({
   orders,
   currentActiveCount,
   maxParallel,
+  kycBlocked = false,
 }: {
   orders: OrderRow[];
   currentActiveCount: number;
   maxParallel: number | null;
+  kycBlocked?: boolean;
 }) {
   const atLimit = maxParallel != null && currentActiveCount >= maxParallel;
   const [taken, setTaken] = useState<Set<string>>(new Set());
@@ -62,16 +77,21 @@ export function PoolList({
 
   if (visible.length === 0) {
     return (
-      <EmptyState
-        icon={<MapPin className="h-5 w-5" aria-hidden />}
-        title="Nicio comandă disponibilă"
-        hint="Se actualizează automat când apare o comandă nouă."
-      />
+      <div className="flex flex-col gap-3">
+        {kycBlocked ? <KycBanner /> : null}
+        <EmptyState
+          icon={<MapPin className="h-5 w-5" aria-hidden />}
+          title="Nicio comandă disponibilă"
+          hint="Se actualizează automat când apare o comandă nouă."
+        />
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
+      {kycBlocked ? <KycBanner /> : null}
+
       {atLimit ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
           Ai atins limita de {maxParallel} comenzi paralele. Termină una activă ca să poți lua alta.
@@ -82,7 +102,7 @@ export function PoolList({
         <PoolCard
           key={o.id}
           order={o}
-          disabled={atLimit}
+          disabled={atLimit || kycBlocked}
           onClaimed={() => setTaken((prev) => new Set(prev).add(o.id))}
         />
       ))}
