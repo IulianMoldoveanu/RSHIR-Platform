@@ -133,6 +133,12 @@ const RSHIR_TILES: Tile[] = [
     tone: 'violet',
   },
   {
+    label: 'Billing Connect (săptămânal)',
+    href: '/dashboard/admin/connect-billing',
+    description: 'Ce facturează HIR tenanților headless: tarif livrare pe zone + 2 RON/comandă. DRAFT auto lunea, tu emiți/încasezi.',
+    tone: 'amber',
+  },
+  {
     label: 'Support / Feedback',
     href: '/dashboard/admin/support',
     description: 'Tichete + feedback vendor.',

@@ -278,6 +278,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Creștere',
           icon: 'megaphone' as const,
           items: [
+            { href: '/dashboard/admin/connect-billing', label: 'Billing Connect (săptămânal)' },
             { href: '/dashboard/admin/partners', label: 'Parteneri' },
             { href: '/dashboard/admin/affiliates', label: 'Aplicații reseller' },
             { href: '/dashboard/feedback', label: 'Feedback vendori' },
