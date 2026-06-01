@@ -744,6 +744,12 @@ export async function autoAssignOrderAction(
  * Filtered tightly: vehicle_type defaults to BIKE, status INACTIVE, and
  * the upsert is keyed by `user_id` to make re-inviting a rider safe.
  *
+ * Also captures the courier's serving city and CNP and seeds a PENDING
+ * courier_kyc identity record (legal_name + cnp_last4 only — the raw CNP is
+ * never persisted, per CNP option 3). The courier completes verification by
+ * uploading their ID document via /dashboard/kyc; the platform (or the fleet,
+ * when can_validate_couriers is on) approves it.
+ *
  * Mirrors the platform-admin `inviteCourier` in admin/fleets/actions.ts
  * but is gated on `getFleetManagerContext` instead of platform_admins,
  * and forces fleet_id to the manager's own fleet (a fleet manager can't
@@ -759,12 +765,25 @@ export async function inviteCourierToFleetAction(
   const fullName = (formData.get('full_name') as string | null)?.trim() ?? '';
   const phoneRaw = (formData.get('phone') as string | null)?.trim() ?? '';
   const vehicleType = (formData.get('vehicle_type') as string | null)?.trim() ?? 'BIKE';
+  const city = (formData.get('city') as string | null)?.trim() ?? '';
+  // CNP is typed by the manager on the courier's behalf. Strip whitespace so
+  // a pasted value with spaces still validates.
+  const cnpRaw = (formData.get('cnp') as string | null)?.replace(/\s/g, '') ?? '';
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { ok: false, error: 'Email invalid.' };
   }
   if (!fullName) {
     return { ok: false, error: 'Numele este obligatoriu.' };
+  }
+  if (!city) {
+    return { ok: false, error: 'Orașul este obligatoriu.' };
+  }
+  // RO CNP shape check (13 digits). We don't checksum-validate — the binding
+  // identity proof is the uploaded ID document the admin verifies; this is a
+  // typo guard on a field the manager enters for someone else.
+  if (!/^\d{13}$/.test(cnpRaw)) {
+    return { ok: false, error: 'CNP invalid — trebuie să aibă exact 13 cifre.' };
   }
   if (!['BIKE', 'SCOOTER', 'CAR'].includes(vehicleType)) {
     return { ok: false, error: 'Tip vehicul invalid.' };
@@ -773,6 +792,11 @@ export async function inviteCourierToFleetAction(
   if (phoneRaw && !/^\+\d{8,15}$/.test(phoneRaw)) {
     return { ok: false, error: 'Telefonul trebuie în format E.164 (+40…).' };
   }
+
+  // CNP option 3 (locked): derive the last 4 digits for the platform's
+  // identity reference and immediately drop the raw value — it is never
+  // persisted by the platform.
+  const cnpLast4 = cnpRaw.slice(-4);
 
   const admin = createAdminClient();
 
@@ -856,6 +880,7 @@ export async function inviteCourierToFleetAction(
     full_name: fullName,
     phone: phoneRaw || null,
     vehicle_type: vehicleType,
+    city,
     status: 'INACTIVE',
   } as const;
 
@@ -874,6 +899,37 @@ export async function inviteCourierToFleetAction(
 
   if (upsertErr) return { ok: false, error: upsertErr.message };
 
+  // Seed a PENDING identity record so the courier surfaces in the platform
+  // verification queue immediately, carrying the manager-entered legal name +
+  // last-4 of the CNP. `kyc_status` is intentionally OMITTED from the payload:
+  // on INSERT it defaults to PENDING; on a re-invite UPDATE it is left
+  // untouched so an already-VERIFIED courier is never silently downgraded.
+  // The courier later attaches their ID-document photo via /dashboard/kyc
+  // (submit_courier_kyc upserts the same row); cnp_last4 is not referenced
+  // there, so this value persists.
+  const { error: kycErr } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        upsert: (
+          row: Record<string, unknown>,
+          opts: Record<string, unknown>,
+        ) => Promise<{ error: { message: string } | null }>;
+      };
+    }
+  )
+    .from('courier_kyc')
+    .upsert(
+      {
+        courier_user_id: userId,
+        fleet_id: ctx.fleetId,
+        legal_name: fullName,
+        cnp_last4: cnpLast4,
+      },
+      { onConflict: 'courier_user_id' },
+    );
+
+  if (kycErr) return { ok: false, error: kycErr.message };
+
   await logAudit({
     actorUserId: ctx.userId,
     action: 'fleet.courier_self_invited',
@@ -882,7 +938,10 @@ export async function inviteCourierToFleetAction(
     metadata: {
       fleet_id: ctx.fleetId,
       email,
+      city,
       vehicle_type: vehicleType,
+      // CNP itself is never logged — only that an identity record was seeded.
+      cnp_last4: cnpLast4,
     },
   });
 
