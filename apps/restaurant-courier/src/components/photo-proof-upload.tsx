@@ -6,7 +6,7 @@
 // Original implementation kept in tree for easy re-enable when 100+ orders/day make
 // dispute-resolution proof necessary.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
 import { toast, Button } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
@@ -52,13 +52,7 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
   // Pharma vertical with required ID/prescription is LEGAL requirement — keep enabled.
   // Restaurant proof + optional pharma photo are disabled per 2026-05-20 directive.
   const isLegallyRequired = vertical === 'pharma' && (requiresId || requiresPrescription);
-  if (!DELIVERY_PHOTO_PROOF_ENABLED && !isLegallyRequired) {
-    // Notify parent immediately with empty URLs so the delivery flow proceeds.
-    if (typeof window !== 'undefined') {
-      setTimeout(() => onComplete({}), 0);
-    }
-    return null;
-  }
+  const isDisabled = !DELIVERY_PHOTO_PROOF_ENABLED && !isLegallyRequired;
 
   const deliveryRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
@@ -75,6 +69,14 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
     id: null,
     prescription: null,
   });
+
+  // When disabled, notify parent immediately so delivery flow proceeds.
+  // useEffect ensures we call onComplete once after mount (not on every render).
+  useEffect(() => {
+    if (isDisabled) onComplete({});
+  }, [isDisabled, onComplete]);
+
+  if (isDisabled) return null;
 
   // Native (Capacitor) opens the OS camera and yields a Blob; we wrap it in a
   // File so the rest of the pipeline (uploadOrEnqueue → IndexedDB → Supabase

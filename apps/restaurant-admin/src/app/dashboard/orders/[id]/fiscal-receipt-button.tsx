@@ -16,13 +16,15 @@ type Props = {
 };
 
 export function FiscalReceiptButton({ orderId, tenantId }: Props) {
-  if (!FISCAL_EXPORT_UI_ENABLED) return null;
   const [pending, start] = useTransition();
   const [result, setResult] = useState<
     | null
     | { ok: true; tone: 'success' | 'info'; msg: string }
     | { ok: false; msg: string }
   >(null);
+
+  // Disabled per directive 2026-05-20 — return after hooks to obey Rules of Hooks.
+  if (!FISCAL_EXPORT_UI_ENABLED) return null;
 
   const click = () => {
     setResult(null);
