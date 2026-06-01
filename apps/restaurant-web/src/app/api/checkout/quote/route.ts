@@ -4,10 +4,44 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { quoteRequestSchema } from '../schemas';
-import { computeQuote } from '../pricing';
+import { computeQuote, type QuoteFailure } from '../pricing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Quote failures that mean "a customer wanted delivery to a real address but we
+// could not serve it" — the unmet-demand heatmap (the most valuable part of the
+// demand map). Cart/config failures (ITEM_UNAVAILABLE, PROMO_INVALID, …) are
+// NOT unmet demand and are excluded.
+const UNMET_DEMAND_KINDS = new Set<QuoteFailure['kind']>([
+  'OUTSIDE_ZONE',
+  'ZONE_PAUSED',
+  'NO_TIER',
+]);
+
+// Best-effort: records the signal and never throws — a telemetry failure must
+// not break the quote response.
+async function recordUnmetDemand(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  tenantId: string,
+  reason: QuoteFailure,
+  address: { lat: number; lng: number } | null,
+): Promise<void> {
+  if (!UNMET_DEMAND_KINDS.has(reason.kind) || !address) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).rpc('record_unmet_demand', {
+      p_tenant_id: tenantId,
+      p_signal_type: reason.kind,
+      p_lat: address.lat,
+      p_lng: address.lng,
+      p_distance_km: reason.kind === 'NO_TIER' ? reason.distanceKm : null,
+      p_reason: reason.kind === 'ZONE_PAUSED' ? reason.reason : null,
+    });
+  } catch {
+    // swallow — unmet-demand capture is best-effort telemetry
+  }
+}
 
 export async function POST(req: NextRequest) {
   // Quote is the public price oracle — gives back delivery fee, promo
@@ -53,8 +87,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const admin = getSupabaseAdmin();
   const result = await computeQuote(
-    getSupabaseAdmin(),
+    admin,
     { id: tenant.id, slug: tenant.slug, settings: tenant.settings },
     parsed.data.items,
     parsed.data.address ?? null,
@@ -63,6 +98,7 @@ export async function POST(req: NextRequest) {
   );
 
   if (!result.ok) {
+    await recordUnmetDemand(admin, tenant.id, result.reason, parsed.data.address ?? null);
     return NextResponse.json({ error: 'quote_failed', reason: result.reason }, { status: 422 });
   }
 
