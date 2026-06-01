@@ -21,6 +21,20 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <span className="rounded-full bg-violet-900/60 px-2 py-0.5 text-[10px] font-medium text-violet-300">
           PLATFORM_ADMIN
         </span>
+        <nav className="ml-2 flex items-center gap-1 text-xs">
+          <Link
+            href="/admin/fleets"
+            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
+          >
+            Flote
+          </Link>
+          <Link
+            href="/admin/verifications"
+            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
+          >
+            Verificări
+          </Link>
+        </nav>
         <div className="flex-1" />
         <Link
           href="/dashboard"

@@ -61,7 +61,11 @@ export type CourierAuditAction =
   | 'fleet.payout_period_approved'
   | 'fleet.payout_period_paid'
   | 'fleet.payouts_exported'
-  | 'courier.time_off_requested';
+  | 'courier.time_off_requested'
+  | 'admin.courier_kyc_verified'
+  | 'admin.courier_kyc_rejected'
+  | 'admin.fleet_kyf_verified'
+  | 'admin.fleet_kyf_rejected';
 
 async function deriveTenantId(
   admin: ReturnType<typeof createAdminClient>,
