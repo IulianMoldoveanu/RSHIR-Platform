@@ -14,6 +14,7 @@ const ORDER_ID = '22222222-2222-2222-2222-222222222222';
 const providerSelectMock = vi.fn();
 const orderUpdateMock = vi.fn();
 const auditInsertMock = vi.fn();
+const vaultRpcMock = vi.fn();
 
 vi.mock('@/lib/supabase-admin', () => ({
   getSupabaseAdmin: () => ({
@@ -36,6 +37,7 @@ vi.mock('@/lib/supabase-admin', () => ({
         return Promise.resolve({ error: null });
       },
     }),
+    rpc: (fn: string, args: unknown) => Promise.resolve(vaultRpcMock(fn, args)),
   }),
 }));
 
@@ -65,13 +67,15 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
     vi.clearAllMocks();
     providerSelectMock.mockReturnValue({
       data: {
+        id: '33333333-3333-3333-3333-333333333333',
         provider_key: 'mock',
         config: {},
-        webhook_secret: 'secret',
         is_active: true,
       },
       error: null,
     });
+    // Vault RPC returns plaintext secret
+    vaultRpcMock.mockReturnValue({ data: 'secret', error: null });
     orderUpdateMock.mockReturnValue({ error: null });
   });
   afterEach(() => {
@@ -105,7 +109,7 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
 
   it('returns 404 when provider row exists but is_active=false', async () => {
     providerSelectMock.mockReturnValue({
-      data: { provider_key: 'mock', config: {}, webhook_secret: 'secret', is_active: false },
+      data: { id: '33333333-3333-3333-3333-333333333333', provider_key: 'mock', config: {}, is_active: false },
       error: null,
     });
     const res = await POST(makeReq(), {
@@ -128,6 +132,17 @@ describe('POST /api/integrations/webhooks/[provider]/[tenant]', () => {
     expect(json.error).toBe('lookup_failed');
     // SECURITY: don't echo the DB error to anonymous callers.
     expect(JSON.stringify(json)).not.toContain('sensitive postgres detail');
+    expect(verifyWebhookMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 500 lookup_failed when vault RPC fails to return the secret', async () => {
+    vaultRpcMock.mockReturnValue({ data: null, error: { message: 'vault error' } });
+    const res = await POST(makeReq(), {
+      params: Promise.resolve({ provider: 'mock', tenant: TENANT_ID }),
+    });
+    expect(res.status).toBe(500);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toBe('lookup_failed');
     expect(verifyWebhookMock).not.toHaveBeenCalled();
   });
 

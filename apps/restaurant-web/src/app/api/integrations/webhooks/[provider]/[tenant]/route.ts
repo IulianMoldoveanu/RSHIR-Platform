@@ -68,9 +68,24 @@ export async function POST(
   const providerKey = provider as ProviderKey;
 
   const admin = getSupabaseAdmin();
-  const { data: providerRow, error: providerErr } = await admin
+  // Do NOT select webhook_secret column here — the column is now OWNER-only
+  // via RLS. This route runs as service_role and uses the vault RPC instead.
+  const { data: providerRow, error: providerErr } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            maybeSingle: () => Promise<{
+              data: { id: string; provider_key: string; config: unknown; is_active: boolean } | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+  })
     .from('integration_providers')
-    .select('provider_key, config, webhook_secret, is_active')
+    .select('id, provider_key, config, is_active')
     .eq('tenant_id', tenant)
     .eq('provider_key', providerKey)
     .maybeSingle();
@@ -82,6 +97,18 @@ export async function POST(
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
+  // Fetch the plaintext secret from vault via the secure RPC (service_role only).
+  const { data: vaultSecret, error: vaultErr } = await (admin as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{
+      data: string | null;
+      error: { message: string } | null;
+    }>;
+  }).rpc('integration_providers_get_secret', { p_provider_id: providerRow.id });
+  if (vaultErr || !vaultSecret) {
+    console.error('[webhook-in] vault secret lookup failed', vaultErr?.message ?? 'empty');
+    return NextResponse.json({ error: 'lookup_failed' }, { status: 500 });
+  }
+
   const raw = await req.text();
   const headersObj = headersToObject(req);
 
@@ -91,7 +118,7 @@ export async function POST(
     provider: {
       key: providerKey,
       config: (providerRow.config ?? {}) as Record<string, unknown>,
-      webhookSecret: providerRow.webhook_secret,
+      webhookSecret: vaultSecret,
     },
     fetch,
     log: (level, msg, meta) => {

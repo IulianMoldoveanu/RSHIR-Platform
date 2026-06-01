@@ -65,6 +65,9 @@ function integrationSb() {
         };
       };
     };
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{
+      error: { message: string } | null;
+    }>;
   };
 }
 
@@ -102,8 +105,10 @@ export async function addProvider(
     }
   }
 
+  const webhookSecretHash = createHash('sha256').update(webhookSecret).digest('hex');
+
   const sb = integrationSb();
-  const { error } = await sb
+  const { data: insertedRow, error } = await sb
     .from('integration_providers')
     .insert({
       tenant_id: guard.tenantId,
@@ -111,10 +116,25 @@ export async function addProvider(
       display_name: displayName,
       config: configJson,
       webhook_secret: webhookSecret,
+      webhook_secret_hash: webhookSecretHash,
     })
     .select('id')
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // Write the plaintext secret into vault so the dispatcher can fetch it
+  // without reading the column (which is now OWNER-only via RLS).
+  if (insertedRow?.id) {
+    const { error: vaultErr } = await sb.rpc('vault_create_or_update_secret', {
+      secret_name: `integration_provider_secret_${insertedRow.id}`,
+      secret_value: webhookSecret,
+    });
+    if (vaultErr) {
+      // Non-fatal for the insert itself, but log loudly — the dispatcher
+      // falls back to the column value for backward compat.
+      console.error('[addProvider] vault write failed', vaultErr.message);
+    }
+  }
 
   await logAudit({
     tenantId: guard.tenantId,
@@ -177,17 +197,22 @@ export async function testCustomWebhook(
         eq: (col: string, val: string) => {
           eq: (col: string, val: string) => {
             maybeSingle: () => Promise<{
-              data: { provider_key: string; config: unknown; webhook_secret: string } | null;
+              data: { id: string; provider_key: string; config: unknown } | null;
               error: { message: string } | null;
             }>;
           };
         };
       };
     };
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{
+      data: string | null;
+      error: { message: string } | null;
+    }>;
   };
+  // Do NOT select webhook_secret — OWNER-only column. Fetch from vault below.
   const { data: provider, error: lookupErr } = await sb
     .from('integration_providers')
-    .select('provider_key, config, webhook_secret')
+    .select('id, provider_key, config')
     .eq('id', providerId)
     .eq('tenant_id', guard.tenantId)
     .maybeSingle();
@@ -195,6 +220,14 @@ export async function testCustomWebhook(
   if (!provider) return { ok: false, error: 'Furnizorul nu a fost găsit.' };
   if (provider.provider_key !== 'custom') {
     return { ok: false, error: 'Test disponibil doar pentru furnizori de tip „Custom".' };
+  }
+
+  const { data: vaultSecret, error: vaultErr } = await sb.rpc(
+    'integration_providers_get_secret',
+    { p_provider_id: provider.id },
+  );
+  if (vaultErr || !vaultSecret) {
+    return { ok: false, error: 'Nu s-a putut accesa secretul webhook. Reîncercați.' };
   }
 
   // Synthetic payload — clearly marked test_mode so the receiver can
@@ -219,7 +252,7 @@ export async function testCustomWebhook(
       provider: {
         key: 'custom',
         config: (provider.config as Record<string, unknown>) ?? {},
-        webhookSecret: provider.webhook_secret,
+        webhookSecret: vaultSecret,
       },
       fetch: globalThis.fetch.bind(globalThis),
       log: (level, msg, meta) => {

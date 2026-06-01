@@ -40,9 +40,10 @@ type EventRow = {
 };
 
 type ProviderRow = {
+  id: string;
   provider_key: string;
   config: Record<string, unknown>;
-  webhook_secret: string;
+  webhook_secret: string; // kept for backward compat; prefer vault via integration_providers_get_secret
   is_active: boolean;
 };
 
@@ -58,9 +59,10 @@ async function loadProvider(
   tenantId: string,
   providerKey: string,
 ): Promise<ProviderRow | null> {
+  // Select id so we can retrieve the secret from vault via the secure RPC.
   const { data, error } = await supabase
     .from('integration_providers')
-    .select('provider_key, config, webhook_secret, is_active')
+    .select('id, provider_key, config, webhook_secret, is_active')
     .eq('tenant_id', tenantId)
     .eq('provider_key', providerKey)
     .maybeSingle();
@@ -68,7 +70,22 @@ async function loadProvider(
     console.error('[integration-dispatcher] provider lookup error', error.message);
     return null;
   }
-  return (data as ProviderRow | null) ?? null;
+  if (!data) return null;
+  const row = data as ProviderRow;
+
+  // Fetch the plaintext secret from vault (service_role RPC).
+  // Falls back to the column value if the vault entry is missing (e.g., rows
+  // created before this migration ran and not yet backfilled).
+  const { data: secretData, error: secretErr } = await supabase
+    .rpc('integration_providers_get_secret', { p_provider_id: row.id });
+  if (secretErr) {
+    console.error('[integration-dispatcher] vault secret lookup error', secretErr.message);
+  }
+  if (secretData) {
+    row.webhook_secret = secretData as string;
+  }
+
+  return row;
 }
 
 async function markSent(supabase: SupabaseClient, id: number): Promise<void> {
