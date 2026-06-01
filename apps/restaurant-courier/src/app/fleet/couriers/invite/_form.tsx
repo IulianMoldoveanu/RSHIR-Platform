@@ -42,8 +42,9 @@ export function InviteCourierForm() {
               Invitație trimisă către {done.email}
             </p>
             <p className="mt-1 text-xs text-zinc-400">
-              Curierul apare deja în flotă cu status Inactiv. Va deveni Activ
-              când pornește prima tură.
+              Curierul apare în flotă cu status Inactiv și devine Activ când
+              pornește prima tură. Își confirmă identitatea din aplicație (foto
+              buletin/permis), iar validarea o face platforma.
             </p>
             <div className="mt-3 flex gap-2">
               <Button
@@ -88,6 +89,32 @@ export function InviteCourierForm() {
           maxLength={120}
           className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
           placeholder="Maria Ionescu"
+        />
+      </Field>
+
+      <Field label="Oraș" hint="Orașul în care livrează curierul.">
+        <input
+          name="city"
+          required
+          maxLength={80}
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
+          placeholder="Brașov"
+        />
+      </Field>
+
+      <Field
+        label="CNP"
+        hint="Reținem doar ultimele 4 cifre pentru verificare — CNP-ul complet nu este stocat de platformă."
+      >
+        <input
+          name="cnp"
+          required
+          inputMode="numeric"
+          pattern="\d{13}"
+          maxLength={13}
+          autoComplete="off"
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-violet-500 focus:outline-none"
+          placeholder="13 cifre"
         />
       </Field>
 
