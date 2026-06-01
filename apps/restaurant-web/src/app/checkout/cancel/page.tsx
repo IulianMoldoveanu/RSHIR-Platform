@@ -7,6 +7,7 @@
 // "Continuă comanda anterioară" button: clicking it CANCELS the prior
 // PENDING row (atomic UPDATE WHERE status='PENDING' AND id=intent_id) and
 // drops the customer back at the storefront with the cart intact.
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, XCircle } from 'lucide-react';
@@ -14,6 +15,16 @@ import { resolveTenantFromHost } from '@/lib/tenant';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { CancelResumeCta } from '@/components/storefront/cancel-resume-cta';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) return {};
+  const title = `Plată anulată — ${tenant.name}`;
+  return {
+    title,
+    robots: { index: false, follow: false },
+  };
+}
 
 export const dynamic = 'force-dynamic';
 

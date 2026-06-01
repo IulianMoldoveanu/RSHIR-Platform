@@ -1,13 +1,8 @@
-// TODO(demo-2026-05-05): no generateMetadata() here — checkout renders with
-// the layout default title "HIR Restaurant" instead of the per-tenant
-// "<Name> — finalizează comanda". Storefront page.tsx already has the
-// pattern; copy/adapt it. Found during 2026-05-04 E2E walkthrough on
-// FOISORUL A: storefront title was correct, checkout page reverted to
-// generic. Minor merchant-trust hit on the highest-stakes page.
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import { brandingFor, resolveTenantFromHost } from '@/lib/tenant';
+import { brandingFor, resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { getLoyaltyBalance } from '@/lib/loyalty';
@@ -15,6 +10,36 @@ import { resolvePaymentSurface } from '@/lib/payment-mode';
 import { CheckoutClient } from './CheckoutClient';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) return {};
+  const paymentSurface = resolvePaymentSurface(tenant.settings);
+  const providerLabel = paymentSurface.provider === 'viva' ? 'Viva Wallet' : 'Netopia';
+  const title = `Finalizează comanda — ${tenant.name}`;
+  const description = `Plătește în siguranță prin ${providerLabel}`;
+  const { coverUrl } = brandingFor(tenant.settings);
+  const url = `${tenantBaseUrl()}/checkout`;
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: tenant.name,
+      images: coverUrl ? [{ url: coverUrl, width: 1200, height: 630, alt: tenant.name }] : undefined,
+      type: 'website',
+    },
+    twitter: {
+      card: coverUrl ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: coverUrl ? [coverUrl] : undefined,
+    },
+  };
+}
 
 // Pre-fill the form for known customers from their most recent order.
 // Cuts ~5 fields off repeat-checkout flow (name, phone, email, street, city).

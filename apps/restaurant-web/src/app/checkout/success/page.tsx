@@ -9,6 +9,7 @@
 // whenever the customer cancelled on the PSP and re-submitted. We now wipe
 // the cart HERE (CARD success confirmed) and in the COD branch of
 // CheckoutClient (immediate confirmation).
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CheckCircle2, ChevronLeft } from 'lucide-react';
@@ -18,6 +19,16 @@ import { EmbedOrderPlaced } from '@/components/storefront/embed-order-placed';
 import { CartCleanupOnMount } from '@/components/storefront/cart-cleanup-on-mount';
 import { t } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { tenant } = await resolveTenantFromHost();
+  if (!tenant) return {};
+  const title = `Comandă confirmată — ${tenant.name}`;
+  return {
+    title,
+    robots: { index: false, follow: false },
+  };
+}
 
 export const dynamic = 'force-dynamic';
 
