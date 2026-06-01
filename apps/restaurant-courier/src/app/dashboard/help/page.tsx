@@ -12,6 +12,7 @@ import {
   Navigation,
   Phone,
   Shield,
+  Undo2,
 } from 'lucide-react';
 import { cardClasses } from '@/components/card';
 
@@ -96,7 +97,13 @@ export default function HelpPage() {
             id="cash"
             icon={<Banknote className="h-4 w-4 text-amber-300" aria-hidden strokeWidth={2.25} />}
             q="Plată cash — ce fac?"
-            a="Confirmi încasarea sumei afișate ÎNAINTE de a glisa Livrat. Banii rămân la tine; comisionul HIR + restul se ajustează automat la următorul payout."
+            a="Încasezi suma afișată de la client la livrare și confirmi încasarea ÎNAINTE de a glisa „Livrat”. Plafon: maximum 200 RON pe comandă cash — peste 200 RON comanda este doar cu cardul. În unele zone externe plata cash poate fi indisponibilă. Câștigul tău se decontează săptămânal."
+          />
+          <Faq
+            id="retur"
+            icon={<Undo2 className="h-4 w-4 text-amber-300" aria-hidden strokeWidth={2.25} />}
+            q="Comanda se anulează — ce fac cu produsul?"
+            a="Toate comenzile sunt sigilate și capsate (cu bonul capsat pe colet), inclusiv mâncarea — pot fi returnate intacte. Dacă clientul anulează, refuză sau nu răspunde: aștepți câteva minute, îl suni (2 încercări) și anunți managerul de flotă. Apoi, după caz: dacă era plată CASH (neîncasată), duci coletul sigilat înapoi la comerciant — comerciantul suportă pierderea, tu nu pierzi nimic. Dacă era deja PLĂTITĂ (card/online), banii nu se mai întorc clientului (e pierderea lui) — închizi comanda conform indicației managerului de flotă. Fă poză la predare (la client) sau la retur (la comerciant)."
           />
           <Faq
             id="photo"
@@ -153,7 +160,7 @@ export default function HelpPage() {
           />
           <GlossaryTerm
             term="Cash / COD"
-            def="Plată ramburs (cash on delivery). Înainte de a glisa „Livrat”, confirmi că ai încasat suma de la client. Banii rămân la tine — comisionul se ajustează la decontare."
+            def="Plată ramburs (cash on delivery). Încasezi suma de la client la livrare (max 200 RON/comandă; peste, doar card) și confirmi înainte de „Livrat”. Dacă se anulează înainte de încasare, returnezi coletul sigilat la comerciant, care suportă pierderea. Câștigul tău se decontează săptămânal."
           />
           <GlossaryTerm
             term="Mod A · Curier propriu"
