@@ -97,7 +97,13 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
-    label: 'Orașe (events)',
+    label: 'Orașe — vendori & comenzi',
+    href: '/dashboard/admin/cities',
+    description: 'Toate orașele RO: câți vendori operează + comenzi cross-vertical prin bazinul de curieri.',
+    tone: 'emerald',
+  },
+  {
+    label: 'Orașe — evenimente',
     href: '/dashboard/admin/cities/events',
     description: 'Activări per oraș + announcement events.',
     tone: 'emerald',
