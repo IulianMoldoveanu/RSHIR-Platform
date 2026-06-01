@@ -17,6 +17,8 @@ type FleetRow = {
   allowed_verticals: string[];
   is_active: boolean;
   created_at: string;
+  display_prefix: string | null;
+  can_validate_couriers: boolean;
 };
 
 type CourierRow = {
@@ -60,7 +62,7 @@ export default async function FleetDetailPage(
 
   const { data: fleetData, error: fleetErr } = await sb
     .from('courier_fleets')
-    .select('id, slug, name, brand_color, tier, allowed_verticals, is_active, created_at')
+    .select('id, slug, name, brand_color, tier, allowed_verticals, is_active, created_at, display_prefix, can_validate_couriers')
     .eq('id', params.id)
     .maybeSingle();
 

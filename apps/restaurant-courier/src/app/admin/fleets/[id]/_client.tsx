@@ -15,6 +15,8 @@ type Fleet = {
   allowed_verticals: string[];
   is_active: boolean;
   created_at: string;
+  display_prefix: string | null;
+  can_validate_couriers: boolean;
 };
 
 type Courier = {
@@ -98,6 +100,8 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
   const [tier, setTier] = useState(fleet.tier);
   const [verticals, setVerticals] = useState<string[]>(fleet.allowed_verticals);
   const [isActive, setIsActive] = useState(fleet.is_active);
+  const [displayPrefix, setDisplayPrefix] = useState(fleet.display_prefix ?? '');
+  const [canValidate, setCanValidate] = useState(fleet.can_validate_couriers);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [pending, start] = useTransition();
@@ -114,6 +118,8 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
     fd.append('tier', tier);
     verticals.forEach((v) => fd.append('allowed_verticals', v));
     fd.append('is_active', String(isActive));
+    fd.append('display_prefix', displayPrefix);
+    fd.append('can_validate_couriers', String(canValidate));
     start(async () => {
       const result = await updateFleet(fleet.id, fd);
       if (!result.ok) {
@@ -156,6 +162,22 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
           />
           <span className="font-mono text-xs text-zinc-500">{brandColor}</span>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-zinc-400" htmlFor="edit-prefix">
+          Prefix afișat (acronim, ex. HIR)
+        </label>
+        <input
+          id="edit-prefix"
+          type="text"
+          value={displayPrefix}
+          maxLength={8}
+          onChange={(e) => setDisplayPrefix(e.target.value.toUpperCase())}
+          placeholder="HIR"
+          className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm uppercase text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+        />
+        <span className="text-[11px] text-zinc-500">Apare în fața numelui curierului (ex. „HIR Ion P.”).</span>
       </div>
 
       <fieldset className="flex flex-col gap-2">
@@ -218,6 +240,21 @@ function EditFleetSection({ fleet }: { fleet: Fleet }) {
           <span className="sr-only">{isActive ? 'Activ' : 'Inactiv'}</span>
         </button>
       </div>
+
+      <label className="flex items-start gap-2 text-sm text-zinc-300 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={canValidate}
+          onChange={(e) => setCanValidate(e.target.checked)}
+          className="mt-0.5 accent-violet-500"
+        />
+        <span>
+          Flota își poate valida singură curierii
+          <span className="block text-[11px] text-zinc-500">
+            Dacă e bifat, flota validează conturile curierilor săi și își asumă responsabilitatea datelor. Implicit, validezi tu (platforma).
+          </span>
+        </span>
+      </label>
 
       {error && (
         <p className="rounded-md border border-rose-800 bg-rose-950/50 px-4 py-3 text-sm text-rose-400">

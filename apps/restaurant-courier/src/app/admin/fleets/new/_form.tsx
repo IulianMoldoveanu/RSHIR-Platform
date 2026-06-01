@@ -21,6 +21,8 @@ export function NewFleetForm() {
   const [tier, setTier] = useState<'owner' | 'partner' | 'external'>('partner');
   const [verticals, setVerticals] = useState<string[]>(['restaurant', 'pharma']);
   const [ownerEmail, setOwnerEmail] = useState('');
+  const [displayPrefix, setDisplayPrefix] = useState('');
+  const [canValidate, setCanValidate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -44,6 +46,8 @@ export function NewFleetForm() {
     fd.append('tier', tier);
     verticals.forEach((v) => fd.append('allowed_verticals', v));
     if (ownerEmail) fd.append('owner_email', ownerEmail);
+    fd.append('display_prefix', displayPrefix);
+    fd.append('can_validate_couriers', canValidate ? 'true' : 'false');
 
     start(async () => {
       const result = await createFleet(fd);
@@ -107,6 +111,23 @@ export function NewFleetForm() {
         </div>
       </div>
 
+      {/* Display prefix (Wolt-style acronym in front of courier names) */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-zinc-400" htmlFor="fleet-prefix">
+          Prefix afișat (acronim, ex. HIR)
+        </label>
+        <input
+          id="fleet-prefix"
+          type="text"
+          value={displayPrefix}
+          maxLength={8}
+          onChange={(e) => setDisplayPrefix(e.target.value.toUpperCase())}
+          placeholder="HIR"
+          className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm uppercase text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+        />
+        <span className="text-[11px] text-zinc-500">Apare în fața numelui curierului (ex. „HIR Ion P.”) ca să știi din ce flotă e.</span>
+      </div>
+
       {/* Tier */}
       <fieldset className="flex flex-col gap-2">
         <legend className="text-xs font-medium text-zinc-400">Tier *</legend>
@@ -147,6 +168,22 @@ export function NewFleetForm() {
           ))}
         </div>
       </fieldset>
+
+      {/* Delegated courier validation */}
+      <label className="flex items-start gap-2 text-sm text-zinc-300 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={canValidate}
+          onChange={(e) => setCanValidate(e.target.checked)}
+          className="mt-0.5 accent-violet-500"
+        />
+        <span>
+          Flota își poate valida singură curierii
+          <span className="block text-[11px] text-zinc-500">
+            Dacă e bifat, flota validează conturile curierilor săi și își asumă responsabilitatea datelor. Implicit, validezi tu (platforma).
+          </span>
+        </span>
+      </label>
 
       {/* Owner email */}
       <div className="flex flex-col gap-1.5">
