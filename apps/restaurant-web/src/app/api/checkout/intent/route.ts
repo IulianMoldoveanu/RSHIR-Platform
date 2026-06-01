@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { resolvePaymentSurface } from '@/lib/payment-mode';
@@ -458,6 +459,41 @@ export async function POST(req: NextRequest) {
       { error: 'psp_unavailable', provider: session.provider, reason: session.error },
       { status: 502 },
     );
+  }
+
+  // Write the psp_payments ledger row so the webhook handler can resolve
+  // order_id from provider_ref when the PSP sends a captured / authorized
+  // event. Best-effort: a failure here logs and continues — the customer
+  // has been redirected to the PSP hosted page. The webhook handler warns
+  // and skips side-effects when no psp_payments row exists; ops can
+  // reconcile via psp_webhook_events.
+  Sentry.addBreadcrumb({
+    category: 'checkout.psp',
+    message: 'psp_payments.insert',
+    level: 'info',
+    data: { provider: session.provider, providerRef: session.sessionId, orderId: order.id },
+  });
+  try {
+    const pspMode =
+      process.env[`${session.provider.toUpperCase()}_MARKETPLACE_ENABLED`] === 'true'
+        ? 'MARKETPLACE'
+        : 'STANDARD';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sbAny = admin as any;
+    const { error: pspInsertErr } = await sbAny.from('psp_payments').insert({
+      tenant_id: tenant.id,
+      order_id: order.id,
+      provider: session.provider,
+      mode: pspMode,
+      provider_ref: session.sessionId,
+      amount_bani: Math.round(totalRonAmount * 100),
+      status: 'PENDING',
+    });
+    if (pspInsertErr) {
+      console.error('[checkout/intent] psp_payments insert failed', pspInsertErr.message);
+    }
+  } catch (err) {
+    console.error('[checkout/intent] psp_payments insert exception', (err as Error).message);
   }
 
   const responsePayload = {
