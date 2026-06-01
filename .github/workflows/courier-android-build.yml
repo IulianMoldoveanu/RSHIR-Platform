@@ -68,6 +68,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Scaffold the native Android project FIRST. `cap add` aborts with
+      # "android platform already exists" if android/ is present, so nothing
+      # may create it beforehand — a prior version mkdir'd android/app for
+      # google-services.json BEFORE this step, which made cap add skip the
+      # scaffold and left no gradlew. Order matters: scaffold, then drop the
+      # config file into the generated android/app.
+      - name: Cap add android (if not present) + sync
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -f android/gradlew ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
       - name: Write google-services.json
         env:
           GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -90,14 +104,6 @@ jobs:
           }
           STUB
           fi
-
-      - name: Cap add android (if not present) + sync
-        working-directory: apps/restaurant-courier
-        run: |
-          if [ ! -f android/gradlew ]; then
-            npx cap add android
-          fi
-          npx cap sync android
 
       - name: Build debug APK
         working-directory: apps/restaurant-courier/android
@@ -140,6 +146,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Scaffold the native Android project FIRST (see debug job for why —
+      # cap add aborts if android/ already exists, so google-services.json
+      # must be written AFTER, not before).
+      - name: Cap add android (if not present) + sync
+        working-directory: apps/restaurant-courier
+        run: |
+          if [ ! -f android/gradlew ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
       - name: Write google-services.json
         env:
           GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -162,14 +179,6 @@ jobs:
           }
           STUB
           fi
-
-      - name: Cap add android (if not present) + sync
-        working-directory: apps/restaurant-courier
-        run: |
-          if [ ! -f android/gradlew ]; then
-            npx cap add android
-          fi
-          npx cap sync android
 
       - name: Decode keystore
         if: ${{ env.HAS_KEYSTORE == 'true' }}
