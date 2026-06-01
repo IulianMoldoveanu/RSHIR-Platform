@@ -1,21 +1,14 @@
 /**
- * CourierMarker — HIR Curier (Design 3 · Premium)
- * ------------------------------------------------------------------
- * Marker pentru poziția live a curierului pe hartă (Mapbox GL / Google Maps / Leaflet).
+ * CourierMarker — re-exported from restaurant-courier for use in web + admin apps.
  *
- *  - 3 vehicule: bike | moto | car
- *  - 2 stări:    online (violet brand, halo + wedge directional + puls)
- *                offline (gri neutru, șters)
- *  - heading (grade): rotește wedge-ul directional după direcția de mers.
+ * Single source of truth is apps/restaurant-courier/src/components/courier-marker.tsx.
+ * This copy lives in @hir/ui so restaurant-web and restaurant-admin can import
+ * the marker without a cross-app import.
  *
  * SURSA DE ADEVAR VIZUALA. Geometria SVG (path-uri, coordonate, viewBox 64x80)
- * este validată vizual și NU trebuie modificată. A schimba coordonatele,
- * scale-ul (FIT) sau path-urile = a strica markerul.
+ * este validată vizual și NU trebuie modificată.
  *
  * Anchor pe hartă: 'bottom' (vârful de jos al pinului = poziția reală).
- *
- * Sursă: single source of truth pentru marker-ul de curier live
- * (tracking page customer + dispatch admin + fleet live map).
  */
 
 import React from 'react';
@@ -74,7 +67,7 @@ export default function CourierMarker({
   className,
 }: CourierMarkerProps) {
   if (!['bike', 'moto', 'car'].includes(vehicle)) {
-    // Keep identical to the @hir/ui mirror copy (browser package, no Node types).
+    // No process.env here — @hir/ui is a browser package without Node types.
     console.warn(`CourierMarker: vehicul necunoscut "${vehicle}"`);
     return null;
   }

@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { CourierMarker } from '@hir/ui';
 
 const defaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -15,11 +18,23 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+// Build courier divIcon using CourierMarker. This module is lazy-loaded via
+// next/dynamic with ssr:false so it only runs client-side.
+// vehicle: 'bike' — no vehicle_type data on tracking page, default to bike.
+// animate: true — single courier on customer tracking deserves the pulse halo.
 const courierIcon = L.divIcon({
   className: '',
-  html: '<div style="width:30px;height:30px;border-radius:50%;background:#7c3aed;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:white;font-size:16px;line-height:1">🛵</div>',
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
+  html: renderToStaticMarkup(
+    React.createElement(CourierMarker, {
+      vehicle: 'bike',
+      status: 'online',
+      heading: 0,
+      animate: true,
+      size: 64,
+    }),
+  ),
+  iconSize: [64, 80],
+  iconAnchor: [32, 80],
 });
 
 type LatLng = { lat: number; lng: number };
