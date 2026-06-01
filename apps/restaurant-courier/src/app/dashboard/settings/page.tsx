@@ -11,6 +11,7 @@ import {
   History,
   LogOut,
   Mail,
+  MessageSquarePlus,
   Phone,
   Info,
   Receipt,
@@ -236,10 +237,10 @@ export default async function SettingsPage() {
           />
 
           <SettingsRow
-            href="/dashboard/support"
-            icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
-            label="Suport live"
-            description="Chat cu botul; operator real la nevoie. Sub 5 min."
+            href="/dashboard/feedback"
+            icon={<MessageSquarePlus className="h-5 w-5 text-violet-400" aria-hidden />}
+            label="Sugestii și probleme"
+            description="Trimite o idee de îmbunătățire sau raportează un bug"
           />
 
           <SettingsRow

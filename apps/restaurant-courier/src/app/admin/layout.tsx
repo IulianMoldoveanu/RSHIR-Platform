@@ -34,6 +34,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             Curieri
           </Link>
+          <Link
+            href="/admin/feedback"
+            className="rounded-md px-2.5 py-1.5 text-xs font-medium text-hir-muted-fg hover:bg-hir-border hover:text-hir-fg"
+          >
+            Feedback
+          </Link>
         </nav>
         <div className="flex-1" />
         <Link
