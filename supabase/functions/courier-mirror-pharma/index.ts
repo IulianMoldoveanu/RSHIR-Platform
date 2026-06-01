@@ -50,7 +50,9 @@ type WebhookBody = {
       customer_name: string;
       customer_phone: string;
     };
-    items_summary: string;
+    // items_summary (medication names) is intentionally NOT part of the contract —
+    // it is art. 9 GDPR health data and must not enter the shared pool. Legacy
+    // payloads may still send it; it is ignored (never persisted) below.
     requires_id_verification: boolean;
     requires_prescription: boolean;
     total_value_ron: number;
@@ -215,11 +217,13 @@ Deno.serve(async (req: Request) => {
       return json(200, { ok: true, courier_order_id: existing.id, idempotent: true });
     }
 
+    // Persist operational fields only. Medication names (items_summary) are
+    // art. 9 GDPR health data and are intentionally NOT stored in the shared
+    // pool, even if a legacy pharma payload still sends them.
     const pharmaMetadata = {
       requires_id_verification: order.requires_id_verification,
       requires_prescription: order.requires_prescription,
       total_value_ron: order.total_value_ron,
-      items_summary: order.items_summary,
     };
 
     // Lane F: optional pharma extras. Each is persisted only when supplied
