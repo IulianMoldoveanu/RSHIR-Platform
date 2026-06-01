@@ -13,7 +13,6 @@ import {
   Mail,
   Phone,
   Info,
-  Receipt,
   Settings,
   Shield,
   Stethoscope,
@@ -236,13 +235,6 @@ export default async function SettingsPage() {
           />
 
           <SettingsRow
-            href="/dashboard/support"
-            icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
-            label="Suport live"
-            description="Chat cu botul; operator real la nevoie. Sub 5 min."
-          />
-
-          <SettingsRow
             href="/dashboard/help"
             icon={<HelpCircle className="h-5 w-5 text-violet-400" aria-hidden />}
             label="Ajutor & FAQ"
@@ -290,14 +282,17 @@ export default async function SettingsPage() {
             description="Debug GPS / cameră / notificări — folosește dacă ai probleme"
           />
 
-          {/* Tax export placeholder — #477 */}
+          {/* Export fiscal — HIDDEN per directive 2026-05-20 (Iulian): nu afișăm
+              exportul fiscal în dashboard până când e gata flow-ul complet ANAF +
+              SmartBill auto-sync. Vezi _disabled-features/REGISTRY.md (#2 fiscal-export-ui).
+              Reactivare: după setup SmartBill ISV + ANAF e-Factura live per tenant.
           <SettingsRow
             icon={<Receipt className="h-5 w-5 text-hir-muted-fg" aria-hidden />}
             iconBg="bg-hir-border"
             label="Export fiscal"
             description="Disponibil în curând"
             disabled
-          />
+          /> */}
 
           {/* Delete account */}
           <SettingsRow
