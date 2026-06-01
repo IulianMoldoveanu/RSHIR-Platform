@@ -74,9 +74,8 @@ export default function CourierMarker({
   className,
 }: CourierMarkerProps) {
   if (!['bike', 'moto', 'car'].includes(vehicle)) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`CourierMarker: vehicul necunoscut "${vehicle}"`);
-    }
+    // Keep identical to the @hir/ui mirror copy (browser package, no Node types).
+    console.warn(`CourierMarker: vehicul necunoscut "${vehicle}"`);
     return null;
   }
 
