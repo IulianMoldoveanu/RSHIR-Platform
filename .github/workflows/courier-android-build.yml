@@ -94,7 +94,7 @@ jobs:
       - name: Cap add android (if not present) + sync
         working-directory: apps/restaurant-courier
         run: |
-          if [ ! -d android ]; then
+          if [ ! -f android/gradlew ]; then
             npx cap add android
           fi
           npx cap sync android
@@ -166,7 +166,7 @@ jobs:
       - name: Cap add android (if not present) + sync
         working-directory: apps/restaurant-courier
         run: |
-          if [ ! -d android ]; then
+          if [ ! -f android/gradlew ]; then
             npx cap add android
           fi
           npx cap sync android
