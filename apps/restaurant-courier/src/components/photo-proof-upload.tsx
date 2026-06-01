@@ -1,6 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+// Hidden per directive 2026-05-20 — see _disabled-features/REGISTRY.md (delivery-photo-proof).
+// Customers and couriers no longer interact with photo proof of delivery for restaurant orders.
+// Pharma vertical (requiresId / requiresPrescription) is NOT disabled — legal requirement.
+// Original implementation kept in tree for easy re-enable when 100+ orders/day make
+// dispute-resolution proof necessary.
+
+import { useEffect, useRef, useState } from 'react';
 import { Camera, X, Check } from 'lucide-react';
 import { toast, Button } from '@hir/ui';
 import { uploadOrEnqueue, type ProofFolder } from '@/lib/proof-uploader';
@@ -40,7 +46,14 @@ type Props = {
  * have been uploaded. For restaurant, onComplete fires immediately with empty
  * urls and the caller treats the proof as optional.
  */
+const DELIVERY_PHOTO_PROOF_ENABLED = process.env.NEXT_PUBLIC_DELIVERY_PHOTO_PROOF === 'true';
+
 export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescription, onComplete }: Props) {
+  // Pharma vertical with required ID/prescription is LEGAL requirement — keep enabled.
+  // Restaurant proof + optional pharma photo are disabled per 2026-05-20 directive.
+  const isLegallyRequired = vertical === 'pharma' && (requiresId || requiresPrescription);
+  const isDisabled = !DELIVERY_PHOTO_PROOF_ENABLED && !isLegallyRequired;
+
   const deliveryRef = useRef<HTMLInputElement>(null);
   const idRef = useRef<HTMLInputElement>(null);
   const rxRef = useRef<HTMLInputElement>(null);
@@ -56,6 +69,14 @@ export function PhotoProofUpload({ orderId, vertical, requiresId, requiresPrescr
     id: null,
     prescription: null,
   });
+
+  // When disabled, notify parent immediately so delivery flow proceeds.
+  // useEffect ensures we call onComplete once after mount (not on every render).
+  useEffect(() => {
+    if (isDisabled) onComplete({});
+  }, [isDisabled, onComplete]);
+
+  if (isDisabled) return null;
 
   // Native (Capacitor) opens the OS camera and yields a Blob; we wrap it in a
   // File so the rest of the pipeline (uploadOrEnqueue → IndexedDB → Supabase

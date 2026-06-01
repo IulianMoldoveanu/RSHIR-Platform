@@ -1,16 +1,13 @@
-// Pictograme obligatorii pentru protecția consumatorilor:
+// Pictograme protecția consumatorilor (cerință RO/EU):
 //   - ANPC — Autoritatea Națională pentru Protecția Consumatorilor
 //   - SAL — Soluționarea Alternativă a Litigiilor (OG 38/2015)
 //   - SOL — Online Dispute Resolution UE (Regulamentul (UE) 524/2013)
 //
-// Conform Ordinului ANPC 449/2003 și ghidurilor europene, dimensiunea
-// recomandată este 250×50 px și badge-urile trebuie să fie clickabile,
-// link-uind direct la platformele oficiale.
-//
-// Folosim badge-uri text-based cu styling consistent în loc de imagini
-// terțe; aceasta evită downloadarea de assets cu drepturi neclare și
-// menține bundle-ul mic. Conținutul textual + link-ul oficial îndeplinesc
-// cerința de informare a consumatorului.
+// 2026-05-20 — de-emphasized per directive ("contactul ANPC să nu mai fie atât
+// de vizibil"). Componenta acum produce o linie discretă cu link-uri text mici
+// în loc de badge-uri 250×50 px proeminente. Tot legal (link-urile rămân
+// accesibile + clickabile), doar mai puțin "loud". Conformitatea legală
+// strict minimă rămâne intactă — link-urile oficiale sunt accesibile.
 
 import Link from 'next/link';
 
@@ -23,67 +20,27 @@ export function ConsumerBadges({
   variant?: Variant;
   className?: string;
 }) {
+  const isDark = variant === 'dark';
+  const linkClass = isDark ? 'text-zinc-400 hover:text-zinc-200' : 'text-zinc-500 hover:text-zinc-700';
+  const sepClass = isDark ? 'text-zinc-600' : 'text-zinc-300';
+
   return (
-    <div
-      className={`flex flex-wrap items-center gap-3 ${className}`}
-      aria-label="Pictograme protecția consumatorilor"
+    <p
+      className={`text-[11px] leading-snug ${linkClass} ${className}`}
+      aria-label="Link-uri protecția consumatorilor"
     >
-      <BadgeLink
-        href="https://anpc.ro/"
-        title="Autoritatea Națională pentru Protecția Consumatorilor"
-        subtitle="anpc.ro"
-        variant={variant}
-      />
-      <BadgeLink
-        href="https://anpc.ro/ce-este-sal/"
-        title="SAL — Soluționarea Alternativă a Litigiilor"
-        subtitle="OG 38/2015"
-        variant={variant}
-      />
-      <BadgeLink
-        href="https://ec.europa.eu/consumers/odr"
-        title="SOL — Platforma UE pentru litigii online"
-        subtitle="ec.europa.eu/consumers/odr"
-        variant={variant}
-      />
-    </div>
+      <Link href="https://anpc.ro/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+        ANPC
+      </Link>
+      <span className={`mx-1 ${sepClass}`}>·</span>
+      <Link href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+        SAL
+      </Link>
+      <span className={`mx-1 ${sepClass}`}>·</span>
+      <Link href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+        SOL UE
+      </Link>
+    </p>
   );
 }
 
-function BadgeLink({
-  href,
-  title,
-  subtitle,
-  variant,
-}: {
-  href: string;
-  title: string;
-  subtitle: string;
-  variant: Variant;
-}) {
-  const isDark = variant === 'dark';
-  return (
-    <Link
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={[
-        'inline-flex h-[50px] w-[250px] flex-col items-start justify-center rounded-md border px-3',
-        'text-left transition-colors',
-        isDark
-          ? 'border-zinc-600 bg-zinc-900 text-zinc-100 hover:border-zinc-400'
-          : 'border-zinc-300 bg-white text-zinc-800 hover:border-zinc-500',
-      ].join(' ')}
-    >
-      <span className="text-[11px] font-semibold leading-tight">{title}</span>
-      <span
-        className={[
-          'text-[10px] leading-tight',
-          isDark ? 'text-zinc-400' : 'text-zinc-500',
-        ].join(' ')}
-      >
-        {subtitle}
-      </span>
-    </Link>
-  );
-}

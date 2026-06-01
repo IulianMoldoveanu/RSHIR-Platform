@@ -22,9 +22,9 @@ Folder pentru **funcționalități temporar dezactivate** care vor fi reluate î
 
 | # | Slug | Data dezactivare | Motiv | Criteriu reactivare |
 |---|---|---|---|---|
-| 1 | `delivery-photo-proof/` | TBD | Privacy + UX complexity — proof-of-delivery photos nu sunt prioritare pentru pilot deliveryhouse.ro | După 100+ orders/zi când e nevoie de proof în dispute |
-| 2 | `fiscal-export-ui/` | TBD | Iulian: nu vrem ca utilizatorii să vadă exportul fiscal pe dashboard până când e gata flow-ul complet ANAF + SmartBill auto-sync | După setup SmartBill ISV oficial + ANAF e-Factura live per tenant |
-| 3 | `anpc-prominent-link/` | TBD | Era prea vizibil în UI. Mutăm în footer/legal page (cerință legală RO) dar nu pe homepage | După consult juridic — dacă rămâne legal vizibil în footer suficient, nu reactivăm |
+| 1 | [`delivery-photo-proof/`](./delivery-photo-proof/README.md) | 2026-05-20 | "Fotografiile cu livrările vor fi dezactivate" — Iulian. Restaurant orders only; pharma (legal) păstrate | După 100+ orders/zi când proof e necesar pentru dispute |
+| 2 | [`fiscal-export-ui/`](./fiscal-export-ui/README.md) | 2026-05-20 | "Fa sa nu fie vizibil exportul fiscal" — Iulian. Buton manual print bon-fiscal pe order detail | După SmartBill ISV + ANAF e-Factura per tenant (Q3 2026 sau 5+ tenants cer) |
+| 3 | [`anpc-prominent-link/`](./anpc-prominent-link/README.md) | 2026-05-20 | "Contactul ANPC să nu mai fie așa de vizibil" — Iulian. Badge-uri 250×50 → text mic inline. Legal min păstrat | Doar dacă jurist Iulian determină că textul mic e insuficient |
 
 ---
 
