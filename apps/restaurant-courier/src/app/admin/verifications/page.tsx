@@ -92,10 +92,13 @@ export default async function VerificationsPage() {
     new Set([...kyc.map((k) => k.fleet_id), ...kyf.map((f) => f.fleet_id)].filter(Boolean) as string[]),
   );
   const fleetsData = fleetIds.length
-    ? (await db.from('courier_fleets').select('id, name').in('id', fleetIds)).data ?? []
+    ? (await db.from('courier_fleets').select('id, name, display_prefix').in('id', fleetIds)).data ?? []
     : [];
   const fleetMap = new Map(
-    (fleetsData as Array<{ id: string; name: string }>).map((f) => [f.id, f.name]),
+    (fleetsData as Array<{ id: string; name: string; display_prefix: string | null }>).map((f) => [
+      f.id,
+      { name: f.name, prefix: f.display_prefix },
+    ]),
   );
 
   // Build courier view models with signed doc URLs.
@@ -106,13 +109,15 @@ export default async function VerificationsPage() {
         sign('courier-kyc', k.id_doc_url),
         sign('courier-kyc', k.selfie_url),
       ]);
+      const fleet = k.fleet_id ? fleetMap.get(k.fleet_id) : undefined;
       return {
         userId: k.courier_user_id,
         legalName: k.legal_name,
         fullName: p?.full_name ?? null,
         city: p?.city ?? null,
         vehicleType: p?.vehicle_type ?? null,
-        fleetName: k.fleet_id ? fleetMap.get(k.fleet_id) ?? null : null,
+        fleetName: fleet?.name ?? null,
+        fleetPrefix: fleet?.prefix ?? null,
         cnpLast4: k.cnp_last4,
         submittedAt: k.submitted_at ?? k.created_at,
         idDocUrl,
@@ -130,7 +135,7 @@ export default async function VerificationsPage() {
       ]);
       return {
         fleetId: f.fleet_id,
-        fleetName: fleetMap.get(f.fleet_id) ?? null,
+        fleetName: fleetMap.get(f.fleet_id)?.name ?? null,
         cui: f.cui,
         companyName: f.company_name,
         regCom: f.reg_com,

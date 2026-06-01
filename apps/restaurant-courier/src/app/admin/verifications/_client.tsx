@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@hir/ui';
+import { courierDisplayName } from '@/lib/courier-display';
 import { verifyCourierKyc, verifyFleetKyf, type Decision } from './actions';
 
 export type CourierVM = {
@@ -21,6 +22,7 @@ export type CourierVM = {
   city: string | null;
   vehicleType: string | null;
   fleetName: string | null;
+  fleetPrefix: string | null;
   cnpLast4: string | null;
   submittedAt: string | null;
   idDocUrl: string | null;
@@ -232,7 +234,7 @@ function CourierCard({ courier, onDone }: { courier: CourierVM; onDone: (d: Deci
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-hir-fg">
-            {courier.legalName || courier.fullName || 'Curier'}
+            {courierDisplayName(courier.fleetPrefix, courier.legalName || courier.fullName)}
           </p>
           <p className="mt-0.5 text-xs text-hir-muted-fg">
             {courier.fleetName ? `${courier.fleetName} · ` : ''}
