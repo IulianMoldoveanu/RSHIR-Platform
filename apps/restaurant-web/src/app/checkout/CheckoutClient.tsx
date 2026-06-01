@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ShoppingBag, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
+import * as Sentry from '@sentry/nextjs';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
@@ -342,6 +343,42 @@ export function CheckoutClient(props: {
     }, 0);
   }, [cart]);
 
+  // ── Sentry scope: tags + user ──────────────────────────────────────────────
+  // Tags are set once on mount; payment mode tag is refreshed when it changes.
+  // setUser scopes errors to a pseudonymous customer identity (phone-based).
+  // We do NOT set user until the phone field has a value so we don't store
+  // an empty id in Sentry.
+  useEffect(() => {
+    Sentry.setTag('tenant_slug', props.tenantSlug);
+  }, [props.tenantSlug]);
+
+  useEffect(() => {
+    Sentry.setTag('payment_mode', paymentMethod);
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    if (!cart) return;
+    const itemCount = cart.items.reduce((n, i) => n + i.quantity, 0);
+    Sentry.addBreadcrumb({
+      category: 'checkout',
+      message: 'cart loaded',
+      data: { item_count: itemCount, total: cartTotal },
+    });
+    // Scope errors to customer once phone is known (pre-fill path).
+    if (phone) {
+      Sentry.setUser({ id: btoa(phone), segment: 'customer' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart]);
+
+  // Update Sentry user whenever phone field changes to a complete number.
+  useEffect(() => {
+    if (phone.length === 9) {
+      Sentry.setUser({ id: btoa(phone), segment: 'customer' });
+    }
+  }, [phone]);
+  // ──────────────────────────────────────────────────────────────────────────
+
   // ────────────────────────────────────────────────
   // Step transitions
   // ────────────────────────────────────────────────
@@ -373,13 +410,16 @@ export function CheckoutClient(props: {
     setError(null);
     if (!line1.trim() || !city.trim()) return;
     setGeocoding(true);
+    Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode start' });
     try {
       const hit = await proxyGeocode();
       if (!hit) {
+        Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode fail', level: 'warning' });
         setError(t(locale, 'checkout.err_address_not_found'));
         setCoords(null);
         setCoordsForText('');
       } else {
+        Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode success', data: { lat: hit.lat, lng: hit.lng } });
         setCoords(hit);
         setCoordsForText(currentAddressKey);
       }
@@ -471,6 +511,7 @@ export function CheckoutClient(props: {
 
   async function handleQuote(e: React.FormEvent) {
     e.preventDefault();
+    Sentry.addBreadcrumb({ category: 'checkout', message: 'submit clicked' });
     return runQuote(appliedPromo?.code);
   }
 
@@ -495,6 +536,7 @@ export function CheckoutClient(props: {
     } else {
       let point = coords;
       if (!point) {
+        Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode start' });
         setGeocoding(true);
         try {
           point = await proxyGeocode();
@@ -502,9 +544,11 @@ export function CheckoutClient(props: {
           setGeocoding(false);
         }
         if (!point) {
+          Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode fail', level: 'warning' });
           setError(t(locale, 'checkout.err_geocode_failed'));
           return;
         }
+        Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode success', data: { lat: point.lat, lng: point.lng } });
         setCoords(point);
         setCoordsForText(currentAddressKey);
       }
@@ -529,11 +573,18 @@ export function CheckoutClient(props: {
       });
       const data = await res.json();
       if (!res.ok) {
+        Sentry.addBreadcrumb({ category: 'checkout', message: 'quote failed', level: 'warning' });
         const reason = data?.reason as QuoteFailureReason | undefined;
         setError(formatQuoteError(reason, props.tenantPhone, locale));
         setQuote(null);
       } else {
-        setQuote(data.quote as Quote);
+        const q = data.quote as Quote;
+        Sentry.addBreadcrumb({
+          category: 'checkout',
+          message: 'quote received',
+          data: { delivery_fee: q.deliveryFeeRon, total: q.totalRon },
+        });
+        setQuote(q);
         setStep('review');
       }
     } catch (err) {
@@ -547,6 +598,11 @@ export function CheckoutClient(props: {
     if (!cart) return;
     setError(null);
     setWorking(true);
+    Sentry.addBreadcrumb({
+      category: 'payment',
+      message: 'intent created',
+      data: { provider: 'unknown', mode: paymentMethod },
+    });
     try {
       const intentBody: Record<string, unknown> = {
         items: cart.items.map((i) => ({
@@ -575,6 +631,7 @@ export function CheckoutClient(props: {
         // surface an inline error and bail rather than blow up.
         let point = coords;
         if (!point) {
+          Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode start' });
           setGeocoding(true);
           try {
             point = await proxyGeocode();
@@ -582,10 +639,12 @@ export function CheckoutClient(props: {
             setGeocoding(false);
           }
           if (!point) {
+            Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode fail', level: 'warning' });
             setError(t(locale, 'checkout.err_geocode_failed'));
             setStep('form');
             return;
           }
+          Sentry.addBreadcrumb({ category: 'checkout', message: 'geocode success', data: { lat: point.lat, lng: point.lng } });
           setCoords(point);
           setCoordsForText(currentAddressKey);
         }
@@ -605,6 +664,7 @@ export function CheckoutClient(props: {
       });
       const data = await res.json();
       if (!res.ok) {
+        Sentry.addBreadcrumb({ category: 'payment', message: 'intent failed', level: 'error' });
         const reason = data?.reason as QuoteFailureReason | undefined;
         if (data?.error === 'below_min_order' && typeof data?.min_order_ron === 'number') {
           setError(
@@ -697,6 +757,11 @@ export function CheckoutClient(props: {
         setError(t(locale, 'checkout.err_create_order'));
         return;
       }
+      Sentry.addBreadcrumb({
+        category: 'payment',
+        message: 'redirect to PSP',
+        data: { provider: response.provider ?? 'unknown' },
+      });
       window.location.href = response.url;
     } catch (err) {
       setError((err as Error).message);
