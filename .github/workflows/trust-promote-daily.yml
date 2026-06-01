@@ -1,18 +1,42 @@
-# HIR F6 — Trust auto-promotion daily cron
+# HIR F6 — Trust auto-promotion daily cron — DISABLED 2026-06-01
 #
-# Calls the trust-promote-daily Edge Function every day at 04:00 UTC
-# (06:00 Bucuresti winter / 07:00 vara). Runs before growth-agent-daily
-# (06:00 UTC) so the OWNER's morning Telegram digest can reference a
-# fresh trust state.
+# STATUS: cron schedule commented out per Iulian directive ("focus pe
+# infrastructura de livrare, NU F6 self-improving loop").
 #
-# Token lives in repo secret TRUST_PROMOTE_CRON_TOKEN; matches the
-# Supabase secret of the same name. Rotate together.
+# History of breakage (resolved up to feature-bug level):
+#   1. PR #472 (2026-05-16) added this cron BUT never seeded
+#      TRUST_PROMOTE_CRON_TOKEN on either GitHub or Supabase → 16 days of
+#      401 failures (resolved 2026-06-01: token minted + dual-set).
+#   2. Edge Function had verify_jwt=true regressing the cron auth
+#      pattern → 401 with "Missing authorization header" (resolved
+#      2026-06-01: redeployed with verify_jwt=false via
+#      `node scripts/deploy-fn-with-shared.mjs trust-promote-daily
+#       --verify-jwt=false`).
+#   3. Feature-level bug REMAINS: migration
+#      `supabase/migrations/20260514_001_trust_auto_promotion.sql` view
+#      definition references `copilot_agent_runs.agent_name` but prod
+#      schema only has `agent_id` (uuid). Migration cannot be applied
+#      as-is. Verified via Management API SQL:
+#        SELECT column_name FROM information_schema.columns
+#         WHERE table_name='copilot_agent_runs' AND column_name='agent_name';
+#        → 0 rows.
+#      Fix requires either (a) adding `agent_name` join to agents table,
+#      or (b) rewriting v_agent_clean_runs_30d to use agent_id + join.
+#
+# Re-enable plan (when F6 trust auto-promotion becomes a priority):
+#   1. Fix migration view JOIN — see git blame for original author intent.
+#   2. Apply migration to prod (idempotent, safe).
+#   3. Test EF manually: gh workflow run trust-promote-daily.yml -R IulianMoldoveanu/RSHIR-Platform
+#   4. Uncomment the `schedule:` block below.
+#
+# Secrets ARE seeded (2026-06-01) — token rotation runbook in
+# docs/ops/CRONS-RUNBOOK.md still applies when re-enabled.
 
 name: trust-promote-daily
 
 on:
-  schedule:
-    - cron: '0 4 * * *'
+  # schedule:
+  #   - cron: '0 4 * * *'
   workflow_dispatch: {}
 
 concurrency:
