@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { Receipt } from 'lucide-react';
-import { EmptyState, statusPillClasses } from '@hir/ui';
+import { EmptyState, statusPillClasses, formatRon } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant } from '@/lib/tenant';
 import { friendlyDbError } from '@/lib/db-error';
+import { tAdmin } from '@/lib/i18n/dictionaries';
 import { ticketAgingClass } from '@/lib/uiux-quickwins';
 import { OrdersRealtime } from './orders-realtime';
 import type { OrderStatus } from './status-machine';
@@ -153,10 +154,6 @@ function parseFilter(value: string | string[] | undefined): Filter {
   const v = Array.isArray(value) ? value[0] : value;
   if (v === 'today' || v === 'all' || v === 'cash') return v;
   return 'active';
-}
-
-function formatRon(n: number): string {
-  return `${Number(n).toFixed(2)} RON`;
 }
 
 function shortId(id: string): string {
@@ -394,10 +391,10 @@ export default async function OrdersPage({
 
 function FilterPills({ active }: { active: Filter }) {
   const pills: Array<{ value: Filter; label: string }> = [
-    { value: 'active', label: 'Active' },
-    { value: 'today', label: 'Azi' },
-    { value: 'cash', label: 'Cash neîncasat' },
-    { value: 'all', label: 'Toate' },
+    { value: 'active', label: tAdmin('orders.filter_active') },
+    { value: 'today', label: tAdmin('orders.filter_today') },
+    { value: 'cash', label: tAdmin('orders.filter_cash') },
+    { value: 'all', label: tAdmin('orders.filter_all') },
   ];
   return (
     <nav className="flex items-center gap-1 rounded-md bg-zinc-100 p-1 text-xs">

@@ -4,6 +4,7 @@
 
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
+import { formatRon } from '@hir/ui';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
 import { WAVE_BONUSES, LADDER_TIERS, type WaveLabel, type LadderTier } from '@/lib/partner-v3-constants';
@@ -191,11 +192,11 @@ export default async function PartnerV3Page({ params }: Props) {
           { label: 'Restaurante active', value: stats.total_restaurants },
           {
             label: 'Comisioane platite',
-            value: (stats.total_commission_paid_cents / 100).toFixed(0) + ' RON',
+            value: formatRon(stats.total_commission_paid_cents / 100),
           },
           {
             label: 'Bonusuri Ladder',
-            value: (stats.total_ladder_bonus_cents / 100).toFixed(0) + ' RON',
+            value: formatRon(stats.total_ladder_bonus_cents / 100),
           },
           { label: 'Sub-reselleri', value: stats.sub_reseller_count },
         ].map((s) => (

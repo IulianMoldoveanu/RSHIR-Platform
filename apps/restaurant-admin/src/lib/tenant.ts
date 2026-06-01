@@ -10,6 +10,8 @@ export type TenantSummary = {
   id: string;
   name: string;
   slug: string;
+  /** ISO 4217 currency code for the tenant's country. Defaults to 'RON'. */
+  currency_code?: string;
 };
 
 /**
@@ -111,7 +113,7 @@ export async function listMemberTenants(userId: string): Promise<TenantSummary[]
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('tenant_members')
-    .select('tenant_id, tenants:tenants(id, name, slug)')
+    .select('tenant_id, tenants:tenants(id, name, slug, currency_code)')
     .eq('user_id', userId);
   if (error) throw new Error(`Failed to load tenants: ${error.message}`);
   return (data ?? [])
@@ -127,7 +129,7 @@ async function listAllActiveTenants(): Promise<TenantSummary[]> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('tenants')
-    .select('id, name, slug')
+    .select('id, name, slug, currency_code')
     .eq('status', 'ACTIVE')
     .order('created_at', { ascending: false });
   if (error) throw new Error(`Failed to load tenants: ${error.message}`);

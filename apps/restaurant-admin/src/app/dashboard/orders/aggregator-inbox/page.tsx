@@ -3,6 +3,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import { formatRon } from '@hir/ui';
 import { InboxClient } from './inbox-client';
 
 export const dynamic = 'force-dynamic';
@@ -135,7 +136,7 @@ export default async function AggregatorInboxPage() {
         <Stat label="Eșuate (24h)" value={failed24h} tone="warn" />
         <Stat
           label="Economie AI (luna aceasta)"
-          value={savingsMonthRon.toFixed(2).replace('.', ',') + ' RON'}
+          value={formatRon(savingsMonthRon)}
           tone="ok"
           hint="Cât ați economisit folosind extracția automată cu regex în locul AI complet."
         />

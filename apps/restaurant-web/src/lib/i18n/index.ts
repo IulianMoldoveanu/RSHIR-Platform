@@ -77,13 +77,35 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
   );
 }
 
+/**
+ * Translate `key` for `locale`.
+ *
+ * Resolution order:
+ *   1. `dictionaries[locale][key]`
+ *   2. `dictionaries[DEFAULT_LOCALE][key]`
+ *   3. `defaultValue` (when provided by the caller)
+ *   4. Human-friendly label derived from the last key segment
+ *      (e.g. `orders.filter_active` → `Filter Active`)
+ *
+ * The last-resort derivation means the UI never shows a raw dot-path string
+ * to the user even when a dictionary key is accidentally missing.
+ */
 export function t(
   locale: Locale,
   key: TKey,
   vars?: Record<string, string | number>,
+  defaultValue?: string,
 ): string {
   const found =
     lookup(dictionaries[locale], key) ?? lookup(dictionaries[DEFAULT_LOCALE], key);
-  return interpolate(found ?? key, vars);
+  if (found !== undefined) return interpolate(found, vars);
+  if (defaultValue !== undefined) return interpolate(defaultValue, vars);
+  // Derive a readable label from the final path segment as a last resort.
+  const lastSegment = key.split('.').pop() ?? key;
+  const humanFallback = lastSegment
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return interpolate(humanFallback, vars);
 }
 

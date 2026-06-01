@@ -35,7 +35,7 @@ interface DraftsClientProps {
 
 const FILTER_TABS: { key: 'all' | DraftStatus; label: string }[] = [
   { key: 'all', label: 'Toate' },
-  { key: 'pending', label: 'Pending' },
+  { key: 'pending', label: 'În așteptare' },
   { key: 'approved', label: 'Aprobate' },
   { key: 'rejected', label: 'Respinse' },
 ];
@@ -47,7 +47,7 @@ const STATUS_PILL: Record<DraftStatus, string> = {
 };
 
 const STATUS_LABEL: Record<DraftStatus, string> = {
-  pending: 'Pending',
+  pending: 'În așteptare',
   approved: 'Aprobat',
   rejected: 'Respins',
 };

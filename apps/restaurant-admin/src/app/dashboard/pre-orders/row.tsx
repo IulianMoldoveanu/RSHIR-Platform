@@ -4,6 +4,7 @@
 
 import Link from 'next/link';
 import { ChevronRight, Phone } from 'lucide-react';
+import { formatRon } from '@hir/ui';
 import type { OrderStatus } from '../orders/status-machine';
 
 type Row = {
@@ -59,13 +60,6 @@ function formatScheduled(iso: string | null): string {
   });
 }
 
-function formatRon(v: number | string): string {
-  return new Intl.NumberFormat('ro-RO', {
-    style: 'currency',
-    currency: 'RON',
-    maximumFractionDigits: 2,
-  }).format(Number(v));
-}
 
 export function PreOrderRow({ row, tenantId: _tenantId }: { row: Row; tenantId: string }) {
   const status = row.status as OrderStatus;
