@@ -36,7 +36,9 @@ on:
 
 env:
   NODE_VERSION: '22'
-  JAVA_VERSION: '17'
+  # Capacitor 7.x Android libraries compile with `--release 21`, so the JDK
+  # must be 21 (JDK 17 fails with "invalid source release: 21").
+  JAVA_VERSION: '21'
   APP_ID: ro.hirforyou.curier
 
 jobs:
