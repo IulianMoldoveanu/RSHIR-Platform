@@ -59,7 +59,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   // if the column hasn't shipped yet, fall back to the legacy set and the
   // 'Cash' chip + 'Mark paid' button just don't render.
   const COLS_FULL = `
-    id, tenant_id, status, payment_status, payment_method, items,
+    id, tenant_id, status, payment_status, payment_method, cod_status, items,
     subtotal_ron, delivery_fee_ron, total_ron, notes,
     public_track_token, created_at, updated_at,
     delivery_address_id,
@@ -95,6 +95,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     status: OrderStatus;
     payment_status: string;
     payment_method: 'CARD' | 'COD' | null;
+    cod_status: 'CONFIRMED_BY_COURIER' | 'PENDING_ADMIN_REVIEW' | null;
     items: OrderItemSnapshot[] | unknown;
     subtotal_ron: number;
     delivery_fee_ron: number;
@@ -290,6 +291,16 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
                 </span>
               )}
             </div>
+            {order.cod_status === 'CONFIRMED_BY_COURIER' && (
+              <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-300">
+                ✓ Cash confirmat de curier
+              </span>
+            )}
+            {order.cod_status === 'PENDING_ADMIN_REVIEW' && (
+              <span className="mt-1 inline-flex items-center rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                ! Cash neîncasat — necesită revizuire
+              </span>
+            )}
             {order.payment_method === 'COD' && order.payment_status === 'UNPAID' && (
               <form action={markCodOrderPaid.bind(null, order.id, tenant.id)} className="mt-3">
                 <button
@@ -299,7 +310,9 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
                   Marchează plata cash primită
                 </button>
                 <p className="mt-1 text-[11px] text-zinc-500">
-                  Apasă după ce curierul a încasat numerarul.
+                  {order.cod_status === 'PENDING_ADMIN_REVIEW'
+                    ? 'Curierul a raportat că nu a încasat cash. Verifică înainte de marcare.'
+                    : 'Apasă după ce curierul a încasat numerarul.'}
                 </p>
               </form>
             )}

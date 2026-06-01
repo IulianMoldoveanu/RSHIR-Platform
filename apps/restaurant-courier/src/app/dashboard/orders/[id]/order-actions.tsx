@@ -66,7 +66,11 @@ export function OrderActions({
   const [pharmaIdUrl, setPharmaIdUrl] = useState<string | undefined>(undefined);
   const [pharmaRxUrl, setPharmaRxUrl] = useState<string | undefined>(undefined);
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
-  const [cashConfirmed, setCashConfirmed] = useState(false);
+  // Three-state cash gate:
+  //   null  = not yet interacted (gate shown, swipe hidden)
+  //   true  = courier confirmed cash collected → cashCollected=true to server
+  //   false = courier explicitly declined → cashCollected=false to server (admin review)
+  const [cashDecision, setCashDecision] = useState<boolean | null>(null);
   const [milestoneCount, setMilestoneCount] = useState<number | null>(null);
 
   const { mode, fleetName } = useRiderMode();
@@ -162,7 +166,8 @@ export function OrderActions({
       vertical === 'pharma' && (pharmaIdUrl || pharmaRxUrl)
         ? { idUrl: pharmaIdUrl, prescriptionUrl: pharmaRxUrl }
         : undefined;
-    const cashCollected = isCashOnDelivery ? cashConfirmed : undefined;
+    // Pass the explicit cash decision. undefined for non-COD orders.
+    const cashCollected = isCashOnDelivery ? (cashDecision ?? false) : undefined;
     await runTransitionOrQueue(
       'deliver',
       orderId,
@@ -240,16 +245,18 @@ export function OrderActions({
           {isCashOnDelivery && (vertical === 'restaurant' || pharmaOk) ? (
             <CashCollectedGate
               amountLabel={cashAmountLabel}
-              confirmed={cashConfirmed}
-              onConfirm={() => setCashConfirmed(true)}
-              onReset={() => setCashConfirmed(false)}
+              decision={cashDecision}
+              onConfirm={() => setCashDecision(true)}
+              onDecline={() => setCashDecision(false)}
+              onReset={() => setCashDecision(null)}
             />
           ) : null}
 
           {/* Delivery swipe: for pharma, only shown after pharma checks pass.
-              For COD orders, only after the cash gate is confirmed. */}
+              For COD orders, only after the courier has made an explicit cash
+              decision (confirmed OR declined). */}
           {(vertical === 'restaurant' || pharmaOk) &&
-          (!isCashOnDelivery || cashConfirmed) ? (
+          (!isCashOnDelivery || cashDecision !== null) ? (
             <div className={geofenceState === 'NEAR_DROPOFF' ? 'space-y-2' : ''}>
               {geofenceState === 'NEAR_DROPOFF' && (
                 <ArrivalHint label="Ești la adresa de livrare — glisează pentru a confirma ↓" />
@@ -295,25 +302,31 @@ function ArrivalHint({ label }: { label: string }) {
 }
 
 /**
- * Compact cash-collected gate. Two states:
- *   - unconfirmed → big "Da, am încasat {amount}" button + small "Nu" link.
- *   - confirmed → green check row "Cash încasat: {amount}" with a "Modifică" link.
+ * Compact cash-collected gate. Three states:
+ *   - decision=null   → prompt with [DA] + [NU] buttons; swipe is gated.
+ *   - decision=true   → green "Cash încasat: {amount}" row + "Modifică" link.
+ *   - decision=false  → amber warning "Cash neîncasat" row + "Modifică" link.
+ *                       Swipe unlocks so delivery can still be marked complete,
+ *                       but the server flags the restaurant_orders row for admin
+ *                       review (cod_status = PENDING_ADMIN_REVIEW).
  *
  * Pure UI gate: no server call here. The flag is passed at delivered-action
- * time and the server logs an audit row when COD + cashCollected=true.
+ * time and the server writes cod_status + flips payment_status when collected.
  */
 function CashCollectedGate({
   amountLabel,
-  confirmed,
+  decision,
   onConfirm,
+  onDecline,
   onReset,
 }: {
   amountLabel: string;
-  confirmed: boolean;
+  decision: boolean | null;
   onConfirm: () => void;
+  onDecline: () => void;
   onReset: () => void;
 }) {
-  if (confirmed) {
+  if (decision === true) {
     return (
       <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm ring-1 ring-inset ring-emerald-500/20 shadow-sm shadow-emerald-500/10">
         <span className="flex items-center gap-2 text-emerald-200">
@@ -332,6 +345,26 @@ function CashCollectedGate({
     );
   }
 
+  if (decision === false) {
+    return (
+      <div className="flex items-center justify-between rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm ring-1 ring-inset ring-rose-500/20 shadow-sm shadow-rose-500/10">
+        <span className="flex items-center gap-2 text-rose-200">
+          <Banknote className="h-4 w-4" aria-hidden strokeWidth={2.25} />
+          Cash neîncasat — admin va fi notificat
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onReset}
+          className="h-auto p-0 text-xs text-hir-muted-fg transition-colors hover:bg-transparent hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 rounded"
+        >
+          Modifică
+        </Button>
+      </div>
+    );
+  }
+
+  // decision=null: show the prompt
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 ring-1 ring-inset ring-amber-500/20 shadow-sm shadow-amber-500/10">
       <div className="flex items-start gap-2.5">
@@ -343,22 +376,29 @@ function CashCollectedGate({
         </span>
         <div className="flex-1">
           <p className="text-sm font-semibold text-amber-100">
-            Plată cash la livrare
+            Confirmă încasare numerar — {amountLabel}
           </p>
           <p className="mt-0.5 text-xs leading-relaxed text-amber-200/90">
-            Confirmă că ai încasat{' '}
-            <span className="font-semibold tabular-nums">{amountLabel}</span> de la client
-            înainte de a marca livrarea.
+            Ai primit banii de la client?
           </p>
         </div>
       </div>
-      <Button
-        type="button"
-        onClick={onConfirm}
-        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-md shadow-amber-500/30 transition-all hover:-translate-y-px hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-2"
-      >
-        Da, am încasat {amountLabel}
-      </Button>
+      <div className="mt-3 flex gap-2">
+        <Button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-md shadow-amber-500/30 transition-all hover:-translate-y-px hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-2"
+        >
+          DA
+        </Button>
+        <Button
+          type="button"
+          onClick={onDecline}
+          className="rounded-xl border border-hir-border bg-hir-surface px-4 py-2.5 text-sm font-semibold text-hir-fg shadow-sm transition-all hover:bg-hir-border/30 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        >
+          NU
+        </Button>
+      </div>
     </div>
   );
 }

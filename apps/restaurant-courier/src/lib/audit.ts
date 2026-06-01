@@ -52,6 +52,8 @@ export type CourierAuditAction =
   | 'fleet.courier_note_updated'
   | 'fleet.bulk_auto_assigned'
   | 'order.cash_collected'
+  | 'cod.confirmed_by_courier'
+  | 'cod.unconfirmed'
   | 'order.force_cancelled_by_courier'
   | 'order.cancelled_by_courier'
   | 'delivery.geofence_warning'

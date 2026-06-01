@@ -29,6 +29,8 @@ export const COURIER_AUDIT_LABELS_RO: Record<string, string> = {
 
   // Order lifecycle
   'order.cash_collected': 'Ai marcat plata cash',
+  'cod.confirmed_by_courier': 'Cash confirmat la livrare',
+  'cod.unconfirmed': 'Cash neîncasat la livrare',
   'order.cancelled_by_courier': 'Ai anulat o comandă',
   'order.force_cancelled_by_courier': 'Ai anulat o comandă la final de tură',
 

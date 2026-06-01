@@ -75,11 +75,14 @@ function isLegacyAggregator(s: string): s is LegacyAggregatorSource {
   return (LEGACY_AGGREGATOR_SOURCES as readonly string[]).includes(s);
 }
 
+type CodStatus = 'CONFIRMED_BY_COURIER' | 'PENDING_ADMIN_REVIEW' | null;
+
 type OrderRow = {
   id: string;
   status: OrderStatus;
   source: OrderSource | null;
   payment_method: 'CARD' | 'COD' | null;
+  cod_status: CodStatus;
   total_ron: number;
   created_at: string;
   delivery_address_id: string | null;
@@ -201,7 +204,7 @@ export default async function OrdersPage({
   // admin queue keeps working — payment_method is undefined and the Cash
   // chip just doesn't render until the column exists.
   const COLS_FULL =
-    'id, status, source, payment_method, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
+    'id, status, source, payment_method, cod_status, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
   const COLS_LEGACY =
     'id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
 
@@ -358,6 +361,16 @@ export default async function OrdersPage({
                             {o.payment_method === 'COD' && (
                               <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
                                 Cash
+                              </span>
+                            )}
+                            {o.cod_status === 'CONFIRMED_BY_COURIER' && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-300">
+                                ✓ Cash confirmat
+                              </span>
+                            )}
+                            {o.cod_status === 'PENDING_ADMIN_REVIEW' && (
+                              <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                                ! Cash neîncasat
                               </span>
                             )}
                           </div>

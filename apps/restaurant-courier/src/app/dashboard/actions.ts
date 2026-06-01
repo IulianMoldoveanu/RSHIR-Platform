@@ -363,6 +363,116 @@ export async function markPickedUpAction(orderId: string) {
   );
 }
 
+/**
+ * Reconciles the cash-on-delivery outcome against restaurant_orders.
+ *
+ * Called only when `courier_orders.payment_method = 'COD'`. Two paths:
+ *
+ * cashCollected = true  →  set payment_status = PAID + cod_status = CONFIRMED_BY_COURIER
+ *                          on the linked restaurant_orders row, then audit `cod.confirmed_by_courier`.
+ *                          Idempotent: the UPDATE filters on payment_status = 'UNPAID' so a
+ *                          double-call after PAID is a no-op.
+ *
+ * cashCollected = false →  set cod_status = PENDING_ADMIN_REVIEW only (payment_status stays UNPAID)
+ *                          then audit `cod.unconfirmed` so the admin dashboard surfaces the order.
+ *                          Also idempotent: filtered on cod_status IS NULL to avoid overwriting a
+ *                          prior CONFIRMED_BY_COURIER value.
+ *
+ * sourceOrderId is the FK from courier_orders.source_order_id → restaurant_orders.id. When null
+ * (e.g. pharma or external-fleet orders without a linked restaurant_orders row) the function
+ * falls back to the legacy `order.cash_collected` audit event only.
+ */
+async function handleCodDelivery(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  courierOrderId: string,
+  sourceOrderId: string | null,
+  totalRon: number | null,
+  cashCollected: boolean,
+): Promise<void> {
+  if (cashCollected) {
+    // Legacy audit for settlement reconciliation (kept for compatibility).
+    await logAudit({
+      actorUserId: userId,
+      action: 'order.cash_collected',
+      entityType: 'courier_order',
+      entityId: courierOrderId,
+      metadata: {
+        total_ron: totalRon,
+        confirmed_at: new Date().toISOString(),
+      },
+    });
+
+    if (sourceOrderId) {
+      // Two idempotent writes:
+      //   1. Flip payment_status UNPAID → PAID (no-op if the DB trigger
+      //      sync_courier_to_restaurant_status already ran first).
+      //   2. Set cod_status = CONFIRMED_BY_COURIER (no-op if already set).
+      // Kept separate so the cod_status audit signal lands even when the
+      // trigger ran first and the payment_status filter finds nothing to flip.
+      // Cast through unknown — cod_status is added by migration 20260701_001
+      // which may not yet be in generated types.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = admin as any;
+
+      await sb
+        .from('restaurant_orders')
+        .update({ payment_status: 'PAID' })
+        .eq('id', sourceOrderId)
+        .eq('payment_status', 'UNPAID');
+
+      const { data: flagged } = await sb
+        .from('restaurant_orders')
+        .update({ cod_status: 'CONFIRMED_BY_COURIER' })
+        .eq('id', sourceOrderId)
+        .is('cod_status', null)
+        .select('id')
+        .maybeSingle();
+
+      if (flagged) {
+        await logAudit({
+          actorUserId: userId,
+          action: 'cod.confirmed_by_courier',
+          entityType: 'courier_order',
+          entityId: courierOrderId,
+          metadata: {
+            source_order_id: sourceOrderId,
+            total_ron: totalRon,
+            confirmed_at: new Date().toISOString(),
+          },
+        });
+      }
+    }
+  } else {
+    // Courier explicitly declined cash — flag for admin review.
+    if (sourceOrderId) {
+      // Only write when cod_status is not yet set to avoid overwriting a
+      // prior CONFIRMED_BY_COURIER value from a concurrent call.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: flagged } = await (admin as any)
+        .from('restaurant_orders')
+        .update({ cod_status: 'PENDING_ADMIN_REVIEW' })
+        .eq('id', sourceOrderId)
+        .is('cod_status', null)
+        .select('id')
+        .maybeSingle();
+
+      if (flagged) {
+        await logAudit({
+          actorUserId: userId,
+          action: 'cod.unconfirmed',
+          entityType: 'courier_order',
+          entityId: courierOrderId,
+          metadata: {
+            source_order_id: sourceOrderId,
+            total_ron: totalRon,
+          },
+        });
+      }
+    }
+  }
+}
+
 // Validates the proof URL points at our own courier-proofs storage bucket.
 // Without this, a malicious client could pass any URL into delivered_proof_url
 // — that string is later rendered in admin / customer-tracking UIs and
@@ -458,24 +568,20 @@ export async function markDeliveredAction(
         .eq('id', orderId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['PICKED_UP', 'IN_TRANSIT'])
-        .select('id, payment_method, total_ron')
+        .select('id, payment_method, total_ron, source_order_id')
         .maybeSingle();
       if (data) {
         // For cash-on-delivery orders, log the courier-confirmed cash
         // collection as an audit event. Settlement reconciliation reads this
         // trail to verify expected cash deposits per courier per shift.
-        const row = data as { id: string; payment_method: 'CARD' | 'COD' | null; total_ron: number | null };
-        if (row.payment_method === 'COD' && cashCollected) {
-          await logAudit({
-            actorUserId: userId,
-            action: 'order.cash_collected',
-            entityType: 'courier_order',
-            entityId: row.id,
-            metadata: {
-              total_ron: row.total_ron,
-              confirmed_at: new Date().toISOString(),
-            },
-          });
+        const row = data as {
+          id: string;
+          payment_method: 'CARD' | 'COD' | null;
+          total_ron: number | null;
+          source_order_id: string | null;
+        };
+        if (row.payment_method === 'COD') {
+          await handleCodDelivery(admin, userId, orderId, row.source_order_id, row.total_ron, cashCollected ?? false);
         }
         await assertDeliveryGeofence(admin, userId, orderId);
         await notifySubscriber(orderId, 'DELIVERED', userId);
