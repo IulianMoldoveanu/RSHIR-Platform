@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronLeft, Eraser, ExternalLink, Heart, Info, Package } from 'lucide-react';
+import { ChevronLeft, Eraser, ExternalLink, FileText, Heart, Info, Package, Shield } from 'lucide-react';
 import { CURRENT_RELEASE } from '@/lib/whats-new';
 import { ClearLocalDataButton } from '@/components/clear-local-data-button';
 import { cardClasses } from '@/components/card';
@@ -101,6 +101,24 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* Legal & confidențialitate — moved here from the Settings list to keep
+          Settings calm; this is the canonical home for the legal links. */}
+      <section className={cardClasses({ padding: 'lg', className: 'ring-1 ring-inset ring-hir-border/40' })}>
+        <h2 className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+          <Shield className="h-3.5 w-3.5 text-violet-300" aria-hidden strokeWidth={2.25} />
+          Legal &amp; confidențialitate
+        </h2>
+        <ul className="divide-y divide-hir-border/60">
+          <LegalLink icon={<FileText className="h-4 w-4 text-hir-muted-fg" aria-hidden />} label="Termeni și condiții" href="/terms" />
+          <LegalLink icon={<Shield className="h-4 w-4 text-hir-muted-fg" aria-hidden />} label="Politica de confidențialitate" href="/privacy" />
+          <LegalLink icon={<ExternalLink className="h-4 w-4 text-hir-muted-fg" aria-hidden />} label="Contact ANPC (SAL)" href="https://anpc.ro/sal/" />
+          <LegalLink icon={<Shield className="h-4 w-4 text-hir-muted-fg" aria-hidden />} label="Drepturi GDPR" href="https://hirforyou.ro/gdpr" />
+        </ul>
+        <p className="mt-3 text-[11px] leading-relaxed text-hir-muted-fg">
+          Procesare date conform Regulamentului UE 2016/679 (GDPR).
+        </p>
+      </section>
+
       {/* PFA registration steps — linked from the Earnings page PfaInfoCard.
           Must have id="pfa" so /dashboard/about#pfa scrolls here. */}
       <section
@@ -200,5 +218,32 @@ export default function AboutPage() {
         <ClearLocalDataButton />
       </section>
     </div>
+  );
+}
+
+function LegalLink({
+  icon,
+  label,
+  href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+}) {
+  return (
+    <li className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+      <span aria-hidden className="shrink-0">
+        {icon}
+      </span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="min-w-0 flex-1 text-sm text-hir-fg transition-colors hover:text-violet-300 hover:underline"
+      >
+        {label}
+      </a>
+      <ExternalLink className="h-3 w-3 shrink-0 text-hir-muted-fg" aria-hidden />
+    </li>
   );
 }
