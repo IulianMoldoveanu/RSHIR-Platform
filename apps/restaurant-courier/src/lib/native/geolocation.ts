@@ -25,6 +25,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 
 export type GeoPosition = {
   lat: number;
@@ -55,37 +56,57 @@ export function watchPosition(
   onPosition: WatchCallback,
   onError: ErrorCallback,
 ): () => void {
-  // ── Native path (Capacitor Geolocation) ──────────────────────────────────
+  // ── Native path (background-geolocation foreground service) ───────────────
+  // @capacitor-community/background-geolocation runs an Android foreground
+  // service, so fixes keep arriving when the screen is locked or the app is
+  // backgrounded — required for a courier who is online but not looking at the
+  // app. addWatcher drives the Android 10+ two-step permission request
+  // (foreground, then "Allow all the time") and shows the persistent
+  // notification itself; its manifest fragment is merged by Gradle on
+  // `cap sync`, so the throwaway android/ dir never needs hand-editing.
   if (Capacitor.isNativePlatform()) {
     let cancelled = false;
-    let nativeWatchId: string | null = null;
+    let watcherId: string | null = null;
 
     void (async () => {
       try {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const perm = await Geolocation.requestPermissions({ permissions: ['location'] });
-        if (perm.location !== 'granted') {
-          onError('denied', 'Permisiunea pentru locație a fost refuzată. Activați locația din setările telefonului.');
-          return;
-        }
-        if (cancelled) return;
-        nativeWatchId = await Geolocation.watchPosition(
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
-          (pos, err) => {
-            if (err) {
-              onError('granted', err.message);
+        const { registerPlugin } = await import('@capacitor/core');
+        const Bg = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+        const id = await Bg.addWatcher(
+          {
+            backgroundTitle: 'HIR Curier — ești online',
+            backgroundMessage: 'Urmărim poziția ca să-ți trimitem comenzi din zonă.',
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: 25,
+          },
+          (location, error) => {
+            if (error) {
+              if (error.code === 'NOT_AUTHORIZED') {
+                onError(
+                  'denied',
+                  'Pentru a rămâne online cu ecranul stins, activează „Permite tot timpul" din Setări.',
+                );
+              } else {
+                onError('granted', error.message ?? 'Eroare GPS');
+              }
               return;
             }
-            if (!pos) return;
+            if (!location || cancelled) return;
             onPosition({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              accuracy: pos.coords.accuracy,
-              heading: pos.coords.heading,
-              speed: pos.coords.speed,
+              lat: location.latitude,
+              lng: location.longitude,
+              accuracy: location.accuracy,
+              heading: location.bearing ?? null,
+              speed: location.speed ?? null,
             });
           },
         );
+        if (cancelled) {
+          void Bg.removeWatcher({ id });
+          return;
+        }
+        watcherId = id;
       } catch (e) {
         onError('unavailable', e instanceof Error ? e.message : 'Geolocation error');
       }
@@ -93,10 +114,11 @@ export function watchPosition(
 
     return () => {
       cancelled = true;
-      if (nativeWatchId !== null) {
-        void import('@capacitor/geolocation').then(({ Geolocation }) =>
-          Geolocation.clearWatch({ id: nativeWatchId as string }),
-        );
+      if (watcherId !== null) {
+        void import('@capacitor/core').then(({ registerPlugin }) => {
+          const Bg = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+          void Bg.removeWatcher({ id: watcherId as string });
+        });
       }
     };
   }
