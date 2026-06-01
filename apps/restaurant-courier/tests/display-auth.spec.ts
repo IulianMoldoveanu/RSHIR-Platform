@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hashPin, verifyPin } from '../src/app/api/display/auth/route';
+import { hashPin, verifyPin } from '../src/lib/display-pin';
 
 describe('display auth PIN hashing', () => {
   it('verifyPin returns true for the correct PIN', async () => {
