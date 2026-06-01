@@ -243,80 +243,54 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
   ];
 
+  // HIR Command Center — the single platform control modality. One grouped nav
+  // so every operation (orders, verifications, fleets, vendors, cities) is one
+  // click away, across all verticals.
   const adminNavEntries: SidebarEntry[] = isPlatformAdmin
     ? [
-        ...(isPlatformAdminMode
-          ? [{ href: '/dashboard/admin/tenants', label: 'Acasă (platformă)', icon: 'layoutDashboard' as const }]
-          : []),
+        { href: '/dashboard/admin/hub', label: 'Command Center', icon: 'layoutDashboard' as const },
         {
-          href: '/dashboard/admin/tenants',
-          label: 'Toate restaurantele',
+          label: 'Operare',
+          icon: 'receipt' as const,
+          items: [
+            { href: '/dashboard/admin/orders', label: 'Comenzi (toate verticalele)' },
+            { href: '/dashboard/admin/control-room', label: 'Control Room (live)' },
+            { href: '/dashboard/admin/verifications', label: 'Verificări (KYC/KYF)' },
+            { href: '/dashboard/admin/fleets', label: 'Flote — control' },
+            { href: '/dashboard/admin/fleet-allocation', label: 'Alocare flote' },
+            { href: '/dashboard/admin/fleet-managers', label: 'Fleet managers' },
+          ],
+        },
+        {
+          label: 'Vendori & orașe',
           icon: 'users' as const,
+          items: [
+            { href: '/dashboard/admin/tenants', label: 'Toți vendorii' },
+            { href: '/dashboard/admin/cities/events', label: 'Orașe' },
+            { href: '/dashboard/admin/onboard', label: '+ Tenant nou' },
+            { href: '/dashboard/admin/onboard/connect', label: '+ HIR Connect' },
+            { href: '/dashboard/admin/onboard/sibling', label: '+ Locație (brand existent)' },
+          ],
         },
         {
-          href: '/dashboard/admin/onboard',
-          label: '+ Tenant nou',
-          icon: 'rocket' as const,
-        },
-        {
-          href: '/dashboard/admin/onboard/connect',
-          label: '+ HIR Connect',
-          icon: 'sparkles' as const,
-        },
-        {
-          href: '/dashboard/admin/onboard/sibling',
-          label: '+ Locație (brand existent)',
-          icon: 'layoutDashboard' as const,
-        },
-        {
-          href: '/dashboard/admin/partners',
-          label: 'Parteneri',
-          icon: 'users' as const,
-        },
-        {
-          href: '/dashboard/admin/affiliates',
-          label: 'Aplicații reseller',
-          icon: 'users' as const,
-        },
-        {
-          href: '/dashboard/admin/fleet-managers',
-          label: 'Fleet managers',
-          icon: 'users' as const,
-        },
-        {
-          href: '/dashboard/admin/fleet-allocation',
-          label: 'Alocare flote',
-          icon: 'sliders' as const,
-        },
-        {
-          href: '/dashboard/feedback',
-          label: 'Feedback vendori',
+          label: 'Creștere',
           icon: 'megaphone' as const,
+          items: [
+            { href: '/dashboard/admin/partners', label: 'Parteneri' },
+            { href: '/dashboard/admin/affiliates', label: 'Aplicații reseller' },
+            { href: '/dashboard/feedback', label: 'Feedback vendori' },
+          ],
         },
         {
-          href: '/dashboard/admin/system',
-          label: 'Sentry · sistem',
+          label: 'Sistem',
           icon: 'settings' as const,
-        },
-        {
-          href: '/dashboard/admin/incidents',
-          label: 'Incidente /status',
-          icon: 'megaphone' as const,
-        },
-        {
-          href: '/dashboard/admin/observability/materialized-views',
-          label: 'Vizualizări materializate',
-          icon: 'settings' as const,
-        },
-        {
-          href: '/dashboard/admin/observability/function-runs',
-          label: 'Edge Functions',
-          icon: 'settings' as const,
-        },
-        {
-          href: '/dashboard/admin/intents',
-          label: 'Intent registry',
-          icon: 'sparkles' as const,
+          items: [
+            { href: '/dashboard/admin/system', label: 'Sentry · sistem' },
+            { href: '/dashboard/admin/incidents', label: 'Incidente /status' },
+            { href: '/dashboard/admin/observability/materialized-views', label: 'Vizualizări materializate' },
+            { href: '/dashboard/admin/observability/function-runs', label: 'Edge Functions' },
+            { href: '/dashboard/admin/intents', label: 'Intent registry' },
+          ],
         },
       ]
     : [];
