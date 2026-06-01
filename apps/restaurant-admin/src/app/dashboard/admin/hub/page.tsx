@@ -67,6 +67,12 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
+    label: 'Flote — control',
+    href: '/dashboard/admin/fleets',
+    description: 'Per flotă: prefix afișat, delegare validare, porți KYC/KYF, activare, curieri + status KYF.',
+    tone: 'emerald',
+  },
+  {
     label: 'Tenants / Vendori',
     href: '/dashboard/admin/tenants',
     description: 'Toți vendorii — status, oraș, integrări, comenzi 7z.',
@@ -184,10 +190,10 @@ const RSHIR_TILES: Tile[] = [
 
 const CROSS_PROJECT: Tile[] = [
   {
-    label: 'Flote + alocare (app curier)',
+    label: 'Flote: creare + API keys (app curier)',
     href: `${COURIER_PWA_URL.replace(/\/$/, '')}/admin/fleets`,
     external: true,
-    description: 'Flote: prefix, validare, porți KYC/KYF, roster, API keys.',
+    description: 'Operațiuni avansate de flotă (creare flotă nouă, API keys). Controlul curent e nativ în Command Center.',
     tone: 'violet',
   },
   {
