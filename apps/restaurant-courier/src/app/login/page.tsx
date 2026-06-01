@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createBrowserSupabase } from '@hir/supabase-types';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage, toast } from '@hir/ui';
+import { Eye, EyeOff } from 'lucide-react';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
 export default function LoginPage() {
@@ -23,6 +24,8 @@ function LoginInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
 
   useEffect(() => {
     if (searchParams.get('registered') === '1') {
@@ -62,12 +65,16 @@ function LoginInner() {
           'radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.18), transparent 55%)',
       }}
     >
-      {/* Logo / wordmark */}
-      <div className="mb-8 flex flex-col items-center gap-2">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 text-3xl font-black text-white shadow-xl shadow-violet-500/40 ring-1 ring-violet-400/30">
-          H
-        </div>
-        <span className="text-lg font-bold tracking-tight text-zinc-100">HIR Curier</span>
+      {/* Logo — MOV-1 brand icon (same asset as the launcher/PWA icon) */}
+      <div className="mb-8 flex flex-col items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/icon-192.png"
+          alt="HIR Curier"
+          width={80}
+          height={80}
+          className="h-20 w-20 rounded-2xl shadow-xl shadow-violet-500/40 ring-1 ring-violet-400/30"
+        />
         <span className="text-xs text-zinc-500">Platforma de livrări HIR</span>
       </div>
 
@@ -99,15 +106,40 @@ function LoginInner() {
             >
               Parolă
             </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-              className="mt-1"
-            />
+            <div className="relative mt-1">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                autoComplete="current-password"
+                required
+                className="pr-11"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'Ascunde parola' : 'Arată parola'}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-[-2px]"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" aria-hidden />
+                ) : (
+                  <Eye className="h-5 w-5" aria-hidden />
+                )}
+              </button>
+            </div>
+            {capsLock ? (
+              <p
+                className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-amber-300"
+                role="status"
+              >
+                <span aria-hidden>⇪</span> Caps Lock este activat
+              </p>
+            ) : null}
           </FormField>
           {error ? <FormMessage>{error}</FormMessage> : null}
           <Button
