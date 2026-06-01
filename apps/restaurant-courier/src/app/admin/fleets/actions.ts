@@ -67,6 +67,8 @@ export async function createFleet(formData: FormData): Promise<ActionResult & { 
   const tier = (formData.get('tier') as string | null) ?? 'partner';
   const allowedVerticals = formData.getAll('allowed_verticals') as string[];
   const ownerEmail = (formData.get('owner_email') as string | null)?.trim();
+  const displayPrefix = (formData.get('display_prefix') as string | null)?.trim() || null;
+  const canValidateCouriers = formData.get('can_validate_couriers') === 'true';
 
   if (!name) return { ok: false, error: 'Numele flotei este obligatoriu.' };
   if (!['owner', 'partner', 'external'].includes(tier)) {
@@ -108,6 +110,8 @@ export async function createFleet(formData: FormData): Promise<ActionResult & { 
       allowed_verticals: allowedVerticals,
       owner_user_id: ownerUserId,
       is_active: true,
+      display_prefix: displayPrefix,
+      can_validate_couriers: canValidateCouriers,
     })
     .select('id')
     .single();
@@ -143,6 +147,8 @@ export async function updateFleet(
   const allowedVerticals = formData.getAll('allowed_verticals') as string[];
   const isActiveRaw = formData.get('is_active');
   const isActive = isActiveRaw !== null ? isActiveRaw === 'true' : undefined;
+  const displayPrefixRaw = formData.get('display_prefix');
+  const canValidateRaw = formData.get('can_validate_couriers');
 
   if (allowedVerticals.length === 0) {
     return { ok: false, error: 'Selectați cel puțin un vertical.' };
@@ -157,6 +163,8 @@ export async function updateFleet(
   if (tier) updates.tier = tier;
   if (allowedVerticals.length > 0) updates.allowed_verticals = allowedVerticals;
   if (isActive !== undefined) updates.is_active = isActive;
+  if (displayPrefixRaw !== null) updates.display_prefix = (displayPrefixRaw as string).trim() || null;
+  if (canValidateRaw !== null) updates.can_validate_couriers = canValidateRaw === 'true';
 
   const sb = adminSb();
   const { error } = await sb.from('courier_fleets').update(updates).eq('id', fleetId);
