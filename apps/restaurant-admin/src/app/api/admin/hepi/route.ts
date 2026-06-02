@@ -89,6 +89,12 @@ Tool-uri de ACȚIUNE (schimbă starea — supuse confirmării/modului):
 - verify_fleet_kyf → aprobă/respinge verificarea KYF a unei flote
 - create_partner → creează un partener (reseller)
 - generate_connect_invoices → generează facturile Connect pe săptămâna trecută
+- verify_courier_kyc → aprobă/respinge KYC-ul unui curier
+- create_incident / set_incident_status → gestionează incidente pe pagina de status
+- promote_fleet_primary / terminate_fleet_assignment → schimbă asignările flotă–vendor
+- grant_fleet_manager → acordă rol Fleet Manager (după email) pe un vendor
+- onboard_vendor → creează un vendor nou cu cont owner
+- create_sibling_location → creează o locație soră (multi-city) a unui vendor
 
 Rutează inteligent: „cum stă rețeaua / azi" → network_snapshot; „pe ce orașe" → orders_by_city; „ce comenzi" → list_recent_orders; „ce flote / curieri" → fleets_overview; „ce am de aprobat" → verifications_queue; „de ce merge X la flota Y" → explain_allocation; „activează/dezactivează oraș", „suspendă vendor" → tool-ul de acțiune potrivit. Pentru sfaturi strategice generale, răspunde direct fără tool.
 
@@ -549,6 +555,9 @@ export async function POST(req: NextRequest) {
     describe: string;
     risk: 'low' | 'high';
   }> = [];
+  // Credentials/secrets from direct-mode executions — returned to the client
+  // only, deliberately kept out of `messages` (LLM context) + audit log.
+  const sensitiveNotes: string[] = [];
 
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
@@ -611,6 +620,10 @@ export async function POST(req: NextRequest) {
               entityId: v.action.id,
               metadata: { params: v.params, ok: r.ok, via: 'direct' },
             });
+            // r.sensitive (e.g. a temp password) goes ONLY to the client, never
+            // into the tool_result we feed back to the LLM (which lands in the
+            // model context + API logs).
+            if (r.sensitive) sensitiveNotes.push(r.sensitive);
             toolResults.push({
               type: 'tool_result',
               tool_use_id: tu.id,
@@ -660,6 +673,7 @@ export async function POST(req: NextRequest) {
     response: responseText,
     tools_used: toolsUsed,
     pending_actions: pendingActions,
+    sensitive_notes: sensitiveNotes,
     mode,
   });
 }

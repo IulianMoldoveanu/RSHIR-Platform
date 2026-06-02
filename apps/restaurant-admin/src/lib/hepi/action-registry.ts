@@ -13,12 +13,19 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { setCityActive, activateCountyCapitals } from '@/app/dashboard/admin/cities/actions';
 import { setTenantStatus, setTenantCity } from '@/app/dashboard/admin/tenants/actions';
-import { verifyFleetKyf } from '@/app/dashboard/admin/verifications/actions';
-import { assignFleet, markStrike } from '@/app/dashboard/admin/fleet-allocation/actions';
+import { verifyFleetKyf, verifyCourierKyc } from '@/app/dashboard/admin/verifications/actions';
+import { assignFleet, markStrike, promoteToPrimary, terminateAssignment } from '@/app/dashboard/admin/fleet-allocation/actions';
 import { createPartner } from '@/app/dashboard/admin/partners/actions';
 import { generatePreviousWeek } from '@/app/dashboard/admin/connect-billing/actions';
+import { createIncident, updateIncidentStatus } from '@/app/dashboard/admin/incidents/actions';
+import { addFleetManagerMembership } from '@/app/dashboard/admin/fleet-managers/actions';
+import { createTenantWithOwner } from '@/app/dashboard/admin/onboard/actions';
+import { createSiblingLocationAction } from '@/app/dashboard/admin/onboard/sibling/actions';
 
-export type HepiActionResult = { ok: boolean; message: string };
+// `message` is safe to surface anywhere (incl. back to the LLM). `sensitive` is
+// a credential/secret (e.g. a temp password) that must reach ONLY the
+// platform-admin UI and NEVER the LLM context / audit log / API logs.
+export type HepiActionResult = { ok: boolean; message: string; sensitive?: string };
 
 export type HepiActionDef = {
   id: string;
@@ -63,6 +70,39 @@ async function resolveFleet(sb: Sb, input: string): Promise<{ id: string; name: 
   }
   const byName = await sb.from('courier_fleets').select('id, name').ilike('name', v).limit(1);
   return (byName.data ?? [])[0] ?? null;
+}
+
+async function resolveCourier(sb: Sb, input: string): Promise<{ user_id: string; full_name: string } | null> {
+  const v = input.trim();
+  if (/^[0-9a-f-]{36}$/i.test(v)) {
+    const byId = await sb.from('courier_profiles').select('user_id, full_name').eq('user_id', v).maybeSingle();
+    if (byId.data) return byId.data;
+  }
+  const byName = await sb.from('courier_profiles').select('user_id, full_name').ilike('full_name', v).limit(1);
+  return (byName.data ?? [])[0] ?? null;
+}
+
+async function resolveIncident(sb: Sb, title: string): Promise<{ id: string; title: string } | null> {
+  const v = title.trim();
+  const r = await sb.from('public_incidents').select('id, title').ilike('title', `%${v}%`).limit(1);
+  return (r.data ?? [])[0] ?? null;
+}
+
+async function resolveActiveAssignment(
+  sb: Sb,
+  fleetId: string,
+  tenantId: string,
+  role?: string,
+): Promise<{ id: string; role: string } | null> {
+  let q = sb
+    .from('fleet_restaurant_assignments')
+    .select('id, role')
+    .eq('fleet_id', fleetId)
+    .eq('restaurant_tenant_id', tenantId)
+    .eq('status', 'active');
+  if (role) q = q.eq('role', role);
+  const r = await q.limit(1);
+  return (r.data ?? [])[0] ?? null;
 }
 
 const citySchema = z.object({ city: z.string().trim().min(1).max(120) });
@@ -318,6 +358,296 @@ const ACTIONS: HepiActionDef[] = [
       const r = await generatePreviousWeek();
       if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
       return { ok: true, message: `Facturi Connect generate${typeof r.created === 'number' ? ` (${r.created})` : ''}.` };
+    },
+  },
+  {
+    id: 'verify_courier_kyc',
+    label: 'Verifică curier (KYC)',
+    risk: 'high',
+    description:
+      'Aprobă (VERIFIED) sau respinge (REJECTED) verificarea de identitate (KYC) a unui curier. Dă numele curierului + decizia; la respingere e obligatoriu un motiv.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        courier: { type: 'string', description: 'Numele curierului' },
+        decision: { type: 'string', enum: ['VERIFIED', 'REJECTED'] },
+        reason: { type: 'string', description: 'Motiv (obligatoriu la REJECTED)' },
+      },
+      required: ['courier', 'decision'],
+    },
+    schema: z.object({
+      courier: z.string().trim().min(1).max(160),
+      decision: z.enum(['VERIFIED', 'REJECTED']),
+      reason: z.string().trim().max(500).optional(),
+    }),
+    describe: (p) =>
+      p.decision === 'VERIFIED'
+        ? `Aprobă KYC pentru curierul „${String(p.courier)}".`
+        : `Respinge KYC pentru curierul „${String(p.courier)}" (motiv: ${String(p.reason ?? '—')}).`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const c = await resolveCourier(sb, String(p.courier));
+      if (!c) return { ok: false, message: `Curierul „${String(p.courier)}" nu a fost găsit.` };
+      const r = await verifyCourierKyc(c.user_id, p.decision as 'VERIFIED' | 'REJECTED', p.reason as string | undefined);
+      if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
+      return { ok: true, message: p.decision === 'VERIFIED' ? `Am aprobat KYC pentru ${c.full_name}.` : `Am respins KYC pentru ${c.full_name}.` };
+    },
+  },
+  {
+    id: 'create_incident',
+    label: 'Creează incident',
+    risk: 'high',
+    description:
+      'Creează un incident public pe pagina de status. Dă titlul, statusul, severitatea, serviciile afectate și o descriere opțională.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        status: { type: 'string', enum: ['investigating', 'identified', 'monitoring', 'resolved'] },
+        severity: { type: 'string', enum: ['minor', 'major', 'critical'] },
+        affectedServices: { type: 'array', items: { type: 'string' }, description: 'Servicii afectate' },
+        description: { type: 'string' },
+      },
+      required: ['title', 'status', 'severity', 'affectedServices'],
+    },
+    schema: z.object({
+      title: z.string().trim().min(3).max(200),
+      status: z.enum(['investigating', 'identified', 'monitoring', 'resolved']),
+      severity: z.enum(['minor', 'major', 'critical']),
+      affectedServices: z.array(z.string().trim().min(1)).min(1).max(20),
+      description: z.string().trim().max(2000).optional(),
+    }),
+    describe: (p) => `Creează incident „${String(p.title)}" (${String(p.severity)} / ${String(p.status)}).`,
+    execute: async (p) => {
+      const r = await createIncident({
+        title: String(p.title),
+        status: p.status as 'investigating' | 'identified' | 'monitoring' | 'resolved',
+        severity: p.severity as 'minor' | 'major' | 'critical',
+        affectedServices: p.affectedServices as string[],
+        description: p.description ? String(p.description) : undefined,
+      });
+      return r.ok ? { ok: true, message: `Am creat incidentul „${String(p.title)}".` } : { ok: false, message: `Eroare: ${r.error}` };
+    },
+  },
+  {
+    id: 'set_incident_status',
+    label: 'Schimbă statusul unui incident',
+    risk: 'high',
+    description:
+      'Schimbă statusul unui incident existent (investigating/identified/monitoring/resolved). Identifică incidentul după titlu; opțional adaugă o notă.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        incident: { type: 'string', description: 'Titlul incidentului (potrivire parțială)' },
+        status: { type: 'string', enum: ['investigating', 'identified', 'monitoring', 'resolved'] },
+        note: { type: 'string' },
+      },
+      required: ['incident', 'status'],
+    },
+    schema: z.object({
+      incident: z.string().trim().min(2).max(200),
+      status: z.enum(['investigating', 'identified', 'monitoring', 'resolved']),
+      note: z.string().trim().max(2000).optional(),
+    }),
+    describe: (p) => `Setează incidentul „${String(p.incident)}" la statusul „${String(p.status)}".`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const inc = await resolveIncident(sb, String(p.incident));
+      if (!inc) return { ok: false, message: `Incidentul „${String(p.incident)}" nu a fost găsit.` };
+      const r = await updateIncidentStatus({
+        incidentId: inc.id,
+        status: p.status as 'investigating' | 'identified' | 'monitoring' | 'resolved',
+        note: p.note ? String(p.note) : undefined,
+      });
+      return r.ok ? { ok: true, message: `Incidentul „${inc.title}" → ${String(p.status)}.` } : { ok: false, message: `Eroare: ${r.error}` };
+    },
+  },
+  {
+    id: 'promote_fleet_primary',
+    label: 'Promovează flota la primary',
+    risk: 'low',
+    description:
+      'Promovează asignarea unei flote pe un vendor la rol primary (termină primary-ul activ existent). Dă flota și vendorul.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fleet: { type: 'string', description: 'Nume flotă' },
+        tenant: { type: 'string', description: 'Nume/slug vendor' },
+      },
+      required: ['fleet', 'tenant'],
+    },
+    schema: z.object({ fleet: z.string().trim().min(1).max(160), tenant: z.string().trim().min(1).max(160) }),
+    describe: (p) => `Promovează flota „${String(p.fleet)}" la primary pe vendorul „${String(p.tenant)}".`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const [f, t] = await Promise.all([resolveFleet(sb, String(p.fleet)), resolveTenant(sb, String(p.tenant))]);
+      if (!f) return { ok: false, message: `Flota „${String(p.fleet)}" nu a fost găsită.` };
+      if (!t) return { ok: false, message: `Vendorul „${String(p.tenant)}" nu a fost găsit.` };
+      const a = await resolveActiveAssignment(sb, f.id, t.id);
+      if (!a) return { ok: false, message: `Nu există o asignare activă ${f.name}–${t.name}.` };
+      const r = await promoteToPrimary({ assignment_id: a.id });
+      return r.ok ? { ok: true, message: `Am promovat ${f.name} la primary pe ${t.name}.` } : { ok: false, message: `Eroare: ${r.error}` };
+    },
+  },
+  {
+    id: 'terminate_fleet_assignment',
+    label: 'Termină asignarea unei flote',
+    risk: 'high',
+    description: 'Termină asignarea activă a unei flote pe un vendor. Dă flota și vendorul (opțional rolul primary/secondary).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fleet: { type: 'string', description: 'Nume flotă' },
+        tenant: { type: 'string', description: 'Nume/slug vendor' },
+        role: { type: 'string', enum: ['primary', 'secondary'] },
+      },
+      required: ['fleet', 'tenant'],
+    },
+    schema: z.object({
+      fleet: z.string().trim().min(1).max(160),
+      tenant: z.string().trim().min(1).max(160),
+      role: z.enum(['primary', 'secondary']).optional(),
+    }),
+    describe: (p) =>
+      `Termină asignarea flotei „${String(p.fleet)}" pe „${String(p.tenant)}"${p.role ? ` (${String(p.role)})` : ''}.`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const [f, t] = await Promise.all([resolveFleet(sb, String(p.fleet)), resolveTenant(sb, String(p.tenant))]);
+      if (!f) return { ok: false, message: `Flota „${String(p.fleet)}" nu a fost găsită.` };
+      if (!t) return { ok: false, message: `Vendorul „${String(p.tenant)}" nu a fost găsit.` };
+      const a = await resolveActiveAssignment(sb, f.id, t.id, p.role ? String(p.role) : undefined);
+      if (!a) return { ok: false, message: `Nu există o asignare activă ${f.name}–${t.name}.` };
+      const r = await terminateAssignment({ assignment_id: a.id });
+      return r.ok ? { ok: true, message: `Am terminat asignarea ${f.name}–${t.name}.` } : { ok: false, message: `Eroare: ${r.error}` };
+    },
+  },
+  {
+    id: 'grant_fleet_manager',
+    label: 'Acordă rol Fleet Manager',
+    risk: 'high',
+    description: 'Acordă rolul de Fleet Manager unui utilizator (după email) pe un vendor. Dă emailul și vendorul.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: 'Emailul utilizatorului' },
+        tenant: { type: 'string', description: 'Nume/slug vendor' },
+      },
+      required: ['email', 'tenant'],
+    },
+    schema: z.object({ email: z.string().trim().email().max(200), tenant: z.string().trim().min(1).max(160) }),
+    describe: (p) => `Acordă rol Fleet Manager lui ${String(p.email)} pe vendorul „${String(p.tenant)}".`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const t = await resolveTenant(sb, String(p.tenant));
+      if (!t) return { ok: false, message: `Vendorul „${String(p.tenant)}" nu a fost găsit.` };
+      const r = await addFleetManagerMembership({ email: String(p.email), tenant_id: t.id });
+      return r.ok ? { ok: true, message: `Am acordat rol Fleet Manager lui ${String(p.email)} pe ${t.name}.` } : { ok: false, message: `Eroare: ${r.error}` };
+    },
+  },
+  {
+    id: 'onboard_vendor',
+    label: 'Onboard vendor nou',
+    risk: 'high',
+    description:
+      'Creează un vendor (restaurant) nou cu cont owner: email, nume, slug, telefon opțional, oraș opțional (nume/slug), adresă, tagline. Întoarce parola temporară + URL storefront.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: 'Emailul patronului (owner)' },
+        restaurantName: { type: 'string' },
+        slug: { type: 'string', description: 'slug 3-30, doar a-z0-9 și -' },
+        phone: { type: 'string' },
+        city: { type: 'string', description: 'Nume/slug oraș (opțional)' },
+        address: { type: 'string' },
+        tagline: { type: 'string' },
+      },
+      required: ['email', 'restaurantName', 'slug'],
+    },
+    schema: z.object({
+      email: z.string().trim().email().max(200),
+      restaurantName: z.string().trim().min(2).max(100),
+      slug: z.string().trim().min(3).max(30),
+      phone: z.string().trim().max(30).optional(),
+      city: z.string().trim().max(120).optional(),
+      address: z.string().trim().max(300).optional(),
+      tagline: z.string().trim().max(200).optional(),
+    }),
+    describe: (p) => `Onboardează vendorul „${String(p.restaurantName)}" (${String(p.email)}, slug ${String(p.slug)}).`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      let cityId: string | undefined;
+      if (p.city) {
+        const c = await resolveCity(sb, String(p.city));
+        if (!c) return { ok: false, message: `Orașul „${String(p.city)}" nu există în catalog.` };
+        cityId = c.id;
+      }
+      const r = await createTenantWithOwner({
+        email: String(p.email),
+        restaurantName: String(p.restaurantName),
+        slug: String(p.slug),
+        phone: p.phone ? String(p.phone) : undefined,
+        cityId,
+        address: p.address ? String(p.address) : undefined,
+        tagline: p.tagline ? String(p.tagline) : undefined,
+      });
+      if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
+      return {
+        ok: true,
+        // The temp password is a credential — keep it OUT of `message` (which can
+        // reach the LLM) and put it in `sensitive` (platform-admin UI only).
+        message: `Am creat vendorul „${String(p.restaurantName)}". Storefront: ${r.storefrontUrl}`,
+        sensitive: `Parolă temporară pentru ${String(p.email)}: ${r.tempPassword}`,
+      };
+    },
+  },
+  {
+    id: 'create_sibling_location',
+    label: 'Creează locație soră (multi-city)',
+    risk: 'high',
+    description:
+      'Creează o locație soră a unui vendor existent (același brand, alt oraș). Dă brandul rădăcină, numele + slug-ul locației noi, orașul opțional, și dacă să clonezi meniul/branding-ul.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        rootTenant: { type: 'string', description: 'Nume/slug vendor rădăcină' },
+        name: { type: 'string' },
+        slug: { type: 'string' },
+        city: { type: 'string', description: 'Nume/slug oraș (opțional)' },
+        cloneMenu: { type: 'boolean' },
+        cloneBranding: { type: 'boolean' },
+      },
+      required: ['rootTenant', 'name', 'slug'],
+    },
+    schema: z.object({
+      rootTenant: z.string().trim().min(1).max(160),
+      name: z.string().trim().min(2).max(200),
+      slug: z.string().trim().min(2).max(60),
+      city: z.string().trim().max(120).optional(),
+      cloneMenu: z.boolean().optional(),
+      cloneBranding: z.boolean().optional(),
+    }),
+    describe: (p) => `Creează locația soră „${String(p.name)}" sub brandul „${String(p.rootTenant)}".`,
+    execute: async (p) => {
+      const sb = createAdminClient();
+      const root = await resolveTenant(sb, String(p.rootTenant));
+      if (!root) return { ok: false, message: `Brandul „${String(p.rootTenant)}" nu a fost găsit.` };
+      let cityId: string | null = null;
+      if (p.city) {
+        const c = await resolveCity(sb, String(p.city));
+        if (!c) return { ok: false, message: `Orașul „${String(p.city)}" nu există în catalog.` };
+        cityId = c.id;
+      }
+      const r = await createSiblingLocationAction({
+        rootTenantId: root.id,
+        name: String(p.name),
+        slug: String(p.slug),
+        cityId,
+        cloneMenu: p.cloneMenu !== false,
+        cloneBranding: p.cloneBranding !== false,
+      });
+      return r.ok
+        ? { ok: true, message: `Am creat locația „${r.newTenantName}" (meniu: ${r.clonedItems} produse).` }
+        : { ok: false, message: `Eroare: ${r.error}` };
     },
   },
 ];
