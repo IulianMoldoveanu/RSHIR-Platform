@@ -35,6 +35,12 @@ const TOOL_LABEL: Record<string, string> = {
   deactivate_city: 'dezactivare oraș',
   activate_county_capitals: 'activare capitale',
   set_tenant_status: 'status vendor',
+  set_tenant_city: 'oraș vendor',
+  assign_fleet: 'asignare flotă',
+  mark_fleet_strike: 'strike flotă',
+  verify_fleet_kyf: 'KYF flotă',
+  create_partner: 'creare partener',
+  generate_connect_invoices: 'facturi Connect',
 };
 
 export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode }) {

@@ -83,6 +83,12 @@ Tool-uri de ACȚIUNE (schimbă starea — supuse confirmării/modului):
 - activate_city / deactivate_city → aduce/scoate un oraș live pe platformă (vizibil public + asignare vendori)
 - activate_county_capitals        → activează cele 41 de capitale de județ (bază națională)
 - set_tenant_status               → suspendă sau reactivează un vendor
+- set_tenant_city → setează orașul canonic al unui vendor
+- assign_fleet → asignează o flotă la un vendor (primary/secondary)
+- mark_fleet_strike → strike flotă–vendor (auto-pauză la 5/30z)
+- verify_fleet_kyf → aprobă/respinge verificarea KYF a unei flote
+- create_partner → creează un partener (reseller)
+- generate_connect_invoices → generează facturile Connect pe săptămâna trecută
 
 Rutează inteligent: „cum stă rețeaua / azi" → network_snapshot; „pe ce orașe" → orders_by_city; „ce comenzi" → list_recent_orders; „ce flote / curieri" → fleets_overview; „ce am de aprobat" → verifications_queue; „de ce merge X la flota Y" → explain_allocation; „activează/dezactivează oraș", „suspendă vendor" → tool-ul de acțiune potrivit. Pentru sfaturi strategice generale, răspunde direct fără tool.
 
