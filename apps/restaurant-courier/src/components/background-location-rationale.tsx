@@ -7,7 +7,53 @@ import { Button } from '@hir/ui';
 // NOTE: key bumped to v3 — copy escalated back to background ("Allow all the
 // time") now that background geolocation ships (PR #860): foreground service +
 // dispatch tracking while the shift is active. v2 was the foreground-only copy.
-const RATIONALE_SHOWN_KEY = 'hir_loc_rationale_shown_v3';
+export const RATIONALE_SHOWN_KEY = 'hir_loc_rationale_shown_v3';
+
+// Dispatched on the window when the courier acknowledges the disclosure, so the
+// (separately-mounted) LocationTracker starts the native background watcher only
+// AFTER the disclosure — Google Play requires disclosure-before-prompt.
+export const RATIONALE_ACK_EVENT = 'hir:bg-location-disclosure-acked';
+
+/**
+ * Gate for the native background-location watcher. Returns true when the watcher
+ * may start: immediately on web / non-Android, or — on Android — once the courier
+ * has acknowledged the prominent disclosure (this session or a previous one).
+ * Guarantees the OS background-permission prompt can never fire before the in-app
+ * disclosure, on ANY route (the disclosure dialog is mounted in the dashboard
+ * layout, but the watcher lives there too and could otherwise prompt first).
+ */
+export function useBgLocationDisclosureGate(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const onAck = () => {
+      if (mounted) setReady(true);
+    };
+    window.addEventListener(RATIONALE_ACK_EVENT, onAck);
+    void (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+          if (mounted) setReady(true); // no background prompt off native Android
+          return;
+        }
+      } catch {
+        if (mounted) setReady(true); // web fallback
+        return;
+      }
+      try {
+        if (window.localStorage.getItem(RATIONALE_SHOWN_KEY) && mounted) setReady(true);
+      } catch {
+        // storage blocked — wait for the ack event
+      }
+    })();
+    return () => {
+      mounted = false;
+      window.removeEventListener(RATIONALE_ACK_EVENT, onAck);
+    };
+  }, []);
+  return ready;
+}
 
 /**
  * Prominent-disclosure dialog (Google Play location policy) shown BEFORE the
@@ -62,6 +108,12 @@ export function BackgroundLocationRationale() {
       window.localStorage.setItem(RATIONALE_SHOWN_KEY, '1');
     } catch {
       // ignore — dialog will re-show next session if storage is blocked.
+    }
+    // Unblock the native background watcher now that the disclosure was shown.
+    try {
+      window.dispatchEvent(new Event(RATIONALE_ACK_EVENT));
+    } catch {
+      // ignore
     }
     setVisible(false);
   }

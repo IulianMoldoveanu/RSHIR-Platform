@@ -55,8 +55,11 @@ export default function PrivacyPage() {
               <li>
                 <strong className="text-[#E4E4F0]">Date de localizare (GPS)</strong> — latitudine,
                 longitudine, precizie, viteză și direcție. Colectate în timp real pe durata
-                unei ture active. Utilizate pentru: rutare comenzi, calcul ETA, afișare
-                pe harta clientului, dovadă de livrare în zona geofence.
+                unei ture active, <strong className="text-[#E4E4F0]">inclusiv în fundal</strong>{' '}
+                (când telefonul e blocat sau aplicația nu e în prim-plan), printr-un serviciu cu
+                notificare permanentă. Urmărirea se oprește automat când închizi tura. Utilizate
+                pentru: rutare comenzi, calcul ETA, afișare pe harta clientului, dovadă de livrare
+                în zona geofence.
               </li>
               <li>
                 <strong className="text-[#E4E4F0]">Fotografii (dovadă de livrare)</strong> — imagini
@@ -103,6 +106,12 @@ export default function PrivacyPage() {
                 prevenirea fraudei, securitatea platformei, îmbunătățirea serviciului.
               </li>
             </ul>
+            <p className="mt-2">
+              <strong className="text-[#E4E4F0]">Localizarea în fundal</strong> este limitată la
+              strictul necesar (minimizarea datelor, Art. 5(1)(c) GDPR): se colectează exclusiv cât
+              tura este pornită, se oprește automat la închiderea turei, iar cât este activă vezi o
+              notificare permanentă. Poți revoca permisiunea oricând din setările telefonului.
+            </p>
           </section>
 
           <section>
@@ -130,7 +139,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-2 text-base font-semibold text-[#E4E4F0]">5. Retenție</h2>
             <ul className="mt-2 list-disc pl-5 space-y-1">
-              <li>Date GPS: 90 de zile (necesar audit livrări).</li>
+              <li>Date GPS: doar ultima poziție pe durata turei (suprascrisă în timp real); fără istoric GPS de lungă durată.</li>
               <li>Fotografii livrare: 30 de zile.</li>
               <li>Date activitate / câștiguri: 5 ani (obligații fiscale).</li>
               <li>Token push: până la dezinstalarea aplicației sau revocarea permisiunii.</li>
@@ -200,7 +209,7 @@ export default function PrivacyPage() {
           </section>
 
           <p className="mt-8 text-xs text-[#666680]">
-            Ultima actualizare: mai 2026 &middot; Versiune 1.0
+            Ultima actualizare: iunie 2026 &middot; Versiune 1.1
           </p>
         </div>
       </div>

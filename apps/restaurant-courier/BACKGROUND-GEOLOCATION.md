@@ -1,9 +1,11 @@
 # Background geolocation — HIR Curier (v1.1)
 
-> **DO NOT MERGE / publish to Production until the foreground-only build is live.**
-> Declaring `ACCESS_BACKGROUND_LOCATION` gates the entire Production submission
-> behind Google's slow prominent-permission review (video + declaration form).
-> Test it on the **Internal testing** track first.
+> **Ships in v1.0.0 (decision 2026-06-02).** Background tracking is included from
+> the first release. Declaring `ACCESS_BACKGROUND_LOCATION` gates the PRODUCTION
+> submission behind Google's prominent-permission review (declaration form + demo
+> video, ~3-7 days) — acceptable, since the new Play account already requires a
+> 14-day closed test before production. Validate the real background behaviour on
+> a physical Android device DURING the closed test.
 
 ## What changed (surgical — one file)
 `src/lib/native/geolocation.ts` — the **native** branch of `watchPosition()` now
@@ -27,11 +29,30 @@ start/stop and POSTs each fix — it just now receives background-capable fixes.
 `navigator.geolocation.watchPosition` (unchanged).
 
 ## Permissions / manifest
-The plugin's own `AndroidManifest.xml` fragment (in the npm package) is merged by
-Gradle during `cap sync`, so the throwaway `android/` dir needs **no** hand-edit
-and the merge survives `npx cap add android` in CI. It contributes
-`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`,
-`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`.
+The plugin's bundled `AndroidManifest.xml` contributes `ACCESS_FINE_LOCATION`,
+`ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION` and
+`POST_NOTIFICATIONS` — but **NOT** `ACCESS_BACKGROUND_LOCATION`. The app must
+declare that one itself, otherwise Android never offers "Allow all the time" and
+background tracking is silently never granted. Because the `android/` dir is
+generated fresh in CI (`cap add android`), it is injected post-`cap sync` by
+**`scripts/patch-android-manifest.mjs`** (a step in
+`.github/workflows/courier-android-build.yml`). Verify after a build:
+`unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep BACKGROUND_LOCATION`.
+
+## Reliability — required config + known limits
+- **`android.useLegacyBridge: true`** (set in `capacitor.config.ts`) is REQUIRED:
+  with a hosted webview (`server.url`) the modern bridge suspends the WebView in
+  the background and location callbacks halt after ~5 min. The legacy bridge keeps
+  the JS context alive so fixes keep flowing.
+- **Battery**: the native `distanceFilter` (25 m) is the real battery lever. The
+  JS battery-adaptive throttle in `location-tracker.tsx` now only de-dupes DB
+  writes — it cannot reduce the continuous GPS + foreground-service cost once
+  backgrounded.
+- **Aggressive-OEM battery killers** (Xiaomi/Huawei/Samsung) may kill the service.
+  Mitigations: a server-side `last_seen_at` staleness watchdog flags an ONLINE
+  courier whose fixes go stale; prompt the courier to disable battery optimization
+  for HIR Curier; field-upgrade path is
+  `@transistorsoft/capacitor-background-geolocation` (native HTTP + motion APIs).
 
 `addWatcher({ requestPermissions: true })` performs the Android 10+ **two-step**
 request (foreground first, then "Allow all the time"). If background is denied it

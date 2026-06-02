@@ -40,6 +40,11 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     captureInput: true,
     windowSoftInputMode: 'adjustResize',
+    // Required by @capacitor-community/background-geolocation in a hosted
+    // webview (server.url): with the modern bridge the WebView is suspended
+    // when backgrounded and location callbacks halt after ~5 min. The legacy
+    // bridge keeps the JS context alive so background fixes keep flowing.
+    useLegacyBridge: true,
   },
   plugins: {
     SplashScreen: {
