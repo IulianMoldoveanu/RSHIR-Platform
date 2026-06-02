@@ -92,6 +92,8 @@ export type AuditAction =
   | 'pairing_note.fm_phone_updated'
   | 'tenant.external_dispatch_configured'
   | 'tenant.city_assigned'
+  | 'city.activated'
+  | 'city.deactivated'
   | 'tenant.presentation_updated'
   | 'tenant.suspended'
   | 'tenant.reactivated'
