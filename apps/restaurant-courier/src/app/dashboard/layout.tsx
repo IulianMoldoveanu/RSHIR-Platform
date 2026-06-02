@@ -22,6 +22,7 @@ import { BatteryBadge } from '@/components/battery-badge';
 import { GpsStalnessPill } from '@/components/gps-staleness-pill';
 import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
 import { LocationTrackerWired } from '@/components/location-tracker-wired';
+import { BackgroundLocationRationale } from '@/components/background-location-rationale';
 import { CourierPresenceBroadcaster } from '@/components/courier-presence-broadcaster';
 import { PageTransition } from '@/components/page-transition';
 import { BottomNav } from '@/components/bottom-nav';
@@ -213,6 +214,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <BatteryCriticalToast />
         <CapacitorBootstrap />
         <PushBootstrap />
+        {/* Prominent background-location disclosure (Google Play). Mounted in
+            the layout so it shows on ANY dashboard route before the watcher
+            below can trigger the OS "Allow all the time" prompt. Self-gates to
+            first-time Android; renders nothing otherwise. */}
+        <BackgroundLocationRationale />
         <LocationTrackerWired enabled={isOnline} onFix={updateCourierLocationAction} />
         <CourierPresenceBroadcaster userId={user.id} fleetId={profile?.fleet_id ?? null} />
         <ProofSync />

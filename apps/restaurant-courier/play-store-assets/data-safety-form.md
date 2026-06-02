@@ -27,12 +27,13 @@ Folosește acest fișier ca cheat-sheet în timpul completării formularului —
 
 **Detalii pentru reviewer:**
 - Locația este colectată DOAR în timpul turei active (shift on/off toggle)
-- Locația este colectată DOAR în foreground (cât aplicația este deschisă) —
-  cerem permisiunea "While using the app" / "Permite în timpul utilizării"
-- Nu colectăm locația când app-ul e închis sau tura e oprită
-- Launch build NU folosește background location (ACCESS_BACKGROUND_LOCATION).
-  post-launch: continuitate GPS în background va fi adăugată separat și
-  declarată corespunzător în acel moment.
+- Colectare ÎN FUNDAL (background): cerem `ACCESS_BACKGROUND_LOCATION` /
+  „Permite tot timpul", astfel încât poziția curge și când telefonul e blocat
+  sau aplicația e în fundal — necesar pentru un curier online care nu se uită la
+  ecran. Rulează un foreground service cu notificare permanentă cât e activ.
+- Nu colectăm locația când app-ul e offline sau tura e oprită; urmărirea se
+  oprește automat la închiderea turei.
+- Se păstrează doar ultima poziție (suprascrisă în timp real), nu un istoric GPS.
 
 ### Personal info
 

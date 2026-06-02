@@ -84,6 +84,13 @@ jobs:
           fi
           npx cap sync android
 
+      # The background-geolocation plugin does NOT bundle ACCESS_BACKGROUND_LOCATION;
+      # the app must declare it. android/ is generated fresh above, so inject it
+      # post-sync (idempotent). Without this, "Allow all the time" is never offered.
+      - name: Patch AndroidManifest (ACCESS_BACKGROUND_LOCATION)
+        working-directory: apps/restaurant-courier
+        run: node scripts/patch-android-manifest.mjs
+
       # Generate the MOV-1 launcher icon (adaptive + legacy) from assets/ into
       # the freshly-scaffolded android/ res. Only icon-* sources are present,
       # so this generates icons only (no splash override).
@@ -121,7 +128,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: courier-android-debug-${{ github.ref_name }}
+          name: courier-android-debug
           path: apps/restaurant-courier/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
@@ -165,6 +172,13 @@ jobs:
             npx cap add android
           fi
           npx cap sync android
+
+      # The background-geolocation plugin does NOT bundle ACCESS_BACKGROUND_LOCATION;
+      # the app must declare it. android/ is generated fresh above, so inject it
+      # post-sync (idempotent). Without this, "Allow all the time" is never offered.
+      - name: Patch AndroidManifest (ACCESS_BACKGROUND_LOCATION)
+        working-directory: apps/restaurant-courier
+        run: node scripts/patch-android-manifest.mjs
 
       # Generate the MOV-1 launcher icon (adaptive + legacy) from assets/ into
       # the freshly-scaffolded android/ res. Only icon-* sources are present,
@@ -223,7 +237,7 @@ jobs:
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: courier-android-release-aab-${{ github.ref_name }}
+          name: courier-android-release-aab
           path: apps/restaurant-courier/android/app/build/outputs/bundle/release/app-release*.aab
           retention-days: 90
 

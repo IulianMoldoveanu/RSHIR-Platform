@@ -1,30 +1,40 @@
 'use client';
 
 /**
- * Unified geolocation bridge: Capacitor native (iOS/Android) or browser PWA.
+ * Unified geolocation bridge: Capacitor native (Android) or browser PWA.
  *
- * Launch posture is FOREGROUND-ONLY. We request the `location` permission
- * (Android "While using the app" / iOS "When in use"). We do NOT request
- * ACCESS_BACKGROUND_LOCATION — tracking is scoped to while the app is open
- * with the shift active.
+ * Native Android (shift reporter): watchPosition() uses
+ * @capacitor-community/background-geolocation, which runs a foreground service
+ * with a persistent notification so position keeps flowing while the screen is
+ * locked or the app is backgrounded — DURING AN ACTIVE SHIFT only. The watcher
+ * is started by LocationTracker when the shift is ONLINE and removed on OFFLINE.
+ * It requests ACCESS_BACKGROUND_LOCATION (Android 10+ two-step "Allow all the
+ * time"); that permission is declared via the CI manifest patch
+ * (scripts/patch-android-manifest.mjs) because the plugin does NOT bundle it.
  *
- * In a Capacitor native shell:
- *   - Uses @capacitor/geolocation (foreground watch).
- *   - iOS: WKWebView background geolocation not used in the launch build.
+ * Browser / PWA: falls back to navigator.geolocation.watchPosition (foreground).
  *
- * In a browser / PWA:
- *   - Falls back to navigator.geolocation.watchPosition.
+ * getCurrentPosition() (one-shot initial fix) stays on @capacitor/geolocation.
  *
- * This module is a drop-in replacement for any existing usage of
- * navigator.geolocation. Callers never need to check Capacitor directly.
- *
- * TODO(post-launch): background geolocation via
- * @capacitor-community/background-geolocation — see STORE-DEPLOYMENT.md /
- * NATIVE_SHELL.md ("post-launch"). Requires ACCESS_BACKGROUND_LOCATION grant
- * + foreground service; intentionally deferred for the Google Play launch.
+ * This module is a drop-in replacement for navigator.geolocation usage; callers
+ * never check Capacitor directly. The prominent disclosure required before the
+ * OS background prompt lives in background-location-rationale.tsx and gates the
+ * watcher start (see useBgLocationDisclosureGate).
  */
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
+
+// Cache the plugin proxy once (registerPlugin is cheap + idempotent) so both
+// addWatcher and the cleanup's removeWatcher use the SAME instance without a
+// per-call dynamic import — keeps teardown ordered vs. the next addWatcher.
+let bgPluginRef: BackgroundGeolocationPlugin | null = null;
+function getBgPlugin(): BackgroundGeolocationPlugin {
+  if (!bgPluginRef) {
+    bgPluginRef = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+  }
+  return bgPluginRef;
+}
 
 export type GeoPosition = {
   lat: number;
@@ -55,48 +65,71 @@ export function watchPosition(
   onPosition: WatchCallback,
   onError: ErrorCallback,
 ): () => void {
-  // ── Native path (Capacitor Geolocation) ──────────────────────────────────
+  // ── Native path (background-geolocation foreground service) ───────────────
+  // @capacitor-community/background-geolocation runs an Android foreground
+  // service, so fixes keep arriving when the screen is locked or the app is
+  // backgrounded — required for a courier who is online but not looking at the
+  // app. addWatcher drives the Android 10+ two-step permission request
+  // (foreground, then "Allow all the time") and shows the persistent
+  // notification itself. ACCESS_BACKGROUND_LOCATION is NOT bundled by the
+  // plugin — it is injected into the generated manifest by the CI step
+  // scripts/patch-android-manifest.mjs.
   if (Capacitor.isNativePlatform()) {
     let cancelled = false;
-    let nativeWatchId: string | null = null;
+    let watcherId: string | null = null;
+    let pluginRef: BackgroundGeolocationPlugin | null = null;
 
     void (async () => {
       try {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const perm = await Geolocation.requestPermissions({ permissions: ['location'] });
-        if (perm.location !== 'granted') {
-          onError('denied', 'Permisiunea pentru locație a fost refuzată. Activați locația din setările telefonului.');
-          return;
-        }
-        if (cancelled) return;
-        nativeWatchId = await Geolocation.watchPosition(
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
-          (pos, err) => {
-            if (err) {
-              onError('granted', err.message);
+        const Bg = getBgPlugin();
+        pluginRef = Bg;
+        const id = await Bg.addWatcher(
+          {
+            backgroundTitle: 'HIR Curier — ești online',
+            backgroundMessage: 'Urmărim poziția ca să-ți trimitem comenzi din zonă.',
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: 25,
+          },
+          (location, error) => {
+            if (error) {
+              if (error.code === 'NOT_AUTHORIZED') {
+                onError(
+                  'denied',
+                  'Pentru a rămâne online cu ecranul stins, activează „Permite tot timpul" din Setări.',
+                );
+              } else {
+                onError('granted', error.message ?? 'Eroare GPS');
+              }
               return;
             }
-            if (!pos) return;
+            if (!location || cancelled) return;
             onPosition({
-              lat: pos.coords.latitude,
-              lng: pos.coords.longitude,
-              accuracy: pos.coords.accuracy,
-              heading: pos.coords.heading,
-              speed: pos.coords.speed,
+              lat: location.latitude,
+              lng: location.longitude,
+              accuracy: location.accuracy,
+              heading: location.bearing ?? null,
+              speed: location.speed ?? null,
             });
           },
         );
+        if (cancelled) {
+          void Bg.removeWatcher({ id });
+          return;
+        }
+        watcherId = id;
       } catch (e) {
         onError('unavailable', e instanceof Error ? e.message : 'Geolocation error');
       }
     })();
 
+    // Sync-dispatch teardown using the cached plugin instance (no second
+    // dynamic import) so removeWatcher is ordered relative to the next
+    // addWatcher on a fast OFFLINE→ONLINE toggle.
     return () => {
       cancelled = true;
-      if (nativeWatchId !== null) {
-        void import('@capacitor/geolocation').then(({ Geolocation }) =>
-          Geolocation.clearWatch({ id: nativeWatchId as string }),
-        );
+      if (pluginRef && watcherId !== null) {
+        void pluginRef.removeWatcher({ id: watcherId });
       }
     };
   }

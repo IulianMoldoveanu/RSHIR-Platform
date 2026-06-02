@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { watchPosition as bridgeWatchPosition } from '@/lib/native/geolocation';
+import { useBgLocationDisclosureGate } from '@/components/background-location-rationale';
 
 const LOCATION_DISMISS_KEY = 'hir.courier.locationPromptDismissedAt';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -136,6 +137,10 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
   const lastSentAtRef = useRef<number>(0);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const battery = useBatterySnapshot();
+  // On native Android the background watcher must not start (and thus must not
+  // trigger the OS "Allow all the time" prompt) before the prominent disclosure
+  // is acknowledged. True immediately on web / non-Android.
+  const disclosureReady = useBgLocationDisclosureGate();
 
   // Effective interval reacts to battery state. The watchPosition handler
   // reads the ref, not a closure, so a charging→discharging transition
@@ -144,8 +149,9 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
   effectiveIntervalRef.current = adaptiveIntervalMs(intervalMs, battery);
 
   useEffect(() => {
-    if (!enabled) {
-      // Stop any in-flight watch when shift goes offline.
+    if (!enabled || !disclosureReady) {
+      // Stop any in-flight watch when the shift goes offline, OR hold off
+      // starting until the background-location disclosure is acknowledged.
       stopWatchRef.current?.();
       stopWatchRef.current = null;
       return;
@@ -194,10 +200,10 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
       stopWatchRef.current?.();
       stopWatchRef.current = null;
     };
-    // Only re-create the watch when `enabled` flips or `onFix` rotates.
-    // Battery changes are absorbed via the ref above so the watch keeps
-    // streaming uninterrupted.
-  }, [enabled, onFix]);
+    // Re-create the watch when `enabled` / `disclosureReady` flip or `onFix`
+    // rotates. Battery changes are absorbed via the ref above so the watch
+    // keeps streaming uninterrupted.
+  }, [enabled, disclosureReady, onFix]);
 
   return null;
 }

@@ -6,7 +6,6 @@ import { SwipeButton } from '@/components/swipe-button';
 import { ForceEndShift } from '@/components/force-end-shift';
 import { StartShiftSection } from './start-shift-section';
 import { LongShiftWarning } from '@/components/long-shift-warning';
-import { BackgroundLocationRationale } from '@/components/background-location-rationale';
 import { cardClasses } from '@/components/card';
 
 export const dynamic = 'force-dynamic';
@@ -67,13 +66,6 @@ export default async function ShiftPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
-      {/* Android-only first-time rationale dialog. Renders nothing on web,
-          iOS, or after the rider has acknowledged it once. Mounted here so
-          it appears the first time a courier reaches /dashboard/shift —
-          before they tap "Pornește tura" and the OS shows the foreground
-          location prompt that gates the background-location escalation. */}
-      <BackgroundLocationRationale />
-
       <section className={cardClasses({ padding: 'lg' })}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Tură</h1>
