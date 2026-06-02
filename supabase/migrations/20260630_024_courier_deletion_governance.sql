@@ -57,6 +57,15 @@ create trigger trg_set_deletion_request_fleet
   before insert on public.courier_account_deletion_requests
   for each row execute function public.set_deletion_request_fleet();
 
+-- The trigger only fires on INSERT, so backfill fleet_id for requests that
+-- already existed before this migration (Codex P2) — otherwise they never
+-- surface on /fleet/deletions. Idempotent (only touches null fleet_id).
+update public.courier_account_deletion_requests r
+   set fleet_id = p.fleet_id
+  from public.courier_profiles p
+ where r.fleet_id is null
+   and p.user_id = r.courier_user_id;
+
 create index if not exists idx_courier_deletion_requests_status
   on public.courier_account_deletion_requests (status, requested_at desc);
 create index if not exists idx_courier_deletion_requests_fleet

@@ -172,7 +172,14 @@ select
   sum(k.deliveries_cancelled)::int as cancelled_7d,
   sum(k.earnings_ron) as earnings_7d,
   sum(k.online_minutes)::int as online_minutes_7d,
-  round(avg(k.avg_rating) filter (where k.avg_rating is not null), 2) as avg_rating_7d,
+  -- Weighted by ratings_count so a 1-rating day doesn't count the same as a
+  -- 50-rating day (Codex P2). Days with no ratings (avg_rating null) drop out
+  -- of the numerator and contribute 0 to the denominator.
+  case
+    when sum(k.ratings_count) > 0
+    then round(sum(k.avg_rating * k.ratings_count) / sum(k.ratings_count), 2)
+    else null
+  end as avg_rating_7d,
   sum(k.combo_pushes_sent)::int as combo_sent_7d,
   sum(k.combo_pushes_accepted)::int as combo_accepted_7d,
   case
