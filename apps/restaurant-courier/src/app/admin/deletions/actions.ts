@@ -1,0 +1,124 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { checkPlatformAdmin } from '@/lib/platform-admin';
+import { getFleetManagerContext } from '@/lib/fleet-manager';
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+const RETENTION_DAYS = 30;
+
+/**
+ * Approve or reject a courier account-deletion request.
+ *
+ * Authorised for platform admins (any) OR a fleet manager who (a) owns the
+ * fleet the request came from AND (b) was granted can_approve_deletions by a
+ * platform admin. On APPROVE the data is held until requested_at + 30 days
+ * (scheduled_purge_at) and the nightly purge job anonymises it then. On REJECT
+ * the request is closed and the account is restored to INACTIVE.
+ */
+export async function decideDeletionAction(formData: FormData): Promise<ActionResult> {
+  const id = (formData.get('id') as string | null)?.trim() ?? '';
+  const decision = (formData.get('decision') as string | null)?.trim() ?? '';
+  const note = (formData.get('note') as string | null)?.trim() || null;
+  if (!id) return { ok: false, error: 'ID lipsă.' };
+  if (decision !== 'APPROVE' && decision !== 'REJECT') {
+    return { ok: false, error: 'Decizie invalidă.' };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = createAdminClient() as any;
+
+  const { data: req, error: reqErr } = await sb
+    .from('courier_account_deletion_requests')
+    .select('id, courier_user_id, fleet_id, status, requested_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (reqErr) return { ok: false, error: reqErr.message };
+  if (!req) return { ok: false, error: 'Cerere inexistentă.' };
+  if (req.status !== 'PENDING') return { ok: false, error: 'Cererea a fost deja procesată.' };
+
+  // Authorise: platform admin OR the permissioned owning fleet manager.
+  let actorId: string;
+  const admin = await checkPlatformAdmin();
+  if ('userId' in admin) {
+    actorId = admin.userId;
+  } else {
+    const ctx = await getFleetManagerContext();
+    if (!ctx || ctx.fleetId !== req.fleet_id) return { ok: false, error: 'Acces interzis.' };
+    const { data: fleet } = await sb
+      .from('courier_fleets')
+      .select('can_approve_deletions')
+      .eq('id', ctx.fleetId)
+      .maybeSingle();
+    if (!fleet?.can_approve_deletions) {
+      return { ok: false, error: 'Flota ta nu are permisiune de aprobare a ștergerilor.' };
+    }
+    actorId = ctx.userId;
+  }
+
+  const nowIso = new Date().toISOString();
+
+  if (decision === 'APPROVE') {
+    const purgeAt = new Date(
+      new Date(req.requested_at).getTime() + RETENTION_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const { error } = await sb
+      .from('courier_account_deletion_requests')
+      .update({
+        status: 'APPROVED',
+        reviewed_by: actorId,
+        reviewed_at: nowIso,
+        review_note: note,
+        scheduled_purge_at: purgeAt,
+      })
+      .eq('id', id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    // REJECT: deny erasure, close the request, restore the account.
+    const { error } = await sb
+      .from('courier_account_deletion_requests')
+      .update({
+        status: 'REJECTED',
+        reviewed_by: actorId,
+        reviewed_at: nowIso,
+        review_note: note,
+        completed_at: nowIso,
+      })
+      .eq('id', id);
+    if (error) return { ok: false, error: error.message };
+    await sb
+      .from('courier_profiles')
+      .update({ status: 'INACTIVE', deletion_requested_at: null })
+      .eq('user_id', req.courier_user_id);
+  }
+
+  revalidatePath('/admin/deletions');
+  revalidatePath('/fleet/deletions');
+  return { ok: true };
+}
+
+/**
+ * Grant / revoke a fleet manager's permission to approve deletions for their
+ * own fleet. Platform-admin only.
+ */
+export async function setFleetCanApproveDeletionsAction(formData: FormData): Promise<ActionResult> {
+  const admin = await checkPlatformAdmin();
+  if ('error' in admin) return { ok: false, error: admin.error };
+
+  const fleetId = (formData.get('fleet_id') as string | null)?.trim() ?? '';
+  const enabled = (formData.get('enabled') as string | null) === 'true';
+  if (!fleetId) return { ok: false, error: 'Flotă lipsă.' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = createAdminClient() as any;
+  const { error } = await sb
+    .from('courier_fleets')
+    .update({ can_approve_deletions: enabled })
+    .eq('id', fleetId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/deletions');
+  return { ok: true };
+}

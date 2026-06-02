@@ -1,4 +1,5 @@
-import { LifeBuoy } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight, LifeBuoy, MessageSquarePlus } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SupportChat } from './_chat';
@@ -58,6 +59,24 @@ export default async function SupportPage() {
           </p>
         </div>
       </header>
+
+      <Link
+        href="/dashboard/feedback"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 transition-colors hover:border-violet-500/40 hover:bg-violet-500/5"
+      >
+        <span className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10">
+            <MessageSquarePlus className="h-5 w-5 text-violet-400" aria-hidden />
+          </span>
+          <span>
+            <span className="block text-sm font-medium text-hir-fg">Sugestii și probleme</span>
+            <span className="mt-0.5 block text-xs text-hir-muted-fg">
+              Trimite o idee de îmbunătățire sau raportează un bug
+            </span>
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-hir-muted-fg" aria-hidden />
+      </Link>
 
       <SupportChat
         initialConversationId={conv?.id ?? null}
