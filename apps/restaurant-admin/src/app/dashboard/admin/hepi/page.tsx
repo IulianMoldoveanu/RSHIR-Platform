@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { getHepiMode } from '@/lib/hepi/autonomy';
 import { HepiCommandCenterClient } from './client';
 
 export const runtime = 'nodejs';
@@ -35,6 +36,8 @@ export default async function HepiCommandCenterPage() {
     );
   }
 
+  const mode = await getHepiMode();
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur">
@@ -58,15 +61,16 @@ export default async function HepiCommandCenterPage() {
       <section className="mx-auto max-w-4xl px-6 pt-8 pb-4">
         <h1 className="font-display text-2xl font-bold">Întreabă-l pe Hepi orice despre rețea.</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-400">
-          Un singur copilot peste toată infrastructura de livrare — restaurante și farmacii în
-          același bazin de curieri. Vede comenzile, flotele, curierii, orașele și verificările, și
-          îți explică starea rețelei. <span className="text-slate-300">Read-only</span>: explică
-          alocarea, nu o schimbă (motorul determinist scrie, Hepi explică).
+          Orchestratorul tău executiv peste toată infrastructura de livrare — restaurante și
+          farmacii în același bazin de curieri. Vede comenzile, flotele, curierii, orașele și
+          verificările, <span className="text-slate-300">și poate acționa</span>: activează orașe,
+          suspendă vendori și altele. Implicit cere confirmare înainte de orice — comuți pe acțiune
+          directă când vrei.
         </p>
       </section>
 
       <section className="mx-auto max-w-4xl px-6 pb-12">
-        <HepiCommandCenterClient />
+        <HepiCommandCenterClient initialMode={mode} />
       </section>
     </main>
   );

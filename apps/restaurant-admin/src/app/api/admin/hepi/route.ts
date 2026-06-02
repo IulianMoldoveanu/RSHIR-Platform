@@ -7,12 +7,19 @@
 //
 // POST /api/admin/hepi
 //   body: { prompt: string, history?: Array<{role:'user'|'assistant', content:string}> }
-//   response: { ok: true, response: string, tools_used: string[] }
+//   response: { ok: true, response: string, tools_used: string[],
+//               pending_actions: Array<{token,actionId,label,describe,risk}>, mode }
+//
+// Hepi is now Iulian's EXECUTIVE ORCHESTRATOR: read tools (explain the network)
+// + write tools (change platform state). Write tools are a fixed whitelist
+// (lib/hepi/action-registry) wrapping existing audited server actions — never
+// arbitrary SQL/code.
 //
 // HARD INVARIANTS:
-//   - READ-ONLY. Every tool is a SELECT. Hepi never writes, dispatches, accepts
-//     orders, or changes allocation. The deterministic engine owns allocation;
-//     Hepi only explains it (LOCKED: "motor scrie, Hepi explică").
+//   - Autonomy: in 'confirm' mode (default + fail-safe) a write tool is NOT
+//     executed — it returns a SIGNED proposal the human approves via
+//     /api/admin/hepi/execute. In 'direct' mode it runs immediately. Either way:
+//     params re-validated, platform-admin re-checked, audit_log written.
 //   - GDPR: tool outputs never include customer_phone / customer_first_name /
 //     order items / pharma_metadata. Pharma deliveries surface as operational
 //     records only (Art.9 health data stays out of the AI context).
@@ -23,6 +30,10 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { getHepiMode, type HepiMode } from '@/lib/hepi/autonomy';
+import { writeToolSpecs, validateAction, WRITE_TOOL_IDS } from '@/lib/hepi/action-registry';
+import { signProposal } from '@/lib/hepi/proposals';
+import { logAudit } from '@/lib/audit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,11 +65,13 @@ Ce ești:
 - Vorbești cu administratorul platformei (Iulian), nu cu un vendor sau curier. Ai vedere de ansamblu, peste toți vendorii și toate orașele.
 
 Reguli de fier:
-- EȘTI STRICT READ-ONLY. Nu scrii nimic, nu dispeceri zezi, nu accepți comenzi, nu schimbi alocarea. Motorul determinist deține alocarea; TU DOAR O EXPLICI (cine, către ce flotă, de ce — pe baza asignărilor reale). Dacă ți se cere o acțiune de scriere, explică unde se face manual (pagina respectivă din Command Center).
+- POȚI ACȚIONA, nu doar explica — ești orchestratorul executiv al lui Iulian. Ai tool-uri de CITIRE (vezi rețeaua) și tool-uri de ACȚIUNE (schimbi starea platformei). Folosește o acțiune DOAR când Iulian cere clar o schimbare; altfel explică și recomandă.
+- Confirmare (modul ți-l spun mai jos): în modul „confirm" NU se execută nimic direct — propui acțiunea și Iulian o confirmă cu un click; spune clar CE ai propus și că așteaptă confirmarea, NU pretinde că s-a făcut. În modul „direct" acțiunea se execută imediat (tot auditată).
+- Alocarea comenzilor pe flote rămâne a motorului determinist — n-o forța manual decât printr-un tool dedicat și doar la cererea lui Iulian.
 - GDPR: NU ai și NU inventezi numere de telefon, nume de clienți sau denumiri de medicamente. Livrările de farmacie le vezi doar ca înregistrări operaționale (status, oraș, flotă, tarif). Nu cere și nu fabrica astfel de date.
 - Granițe: întrebările profunde de farmacie (validare rețetă, chat pacient, interacțiuni) NU sunt aici — trăiesc în workspace-ul farmaciei. Spune asta clar și pe scurt dacă ești întrebat.
 
-Tool-uri (toate read-only):
+Tool-uri de CITIRE:
 - network_snapshot       → pulsul rețelei acum (comenzi restaurant/farma 24h, în curs, flote/curieri activi, verificări în așteptare)
 - orders_by_city         → vendori + comenzi pe fiecare oraș (din rollup) + bucket „fără oraș"
 - list_recent_orders     → ultimele comenzi (filtru opțional: vertical, status, oraș) — câmpuri operaționale, fără PII
@@ -66,7 +79,12 @@ Tool-uri (toate read-only):
 - verifications_queue    → ce KYC curieri + KYF firme așteaptă aprobare
 - explain_allocation     → de ce comenzile unui vendor merg la o flotă (asignări primary/fallback reale)
 
-Rutează inteligent: pentru „cum stă rețeaua / azi" → network_snapshot; „pe ce orașe" → orders_by_city; „ce comenzi / ultimele" → list_recent_orders; „ce flote / curieri" → fleets_overview; „ce am de aprobat" → verifications_queue; „de ce merge X la flota Y" → explain_allocation. Pentru sfaturi strategice generale, răspunde direct fără tool.
+Tool-uri de ACȚIUNE (schimbă starea — supuse confirmării/modului):
+- activate_city / deactivate_city → aduce/scoate un oraș live pe platformă (vizibil public + asignare vendori)
+- activate_county_capitals        → activează cele 41 de capitale de județ (bază națională)
+- set_tenant_status               → suspendă sau reactivează un vendor
+
+Rutează inteligent: „cum stă rețeaua / azi" → network_snapshot; „pe ce orașe" → orders_by_city; „ce comenzi" → list_recent_orders; „ce flote / curieri" → fleets_overview; „ce am de aprobat" → verifications_queue; „de ce merge X la flota Y" → explain_allocation; „activează/dezactivează oraș", „suspendă vendor" → tool-ul de acțiune potrivit. Pentru sfaturi strategice generale, răspunde direct fără tool.
 
 Stil: română, concis, ton de cockpit operațional. Folosește cifre concrete din tool-uri. Dacă un tool întoarce 0, spune-o simplu. Termină cu un singur pas concret recomandat, nu liste generice.`;
 
@@ -130,6 +148,15 @@ const TOOLS: Tool[] = [
     },
   },
 ];
+
+// Read tools + the write-action whitelist (lib/hepi/action-registry).
+const ALL_TOOLS: Tool[] = [...TOOLS, ...writeToolSpecs()];
+
+function modeNote(mode: HepiMode): string {
+  return mode === 'direct'
+    ? '\n\nMOD CURENT: direct — acțiunile se execută imediat când Iulian cere o schimbare.'
+    : '\n\nMOD CURENT: confirm — NU executa direct; propune acțiunea și spune că așteaptă confirmarea lui Iulian.';
+}
 
 type ContentBlock =
   | { type: 'text'; text: string }
@@ -504,10 +531,18 @@ export async function POST(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = createAdminClient() as any;
 
+  const mode = await getHepiMode();
   const messages: Message[] = [...history, { role: 'user', content: prompt }];
   let responseText = '';
   let errorText: string | null = null;
   const toolsUsed: string[] = [];
+  const pendingActions: Array<{
+    token: string;
+    actionId: string;
+    label: string;
+    describe: string;
+    risk: 'low' | 'high';
+  }> = [];
 
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
@@ -521,8 +556,8 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           model: MODEL,
           max_tokens: 2048,
-          system: SYSTEM_PROMPT,
-          tools: TOOLS,
+          system: SYSTEM_PROMPT + modeNote(mode),
+          tools: ALL_TOOLS,
           messages,
         }),
       });
@@ -552,6 +587,51 @@ export async function POST(req: NextRequest) {
       const toolResults: ContentBlock[] = [];
       for (const tu of toolUses) {
         toolsUsed.push(tu.name);
+
+        if (WRITE_TOOL_IDS.has(tu.name)) {
+          // Write action: validate, then either propose (confirm mode) or run (direct mode).
+          const v = validateAction(tu.name, tu.input ?? {});
+          if (!v.ok) {
+            toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify({ error: v.error }) });
+            continue;
+          }
+          if (mode === 'direct') {
+            const r = await v.action.execute(v.params);
+            void logAudit({
+              tenantId: '00000000-0000-0000-0000-000000000000',
+              actorUserId: user.id,
+              action: 'hepi.action_executed',
+              entityType: 'hepi_action',
+              entityId: v.action.id,
+              metadata: { params: v.params, ok: r.ok, via: 'direct' },
+            });
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: tu.id,
+              content: JSON.stringify({ executed: true, ok: r.ok, message: r.message }),
+            });
+          } else {
+            const token = signProposal(tu.name, v.params);
+            pendingActions.push({
+              token,
+              actionId: tu.name,
+              label: v.action.label,
+              describe: v.describe,
+              risk: v.action.risk,
+            });
+            toolResults.push({
+              type: 'tool_result',
+              tool_use_id: tu.id,
+              content: JSON.stringify({
+                proposed: true,
+                awaiting_confirmation: true,
+                note: 'Propus. Așteaptă confirmarea lui Iulian în UI — NU presupune că s-a executat.',
+              }),
+            });
+          }
+          continue;
+        }
+
         const out = await execTool(tu.name, sb, tu.input ?? {});
         toolResults.push({ type: 'tool_result', tool_use_id: tu.id, content: out });
       }
@@ -566,5 +646,14 @@ export async function POST(req: NextRequest) {
   if (errorText && !responseText) {
     return NextResponse.json({ error: 'ai_call_failed', detail: errorText }, { status: 502 });
   }
-  return NextResponse.json({ ok: true, response: responseText, tools_used: toolsUsed });
+  if (!responseText && pendingActions.length > 0) {
+    responseText = 'Am pregătit acțiunea — confirmă mai jos pentru a o executa.';
+  }
+  return NextResponse.json({
+    ok: true,
+    response: responseText,
+    tools_used: toolsUsed,
+    pending_actions: pendingActions,
+    mode,
+  });
 }

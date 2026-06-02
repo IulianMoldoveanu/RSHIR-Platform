@@ -94,6 +94,8 @@ export type AuditAction =
   | 'tenant.city_assigned'
   | 'city.activated'
   | 'city.deactivated'
+  | 'hepi.action_executed'
+  | 'hepi.autonomy_changed'
   | 'tenant.presentation_updated'
   | 'tenant.suspended'
   | 'tenant.reactivated'
