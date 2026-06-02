@@ -102,7 +102,7 @@ export function BackgroundLocationRationale() {
           permisiuni alege <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
         </p>
         <p className="mt-2 text-xs leading-relaxed text-hir-muted-fg">
-          Cât urmărirea e activă vezi o notificare permanentă „Tură activă”. Locația
+          Cât urmărirea e activă vezi o notificare permanentă în bara de sus. Locația
           e folosită <strong className="text-hir-fg">doar cât ești pe tură</strong> —
           când închizi tura, urmărirea se oprește complet. Poți revoca oricând din
           setările telefonului.
