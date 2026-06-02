@@ -249,6 +249,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const adminNavEntries: SidebarEntry[] = isPlatformAdmin
     ? [
         { href: '/dashboard/admin/hub', label: 'Command Center', icon: 'layoutDashboard' as const },
+        { href: '/dashboard/admin/hepi', label: 'Hepi (copilot rețea)', icon: 'sparkles' as const },
         {
           label: 'Operare',
           icon: 'receipt' as const,
@@ -277,6 +278,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Creștere',
           icon: 'megaphone' as const,
           items: [
+            { href: '/dashboard/admin/connect-billing', label: 'Billing Connect (săptămânal)' },
             { href: '/dashboard/admin/partners', label: 'Parteneri' },
             { href: '/dashboard/admin/affiliates', label: 'Aplicații reseller' },
             { href: '/dashboard/feedback', label: 'Feedback vendori' },

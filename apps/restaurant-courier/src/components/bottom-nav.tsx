@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Package, Clock, Sparkles, Wallet, Settings } from 'lucide-react';
+import { Package, Clock, Wallet, Settings } from 'lucide-react';
 
+// Hepi removed from the nav per product decision (2026-06-02): low value /
+// token-heavy; support handled by FAQ + fleet managers initially. The
+// /dashboard/hepi route stays reachable (not deleted) so it can be re-promoted
+// later if we decide to ship it.
 const NAV = [
   { href: '/dashboard/orders', label: 'Comenzi', Icon: Package },
   { href: '/dashboard/shift', label: 'Tură', Icon: Clock },
-  { href: '/dashboard/hepi', label: 'Hepi', Icon: Sparkles },
   { href: '/dashboard/earnings', label: 'Câștiguri', Icon: Wallet },
   { href: '/dashboard/settings', label: 'Setări', Icon: Settings },
 ] as const;

@@ -3,11 +3,14 @@
 // Iulian's "control absolut pe orașe" surface: every RO city with how many
 // vendors operate there and how much the shared courier spine moves through it.
 // Reads public.v_city_delivery_rollup (one GROUP BY scan, see 20260630_017) and
-// surfaces the city_id-NULL bucket separately so unstamped deliveries (notably
-// pharma, whose mirror does not yet stamp city_id) are visible, not hidden.
+// surfaces the city_id-NULL bucket separately. Both restaurant and pharma
+// orders are now city-stamped (dispatch trigger MC1 + courier-mirror-pharma
+// receiver #869/#870), so only legacy pre-stamping orders and city-less tenants
+// land in that bucket — not whole verticals.
 //
 // Drill-down: each city links to /dashboard/admin/tenants?city=<slug> (the
-// vendor list already supports slug-based city filtering).
+// vendor list already supports slug-based city filtering). Activation: the
+// is_active go-live flag is flipped here (per-city + county-capitals bulk).
 //
 // Internal-only — RLS-bypass via service-role client, gated by the same
 // HIR_PLATFORM_ADMIN_EMAILS allow-list as the sibling /tenants + /cities/events.
@@ -17,6 +20,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { CityActiveToggle, ActivateCapitalsButton } from './_activation-controls';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -115,18 +119,22 @@ export default async function AdminCitiesRollupPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Command Center · Vendori &amp; orașe
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Command Center · Vendori &amp; orașe
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            Orașe — vendori &amp; comenzi
+          </h1>
+          <p className="max-w-2xl text-sm text-zinc-600">
+            Toate orașele în care operează HIR: câți vendori sunt activați pe fiecare oraș și cât
+            mișcă bazinul comun de curieri prin el (restaurant + farmacie, ultimele 30 de zile).
+            Activează un oraș ca să-l aduci live (vizibil public + poți asigna vendori); apasă pe
+            un oraș pentru lista vendorilor.
+          </p>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Orașe — vendori &amp; comenzi
-        </h1>
-        <p className="max-w-2xl text-sm text-zinc-600">
-          Toate orașele în care operează HIR: câți vendori sunt activați pe fiecare oraș și cât
-          mișcă bazinul comun de curieri prin el (restaurant + farmacie, ultimele 30 de zile).
-          Apasă pe un oraș pentru lista vendorilor.
-        </p>
+        <ActivateCapitalsButton />
       </header>
 
       {/* Summary strip */}
@@ -183,12 +191,15 @@ export default async function AdminCitiesRollupPage() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-zinc-500">{r.orders_total}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/dashboard/admin/tenants?city=${encodeURIComponent(r.slug)}`}
-                      className="text-xs font-medium text-violet-600 hover:underline"
-                    >
-                      Vendori →
-                    </Link>
+                    <div className="flex flex-col items-end gap-1">
+                      <CityActiveToggle cityId={r.city_id} isActive={r.is_active} />
+                      <Link
+                        href={`/dashboard/admin/tenants?city=${encodeURIComponent(r.slug)}`}
+                        className="text-xs font-medium text-violet-600 hover:underline"
+                      >
+                        Vendori →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               );
@@ -222,10 +233,10 @@ export default async function AdminCitiesRollupPage() {
           </div>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-amber-800/90">
-          Comenzile de restaurant primesc orașul automat la dispecerizare (din orașul vendorului).
-          Livrările de farmacie încă nu sunt etichetate cu oraș în bazinul de curieri (oglindirea
-          pharma nu trimite încă orașul) — apar aici, nu pe vreun oraș. Vendorii fără oraș se
-          asignează din{' '}
+          Comenzile de restaurant primesc orașul automat la dispecerizare (din orașul vendorului),
+          iar livrările de farmacie din orașul farmaciei (oglindirea pharma trimite acum orașul).
+          Aici rămân doar comenzile vechi, create înainte de etichetarea pe oraș. Vendorii fără
+          oraș se asignează din{' '}
           <Link href="/dashboard/admin/tenants" className="font-medium text-amber-900 underline">
             Vendori
           </Link>

@@ -8,9 +8,9 @@
 // to the platform-sentinel tenant_id, NOT the restaurant tenant — merchants
 // must never see "fleet_assignment_*" events in their audit feed.
 //
-// PR1b scope locks: assignment CRUD (create / promote / terminate) +
-// recommendations (read-only algorithm pass over current state). Strikes
-// remain platform-admin-only with no UI yet (PR1e). The fleet_zones
+// Scope: assignment CRUD (create / promote / terminate) + recommendations
+// (read-only algorithm pass) + strikes (markStrike records an incident and
+// auto-pauses the pair at the 5/30-day threshold — PR1e). The fleet_zones
 // editor + demand_estimates entry forms ship in PR1c/PR1d.
 
 import { revalidatePath } from 'next/cache';
@@ -25,6 +25,11 @@ import {
   loadGridData,
   loadDemandEstimatesForSlot,
 } from '@/lib/fleet-allocation/queries';
+import {
+  isOverStrikeThreshold,
+  STRIKE_THRESHOLD,
+  STRIKE_WINDOW_DAYS,
+} from '@/lib/fleet-allocation/grid-helpers';
 import { buildAlgorithmInputs } from '@/lib/fleet-allocation/recommendation-mapper';
 
 const REVALIDATE = '/dashboard/admin/fleet-allocation';
@@ -322,6 +327,126 @@ export async function terminateAssignment(input: {
 
   revalidatePath(REVALIDATE);
   return { ok: true, assignment_id: row.id };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// markStrike
+//
+// Records a reliability incident for a (fleet, restaurant) pair and enforces
+// the documented rule: STRIKE_THRESHOLD (5)+ strikes within STRIKE_WINDOW_DAYS
+// (30) auto-pauses the pair's active assignment(s). Until now only the
+// fleet_strikes table + paused_at column existed — nothing wrote strikes or
+// enforced the threshold (the rule lived only in a migration comment).
+//
+// Manual platform-admin action is the documented strike source; an automated
+// dispatch-refusal hook can call this later with the same shape.
+// ────────────────────────────────────────────────────────────────────────
+
+export type MarkStrikeResult =
+  | { ok: true; strike_count: number; auto_paused: boolean }
+  | { ok: false; error: string };
+
+export async function markStrike(input: {
+  fleet_id: string;
+  restaurant_tenant_id: string;
+  assignment_id?: string;
+  reason: string;
+  notes?: string;
+}): Promise<MarkStrikeResult> {
+  const guard = await requirePlatformAdmin();
+  if ('error' in guard) return { ok: false, error: guard.error };
+
+  if (!input.fleet_id || !input.restaurant_tenant_id) {
+    return { ok: false, error: 'Parametri lipsă.' };
+  }
+  const reason = input.reason?.trim();
+  if (!reason) return { ok: false, error: 'Motivul este obligatoriu.' };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+
+  // 1. Record the strike.
+  const { error: insErr } = await sb.from('fleet_strikes').insert({
+    fleet_id: input.fleet_id,
+    restaurant_tenant_id: input.restaurant_tenant_id,
+    assignment_id: input.assignment_id ?? null,
+    reason,
+    reported_by: guard.userId,
+    notes: input.notes ?? null,
+  });
+  if (insErr) return { ok: false, error: insErr.message };
+
+  // 2. Stamp last_strike_at on the targeted assignment (best-effort).
+  if (input.assignment_id) {
+    await sb
+      .from('fleet_restaurant_assignments')
+      .update({ last_strike_at: new Date().toISOString() })
+      .eq('id', input.assignment_id);
+  }
+
+  // 3. Count recent strikes for the pair and enforce the auto-pause threshold.
+  const cutoff = new Date(
+    Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const { count, error: countErr } = await sb
+    .from('fleet_strikes')
+    .select('id', { count: 'exact', head: true })
+    .eq('fleet_id', input.fleet_id)
+    .eq('restaurant_tenant_id', input.restaurant_tenant_id)
+    .gte('occurred_at', cutoff);
+  if (countErr) return { ok: false, error: countErr.message };
+
+  const strikeCount = count ?? 0;
+  let autoPaused = false;
+
+  if (isOverStrikeThreshold(strikeCount)) {
+    // Pause any ACTIVE assignment for this pair (primary and/or secondary).
+    const { data: paused, error: pauseErr } = await sb
+      .from('fleet_restaurant_assignments')
+      .update({ status: 'paused', paused_at: new Date().toISOString() })
+      .eq('fleet_id', input.fleet_id)
+      .eq('restaurant_tenant_id', input.restaurant_tenant_id)
+      .eq('status', 'active')
+      .select('id');
+    if (pauseErr) return { ok: false, error: pauseErr.message };
+
+    autoPaused = (paused?.length ?? 0) > 0;
+    if (autoPaused) {
+      await logAudit({
+        tenantId: PLATFORM_SENTINEL_TENANT_ID,
+        actorUserId: guard.userId,
+        action: 'fleet_assignment_auto_paused',
+        entityType: 'fleet_restaurant_assignment',
+        entityId: input.assignment_id ?? `${input.fleet_id}:${input.restaurant_tenant_id}`,
+        metadata: {
+          fleet_id: input.fleet_id,
+          restaurant_tenant_id: input.restaurant_tenant_id,
+          strike_count: strikeCount,
+          threshold: STRIKE_THRESHOLD,
+          window_days: STRIKE_WINDOW_DAYS,
+        },
+      });
+    }
+  }
+
+  await logAudit({
+    tenantId: PLATFORM_SENTINEL_TENANT_ID,
+    actorUserId: guard.userId,
+    action: 'fleet_strike_recorded',
+    entityType: 'fleet_strike',
+    entityId: `${input.fleet_id}:${input.restaurant_tenant_id}`,
+    metadata: {
+      fleet_id: input.fleet_id,
+      restaurant_tenant_id: input.restaurant_tenant_id,
+      reason,
+      strike_count: strikeCount,
+      auto_paused: autoPaused,
+    },
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true, strike_count: strikeCount, auto_paused: autoPaused };
 }
 
 // ────────────────────────────────────────────────────────────────────────

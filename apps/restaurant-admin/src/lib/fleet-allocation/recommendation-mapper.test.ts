@@ -37,6 +37,7 @@ function assignment(overrides: Partial<AssignmentRow> = {}): AssignmentRow {
     status: overrides.status ?? 'active',
     assigned_at: overrides.assigned_at ?? '2026-05-01T00:00:00Z',
     notes: overrides.notes ?? null,
+    recent_strike_count: overrides.recent_strike_count ?? 0,
   };
 }
 

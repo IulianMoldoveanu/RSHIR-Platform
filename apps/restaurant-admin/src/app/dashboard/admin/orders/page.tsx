@@ -72,7 +72,7 @@ function fmtDate(iso: string): string {
 }
 
 export default async function CommandCenterOrdersPage(props: {
-  searchParams: Promise<{ vertical?: string; status?: string }>;
+  searchParams: Promise<{ vertical?: string; status?: string; city?: string }>;
 }) {
   const supabase = await createServerClient();
   const {
@@ -92,6 +92,7 @@ export default async function CommandCenterOrdersPage(props: {
   const sp = await props.searchParams;
   const vertical = sp.vertical && ['restaurant', 'pharma'].includes(sp.vertical) ? sp.vertical : null;
   const status = sp.status ?? null;
+  const city = sp.city ?? null;
 
   const admin = createAdminClient();
   const sb = admin as unknown as Sb;
@@ -104,6 +105,7 @@ export default async function CommandCenterOrdersPage(props: {
     eq: (c: string, v: string) => SelectTail;
   };
   if (vertical) q = q.eq('vertical', vertical) as typeof q;
+  if (city) q = q.eq('city_id', city) as typeof q;
   if (status === 'in_progress') q = q.in('status', IN_PROGRESS) as typeof q;
   else if (status) q = q.in('status', [status]) as typeof q;
 
@@ -138,10 +140,23 @@ export default async function CommandCenterOrdersPage(props: {
     }
   }
 
-  const [fleetMap, cityMap, courierMap] = await Promise.all([
+  async function loadAllCities(): Promise<{ id: string; name: string }[]> {
+    try {
+      const { data } = await sbAny
+        .from('cities')
+        .select('id, name')
+        .order('name', { ascending: true });
+      return (data ?? []) as { id: string; name: string }[];
+    } catch {
+      return [];
+    }
+  }
+
+  const [fleetMap, cityMap, courierMap, allCities] = await Promise.all([
     fetchMap('courier_fleets', 'id', 'id, name, display_prefix', fleetIds),
     fetchMap('cities', 'id', 'id, name', cityIds),
     fetchMap('courier_profiles', 'user_id', 'user_id, full_name', courierIds),
+    loadAllCities(),
   ]);
 
   function courierLabel(r: OrderRow): string {
@@ -166,10 +181,15 @@ export default async function CommandCenterOrdersPage(props: {
     { key: 'CANCELLED', label: 'Anulate' },
   ];
 
-  function filterHref(nextVertical: string | null, nextStatus: string | null): string {
+  function filterHref(
+    nextVertical: string | null,
+    nextStatus: string | null,
+    nextCity: string | null,
+  ): string {
     const p = new URLSearchParams();
     if (nextVertical) p.set('vertical', nextVertical);
     if (nextStatus) p.set('status', nextStatus);
+    if (nextCity) p.set('city', nextCity);
     const qs = p.toString();
     return qs ? `/dashboard/admin/orders?${qs}` : '/dashboard/admin/orders';
   }
@@ -196,7 +216,7 @@ export default async function CommandCenterOrdersPage(props: {
             {VERTICAL_FILTERS.map((f) => (
               <Link
                 key={f.key || 'all'}
-                href={filterHref(f.key || null, status)}
+                href={filterHref(f.key || null, status, city)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   (vertical ?? '') === f.key
                     ? 'bg-purple-600 text-white'
@@ -211,7 +231,7 @@ export default async function CommandCenterOrdersPage(props: {
             {STATUS_FILTERS.map((f) => (
               <Link
                 key={f.key || 'all'}
-                href={filterHref(vertical, f.key || null)}
+                href={filterHref(vertical, f.key || null, city)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                   (status ?? '') === f.key
                     ? 'bg-purple-600 text-white'
@@ -222,6 +242,30 @@ export default async function CommandCenterOrdersPage(props: {
               </Link>
             ))}
           </div>
+          {/* City filter — GET form (no client JS); scales as we add RO cities. */}
+          <form method="GET" action="/dashboard/admin/orders" className="flex items-center gap-1.5">
+            {vertical && <input type="hidden" name="vertical" value={vertical} />}
+            {status && <input type="hidden" name="status" value={status} />}
+            <select
+              name="city"
+              defaultValue={city ?? ''}
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300"
+              aria-label="Filtrează după oraș"
+            >
+              <option value="">Toate orașele</option>
+              {allCities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800"
+            >
+              Filtrează
+            </button>
+          </form>
           <span className="ml-auto text-xs text-slate-500">{rows.length} comenzi (max 100)</span>
         </div>
 

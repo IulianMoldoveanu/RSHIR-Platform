@@ -167,9 +167,8 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                       icon={<FileText className="h-5 w-5 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />}
                       label="Termeni și condiții"
                       as="link"
-                      href="https://hirforyou.ro/termeni"
+                      href="/terms"
                       onClick={closeDrawer}
-                      external
                     />
                   </ul>
                 </nav>
