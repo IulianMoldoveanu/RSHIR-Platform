@@ -11,6 +11,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { STRIKE_WINDOW_DAYS } from './grid-helpers';
 
 // ────────────────────────────────────────────────────────────────────────
 // Types — what the page consumes
@@ -44,6 +45,10 @@ export type AssignmentRow = {
   status: 'active' | 'paused' | 'terminated';
   assigned_at: string;
   notes: string | null;
+  /** Strikes for this (fleet, restaurant) pair in the last STRIKE_WINDOW_DAYS.
+   *  Same value across all roles of a pair; surfaced so admins see reliability
+   *  pressure before the 5-strike auto-pause fires. */
+  recent_strike_count: number;
 };
 
 export type FleetAllocationGridData = {
@@ -69,7 +74,11 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
 
-  const [fleetsRes, tenantsRes, assignmentsRes, courierCountsRes, zonesRes] =
+  const strikeCutoff = new Date(
+    Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  const [fleetsRes, tenantsRes, assignmentsRes, courierCountsRes, zonesRes, strikesRes] =
     await Promise.all([
       sb
         .from('courier_fleets')
@@ -91,6 +100,10 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
         .from('fleet_zones')
         .select('fleet_id, capacity_courier_count, target_orders_per_hour, is_active')
         .eq('is_active', true),
+      sb
+        .from('fleet_strikes')
+        .select('fleet_id, restaurant_tenant_id')
+        .gte('occurred_at', strikeCutoff),
     ]);
 
   if (fleetsRes.error) throw new Error(`fleets: ${fleetsRes.error.message}`);
@@ -100,6 +113,17 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
   if (courierCountsRes.error)
     throw new Error(`courier_profiles: ${courierCountsRes.error.message}`);
   if (zonesRes.error) throw new Error(`fleet_zones: ${zonesRes.error.message}`);
+  if (strikesRes.error) throw new Error(`fleet_strikes: ${strikesRes.error.message}`);
+
+  // Recent strike counts per (fleet, restaurant) pair.
+  const strikeCountByPair = new Map<string, number>();
+  for (const s of (strikesRes.data ?? []) as {
+    fleet_id: string;
+    restaurant_tenant_id: string;
+  }[]) {
+    const k = `${s.fleet_id}::${s.restaurant_tenant_id}`;
+    strikeCountByPair.set(k, (strikeCountByPair.get(k) ?? 0) + 1);
+  }
 
   // Aggregate active courier counts per fleet.
   const courierCountByFleet = new Map<string, number>();
@@ -165,7 +189,13 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     };
   });
 
-  const assignments: AssignmentRow[] = (assignmentsRes.data ?? []) as AssignmentRow[];
+  type AssignmentRaw = Omit<AssignmentRow, 'recent_strike_count'>;
+  const assignments: AssignmentRow[] = ((assignmentsRes.data ?? []) as AssignmentRaw[]).map(
+    (a) => ({
+      ...a,
+      recent_strike_count: strikeCountByPair.get(`${a.fleet_id}::${a.restaurant_tenant_id}`) ?? 0,
+    }),
+  );
 
   return { fleets, restaurants, assignments };
 }

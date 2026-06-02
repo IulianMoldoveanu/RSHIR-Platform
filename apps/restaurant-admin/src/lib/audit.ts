@@ -143,6 +143,8 @@ export type AuditAction =
   | 'fleet_assignment_created'
   | 'fleet_assignment_role_changed'
   | 'fleet_assignment_terminated'
+  | 'fleet_assignment_auto_paused'
+  | 'fleet_strike_recorded'
   | 'fleet_realloc_recommendation_run'
   | 'order.manual_created'
   | 'tenant.integration_mode_set'

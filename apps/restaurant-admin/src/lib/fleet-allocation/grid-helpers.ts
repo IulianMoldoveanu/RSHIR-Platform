@@ -5,6 +5,16 @@
 
 import type { AssignmentRow } from './queries';
 
+// Reliability rule (fleet_strikes migration 20260507_011): 5+ strikes for the
+// same (fleet, restaurant) pair within 30 days auto-pauses the assignment.
+export const STRIKE_THRESHOLD = 5;
+export const STRIKE_WINDOW_DAYS = 30;
+
+/** True once a pair's recent strike count reaches the auto-pause threshold. */
+export function isOverStrikeThreshold(count: number): boolean {
+  return count >= STRIKE_THRESHOLD;
+}
+
 export type CellStatus =
   | { kind: 'empty' }
   | { kind: 'primary_active'; assignment: AssignmentRow }
