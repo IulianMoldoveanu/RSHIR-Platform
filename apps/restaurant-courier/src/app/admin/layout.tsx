@@ -34,6 +34,24 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             Verificări
           </Link>
+          <Link
+            href="/admin/couriers"
+            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
+          >
+            Curieri
+          </Link>
+          <Link
+            href="/admin/feedback"
+            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
+          >
+            Feedback
+          </Link>
+          <Link
+            href="/admin/deletions"
+            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
+          >
+            Ștergeri
+          </Link>
         </nav>
         <div className="flex-1" />
         <Link
