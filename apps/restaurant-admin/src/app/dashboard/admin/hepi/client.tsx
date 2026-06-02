@@ -41,6 +41,14 @@ const TOOL_LABEL: Record<string, string> = {
   verify_fleet_kyf: 'KYF flotă',
   create_partner: 'creare partener',
   generate_connect_invoices: 'facturi Connect',
+  verify_courier_kyc: 'KYC curier',
+  create_incident: 'creare incident',
+  set_incident_status: 'status incident',
+  promote_fleet_primary: 'promovare flotă',
+  terminate_fleet_assignment: 'terminare asignare',
+  grant_fleet_manager: 'rol fleet manager',
+  onboard_vendor: 'onboard vendor',
+  create_sibling_location: 'locație soră',
 };
 
 export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode }) {

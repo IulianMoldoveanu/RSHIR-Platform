@@ -89,6 +89,12 @@ Tool-uri de ACȚIUNE (schimbă starea — supuse confirmării/modului):
 - verify_fleet_kyf → aprobă/respinge verificarea KYF a unei flote
 - create_partner → creează un partener (reseller)
 - generate_connect_invoices → generează facturile Connect pe săptămâna trecută
+- verify_courier_kyc → aprobă/respinge KYC-ul unui curier
+- create_incident / set_incident_status → gestionează incidente pe pagina de status
+- promote_fleet_primary / terminate_fleet_assignment → schimbă asignările flotă–vendor
+- grant_fleet_manager → acordă rol Fleet Manager (după email) pe un vendor
+- onboard_vendor → creează un vendor nou cu cont owner
+- create_sibling_location → creează o locație soră (multi-city) a unui vendor
 
 Rutează inteligent: „cum stă rețeaua / azi" → network_snapshot; „pe ce orașe" → orders_by_city; „ce comenzi" → list_recent_orders; „ce flote / curieri" → fleets_overview; „ce am de aprobat" → verifications_queue; „de ce merge X la flota Y" → explain_allocation; „activează/dezactivează oraș", „suspendă vendor" → tool-ul de acțiune potrivit. Pentru sfaturi strategice generale, răspunde direct fără tool.
 
