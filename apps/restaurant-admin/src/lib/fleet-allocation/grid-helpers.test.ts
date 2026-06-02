@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cellStatus } from './grid-helpers';
+import { cellStatus, isOverStrikeThreshold, STRIKE_THRESHOLD } from './grid-helpers';
 import type { AssignmentRow } from './queries';
 
 function row(overrides: Partial<AssignmentRow> = {}): AssignmentRow {
@@ -11,8 +11,21 @@ function row(overrides: Partial<AssignmentRow> = {}): AssignmentRow {
     status: overrides.status ?? 'active',
     assigned_at: overrides.assigned_at ?? '2026-05-01T00:00:00Z',
     notes: overrides.notes ?? null,
+    recent_strike_count: overrides.recent_strike_count ?? 0,
   };
 }
+
+describe('isOverStrikeThreshold', () => {
+  it(`is false below the ${STRIKE_THRESHOLD}-strike threshold`, () => {
+    expect(isOverStrikeThreshold(0)).toBe(false);
+    expect(isOverStrikeThreshold(STRIKE_THRESHOLD - 1)).toBe(false);
+  });
+
+  it('is true at and above the threshold', () => {
+    expect(isOverStrikeThreshold(STRIKE_THRESHOLD)).toBe(true);
+    expect(isOverStrikeThreshold(STRIKE_THRESHOLD + 3)).toBe(true);
+  });
+});
 
 describe('cellStatus', () => {
   it('returns empty when no rows match', () => {

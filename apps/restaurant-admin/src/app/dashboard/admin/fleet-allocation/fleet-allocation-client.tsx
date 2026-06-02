@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import {
   assignFleet,
+  markStrike,
   promoteToPrimary,
   runRecommendations,
   terminateAssignment,
@@ -13,7 +14,11 @@ import type {
   FleetRow,
   RestaurantRow,
 } from '@/lib/fleet-allocation/queries';
-import { cellStatus, type CellStatus } from '@/lib/fleet-allocation/grid-helpers';
+import {
+  cellStatus,
+  STRIKE_THRESHOLD,
+  type CellStatus,
+} from '@/lib/fleet-allocation/grid-helpers';
 
 const CELL_STYLES: Record<CellStatus['kind'], string> = {
   empty: 'bg-white text-zinc-400',
@@ -97,6 +102,36 @@ export function FleetAllocationClient({
   function onTerminate(assignmentId: string) {
     if (!window.confirm('Confirmați terminarea acestei asocieri?')) return;
     withAction(terminateAssignment({ assignment_id: assignmentId }), 'Asociere terminată.');
+  }
+
+  function onMarkStrike(fleetId: string, restaurantId: string, assignmentId: string) {
+    const reason = window.prompt(
+      `Motiv strike (incident de fiabilitate). La ${STRIKE_THRESHOLD} strike-uri în 30 de zile asocierea se pauzează automat.`,
+    );
+    if (reason == null) return; // cancelled
+    if (!reason.trim()) {
+      showFeedback('err', 'Motivul este obligatoriu.');
+      return;
+    }
+    startTransition(async () => {
+      const r = await markStrike({
+        fleet_id: fleetId,
+        restaurant_tenant_id: restaurantId,
+        assignment_id: assignmentId,
+        reason,
+      });
+      if (r.ok) {
+        showFeedback(
+          'ok',
+          r.auto_paused
+            ? `Strike ${r.strike_count}/${STRIKE_THRESHOLD} — prag atins, asocierea a fost pauzată automat. (reîmprospătați pagina)`
+            : `Strike înregistrat (${r.strike_count}/${STRIKE_THRESHOLD}). (reîmprospătați pagina)`,
+        );
+        setOpenCell(null);
+      } else {
+        showFeedback('err', r.error);
+      }
+    });
   }
 
   function onRunRecommendations() {
@@ -258,7 +293,21 @@ export function FleetAllocationClient({
                             aria-haspopup="menu"
                             aria-expanded={isOpen}
                           >
-                            {CELL_LABEL[status.kind]}
+                            <span className="flex items-center justify-between gap-1">
+                              <span>{CELL_LABEL[status.kind]}</span>
+                              {status.kind !== 'empty' && status.assignment.recent_strike_count > 0 && (
+                                <span
+                                  className={`rounded px-1 text-[10px] font-semibold ${
+                                    status.assignment.recent_strike_count >= STRIKE_THRESHOLD
+                                      ? 'bg-rose-200 text-rose-900'
+                                      : 'bg-rose-100 text-rose-700'
+                                  }`}
+                                  title={`${status.assignment.recent_strike_count} strike-uri în ultimele 30 de zile`}
+                                >
+                                  ⚠ {status.assignment.recent_strike_count}/{STRIKE_THRESHOLD}
+                                </span>
+                              )}
+                            </span>
                           </button>
 
                           {isOpen && (
@@ -281,6 +330,12 @@ export function FleetAllocationClient({
                                   status.kind === 'secondary_active' ||
                                   status.kind === 'paused'
                                     ? () => onTerminate(status.assignment.id)
+                                    : undefined
+                                }
+                                onMarkStrike={
+                                  status.kind === 'primary_active' ||
+                                  status.kind === 'secondary_active'
+                                    ? () => onMarkStrike(f.id, r.id, status.assignment.id)
                                     : undefined
                                 }
                                 onClose={() => setOpenCell(null)}
@@ -308,6 +363,7 @@ function CellMenu({
   onAssignSecondary,
   onPromote,
   onTerminate,
+  onMarkStrike,
   onClose,
 }: {
   status: CellStatus;
@@ -316,6 +372,7 @@ function CellMenu({
   onAssignSecondary: () => void;
   onPromote?: () => void;
   onTerminate?: () => void;
+  onMarkStrike?: () => void;
   onClose: () => void;
 }) {
   const isActive = status.kind === 'primary_active' || status.kind === 'secondary_active';
@@ -334,6 +391,11 @@ function CellMenu({
       {onPromote && (
         <MenuItem disabled={disabled} onClick={onPromote}>
           Promovați secondary → primary
+        </MenuItem>
+      )}
+      {onMarkStrike && (
+        <MenuItem disabled={disabled} onClick={onMarkStrike} tone="danger">
+          Înregistrați strike (incident)
         </MenuItem>
       )}
       {onTerminate && (
