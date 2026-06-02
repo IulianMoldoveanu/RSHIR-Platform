@@ -42,6 +42,9 @@ type WebhookBody = {
       address: string;
       contact_name: string;
       contact_phone: string;
+      // Pharmacy city (free text). Matched to cities.slug to stamp city_id so
+      // pharma deliveries join the cross-vertical per-city view. Optional.
+      city?: string;
     };
     dropoff: {
       lat: number;
@@ -74,6 +77,22 @@ const json = (status: number, body: unknown) =>
     status,
     headers: { 'content-type': 'application/json' },
   });
+
+// Normalizes a Romanian city name to the cities.slug convention:
+// lowercase, diacritics stripped (ă/â/î/ș/ț → a/a/i/s/t via NFD), non-alnum → '-'.
+// "Brașov" → "brasov", "Cluj-Napoca" → "cluj-napoca", "Râmnicu Vâlcea" → "ramnicu-valcea".
+function toCitySlug(name: string): string {
+  // NFD splits accented letters into base + combining mark; the base is ASCII
+  // (a/i/s/t...), so dropping every non-ASCII codepoint strips Romanian
+  // diacritics without any escape sequences. "Braşov" -> "brasov".
+  const ascii = Array.from(name.trim().normalize('NFD'))
+    .filter((ch) => ch.charCodeAt(0) < 128)
+    .join('');
+  return ascii
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
 // Maps pharma order status strings to courier_orders status enum values.
 // Pharma has many intermediate states; we map to the nearest courier
@@ -226,6 +245,21 @@ Deno.serve(async (req: Request) => {
       total_value_ron: order.total_value_ron,
     };
 
+    // Resolve the pharmacy city to the canonical cities row so pharma
+    // deliveries join the cross-vertical per-city dashboards. Coordinate-free:
+    // normalize the city name to a slug and match cities.slug. Best-effort —
+    // an absent/unknown city leaves city_id NULL (no behaviour change).
+    let cityId: string | null = null;
+    const pharmacyCity = order.pickup.city?.trim();
+    if (pharmacyCity) {
+      const { data: cityRow } = await supabase
+        .from('cities')
+        .select('id')
+        .eq('slug', toCitySlug(pharmacyCity))
+        .maybeSingle();
+      cityId = (cityRow?.id as string | undefined) ?? null;
+    }
+
     // Lane F: optional pharma extras. Each is persisted only when supplied
     // so existing payload contracts remain valid (no NOT NULL changes).
     const insertRow: Record<string, unknown> = {
@@ -253,6 +287,7 @@ Deno.serve(async (req: Request) => {
       created_at: at,
       updated_at: at,
     };
+    if (cityId) insertRow.city_id = cityId;
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
     if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
