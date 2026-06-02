@@ -218,11 +218,15 @@ describe('execute wiring', () => {
     expect(res.ok).toBe(true);
   });
 
-  it('onboard_vendor calls createTenantWithOwner and surfaces storefront + temp password', async () => {
+  it('onboard_vendor keeps the temp password OUT of message, in sensitive only', async () => {
+    h.createTenantResult = { ok: true, tenantId: 't9', ownerUserId: 'u9', slug: 'x', tempPassword: 'TMP-SECRET-9', storefrontUrl: 'https://x.ro' };
     const res = await getAction('onboard_vendor')!.execute({ email: 'a@b.ro', restaurantName: 'Acme', slug: 'acme-cluj' });
     expect(h.createTenantWithOwner).toHaveBeenCalledWith({ email: 'a@b.ro', restaurantName: 'Acme', slug: 'acme-cluj', phone: undefined, cityId: undefined, address: undefined, tagline: undefined });
     expect(res.ok).toBe(true);
     expect(res.message).toContain('https://x.ro');
+    // The credential must never sit in `message` (which can reach the LLM).
+    expect(res.message).not.toContain('TMP-SECRET-9');
+    expect(res.sensitive).toContain('TMP-SECRET-9');
   });
 
   it('create_sibling_location resolves the root brand and calls createSiblingLocationAction', async () => {

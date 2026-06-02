@@ -22,7 +22,10 @@ import { addFleetManagerMembership } from '@/app/dashboard/admin/fleet-managers/
 import { createTenantWithOwner } from '@/app/dashboard/admin/onboard/actions';
 import { createSiblingLocationAction } from '@/app/dashboard/admin/onboard/sibling/actions';
 
-export type HepiActionResult = { ok: boolean; message: string };
+// `message` is safe to surface anywhere (incl. back to the LLM). `sensitive` is
+// a credential/secret (e.g. a temp password) that must reach ONLY the
+// platform-admin UI and NEVER the LLM context / audit log / API logs.
+export type HepiActionResult = { ok: boolean; message: string; sensitive?: string };
 
 export type HepiActionDef = {
   id: string;
@@ -590,7 +593,10 @@ const ACTIONS: HepiActionDef[] = [
       if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
       return {
         ok: true,
-        message: `Am creat vendorul „${String(p.restaurantName)}". Storefront: ${r.storefrontUrl} · parolă temporară: ${r.tempPassword}`,
+        // The temp password is a credential — keep it OUT of `message` (which can
+        // reach the LLM) and put it in `sensitive` (platform-admin UI only).
+        message: `Am creat vendorul „${String(p.restaurantName)}". Storefront: ${r.storefrontUrl}`,
+        sensitive: `Parolă temporară pentru ${String(p.email)}: ${r.tempPassword}`,
       };
     },
   },

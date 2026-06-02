@@ -68,5 +68,8 @@ export async function POST(req: NextRequest) {
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: result.message }, { status: 422 });
   }
-  return NextResponse.json({ ok: true, message: result.message });
+  // `sensitive` (e.g. a temp password) is returned to the platform-admin client
+  // for display only; it never entered the LLM context (execution is post-
+  // proposal in confirm mode) and is not audit-logged.
+  return NextResponse.json({ ok: true, message: result.message, sensitive: result.sensitive });
 }

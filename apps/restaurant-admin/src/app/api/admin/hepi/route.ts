@@ -555,6 +555,9 @@ export async function POST(req: NextRequest) {
     describe: string;
     risk: 'low' | 'high';
   }> = [];
+  // Credentials/secrets from direct-mode executions — returned to the client
+  // only, deliberately kept out of `messages` (LLM context) + audit log.
+  const sensitiveNotes: string[] = [];
 
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn += 1) {
@@ -617,6 +620,10 @@ export async function POST(req: NextRequest) {
               entityId: v.action.id,
               metadata: { params: v.params, ok: r.ok, via: 'direct' },
             });
+            // r.sensitive (e.g. a temp password) goes ONLY to the client, never
+            // into the tool_result we feed back to the LLM (which lands in the
+            // model context + API logs).
+            if (r.sensitive) sensitiveNotes.push(r.sensitive);
             toolResults.push({
               type: 'tool_result',
               tool_use_id: tu.id,
@@ -666,6 +673,7 @@ export async function POST(req: NextRequest) {
     response: responseText,
     tools_used: toolsUsed,
     pending_actions: pendingActions,
+    sensitive_notes: sensitiveNotes,
     mode,
   });
 }

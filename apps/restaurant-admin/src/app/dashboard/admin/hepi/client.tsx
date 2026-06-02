@@ -13,9 +13,17 @@ type PendingAction = {
   risk: 'low' | 'high';
 };
 
-type Msg = { role: 'user' | 'assistant'; content: string; toolsUsed?: string[]; pending?: PendingAction[] };
+type Msg = {
+  role: 'user' | 'assistant';
+  content: string;
+  toolsUsed?: string[];
+  pending?: PendingAction[];
+  // Credentials returned by direct-mode actions — shown in the UI, NEVER added
+  // to the conversation history sent back to the model.
+  sensitiveNotes?: string[];
+};
 
-type ActionStatus = { status: 'running' | 'done' | 'error' | 'cancelled'; message?: string };
+type ActionStatus = { status: 'running' | 'done' | 'error' | 'cancelled'; message?: string; sensitive?: string };
 
 const STARTERS = [
   'Care e pulsul rețelei acum?',
@@ -96,7 +104,10 @@ export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode
         setActionState((s) => ({ ...s, [a.token]: { status: 'error', message: d?.error ?? 'Eroare la execuție.' } }));
         return;
       }
-      setActionState((s) => ({ ...s, [a.token]: { status: 'done', message: d.message as string } }));
+      setActionState((s) => ({
+        ...s,
+        [a.token]: { status: 'done', message: d.message as string, sensitive: typeof d.sensitive === 'string' ? d.sensitive : undefined },
+      }));
     } catch {
       setActionState((s) => ({ ...s, [a.token]: { status: 'error', message: 'Conexiune întreruptă.' } }));
     }
@@ -138,8 +149,10 @@ export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode
       }
       const toolsUsed = Array.isArray(data.tools_used) ? (data.tools_used as string[]) : undefined;
       const pending = Array.isArray(data.pending_actions) ? (data.pending_actions as PendingAction[]) : undefined;
+      const sensitiveNotes =
+        Array.isArray(data.sensitive_notes) && data.sensitive_notes.length ? (data.sensitive_notes as string[]) : undefined;
       if (data.mode === 'confirm' || data.mode === 'direct') setMode(data.mode);
-      setMessages([...nextHistory, { role: 'assistant', content: data.response as string, toolsUsed, pending }]);
+      setMessages([...nextHistory, { role: 'assistant', content: data.response as string, toolsUsed, pending, sensitiveNotes }]);
     } catch {
       setError('Conexiune întreruptă.');
     } finally {
@@ -228,6 +241,18 @@ export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode
                     {m.content}
                   </div>
 
+                  {/* Credentials from direct-mode actions — UI only, not in history */}
+                  {!mine && m.sensitiveNotes && m.sensitiveNotes.length > 0
+                    ? m.sensitiveNotes.map((note, j) => (
+                        <div
+                          key={j}
+                          className="select-all rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-mono text-[11px] text-amber-200"
+                        >
+                          {note}
+                        </div>
+                      ))
+                    : null}
+
                   {/* Proposed actions awaiting confirmation */}
                   {!mine && m.pending && m.pending.length > 0 ? (
                     <div className="flex flex-col gap-2">
@@ -278,23 +303,30 @@ export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode
                                 </button>
                               </div>
                             ) : (
-                              <div
-                                className={`mt-2 flex items-center gap-1 text-xs ${
-                                  st.status === 'done'
-                                    ? 'text-emerald-400'
+                              <>
+                                <div
+                                  className={`mt-2 flex items-center gap-1 text-xs ${
+                                    st.status === 'done'
+                                      ? 'text-emerald-400'
+                                      : st.status === 'error'
+                                        ? 'text-rose-400'
+                                        : 'text-slate-500'
+                                  }`}
+                                >
+                                  {st.status === 'done' && <Check className="h-3.5 w-3.5" aria-hidden />}
+                                  {st.status === 'error' && <AlertTriangle className="h-3.5 w-3.5" aria-hidden />}
+                                  {st.status === 'done'
+                                    ? (st.message ?? 'Executat.')
                                     : st.status === 'error'
-                                      ? 'text-rose-400'
-                                      : 'text-slate-500'
-                                }`}
-                              >
-                                {st.status === 'done' && <Check className="h-3.5 w-3.5" aria-hidden />}
-                                {st.status === 'error' && <AlertTriangle className="h-3.5 w-3.5" aria-hidden />}
-                                {st.status === 'done'
-                                  ? (st.message ?? 'Executat.')
-                                  : st.status === 'error'
-                                    ? (st.message ?? 'Eroare.')
-                                    : 'Anulat.'}
-                              </div>
+                                      ? (st.message ?? 'Eroare.')
+                                      : 'Anulat.'}
+                                </div>
+                                {st.status === 'done' && st.sensitive ? (
+                                  <div className="mt-1 select-all rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-mono text-[11px] text-amber-200">
+                                    {st.sensitive}
+                                  </div>
+                                ) : null}
+                              </>
                             )}
                           </div>
                         );
