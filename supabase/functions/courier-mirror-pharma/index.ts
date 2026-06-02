@@ -94,6 +94,24 @@ function toCitySlug(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+// Resolves a pharmacy city name to its canonical cities.id via slug match.
+// Coordinate-free, read-only on cities. Returns null when absent/unknown so
+// callers leave courier_orders.city_id NULL (no behaviour change).
+async function resolveCityId(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  city?: string,
+): Promise<string | null> {
+  const trimmed = city?.trim();
+  if (!trimmed) return null;
+  const { data } = await supabase
+    .from('cities')
+    .select('id')
+    .eq('slug', toCitySlug(trimmed))
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
+}
+
 // Maps pharma order status strings to courier_orders status enum values.
 // Pharma has many intermediate states; we map to the nearest courier
 // equivalent. Unknown statuses default to CREATED so the row still lands.
@@ -227,12 +245,25 @@ Deno.serve(async (req: Request) => {
     // Idempotency: if a row with this external_ref already exists, return 200.
     const { data: existing } = await supabase
       .from('courier_orders')
-      .select('id')
+      .select('id, city_id')
       .eq('external_ref', order.pharma_order_id)
       .eq('vertical', 'pharma')
       .maybeSingle();
 
     if (existing) {
+      // Backfill city_id on a re-sent order.created if the row was first
+      // mirrored before city was available (or before city stamping shipped).
+      // Idempotent + best-effort: only fills a NULL, never overwrites.
+      if (!existing.city_id) {
+        const backfillCityId = await resolveCityId(supabase, order.pickup.city);
+        if (backfillCityId) {
+          await supabase
+            .from('courier_orders')
+            .update({ city_id: backfillCityId })
+            .eq('id', existing.id)
+            .is('city_id', null);
+        }
+      }
       return json(200, { ok: true, courier_order_id: existing.id, idempotent: true });
     }
 
@@ -246,19 +277,8 @@ Deno.serve(async (req: Request) => {
     };
 
     // Resolve the pharmacy city to the canonical cities row so pharma
-    // deliveries join the cross-vertical per-city dashboards. Coordinate-free:
-    // normalize the city name to a slug and match cities.slug. Best-effort —
-    // an absent/unknown city leaves city_id NULL (no behaviour change).
-    let cityId: string | null = null;
-    const pharmacyCity = order.pickup.city?.trim();
-    if (pharmacyCity) {
-      const { data: cityRow } = await supabase
-        .from('cities')
-        .select('id')
-        .eq('slug', toCitySlug(pharmacyCity))
-        .maybeSingle();
-      cityId = (cityRow?.id as string | undefined) ?? null;
-    }
+    // deliveries join the cross-vertical per-city dashboards (best-effort).
+    const cityId = await resolveCityId(supabase, order.pickup.city);
 
     // Lane F: optional pharma extras. Each is persisted only when supplied
     // so existing payload contracts remain valid (no NOT NULL changes).
@@ -354,7 +374,7 @@ Deno.serve(async (req: Request) => {
     // Find the existing mirror row.
     const { data: existing, error: findErr } = await supabase
       .from('courier_orders')
-      .select('id, updated_at')
+      .select('id, updated_at, city_id')
       .eq('external_ref', order.pharma_order_id)
       .eq('vertical', 'pharma')
       .maybeSingle();
@@ -371,11 +391,12 @@ Deno.serve(async (req: Request) => {
       return json(404, { error: 'mirror_not_found', pharma_order_id: order.pharma_order_id });
     }
 
-    // HIR wins on conflict: only update if pharma's `at` is newer than the
-    // current updated_at. Prevents old retries from overwriting fresher state.
+    // HIR wins on conflict: drop only STRICTLY-older retries. Strict `<` (not
+    // `<=`) so a legitimate same-millisecond transition is applied (last-write-
+    // wins on a true tie is safe) rather than silently dropped as stale.
     const existingUpdatedAt = new Date(existing.updated_at as string);
     const eventAt = new Date(at);
-    if (eventAt <= existingUpdatedAt) {
+    if (eventAt < existingUpdatedAt) {
       return json(200, { ok: true, courier_order_id: existing.id, skipped: 'stale_event' });
     }
 
@@ -385,6 +406,12 @@ Deno.serve(async (req: Request) => {
     // migration 20260605_004 — instead of stored on courier_orders.
     const updateRow: Record<string, unknown> = { status: targetStatus, updated_at: at };
     if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
+    // Repair a NULL city_id from a later event if the city now resolves
+    // (e.g. the row was created before city stamping or before city was sent).
+    if (!existing.city_id) {
+      const repairedCityId = await resolveCityId(supabase, order.pickup.city);
+      if (repairedCityId) updateRow.city_id = repairedCityId;
+    }
 
     if (order.pharma_callback_secret) {
       const { error: secretErr } = await supabase
