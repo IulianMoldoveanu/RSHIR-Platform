@@ -1,15 +1,27 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Send, Sparkles, User, AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { Send, Sparkles, User, AlertTriangle, Check, X, ShieldCheck, Zap } from 'lucide-react';
+import type { HepiMode } from '@/lib/hepi/autonomy';
+import { setHepiMode } from './actions';
 
-type Msg = { role: 'user' | 'assistant'; content: string; toolsUsed?: string[] };
+type PendingAction = {
+  token: string;
+  actionId: string;
+  label: string;
+  describe: string;
+  risk: 'low' | 'high';
+};
+
+type Msg = { role: 'user' | 'assistant'; content: string; toolsUsed?: string[]; pending?: PendingAction[] };
+
+type ActionStatus = { status: 'running' | 'done' | 'error' | 'cancelled'; message?: string };
 
 const STARTERS = [
   'Care e pulsul rețelei acum?',
-  'Ce orașe sunt active și unde sunt vendorii?',
+  'Activează capitalele de județ.',
   'Ce verificări (KYC/KYF) așteaptă aprobare?',
-  'Arată-mi ultimele comenzi de farmacie.',
+  'Activează orașul Cluj-Napoca.',
 ];
 
 const TOOL_LABEL: Record<string, string> = {
@@ -19,18 +31,66 @@ const TOOL_LABEL: Record<string, string> = {
   fleets_overview: 'flote',
   verifications_queue: 'verificări',
   explain_allocation: 'alocare',
+  activate_city: 'activare oraș',
+  deactivate_city: 'dezactivare oraș',
+  activate_county_capitals: 'activare capitale',
+  set_tenant_status: 'status vendor',
 };
 
-export function HepiCommandCenterClient() {
+export function HepiCommandCenterClient({ initialMode }: { initialMode: HepiMode }) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<HepiMode>(initialMode);
+  const [actionState, setActionState] = useState<Record<string, ActionStatus>>({});
+  const [savingMode, startSaveMode] = useTransition();
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages.length, sending]);
+
+  const toggleMode = () => {
+    const next: HepiMode = mode === 'confirm' ? 'direct' : 'confirm';
+    if (
+      next === 'direct' &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Treci Hepi pe ACȚIUNE DIRECTĂ? Va executa imediat ce-i ceri, fără să mai întrebe. Poți reveni oricând la „cere confirmare".',
+      )
+    ) {
+      return;
+    }
+    startSaveMode(async () => {
+      const res = await setHepiMode({ mode: next });
+      if (res.ok) setMode(next);
+      else setError(res.error);
+    });
+  };
+
+  const confirmAction = async (a: PendingAction) => {
+    setActionState((s) => ({ ...s, [a.token]: { status: 'running' } }));
+    try {
+      const res = await fetch('/api/admin/hepi/execute', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: a.token }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d?.ok) {
+        setActionState((s) => ({ ...s, [a.token]: { status: 'error', message: d?.error ?? 'Eroare la execuție.' } }));
+        return;
+      }
+      setActionState((s) => ({ ...s, [a.token]: { status: 'done', message: d.message as string } }));
+    } catch {
+      setActionState((s) => ({ ...s, [a.token]: { status: 'error', message: 'Conexiune întreruptă.' } }));
+    }
+  };
+
+  const cancelAction = (a: PendingAction) => {
+    setActionState((s) => ({ ...s, [a.token]: { status: 'cancelled' } }));
+  };
 
   const ask = async (prompt: string) => {
     const text = prompt.trim();
@@ -63,7 +123,9 @@ export function HepiCommandCenterClient() {
         return;
       }
       const toolsUsed = Array.isArray(data.tools_used) ? (data.tools_used as string[]) : undefined;
-      setMessages([...nextHistory, { role: 'assistant', content: data.response as string, toolsUsed }]);
+      const pending = Array.isArray(data.pending_actions) ? (data.pending_actions as PendingAction[]) : undefined;
+      if (data.mode === 'confirm' || data.mode === 'direct') setMode(data.mode);
+      setMessages([...nextHistory, { role: 'assistant', content: data.response as string, toolsUsed, pending }]);
     } catch {
       setError('Conexiune întreruptă.');
     } finally {
@@ -73,6 +135,34 @@ export function HepiCommandCenterClient() {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Autonomy toggle */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          {mode === 'direct' ? (
+            <Zap className="h-3.5 w-3.5 text-amber-400" aria-hidden />
+          ) : (
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" aria-hidden />
+          )}
+          <span>
+            Mod:{' '}
+            <span className={mode === 'direct' ? 'font-medium text-amber-300' : 'font-medium text-emerald-300'}>
+              {mode === 'direct' ? 'acțiune directă' : 'cere confirmare'}
+            </span>
+            <span className="ml-1 text-slate-600">
+              {mode === 'direct' ? '— execută imediat ce-i ceri' : '— propune, tu confirmi'}
+            </span>
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={toggleMode}
+          disabled={savingMode}
+          className="rounded-md border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:border-violet-500/50 hover:text-white disabled:opacity-50"
+        >
+          {savingMode ? '…' : mode === 'direct' ? 'Cere confirmare' : 'Acțiune directă'}
+        </button>
+      </div>
+
       <div
         ref={listRef}
         className="flex max-h-[58vh] min-h-[320px] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-4"
@@ -82,8 +172,8 @@ export function HepiCommandCenterClient() {
             <div className="flex items-start gap-2 rounded-xl border border-violet-500/30 bg-violet-500/5 p-3 text-sm text-slate-200">
               <Sparkles className="mt-0.5 h-4 w-4 flex-none text-violet-400" aria-hidden />
               <span>
-                Salut, Iulian. Sunt Hepi — copilotul tău peste toată rețeaua de livrare. Întreabă-mă
-                despre comenzi, flote, curieri, orașe sau verificări. Citesc datele live și îți explic.
+                Salut, Iulian. Sunt Hepi — orchestratorul tău peste toată rețeaua de livrare. Întreabă-mă
+                sau cere-mi să acționez (activează un oraș, suspendă un vendor). Implicit întreb înainte.
               </span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -123,9 +213,84 @@ export function HepiCommandCenterClient() {
                   >
                     {m.content}
                   </div>
+
+                  {/* Proposed actions awaiting confirmation */}
+                  {!mine && m.pending && m.pending.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {m.pending.map((a) => {
+                        const st = actionState[a.token];
+                        return (
+                          <div
+                            key={a.token}
+                            className={`rounded-xl border px-3 py-2 text-sm ${
+                              a.risk === 'high'
+                                ? 'border-amber-500/40 bg-amber-500/5'
+                                : 'border-violet-500/30 bg-violet-500/5'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {a.risk === 'high' ? (
+                                <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-400" aria-hidden />
+                              ) : (
+                                <ShieldCheck className="mt-0.5 h-4 w-4 flex-none text-violet-400" aria-hidden />
+                              )}
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                  {a.label}
+                                </span>
+                                <span className="text-slate-200">{a.describe}</span>
+                              </div>
+                            </div>
+
+                            {!st || st.status === 'running' ? (
+                              <div className="mt-2 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void confirmAction(a)}
+                                  disabled={st?.status === 'running'}
+                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                >
+                                  <Check className="h-3.5 w-3.5" aria-hidden />
+                                  {st?.status === 'running' ? 'Se execută…' : 'Confirmă'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => cancelAction(a)}
+                                  disabled={st?.status === 'running'}
+                                  className="inline-flex items-center gap-1 rounded-md border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:text-white disabled:opacity-50"
+                                >
+                                  <X className="h-3.5 w-3.5" aria-hidden />
+                                  Anulează
+                                </button>
+                              </div>
+                            ) : (
+                              <div
+                                className={`mt-2 flex items-center gap-1 text-xs ${
+                                  st.status === 'done'
+                                    ? 'text-emerald-400'
+                                    : st.status === 'error'
+                                      ? 'text-rose-400'
+                                      : 'text-slate-500'
+                                }`}
+                              >
+                                {st.status === 'done' && <Check className="h-3.5 w-3.5" aria-hidden />}
+                                {st.status === 'error' && <AlertTriangle className="h-3.5 w-3.5" aria-hidden />}
+                                {st.status === 'done'
+                                  ? (st.message ?? 'Executat.')
+                                  : st.status === 'error'
+                                    ? (st.message ?? 'Eroare.')
+                                    : 'Anulat.'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
                   {!mine && m.toolsUsed && m.toolsUsed.length > 0 ? (
                     <div className="flex flex-wrap gap-1 px-1 text-[10px] text-slate-500">
-                      <span>citit:</span>
+                      <span>folosit:</span>
                       {Array.from(new Set(m.toolsUsed)).map((t) => (
                         <span
                           key={t}
@@ -169,7 +334,7 @@ export function HepiCommandCenterClient() {
           }}
           disabled={sending}
           maxLength={4000}
-          placeholder="Întreabă-l pe Hepi despre rețea…"
+          placeholder="Întreabă-l pe Hepi sau cere-i o acțiune…"
           className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 disabled:opacity-50"
         />
         <button
