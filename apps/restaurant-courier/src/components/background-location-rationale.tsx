@@ -4,27 +4,25 @@ import { useEffect, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { Button } from '@hir/ui';
 
-// NOTE: key bumped to v2 because the rationale copy changed from
-// "Allow all the time" (background) to foreground-only "While using the app".
-const RATIONALE_SHOWN_KEY = 'hir_loc_rationale_shown_v2';
+// NOTE: key bumped to v3 — copy escalated back to background ("Allow all the
+// time") now that background geolocation ships (PR #860): foreground service +
+// dispatch tracking while the shift is active. v2 was the foreground-only copy.
+const RATIONALE_SHOWN_KEY = 'hir_loc_rationale_shown_v3';
 
 /**
- * One-time rationale dialog explaining WHY we need location access before
- * triggering the Android foreground location permission prompt.
+ * Prominent-disclosure dialog (Google Play location policy) shown BEFORE the
+ * Android background-location permission prompt.
  *
- * Foreground-only (launch posture): we ask for "While using the app" /
- * "Permite în timpul utilizării" — the app tracks position only while it is
- * open and the shift is active. We do NOT request ACCESS_BACKGROUND_LOCATION
- * for the Google Play launch build; the location stream is foreground-scoped.
+ * Background geolocation ships in v1.0.0 (PR #860): while the shift is active
+ * the app reports the courier's position so dispatch can offer nearby orders
+ * and the client can follow the delivery — and it keeps reporting when the
+ * phone is locked or the app is backgrounded, via a persistent foreground-
+ * service notification. Android 10+ requires a two-step grant: "While using the
+ * app" first, then a separate OS screen for "Allow all the time".
  *
- * Without context, riders may silently deny the prompt and never receive
- * nearby orders. This dialog shows first on Android so the rider knows what
- * to pick.
- *
- * TODO(post-launch): background geolocation via
- * @capacitor-community/background-geolocation — see STORE-DEPLOYMENT.md /
- * NATIVE_SHELL.md ("post-launch"). When that lands, restore the
- * "Allow all the time" escalation copy + key bump.
+ * This disclosure must appear before the OS prompt and explain, in plain
+ * language, what is collected and why — see BACKGROUND-GEOLOCATION.md
+ * ("Google Play — prominent disclosure").
  *
  * Trigger conditions:
  *   - Capacitor.isNativePlatform() === true
@@ -75,7 +73,7 @@ export function BackgroundLocationRationale() {
       className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Permisiune locație în timpul utilizării"
+      aria-label="Permisiune locație în timpul turei"
     >
       <div className="w-full max-w-md rounded-2xl border border-hir-border bg-hir-bg p-5 shadow-2xl ring-1 ring-inset ring-violet-500/15">
         <div className="mb-4 flex items-start justify-between">
@@ -98,13 +96,16 @@ export function BackgroundLocationRationale() {
           De ce avem nevoie de locația ta în timpul turei
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-hir-muted-fg">
-          Cât ai aplicația deschisă și tura pornită trimitem poziția ta către
-          dispecerat, ca să primești comenzile cele mai apropiate. La următorul
-          ecran alege <strong className="text-hir-fg">&bdquo;Permite în timpul utilizării&rdquo;</strong>.
+          Cât ești pe tură trimitem poziția ta către dispecerat, ca să primești
+          comenzile apropiate și clientul să urmărească livrarea. Funcționează și
+          când telefonul e blocat sau aplicația e în fundal. La ecranul de
+          permisiuni alege <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
         </p>
         <p className="mt-2 text-xs leading-relaxed text-hir-muted-fg">
-          Locația este folosită doar cât ești online cu tura pornită și
-          aplicația deschisă. Când închizi tura, urmărirea se oprește complet.
+          Cât urmărirea e activă vezi o notificare permanentă „Tură activă”. Locația
+          e folosită <strong className="text-hir-fg">doar cât ești pe tură</strong> —
+          când închizi tura, urmărirea se oprește complet. Poți revoca oricând din
+          setările telefonului.
         </p>
 
         <div className="mt-5">
