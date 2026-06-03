@@ -175,40 +175,73 @@ class HIR_WooCommerce {
 	 * @return array
 	 */
 	private function build_payload( WC_Order $order ) {
+		// Shape MUST match the HIR public API zod schema at
+		// POST /api/public/v1/orders (apps/restaurant-web .../public/v1/orders):
+		//   customer.firstName (required, non-empty), items[].priceRon,
+		//   totals{subtotalRon,deliveryFeeRon,totalRon}, fulfillment, dropoff.
+		// Sending the legacy {name,total_ron,delivery_address,unit_price_ron}
+		// shape is rejected with 400 invalid_request.
 		$items = array();
 		foreach ( $order->get_items() as $item ) {
 			if ( ! $item instanceof WC_Order_Item_Product ) {
 				continue;
 			}
-			$qty       = (int) $item->get_quantity();
-			$unit_price = $qty > 0 ? round( (float) $item->get_total() / $qty, 2 ) : 0.0;
-			$items[]   = array(
-				'name'           => $item->get_name(),
-				'qty'            => $qty,
-				'unit_price_ron' => $unit_price,
+			$qty        = max( 1, (int) $item->get_quantity() );
+			$unit_price = round( (float) $item->get_total() / $qty, 2 );
+			$items[]    = array(
+				'name'     => $item->get_name(),
+				'qty'      => $qty,
+				'priceRon' => $unit_price,
 			);
 		}
 
+		// HIR requires a non-empty firstName. WooCommerce stores first/last
+		// separately; if first is blank, promote the last name, then fall
+		// back to a generic label so a nameless guest order still posts.
+		$first = trim( (string) $order->get_billing_first_name() );
+		$last  = trim( (string) $order->get_billing_last_name() );
+		if ( '' === $first && '' === $last ) {
+			$first = __( 'Client', 'hir-connect' );
+		} elseif ( '' === $first ) {
+			$first = $last;
+			$last  = '';
+		}
+
+		$line1 = $order->get_shipping_address_1() ? $order->get_shipping_address_1() : $order->get_billing_address_1();
+		$line2 = $order->get_shipping_address_2() ? $order->get_shipping_address_2() : $order->get_billing_address_2();
+		$city  = $order->get_shipping_city() ? $order->get_shipping_city() : $order->get_billing_city();
+
+		// API caps notes at 500 chars; truncate to avoid a 400 on long notes.
+		$notes = (string) $order->get_customer_note();
+		if ( function_exists( 'mb_substr' ) ) {
+			$notes = mb_substr( $notes, 0, 500 );
+		} else {
+			$notes = substr( $notes, 0, 500 );
+		}
+
 		return array(
+			// external_order_id + source are ignored by the API today but kept
+			// for forward-compat / server-side correlation logging.
 			'external_order_id' => (int) $order->get_id(),
 			'customer'          => array(
-				'name'  => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
-				'phone' => $order->get_billing_phone(),
-				'email' => $order->get_billing_email(),
-			),
-			'delivery_address'  => array(
-				'line1' => $order->get_shipping_address_1() ? $order->get_shipping_address_1() : $order->get_billing_address_1(),
-				'line2' => $order->get_shipping_address_2() ? $order->get_shipping_address_2() : $order->get_billing_address_2(),
-				'city'  => $order->get_shipping_city() ? $order->get_shipping_city() : $order->get_billing_city(),
-				'postcode' => $order->get_shipping_postcode() ? $order->get_shipping_postcode() : $order->get_billing_postcode(),
-				'country'  => $order->get_shipping_country() ? $order->get_shipping_country() : $order->get_billing_country(),
+				'firstName' => $first,
+				'lastName'  => $last,
+				'phone'     => (string) $order->get_billing_phone(),
+				'email'     => (string) $order->get_billing_email(),
 			),
 			'items'             => $items,
-			'total_ron'         => (float) $order->get_total(),
-			'currency'          => $order->get_currency(),
-			'notes'             => $order->get_customer_note(),
-			'payment_status'    => $order->is_paid() ? 'PAID' : 'UNPAID',
-			'payment_method'    => $order->get_payment_method(),
+			'totals'            => array(
+				'subtotalRon'    => round( (float) $order->get_subtotal(), 2 ),
+				'deliveryFeeRon' => round( (float) $order->get_shipping_total(), 2 ),
+				'totalRon'       => round( (float) $order->get_total(), 2 ),
+			),
+			'fulfillment'       => 'DELIVERY',
+			'dropoff'           => array(
+				'line1' => (string) $line1,
+				'line2' => (string) $line2,
+				'city'  => (string) $city,
+			),
+			'notes'             => $notes,
 			'source'            => 'woocommerce',
 		);
 	}
