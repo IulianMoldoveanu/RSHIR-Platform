@@ -16,6 +16,7 @@ vi.mock('../auth', () => ({
 }));
 
 const customerInsertMock = vi.fn();
+const addressInsertMock = vi.fn();
 const orderInsertMock = vi.fn();
 
 vi.mock('@/lib/supabase-admin', () => ({
@@ -25,6 +26,7 @@ vi.mock('@/lib/supabase-admin', () => ({
         select: () => ({
           single: () => {
             if (table === 'customers') return Promise.resolve(customerInsertMock(row));
+            if (table === 'customer_addresses') return Promise.resolve(addressInsertMock(row));
             if (table === 'restaurant_orders') return Promise.resolve(orderInsertMock(row));
             return Promise.resolve({ data: null, error: { message: 'unexpected_table' } });
           },
@@ -70,6 +72,8 @@ describe('POST /api/public/v1/orders', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     checkLimitMock.mockReturnValue({ ok: true });
+    // Default: address insert succeeds. Overridden in the failure case.
+    addressInsertMock.mockReturnValue({ data: { id: 'addr-1' }, error: null });
   });
   afterEach(() => {
     vi.resetAllMocks();
@@ -169,6 +173,22 @@ describe('POST /api/public/v1/orders', () => {
     expect(dispatchMock).not.toHaveBeenCalled();
   });
 
+  it('returns 500 if the dropoff address insert errors (order must not be created)', async () => {
+    authMock.mockResolvedValue({
+      tenantId: TENANT_ID,
+      keyId: API_KEY_ID,
+      scopes: ['orders.write'],
+    });
+    customerInsertMock.mockReturnValue({ data: { id: 'cust-1' }, error: null });
+    addressInsertMock.mockReturnValue({ data: null, error: { message: 'addr fk' } });
+    const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+    expect(res.status).toBe(500);
+    // Order + dispatch must not run if the dropoff couldn't be persisted —
+    // an order with a NULL dropoff cannot be routed to a courier.
+    expect(orderInsertMock).not.toHaveBeenCalled();
+    expect(dispatchMock).not.toHaveBeenCalled();
+  });
+
   it('happy path: returns 201 with order_id + track token, writes correct row, dispatches event', async () => {
     authMock.mockResolvedValue({
       tenantId: TENANT_ID,
@@ -198,11 +218,22 @@ describe('POST /api/public/v1/orders', () => {
 
     // Order row: source EXTERNAL_API, tenant from auth, status PENDING,
     // payment UNPAID (external POS owns payment).
+    // Dropoff persisted as a customer_addresses row...
+    expect(addressInsertMock).toHaveBeenCalledTimes(1);
+    const [addrRow] = addressInsertMock.mock.calls[0];
+    expect(addrRow).toMatchObject({
+      customer_id: 'cust-1',
+      line1: 'Strada Mare 10',
+      city: 'București',
+    });
+
     expect(orderInsertMock).toHaveBeenCalledTimes(1);
     const [orderRow] = orderInsertMock.mock.calls[0];
     expect(orderRow).toMatchObject({
       tenant_id: TENANT_ID,
       customer_id: 'cust-1',
+      // ...and linked on the order so the dispatch bridge can route it.
+      delivery_address_id: 'addr-1',
       status: 'PENDING',
       payment_status: 'UNPAID',
       source: 'EXTERNAL_API',

@@ -48,31 +48,36 @@ WordPress / WooCommerce site
 
 ### Outbound contract — `POST /api/public/v1/orders`
 
+The body MUST match the server-side zod schema exactly (camelCase keys,
+`totals` object, `dropoff` required for delivery). `firstName` must be
+non-empty and `phone` ≥ 6 chars or the API returns `400 invalid_request`.
+
 ```php
 $payload = [
-  'external_order_id' => 12345,                  // local WP/WC order id
+  'external_order_id' => 12345,                  // ignored today; kept for correlation
   'customer' => [
-    'name'  => 'Ion Popescu',
-    'phone' => '+40712345678',
-    'email' => 'ion@example.com',
-  ],
-  'delivery_address' => [
-    'line1'   => 'Strada Lungă 12, ap 4',
-    'line2'   => '',
-    'city'    => 'Brașov',
-    'postcode'=> '500000',
-    'country' => 'RO',
+    'firstName' => 'Ion',
+    'lastName'  => 'Popescu',
+    'phone'     => '+40712345678',
+    'email'     => 'ion@example.com',
   ],
   'items' => [
-    [ 'name' => 'Pizza Quattro Stagioni', 'qty' => 1, 'unit_price_ron' => 45.00 ],
-    [ 'name' => 'Coca-Cola 0.5L',         'qty' => 2, 'unit_price_ron' =>  8.00 ],
+    [ 'name' => 'Pizza Quattro Stagioni', 'qty' => 1, 'priceRon' => 45.00 ],
+    [ 'name' => 'Coca-Cola 0.5L',         'qty' => 2, 'priceRon' =>  8.00 ],
   ],
-  'total_ron'      => 61.00,
-  'currency'       => 'RON',
-  'notes'          => 'Sună la sosire',
-  'payment_status' => 'PAID',     // PAID | UNPAID
-  'payment_method' => 'card',
-  'source'         => 'woocommerce', // woocommerce | elementor-form
+  'totals' => [
+    'subtotalRon'    => 61.00,
+    'deliveryFeeRon' =>  0.00,
+    'totalRon'       => 61.00,
+  ],
+  'fulfillment' => 'DELIVERY',                    // DELIVERY | PICKUP
+  'dropoff' => [
+    'line1' => 'Strada Lungă 12, ap 4',
+    'line2' => '',
+    'city'  => 'Brașov',
+  ],
+  'notes'  => 'Sună la sosire',                   // max 500 chars
+  'source' => 'woocommerce',
 ];
 ```
 
@@ -81,14 +86,17 @@ Headers:
 * `X-HIR-Client: wordpress-plugin`
 * `X-HIR-Client-Ver: 1.0.0`
 
-Expected response:
+Expected response (`201 Created`):
 ```json
 {
   "order_id": "ord_abc123",
-  "tracking_url": "https://hirforyou.ro/track/ord_abc123",
-  "eta_minutes": 35
+  "public_track_token": "tok_abc123"
 }
 ```
+
+> The create response does **not** include `tracking_url` / `eta_minutes` —
+> a courier is not assigned yet. The tracking URL + ETA arrive later via the
+> inbound `order.status_changed` / `order.eta_updated` webhooks below.
 
 ### Inbound contract — webhooks → `POST /wp-json/hir-connect/v1/webhook`
 
@@ -121,6 +129,17 @@ Status mapping (HIR → WC):
 | FAILED           | failed            |
 
 Unknown events return `404 unknown_event` and fire `hir_connect_unknown_event` action for theme/plugin hooks.
+
+### Known limitation — reverse status sync (WC → HIR)
+
+`HIR_WooCommerce::on_status_changed()` calls
+`PATCH /api/public/v1/orders/{id}/status` to push **local** WC status
+changes back to HIR. That server endpoint is **not yet implemented** — the
+call returns `404` and is logged via `error_log` without breaking checkout
+or the customer flow. In the deliveryhouse model HIR owns the delivery
+lifecycle and is the source of truth, so this reverse path is informational
+only. It will be wired up when the public API exposes an order-status
+mutation. Until then, ignore the `error_log` line for status pushes.
 
 ---
 
