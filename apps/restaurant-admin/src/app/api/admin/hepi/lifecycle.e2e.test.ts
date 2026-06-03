@@ -20,7 +20,7 @@ const h = vi.hoisted(() => ({
     | { ok: true; userId: string; email: string }
     | { ok: false; status: 401 | 403; error: string },
   cityRow: { id: 'city-cluj', name: 'Cluj-Napoca', slug: 'cluj-napoca' } as null | { id: string; name: string; slug: string },
-  setCityActive: vi.fn(async () => ({ ok: true })),
+  setCityActive: vi.fn(async (_a?: unknown) => ({ ok: true })),
   anthropicQueue: [] as unknown[],
 }));
 
