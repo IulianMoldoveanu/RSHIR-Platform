@@ -38,37 +38,16 @@ export default async function AvailablePoolPage() {
 
   const admin = createAdminClient();
 
-  const [
-    { data: openData },
-    riderMode,
-    { data: profileData },
-    { data: activeCountData },
-    { data: canTakeData },
-  ] = await Promise.all([
-      admin
-        .from('courier_orders')
-        .select(ORDER_COLUMNS)
-        .is('assigned_courier_user_id', null)
-        .in('status', ['CREATED', 'OFFERED'])
-        .order('created_at', { ascending: true })
-        .limit(40),
-      resolveRiderMode(user.id),
-      admin
-        .from('courier_profiles')
-        .select('fleet_id, max_parallel_orders')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-      admin
-        .from('courier_orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('assigned_courier_user_id', user.id)
-        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
-      // Same gate the self-pickup route enforces (returns false when the
-      // courier's fleet requires KYC and they aren't VERIFIED). Surfaced
-      // upfront so the rider isn't surprised at tap time.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (admin.rpc as any)('courier_can_take_orders', { p_user_id: user.id }),
-    ]);
+  // Resolve rider mode + profile first — the open-pool query below must be
+  // scoped to the courier's fleet, so we need fleet_id up front.
+  const [riderMode, { data: profileData }] = await Promise.all([
+    resolveRiderMode(user.id),
+    admin
+      .from('courier_profiles')
+      .select('fleet_id, max_parallel_orders')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ]);
 
   // Mode C riders are dispatched by their fleet manager — they don't
   // browse open orders; surfacing the pool is a useless affordance.
@@ -90,6 +69,36 @@ export default async function AvailablePoolPage() {
     fleet_id: string | null;
     max_parallel_orders: number | null;
   } | null) ?? { fleet_id: null, max_parallel_orders: null };
+
+  const [
+    { data: openData },
+    { data: activeCountData },
+    { data: canTakeData },
+  ] = await Promise.all([
+      // Fleet-scoped pool. This page uses the service-role admin client (RLS
+      // bypassed), so we MUST filter by fleet_id explicitly — otherwise every
+      // courier sees every fleet's open orders, including customer names +
+      // pickup/dropoff addresses (issue #878). No fleet → impossible filter →
+      // empty pool (a courier without a fleet has nothing to self-pick).
+      admin
+        .from('courier_orders')
+        .select(ORDER_COLUMNS)
+        .is('assigned_courier_user_id', null)
+        .eq('fleet_id', profile.fleet_id ?? '00000000-0000-0000-0000-000000000000')
+        .in('status', ['CREATED', 'OFFERED'])
+        .order('created_at', { ascending: true })
+        .limit(40),
+      admin
+        .from('courier_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('assigned_courier_user_id', user.id)
+        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
+      // Same gate the self-pickup route enforces (returns false when the
+      // courier's fleet requires KYC and they aren't VERIFIED). Surfaced
+      // upfront so the rider isn't surprised at tap time.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (admin.rpc as any)('courier_can_take_orders', { p_user_id: user.id }),
+    ]);
 
   const open = (openData ?? []) as OrderRow[];
   const activeCount = (activeCountData as unknown as { count?: number } | null)?.count ?? 0;
