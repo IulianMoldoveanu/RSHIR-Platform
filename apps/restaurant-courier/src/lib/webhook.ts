@@ -150,12 +150,40 @@ export async function sendWebhook(orderId: string, payload: WebhookPayload): Pro
 // Best-effort: a failed POST never blocks the courier UX. The audit trail
 // captures the attempt so a future sweep can retry from the failure record.
 // ---------------------------------------------------------------------------
+// Pharma inbound DTO contract (HIR-PHARMA courier-inbound / CourierStatusEventDto):
+// requires `eventId`, ISO `at`, `courierOrderId`, `pharmaOrderId`, and a
+// LOWERCASE `status` from a fixed set. The legacy {event, courier_order_id,
+// vertical, UPPERCASE status} shape was rejected by pharma's ValidationPipe
+// (400), so the delivered/PoD status never propagated back to the patient or
+// the pharmacy. This shape matches the DTO exactly (no extra fields).
+export type PharmaCourierStatus =
+  | 'assigned'
+  | 'accepted'
+  | 'picked_up'
+  | 'in_delivery'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled';
+
 export type PharmaCallbackPayload = {
-  event: 'order.status_changed';
-  courier_order_id: string;
-  vertical: 'pharma';
-  status: string;
+  eventId: string;
   at: string;
+  courierOrderId: string;
+  pharmaOrderId: string;
+  status: PharmaCourierStatus;
+  courierId?: string;
+};
+
+// Maps courier_orders.status (UPPERCASE) → pharma's lowercase CourierEventStatus.
+// Unmapped statuses (e.g. CREATED) are not forwarded — the pharma side only
+// models the post-assignment lifecycle.
+const COURIER_TO_PHARMA_STATUS: Record<string, PharmaCourierStatus> = {
+  OFFERED: 'assigned',
+  ACCEPTED: 'accepted',
+  PICKED_UP: 'picked_up',
+  IN_TRANSIT: 'in_delivery',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled',
 };
 
 export async function notifyPharmaCallback(
@@ -166,7 +194,7 @@ export async function notifyPharmaCallback(
   const admin = createAdminClient();
   const { data: order } = await admin
     .from('courier_orders')
-    .select('vertical, pharma_callback_url')
+    .select('vertical, pharma_callback_url, external_ref')
     .eq('id', orderId)
     .maybeSingle();
 
@@ -174,6 +202,7 @@ export async function notifyPharmaCallback(
   const row = order as {
     vertical: 'restaurant' | 'pharma' | null;
     pharma_callback_url: string | null;
+    external_ref: string | null;
   };
 
   // Restaurant orders never trigger pharma callbacks. Hard guard so a
@@ -181,6 +210,13 @@ export async function notifyPharmaCallback(
   // POST restaurant-order events to a pharma subscriber.
   if (row.vertical !== 'pharma') return;
   if (!row.pharma_callback_url) return;
+  // external_ref carries the pharma order id (stamped by the inbound mirror).
+  // Without it the pharma side cannot correlate the event to its Order.
+  if (!row.external_ref) return;
+
+  // Only forward statuses the pharma lifecycle models (skip CREATED etc.).
+  const pharmaStatus = COURIER_TO_PHARMA_STATUS[status];
+  if (!pharmaStatus) return;
 
   // Secret lives in courier_order_secrets (RLS-locked sibling). See
   // migration 20260605_004 for rationale.
@@ -201,11 +237,13 @@ export async function notifyPharmaCallback(
   if (!safeUrl) return;
 
   const payload: PharmaCallbackPayload = {
-    event: 'order.status_changed',
-    courier_order_id: orderId,
-    vertical: 'pharma',
-    status,
+    // Deterministic per (order, status) → pharma dedupes idempotently on retry.
+    eventId: `${orderId}:${pharmaStatus}`,
     at: new Date().toISOString(),
+    courierOrderId: orderId,
+    pharmaOrderId: row.external_ref,
+    status: pharmaStatus,
+    ...(actorUserId ? { courierId: actorUserId } : {}),
   };
   const body = JSON.stringify(payload);
   const signature = createHmac('sha256', pharmaCallbackSecret).update(body).digest('hex');
