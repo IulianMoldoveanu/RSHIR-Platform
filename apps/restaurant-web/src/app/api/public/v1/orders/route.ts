@@ -121,6 +121,46 @@ export async function POST(req: Request) {
     );
   }
 
+  // Persist the dropoff as a customer_addresses row and link it on the order
+  // (same shape as storefront checkout). Without this the dispatch bridge has
+  // no destination to resolve when the order is DISPATCHED, so the resulting
+  // courier_orders row gets a NULL dropoff and can't be routed/delivered.
+  let addressId: string | null = null;
+  if (fulfillment === 'DELIVERY' && dropoff) {
+    const addrSb = admin as unknown as {
+      from: (t: string) => {
+        insert: (row: Record<string, unknown>) => {
+          select: (cols: string) => {
+            single: () => Promise<{
+              data: { id: string } | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+    const { data: addrRow, error: addrErr } = await addrSb
+      .from('customer_addresses')
+      .insert({
+        customer_id: custRow.id,
+        line1: dropoff.line1,
+        line2: dropoff.line2 || null,
+        city: dropoff.city,
+        latitude: dropoff.lat ?? null,
+        longitude: dropoff.lng ?? null,
+      })
+      .select('id')
+      .single();
+    if (addrErr || !addrRow) {
+      console.error('[public/v1/orders] address insert failed', addrErr?.message);
+      return NextResponse.json(
+        { error: 'order_insert_failed' },
+        { status: 500 },
+      );
+    }
+    addressId = addrRow.id;
+  }
+
   // Build line items JSON (same shape as storefront).
   const lineItems = items.map((i) => ({
     name: i.name,
@@ -148,6 +188,7 @@ export async function POST(req: Request) {
     .insert({
       tenant_id: authed.tenantId,
       customer_id: custRow.id,
+      delivery_address_id: addressId,
       items: lineItems as never,
       subtotal_ron: totals.subtotalRon,
       delivery_fee_ron: totals.deliveryFeeRon,
