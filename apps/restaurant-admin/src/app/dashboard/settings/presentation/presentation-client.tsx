@@ -281,6 +281,8 @@ export function PresentationClient({
                 <img
                   src={item.url}
                   alt={item.alt ?? ''}
+                  width={400}
+                  height={400}
                   className="aspect-square w-full rounded object-cover"
                   loading="lazy"
                 />

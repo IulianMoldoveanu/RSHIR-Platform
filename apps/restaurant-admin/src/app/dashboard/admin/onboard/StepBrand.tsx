@@ -103,6 +103,8 @@ export function StepBrand({ form, onChange, onBack, onSubmit, submitting, error 
                   <img
                     src={form.logoPreviewUrl}
                     alt="Preview logo"
+                    width={112}
+                    height={112}
                     className="h-full w-full object-cover"
                   />
                 ) : (

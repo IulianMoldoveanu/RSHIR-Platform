@@ -173,6 +173,8 @@ export function BrandingForm({ initial, partnerCode }: { initial: Partial<Initia
             <img
               src={logoUrl}
               alt="Previzualizare logo partener"
+              width={200}
+              height={48}
               className="h-12 w-auto"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = 'none';
