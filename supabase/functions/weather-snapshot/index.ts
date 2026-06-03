@@ -177,7 +177,12 @@ async function fetchAndPersist(
     payload = (await r.json()) as OwmResponse;
   } catch (e) {
     clearTimeout(timeoutId);
-    const msg = e instanceof Error ? e.message : String(e);
+    // Deno/undici fetch errors embed the request URL — which carries the OWM
+    // appid — in their message. Redact the key before it can reach any
+    // response/log. (OWM only accepts appid as a query param, so it must stay
+    // in the URL; redaction is the correct guard, not an auth header.)
+    const raw = e instanceof Error ? e.message : String(e);
+    const msg = raw.split(apiKey).join('***');
     return { city, ok: false, error: `owm_fetch_failed:${msg.slice(0, 120)}` };
   }
 
