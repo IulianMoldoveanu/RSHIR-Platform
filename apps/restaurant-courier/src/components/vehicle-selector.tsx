@@ -2,13 +2,22 @@
 
 import { useState, useTransition } from 'react';
 import { Check, Loader2 } from 'lucide-react';
-import { VehicleIcon, type VehicleType } from './vehicle-icon';
+import type { VehicleType } from './vehicle-icon';
+import CourierMarker, { type Vehicle } from './courier-marker';
 
 const OPTIONS: Array<{ value: VehicleType; label: string }> = [
   { value: 'BIKE', label: 'Bicicletă' },
   { value: 'SCOOTER', label: 'Scuter' },
   { value: 'CAR', label: 'Mașină' },
 ];
+
+// Map the profile vehicle enum to the live-map marker's vehicle id, so the
+// picker shows the EXACT marker the courier sees on the map.
+const MARKER_VEHICLE: Record<VehicleType, Vehicle> = {
+  BIKE: 'bike',
+  SCOOTER: 'moto',
+  CAR: 'car',
+};
 
 /**
  * Segmented vehicle picker. Server-rendered radios were the original
@@ -62,10 +71,11 @@ export function VehicleSelector({
         className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-b from-violet-500/10 via-hir-bg to-hir-bg ring-1 ring-inset ring-violet-500/10 shadow-md shadow-violet-500/10"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.35),transparent_60%)]" />
-        <VehicleIcon
-          type={selected}
-          size={96}
-          style={{ filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.45))' }}
+        <CourierMarker
+          vehicle={MARKER_VEHICLE[selected]}
+          status="online"
+          size={84}
+          animate={false}
         />
       </div>
 
@@ -85,7 +95,12 @@ export function VehicleSelector({
                   : 'border-hir-border bg-hir-surface text-hir-muted-fg hover:border-violet-500/40 hover:bg-hir-border/50 hover:text-hir-fg hover:shadow-md hover:shadow-violet-500/10'
               }`}
             >
-              <VehicleIcon type={opt.value} size={56} />
+              <CourierMarker
+                vehicle={MARKER_VEHICLE[opt.value]}
+                status={isSelected ? 'online' : 'offline'}
+                size={48}
+                animate={false}
+              />
               <span>{opt.label}</span>
               {isSelected && isCommitted && !pending ? (
                 <span
