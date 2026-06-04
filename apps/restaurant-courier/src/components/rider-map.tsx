@@ -308,7 +308,9 @@ export function RiderMap({
         }
 
         const map = L.map(containerRef.current, {
-          zoomControl: true,
+          // No zoom +/- control: it renders as a white box on the dark map and
+          // mobile users pinch-to-zoom. Removing it declutters the map.
+          zoomControl: false,
           // leaflet-rotate hooks: enables two-finger touch rotate, plus a
           // small rotate-control corner widget. Both flags are no-ops when
           // the plugin failed to load.
@@ -784,13 +786,6 @@ export function RiderMap({
         <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
           <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300 align-middle" />
           Localizez poziția…
-        </div>
-      )}
-
-      {permission === 'granted' && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
-          <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 align-middle" />
-          În așteptare comandă
         </div>
       )}
 
