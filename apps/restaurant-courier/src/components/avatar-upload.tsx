@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Camera, Loader2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Check, Loader2, X } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button } from '@hir/ui';
 
@@ -19,22 +19,56 @@ type Props = {
   saveAvatarUrl: (url: string | null) => Promise<void>;
 };
 
+type Status = 'idle' | 'saving' | 'saved' | 'error';
+
 /**
  * Avatar upload + preview. Uses the courier-avatars bucket (RLS pinned to
  * the courier's own folder by uid). Downscales to ~512px before upload to
  * keep the cell-data footprint small — couriers are often on metered LTE.
+ *
+ * UX (2026-06-04): there is no manual "Save" button — picking a photo saves
+ * it. Couriers reported the photo "vanishing" because the silent auto-save
+ * gave no feedback on weak LTE, so they navigated away before it finished.
+ * Now we (1) show the picked photo INSTANTLY via an object URL while it
+ * uploads, and (2) surface an explicit "Se salvează…" → "✓ Salvat" state so
+ * the courier knows it persisted. On error we revert to the last saved photo.
  */
 export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // The currently displayed image (optimistic object URL or persisted URL).
   const [url, setUrl] = useState<string | null>(initialUrl);
-  const [uploading, setUploading] = useState(false);
+  // The last server-confirmed URL, used to revert the preview on error.
+  const savedUrlRef = useRef<string | null>(initialUrl);
+  // The live optimistic object URL, revoked when replaced or on unmount.
+  const objectUrlRef = useRef<string | null>(null);
+  const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  // Revoke any outstanding object URL when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
+
+  function setOptimisticPreview(objectUrl: string) {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = objectUrl;
+    setUrl(objectUrl);
+  }
+
+  function clearOptimisticPreview() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  }
 
   async function handlePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
-    setUploading(true);
+    setStatus('saving');
     try {
       // iPhone gallery returns HEIC by default. Most browsers can't decode it
       // on a canvas, so reject early with a clear message instead of bubbling
@@ -51,6 +85,9 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
         );
       }
       const blob = await downscale(file);
+      // Show the picked photo immediately so the courier sees it the moment
+      // they choose it — the upload + save then run "behind" this preview.
+      setOptimisticPreview(URL.createObjectURL(blob));
       const ext = blob.type === 'image/png' ? 'png' : 'jpg';
       // Cache-bust on every upload so the new image replaces the cached one.
       const path = `${userId}/avatar-${Date.now()}.${ext}`;
@@ -67,28 +104,42 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
         .from('courier-avatars')
         .getPublicUrl(path);
       const publicUrl = pub.publicUrl;
+      // Persists the URL onto courier_profiles. Resolves only on a confirmed
+      // DB write (the action throws otherwise), so reaching the next line
+      // means the photo is truly saved.
       await saveAvatarUrl(publicUrl);
+      // Swap the optimistic object URL for the persisted public URL.
+      savedUrlRef.current = publicUrl;
       setUrl(publicUrl);
+      clearOptimisticPreview();
+      setStatus('saved');
     } catch (err) {
+      // Revert to the last confirmed photo so the preview never lies.
+      clearOptimisticPreview();
+      setUrl(savedUrlRef.current);
       setError(friendlyError(err));
+      setStatus('error');
     } finally {
-      setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
     }
   }
 
   async function handleRemove() {
     setError(null);
-    setUploading(true);
+    setStatus('saving');
     try {
       await saveAvatarUrl(null);
+      clearOptimisticPreview();
+      savedUrlRef.current = null;
       setUrl(null);
+      setStatus('idle');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la ștergere.');
-    } finally {
-      setUploading(false);
+      setStatus('error');
     }
   }
+
+  const busy = status === 'saving';
 
   const initials = fullName
     ? fullName
@@ -115,7 +166,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
             {initials}
           </div>
         )}
-        {uploading ? (
+        {busy ? (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <Loader2 className="h-6 w-6 animate-spin text-violet-300" aria-hidden strokeWidth={2.25} />
           </div>
@@ -126,7 +177,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
           <Button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={busy}
             className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md shadow-violet-500/30 transition hover:-translate-y-px hover:bg-violet-400 hover:shadow-lg hover:shadow-violet-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0"
           >
             <Camera className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
@@ -137,7 +188,7 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
               type="button"
               variant="outline"
               onClick={handleRemove}
-              disabled={uploading}
+              disabled={busy}
               className="gap-1.5 rounded-lg border border-hir-border bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-100 transition hover:-translate-y-px hover:border-hir-border hover:bg-zinc-800 hover:text-white active:translate-y-0 focus-visible:outline-2 focus-visible:outline-zinc-500 focus-visible:outline-offset-2 disabled:opacity-60 disabled:hover:translate-y-0"
             >
               <X className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
@@ -145,9 +196,23 @@ export function AvatarUpload({ userId, initialUrl, fullName, saveAvatarUrl }: Pr
             </Button>
           ) : null}
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-hir-muted-fg">
-          JPG / PNG / WEBP, max 2 MB. Se afișează în antet.
-        </p>
+        {/* Explicit save state — the courier no longer has to guess whether
+            the photo persisted. */}
+        {status === 'saving' ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-violet-300">
+            <Loader2 className="h-3 w-3 animate-spin" aria-hidden strokeWidth={2.5} />
+            Se salvează…
+          </p>
+        ) : status === 'saved' ? (
+          <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300">
+            <Check className="h-3 w-3" aria-hidden strokeWidth={3} />
+            Poză salvată
+          </p>
+        ) : (
+          <p className="mt-1.5 text-[11px] leading-relaxed text-hir-muted-fg">
+            JPG / PNG / WEBP, max 2 MB. Se salvează automat și apare în antet.
+          </p>
+        )}
         {error ? <p className="mt-1 text-[11px] font-medium text-rose-400">{error}</p> : null}
       </div>
       <input
