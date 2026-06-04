@@ -3,13 +3,19 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Package, Clock, Wallet, Settings } from 'lucide-react';
+import { Map, Package, Clock, Wallet, Settings } from 'lucide-react';
 
 // Hepi removed from the nav per product decision (2026-06-02): low value /
 // token-heavy; support handled by FAQ + fleet managers initially. The
 // /dashboard/hepi route stays reachable (not deleted) so it can be re-promoted
 // later if we decide to ship it.
+//
+// "Hartă" → /dashboard (the live map) is the FIRST tab: the map is the
+// courier's home screen, but it was only reachable via the header logo or
+// "Vezi harta" buttons — not intuitive. A dedicated tab makes returning to
+// the map a single, always-visible tap (user feedback 2026-06-04).
 const NAV = [
+  { href: '/dashboard', label: 'Hartă', Icon: Map },
   { href: '/dashboard/orders', label: 'Comenzi', Icon: Package },
   { href: '/dashboard/shift', label: 'Tură', Icon: Clock },
   { href: '/dashboard/earnings', label: 'Câștiguri', Icon: Wallet },
@@ -37,10 +43,13 @@ export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
         {NAV.map((item) => {
-          const isActive =
-            item.href === '/dashboard/orders'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          // `/dashboard` (map) and `/dashboard/orders` need EXACT matching:
+          // `/dashboard` is a prefix of every route, and order detail pages
+          // (`/dashboard/orders/[id]`) shouldn't light up the Comenzi tab.
+          const exactOnly = item.href === '/dashboard' || item.href === '/dashboard/orders';
+          const isActive = exactOnly
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const badgeCount =
             item.href === '/dashboard/orders' && ordersBadge > 0 ? ordersBadge : 0;
           return (
@@ -84,7 +93,9 @@ export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
                     </span>
                   ) : null}
                 </span>
-                <span className={isActive ? 'font-semibold' : undefined}>{item.label}</span>
+                <span className={`whitespace-nowrap ${isActive ? 'font-semibold' : ''}`}>
+                  {item.label}
+                </span>
               </Link>
             </li>
           );
