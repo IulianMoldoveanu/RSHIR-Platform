@@ -27,17 +27,11 @@ const FirstShiftTutorial = nextDynamic(
   { ssr: false, loading: () => null },
 );
 
-const WhatsNewBanner = nextDynamic(
-  () => import('@/components/whats-new-banner').then((m) => ({ default: m.WhatsNewBanner })),
-  { ssr: false, loading: () => null },
-);
-
 export function OnboardingOverlays() {
   return (
     <>
       <WelcomeCarousel />
       <FirstShiftTutorial />
-      <WhatsNewBanner />
     </>
   );
 }
