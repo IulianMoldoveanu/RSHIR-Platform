@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { User } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -95,6 +96,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // fight over whose brand wins on multi-vendor screens.
   const tenantBrand = riderMode.mode === 'A' ? await loadTenantBrand(admin, user.id) : null;
 
+  // Avatar initials from the courier's name; falls back to a person icon when
+  // the profile has no name (fresh/test accounts) instead of showing "?".
+  const avatarInitials = (profile?.full_name ?? '')
+    .split(' ')
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
   return (
     <GpsTimestampProvider>
     <RiderModeProvider value={riderMode}>
@@ -120,8 +131,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           className="sticky top-0 z-[1100] flex min-h-14 items-center justify-between gap-2 border-b border-hir-border bg-hir-bg/95 px-3 backdrop-blur"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link href="/dashboard" className="flex min-w-0 items-center gap-2">
               {tenantBrand?.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -150,7 +161,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                   className="h-7 w-7 rounded-md object-cover"
                 />
               )}
-              <span className="text-sm font-semibold tracking-tight text-hir-fg">
+              <span className="hidden truncate text-sm font-semibold tracking-tight text-hir-fg sm:inline">
                 {tenantBrand?.name ?? 'HIR Curier'}
               </span>
             </Link>
@@ -167,7 +178,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <div className="flex shrink-0 items-center gap-1">
             <ConnectionBadge />
             <BatteryBadge />
-            <GpsStalnessPill />
+            {/* GPS-freshness pill is redundant with the map greeting card and
+                crowds the header on phones — show it only from sm up. */}
+            <div className="hidden sm:block">
+              <GpsStalnessPill />
+            </div>
           </div>
 
           {/* Help icon — opens contextual drawer with FAQ, dispatcher contact,
@@ -195,15 +210,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                   alt="Profil"
                   className="h-full w-full object-cover"
                 />
-              ) : (
+              ) : avatarInitials ? (
                 <span className="text-[10px] font-bold uppercase text-hir-muted-fg">
-                  {(profile?.full_name ?? '?')
-                    .split(' ')
-                    .map((p) => p[0])
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join('')}
+                  {avatarInitials}
                 </span>
+              ) : (
+                <User className="h-4 w-4 text-hir-muted-fg" aria-hidden strokeWidth={2.25} />
               )}
             </span>
           </Link>
