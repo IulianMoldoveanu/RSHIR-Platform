@@ -17,7 +17,6 @@ import { RiderModeProvider } from '@/components/rider-mode-provider';
 import { RiderModeBadge } from '@/components/rider-mode-badge';
 import { resolveRiderMode } from '@/lib/rider-mode';
 import { OnboardingOverlays } from '@/components/onboarding-overlays';
-import { HelpDrawer } from '@/components/help-drawer';
 import { ConnectionBadge } from '@/components/connection-badge';
 import { BatteryBadge } from '@/components/battery-badge';
 import { GpsStalnessPill } from '@/components/gps-staleness-pill';
@@ -71,20 +70,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     full_name: string | null;
     fleet_id: string | null;
   } | null;
-
-  // Load dispatcher phone for the help drawer. One extra query only when the
-  // courier belongs to a fleet; null-safe so unaffiliated couriers see the
-  // HIR support number fallback inside the drawer.
-  let dispatcherPhone: string | null = null;
-  if (profile?.fleet_id) {
-    const { data: fleetRow } = await admin
-      .from('courier_fleets')
-      .select('contact_phone')
-      .eq('id', profile.fleet_id)
-      .maybeSingle();
-    dispatcherPhone =
-      (fleetRow as { contact_phone: string | null } | null)?.contact_phone ?? null;
-  }
 
   const isOnline = !!shiftData;
   // Mode C riders never browse — don't show a count nudge for them.
@@ -184,11 +169,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <GpsStalnessPill />
             </div>
           </div>
-
-          {/* Help icon — opens contextual drawer with FAQ, dispatcher contact,
-              report form, and terms. Sits between earnings and avatar so it
-              doesn't crowd the left logo area. */}
-          <HelpDrawer dispatcherPhone={dispatcherPhone} />
 
           {/* Avatar shortcut to settings — primary tap target for profile,
               docs, theme, and logout. Settings is the canonical home for

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { WeatherData, WeatherCondition } from '@/lib/weather';
+import { Sun, Cloud, CloudRain, CloudSnow, CloudFog, CloudLightning } from 'lucide-react';
 
 type Props = {
   weather: WeatherData | null;
@@ -9,23 +10,25 @@ type Props = {
   reminder: string | null;
 };
 
-const CONDITION_ICON: Record<WeatherCondition, string> = {
-  clear: '☀',
-  cloudy: '☁',
-  rain: '🌧',
-  snow: '❄',
-  fog: '🌫',
-  storm: '⛈',
-  unknown: '—',
+// Lucide vector icons (not emoji): emoji glyphs render as a blank white box
+// (tofu) in some Android WebViews — the source of the "weather shows white"
+// complaint. Vector icons inherit the tone colour and render consistently.
+const CONDITION_ICON: Record<WeatherCondition, typeof Sun> = {
+  clear: Sun,
+  cloudy: Cloud,
+  rain: CloudRain,
+  snow: CloudSnow,
+  fog: CloudFog,
+  storm: CloudLightning,
+  unknown: Cloud,
 };
 
 /**
  * Compact weather pill rendered inside the dashboard greeting card.
  * Server-fetched data is passed in as props (no client-side fetch).
- * The safety reminder toast is shown once on mount via the Web Notifications
- * API fallback (simple alert-style banner via the browser console is skipped
- * in favour of a non-blocking DOM toast injected directly into the page body
- * so it works in standalone PWA mode without a toast library dependency).
+ * The safety reminder toast is shown once on mount via a non-blocking DOM
+ * toast injected directly into the page body so it works in standalone PWA
+ * mode without a toast library dependency.
  */
 export function WeatherPill({ weather, reminder }: Props) {
   useEffect(() => {
@@ -58,15 +61,12 @@ export function WeatherPill({ weather, reminder }: Props) {
 
   if (!weather) return null;
 
-  const icon = CONDITION_ICON[weather.condition] ?? '—';
-  const label = weather.condition !== 'unknown'
-    ? `${weather.tempC}°C`
-    : null;
+  const Icon = CONDITION_ICON[weather.condition] ?? Cloud;
+  const label = weather.condition !== 'unknown' ? `${weather.tempC}°C` : null;
 
   // Tone tinting per condition so the pill carries a hint of the weather
-  // mood (sunny=amber, rain/snow/fog=sky, storm=rose, cloudy=neutral).
-  // Bumped -300 → -200 across the set to match the AA contrast rule
-  // used by every other status chip in the wave on /10 tinted bg.
+  // mood (sunny=amber, rain/snow/fog=sky, storm=rose, cloudy=neutral). The
+  // -200 shades meet AA contrast on the /10 tinted bg used across the chips.
   const tone =
     weather.condition === 'clear'
       ? { text: 'text-amber-200', ring: 'ring-amber-500/20' }
@@ -80,12 +80,10 @@ export function WeatherPill({ weather, reminder }: Props) {
 
   return (
     <span
-      aria-label={`Vreme: ${icon} ${label ?? ''}`}
+      aria-label={`Vreme: ${label ?? 'indisponibilă'}`}
       className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-hir-surface/70 px-2 py-0.5 text-[11px] font-semibold tabular-nums ring-1 ring-inset ${tone.text} ${tone.ring}`}
     >
-      <span aria-hidden className="text-sm leading-none">
-        {icon}
-      </span>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden strokeWidth={2.25} />
       {label ? <span>{label}</span> : null}
     </span>
   );
