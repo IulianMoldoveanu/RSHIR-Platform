@@ -688,6 +688,8 @@ function Step2({
               <img
                 src={logoUrl}
                 alt="logo"
+                width={64}
+                height={64}
                 className="h-16 w-16 rounded-md border border-zinc-200 bg-white object-contain"
                 decoding="async"
                 loading="lazy"
