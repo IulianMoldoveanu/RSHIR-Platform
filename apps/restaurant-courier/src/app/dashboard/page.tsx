@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Clock } from 'lucide-react';
+import { ArrowRight, Clock, Phone } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction, acceptOrderAction, markPickedUpAction } from './actions';
@@ -41,6 +41,8 @@ type ActiveOrderRow = {
   // Pharma readiness: set by the mirror when the pharmacist marks the order
   // "ready for pickup". null for pharma orders not yet prepared → pickup gated.
   pharma_ready_at: string | null;
+  // Optional vendor (pharmacy/restaurant) phone for the "call the vendor" action.
+  pickup_phone: string | null;
 };
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
@@ -73,7 +75,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at, pharma_ready_at',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at, pharma_ready_at, pickup_phone',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -266,6 +268,19 @@ export default async function DashboardHome() {
             ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <MapLink address={topAddress} lat={topLat} lng={topLng} />
+              {/* Optional: reach the vendor (pharmacy/restaurant) for status or
+                  emergencies while heading to the pickup. Only during the
+                  pickup leg and only when a vendor phone is known. */}
+              {topIsPickup && topOrder.pickup_phone ? (
+                <a
+                  href={`tel:${topOrder.pickup_phone}`}
+                  aria-label={`Sună ${vendorWord.toLowerCase()}`}
+                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-all hover:-translate-y-px hover:bg-emerald-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
+                >
+                  <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
+                  Sună {vendorWord.toLowerCase()}
+                </a>
+              ) : null}
             </div>
             <div className="mt-3">
               {topIsPickup ? (
