@@ -318,6 +318,10 @@ export function RiderMap({
           rotateControl: { closeOnZeroBearing: false },
           touchRotate: true,
           bearing: 0,
+          // Stop fling momentum a touch sooner so a hard drag doesn't sail far
+          // past the loaded tile buffer (which is what left white gutters on
+          // the sides while panning).
+          inertiaDeceleration: 2500,
         }).setView(FALLBACK_CENTER, FALLBACK_ZOOM);
 
         // CARTO Dark Matter tiles — free, no API key, dark theme that matches
@@ -329,6 +333,14 @@ export function RiderMap({
           {
             maxZoom: 19,
             subdomains: 'abcd',
+            // Keep a wide ring of off-screen tiles cached around the viewport
+            // (default is 2) so dragging doesn't immediately reveal blank
+            // gutters at the edges.
+            keepBuffer: 6,
+            // Mobile default is updateWhenIdle:true — tiles only fetch after the
+            // pan ENDS, which is exactly what showed white edges + seams while
+            // dragging. Load during the drag instead.
+            updateWhenIdle: false,
             // detectRetina toggles {r} between '' and '@2x' so HiDPI phones
             // get crisp tiles without forcing them on slow networks.
             detectRetina: true,
@@ -783,7 +795,7 @@ export function RiderMap({
         // Discreet GPS-warming hint at the top of the map — replaces the
         // generic "În așteptare comandă" label until we have a fix, so the
         // rider knows the location lookup is still in flight (not stuck).
-        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] max-w-[calc(100vw-1.5rem)] -translate-x-1/2 truncate whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
           <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300 align-middle" />
           Localizez poziția…
         </div>

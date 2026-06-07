@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { startShiftAction, endShiftAction } from './actions';
+import { startShiftAction, endShiftAction, acceptOrderAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { RiderMapLazy as RiderMap } from '@/components/rider-map-lazy';
 import { VerticalBadge } from '@/components/vertical-badge';
@@ -10,6 +10,7 @@ import { OrderStatusBadge } from '@/components/order-status-badge';
 import { WeatherPill } from '@/components/weather-pill';
 import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
 import { MultiStopFocus, type FocusOrder } from '@/components/multi-stop-focus';
+import { DashboardGreeting } from '@/components/dashboard-greeting';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +74,7 @@ export default async function DashboardHome() {
           'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at',
         )
         .eq('assigned_courier_user_id', user.id)
-        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+        .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
         .order('updated_at', { ascending: false }),
     ]);
 
@@ -99,7 +100,12 @@ export default async function DashboardHome() {
     PICKED_UP: 1,
     ACCEPTED: 2,
   };
+  // A directed offer (OFFERED, assigned to me, not yet accepted) is surfaced
+  // ONLY by the big swipe-to-accept overlay below — keep it out of the
+  // active-order pins / quick-jump cards / multi-stop banner so it isn't shown
+  // twice. Those reflect work already accepted.
   const activeOrders = ((activeOrdersData ?? []) as ActiveOrderRow[])
+    .filter((o) => o.status !== 'OFFERED')
     .slice()
     .sort((a, b) => {
       const pa = STATUS_PRIORITY[a.status] ?? 99;
@@ -137,6 +143,11 @@ export default async function DashboardHome() {
           ? 'Aproape la client'
           : null;
 
+  // An incoming directed offer (assigned to this courier, not yet accepted).
+  // Surfaced as a big swipe-to-accept overlay on the main map.
+  const incomingOffer =
+    ((activeOrdersData ?? []) as ActiveOrderRow[]).find((o) => o.status === 'OFFERED') ?? null;
+
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
   // viewport minus the 56px header (h-14). Uses dvh (dynamic viewport height)
@@ -153,10 +164,8 @@ export default async function DashboardHome() {
       />
 
       {/* Greeting + status pill + weather, top-left over the map.
-          The accent left border + soft violet glow give the card a
-          "hero" feel without being loud. Pulsing emerald dot when
-          online so the rider has an at-a-glance live signal. */}
-      <div className="pointer-events-none absolute left-3 top-3 z-10 max-w-[62%] overflow-hidden rounded-2xl border border-hir-border bg-hir-bg/90 ring-1 ring-inset ring-hir-border/40 backdrop-blur shadow-lg shadow-violet-500/10">
+          Auto-dismisses after 12s or closable via the X button. */}
+      <DashboardGreeting>
         <span
           aria-hidden
           className={`absolute inset-y-0 left-0 w-[3px] ${isOnline ? 'bg-emerald-400' : 'bg-zinc-700'}`}
@@ -190,7 +199,7 @@ export default async function DashboardHome() {
           ) : null}
           <WeatherPill weather={weather} reminder={reminder} />
         </div>
-      </div>
+      </DashboardGreeting>
 
       {/* Active-order quick-jump cards. Sorted by next-action urgency
           (IN_TRANSIT/PICKED_UP first), prefixed with sequence numbers so
@@ -201,7 +210,7 @@ export default async function DashboardHome() {
             <Link
               key={o.id}
               href={`/dashboard/orders/${o.id}`}
-              className={`group flex items-center gap-2 rounded-xl border bg-hir-bg/90 px-3 py-2 text-xs font-medium text-hir-fg shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-hir-surface/90 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
+              className={`group flex min-w-0 items-center gap-2 rounded-xl border bg-hir-bg/90 px-3 py-2 text-xs font-medium text-hir-fg shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-hir-surface/90 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
                 idx === 0
                   ? 'border-violet-400 shadow-violet-500/30 ring-1 ring-inset ring-violet-500/40 hover:border-violet-300 hover:shadow-violet-500/40'
                   : 'border-violet-500/40 ring-1 ring-inset ring-violet-500/15 hover:border-violet-400'
@@ -239,6 +248,39 @@ export default async function DashboardHome() {
               vezi toate
             </Link>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Incoming offer — big swipe-to-accept overlay on the main map.
+          Shows when a directed offer is assigned to this courier but not yet
+          accepted. Swiping calls acceptOrderAction; on success the order
+          becomes ACCEPTED and stays as the active/open order. */}
+      {incomingOffer ? (
+        <div className="fixed inset-x-0 bottom-16 z-[1250] px-4 pb-4">
+          <div className="mx-auto max-w-xl rounded-2xl border-2 border-violet-400 bg-hir-bg/95 p-4 shadow-2xl ring-2 ring-inset ring-violet-500/30 backdrop-blur">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-hir-fg">
+                Comandă nouă{incomingOffer.vertical === 'pharma' ? ' · Farmacie' : ''}
+              </p>
+              <OrderStatusBadge status={incomingOffer.status} />
+            </div>
+            {incomingOffer.pickup_line1 ? (
+              <p className="text-xs text-hir-muted-fg">
+                Ridicare: <span className="text-hir-fg">{incomingOffer.pickup_line1}</span>
+              </p>
+            ) : null}
+            {incomingOffer.dropoff_line1 ? (
+              <p className="mb-3 mt-0.5 text-xs text-hir-muted-fg">
+                Livrare: <span className="text-hir-fg">{incomingOffer.dropoff_line1}</span>
+              </p>
+            ) : (
+              <div className="mb-3" />
+            )}
+            <SwipeButton
+              label="→ Glisează pentru a accepta"
+              onConfirm={acceptOrderAction.bind(null, incomingOffer.id)}
+            />
+          </div>
         </div>
       ) : null}
 
