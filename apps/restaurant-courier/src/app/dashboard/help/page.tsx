@@ -121,7 +121,7 @@ export default function HelpPage() {
             id="emergency"
             icon={<AlertTriangle className="h-4 w-4 text-rose-300" aria-hidden strokeWidth={2.25} />}
             q="Urgență (accident, agresiune)?"
-            a="Sună 112 imediat. Apoi anunță dispecerul prin butonul Suport. Nu marca livrarea ca eșuată — lasă dispecerul să decidă next step."
+            a="Contactează imediat dispecerul prin butonul Suport — el coordonează pașii necesari. Nu marca livrarea ca eșuată: lasă dispecerul să decidă următorul pas."
           />
           <Faq
             id="shift"

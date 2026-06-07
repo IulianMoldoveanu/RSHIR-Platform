@@ -126,24 +126,9 @@ export default async function DashboardHome() {
     dropoffLng: o.dropoff_lng,
   }));
 
-  // Natural-language next-action hint for the courier's #1 priority
-  // order. Plain RO copy that mirrors how dispatchers actually phrase
-  // instructions over the radio - the rider should not have to parse a
-  // status enum to know what comes next.
+  // The courier's #1 priority order — its next action is surfaced by the
+  // bottom-half active-order card (see below), not echoed in the greeting.
   const topOrder = activeOrders[0] ?? null;
-  const nextActionHint = !topOrder
-    ? null
-    : topOrder.status === 'ACCEPTED'
-      ? topOrder.pickup_line1
-        ? `Mergi la ridicare · ${topOrder.pickup_line1}`
-        : 'Mergi la ridicare'
-      : topOrder.status === 'PICKED_UP'
-        ? topOrder.dropoff_line1
-          ? `Mergi la livrare · ${topOrder.dropoff_line1}`
-          : 'Mergi la livrare'
-        : topOrder.status === 'IN_TRANSIT'
-          ? 'Aproape la client'
-          : null;
 
   // An incoming directed offer (assigned to this courier, not yet accepted).
   // Surfaced as a big swipe-to-accept overlay on the main map.
@@ -167,6 +152,18 @@ export default async function DashboardHome() {
       : topOrder.dropoff_line1;
   const topLat = !topOrder ? null : topIsPickup ? topOrder.pickup_lat : topOrder.dropoff_lat;
   const topLng = !topOrder ? null : topIsPickup ? topOrder.pickup_lng : topOrder.dropoff_lng;
+
+  // Vendor word + single stage label so ONE card reflects where the order is:
+  // "Comanda se pregătește" (vendor preparing) → "Gata de ridicare" (vendor
+  // marked it ready) → "În curs de livrare" (after pickup). Vertical-agnostic.
+  const vendorWord = topOrder?.vertical === 'pharma' ? 'Farmacia' : 'Restaurantul';
+  const stageTitle = !topOrder
+    ? ''
+    : topIsPickup
+      ? topReady
+        ? 'Gata de ridicare'
+        : 'Comanda se pregătește'
+      : 'În curs de livrare';
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
@@ -206,17 +203,11 @@ export default async function DashboardHome() {
                 />
               ) : null}
             </span>
-            {isOnline
-              ? activeOrders.length > 0
-                ? `${activeOrders.length} ${activeOrders.length === 1 ? 'comandă activă' : 'comenzi active'}`
-                : 'Online · aștept comandă'
-              : 'Offline · pornește tura'}
+            {isOnline ? 'Online' : 'Offline · pornește tura'}
           </p>
-          {nextActionHint ? (
-            <p className="mt-1.5 truncate text-[11px] font-semibold text-violet-200">
-              {nextActionHint}
-            </p>
-          ) : null}
+          {/* The active order is NOT echoed here — it lives only in the
+              bottom-half order card so the courier stays "inside the order"
+              and nothing clutters the top-left corner. */}
           <WeatherPill weather={weather} reminder={reminder} />
         </div>
       </DashboardGreeting>
@@ -264,9 +255,7 @@ export default async function DashboardHome() {
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
           <div className="mx-auto max-w-xl rounded-2xl border-2 border-violet-400/80 bg-hir-bg/95 p-4 shadow-2xl ring-1 ring-inset ring-violet-500/20 backdrop-blur">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-bold text-hir-fg">
-                {topIsPickup ? 'Mergi la ridicare' : 'Mergi la livrare'}
-              </p>
+              <p className="text-sm font-bold text-hir-fg">{stageTitle}</p>
               {topOrder.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
             </div>
             {topAddress ? (
@@ -288,7 +277,10 @@ export default async function DashboardHome() {
                 ) : (
                   <div className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs font-medium text-amber-100 ring-1 ring-inset ring-amber-500/20">
                     <Clock className="h-4 w-4 flex-none" aria-hidden strokeWidth={2.25} />
-                    <span>Așteaptă confirmarea farmaciei — comanda nu e încă gata de ridicare.</span>
+                    <span>
+                      {vendorWord} pregătește comanda. Te poți deplasa la adresă — vei putea
+                      ridica după ce o marchează gata.
+                    </span>
                   </div>
                 )
               ) : (

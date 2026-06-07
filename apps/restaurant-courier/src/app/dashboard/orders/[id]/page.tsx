@@ -14,9 +14,6 @@ import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { TenantBadge } from '@/components/tenant-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
-import { SosButton } from '@/components/sos-button';
-import { CopyAddressButton } from '@/components/copy-address-button';
-import { ShareOrderButton } from '@/components/share-order-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
 import { WakeLockOnActive } from '@/components/wake-lock-on-active';
@@ -143,13 +140,13 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   }
 
   const isAvailable = isOpenInMyFleet;
-  const showSos = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
+  const showQuickCall = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
 
   // Quick-call: fetch the fleet's dispatcher phone only for active own
   // deliveries — not for available orders the courier hasn't accepted yet.
   let fleetContactPhone: string | null = null;
   let fleetName: string | null = null;
-  if (showSos && order.fleet_id) {
+  if (showQuickCall && order.fleet_id) {
     const { data: fleetRow } = await admin
       .from('courier_fleets')
       .select('name, contact_phone')
@@ -227,7 +224,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           lat={order.pickup_lat}
           lng={order.pickup_lng}
         />
-        <CopyAddressButton address={order.pickup_line1} />
       </StopCard>
 
       {/* Live ETA: only while this courier is actively delivering. */}
@@ -254,14 +250,8 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           lng={order.dropoff_lng}
         />
         <PhoneLink phone={order.customer_phone} orderId={order.id} />
-        <CopyAddressButton address={order.dropoff_line1} />
-        <ShareOrderButton
-          orderShortId={order.id.slice(0, 8)}
-          customerFirstName={order.customer_first_name}
-          dropoffAddress={order.dropoff_line1}
-        />
       </StopCard>
-      {showSos ? (
+      {showQuickCall ? (
         <QuickCallButtons
           fleetContactPhone={fleetContactPhone}
           fleetName={fleetName}
@@ -326,8 +316,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           deliveredAction={deliveredBound}
           cancelAction={cancelBound}
         />
-
-        {showSos ? <div className="mt-2"><SosButton /></div> : null}
       </div>
     </div>
   );
