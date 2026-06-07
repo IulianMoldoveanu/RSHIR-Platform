@@ -725,8 +725,12 @@ export async function acceptOrderAction(orderId: string) {
       if (canTakeKyc === false) return;
       const fleetId = (profile as { fleet_id: string }).fleet_id;
 
-      // Only accept if currently CREATED or OFFERED, unassigned, AND the order
-      // belongs to the courier's fleet.
+      // Only accept if currently CREATED or OFFERED AND the order belongs to
+      // the courier's fleet, and it is EITHER an open-pool order (unassigned)
+      // OR a directed offer the dispatcher assigned to this exact courier.
+      // `offer_courier_order` sets assigned_courier_user_id, so without the
+      // second branch directed offers could never be accepted from the app.
+      // The fleet gate above still prevents cross-fleet hijack.
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -737,7 +741,7 @@ export async function acceptOrderAction(orderId: string) {
         .eq('id', orderId)
         .eq('fleet_id', fleetId)
         .in('status', ['CREATED', 'OFFERED'])
-        .is('assigned_courier_user_id', null)
+        .or(`assigned_courier_user_id.is.null,assigned_courier_user_id.eq.${userId}`)
         .select('id')
         .maybeSingle();
       if (data) {

@@ -101,8 +101,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   if (!order) notFound();
 
   const isMine = order.assigned_courier_user_id === user.id;
+  // "Available to accept" = still in the offer window (CREATED/OFFERED) in my
+  // fleet, AND either open-pool (unassigned) OR a directed offer the dispatcher
+  // assigned to me. The status gate ensures that once I accept (→ ACCEPTED),
+  // this flips false and the delivery stepper takes over instead.
   const isOpenInMyFleet =
-    order.assigned_courier_user_id === null &&
+    (order.assigned_courier_user_id === null || isMine) &&
     (order.status === 'CREATED' || order.status === 'OFFERED') &&
     order.fleet_id !== null &&
     order.fleet_id === riderMode.fleetId;
