@@ -9,14 +9,12 @@ import {
   markDeliveredAction,
   cancelOrderByCourierAction,
 } from '../../actions';
-import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { TenantBadge } from '@/components/tenant-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
 import { SosButton } from '@/components/sos-button';
-import { ActiveOrderTimer } from '@/components/active-order-timer';
 import { CopyAddressButton } from '@/components/copy-address-button';
 import { ShareOrderButton } from '@/components/share-order-button';
 import { OrderActions } from './order-actions';
@@ -29,7 +27,6 @@ import { headers } from 'next/headers';
 import { QuickCallButtons } from '@/components/quick-call-buttons';
 import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
-import { OrderStepper } from '@/components/order-stepper';
 import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
 import { OrderChat } from './order-chat';
@@ -206,10 +203,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         <OrderStatusBadge status={order.status} size="md" />
       </div>
 
-      {isMine ? <OrderStepper status={order.status} /> : null}
-
-      {isMine ? <ActiveOrderTimer status={order.status} since={order.updated_at} /> : null}
-
       {isAvailable ? (
         <EarningsPreview
           deliveryFeeRon={order.delivery_fee_ron}
@@ -236,11 +229,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         />
         <CopyAddressButton address={order.pickup_line1} />
       </StopCard>
-
-      {/* Timeline. */}
-      <section className={cardClasses({ padding: 'none', className: 'px-5 py-4' })}>
-        <OrderTimeline status={order.status} />
-      </section>
 
       {/* Live ETA: only while this courier is actively delivering. */}
       {isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT') &&

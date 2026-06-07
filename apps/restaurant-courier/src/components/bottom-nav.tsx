@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Map, Package, Clock, Wallet, Settings } from 'lucide-react';
+import { Map, History, Clock, Wallet, Settings } from 'lucide-react';
 
 // Hepi removed from the nav per product decision (2026-06-02): low value /
 // token-heavy; support handled by FAQ + fleet managers initially. The
@@ -14,9 +14,12 @@ import { Map, Package, Clock, Wallet, Settings } from 'lucide-react';
 // courier's home screen, but it was only reachable via the header logo or
 // "Vezi harta" buttons — not intuitive. A dedicated tab makes returning to
 // the map a single, always-visible tap (user feedback 2026-06-04).
+// "Comenzi" removed (2026-06-07): the active order now lives on the map home
+// screen (allocation pop-up → accept → in-order) — there's no separate order
+// list to browse. Past orders stay reachable via "Istoric".
 const NAV = [
   { href: '/dashboard', label: 'Hartă', Icon: Map },
-  { href: '/dashboard/orders', label: 'Comenzi', Icon: Package },
+  { href: '/dashboard/history', label: 'Istoric', Icon: History },
   { href: '/dashboard/shift', label: 'Tură', Icon: Clock },
   { href: '/dashboard/earnings', label: 'Câștiguri', Icon: Wallet },
   { href: '/dashboard/settings', label: 'Setări', Icon: Settings },
@@ -31,7 +34,7 @@ const NAV = [
 // Tap targets stay at the full ~64×56 cell size; the focus ring + scale-95
 // active state give tactile feedback. `aria-current="page"` on the active
 // link announces the position for screen readers.
-export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
+export function BottomNav() {
   const pathname = usePathname() ?? '';
   const reduce = useReducedMotion();
 
@@ -43,15 +46,12 @@ export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
     >
       <ul className="mx-auto flex max-w-xl items-stretch justify-around">
         {NAV.map((item) => {
-          // `/dashboard` (map) and `/dashboard/orders` need EXACT matching:
-          // `/dashboard` is a prefix of every route, and order detail pages
-          // (`/dashboard/orders/[id]`) shouldn't light up the Comenzi tab.
-          const exactOnly = item.href === '/dashboard' || item.href === '/dashboard/orders';
+          // `/dashboard` (map) needs EXACT matching: it's a prefix of every
+          // route, so without it every tab would light up on sub-routes.
+          const exactOnly = item.href === '/dashboard';
           const isActive = exactOnly
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const badgeCount =
-            item.href === '/dashboard/orders' && ordersBadge > 0 ? ordersBadge : 0;
           return (
             <li key={item.href} className="relative flex-1">
               <Link
@@ -78,21 +78,11 @@ export function BottomNav({ ordersBadge }: { ordersBadge: number }) {
                     />
                   )
                 ) : null}
-                <span className="relative">
-                  <item.Icon
-                    className="h-5 w-5"
-                    aria-hidden
-                    strokeWidth={isActive ? 2.5 : 2.25}
-                  />
-                  {badgeCount > 0 ? (
-                    <span
-                      className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-bold tabular-nums text-white shadow-md shadow-violet-500/40 ring-2 ring-hir-bg"
-                      aria-label={`${badgeCount} comenzi disponibile`}
-                    >
-                      {badgeCount > 9 ? '9+' : badgeCount}
-                    </span>
-                  ) : null}
-                </span>
+                <item.Icon
+                  className="h-5 w-5"
+                  aria-hidden
+                  strokeWidth={isActive ? 2.5 : 2.25}
+                />
                 <span className={`whitespace-nowrap ${isActive ? 'font-semibold' : ''}`}>
                   {item.label}
                 </span>

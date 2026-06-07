@@ -127,6 +127,26 @@ function mapStatus(pharmaStatus: string): CourierOrderStatus {
   return 'CREATED';
 }
 
+// Forward-only ordering of courier dispatch statuses. The mirror (pharma → pool)
+// must never REGRESS an order the courier already advanced: in Model Y the
+// courier ACCEPTS before the pharmacist marks the order ready, so a later
+// READY_FOR_PICKUP (→ OFFERED) would otherwise bump ACCEPTED back to OFFERED.
+// We only apply a mapped status when it ranks strictly higher than the current
+// one (order.cancelled is terminal and always wins, handled at the call site).
+const STATUS_RANK: Record<string, number> = {
+  CREATED: 0,
+  OFFERED: 1,
+  ACCEPTED: 2,
+  PICKED_UP: 3,
+  IN_TRANSIT: 4,
+  DELIVERED: 5,
+  FAILED: 5,
+  CANCELLED: 5,
+};
+function statusRank(s: string): number {
+  return STATUS_RANK[s] ?? -1;
+}
+
 // Constant-time HMAC comparison (node:crypto timingSafeEqual wrapped for strings).
 async function verifyHmac(rawBody: string, header: string, secret: string): Promise<boolean> {
   // header format: "sha256=<hex>"
@@ -308,6 +328,10 @@ Deno.serve(async (req: Request) => {
       updated_at: at,
     };
     if (cityId) insertRow.city_id = cityId;
+    // Race: order.created may already carry READY_FOR_PICKUP (pharmacist marked
+    // it ready before the create webhook landed) — stamp readiness so pickup
+    // isn't blocked on a phantom "not ready" state.
+    if ((order.status ?? '').toUpperCase() === 'READY_FOR_PICKUP') insertRow.pharma_ready_at = at;
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
     if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
@@ -374,7 +398,7 @@ Deno.serve(async (req: Request) => {
     // Find the existing mirror row.
     const { data: existing, error: findErr } = await supabase
       .from('courier_orders')
-      .select('id, updated_at, city_id')
+      .select('id, updated_at, city_id, status')
       .eq('external_ref', order.pharma_order_id)
       .eq('vertical', 'pharma')
       .maybeSingle();
@@ -404,7 +428,19 @@ Deno.serve(async (req: Request) => {
     // (e.g. they rolled their HMAC keypair). All fields stay optional.
     // The secret rotation is upserted into courier_order_secrets — see
     // migration 20260605_004 — instead of stored on courier_orders.
-    const updateRow: Record<string, unknown> = { status: targetStatus, updated_at: at };
+    const updateRow: Record<string, unknown> = { updated_at: at };
+    // Pharmacist readiness (Model Y): stamp when pharma signals READY_FOR_PICKUP,
+    // independent of dispatch status — the courier may already have accepted.
+    // This is what gates courier pickup (markPickedUpAction + home wait-state).
+    if ((order.status ?? '').toUpperCase() === 'READY_FOR_PICKUP') {
+      updateRow.pharma_ready_at = at;
+    }
+    // Forward-only status: never regress what the courier already advanced. A
+    // late READY_FOR_PICKUP (→ OFFERED) must not bump an ACCEPTED order back.
+    // order.cancelled is terminal and always applies.
+    if (event === 'order.cancelled' || statusRank(targetStatus) > statusRank((existing.status as string) ?? 'CREATED')) {
+      updateRow.status = targetStatus;
+    }
     if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
     // Repair a NULL city_id from a later event if the city now resolves
     // (e.g. the row was created before city stamping or before city was sent).

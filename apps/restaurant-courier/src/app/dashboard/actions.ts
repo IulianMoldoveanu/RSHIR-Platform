@@ -345,12 +345,20 @@ export async function markPickedUpAction(orderId: string) {
       // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
       // filters the row out cleanly when the status doesn't match —
       // `maybeSingle()` returns null and the notify call is skipped.
+      // Pharmacist-ready gate (Model Y): a pharma order may be allocated to and
+      // accepted by the courier BEFORE the pharmacist finishes preparing it, so
+      // the courier can already be heading over. Pickup is allowed only once the
+      // pharmacist has marked it ready — the mirror stamps `pharma_ready_at`
+      // when it receives READY_FOR_PICKUP. Non-pharma orders are unaffected.
+      // Defense-in-depth: the home swipe is also hidden until ready. A blocked
+      // pickup matches no row → silent no-op (same contract as the status guard).
       const { data } = await admin
         .from('courier_orders')
         .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
         .eq('id', orderId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED'])
+        .or('vertical.neq.pharma,pharma_ready_at.not.is.null')
         .select('id')
         .maybeSingle();
       if (data) {
