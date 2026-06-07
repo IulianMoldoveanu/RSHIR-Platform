@@ -301,6 +301,15 @@ export default async function DashboardHome() {
                 </Link>
               )}
             </div>
+            {activeOrders.length > 1 ? (
+              <Link
+                href="/dashboard/orders"
+                className="mt-3 block text-center text-[11px] font-medium text-hir-muted-fg underline-offset-2 transition-colors hover:text-hir-fg hover:underline focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+              >
+                +{activeOrders.length - 1}{' '}
+                {activeOrders.length - 1 === 1 ? 'altă comandă activă' : 'alte comenzi active'} · vezi toate
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}
