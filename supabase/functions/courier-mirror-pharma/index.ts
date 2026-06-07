@@ -115,8 +115,8 @@ async function resolveCityId(
 // Maps pharma order status strings to courier_orders status enum values.
 // Pharma has many intermediate states; we map to the nearest courier
 // equivalent. Unknown statuses default to CREATED so the row still lands.
-function mapStatus(pharmaStatus: string): CourierOrderStatus {
-  const s = pharmaStatus.toUpperCase();
+function mapStatus(pharmaStatus: string | null | undefined): CourierOrderStatus {
+  const s = (pharmaStatus ?? '').toUpperCase();
   if (s === 'CANCELLED' || s === 'REJECTED') return 'CANCELLED';
   if (s === 'DELIVERED') return 'DELIVERED';
   if (s === 'IN_DELIVERY' || s === 'IN_TRANSIT') return 'IN_TRANSIT';
@@ -484,6 +484,86 @@ Deno.serve(async (req: Request) => {
       { from: order.status, to: targetStatus },
     );
     return json(200, { ok: true, courier_order_id: existing.id });
+  }
+
+  // -------------------------------------------------------------------------
+  // Directed dispatch: pharma dispatcher assigned this order → OFFER it to an
+  // active courier in its fleet (surfaces the swipe-to-accept pop-up in HIR
+  // Curier). Model Y: this can happen BEFORE the pharmacist marks it ready;
+  // pickup stays gated on pharma_ready_at.
+  // -------------------------------------------------------------------------
+  if (event === 'order.dispatch_to_courier') {
+    const { data: existing, error: findErr } = await supabase
+      .from('courier_orders')
+      .select('id, status, fleet_id')
+      .eq('external_ref', order.pharma_order_id)
+      .eq('vertical', 'pharma')
+      .maybeSingle();
+
+    if (findErr) {
+      console.error('[courier-mirror-pharma] dispatch lookup failed', findErr.message);
+      return json(500, { error: 'lookup_failed' });
+    }
+    if (!existing) {
+      // order.created may not have landed yet — 404 so pharma retries.
+      return json(404, { error: 'mirror_not_found', pharma_order_id: order.pharma_order_id });
+    }
+    // Only an unclaimed CREATED order can be offered. Anything further along
+    // (already OFFERED/ACCEPTED/…) is an idempotent no-op.
+    if (existing.status !== 'CREATED') {
+      return json(200, { ok: true, courier_order_id: existing.id, skipped: `status_${existing.status}` });
+    }
+
+    const targetFleetId = (existing.fleet_id as string) ?? fleetId;
+
+    // Resolve the courier: any ACTIVE courier in the fleet, preferring one
+    // currently ONLINE (on shift). No 1:1 pharma↔HIR identity mapping — the
+    // pool owns courier identity. (Auto-dispatch later can rank by proximity.)
+    const { data: activeProfiles } = await supabase
+      .from('courier_profiles')
+      .select('user_id')
+      .eq('fleet_id', targetFleetId)
+      .eq('status', 'ACTIVE');
+    const activeIds = (activeProfiles ?? []).map((p) => p.user_id as string);
+    if (activeIds.length === 0) {
+      return json(200, { ok: false, courier_order_id: existing.id, skipped: 'no_active_courier' });
+    }
+    let courierUserId = activeIds[0];
+    const { data: onlineShift } = await supabase
+      .from('courier_shifts')
+      .select('courier_user_id')
+      .eq('status', 'ONLINE')
+      .in('courier_user_id', activeIds)
+      .limit(1)
+      .maybeSingle();
+    if (onlineShift?.courier_user_id) courierUserId = onlineShift.courier_user_id as string;
+
+    // Canonical RPC: validates active-in-fleet, sets OFFERED + assigned +
+    // offer_expires_at. 600s = the RPC's max acceptance window (the courier
+    // just needs to accept; pickup is separately gated on pharma_ready_at).
+    // The RPC returns { offered: boolean, reason?: string } rather than raising
+    // for domain failures, so we must inspect the RETURN value, not just rpcErr.
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('offer_courier_order', {
+      p_order_id: existing.id,
+      p_courier_user_id: courierUserId,
+      p_fleet_id: targetFleetId,
+      p_timeout_seconds: 600,
+    });
+    const offered = !rpcErr && !!rpcData && (rpcData as { offered?: boolean }).offered === true;
+    if (!offered) {
+      const reason =
+        rpcErr?.message ?? (rpcData as { reason?: string } | null)?.reason ?? 'offer_failed';
+      console.error('[courier-mirror-pharma] offer_courier_order not offered:', reason);
+      return json(200, { ok: false, courier_order_id: existing.id, error: reason });
+    }
+    await auditLog(
+      supabase,
+      'courier_mirror.dispatched_to_courier',
+      order.pharma_order_id,
+      existing.id,
+      { courier_user_id: courierUserId, fleet_id: targetFleetId },
+    );
+    return json(200, { ok: true, courier_order_id: existing.id, offered_to: courierUserId });
   }
 
   return json(400, { error: 'unknown_event', event });
