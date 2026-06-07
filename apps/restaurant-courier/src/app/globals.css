@@ -89,6 +89,11 @@ html, body {
   position: relative;
   /* Confine repaints to the map so panning doesn't repaint app chrome. */
   contain: paint;
+  /* Leaflet's default container background is light grey (#ddd) — that is the
+     "white" flash the courier saw when panning left/right faster than tiles
+     load. Paint the canvas the dark map surface instead, so any momentary gap
+     reads as the dark theme, not a white gutter. */
+  background: #18181b; /* zinc-900 — matches the CARTO dark tiles */
 }
 
 /*

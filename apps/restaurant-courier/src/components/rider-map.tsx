@@ -334,9 +334,9 @@ export function RiderMap({
             maxZoom: 19,
             subdomains: 'abcd',
             // Keep a wide ring of off-screen tiles cached around the viewport
-            // (default is 2) so dragging doesn't immediately reveal blank
-            // gutters at the edges.
-            keepBuffer: 6,
+            // (default is 2) so dragging — especially fast left/right pans —
+            // doesn't reveal blank gutters at the edges before tiles load.
+            keepBuffer: 8,
             // Mobile default is updateWhenIdle:true — tiles only fetch after the
             // pan ENDS, which is exactly what showed white edges + seams while
             // dragging. Load during the drag instead.
