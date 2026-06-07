@@ -1,15 +1,14 @@
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Clock } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { startShiftAction, endShiftAction, acceptOrderAction } from './actions';
+import { startShiftAction, endShiftAction, acceptOrderAction, markPickedUpAction } from './actions';
 import { SwipeButton } from '@/components/swipe-button';
 import { RiderMapLazy as RiderMap } from '@/components/rider-map-lazy';
 import { VerticalBadge } from '@/components/vertical-badge';
-import { OrderStatusBadge } from '@/components/order-status-badge';
+import { MapLink } from '@/components/nav-buttons';
 import { WeatherPill } from '@/components/weather-pill';
 import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
-import { MultiStopFocus, type FocusOrder } from '@/components/multi-stop-focus';
 import { DashboardGreeting } from '@/components/dashboard-greeting';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +38,9 @@ type ActiveOrderRow = {
   dropoff_line1: string | null;
   customer_first_name: string | null;
   updated_at: string | null;
+  // Pharma readiness: set by the mirror when the pharmacist marks the order
+  // "ready for pickup". null for pharma orders not yet prepared → pickup gated.
+  pharma_ready_at: string | null;
 };
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
@@ -71,7 +73,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at, pharma_ready_at',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -148,6 +150,24 @@ export default async function DashboardHome() {
   const incomingOffer =
     ((activeOrdersData ?? []) as ActiveOrderRow[]).find((o) => o.status === 'OFFERED') ?? null;
 
+  // The single active order the courier is "in" right now (highest priority).
+  // Its one primary action is shown inline on the home map — pickup while
+  // ACCEPTED, deliver once PICKED_UP/IN_TRANSIT — so there's no order list to
+  // browse. Pharma pickup stays gated until the pharmacist marks it ready.
+  const topIsPickup = topOrder?.status === 'ACCEPTED';
+  const topReady = !topOrder
+    ? false
+    : !topIsPickup
+      ? true
+      : topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null;
+  const topAddress = !topOrder
+    ? null
+    : topIsPickup
+      ? topOrder.pickup_line1
+      : topOrder.dropoff_line1;
+  const topLat = !topOrder ? null : topIsPickup ? topOrder.pickup_lat : topOrder.dropoff_lat;
+  const topLng = !topOrder ? null : topIsPickup ? topOrder.pickup_lng : topOrder.dropoff_lng;
+
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
   // viewport minus the 56px header (h-14). Uses dvh (dynamic viewport height)
@@ -201,55 +221,8 @@ export default async function DashboardHome() {
         </div>
       </DashboardGreeting>
 
-      {/* Active-order quick-jump cards. Sorted by next-action urgency
-          (IN_TRANSIT/PICKED_UP first), prefixed with sequence numbers so
-          the rider always knows which order to handle next. */}
-      {activeOrders.length > 0 ? (
-        <div className="absolute right-3 top-3 z-10 flex max-w-[55%] flex-col gap-2">
-          {activeOrders.slice(0, 3).map((o, idx) => (
-            <Link
-              key={o.id}
-              href={`/dashboard/orders/${o.id}`}
-              className={`group flex min-w-0 items-center gap-2 rounded-xl border bg-hir-bg/90 px-3 py-2 text-xs font-medium text-hir-fg shadow-lg backdrop-blur transition-all hover:-translate-y-px hover:bg-hir-surface/90 hover:shadow-xl active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
-                idx === 0
-                  ? 'border-violet-400 shadow-violet-500/30 ring-1 ring-inset ring-violet-500/40 hover:border-violet-300 hover:shadow-violet-500/40'
-                  : 'border-violet-500/40 ring-1 ring-inset ring-violet-500/15 hover:border-violet-400'
-              }`}
-            >
-              <span
-                aria-hidden
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold tabular-nums ${
-                  idx === 0
-                    ? 'bg-violet-500 text-white shadow-md shadow-violet-500/40'
-                    : 'bg-hir-border text-hir-fg'
-                }`}
-              >
-                {idx + 1}
-              </span>
-              <OrderStatusBadge status={o.status} />
-              {o.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
-              <span className="min-w-0 flex-1 truncate">
-                {o.customer_first_name ?? o.dropoff_line1 ?? 'Comandă'}
-              </span>
-              <ArrowRight
-                className="h-3.5 w-3.5 shrink-0 text-violet-300 transition-transform group-hover:translate-x-0.5"
-                aria-hidden
-                strokeWidth={2.25}
-              />
-            </Link>
-          ))}
-          {activeOrders.length > 3 ? (
-            <Link
-              href="/dashboard/orders"
-              className="group rounded-xl border border-hir-border bg-hir-bg/85 px-3 py-1.5 text-center text-[11px] font-medium text-hir-fg backdrop-blur transition-all hover:-translate-y-px hover:border-violet-500/40 hover:bg-hir-surface/90 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
-            >
-              <span className="tabular-nums">+{activeOrders.length - 3}</span>
-              <span className="mx-1 text-hir-muted-fg">·</span>
-              vezi toate
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
+      {/* Active order is surfaced as ONE inline card near the bottom (below) —
+          no top-right list, no separate detail page for the primary flow. */}
 
       {/* Incoming offer — big swipe-to-accept overlay on the main map.
           Shows when a directed offer is assigned to this courier but not yet
@@ -262,7 +235,7 @@ export default async function DashboardHome() {
               <p className="text-sm font-bold text-hir-fg">
                 Comandă nouă{incomingOffer.vertical === 'pharma' ? ' · Farmacie' : ''}
               </p>
-              <OrderStatusBadge status={incomingOffer.status} />
+              {incomingOffer.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
             </div>
             {incomingOffer.pickup_line1 ? (
               <p className="text-xs text-hir-muted-fg">
@@ -284,13 +257,51 @@ export default async function DashboardHome() {
         </div>
       ) : null}
 
-      {/* Multi-stop focus banner. Renders only when 2+ active orders so it
-          doesn't clutter the common single-order case. Sits above the
-          shift-control overlay so the courier always sees the next
-          actionable instruction without scrolling. */}
-      {activeOrders.length >= 2 ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[1199] px-3">
-          <MultiStopFocus orders={activeOrders as FocusOrder[]} />
+      {/* Active order — ONE inline card with a single next action. The courier
+          is "in the order": navigate, then pick up (gated until the pharmacist
+          marks it ready), then confirm delivery. No status stepper, no list. */}
+      {isOnline && topOrder && !incomingOffer ? (
+        <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
+          <div className="mx-auto max-w-xl rounded-2xl border-2 border-violet-400/80 bg-hir-bg/95 p-4 shadow-2xl ring-1 ring-inset ring-violet-500/20 backdrop-blur">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-hir-fg">
+                {topIsPickup ? 'Mergi la ridicare' : 'Mergi la livrare'}
+              </p>
+              {topOrder.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
+            </div>
+            {topAddress ? (
+              <p className="text-xs text-hir-muted-fg">
+                {topIsPickup ? 'Ridicare' : 'Livrare'}:{' '}
+                <span className="text-hir-fg">{topAddress}</span>
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <MapLink address={topAddress} lat={topLat} lng={topLng} />
+            </div>
+            <div className="mt-3">
+              {topIsPickup ? (
+                topReady ? (
+                  <SwipeButton
+                    label="→ Glisează pentru ridicare"
+                    onConfirm={markPickedUpAction.bind(null, topOrder.id)}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs font-medium text-amber-100 ring-1 ring-inset ring-amber-500/20">
+                    <Clock className="h-4 w-4 flex-none" aria-hidden strokeWidth={2.25} />
+                    <span>Așteaptă confirmarea farmaciei — comanda nu e încă gata de ridicare.</span>
+                  </div>
+                )
+              ) : (
+                <Link
+                  href={`/dashboard/orders/${topOrder.id}`}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition active:scale-[0.99] hover:bg-emerald-400"
+                >
+                  Confirmă livrarea
+                  <ArrowRight className="h-4 w-4" aria-hidden strokeWidth={2.5} />
+                </Link>
+              )}
+            </div>
+          </div>
         </div>
       ) : null}
 
