@@ -11,6 +11,22 @@ import { withRunLog } from '@/lib/with-run-log';
 
 const GEOFENCE_WARN_METERS = 200;
 
+// Resolves the courier's fleet for defense-in-depth gating on service-role
+// UPDATEs. The admin client bypasses RLS, so the fleet check must live in the
+// action (mirrors acceptOrderAction). Returns null when the user has no
+// courier profile — callers treat that as a silent no-op.
+async function resolveCourierFleetId(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from('courier_profiles')
+    .select('fleet_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return (data as { fleet_id: string } | null)?.fleet_id ?? null;
+}
+
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -340,6 +356,12 @@ export async function markPickedUpAction(orderId: string) {
     { courier_user_id: userId, order_id: orderId },
     async () => {
       const admin = createAdminClient();
+      // Defense-in-depth fleet gate (admin client bypasses RLS): resolve the
+      // courier's fleet and require the order to belong to it, mirroring
+      // acceptOrderAction. Without it, a cross-fleet assignment (upstream bug)
+      // would let a courier advance an order outside their fleet.
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) return; // not a courier — silent no-op
       // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`,
       // a courier could revert a DELIVERED or CANCELLED order back to
       // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
@@ -356,6 +378,7 @@ export async function markPickedUpAction(orderId: string) {
         .from('courier_orders')
         .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED'])
         .or('vertical.neq.pharma,pharma_ready_at.not.is.null')
@@ -408,6 +431,10 @@ export async function markDeliveredAction(
     },
     async () => {
       const admin = createAdminClient();
+
+      // Defense-in-depth fleet gate (admin client bypasses RLS).
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) return; // not a courier — silent no-op
 
       // Server-side enforcement of pharma proof requirement (Legea 95/2006).
       // PR #456 added a client-side guard in PhotoProofUpload, but the server
@@ -464,6 +491,7 @@ export async function markDeliveredAction(
         .from('courier_orders')
         .update(update)
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['PICKED_UP', 'IN_TRANSIT'])
         .select('id, payment_method, total_ron')
@@ -666,6 +694,12 @@ export async function cancelOrderByCourierAction(
     async () => {
       const admin = createAdminClient();
 
+      // Defense-in-depth fleet gate (admin client bypasses RLS).
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) {
+        return { ok: false as const, error: 'Comanda nu poate fi anulată în starea curentă.' };
+      }
+
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -674,14 +708,15 @@ export async function cancelOrderByCourierAction(
           cancellation_reason: reasonStr,
         })
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED', 'PICKED_UP'])
         .select('id')
         .maybeSingle();
 
       if (!data) {
-        // Order wasn't in the expected state or not assigned to this courier.
-        // Return a user-facing message; don't throw (no 500 to the client).
+        // Order wasn't in the expected state, not assigned to this courier, or
+        // outside their fleet. Return a user-facing message; don't throw.
         return { ok: false as const, error: 'Comanda nu poate fi anulată în starea curentă.' };
       }
 

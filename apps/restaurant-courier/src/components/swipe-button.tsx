@@ -165,6 +165,14 @@ export function SwipeButton({
           onPointerUp={cancelHold}
           onPointerCancel={cancelHold}
           onPointerLeave={cancelHold}
+          onKeyDown={(e) => {
+            // Keyboard accessibility: confirm on Enter/Space (the drag + hold
+            // gestures are pointer-only). Funnels through the same runConfirm.
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              void runConfirm();
+            }
+          }}
           whileTap={{ scale: 0.98 }}
           className={`absolute left-1 top-1 flex h-12 w-14 cursor-grab items-center justify-center rounded-full text-white shadow-lg ${
             variant === 'success' ? 'shadow-emerald-500/40' : 'shadow-violet-500/40'
