@@ -41,8 +41,13 @@ type ActiveOrderRow = {
   // Pharma readiness: set by the mirror when the pharmacist marks the order
   // "ready for pickup". null for pharma orders not yet prepared → pickup gated.
   pharma_ready_at: string | null;
-  // Optional vendor (pharmacy/restaurant) phone for the "call the vendor" action.
+  // Optional vendor (pharmacy/restaurant) name + phone for the pickup card.
   pickup_phone: string | null;
+  pickup_name: string | null;
+  // Order reference (e.g. FDH1-0010) shown as the visible order number.
+  external_ref: string | null;
+  // Client phone, for the round call button on the delivery leg.
+  customer_phone: string | null;
 };
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
@@ -75,7 +80,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, updated_at, pharma_ready_at, pickup_phone',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -166,6 +171,23 @@ export default async function DashboardHome() {
         ? 'Gata de ridicare'
         : 'Comanda se pregătește'
       : 'În curs de livrare';
+  // Visible per-order number: the vendor reference (e.g. FDH1-0010) when present,
+  // else a short stable code from the id so EVERY order is numbered for the rider.
+  const topOrderNo = !topOrder
+    ? ''
+    : (topOrder.external_ref ?? topOrder.id.slice(0, 6).toUpperCase());
+  // Contact shown with the round call button: the vendor on the pickup leg, the
+  // client on the delivery leg.
+  const topContactName = !topOrder
+    ? null
+    : topIsPickup
+      ? topOrder.pickup_name
+      : topOrder.customer_first_name;
+  const topContactPhone = !topOrder
+    ? null
+    : topIsPickup
+      ? topOrder.pickup_phone
+      : topOrder.customer_phone;
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
@@ -256,48 +278,61 @@ export default async function DashboardHome() {
       {isOnline && topOrder && !incomingOffer ? (
         <div className="fixed inset-x-0 bottom-16 z-[1200] px-4 pb-4">
           <div className="mx-auto max-w-xl rounded-2xl border-2 border-violet-400/80 bg-hir-bg/95 p-4 shadow-2xl ring-1 ring-inset ring-violet-500/20 backdrop-blur">
+            {/* Header: visible order number + stage + vertical badge. */}
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-sm font-bold text-hir-fg">{stageTitle}</p>
+              <p className="text-sm font-bold text-hir-fg">
+                <span className="text-violet-300">#{topOrderNo}</span>
+                <span className="mx-1.5 text-hir-muted-fg">·</span>
+                {stageTitle}
+              </p>
               {topOrder.vertical === 'pharma' ? <VerticalBadge vertical="pharma" /> : null}
             </div>
-            {topAddress ? (
-              <p className="text-xs text-hir-muted-fg">
-                {topIsPickup ? 'Ridicare' : 'Livrare'}:{' '}
-                <span className="text-hir-fg">{topAddress}</span>
-              </p>
-            ) : null}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <MapLink address={topAddress} lat={topLat} lng={topLng} />
-              {/* Optional: reach the vendor (pharmacy/restaurant) for status or
-                  emergencies while heading to the pickup. Only during the
-                  pickup leg and only when a vendor phone is known. */}
-              {topIsPickup && topOrder.pickup_phone ? (
+
+            {/* Pickup point (vendor) on the pickup leg, client on delivery —
+                name + address, with the round call button alongside. */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {topContactName ? (
+                  <p className="truncate text-sm font-semibold text-hir-fg">{topContactName}</p>
+                ) : null}
+                {topAddress ? (
+                  <p className="mt-0.5 text-xs text-hir-muted-fg">
+                    {topIsPickup ? 'Ridicare' : 'Livrare'}:{' '}
+                    <span className="text-hir-fg">{topAddress}</span>
+                  </p>
+                ) : null}
+              </div>
+              {topContactPhone ? (
                 <a
-                  href={`tel:${topOrder.pickup_phone}`}
-                  aria-label={`Sună ${vendorWord.toLowerCase()}`}
-                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition-all hover:-translate-y-px hover:bg-emerald-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
+                  href={`tel:${topContactPhone}`}
+                  aria-label={topIsPickup ? `Sună ${vendorWord.toLowerCase()}` : 'Sună clientul'}
+                  className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-md shadow-emerald-500/15 transition-all hover:-translate-y-px hover:bg-emerald-500/25 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
                 >
-                  <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
-                  Sună {vendorWord.toLowerCase()}
+                  <Phone className="h-5 w-5" aria-hidden strokeWidth={2.25} />
                 </a>
               ) : null}
             </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <MapLink address={topAddress} lat={topLat} lng={topLng} />
+            </div>
+
             <div className="mt-3">
               {topIsPickup ? (
-                topReady ? (
+                <>
+                  {/* Grey + non-swipeable until the vendor marks the order ready. */}
                   <SwipeButton
-                    label="→ Glisează pentru ridicare"
+                    label={topReady ? '→ Glisează pentru ridicare' : 'Ridică comanda'}
                     onConfirm={markPickedUpAction.bind(null, topOrder.id)}
+                    disabled={!topReady}
                   />
-                ) : (
-                  <div className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs font-medium text-amber-100 ring-1 ring-inset ring-amber-500/20">
-                    <Clock className="h-4 w-4 flex-none" aria-hidden strokeWidth={2.25} />
-                    <span>
-                      {vendorWord} pregătește comanda. Te poți deplasa la adresă — vei putea
-                      ridica după ce o marchează gata.
-                    </span>
-                  </div>
-                )
+                  {!topReady ? (
+                    <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-amber-300">
+                      <Clock className="h-3.5 w-3.5 flex-none" aria-hidden strokeWidth={2.25} />
+                      Disponibil după ce {vendorWord.toLowerCase()} marchează comanda gata.
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <Link
                   href={`/dashboard/orders/${topOrder.id}`}

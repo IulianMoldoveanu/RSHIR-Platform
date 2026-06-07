@@ -328,9 +328,10 @@ Deno.serve(async (req: Request) => {
       updated_at: at,
     };
     if (cityId) insertRow.city_id = cityId;
-    // Optional vendor (pharmacy) contact phone for the courier's "call vendor"
-    // action. Empty string from pharma → leave NULL.
+    // Optional vendor (pharmacy) contact phone + display name for the courier's
+    // pickup card. Empty strings from pharma → leave NULL.
     if (order.pickup?.contact_phone) insertRow.pickup_phone = order.pickup.contact_phone;
+    if (order.pickup?.contact_name) insertRow.pickup_name = order.pickup.contact_name;
     // Race: order.created may already carry READY_FOR_PICKUP (pharmacist marked
     // it ready before the create webhook landed) — stamp readiness so pickup
     // isn't blocked on a phantom "not ready" state.
@@ -445,8 +446,9 @@ Deno.serve(async (req: Request) => {
       updateRow.status = targetStatus;
     }
     if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
-    // Backfill the optional vendor phone if a later event carries it.
+    // Backfill the optional vendor phone/name if a later event carries them.
     if (order.pickup?.contact_phone) updateRow.pickup_phone = order.pickup.contact_phone;
+    if (order.pickup?.contact_name) updateRow.pickup_name = order.pickup.contact_name;
     // Repair a NULL city_id from a later event if the city now resolves
     // (e.g. the row was created before city stamping or before city was sent).
     if (!existing.city_id) {

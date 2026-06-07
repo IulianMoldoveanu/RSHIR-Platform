@@ -24,11 +24,15 @@ export function SwipeButton({
   label,
   onConfirm,
   variant = 'primary',
+  disabled = false,
 }: {
   label: string;
   onConfirm: () => Promise<void> | void;
   /** primary = purple accent, success = green for "delivered" final step. */
   variant?: 'primary' | 'success';
+  /** Grey, non-interactive state — e.g. "Ridică comanda" before the vendor
+   *  marks the order ready. Shows the label + a static handle, cannot swipe. */
+  disabled?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
@@ -66,7 +70,7 @@ export function SwipeButton({
   };
 
   async function runConfirm() {
-    if (pending || done) return;
+    if (pending || done || disabled) return;
     // Two-pulse pattern (commit + acknowledgement) — distinguishable
     // from the single-tick threshold-cross above, so the courier feels
     // a clear "fired" cue separate from "approaching threshold".
@@ -124,9 +128,11 @@ export function SwipeButton({
   return (
     <div
       ref={trackRef}
-      className="relative h-14 w-full select-none overflow-hidden rounded-full border border-hir-border ring-1 ring-inset ring-hir-border/40"
+      className={`relative h-14 w-full select-none overflow-hidden rounded-full border border-hir-border ring-1 ring-inset ring-hir-border/40 ${
+        disabled ? 'opacity-60' : ''
+      }`}
       style={trackStyle}
-      aria-disabled={pending || done}
+      aria-disabled={pending || done || disabled}
     >
       {/* Track fill (grows behind the handle as it slides). */}
       <motion.div
@@ -151,7 +157,14 @@ export function SwipeButton({
       {/* Draggable handle. Also accepts press-and-hold (~900ms) as a tap
           fallback so the action is reachable even if drag gestures fail
           on the user's browser. Only rendered when interactive. */}
-      {!done && !pending ? (
+      {/* Disabled: static grey handle, no drag/hold/keyboard. */}
+      {disabled ? (
+        <div className="absolute left-1 top-1 flex h-12 w-14 items-center justify-center rounded-full bg-zinc-600 text-zinc-300 shadow-md">
+          <ChevronRight className="h-5 w-5" aria-hidden strokeWidth={2.5} />
+        </div>
+      ) : null}
+
+      {!done && !pending && !disabled ? (
         <motion.button
           type="button"
           drag="x"
