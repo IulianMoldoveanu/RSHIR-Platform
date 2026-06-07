@@ -779,6 +779,38 @@ export function RiderMap({
     );
   }
 
+  // Explicit, user-gesture-driven location request. The map already calls
+  // watchPosition on mount, but if the OS/browser previously remembered a
+  // dismissal it won't re-prompt on its own — the courier then sees no
+  // location request at all. This button (in the "denied" overlay) forces a
+  // fresh getCurrentPosition from a tap, which re-shows the OS prompt wherever
+  // the platform allows it; on a hard OS-level block it falls back to the
+  // denied state so the courier knows to enable it from phone settings.
+  function requestLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setPermission('unsupported');
+      return;
+    }
+    setPermission('pending');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        lastFixRef.current = { lat, lng };
+        setPermission('granted');
+        const map = mapRef.current;
+        if (map) {
+          if (typeof map.flyTo === 'function') {
+            map.flyTo([lat, lng], RIDER_ZOOM, { duration: 0.8 });
+          } else {
+            map.setView([lat, lng], RIDER_ZOOM);
+          }
+        }
+      },
+      () => setPermission('denied'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
+    );
+  }
+
   // Fill-parent mode: caller controls height (used by the home dashboard
   // where the map should bleed under the bottom-nav). Default keeps the
   // legacy "card on a page" rounded look for any other call sites.
@@ -808,6 +840,13 @@ export function RiderMap({
             <p className="mt-2 text-xs text-zinc-400">
               Activează permisiunile de locație pentru a vedea harta și a primi comenzi din apropiere.
             </p>
+            <button
+              type="button"
+              onClick={requestLocation}
+              className="mt-4 inline-flex items-center justify-center rounded-full bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition active:scale-95 hover:bg-violet-400"
+            >
+              Activează locația
+            </button>
           </div>
         </div>
       )}
