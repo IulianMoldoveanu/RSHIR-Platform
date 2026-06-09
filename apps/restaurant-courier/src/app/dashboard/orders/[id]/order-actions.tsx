@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Banknote, Info, MapPin } from 'lucide-react';
+import { Banknote, Info, Loader2, MapPin } from 'lucide-react';
 import { SwipeButton } from '@/components/swipe-button';
 import { Button } from '@hir/ui';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
@@ -66,7 +66,7 @@ export function OrderActions({
   const [pharmaIdUrl, setPharmaIdUrl] = useState<string | undefined>(undefined);
   const [pharmaRxUrl, setPharmaRxUrl] = useState<string | undefined>(undefined);
   const [restaurantProofUrl, setRestaurantProofUrl] = useState<string | undefined>(undefined);
-  const [cashConfirmed, setCashConfirmed] = useState(false);
+  const [showCashModal, setShowCashModal] = useState(false);
   const [milestoneCount, setMilestoneCount] = useState<number | null>(null);
 
   const { mode, fleetName } = useRiderMode();
@@ -156,13 +156,12 @@ export function OrderActions({
     await runTransitionOrQueue('pickup', orderId, {}, pickedUpAction);
   }
 
-  async function handleDeliverConfirm() {
+  async function handleDeliverConfirm(cashCollected?: boolean) {
     const proofUrl = vertical === 'pharma' ? pharmaProofUrl : restaurantProofUrl;
     const pharmaProofs =
       vertical === 'pharma' && (pharmaIdUrl || pharmaRxUrl)
         ? { idUrl: pharmaIdUrl, prescriptionUrl: pharmaRxUrl }
         : undefined;
-    const cashCollected = isCashOnDelivery ? cashConfirmed : undefined;
     await runTransitionOrQueue(
       'deliver',
       orderId,
@@ -231,35 +230,35 @@ export function OrderActions({
             />
           ) : null}
 
-          {/*
-            Cash-on-delivery confirm: gate the delivery swipe behind an
-            explicit "Da, am încasat XX RON" tap. FOISORUL A pilot is
-            cash-only; without this gate, settlement would have no signal
-            that cash actually changed hands.
-          */}
-          {isCashOnDelivery && (vertical === 'restaurant' || pharmaOk) ? (
-            <CashCollectedGate
-              amountLabel={cashAmountLabel}
-              confirmed={cashConfirmed}
-              onConfirm={() => setCashConfirmed(true)}
-              onReset={() => setCashConfirmed(false)}
-            />
-          ) : null}
-
-          {/* Delivery swipe: for pharma, only shown after pharma checks pass.
-              For COD orders, only after the cash gate is confirmed. */}
-          {(vertical === 'restaurant' || pharmaOk) &&
-          (!isCashOnDelivery || cashConfirmed) ? (
-            <div className={geofenceState === 'NEAR_DROPOFF' ? 'space-y-2' : ''}>
-              {geofenceState === 'NEAR_DROPOFF' && (
-                <ArrivalHint label="Ești la adresa de livrare — glisează pentru a confirma ↓" />
-              )}
-              <SwipeButton
-                label="→ Glisează pentru a confirma livrare"
-                onConfirm={handleDeliverConfirm}
-                variant="success"
-              />
-            </div>
+          {/* Final delivery action — shown after pharma checks pass (or for
+              restaurant). COD opens the cash-collection pop-up; checking that
+              box marks the order delivered (no extra "finalize" step). */}
+          {vertical === 'restaurant' || pharmaOk ? (
+            isCashOnDelivery ? (
+              <div className={geofenceState === 'NEAR_DROPOFF' ? 'space-y-2' : ''}>
+                {geofenceState === 'NEAR_DROPOFF' && (
+                  <ArrivalHint label="Ești la adresa de livrare — confirmă livrarea ↓" />
+                )}
+                <Button
+                  type="button"
+                  onClick={() => setShowCashModal(true)}
+                  className="w-full rounded-2xl bg-emerald-500 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:-translate-y-px hover:bg-emerald-400 hover:shadow-xl active:translate-y-0"
+                >
+                  Confirmă livrarea
+                </Button>
+              </div>
+            ) : (
+              <div className={geofenceState === 'NEAR_DROPOFF' ? 'space-y-2' : ''}>
+                {geofenceState === 'NEAR_DROPOFF' && (
+                  <ArrivalHint label="Ești la adresa de livrare — glisează pentru a confirma ↓" />
+                )}
+                <SwipeButton
+                  label="→ Glisează pentru a confirma livrare"
+                  onConfirm={() => handleDeliverConfirm()}
+                  variant="success"
+                />
+              </div>
+            )
           ) : null}
         </>
       ) : null}
@@ -269,6 +268,19 @@ export function OrderActions({
           contact the dispatcher via QuickCallButtons instead. */}
       {isMine && (status === 'ACCEPTED' || status === 'PICKED_UP') ? (
         <CancelOrderModal cancelAction={cancelAction} />
+      ) : null}
+
+      {/* COD cash-collection pop-up: appears before finalizing. Checking the
+          box IS the confirmation — it marks the order delivered, no extra step. */}
+      {showCashModal ? (
+        <CashCollectedModal
+          amountLabel={cashAmountLabel}
+          onConfirm={async () => {
+            await handleDeliverConfirm(true);
+            setShowCashModal(false);
+          }}
+          onClose={() => setShowCashModal(false)}
+        />
       ) : null}
 
       {milestoneCount !== null ? (
@@ -295,70 +307,83 @@ function ArrivalHint({ label }: { label: string }) {
 }
 
 /**
- * Compact cash-collected gate. Two states:
- *   - unconfirmed → big "Da, am încasat {amount}" button + small "Nu" link.
- *   - confirmed → green check row "Cash încasat: {amount}" with a "Modifică" link.
- *
- * Pure UI gate: no server call here. The flag is passed at delivered-action
- * time and the server logs an audit row when COD + cashCollected=true.
+ * COD cash-collection pop-up shown before finalizing the delivery. There is NO
+ * separate "finalize" step: checking the box (tapping the row) IS the
+ * confirmation and marks the order delivered (the server logs the COD audit
+ * row when cashCollected=true). Stays open on error so the courier can retry.
  */
-function CashCollectedGate({
+function CashCollectedModal({
   amountLabel,
-  confirmed,
   onConfirm,
-  onReset,
+  onClose,
 }: {
   amountLabel: string;
-  confirmed: boolean;
-  onConfirm: () => void;
-  onReset: () => void;
+  onConfirm: () => Promise<void>;
+  onClose: () => void;
 }) {
-  if (confirmed) {
-    return (
-      <div className="flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm ring-1 ring-inset ring-emerald-500/20 shadow-sm shadow-emerald-500/10">
-        <span className="flex items-center gap-2 text-emerald-200">
-          <Banknote className="h-4 w-4" aria-hidden strokeWidth={2.25} />
-          Cash încasat: <span className="font-semibold tabular-nums">{amountLabel}</span>
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onReset}
-          className="h-auto p-0 text-xs text-hir-muted-fg transition-colors hover:bg-transparent hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 rounded"
-        >
-          Modifică
-        </Button>
-      </div>
-    );
+  const [submitting, setSubmitting] = useState(false);
+
+  async function confirm() {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm();
+    } catch {
+      // Keep the modal open so the courier can retry the collection confirm.
+      setSubmitting(false);
+    }
   }
 
   return (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 ring-1 ring-inset ring-amber-500/20 shadow-sm shadow-amber-500/10">
-      <div className="flex items-start gap-2.5">
-        <span
-          aria-hidden
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500/20 ring-1 ring-amber-500/40 shadow-sm shadow-amber-500/20"
-        >
-          <Banknote className="h-4 w-4 text-amber-300" strokeWidth={2.25} />
-        </span>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-amber-100">
-            Plată cash la livrare
-          </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-amber-200/90">
-            Confirmă că ai încasat{' '}
-            <span className="font-semibold tabular-nums">{amountLabel}</span> de la client
-            înainte de a marca livrarea.
-          </p>
+    <div
+      className="fixed inset-0 z-[1300] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Confirmare încasare cash"
+    >
+      <div className="w-full max-w-md rounded-2xl border border-hir-border bg-hir-bg p-5 shadow-2xl ring-1 ring-inset ring-emerald-500/15">
+        <div className="mb-4 flex items-center gap-3">
+          <span
+            aria-hidden
+            className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/30"
+          >
+            <Banknote className="h-5 w-5 text-emerald-300" strokeWidth={2.25} />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-hir-fg">Încasare cash</h2>
+            <p className="text-xs text-hir-muted-fg">
+              Bifează ca să finalizezi livrarea.
+            </p>
+          </div>
         </div>
+
+        {/* Tapping this row = checking the box = order delivered. No extra step. */}
+        <button
+          type="button"
+          onClick={confirm}
+          disabled={submitting}
+          aria-busy={submitting}
+          className="flex w-full items-center gap-3 rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-4 text-left transition-all hover:bg-emerald-500/15 active:scale-[0.99] disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-emerald-400 focus-visible:outline-offset-2"
+        >
+          <span className="flex h-7 w-7 flex-none items-center justify-center rounded-md border-2 border-emerald-400 bg-emerald-500/20 text-emerald-200">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+          </span>
+          <span className="text-sm font-semibold text-emerald-100">
+            Am încasat suma de{' '}
+            <span className="tabular-nums">{amountLabel}</span> de la client
+          </span>
+        </button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          disabled={submitting}
+          className="mt-3 w-full rounded-xl py-2.5 text-sm font-medium text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg"
+        >
+          Anulează
+        </Button>
       </div>
-      <Button
-        type="button"
-        onClick={onConfirm}
-        className="mt-3 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-md shadow-amber-500/30 transition-all hover:-translate-y-px hover:bg-amber-400 hover:shadow-lg hover:shadow-amber-500/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-2"
-      >
-        Da, am încasat {amountLabel}
-      </Button>
     </div>
   );
 }
