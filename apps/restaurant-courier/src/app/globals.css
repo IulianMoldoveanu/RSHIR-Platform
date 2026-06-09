@@ -87,6 +87,33 @@ html, body {
 .leaflet-container {
   z-index: 0;
   position: relative;
+  /* Confine repaints to the map so panning doesn't repaint app chrome. */
+  contain: paint;
+  /* Leaflet's default container background is light grey (#ddd) — that is the
+     "white" flash the courier saw when panning left/right faster than tiles
+     load. Paint the canvas the dark map surface instead, so any momentary gap
+     reads as the dark theme, not a white gutter. */
+  background: #18181b; /* zinc-900 — matches the CARTO dark tiles */
+}
+
+/*
+ * Promote the moving panes to their own GPU layers. Without this, dragging the
+ * map on some mobile WebViews (Samsung Internet in particular) shows white
+ * gutters at the edges and faint horizontal seam lines between tiles caused by
+ * subpixel CSS-transform compositing. Forcing a compositor layer + hiding the
+ * backface snaps tiles to the pixel grid and removes the artifacts.
+ */
+.leaflet-map-pane {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.leaflet-tile-pane {
+  will-change: transform;
+}
+.leaflet-tile {
+  /* Slight overdraw + GPU promotion hides the 1px gaps between adjacent tiles. */
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 @layer utilities {

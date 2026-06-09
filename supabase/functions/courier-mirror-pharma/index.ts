@@ -115,8 +115,8 @@ async function resolveCityId(
 // Maps pharma order status strings to courier_orders status enum values.
 // Pharma has many intermediate states; we map to the nearest courier
 // equivalent. Unknown statuses default to CREATED so the row still lands.
-function mapStatus(pharmaStatus: string): CourierOrderStatus {
-  const s = pharmaStatus.toUpperCase();
+function mapStatus(pharmaStatus: string | null | undefined): CourierOrderStatus {
+  const s = (pharmaStatus ?? '').toUpperCase();
   if (s === 'CANCELLED' || s === 'REJECTED') return 'CANCELLED';
   if (s === 'DELIVERED') return 'DELIVERED';
   if (s === 'IN_DELIVERY' || s === 'IN_TRANSIT') return 'IN_TRANSIT';
@@ -125,6 +125,26 @@ function mapStatus(pharmaStatus: string): CourierOrderStatus {
   if (s === 'READY_FOR_PICKUP') return 'OFFERED';
   // RECEIVED / PROCESSING / PHARMACIST_REVIEW / etc → not yet dispatched
   return 'CREATED';
+}
+
+// Forward-only ordering of courier dispatch statuses. The mirror (pharma → pool)
+// must never REGRESS an order the courier already advanced: in Model Y the
+// courier ACCEPTS before the pharmacist marks the order ready, so a later
+// READY_FOR_PICKUP (→ OFFERED) would otherwise bump ACCEPTED back to OFFERED.
+// We only apply a mapped status when it ranks strictly higher than the current
+// one (order.cancelled is terminal and always wins, handled at the call site).
+const STATUS_RANK: Record<string, number> = {
+  CREATED: 0,
+  OFFERED: 1,
+  ACCEPTED: 2,
+  PICKED_UP: 3,
+  IN_TRANSIT: 4,
+  DELIVERED: 5,
+  FAILED: 5,
+  CANCELLED: 5,
+};
+function statusRank(s: string): number {
+  return STATUS_RANK[s] ?? -1;
 }
 
 // Constant-time HMAC comparison (node:crypto timingSafeEqual wrapped for strings).
@@ -308,6 +328,14 @@ Deno.serve(async (req: Request) => {
       updated_at: at,
     };
     if (cityId) insertRow.city_id = cityId;
+    // Optional vendor (pharmacy) contact phone + display name for the courier's
+    // pickup card. Empty strings from pharma → leave NULL.
+    if (order.pickup?.contact_phone) insertRow.pickup_phone = order.pickup.contact_phone;
+    if (order.pickup?.contact_name) insertRow.pickup_name = order.pickup.contact_name;
+    // Race: order.created may already carry READY_FOR_PICKUP (pharmacist marked
+    // it ready before the create webhook landed) — stamp readiness so pickup
+    // isn't blocked on a phantom "not ready" state.
+    if ((order.status ?? '').toUpperCase() === 'READY_FOR_PICKUP') insertRow.pharma_ready_at = at;
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
     if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
@@ -374,7 +402,7 @@ Deno.serve(async (req: Request) => {
     // Find the existing mirror row.
     const { data: existing, error: findErr } = await supabase
       .from('courier_orders')
-      .select('id, updated_at, city_id')
+      .select('id, updated_at, city_id, status')
       .eq('external_ref', order.pharma_order_id)
       .eq('vertical', 'pharma')
       .maybeSingle();
@@ -404,8 +432,23 @@ Deno.serve(async (req: Request) => {
     // (e.g. they rolled their HMAC keypair). All fields stay optional.
     // The secret rotation is upserted into courier_order_secrets — see
     // migration 20260605_004 — instead of stored on courier_orders.
-    const updateRow: Record<string, unknown> = { status: targetStatus, updated_at: at };
+    const updateRow: Record<string, unknown> = { updated_at: at };
+    // Pharmacist readiness (Model Y): stamp when pharma signals READY_FOR_PICKUP,
+    // independent of dispatch status — the courier may already have accepted.
+    // This is what gates courier pickup (markPickedUpAction + home wait-state).
+    if ((order.status ?? '').toUpperCase() === 'READY_FOR_PICKUP') {
+      updateRow.pharma_ready_at = at;
+    }
+    // Forward-only status: never regress what the courier already advanced. A
+    // late READY_FOR_PICKUP (→ OFFERED) must not bump an ACCEPTED order back.
+    // order.cancelled is terminal and always applies.
+    if (event === 'order.cancelled' || statusRank(targetStatus) > statusRank((existing.status as string) ?? 'CREATED')) {
+      updateRow.status = targetStatus;
+    }
     if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
+    // Backfill the optional vendor phone/name if a later event carries them.
+    if (order.pickup?.contact_phone) updateRow.pickup_phone = order.pickup.contact_phone;
+    if (order.pickup?.contact_name) updateRow.pickup_name = order.pickup.contact_name;
     // Repair a NULL city_id from a later event if the city now resolves
     // (e.g. the row was created before city stamping or before city was sent).
     if (!existing.city_id) {
@@ -448,6 +491,86 @@ Deno.serve(async (req: Request) => {
       { from: order.status, to: targetStatus },
     );
     return json(200, { ok: true, courier_order_id: existing.id });
+  }
+
+  // -------------------------------------------------------------------------
+  // Directed dispatch: pharma dispatcher assigned this order → OFFER it to an
+  // active courier in its fleet (surfaces the swipe-to-accept pop-up in HIR
+  // Curier). Model Y: this can happen BEFORE the pharmacist marks it ready;
+  // pickup stays gated on pharma_ready_at.
+  // -------------------------------------------------------------------------
+  if (event === 'order.dispatch_to_courier') {
+    const { data: existing, error: findErr } = await supabase
+      .from('courier_orders')
+      .select('id, status, fleet_id')
+      .eq('external_ref', order.pharma_order_id)
+      .eq('vertical', 'pharma')
+      .maybeSingle();
+
+    if (findErr) {
+      console.error('[courier-mirror-pharma] dispatch lookup failed', findErr.message);
+      return json(500, { error: 'lookup_failed' });
+    }
+    if (!existing) {
+      // order.created may not have landed yet — 404 so pharma retries.
+      return json(404, { error: 'mirror_not_found', pharma_order_id: order.pharma_order_id });
+    }
+    // Only an unclaimed CREATED order can be offered. Anything further along
+    // (already OFFERED/ACCEPTED/…) is an idempotent no-op.
+    if (existing.status !== 'CREATED') {
+      return json(200, { ok: true, courier_order_id: existing.id, skipped: `status_${existing.status}` });
+    }
+
+    const targetFleetId = (existing.fleet_id as string) ?? fleetId;
+
+    // Resolve the courier: any ACTIVE courier in the fleet, preferring one
+    // currently ONLINE (on shift). No 1:1 pharma↔HIR identity mapping — the
+    // pool owns courier identity. (Auto-dispatch later can rank by proximity.)
+    const { data: activeProfiles } = await supabase
+      .from('courier_profiles')
+      .select('user_id')
+      .eq('fleet_id', targetFleetId)
+      .eq('status', 'ACTIVE');
+    const activeIds = (activeProfiles ?? []).map((p) => p.user_id as string);
+    if (activeIds.length === 0) {
+      return json(200, { ok: false, courier_order_id: existing.id, skipped: 'no_active_courier' });
+    }
+    let courierUserId = activeIds[0];
+    const { data: onlineShift } = await supabase
+      .from('courier_shifts')
+      .select('courier_user_id')
+      .eq('status', 'ONLINE')
+      .in('courier_user_id', activeIds)
+      .limit(1)
+      .maybeSingle();
+    if (onlineShift?.courier_user_id) courierUserId = onlineShift.courier_user_id as string;
+
+    // Canonical RPC: validates active-in-fleet, sets OFFERED + assigned +
+    // offer_expires_at. 600s = the RPC's max acceptance window (the courier
+    // just needs to accept; pickup is separately gated on pharma_ready_at).
+    // The RPC returns { offered: boolean, reason?: string } rather than raising
+    // for domain failures, so we must inspect the RETURN value, not just rpcErr.
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('offer_courier_order', {
+      p_order_id: existing.id,
+      p_courier_user_id: courierUserId,
+      p_fleet_id: targetFleetId,
+      p_timeout_seconds: 600,
+    });
+    const offered = !rpcErr && !!rpcData && (rpcData as { offered?: boolean }).offered === true;
+    if (!offered) {
+      const reason =
+        rpcErr?.message ?? (rpcData as { reason?: string } | null)?.reason ?? 'offer_failed';
+      console.error('[courier-mirror-pharma] offer_courier_order not offered:', reason);
+      return json(200, { ok: false, courier_order_id: existing.id, error: reason });
+    }
+    await auditLog(
+      supabase,
+      'courier_mirror.dispatched_to_courier',
+      order.pharma_order_id,
+      existing.id,
+      { courier_user_id: courierUserId, fleet_id: targetFleetId },
+    );
+    return json(200, { ok: true, courier_order_id: existing.id, offered_to: courierUserId });
   }
 
   return json(400, { error: 'unknown_event', event });

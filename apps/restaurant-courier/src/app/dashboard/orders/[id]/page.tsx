@@ -9,16 +9,11 @@ import {
   markDeliveredAction,
   cancelOrderByCourierAction,
 } from '../../actions';
-import { OrderTimeline } from '@/components/order-timeline';
 import { MapLink, PhoneLink } from '@/components/nav-buttons';
 import { VerticalBadge } from '@/components/vertical-badge';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { TenantBadge } from '@/components/tenant-badge';
 import { EarningsPreview } from '@/components/earnings-preview';
-import { SosButton } from '@/components/sos-button';
-import { ActiveOrderTimer } from '@/components/active-order-timer';
-import { CopyAddressButton } from '@/components/copy-address-button';
-import { ShareOrderButton } from '@/components/share-order-button';
 import { OrderActions } from './order-actions';
 import { OrderDetailRealtime } from './order-detail-realtime';
 import { WakeLockOnActive } from '@/components/wake-lock-on-active';
@@ -29,7 +24,6 @@ import { headers } from 'next/headers';
 import { QuickCallButtons } from '@/components/quick-call-buttons';
 import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
-import { OrderStepper } from '@/components/order-stepper';
 import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
 import { OrderChat } from './order-chat';
@@ -101,8 +95,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   if (!order) notFound();
 
   const isMine = order.assigned_courier_user_id === user.id;
+  // "Available to accept" = still in the offer window (CREATED/OFFERED) in my
+  // fleet, AND either open-pool (unassigned) OR a directed offer the dispatcher
+  // assigned to me. The status gate ensures that once I accept (→ ACCEPTED),
+  // this flips false and the delivery stepper takes over instead.
   const isOpenInMyFleet =
-    order.assigned_courier_user_id === null &&
+    (order.assigned_courier_user_id === null || isMine) &&
     (order.status === 'CREATED' || order.status === 'OFFERED') &&
     order.fleet_id !== null &&
     order.fleet_id === riderMode.fleetId;
@@ -142,13 +140,13 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   }
 
   const isAvailable = isOpenInMyFleet;
-  const showSos = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
+  const showQuickCall = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
 
   // Quick-call: fetch the fleet's dispatcher phone only for active own
   // deliveries — not for available orders the courier hasn't accepted yet.
   let fleetContactPhone: string | null = null;
   let fleetName: string | null = null;
-  if (showSos && order.fleet_id) {
+  if (showQuickCall && order.fleet_id) {
     const { data: fleetRow } = await admin
       .from('courier_fleets')
       .select('name, contact_phone')
@@ -202,10 +200,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         <OrderStatusBadge status={order.status} size="md" />
       </div>
 
-      {isMine ? <OrderStepper status={order.status} /> : null}
-
-      {isMine ? <ActiveOrderTimer status={order.status} since={order.updated_at} /> : null}
-
       {isAvailable ? (
         <EarningsPreview
           deliveryFeeRon={order.delivery_fee_ron}
@@ -230,13 +224,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           lat={order.pickup_lat}
           lng={order.pickup_lng}
         />
-        <CopyAddressButton address={order.pickup_line1} />
       </StopCard>
-
-      {/* Timeline. */}
-      <section className={cardClasses({ padding: 'none', className: 'px-5 py-4' })}>
-        <OrderTimeline status={order.status} />
-      </section>
 
       {/* Live ETA: only while this courier is actively delivering. */}
       {isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT') &&
@@ -262,14 +250,8 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           lng={order.dropoff_lng}
         />
         <PhoneLink phone={order.customer_phone} orderId={order.id} />
-        <CopyAddressButton address={order.dropoff_line1} />
-        <ShareOrderButton
-          orderShortId={order.id.slice(0, 8)}
-          customerFirstName={order.customer_first_name}
-          dropoffAddress={order.dropoff_line1}
-        />
       </StopCard>
-      {showSos ? (
+      {showQuickCall ? (
         <QuickCallButtons
           fleetContactPhone={fleetContactPhone}
           fleetName={fleetName}
@@ -334,8 +316,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           deliveredAction={deliveredBound}
           cancelAction={cancelBound}
         />
-
-        {showSos ? <div className="mt-2"><SosButton /></div> : null}
       </div>
     </div>
   );

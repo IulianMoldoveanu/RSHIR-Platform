@@ -11,6 +11,22 @@ import { withRunLog } from '@/lib/with-run-log';
 
 const GEOFENCE_WARN_METERS = 200;
 
+// Resolves the courier's fleet for defense-in-depth gating on service-role
+// UPDATEs. The admin client bypasses RLS, so the fleet check must live in the
+// action (mirrors acceptOrderAction). Returns null when the user has no
+// courier profile — callers treat that as a silent no-op.
+async function resolveCourierFleetId(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from('courier_profiles')
+    .select('fleet_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return (data as { fleet_id: string } | null)?.fleet_id ?? null;
+}
+
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6_371_000;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -340,17 +356,32 @@ export async function markPickedUpAction(orderId: string) {
     { courier_user_id: userId, order_id: orderId },
     async () => {
       const admin = createAdminClient();
+      // Defense-in-depth fleet gate (admin client bypasses RLS): resolve the
+      // courier's fleet and require the order to belong to it, mirroring
+      // acceptOrderAction. Without it, a cross-fleet assignment (upstream bug)
+      // would let a courier advance an order outside their fleet.
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) return; // not a courier — silent no-op
       // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`,
       // a courier could revert a DELIVERED or CANCELLED order back to
       // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
       // filters the row out cleanly when the status doesn't match —
       // `maybeSingle()` returns null and the notify call is skipped.
+      // Pharmacist-ready gate (Model Y): a pharma order may be allocated to and
+      // accepted by the courier BEFORE the pharmacist finishes preparing it, so
+      // the courier can already be heading over. Pickup is allowed only once the
+      // pharmacist has marked it ready — the mirror stamps `pharma_ready_at`
+      // when it receives READY_FOR_PICKUP. Non-pharma orders are unaffected.
+      // Defense-in-depth: the home swipe is also hidden until ready. A blocked
+      // pickup matches no row → silent no-op (same contract as the status guard).
       const { data } = await admin
         .from('courier_orders')
         .update({ status: 'PICKED_UP', updated_at: new Date().toISOString() })
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED'])
+        .or('vertical.neq.pharma,pharma_ready_at.not.is.null')
         .select('id')
         .maybeSingle();
       if (data) {
@@ -400,6 +431,10 @@ export async function markDeliveredAction(
     },
     async () => {
       const admin = createAdminClient();
+
+      // Defense-in-depth fleet gate (admin client bypasses RLS).
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) return; // not a courier — silent no-op
 
       // Server-side enforcement of pharma proof requirement (Legea 95/2006).
       // PR #456 added a client-side guard in PhotoProofUpload, but the server
@@ -456,6 +491,7 @@ export async function markDeliveredAction(
         .from('courier_orders')
         .update(update)
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['PICKED_UP', 'IN_TRANSIT'])
         .select('id, payment_method, total_ron')
@@ -658,6 +694,12 @@ export async function cancelOrderByCourierAction(
     async () => {
       const admin = createAdminClient();
 
+      // Defense-in-depth fleet gate (admin client bypasses RLS).
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) {
+        return { ok: false as const, error: 'Comanda nu poate fi anulată în starea curentă.' };
+      }
+
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -666,14 +708,15 @@ export async function cancelOrderByCourierAction(
           cancellation_reason: reasonStr,
         })
         .eq('id', orderId)
+        .eq('fleet_id', fleetId)
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED', 'PICKED_UP'])
         .select('id')
         .maybeSingle();
 
       if (!data) {
-        // Order wasn't in the expected state or not assigned to this courier.
-        // Return a user-facing message; don't throw (no 500 to the client).
+        // Order wasn't in the expected state, not assigned to this courier, or
+        // outside their fleet. Return a user-facing message; don't throw.
         return { ok: false as const, error: 'Comanda nu poate fi anulată în starea curentă.' };
       }
 
@@ -725,8 +768,12 @@ export async function acceptOrderAction(orderId: string) {
       if (canTakeKyc === false) return;
       const fleetId = (profile as { fleet_id: string }).fleet_id;
 
-      // Only accept if currently CREATED or OFFERED, unassigned, AND the order
-      // belongs to the courier's fleet.
+      // Only accept if currently CREATED or OFFERED AND the order belongs to
+      // the courier's fleet, and it is EITHER an open-pool order (unassigned)
+      // OR a directed offer the dispatcher assigned to this exact courier.
+      // `offer_courier_order` sets assigned_courier_user_id, so without the
+      // second branch directed offers could never be accepted from the app.
+      // The fleet gate above still prevents cross-fleet hijack.
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -737,7 +784,7 @@ export async function acceptOrderAction(orderId: string) {
         .eq('id', orderId)
         .eq('fleet_id', fleetId)
         .in('status', ['CREATED', 'OFFERED'])
-        .is('assigned_courier_user_id', null)
+        .or(`assigned_courier_user_id.is.null,assigned_courier_user_id.eq.${userId}`)
         .select('id')
         .maybeSingle();
       if (data) {

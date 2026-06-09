@@ -11,23 +11,20 @@ type Props = {
 };
 
 /**
- * Two compact call/contact buttons shown on the order detail page
- * while the courier is in an active delivery (ACCEPTED / PICKED_UP /
- * IN_TRANSIT). Rendered below the customer phone link inside the
- * dropoff card.
+ * ONE compact contact button on the order detail page while the courier is in
+ * an active delivery (ACCEPTED / PICKED_UP / IN_TRANSIT). Rendered below the
+ * customer phone link inside the dropoff card.
  *
- * - "Dispecer" -> tel: to the fleet's contact_phone, if set.
- *   Hidden when the fleet has no contact phone configured.
- * - "Suport HIR" -> Telegram link (always shown as a fallback).
+ * "Dispecer" and "Suport HIR" do the same job (reach a human for help), so we
+ * show only one: the fleet dispatcher's phone when configured, otherwise the
+ * HIR support Telegram fallback. Never both.
  *
  * Pure server component — no client state needed.
  */
 export function QuickCallButtons({ fleetContactPhone, fleetName }: Props) {
-  const hasDispatcher = !!fleetContactPhone;
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {hasDispatcher ? (
+  if (fleetContactPhone) {
+    return (
+      <div className="flex flex-wrap gap-2">
         <a
           href={`tel:${fleetContactPhone}`}
           aria-label={fleetName ? `Sună dispecerul ${fleetName}` : 'Sună dispecerul'}
@@ -36,8 +33,12 @@ export function QuickCallButtons({ fleetContactPhone, fleetName }: Props) {
           <Phone className="h-3.5 w-3.5" aria-hidden strokeWidth={2.25} />
           Dispecer
         </a>
-      ) : null}
+      </div>
+    );
+  }
 
+  return (
+    <div className="flex flex-wrap gap-2">
       <a
         href={HIR_SUPPORT_HREF}
         target="_blank"

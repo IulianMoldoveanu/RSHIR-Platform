@@ -44,7 +44,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Are we currently in a shift? Drives the location tracker on/off.
   const admin = createAdminClient();
-  const [{ data: shiftData }, riderMode, { count: openOrdersCount }, { data: profileData }] =
+  const [{ data: shiftData }, riderMode, { data: profileData }] =
     await Promise.all([
       admin
         .from('courier_shifts')
@@ -54,11 +54,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         .limit(1)
         .maybeSingle(),
       resolveRiderMode(user.id),
-      admin
-        .from('courier_orders')
-        .select('id', { count: 'exact', head: true })
-        .is('assigned_courier_user_id', null)
-        .in('status', ['CREATED', 'OFFERED']),
       admin
         .from('courier_profiles')
         .select('avatar_url, full_name, fleet_id')
@@ -72,8 +67,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   } | null;
 
   const isOnline = !!shiftData;
-  // Mode C riders never browse — don't show a count nudge for them.
-  const navOrdersBadge = riderMode.mode === 'C' ? 0 : (openOrdersCount ?? 0);
 
   // Mode A only: pull the rider's single tenant brand for the header.
   // Per decision_courier_three_modes.md, white-label propagation is
@@ -231,7 +224,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             plus leaflet-rotate's control overlay tops out near z-1000.
             BottomNav highlights the active tab + animates a violet bar
             between tabs via framer-motion layoutId. */}
-        <BottomNav ordersBadge={navOrdersBadge} />
+        <BottomNav />
       </div>
     </RiderModeProvider>
     </GpsTimestampProvider>

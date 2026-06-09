@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { watchPosition as bridgeWatchPosition } from '@/lib/native/geolocation';
 import { useBgLocationDisclosureGate } from '@/components/background-location-rationale';
 
-const LOCATION_DISMISS_KEY = 'hir.courier.locationPromptDismissedAt';
-const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
 // Battery-adaptive multipliers. Courier shifts are long (4–12h on
 // average); pushing one GPS fix every 30s on a low battery is the
 // difference between a rider finishing their shift and bricking mid-
@@ -159,13 +156,6 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
 
     if (typeof window === 'undefined') return;
 
-    // Honour a prior dismissal of the prompt for 7 days.
-    const dismissedAtRaw = window.localStorage.getItem(LOCATION_DISMISS_KEY);
-    const dismissedAt = dismissedAtRaw ? Number(dismissedAtRaw) : 0;
-    if (dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS) {
-      return;
-    }
-
     // Unified bridge: native Capacitor Geolocation on Android/iOS (foreground
     // tracking only at launch — see geolocation.ts), navigator.geolocation in
     // the web/PWA fallback. The bridge handles permission resolution per
@@ -185,12 +175,11 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         });
       },
       (permission, message) => {
-        if (permission === 'denied') {
-          // Record dismissal so we don't re-prompt for 7 days.
-          window.localStorage.setItem(LOCATION_DISMISS_KEY, String(Date.now()));
-        } else {
-          console.warn('[location-tracker] watchPosition error', permission, message);
-        }
+        // Don't cache dismissals: the OS itself remembers a hard "deny", but a
+        // soft dismissal should let the prompt reappear next time the courier
+        // opens the app / goes on shift — otherwise the GPS prompt silently
+        // never shows again.
+        console.warn('[location-tracker] watchPosition error', permission, message);
       },
     );
 

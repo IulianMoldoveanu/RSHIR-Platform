@@ -318,6 +318,10 @@ export function RiderMap({
           rotateControl: { closeOnZeroBearing: false },
           touchRotate: true,
           bearing: 0,
+          // Stop fling momentum a touch sooner so a hard drag doesn't sail far
+          // past the loaded tile buffer (which is what left white gutters on
+          // the sides while panning).
+          inertiaDeceleration: 2500,
         }).setView(FALLBACK_CENTER, FALLBACK_ZOOM);
 
         // CARTO Dark Matter tiles — free, no API key, dark theme that matches
@@ -329,6 +333,14 @@ export function RiderMap({
           {
             maxZoom: 19,
             subdomains: 'abcd',
+            // Keep a wide ring of off-screen tiles cached around the viewport
+            // (default is 2) so dragging — especially fast left/right pans —
+            // doesn't reveal blank gutters at the edges before tiles load.
+            keepBuffer: 8,
+            // Mobile default is updateWhenIdle:true — tiles only fetch after the
+            // pan ENDS, which is exactly what showed white edges + seams while
+            // dragging. Load during the drag instead.
+            updateWhenIdle: false,
             // detectRetina toggles {r} between '' and '@2x' so HiDPI phones
             // get crisp tiles without forcing them on slow networks.
             detectRetina: true,
@@ -767,6 +779,38 @@ export function RiderMap({
     );
   }
 
+  // Explicit, user-gesture-driven location request. The map already calls
+  // watchPosition on mount, but if the OS/browser previously remembered a
+  // dismissal it won't re-prompt on its own — the courier then sees no
+  // location request at all. This button (in the "denied" overlay) forces a
+  // fresh getCurrentPosition from a tap, which re-shows the OS prompt wherever
+  // the platform allows it; on a hard OS-level block it falls back to the
+  // denied state so the courier knows to enable it from phone settings.
+  function requestLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setPermission('unsupported');
+      return;
+    }
+    setPermission('pending');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        lastFixRef.current = { lat, lng };
+        setPermission('granted');
+        const map = mapRef.current;
+        if (map) {
+          if (typeof map.flyTo === 'function') {
+            map.flyTo([lat, lng], RIDER_ZOOM, { duration: 0.8 });
+          } else {
+            map.setView([lat, lng], RIDER_ZOOM);
+          }
+        }
+      },
+      () => setPermission('denied'),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
+    );
+  }
+
   // Fill-parent mode: caller controls height (used by the home dashboard
   // where the map should bleed under the bottom-nav). Default keeps the
   // legacy "card on a page" rounded look for any other call sites.
@@ -783,7 +827,7 @@ export function RiderMap({
         // Discreet GPS-warming hint at the top of the map — replaces the
         // generic "În așteptare comandă" label until we have a fix, so the
         // rider knows the location lookup is still in flight (not stuck).
-        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
+        <div className="pointer-events-none absolute left-1/2 top-3 z-[1000] max-w-[calc(100vw-1.5rem)] -translate-x-1/2 truncate whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium text-zinc-300 shadow-md backdrop-blur">
           <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300 align-middle" />
           Localizez poziția…
         </div>
@@ -796,6 +840,13 @@ export function RiderMap({
             <p className="mt-2 text-xs text-zinc-400">
               Activează permisiunile de locație pentru a vedea harta și a primi comenzi din apropiere.
             </p>
+            <button
+              type="button"
+              onClick={requestLocation}
+              className="mt-4 inline-flex items-center justify-center rounded-full bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition active:scale-95 hover:bg-violet-400"
+            >
+              Activează locația
+            </button>
           </div>
         </div>
       )}
