@@ -251,7 +251,7 @@ export function SignupForm({ adminUrl }: { adminUrl: string }) {
           name="network_description"
           maxLength={500}
           rows={3}
-          placeholder="Ex: 12 restaurante GloriaFood pe care le ghidez pe Telegram + 4 SRL-uri flotă în Brașov și Cluj. Opțional, max. 500 caractere."
+          placeholder="Ex: 10 restaurante și 3 florării din Brașov pe care le ghidez pe Telegram + 4 SRL-uri flotă în Brașov și Cluj. Opțional, max. 500 caractere."
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         />
       </Field>

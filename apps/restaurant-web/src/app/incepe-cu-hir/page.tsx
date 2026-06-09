@@ -44,12 +44,12 @@ const RO: Copy = {
     'Două variante. Niciuna nu costă nimic. Alege ce ți se potrivește — poți schimba oricând.',
   selfTitle: 'Mă descurc singur',
   selfBody:
-    'Cont creat în 5 minute. Completezi câteva date despre restaurant și ești live azi. Importăm meniul GloriaFood automat dacă vrei.',
+    'Cont creat în 5 minute. Completezi câteva date despre afacere și ești live azi. Pentru restaurante, florării, magazine de cadouri sau alți vendori cu catalog. Import meniu rapid din GloriaFood, WooCommerce, CSV — sau introducere manuală.',
   selfCta: 'Creează contul acum',
   selfBullets: [
     'Înscriere instantă, fără card',
     '30 zile demo gratuite',
-    'Importer meniu GloriaFood inclus',
+    'Import rapid meniu (GloriaFood / WooCommerce / CSV) inclus',
   ],
   helpTitle: 'Vreau să mă ajutați',
   helpBody:
@@ -72,12 +72,12 @@ const EN: Copy = {
     "Two options. Neither costs you anything. Pick what fits — you can switch anytime.",
   selfTitle: "I'll do it myself",
   selfBody:
-    'Account in 5 minutes. Fill in a few details about the restaurant and you go live today. We import your GloriaFood menu automatically if you want.',
+    'Account in 5 minutes. Fill in a few details about the business and you go live today. For restaurants, florists, gift shops or other vendors with a catalogue. Fast menu import from GloriaFood, WooCommerce, CSV — or enter manually.',
   selfCta: 'Create the account now',
   selfBullets: [
     'Instant signup, no card',
     '30-day free demo',
-    'GloriaFood menu importer included',
+    'Fast menu import (GloriaFood / WooCommerce / CSV) included',
   ],
   helpTitle: 'I want you to help',
   helpBody:

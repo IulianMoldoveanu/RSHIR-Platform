@@ -32,6 +32,19 @@ const nextConfig = {
   // SAMEORIGIN (not DENY) on storefront because the embed widget renders
   // under ?embed=1 in iframes on merchant sites — DENY would break the
   // widget product.
+  // Per Iulian directive 2026-06-02: only ONE dedicated GloriaFood page on
+  // the marketing site (/migrate-from-gloriafood). The /alternativa-gloriafood-romania
+  // SEO landing is redirected 301 to consolidate signal + traffic into the
+  // single canonical destination.
+  async redirects() {
+    return [
+      {
+        source: '/alternativa-gloriafood-romania',
+        destination: '/migrate-from-gloriafood',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

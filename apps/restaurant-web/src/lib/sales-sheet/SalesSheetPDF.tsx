@@ -281,15 +281,16 @@ function AudienceBlock({ audience }: { audience: SalesSheetAudience }) {
   if (audience === 'restaurant-owner') {
     return (
       <View style={styles.audience}>
-        <Text style={styles.audienceTag}>PENTRU PROPRIETARI DE RESTAURANT</Text>
+        <Text style={styles.audienceTag}>PENTRU PROPRIETARI DE RESTAURANT / VENDOR</Text>
         <Text style={styles.audienceTitle}>
           Vrei propriul site de comandă online? Setup în 10 minute.
         </Text>
         <Text style={styles.audienceBody}>
-          Importăm meniul tău de pe GloriaFood, Glovo sau orice PDF / poză.
+          Pentru restaurante, florării, magazine de cadouri sau orice vendor cu catalog.
+          Import rapid meniu (GloriaFood, WooCommerce, CSV) sau introducere manuală.
           Primești pagina ta de comenzi cu logo + brand propriu, fără
           cross-promote la concurenți. Datele clienților rămân la tine — CRM,
-          SMS, email, loyalty. Plătești 2 lei / comandă și atât.
+          SMS, email, loyalty. Plătești 2 lei / comandă procesată online și atât.
         </Text>
       </View>
     );
@@ -407,9 +408,10 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
             <Text style={styles.pricingTag}>BONUS PRIMELE 50</Text>
             <Text style={styles.pricingTitle}>Implementare GRATUITĂ</Text>
             <Text style={styles.pricingBody}>
-              Pentru primele 50 de restaurante onboarded: implementare,
-              migrare GloriaFood și configurare curier — toate gratuite. Plătești
-              doar 2 lei pe comanda livrată, începând cu prima livrare.
+              Pentru primii 50 de vendori onboarded (restaurante, florării, magazine
+              de cadouri): implementare, import meniu (GloriaFood/WooCommerce/CSV) și
+              configurare curier — toate gratuite. Plătești doar 2 lei pe comanda
+              procesată, începând cu prima livrare.
             </Text>
           </View>
         </View>

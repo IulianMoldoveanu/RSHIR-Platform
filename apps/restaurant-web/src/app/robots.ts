@@ -33,7 +33,7 @@ export default function robots(): MetadataRoute.Robots {
           '/features',
           '/pricing',
           '/migrate-from-gloriafood',
-          '/alternativa-gloriafood-romania',
+          // /alternativa-gloriafood-romania → 301 to /migrate-from-gloriafood (2026-06-02).
           '/case-studies/',
           '/demo',
           '/parteneri',

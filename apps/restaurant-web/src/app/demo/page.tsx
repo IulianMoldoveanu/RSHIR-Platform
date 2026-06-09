@@ -63,7 +63,8 @@ const OUTCOMES: ReadonlyArray<{ headline: string; sub: string }> = [
 ];
 
 const PROOF_POINTS: ReadonlyArray<string> = [
-  'Migrare meniu GloriaFood în 5 minute (158 produse, demonstrat live)',
+  'Setup meniu (sau catalog) în <5 minute — import din GloriaFood, WooCommerce, CSV sau manual',
+  'Pentru restaurante, florării, magazine de cadouri și alți vendori cu catalog',
   'Livrare cu flota HIR sau cu curierii tăi — decizi tu',
   'Facturare automată SmartBill / SAGA / e-Factura ANAF',
   'Suport în română, 24/7',

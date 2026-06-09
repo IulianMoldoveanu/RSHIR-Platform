@@ -99,7 +99,7 @@ const PRICING_FAQ_ITEMS: FaqJsonLdInput = [
   {
     question: 'Există o perioadă de probă?',
     answer:
-      '30 de zile gratuite, fără card bancar. Primele 50 de restaurante înscrise primesc instalarea și migrarea din GloriaFood incluse, fără cost.',
+      '30 de zile gratuite, fără card bancar. Primii 50 de vendori înscriși (restaurante, florării, magazine de cadouri) primesc instalarea inclusă, fără cost. Import gratuit din GloriaFood / WooCommerce / CSV.',
   },
   {
     question: 'Există comision din valoarea comenzii?',
