@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { ChevronRight, Check, Loader2 } from 'lucide-react';
+import { toast } from '@hir/ui';
 import * as haptics from '@/lib/haptics';
 
 /**
@@ -27,7 +28,14 @@ export function SwipeButton({
   disabled = false,
 }: {
   label: string;
-  onConfirm: () => Promise<void> | void;
+  /**
+   * Action fired on confirm. May return a boolean: `false` means the action
+   * ran but did nothing (e.g. the order was already taken / cancelled / gated)
+   * — the slider then springs back instead of showing a false "Confirmat".
+   * `void`/`true`/anything-else counts as success (back-compat for the many
+   * callers that return void, like start/end shift).
+   */
+  onConfirm: () => Promise<void | boolean> | void | boolean;
   /** primary = purple accent, success = green for "delivered" final step. */
   variant?: 'primary' | 'success';
   /** Grey, non-interactive state — e.g. "Ridică comanda" before the vendor
@@ -77,7 +85,19 @@ export function SwipeButton({
     haptics.custom([30, 40, 30]);
     setPending(true);
     try {
-      await onConfirm();
+      const result = await onConfirm();
+      if (result === false) {
+        // The action completed but changed nothing — don't fake a success.
+        // Spring the handle back and tell the courier why so they aren't
+        // staring at a permanent green "Confirmat" for an order that never
+        // got accepted/picked up.
+        toast('Comanda nu mai este disponibilă.', { duration: 4000 });
+        animate(x, 0, { type: 'spring', stiffness: 300, damping: 30 });
+        setPending(false);
+        setHoldProgress(false);
+        armedRef.current = false;
+        return;
+      }
       haptics.success();
       setDone(true);
     } catch (err) {

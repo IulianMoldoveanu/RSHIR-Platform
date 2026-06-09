@@ -29,8 +29,10 @@ type Props = {
   pharmaMetadata: PharmaMetadata | null;
   paymentMethod: 'CARD' | 'COD' | null;
   totalRon: number | null;
-  acceptAction: () => Promise<void>;
-  pickedUpAction: () => Promise<void>;
+  // Return `boolean` (true = a row actually changed) so a silently-gated
+  // no-op doesn't render a false success on the swipe button.
+  acceptAction: () => Promise<void | boolean>;
+  pickedUpAction: () => Promise<void | boolean>;
   /**
    * Server action that accepts an optional proof URL, an optional
    * cash_collected flag (only meaningful when payment_method=COD), and
