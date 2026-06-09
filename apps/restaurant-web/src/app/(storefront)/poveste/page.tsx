@@ -163,6 +163,8 @@ export default async function PovestePage() {
             (<img
               src={coverUrl}
               alt=""
+              width={1200}
+              height={500}
               className="h-full w-full object-cover"
               loading="eager"
               fetchPriority="high"

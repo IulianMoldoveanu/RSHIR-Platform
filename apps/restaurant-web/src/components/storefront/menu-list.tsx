@@ -72,7 +72,7 @@ export function MenuList({
               animate={{ opacity: 1, scale: 1 }}
               exit={reduceMotion ? undefined : { opacity: 0, scale: 0.6 }}
               transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
-              className="absolute right-7 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
+              className="absolute right-7 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
             >
               <X className="h-3.5 w-3.5" />
             </motion.button>
