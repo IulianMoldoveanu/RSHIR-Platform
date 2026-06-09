@@ -60,12 +60,9 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
             >
               {t(currentLocale, 'marketing.home.cta_partner')}
             </Link>
-            <Link
-              href="/case-studies/foisorul-a"
-              className="inline-flex items-center justify-center rounded-md px-5 py-3 text-sm font-medium text-[#475569] hover:text-[#0F172A]"
-            >
-              {t(currentLocale, 'marketing.home.cta_case_study')}
-            </Link>
+            {/* Hero secondary CTA → /case-studies/foisorul-a hidden 2026-06-02 per
+                Iulian directive ("studiu de caz sa nu fie vizibil, temporar").
+                Re-add this Link block to restore. */}
           </div>
 
           {/* Trust strip */}
@@ -299,7 +296,11 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
         </div>
       </section>
 
-      {/* ── Case study tile ────────────────────────────────────────────── */}
+      {/* ── Case study tile — HIDDEN 2026-06-02 per Iulian directive ────
+          "studiu de caz sa nu fie vizibil, temporar". Section retained behind
+          `false &&` so Tag/ResultRow stay typed-as-used and the entire markup
+          is one-line revertable (delete `{false && (` and the matching `)}`). */}
+      {false && (
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div className="grid gap-8 rounded-lg border border-[#E2E8F0] bg-white p-8 md:grid-cols-2 md:p-12">
           <div>
@@ -354,6 +355,7 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
           </div>
         </div>
       </section>
+      )}
 
       {/* ── Final CTA ──────────────────────────────────────────────────── */}
       <section className="border-t border-[#E2E8F0] bg-[#0F172A] text-white">
