@@ -4,8 +4,11 @@ test.describe('Courier PWA', () => {
   test('login page renders the email/password form', async ({ page }) => {
     const res = await page.goto('/login');
     expect(res?.status()).toBeLessThan(400);
-    await expect(page.getByLabel(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/parol|password/i)).toBeVisible();
+    // Strict-mode-safe: courier login page may surface multiple inputs that
+    // match "password" (e.g. login + reset-password helper); take .first() like
+    // the button below does. 2026-06-10 smoke regression from recent UI polish.
+    await expect(page.getByLabel(/email/i).first()).toBeVisible();
+    await expect(page.getByLabel(/parol|password/i).first()).toBeVisible();
     await expect(page.getByRole('button', { name: /intr[ăa]|conect|continu[ăa]/i }).first()).toBeVisible();
   });
 
@@ -14,7 +17,7 @@ test.describe('Courier PWA', () => {
     expect(res?.status()).toBeLessThan(400);
     const url = page.url();
     if (!url.includes('/login')) {
-      await expect(page.getByLabel(/email/i)).toBeVisible();
+      await expect(page.getByLabel(/email/i).first()).toBeVisible();
     } else {
       expect(url).toMatch(/\/login/);
     }
