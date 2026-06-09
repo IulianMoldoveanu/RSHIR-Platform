@@ -141,6 +141,14 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
 
   const isAvailable = isOpenInMyFleet;
   const showQuickCall = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
+  // Customer PII (name, exact dropoff address, phone) is revealed ONLY after
+  // this courier has actually taken the order. Before that — an open-pool /
+  // directed-offer order any fleet rider can open — we show a coarse placeholder
+  // so a rider can't harvest a customer's name + home address + phone without
+  // accepting the job. (Security: the detail page uses the service-role admin
+  // client, which bypasses the row-level PII narrowing in RLS, so the gate
+  // must be enforced here in the view.)
+  const showCustomerContact = showQuickCall;
 
   // Quick-call: fetch the fleet's dispatcher phone only for active own
   // deliveries — not for available orders the courier hasn't accepted yet.
@@ -236,20 +244,30 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         />
       ) : null}
 
-      {/* Dropoff card. */}
+      {/* Dropoff card. Customer name + exact address + phone are hidden until
+          the courier accepts (see showCustomerContact) — pre-accept shows the
+          fee + distance via EarningsPreview above, not the customer's PII. */}
       <StopCard
         tone="dropoff"
         step={2}
         label="Livrare"
-        address={order.dropoff_line1}
-        subtitle={order.customer_first_name ?? 'Client'}
+        address={showCustomerContact ? order.dropoff_line1 : 'Adresa exactă apare după ce accepți comanda'}
+        subtitle={showCustomerContact ? (order.customer_first_name ?? 'Client') : 'Client'}
       >
-        <MapLink
-          address={order.dropoff_line1}
-          lat={order.dropoff_lat}
-          lng={order.dropoff_lng}
-        />
-        <PhoneLink phone={order.customer_phone} orderId={order.id} />
+        {showCustomerContact ? (
+          <>
+            <MapLink
+              address={order.dropoff_line1}
+              lat={order.dropoff_lat}
+              lng={order.dropoff_lng}
+            />
+            <PhoneLink phone={order.customer_phone} orderId={order.id} />
+          </>
+        ) : (
+          <p className="text-[11px] text-hir-muted-fg">
+            Telefonul și adresa exactă a clientului apar după ce accepți comanda.
+          </p>
+        )}
       </StopCard>
       {showQuickCall ? (
         <QuickCallButtons

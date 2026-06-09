@@ -3,7 +3,7 @@
 import { X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 
-const AUTO_DISMISS_MS = 12_000; // auto-hide after 12s so it doesn't hog the map
+const AUTO_DISMISS_MS = 45_000; // auto-hide after 45s; the X closes it sooner
 
 /**
  * Wraps the top-left greeting card on the rider map so it auto-dismisses after

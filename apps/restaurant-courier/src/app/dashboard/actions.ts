@@ -361,7 +361,7 @@ export async function markPickedUpAction(orderId: string) {
       // acceptOrderAction. Without it, a cross-fleet assignment (upstream bug)
       // would let a courier advance an order outside their fleet.
       const fleetId = await resolveCourierFleetId(admin, userId);
-      if (!fleetId) return; // not a courier — silent no-op
+      if (!fleetId) return false; // not a courier — silent no-op
       // State-machine guard (audit P0): without `.in('status',['ACCEPTED'])`,
       // a courier could revert a DELIVERED or CANCELLED order back to
       // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
@@ -390,6 +390,10 @@ export async function markPickedUpAction(orderId: string) {
       }
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
+      // true only when the atomic UPDATE actually advanced the order — lets the
+      // swipe UI distinguish a real pickup from a silently-gated no-op (wrong
+      // status / fleet / pharma not ready) instead of faking success.
+      return !!data;
     },
   );
 }
@@ -757,7 +761,7 @@ export async function acceptOrderAction(orderId: string) {
         .select('fleet_id')
         .eq('user_id', userId)
         .maybeSingle();
-      if (!profile) return; // not a courier — silent no-op preserves prior contract
+      if (!profile) return false; // not a courier — silent no-op preserves prior contract
       // KYC gate (per-fleet, default off): no-op if the courier's fleet requires
       // KYC and they aren't VERIFIED. The self-pickup route surfaces a clear
       // message; this older server-action path keeps its silent-no-op contract.
@@ -765,7 +769,7 @@ export async function acceptOrderAction(orderId: string) {
       const { data: canTakeKyc } = await (admin.rpc as any)('courier_can_take_orders', {
         p_user_id: userId,
       });
-      if (canTakeKyc === false) return;
+      if (canTakeKyc === false) return false;
       const fleetId = (profile as { fleet_id: string }).fleet_id;
 
       // Only accept if currently CREATED or OFFERED AND the order belongs to
@@ -793,6 +797,10 @@ export async function acceptOrderAction(orderId: string) {
       }
       revalidatePath(`/dashboard/orders/${orderId}`);
       revalidatePath('/dashboard/orders');
+      // true only when the atomic claim matched a row. A no-op (already taken,
+      // cancelled, wrong fleet, KYC-blocked) returns false so the swipe button
+      // springs back instead of showing a false "Confirmat".
+      return !!data;
     },
   );
 }

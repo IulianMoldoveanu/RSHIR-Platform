@@ -40,7 +40,7 @@ export async function runTransitionOrQueue(
   kind: TransitionKind,
   orderId: string,
   payload: TransitionPayload,
-  action: () => Promise<void>,
+  action: () => Promise<void | boolean>,
 ): Promise<RunResult> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     await enqueueTransition({ kind, orderId, payload });

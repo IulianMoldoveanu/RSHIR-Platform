@@ -10,6 +10,7 @@ import { MapLink } from '@/components/nav-buttons';
 import { WeatherPill } from '@/components/weather-pill';
 import { fetchWeather, safetyReminder, BRASOV_CENTER } from '@/lib/weather';
 import { DashboardGreeting } from '@/components/dashboard-greeting';
+import { OrdersRealtime } from './orders/orders-realtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -204,8 +205,15 @@ export default async function DashboardHome() {
         vehicleType={profile?.vehicle_type ?? 'BIKE'}
       />
 
+      {/* Live refresh of THIS courier's orders (assigned-only): a directed
+          offer arriving, the pharmacist stamping pharma_ready_at, or an
+          out-of-band cancel now re-render the map overlays without a manual
+          refresh. The home tab previously had no realtime, so offers/ready
+          state were stale until the courier navigated away and back. */}
+      <OrdersRealtime courierUserId={user.id} fleetId={null} watchFleetOpenOrders={false} />
+
       {/* Greeting + status pill + weather, top-left over the map.
-          Auto-dismisses after 12s or closable via the X button. */}
+          Auto-dismisses after 45s or closable via the X button. */}
       <DashboardGreeting>
         <span
           aria-hidden

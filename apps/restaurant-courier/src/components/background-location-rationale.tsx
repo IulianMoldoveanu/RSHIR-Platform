@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { Button } from '@hir/ui';
+import { requestLocationPermission } from '@/lib/native/geolocation';
 
 // NOTE: key bumped to v3 — copy escalated back to background ("Allow all the
 // time") now that background geolocation ships (PR #860): foreground service +
@@ -116,6 +117,11 @@ export function BackgroundLocationRationale() {
       // ignore
     }
     setVisible(false);
+    // Surface the OS location prompt immediately on first open — the courier
+    // grants location here, not only when they later start a shift. Foreground
+    // only; the "all the time" escalation stays in-context at shift start
+    // (Android 11+ / Google Play constraint — see requestLocationPermission).
+    void requestLocationPermission();
   }
 
   if (!visible) return null;

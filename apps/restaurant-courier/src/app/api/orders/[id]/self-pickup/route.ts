@@ -101,11 +101,16 @@ export async function POST(
     .is('assigned_courier_user_id', null)
     .eq('id', orderId);
 
-  // Only add fleet filter when the courier has a fleet (platform-default
-  // couriers have fleet_id null at times; skip the filter so they can still
-  // self-pickup cross-fleet in that edge case — matches acceptOrderAction).
+  // Fleet isolation. A courier with a fleet may only claim that fleet's
+  // orders. A fleetless (platform-default) courier is scoped to platform
+  // orders (fleet_id IS NULL) — previously the filter was SKIPPED entirely,
+  // which let a fleetless rider claim ANY fleet's order by id (a cross-fleet
+  // bypass). Scoping to IS NULL closes that while preserving the legit
+  // platform-courier path.
   if (profileRow.fleet_id) {
     updateQuery = updateQuery.eq('fleet_id', profileRow.fleet_id);
+  } else {
+    updateQuery = updateQuery.is('fleet_id', null);
   }
 
   const { data: claimed } = await updateQuery.select('id').maybeSingle();

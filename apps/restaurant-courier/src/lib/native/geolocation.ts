@@ -166,6 +166,41 @@ export function watchPosition(
 }
 
 /**
+ * Surface the OS location-permission prompt as soon as the courier acknowledges
+ * the prominent disclosure on FIRST OPEN — instead of waiting until they start
+ * their first shift. Requests FOREGROUND ("while using the app") location only:
+ *
+ *  - Android 11+ does not allow "Allow all the time" in the first dialog, and
+ *    Google Play rejects apps that demand background location up front with no
+ *    in-context trigger. The background ("all the time") escalation therefore
+ *    stays in-context — it is requested by the shift-start watcher (addWatcher
+ *    in watchPosition), right after the same disclosure has been shown.
+ *
+ * Best-effort and idempotent: if the prompt can't be shown (already decided,
+ * plugin missing) it resolves quietly; the shift-start watcher will ask again.
+ */
+export async function requestLocationPermission(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Geolocation } = await import('@capacitor/geolocation');
+      await Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] });
+    } catch {
+      // Plugin unavailable or user dismissed — the watcher re-prompts on shift.
+    }
+    return;
+  }
+  // Web / PWA: a one-shot position request triggers the browser permission
+  // prompt. We don't use the fix here — it's purely to surface the dialog.
+  if (typeof navigator !== 'undefined' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      () => {},
+      () => {},
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }
+}
+
+/**
  * Request a one-time position (used for initial fix on shift start).
  */
 export async function getCurrentPosition(): Promise<GeoPosition | null> {
