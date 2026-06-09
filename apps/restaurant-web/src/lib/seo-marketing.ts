@@ -20,7 +20,8 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/features', priority: 0.8 },
   { path: '/pricing', priority: 0.8 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
-  { path: '/alternativa-gloriafood-romania', priority: 0.9 },
+  // /alternativa-gloriafood-romania → 301 redirect to /migrate-from-gloriafood (2026-06-02)
+  // per Iulian directive: only ONE dedicated GloriaFood page on the marketing site.
   { path: '/case-studies/foisorul-a', priority: 0.6 },
   // Lane DEMO-LANDING-V1 (2026-05-12) — paid-ads + reseller-link landing
   // optimized for 60-second decision. Indexable so direct organic
@@ -223,8 +224,8 @@ export function softwareApplicationJsonLd(baseUrl: string) {
 
 // JSON-LD: FAQPage. Caller passes [{ q, a }] pairs; we wrap them in the
 // Schema.org Question/Answer shape. Per ChatGPT SEO audit 2026-05-10 —
-// surface FAQ rich results on `/`, `/pricing`, `/migrate-from-gloriafood`,
-// and the new `/alternativa-gloriafood-romania`.
+// surface FAQ rich results on `/`, `/pricing`, `/migrate-from-gloriafood`.
+// (/alternativa-gloriafood-romania removed 2026-06-02 — 301 to canonical page.)
 export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: string }>) {
   return {
     '@context': 'https://schema.org',

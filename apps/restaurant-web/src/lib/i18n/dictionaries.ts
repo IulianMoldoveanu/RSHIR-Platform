@@ -585,7 +585,7 @@ export const dictionaries = {
         cta_signup_restaurant: 'Conectează-te / Creează cont',
         locale_switcher_label: 'Schimbă limba',
         footer_tagline:
-          'Soluție completă pentru restaurante: comenzi online, livrare proprie, CRM, loyalty și migrare GloriaFood. Construit în România.',
+          'Infrastructură de comenzi și livrare pentru restaurante, florării, magazine de cadouri și alți vendori: storefront propriu, CRM, loyalty, dispatch curieri. Construit în România.',
         footer_col_product: 'Produs',
         footer_col_partners: 'Parteneri',
         footer_col_legal: 'Legal',
@@ -650,23 +650,22 @@ export const dictionaries = {
       home: {
         page_title: 'HIRforYOU — Comenzile tale. 2 lei pe comandă procesată online.',
         page_description:
-          'Comenzi online cu storefront white-label, 2 lei pe comandă procesată de site, importer GloriaFood și CRM. Livrare opțională, prin ofertă personalizată. Construit în România pentru restaurante.',
-        hero_badge:
-          'GloriaFood se închide 30 aprilie 2027 — pregătiți migrarea acum',
+          'Comenzi online cu storefront white-label, 2 lei pe comandă procesată de site, import rapid de meniu și CRM. Pentru restaurante, florării, magazine de cadouri și alți vendori. Livrare opțională, prin ofertă personalizată. Construit în România.',
+        hero_badge: '',
         hero_title_pre: 'Restaurantul tău. Comenzile tale.',
         hero_title_price: 'Clienții tăi.',
         hero_title_post: '',
         hero_body:
-          '2 lei pe comandă procesată online. Atât. Fără abonament. Livrarea este separată — ți-o configurăm printr-o ofertă personalizată, sau o faci cu echipa ta. Instalare gratuită pentru primele 50 de restaurante.',
+          '2 lei pe comandă procesată online. Atât. Fără abonament. Livrarea este separată — ți-o configurăm printr-o ofertă personalizată, sau o faci cu echipa ta. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
         cta_signup: 'Sunați echipa HIR',
         cta_partner: 'Încep singur — fără card',
         cta_case_study: 'Vezi studiul de caz →',
         stat_pricing_label: 'Tarif comandă procesată',
         stat_pricing_value: '2 lei',
         stat_pricing_sub: 'pe comandă procesată online · livrare facturată separat · vs comision tipic 25-30% Glovo/Wolt/Bolt',
-        stat_importer_label: 'Importer GloriaFood',
+        stat_importer_label: 'Setup rapid meniu',
         stat_importer_value: '<5 min',
-        stat_importer_sub: 'meniu, comenzi, clienți migrate',
+        stat_importer_sub: 'meniu, opțiuni, prețuri publicate live',
         stat_pilot_label: 'Restaurant pilot',
         stat_pilot_value: '158 de produse',
         stat_pilot_sub: 'FOISORUL A · live din 03.05.2026',
@@ -676,13 +675,13 @@ export const dictionaries = {
           'Nu mai cumpărați POS de la unul, livrare de la altul, CRM de la al treilea.',
         value_storefront_title: 'Storefront white-label',
         value_storefront_body:
-          'Pagina dumneavoastră de comenzi cu logo + culoare proprie, domeniu propriu opțional. Fără concurenți alături, fără ghost-restaurants.',
+          'Pagina dumneavoastră de comenzi cu logo + culoare proprie, domeniu propriu opțional. Fără concurenți alături, fără ghost-restaurants. Pentru restaurante, florării, magazine de cadouri sau orice vendor cu catalog.',
         value_courier_title: 'Livrare prin ofertă personalizată',
         value_courier_body:
           'Livrarea este separată de tariful de 2 lei pe comandă. Construim împreună o ofertă de curierat potrivită zonei și volumului dumneavoastră — sau folosiți curierul propriu existent. Dumneavoastră alegeți modul.',
-        value_importer_title: 'Importer GloriaFood',
+        value_importer_title: 'Setup rapid de meniu',
         value_importer_body:
-          'Conectați cheia GloriaFood și în <5 minute meniul + comenzile + clienții sunt migrate complet în HIR.',
+          'În <5 minute publicați meniul (sau catalogul) cu opțiuni, prețuri și imagini. Import direct din alte platforme (GloriaFood, WooCommerce, fișier CSV) sau introducere manuală.',
         value_data_title: 'Datele rămân ale dumneavoastră',
         value_data_body:
           'CRM, loyalty, reviews, newsletter — toate stau la restaurant. Niciun marketplace nu mai stă între dumneavoastră și client.',
@@ -695,7 +694,7 @@ export const dictionaries = {
         pricing_card1_price: '2 lei',
         pricing_card1_price_sub: '/ comandă procesată online',
         pricing_card1_p1: 'Storefront white-label inclus',
-        pricing_card1_p2: 'Importer GloriaFood inclus',
+        pricing_card1_p2: 'Import rapid meniu (GloriaFood / WooCommerce / CSV) inclus',
         pricing_card1_p3: 'CRM + loyalty + reviews inclus',
         pricing_card1_p4: 'Livrare opțională prin ofertă personalizată (sau curier propriu)',
         pricing_card1_p5: 'Fără abonament, fără setup fee',
@@ -738,11 +737,11 @@ export const dictionaries = {
         case_study_eyebrow: 'Studiu de caz · Brașov',
         case_study_title: 'Foișorul A — primul restaurant HIR live',
         case_study_body:
-          'Restaurant tradițional românesc din Brașov. Migrat din GloriaFood pe 03.05.2026. 158 de produse în meniu, comenzi online live cu storefront white-label, livrare contractată separat prin ofertă personalizată.',
-        case_study_tag1: 'Importer GloriaFood',
+          'Restaurant tradițional românesc din Brașov. Live pe HIR din 03.05.2026 cu 158 de produse în meniu, storefront white-label propriu și livrare contractată separat prin ofertă personalizată.',
+        case_study_tag1: 'Setup rapid meniu',
         case_study_tag2: 'White-label storefront',
         case_study_tag3: 'Livrare prin ofertă personalizată',
-        case_study_tag4: '158 de produse migrate',
+        case_study_tag4: '158 de produse publicate',
         case_study_link: 'Citiți studiul complet',
         case_study_results_title: 'Rezultate primele zile',
         case_study_result1_label: 'Timp migrare meniu',
@@ -755,7 +754,7 @@ export const dictionaries = {
         case_study_result4_value: '100% restaurant',
         final_cta_title: 'Gata să luați controlul comenzilor?',
         final_cta_body:
-          'Înscrieți restaurantul în 5 minute. Importăm meniul GloriaFood automat și sunteți live azi.',
+          'Înscrieți afacerea în 5 minute. Publicăm meniul (sau catalogul) automat și sunteți live azi.',
         final_cta_signup: 'Sunați echipa HIR',
         final_cta_consultant: 'Încep singur — fără card',
         aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR ai propriul canal.',
@@ -768,10 +767,10 @@ export const dictionaries = {
       features: {
         page_title: 'Funcționalități — HIRforYOU',
         page_description:
-          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări, dashboard pentru operatori HIR — tot ce-ți trebuie.',
+          'Storefront white-label, livrare proprie, import rapid de meniu, CRM, loyalty, rezervări, dashboard pentru operatori HIR — pentru restaurante, florării, magazine de cadouri și alți vendori cu catalog.',
         og_title: 'Funcționalități — tot ce-ți trebuie',
         og_subtitle:
-          'Storefront white-label, livrare proprie, importer GloriaFood, CRM, loyalty, rezervări.',
+          'Storefront white-label, livrare proprie, import rapid meniu, CRM, loyalty, rezervări.',
         og_description:
           'Tot ce are nevoie un restaurant pentru a vinde online, livra cu curier propriu și păstra datele clienților.',
         eyebrow: 'Funcționalități',
@@ -783,9 +782,9 @@ export const dictionaries = {
         item_storefront_title: 'Storefront white-label',
         item_storefront_body:
           'Pagina dumneavoastră de comenzi cu logo, culoare, cover, descriere proprie. Domeniu propriu opțional. Fără concurenți afișați alături, fără suggested-restaurants.',
-        item_importer_title: 'Importer GloriaFood',
+        item_importer_title: 'Import rapid de meniu',
         item_importer_body:
-          'Conectați cheia GloriaFood și în <5 minute meniul + categoriile + opțiunile + comenzile istorice + clienții sunt importate complet în HIR.',
+          'În <5 minute publicați meniul cu categorii, opțiuni, prețuri. Import direct din GloriaFood, WooCommerce sau fișier CSV — sau introducere manuală cu editor vizual.',
         item_responsive_title: 'Dashboard responsive',
         item_responsive_body:
           'Comenzi, stocuri, comenzi în curs, livrări — totul de pe telefon. PWA instalabilă pe iOS / Android, fără App Store.',
@@ -824,9 +823,9 @@ export const dictionaries = {
           'CRM-ul cu telefonul, emailul, istoricul comenzilor — toate stau la restaurant. Niciun marketplace nu mai stă între dumneavoastră.',
         demo_title: 'Vreți să vedeți HIR în acțiune?',
         demo_body:
-          'Programați un demo de 20 minute cu echipa HIR. Vă arătăm dashboard-ul, aplicația de curier și fluxul de migrare GloriaFood pe contul real.',
+          'Programați un demo de 20 minute cu echipa HIR. Vă arătăm dashboard-ul, aplicația de curier și fluxul de onboarding pe contul real.',
         demo_cta: 'Programați demo',
-        demo_alt_cta: 'Începeți migrarea',
+        demo_alt_cta: 'Începeți acum',
       },
     },
     privacy: {
@@ -891,7 +890,7 @@ export const dictionaries = {
       card1_description: 'Pentru orice restaurant — tariful acoperă procesarea comenzii prin site. Livrarea se contractează separat: îți facem o ofertă personalizată de curierat sau folosești echipa ta proprie.',
       card1_badge: 'Implementare gratuită — primele 50 de restaurante',
       card1_p1: 'Storefront white-label cu brand propriu',
-      card1_p2: 'Importer GloriaFood inclus',
+      card1_p2: 'Import rapid meniu (GloriaFood / WooCommerce / CSV) inclus',
       card1_p3: 'CRM + loyalty + reviews + rezervări',
       card1_p4: 'Asistent zilnic cu sugestii pentru vânzări',
       card1_p5: 'Notificări push + sunet pe dashboard',
@@ -965,8 +964,8 @@ export const dictionaries = {
     // Lane WEB-I18N-EN-PARITY (2026-05-15) — contact page RO.
     contact: {
       eyebrow: 'Contact',
-      hero_title: 'Hai să vorbim despre restaurantul tău.',
-      hero_body: 'Răspundem în 24 de ore lucrătoare. Pentru demo live, programăm un apel de 20 de minute în care îți arătăm platforma pe contul tău real.',
+      hero_title: 'Hai să vorbim despre afacerea ta.',
+      hero_body: 'Răspundem în 24 de ore lucrătoare. Pentru demo live, programăm un apel de 20 de minute în care îți arătăm platforma pe contul tău real. Răspundem la cereri din partea restaurantelor, florăriilor, magazinelor de cadouri și a oricărui vendor cu catalog.',
       cta_call: 'Sună acum: +40 743 700 916',
       team_title: 'Echipa HIR',
       team_body: 'Suntem o echipă mică, construim în România, răspundem direct.',
@@ -980,18 +979,18 @@ export const dictionaries = {
       form_title: 'Trimite-ne un mesaj',
       form_body: 'Completează formularul. Te contactăm pe email în 24 de ore.',
       form_topic_label: 'Eu sunt…',
-      form_topic_restaurant: 'Sunt patron / manager de restaurant',
+      form_topic_restaurant: 'Sunt patron / manager (restaurant, florărie, magazin de cadouri sau alt vendor)',
       form_topic_reseller: 'Sunt manager flotă / partener / reseller',
       form_topic_other: 'Altceva (general)',
-      form_name_restaurant: 'Numele restaurantului',
+      form_name_restaurant: 'Numele afacerii',
       form_name_reseller: 'Numele tău complet',
       form_email: 'Email',
       form_phone: 'Telefon',
       form_city_restaurant: 'Oraș',
       form_city_reseller: 'Țară / județ',
       form_message: 'Mesaj',
-      form_placeholder_restaurant: 'Ce vrei să afli? Câte comenzi ai pe lună? Folosești GloriaFood?',
-      form_placeholder_reseller: 'Câte restaurante / curieri ai în portofoliu? Ce zone acoperi?',
+      form_placeholder_restaurant: 'Ce vrei să afli? Câte comenzi ai pe lună? Folosești deja o platformă de comenzi (GloriaFood, WooCommerce, alta)?',
+      form_placeholder_reseller: 'Câți vendori (restaurante / florării / magazine) ai în portofoliu? Câți curieri? Ce zone acoperi?',
       form_city_placeholder_restaurant: 'Brașov',
       form_city_placeholder_reseller: 'România',
       form_submit: 'Trimite mesajul',
@@ -1660,7 +1659,7 @@ export const dictionaries = {
         cta_signup_restaurant: 'Log in / Sign up',
         locale_switcher_label: 'Switch language',
         footer_tagline:
-          'Complete solution for restaurants: online orders, in-house delivery, CRM, loyalty and GloriaFood migration. Built in Romania.',
+          'Ordering and delivery infrastructure for restaurants, florists, gift shops and other vendors: own storefront, CRM, loyalty, courier dispatch. Built in Romania.',
         footer_col_product: 'Product',
         footer_col_partners: 'Partners',
         footer_col_legal: 'Legal',
@@ -1722,23 +1721,22 @@ export const dictionaries = {
       home: {
         page_title: 'HIRforYOU — Your orders. 2 lei per online order processed.',
         page_description:
-          'Online orders with a white-label storefront, 2 lei per order processed by the site, GloriaFood importer and CRM. Delivery is optional and contracted separately via a tailored offer. Built in Romania for restaurants.',
-        hero_badge:
-          'GloriaFood shuts down 30 April 2027 — start the migration now',
+          'Online orders with a white-label storefront, 2 lei per order processed by the site, fast menu setup and CRM. For restaurants, florists, gift shops and other vendors. Delivery is optional and contracted separately via a tailored offer. Built in Romania.',
+        hero_badge: '',
         hero_title_pre: 'Your restaurant. Your orders.',
         hero_title_price: 'Your customers.',
         hero_title_post: '',
         hero_body:
-          '2 lei per online order processed. That is all. No subscription. Delivery is separate — we set it up via a tailored offer, or you keep running your own team. Free setup for the first 50 restaurants.',
+          '2 lei per online order processed. That is all. No subscription. Delivery is separate — we set it up via a tailored offer, or you keep running your own team. Free setup for the first 50 vendors (restaurants, florists, gift shops).',
         cta_signup: 'Call HIR Team',
         cta_partner: 'Start on my own — no card needed',
         cta_case_study: 'Read the case study →',
         stat_pricing_label: 'Order processing fee',
         stat_pricing_value: '2 lei',
         stat_pricing_sub: 'per online order processed · delivery billed separately · vs typical 25-30% Glovo/Wolt/Bolt commission',
-        stat_importer_label: 'GloriaFood importer',
+        stat_importer_label: 'Fast menu setup',
         stat_importer_value: '<5 min',
-        stat_importer_sub: 'menu, orders, customers migrated',
+        stat_importer_sub: 'menu, options, prices published live',
         stat_pilot_label: 'Pilot restaurant',
         stat_pilot_value: '158 items',
         stat_pilot_sub: 'FOISORUL A · live since 03.05.2026',
@@ -1748,13 +1746,13 @@ export const dictionaries = {
           'Stop buying POS from one vendor, delivery from another, CRM from a third.',
         value_storefront_title: 'White-label storefront',
         value_storefront_body:
-          'Your ordering page with your own logo and brand colour, optional custom domain. No competitors shown next to you, no ghost-restaurants.',
+          'Your ordering page with your own logo and brand colour, optional custom domain. No competitors shown next to you, no ghost-restaurants. For restaurants, florists, gift shops or any vendor with a catalogue.',
         value_courier_title: 'Delivery via a tailored offer',
         value_courier_body:
           'Delivery is separate from the 2 lei per-order processing fee. We build a courier offer tailored to your area and volume — or you keep using your own delivery team. You pick the mode.',
-        value_importer_title: 'GloriaFood importer',
+        value_importer_title: 'Fast menu setup',
         value_importer_body:
-          'Connect your GloriaFood key and in <5 minutes the menu + orders + customers are fully migrated into HIR.',
+          'In <5 minutes publish your menu (or catalogue) with options, prices and images. Import directly from other platforms (GloriaFood, WooCommerce, CSV file) or enter manually.',
         value_data_title: 'Your data stays yours',
         value_data_body:
           'CRM, loyalty, reviews, newsletter — all live with the restaurant. No marketplace stands between you and the customer anymore.',
@@ -1767,7 +1765,7 @@ export const dictionaries = {
         pricing_card1_price: '2 lei',
         pricing_card1_price_sub: '/ online order processed',
         pricing_card1_p1: 'White-label storefront included',
-        pricing_card1_p2: 'GloriaFood importer included',
+        pricing_card1_p2: 'Fast menu import (GloriaFood / WooCommerce / CSV) included',
         pricing_card1_p3: 'CRM + loyalty + reviews included',
         pricing_card1_p4: 'Optional delivery via a tailored offer (or use your own courier)',
         pricing_card1_p5: 'No subscription, no setup fee',
@@ -1810,11 +1808,11 @@ export const dictionaries = {
         case_study_eyebrow: 'Case study · Brașov',
         case_study_title: 'Foișorul A — first HIR restaurant live',
         case_study_body:
-          'Traditional Romanian restaurant in Brașov. Migrated from GloriaFood on 03.05.2026. 158 menu items, online orders live with a white-label storefront, delivery contracted separately through a tailored offer.',
-        case_study_tag1: 'GloriaFood importer',
+          'Traditional Romanian restaurant in Brașov. Live on HIR since 03.05.2026 with 158 menu items, white-label storefront and delivery contracted separately through a tailored offer.',
+        case_study_tag1: 'Fast menu setup',
         case_study_tag2: 'White-label storefront',
         case_study_tag3: 'Delivery via tailored offer',
-        case_study_tag4: '158 items migrated',
+        case_study_tag4: '158 items published',
         case_study_link: 'Read the full case study',
         case_study_results_title: 'First-week results',
         case_study_result1_label: 'Menu migration time',
@@ -1827,7 +1825,7 @@ export const dictionaries = {
         case_study_result4_value: '100% with restaurant',
         final_cta_title: 'Ready to take control of your orders?',
         final_cta_body:
-          'Sign up your restaurant in 5 minutes. We import your GloriaFood menu automatically and you go live today.',
+          'Sign up your business in 5 minutes. We publish your menu (or catalogue) automatically and you go live today.',
         final_cta_signup: 'Call HIR Team',
         final_cta_consultant: 'Start on my own — no card needed',
         aggregator_title: 'Glovo, Wolt, Bolt? With HIR you have your own channel.',
@@ -1840,10 +1838,10 @@ export const dictionaries = {
       features: {
         page_title: 'Features — HIRforYOU',
         page_description:
-          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations, HIR operator dashboard — everything you need.',
+          'White-label storefront, in-house delivery, fast menu setup, CRM, loyalty, reservations, HIR operator dashboard — for restaurants, florists, gift shops and other vendors with a catalogue.',
         og_title: 'Features — everything you need',
         og_subtitle:
-          'White-label storefront, in-house delivery, GloriaFood importer, CRM, loyalty, reservations.',
+          'White-label storefront, in-house delivery, fast menu setup, CRM, loyalty, reservations.',
         og_description:
           'Everything a restaurant needs to sell online, deliver with its own courier and keep its customer data.',
         eyebrow: 'Features',
@@ -1855,9 +1853,9 @@ export const dictionaries = {
         item_storefront_title: 'White-label storefront',
         item_storefront_body:
           'Your ordering page with your own logo, colour, cover and description. Optional custom domain. No competitors shown alongside, no suggested-restaurants.',
-        item_importer_title: 'GloriaFood importer',
+        item_importer_title: 'Fast menu setup',
         item_importer_body:
-          'Connect your GloriaFood key and in <5 minutes the menu + categories + options + historical orders + customers are fully imported into HIR.',
+          'In <5 minutes publish your menu (or catalogue) with categories, options and prices. Import directly from GloriaFood, WooCommerce or a CSV file — or enter manually with a visual editor.',
         item_responsive_title: 'Responsive dashboard',
         item_responsive_body:
           'Orders, stock, in-progress orders, deliveries — everything from your phone. PWA installable on iOS / Android, no App Store.',
@@ -1896,7 +1894,7 @@ export const dictionaries = {
           'CRM with phone, email, order history — everything stays at the restaurant. No marketplace stands between you anymore.',
         demo_title: 'Want to see HIR in action?',
         demo_body:
-          'Schedule a 20-minute demo with the HIR team. We show you the dashboard, the courier app and the GloriaFood migration flow on your real account.',
+          'Schedule a 20-minute demo with the HIR team. We show you the dashboard, the courier app and the onboarding flow on your real account.',
         demo_cta: 'Schedule a demo',
         demo_alt_cta: 'Start the migration',
       },
