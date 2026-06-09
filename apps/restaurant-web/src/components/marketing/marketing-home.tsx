@@ -14,7 +14,6 @@ import {
   ChefHat,
   Zap,
   ShieldCheck,
-  Sparkles,
   ArrowRight,
   Monitor,
   Webhook,
@@ -34,14 +33,10 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section className="border-b border-[#E2E8F0] bg-white">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28">
-          {/* Mobile-fix 2026-05-05: was `inline-flex` with single-line label.
-              On 360px the full Romanian label overflowed the viewport. Switch
-              to a regular flex pill that wraps the label across two lines and
-              keeps the icon on the first row by pinning it `flex-none`. */}
-          <div className="mb-4 flex max-w-full items-start gap-2 self-start rounded-md bg-[#EEF2FF] px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE] sm:inline-flex sm:items-center">
-            <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-none sm:mt-0" aria-hidden />
-            <span>{t(currentLocale, 'marketing.home.hero_badge')}</span>
-          </div>
+          {/* Hero badge "GloriaFood se închide..." hidden 2026-06-02 per Iulian
+              directive — keep link in nav (/migrate-from-gloriafood) only, not as
+              a prominent homepage banner. The dictionary key marketing.home.hero_badge
+              remains so this can be restored by adding back the div. */}
           <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
             {t(currentLocale, 'marketing.home.hero_title_pre')}{' '}
             <span className="text-[#4F46E5]">
