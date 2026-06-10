@@ -44,6 +44,9 @@ export default function robots(): MetadataRoute.Robots {
           '/orase',
           '/contact',
           '/ajutor',
+          // Netopia approval prereq (2026-06-10).
+          '/politica-livrare',
+          '/politica-anulare-retragere',
         ],
         // PII/transactional surfaces never get indexed.
         disallow: ['/api/', '/checkout', '/track', '/account'],

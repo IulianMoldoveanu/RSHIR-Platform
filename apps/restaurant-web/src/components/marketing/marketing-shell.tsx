@@ -178,6 +178,10 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
               { href: '/terms/storefront', label: currentLocale === 'en' ? 'Storefront Terms' : 'Termeni Storefront' },
               { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
               { href: '/politica-cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
+              // Netopia approval prereq (2026-06-10) — politici dedicate
+              // pentru livrare + anulare/retragere OUG 34/2014.
+              { href: '/politica-livrare', label: currentLocale === 'en' ? 'Delivery Policy' : 'Politica de livrare' },
+              { href: '/politica-anulare-retragere', label: currentLocale === 'en' ? 'Cancellation & Withdrawal' : 'Politica de anulare/retragere' },
               { href: '/legal/rambursare', label: currentLocale === 'en' ? 'Refund Policy' : 'Politica de rambursare' },
               { href: '/legal/dpa', label: 'DPA' },
               { href: '/legal/utilizare-acceptabila', label: currentLocale === 'en' ? 'Acceptable Use' : 'Utilizare acceptabilă' },
@@ -188,6 +192,12 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
         </div>
         {/* SAL + SOL + ANPC pictograms — Ordin ANPC 449/2003 + Reg. (UE) 524/2013. */}
         <ConsumerBadges variant="light" className="mt-10 border-t border-[#F1F5F9] pt-6" />
+        {/* Netopia trust signal (2026-06-10) — cerință explicită NETOPIA
+            pentru aprobarea contului de comerciant. Textul + link-ul către
+            netopia-payments.com sunt vizibile pe TOATE paginile marketing.
+            TODO: înlocuiește mențiunea text Visa/Mastercard cu SVG asset
+            oficial (logo-uri) când le primim de la PSP. */}
+        <NetopiaTrustSignal locale={currentLocale} />
         <div className="mt-6 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
           <p>
             {t(currentLocale, 'marketing.shell.footer_copyright_template', { year })}
@@ -238,5 +248,60 @@ function FooterCol({
         ))}
       </ul>
     </div>
+  );
+}
+
+// Netopia approval trust signal — afișat ca bloc separat sub badge-urile
+// consumator, peste copyright. Textul RO/EN este hardcodat aici (nu prin
+// dictionar i18n) ca să fie revizuibil împreună cu politicile de plată.
+function NetopiaTrustSignal({ locale }: { locale: Locale }) {
+  const title =
+    locale === 'en' ? 'Secure payments' : 'Plăți securizate';
+  const intro =
+    locale === 'en'
+      ? 'Secure online payments via'
+      : 'Plăți online securizate prin';
+  const accept =
+    locale === 'en'
+      ? 'We accept Visa, Mastercard and Maestro cards.'
+      : 'Acceptăm carduri Visa, Mastercard și Maestro.';
+  const protection =
+    locale === 'en'
+      ? 'Transactions protected by 3-D Secure. Card data is not stored by HIR — it is processed exclusively by the authorized payment processor, in compliance with PCI DSS.'
+      : 'Tranzacții protejate prin protocolul 3-D Secure. Datele cardului nu sunt stocate de HIR — sunt procesate exclusiv de procesatorul de plăți autorizat, conform standardului PCI DSS.';
+
+  return (
+    <section
+      aria-label={title}
+      className="mt-6 border-t border-[#F1F5F9] pt-6 text-xs leading-relaxed text-[#64748B]"
+    >
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
+        {title}
+      </h4>
+      <p className="mt-2">
+        {intro}{' '}
+        <a
+          href="https://netopia-payments.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-[#0F172A] hover:underline"
+        >
+          NETOPIA Payments
+        </a>
+        . {accept} {protection}
+      </p>
+      {/* TODO: drop-in oficial SVG logos (Visa + Mastercard + Maestro +
+          NETOPIA) — afișate ca strip sub textul de mai sus. Până atunci
+          numele card brand-urilor rămân text per request Netopia. */}
+      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[#94A3B8]">
+        <span>VISA</span>
+        <span aria-hidden className="text-[#CBD5E1]">·</span>
+        <span>Mastercard</span>
+        <span aria-hidden className="text-[#CBD5E1]">·</span>
+        <span>Maestro</span>
+        <span aria-hidden className="text-[#CBD5E1]">·</span>
+        <span>NETOPIA Payments</span>
+      </p>
+    </section>
   );
 }
