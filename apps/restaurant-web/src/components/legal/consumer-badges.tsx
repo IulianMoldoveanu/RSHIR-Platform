@@ -1,13 +1,18 @@
 // Pictograme protecția consumatorilor (cerință RO/EU):
 //   - ANPC — Autoritatea Națională pentru Protecția Consumatorilor
-//   - SAL — Soluționarea Alternativă a Litigiilor (OG 38/2015)
+//   - SAL — Soluționarea Alternativă a Litigiilor (OG 38/2015 + Legea 192/2006)
 //   - SOL — Online Dispute Resolution UE (Regulamentul (UE) 524/2013)
 //
 // 2026-05-20 — de-emphasized per directive ("contactul ANPC să nu mai fie atât
 // de vizibil"). Componenta acum produce o linie discretă cu link-uri text mici
-// în loc de badge-uri 250×50 px proeminente. Tot legal (link-urile rămân
-// accesibile + clickabile), doar mai puțin "loud". Conformitatea legală
-// strict minimă rămâne intactă — link-urile oficiale sunt accesibile.
+// în loc de badge-uri 250×50 px proeminente.
+//
+// 2026-06-10 — adăugat link specific la sursa legală oficială
+// (legislatie.just.ro/Public/DetaliiDocument/257649) per cerință explicită
+// NETOPIA: "măsurile obligatorii ANPC de informare a consumatorilor cu privire
+// la soluționarea alternativă a litigiilor (informații disponibile aici
+// https://legislatie.just.ro/Public/DetaliiDocument/257649)". Prima cerere
+// de aprobare merchant a fost respinsă din lipsa acestui link.
 
 import Link from 'next/link';
 
@@ -35,6 +40,10 @@ export function ConsumerBadges({
       <span className={`mx-1 ${sepClass}`}>·</span>
       <Link href="https://anpc.ro/ce-este-sal/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
         SAL
+      </Link>
+      <span className={`mx-1 ${sepClass}`}>·</span>
+      <Link href="https://legislatie.just.ro/Public/DetaliiDocument/257649" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+        Legislație SAL
       </Link>
       <span className={`mx-1 ${sepClass}`}>·</span>
       <Link href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">

@@ -14,6 +14,7 @@
 import Link from 'next/link';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { ConsumerBadges } from '@/components/legal/consumer-badges';
+import { NetopiaLogo } from '@/components/marketing/netopia-logo';
 import { t, type Locale, type TKey } from '@/lib/i18n';
 
 type NavItem = { href: string; labelKey: TKey };
@@ -254,6 +255,10 @@ function FooterCol({
 // Netopia approval trust signal — afișat ca bloc separat sub badge-urile
 // consumator, peste copyright. Textul RO/EN este hardcodat aici (nu prin
 // dictionar i18n) ca să fie revizuibil împreună cu politicile de plată.
+// Sigla oficială NETOPIA (component NTPLogo legat de POS HIRforYOU Production
+// secret=165813) e renderată via NetopiaLogo client component — Netopia a
+// respins prima cerere cu motivul "sigla este element obligatoriu" (2026-06-10),
+// deci NU înlocui acel <NetopiaLogo /> cu text până la confirmare aprobare.
 function NetopiaTrustSignal({ locale }: { locale: Locale }) {
   const title =
     locale === 'en' ? 'Secure payments' : 'Plăți securizate';
@@ -261,10 +266,6 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
     locale === 'en'
       ? 'Secure online payments via'
       : 'Plăți online securizate prin';
-  const accept =
-    locale === 'en'
-      ? 'We accept Visa, Mastercard and Maestro cards.'
-      : 'Acceptăm carduri Visa, Mastercard și Maestro.';
   const protection =
     locale === 'en'
       ? 'Transactions protected by 3-D Secure. Card data is not stored by HIR — it is processed exclusively by the authorized payment processor, in compliance with PCI DSS.'
@@ -288,20 +289,11 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
         >
           NETOPIA Payments
         </a>
-        . {accept} {protection}
+        . {protection}
       </p>
-      {/* TODO: drop-in oficial SVG logos (Visa + Mastercard + Maestro +
-          NETOPIA) — afișate ca strip sub textul de mai sus. Până atunci
-          numele card brand-urilor rămân text per request Netopia. */}
-      <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[#94A3B8]">
-        <span>VISA</span>
-        <span aria-hidden className="text-[#CBD5E1]">·</span>
-        <span>Mastercard</span>
-        <span aria-hidden className="text-[#CBD5E1]">·</span>
-        <span>Maestro</span>
-        <span aria-hidden className="text-[#CBD5E1]">·</span>
-        <span>NETOPIA Payments</span>
-      </p>
+      <div className="mt-4 inline-block">
+        <NetopiaLogo />
+      </div>
     </section>
   );
 }
