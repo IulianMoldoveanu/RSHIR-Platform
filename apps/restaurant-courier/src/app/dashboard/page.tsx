@@ -49,6 +49,8 @@ type ActiveOrderRow = {
   external_ref: string | null;
   // Client phone, for the round call button on the delivery leg.
   customer_phone: string | null;
+  // Delivery instructions from the customer ("interfon 3B, etaj 2") — dropoff leg.
+  dropoff_notes: string | null;
 };
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
@@ -81,7 +83,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -320,6 +322,13 @@ export default async function DashboardHome() {
                 </a>
               ) : null}
             </div>
+
+            {!topIsPickup && topOrder.dropoff_notes ? (
+              <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200">
+                <span className="font-semibold">Indicații: </span>
+                {topOrder.dropoff_notes}
+              </p>
+            ) : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <MapLink address={topAddress} lat={topLat} lng={topLng} />
