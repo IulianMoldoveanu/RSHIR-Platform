@@ -49,6 +49,7 @@ type OrderDetail = {
   dropoff_line1: string | null;
   dropoff_lat: number | null;
   dropoff_lng: number | null;
+  dropoff_notes: string | null;
   items: unknown;
   total_ron: number | null;
   delivery_fee_ron: number | null;
@@ -78,7 +79,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     admin
       .from('courier_orders')
       .select(
-        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id',
+        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id',
       )
       .eq('id', params.id)
       .maybeSingle(),
@@ -262,6 +263,12 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
               lng={order.dropoff_lng}
             />
             <PhoneLink phone={order.customer_phone} orderId={order.id} />
+            {order.dropoff_notes ? (
+              <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-200">
+                <span className="font-semibold">Indicații: </span>
+                {order.dropoff_notes}
+              </p>
+            ) : null}
           </>
         ) : (
           <p className="text-[11px] text-hir-muted-fg">

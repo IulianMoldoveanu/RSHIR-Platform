@@ -52,6 +52,9 @@ type WebhookBody = {
       address: string;
       customer_name: string;
       customer_phone: string;
+      // Delivery instructions for the courier ("interfon 3B, etaj 2"). Optional —
+      // customer-entered address guidance (NOT medication data).
+      notes?: string;
     };
     // items_summary (medication names) is intentionally NOT part of the contract —
     // it is art. 9 GDPR health data and must not enter the shared pool. Legacy
@@ -339,6 +342,8 @@ Deno.serve(async (req: Request) => {
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
     if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
+    // Delivery instructions for the courier (optional).
+    if (order.dropoff?.notes) insertRow.dropoff_notes = order.dropoff.notes;
     // pharma_callback_secret is no longer stored on courier_orders — see
     // migration 20260605_004. Persisted to courier_order_secrets below.
 
@@ -449,6 +454,8 @@ Deno.serve(async (req: Request) => {
     // Backfill the optional vendor phone/name if a later event carries them.
     if (order.pickup?.contact_phone) updateRow.pickup_phone = order.pickup.contact_phone;
     if (order.pickup?.contact_name) updateRow.pickup_name = order.pickup.contact_name;
+    // Backfill delivery instructions if a later event carries them.
+    if (order.dropoff?.notes) updateRow.dropoff_notes = order.dropoff.notes;
     // Repair a NULL city_id from a later event if the city now resolves
     // (e.g. the row was created before city stamping or before city was sent).
     if (!existing.city_id) {
