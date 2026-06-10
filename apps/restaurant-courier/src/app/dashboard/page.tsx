@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Clock, Phone } from 'lucide-react';
+import { ArrowRight, Clock, Phone, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction, acceptOrderAction, markPickedUpAction } from './actions';
@@ -87,7 +87,7 @@ export default async function DashboardHome() {
 
   const admin = createAdminClient();
 
-  const [{ data: profileData }, { data: shiftData }, { data: activeOrdersData }] =
+  const [{ data: profileData }, { data: shiftData }, { data: activeOrdersData }, { data: kycData }] =
     await Promise.all([
       admin
         .from('courier_profiles')
@@ -109,11 +109,26 @@ export default async function DashboardHome() {
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
         .order('updated_at', { ascending: false }),
+      // Identity verification status — drives the home banner so a courier whose
+      // KYC was rejected (must re-upload) or is pending (reassurance) sees it on
+      // the primary surface, not only buried in Settings.
+      admin
+        .from('courier_kyc')
+        .select('kyc_status, rejected_reason')
+        .eq('courier_user_id', user.id)
+        .maybeSingle(),
     ]);
 
   const profile = profileData as ProfileRow | null;
   const shift = shiftData as ShiftRow | null;
   const isOnline = !!shift;
+
+  // Identity-verification banner state. Show only the actionable/reassuring
+  // states knowable without a fleet lookup: REJECTED (must re-upload) and
+  // PENDING (in review). VERIFIED / not-submitted show nothing here.
+  const kyc = kycData as { kyc_status: string | null; rejected_reason: string | null } | null;
+  const kycStatus = kyc?.kyc_status ?? null;
+  const kycRejectedReason = kyc?.rejected_reason ?? null;
 
   // Weather: fetch only when a shift is ONLINE (the courier is on the move).
   // Use the courier's last GPS fix; fall back to Brașov center.
@@ -251,6 +266,28 @@ export default async function DashboardHome() {
           refresh. The home tab previously had no realtime, so offers/ready
           state were stale until the courier navigated away and back. */}
       <OrdersRealtime courierUserId={user.id} fleetId={null} watchFleetOpenOrders={false} />
+
+      {/* Identity-verification banner — full-width strip at the top of the map.
+          Only for the actionable/reassuring states so it doesn't nag a verified
+          courier. */}
+      {kycStatus === 'REJECTED' ? (
+        <Link
+          href="/dashboard/kyc"
+          className="absolute inset-x-3 top-3 z-20 flex items-start gap-2.5 rounded-2xl border border-rose-500/40 bg-rose-500/15 px-3.5 py-2.5 text-xs shadow-lg ring-1 ring-inset ring-rose-500/20 backdrop-blur transition-colors hover:bg-rose-500/20"
+        >
+          <ShieldAlert className="mt-0.5 h-4 w-4 flex-none text-rose-300" aria-hidden strokeWidth={2.25} />
+          <span className="min-w-0 flex-1">
+            <span className="font-semibold text-rose-100">Verificare respinsă</span>
+            {kycRejectedReason ? <span className="text-rose-200/90"> — {kycRejectedReason}</span> : null}
+            <span className="mt-0.5 block font-medium text-rose-200">Reîncarcă documentele →</span>
+          </span>
+        </Link>
+      ) : kycStatus === 'PENDING' ? (
+        <div className="absolute inset-x-3 top-3 z-20 flex items-center gap-2.5 rounded-2xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5 text-xs shadow-lg ring-1 ring-inset ring-amber-500/20 backdrop-blur">
+          <ShieldCheck className="h-4 w-4 flex-none text-amber-300" aria-hidden strokeWidth={2.25} />
+          <span className="font-medium text-amber-100">Identitatea ta este în verificare.</span>
+        </div>
+      ) : null}
 
       {/* Greeting + status pill + weather, top-left over the map.
           Auto-dismisses after 45s or closable via the X button. */}
