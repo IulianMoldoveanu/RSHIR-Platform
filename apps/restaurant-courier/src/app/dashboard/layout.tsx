@@ -7,7 +7,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { updateCourierLocationAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
-import { LocationTracker } from '@/components/location-tracker';
 import { ProofSync } from '@/components/proof-sync';
 import { TransitionSync } from '@/components/transition-sync';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -24,6 +23,7 @@ import { GpsTimestampProvider } from '@/lib/gps-timestamp-context';
 import { LocationTrackerWired } from '@/components/location-tracker-wired';
 import { BackgroundLocationRationale } from '@/components/background-location-rationale';
 import { CourierPresenceBroadcaster } from '@/components/courier-presence-broadcaster';
+import { LocationPermissionBanner } from '@/components/location-permission-banner';
 import { PageTransition } from '@/components/page-transition';
 import { BottomNav } from '@/components/bottom-nav';
 import { CapacitorBootstrap } from '@/components/capacitor-bootstrap';
@@ -156,11 +156,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <div className="flex shrink-0 items-center gap-1">
             <ConnectionBadge />
             <BatteryBadge />
-            {/* GPS-freshness pill is redundant with the map greeting card and
-                crowds the header on phones — show it only from sm up. */}
-            <div className="hidden sm:block">
-              <GpsStalnessPill />
-            </div>
+            {/* GPS-freshness pill self-manages phone visibility: hidden on the
+                crowded phone header while fresh, but shown on phones once it
+                goes stale/lost (when the courier most needs to know GPS dropped). */}
+            <GpsStalnessPill />
           </div>
 
           {/* Avatar shortcut to settings — primary tap target for profile,
@@ -195,6 +194,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </header>
 
         <OfflineBanner />
+        <LocationPermissionBanner />
         <BatterySaverBadge />
         <BatteryCriticalToast />
         <CapacitorBootstrap />

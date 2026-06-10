@@ -180,6 +180,18 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         // opens the app / goes on shift — otherwise the GPS prompt silently
         // never shows again.
         console.warn('[location-tracker] watchPosition error', permission, message);
+        // A denied permission mid-shift means the dispatch reporter has stopped
+        // feeding the server — the courier looks online but is invisible to
+        // dispatch and stops getting nearby offers. Surface it so a recovery
+        // banner can prompt re-enabling (previously swallowed to console only,
+        // leaving the courier to silently lose orders for a whole shift).
+        if (permission === 'denied') {
+          try {
+            window.dispatchEvent(new CustomEvent('hir:location-denied', { detail: { message } }));
+          } catch {
+            // window unavailable (SSR) — ignore.
+          }
+        }
       },
     );
 

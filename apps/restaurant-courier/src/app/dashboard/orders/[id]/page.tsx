@@ -85,11 +85,17 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     resolveRiderMode(user.id),
     admin
       .from('courier_profiles')
-      .select('vehicle_type')
+      .select('vehicle_type, fleet_id')
       .eq('user_id', user.id)
       .maybeSingle(),
   ]);
   const vehicleType = (profileRow as { vehicle_type?: string } | null)?.vehicle_type ?? 'BIKE';
+  // Resolve the courier's fleet from the PROFILE (like the open-pool list and
+  // acceptOrderAction do). riderMode.fleetId is null for Mode A/B couriers, so
+  // gating the open-pool visibility on it 404'd an order the list had just
+  // shown them — this aligns the detail gate with how the list/accept resolve
+  // "my fleet".
+  const courierFleetId = (profileRow as { fleet_id?: string | null } | null)?.fleet_id ?? null;
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
@@ -103,7 +109,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     (order.assigned_courier_user_id === null || isMine) &&
     (order.status === 'CREATED' || order.status === 'OFFERED') &&
     order.fleet_id !== null &&
-    order.fleet_id === riderMode.fleetId;
+    order.fleet_id === courierFleetId;
   if (!isMine && !isOpenInMyFleet) notFound();
 
   // Pharma orders show patient name + delivery address + (downstream)
