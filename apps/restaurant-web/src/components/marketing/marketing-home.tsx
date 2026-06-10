@@ -15,7 +15,6 @@ import {
   Zap,
   ShieldCheck,
   ArrowRight,
-  Monitor,
   Webhook,
 } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
@@ -130,41 +129,12 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
         </div>
       </section>
 
-      {/* ── Aggregator transparency ────────────────────────────────────── */}
-      <section className="border-y border-[#E2E8F0] bg-[#0F172A] text-white">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <div className="grid gap-8 md:grid-cols-2 md:items-center">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                {t(currentLocale, 'marketing.home.aggregator_title')}
-              </h2>
-              <p className="mt-4 text-sm leading-relaxed text-[#CBD5E1]">
-                {t(currentLocale, 'marketing.home.aggregator_body')}
-              </p>
-              <p className="mt-3 text-xs leading-relaxed text-[#94A3B8]">
-                {t(currentLocale, 'marketing.home.aggregator_sub')}
-              </p>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {(['Glovo', 'Wolt', 'Bolt'] as const).map((app) => (
-                <div
-                  key={app}
-                  className="flex flex-col items-center justify-center rounded-lg border border-white/10 bg-white/5 p-4 text-center"
-                >
-                  <Monitor className="mb-2 h-6 w-6 text-[#94A3B8]" aria-hidden />
-                  <span className="text-xs font-medium text-[#94A3B8]">{app}</span>
-                  <span className="mt-1 text-[10px] text-[#64748B]">terminal separat</span>
-                </div>
-              ))}
-              <div className="col-span-3 flex items-center justify-center rounded-lg border border-[#4F46E5]/40 bg-[#4F46E5]/10 p-4">
-                <span className="text-sm font-semibold text-[#C7D2FE]">
-                  HIR — un singur ecran
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Aggregator-transparency visual section removed 2026-06-10 per Iulian directive
+          ("glovo wolt toate intr-un singur ecran — elimina, nu imi place"). The
+          Glovo/Wolt/Bolt 3-terminal vs HIR-single-ecran comparison felt visually
+          heavy and the anti-aggregator positioning is already woven into pricing
+          comparison + value props. Dictionary keys aggregator_title/body/sub
+          remain (used elsewhere or kept for future polish). */}
 
       {/* ── Pricing teaser ─────────────────────────────────────────────── */}
       <section className="border-y border-[#E2E8F0] bg-white">

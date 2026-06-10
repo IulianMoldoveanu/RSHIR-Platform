@@ -173,31 +173,28 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             ]}
           />
           <FooterCol
+            // 2026-06-10 — Legal column simplified per Iulian directive
+            // ("la legal sunt mult prea multe linkuri. fa doar cateva pagini
+            // cu subpagini, este extrem de alambicat și fără rost, arată urat").
+            // Reduced from 11 links to 3 essentials + hub link to /legal where
+            // all subpages are organized by category (Essentials / Orders &
+            // delivery / For partners & operators). All sub-pages still live
+            // at their existing URLs — only footer surface was the problem.
             title={t(currentLocale, 'marketing.shell.footer_col_legal')}
             links={[
               { href: '/terms', label: t(currentLocale, 'marketing.shell.footer_link_terms') },
-              { href: '/terms/storefront', label: currentLocale === 'en' ? 'Storefront Terms' : 'Termeni Storefront' },
               { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
               { href: '/politica-cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
-              // Netopia approval prereq (2026-06-10) — politici dedicate
-              // pentru livrare + anulare/retragere OUG 34/2014.
-              { href: '/politica-livrare', label: currentLocale === 'en' ? 'Delivery Policy' : 'Politica de livrare' },
-              { href: '/politica-anulare-retragere', label: currentLocale === 'en' ? 'Cancellation & Withdrawal' : 'Politica de anulare/retragere' },
-              { href: '/legal/rambursare', label: currentLocale === 'en' ? 'Refund Policy' : 'Politica de rambursare' },
-              { href: '/legal/dpa', label: 'DPA' },
-              { href: '/legal/utilizare-acceptabila', label: currentLocale === 'en' ? 'Acceptable Use' : 'Utilizare acceptabilă' },
-              { href: '/legal/subprocesori', label: currentLocale === 'en' ? 'Sub-processors' : 'Sub-procesatori' },
-              { href: '/legal/companie', label: currentLocale === 'en' ? 'Company details' : 'Companie' },
+              { href: '/legal', label: currentLocale === 'en' ? 'All legal documents →' : 'Toate documentele legale →' },
             ]}
           />
         </div>
-        {/* SAL + SOL + ANPC pictograms — Ordin ANPC 449/2003 + Reg. (UE) 524/2013. */}
-        <ConsumerBadges variant="light" className="mt-10 border-t border-[#F1F5F9] pt-6" />
-        {/* Netopia trust signal (2026-06-10) — cerință explicită NETOPIA
-            pentru aprobarea contului de comerciant. Textul + link-ul către
-            netopia-payments.com sunt vizibile pe TOATE paginile marketing.
-            TODO: înlocuiește mențiunea text Visa/Mastercard cu SVG asset
-            oficial (logo-uri) când le primim de la PSP. */}
+        {/* 2026-06-10 — Combined trust block: NETOPIA logo (PSP requirement) +
+            ANPC/SAL/SOL badges (consumer protection — RO/UE). Iulian explicit
+            request după Netopia rejection round 1: ANPC vizibil LÂNGĂ Netopia
+            în footer. Inline text version of ConsumerBadges removed to avoid
+            duplication — single badges row now serves both legal compliance
+            (Ordin ANPC 449/2003 + Reg. UE 524/2013) AND visibility. */}
         <NetopiaTrustSignal locale={currentLocale} />
         <div className="mt-6 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
           <p>
@@ -271,15 +268,18 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
       ? 'Transactions protected by 3-D Secure. Card data is not stored by HIR — it is processed exclusively by the authorized payment processor, in compliance with PCI DSS.'
       : 'Tranzacții protejate prin protocolul 3-D Secure. Datele cardului nu sunt stocate de HIR — sunt procesate exclusiv de procesatorul de plăți autorizat, conform standardului PCI DSS.';
 
+  const protectionTitle =
+    locale === 'en' ? 'Consumer protection' : 'Protecția consumatorilor';
+
   return (
     <section
       aria-label={title}
-      className="mt-6 border-t border-[#F1F5F9] pt-6 text-xs leading-relaxed text-[#64748B]"
+      className="mt-10 border-t border-[#F1F5F9] pt-6 text-xs leading-relaxed text-[#64748B]"
     >
       <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
         {title}
       </h4>
-      <p className="mt-2">
+      <p className="mt-2 max-w-3xl">
         {intro}{' '}
         <a
           href="https://netopia-payments.com"
@@ -291,8 +291,18 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
         </a>
         . {protection}
       </p>
-      <div className="mt-4 inline-block">
-        <NetopiaLogo />
+      <div className="mt-4 flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
+        {/* NETOPIA merchant logo (NTPLogo bound to POS secret=165813) */}
+        <div className="flex-none">
+          <NetopiaLogo />
+        </div>
+        {/* Consumer protection badges (ANPC + SAL + Legislație + SOL UE) */}
+        <div className="flex-1">
+          <h5 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
+            {protectionTitle}
+          </h5>
+          <ConsumerBadges variant="badges" />
+        </div>
       </div>
     </section>
   );
