@@ -48,6 +48,15 @@ const corsHeaders = {
 type PushPayload = {
   fleet_id: string;
   order_id: string;
+  /**
+   * Directed offer: when set, push ONLY this courier (the one the order was
+   * offered to) instead of fanning out to the whole fleet. Also skips the
+   * `courier_push_dispatched_at` idempotency claim — that column is consumed by
+   * the create-time FLEET push, so the directed OFFERED push must not be gated
+   * by it (the DB trigger's transition guard is the dedupe). See
+   * 20260630_030_courier_offer_push_trigger.sql.
+   */
+  target_user_id?: string;
   title?: string;
   body?: string;
   urgent?: boolean;
@@ -122,6 +131,7 @@ Deno.serve(async (req: Request) => {
     const {
       fleet_id,
       order_id,
+      target_user_id,
       title = 'HIR Courier — Comandă nouă',
       body = 'Ai o nouă comandă disponibilă.',
     } = payload;
@@ -132,58 +142,70 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    setMetadata({ fleet_id, order_id });
+    // Directed offer → push exactly one courier; otherwise fan out to the fleet.
+    const directed = Boolean(target_user_id);
+    setMetadata({ fleet_id, order_id, directed });
 
-    // ── Idempotency claim ────────────────────────────────────────────────
-    // The DB trigger already does `UPDATE ... WHERE IS NULL` before invoking
-    // us. This second claim covers direct-from-route.ts callers and gives a
-    // clean "already_dispatched" exit for replays/manual re-fires.
-    const { data: claimed, error: claimErr } = await supabase
-      .from('courier_orders')
-      .update({ courier_push_dispatched_at: new Date().toISOString() })
-      .eq('id', order_id)
-      .is('courier_push_dispatched_at', null)
-      .select('id')
-      .maybeSingle();
+    // ── Idempotency claim (FLEET push only) ──────────────────────────────
+    // The INSERT trigger does `UPDATE ... WHERE IS NULL` before invoking us;
+    // this second claim covers direct-from-route.ts callers and gives a clean
+    // "already_dispatched" exit for replays. A DIRECTED (OFFERED) push must
+    // NOT be gated by this column — it's already consumed by the create-time
+    // fleet push, so we skip the claim entirely when targeting one courier
+    // (the DB trigger's CREATED→OFFERED transition guard is the dedupe).
+    if (!directed) {
+      const { data: claimed, error: claimErr } = await supabase
+        .from('courier_orders')
+        .update({ courier_push_dispatched_at: new Date().toISOString() })
+        .eq('id', order_id)
+        .is('courier_push_dispatched_at', null)
+        .select('id')
+        .maybeSingle();
 
-    if (claimErr) {
-      // Treat claim failure as non-fatal — the column may not exist on
-      // older schemas. Log and continue so we still dispatch.
-      console.warn('[push-dispatch] idempotency claim failed', claimErr.message);
-    } else if (!claimed) {
-      setMetadata({ skipped: 'already_dispatched' });
-      return new Response(
-        JSON.stringify({ ok: true, sent: 0, note: 'already_dispatched' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      if (claimErr) {
+        // Treat claim failure as non-fatal — the column may not exist on
+        // older schemas. Log and continue so we still dispatch.
+        console.warn('[push-dispatch] idempotency claim failed', claimErr.message);
+      } else if (!claimed) {
+        setMetadata({ skipped: 'already_dispatched' });
+        return new Response(
+          JSON.stringify({ ok: true, sent: 0, note: 'already_dispatched' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
     }
 
-    // ── Fetch active couriers in the fleet ───────────────────────────────
-    // courier_profiles PK is user_id (no separate id column). Both
-    // courier_push_subscriptions and courier_push_tokens key off the same
-    // user_id, so we only need one list.
-    const { data: profiles, error: profilesErr } = await supabase
-      .from('courier_profiles')
-      .select('user_id')
-      .eq('fleet_id', fleet_id)
-      .eq('status', 'ACTIVE');
+    // ── Resolve the recipient list ───────────────────────────────────────
+    // Directed: just the one offered courier. Fleet: every ACTIVE courier in
+    // the fleet. Both courier_push_subscriptions + courier_push_tokens key off
+    // user_id, so we only need a list of user ids.
+    let userIds: string[];
+    if (directed) {
+      userIds = [target_user_id!];
+    } else {
+      const { data: profiles, error: profilesErr } = await supabase
+        .from('courier_profiles')
+        .select('user_id')
+        .eq('fleet_id', fleet_id)
+        .eq('status', 'ACTIVE');
 
-    if (profilesErr) {
-      console.error('[push-dispatch] profile fetch failed', profilesErr);
-      return new Response(JSON.stringify({ error: 'db_error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      if (profilesErr) {
+        console.error('[push-dispatch] profile fetch failed', profilesErr);
+        return new Response(JSON.stringify({ error: 'db_error' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (!profiles || profiles.length === 0) {
+        return new Response(
+          JSON.stringify({ ok: true, sent: 0, note: 'no_active_couriers' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      userIds = profiles.map((p: { user_id: string }) => p.user_id);
     }
-
-    if (!profiles || profiles.length === 0) {
-      return new Response(
-        JSON.stringify({ ok: true, sent: 0, note: 'no_active_couriers' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    const userIds = profiles.map((p: { user_id: string }) => p.user_id);
 
     // ── Fetch web push subscriptions + native FCM tokens in parallel ─────
     const [{ data: subscriptions, error: subsErr }, { data: tokens, error: tokensErr }] =
