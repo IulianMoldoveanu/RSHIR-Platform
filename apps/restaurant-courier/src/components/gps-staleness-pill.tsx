@@ -80,13 +80,20 @@ export function GpsStalnessPill() {
 
   const { label, tone, tooltip } = config[state];
 
+  // Phone-space tradeoff: when GPS is fresh, keep the pill off the crowded
+  // phone header (visible from `sm` up). But once it goes stale/lost — the
+  // moment a courier needs to know they've dropped off GPS and stopped
+  // receiving orders — show it on phones too (the device every courier uses).
+  const isWarning = state === 'stale' || state === 'lost';
+  const visibility = isWarning ? 'flex' : 'hidden sm:flex';
+
   return (
     <div
       role="status"
       aria-label={tooltip}
       title={tooltip}
       tabIndex={0}
-      className={`flex min-h-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${tone} ${
+      className={`${visibility} min-h-[44px] cursor-default items-center justify-center rounded-full border px-2 py-1 text-[11px] font-semibold tabular-nums outline-none ring-1 ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-violet-500 ${tone} ${
         state === 'live-now' || state === 'live-aged'
           ? 'ring-emerald-500/20'
           : state === 'stale'

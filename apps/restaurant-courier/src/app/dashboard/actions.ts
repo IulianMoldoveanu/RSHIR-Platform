@@ -508,14 +508,21 @@ export async function markDeliveredAction(
         // collection as an audit event. Settlement reconciliation reads this
         // trail to verify expected cash deposits per courier per shift.
         const row = data as { id: string; payment_method: 'CARD' | 'COD' | null; total_ron: number | null };
-        if (row.payment_method === 'COD' && cashCollected) {
+        if (row.payment_method === 'COD') {
+          // Settlement reconciliation reads this trail to verify expected cash
+          // deposits per courier per shift. We write a POSITIVE event for BOTH
+          // outcomes: cash collected, AND delivered-without-collection — so a
+          // COD delivery where no cash was taken is an explicit, auditable
+          // discrepancy instead of an indistinguishable absence (the courier
+          // is never forced to falsely attest collection).
           await logAudit({
             actorUserId: userId,
-            action: 'order.cash_collected',
+            action: cashCollected ? 'order.cash_collected' : 'order.cash_not_collected',
             entityType: 'courier_order',
             entityId: row.id,
             metadata: {
               total_ron: row.total_ron,
+              cash_collected: !!cashCollected,
               confirmed_at: new Date().toISOString(),
             },
           });
