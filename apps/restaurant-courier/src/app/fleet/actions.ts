@@ -833,9 +833,18 @@ export async function inviteCourierToFleetAction(
       process.env.NEXT_PUBLIC_COURIER_URL ??
       process.env.NEXT_PUBLIC_SITE_URL ??
       '';
+    // Invite magic-links must land on a PUBLIC client page that consumes the
+    // #access_token fragment and lets the courier set a password — NOT on
+    // /dashboard, which middleware bounces to /login (the fragment is never
+    // sent to the server, so the session is lost and the invited courier hits a
+    // password screen for a password they were never given — a hard onboarding
+    // dead-end for the whole invite channel). /login/reset already mounts a
+    // browser client (detectSessionInUrl) and handles the SIGNED_IN event an
+    // invite fires, so the courier sets their first password and can then log
+    // in normally.
     const redirectTo = baseUrl
-      ? `${baseUrl.replace(/\/$/, '')}/dashboard`
-      : '/dashboard';
+      ? `${baseUrl.replace(/\/$/, '')}/login/reset`
+      : '/login/reset';
     const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(
       email,
       { redirectTo },
