@@ -47,6 +47,11 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/terms/storefront', priority: 0.3 },
   { path: '/privacy', priority: 0.3 },
   { path: '/politica-cookies', priority: 0.3 },
+  // Netopia approval prereq (2026-06-10) — politici dedicate vizibile pe
+  // canonical host, indexabile de crawlere (priority 0.5 > celelalte legal
+  // pentru că sunt cerute explicit de PSP la review).
+  { path: '/politica-livrare', priority: 0.5 },
+  { path: '/politica-anulare-retragere', priority: 0.5 },
   { path: '/legal/dpa', priority: 0.2 },
   { path: '/legal/rambursare', priority: 0.3 },
   { path: '/legal/utilizare-acceptabila', priority: 0.2 },
