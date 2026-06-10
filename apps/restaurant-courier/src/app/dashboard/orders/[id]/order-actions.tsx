@@ -164,12 +164,18 @@ export function OrderActions({
       vertical === 'pharma' && (pharmaIdUrl || pharmaRxUrl)
         ? { idUrl: pharmaIdUrl, prescriptionUrl: pharmaRxUrl }
         : undefined;
-    await runTransitionOrQueue(
+    const deliverResult = await runTransitionOrQueue(
       'deliver',
       orderId,
       { proofUrl, cashCollected, pharmaProofs },
       () => deliveredAction(proofUrl, cashCollected, pharmaProofs),
     );
+    // If the device was offline the delivery was only ENQUEUED, not confirmed
+    // on the server — don't fire the streak / first-delivered side-effects for
+    // a delivery that hasn't actually landed (it would inflate the streak and
+    // trigger the push re-ask for an unconfirmed delivery). The TransitionSync
+    // chip shows the pending transition; side-effects run on the real drain.
+    if (deliverResult.queued) return;
     // Signal that the courier has completed their first DELIVERED transition
     // this session. PushBootstrap watches for this flag to show the gentle
     // push re-ask banner (only once per session, only when permission is still
@@ -281,6 +287,10 @@ export function OrderActions({
             await handleDeliverConfirm(true);
             setShowCashModal(false);
           }}
+          onDeliverWithoutCash={async () => {
+            await handleDeliverConfirm(false);
+            setShowCashModal(false);
+          }}
           onClose={() => setShowCashModal(false)}
         />
       ) : null}
@@ -317,10 +327,15 @@ function ArrivalHint({ label }: { label: string }) {
 function CashCollectedModal({
   amountLabel,
   onConfirm,
+  onDeliverWithoutCash,
   onClose,
 }: {
   amountLabel: string;
   onConfirm: () => Promise<void>;
+  /** Deliver but record cash as NOT collected (paid otherwise / problem at the
+   *  door). Marks the order delivered with cashCollected=false so settlement
+   *  sees the discrepancy instead of the courier having to lie or get stuck. */
+  onDeliverWithoutCash: () => Promise<void>;
   onClose: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
@@ -332,6 +347,16 @@ function CashCollectedModal({
       await onConfirm();
     } catch {
       // Keep the modal open so the courier can retry the collection confirm.
+      setSubmitting(false);
+    }
+  }
+
+  async function confirmNoCash() {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onDeliverWithoutCash();
+    } catch {
       setSubmitting(false);
     }
   }
@@ -376,12 +401,24 @@ function CashCollectedModal({
           </span>
         </button>
 
+        {/* Secondary, low-emphasis path: delivered but cash not collected
+            (paid by other means / problem). Records cashCollected=false so the
+            courier is never forced to falsely attest collection. */}
+        <button
+          type="button"
+          onClick={confirmNoCash}
+          disabled={submitting}
+          className="mt-2 w-full rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-500/10 disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-2"
+        >
+          Am livrat, dar fără încasare
+        </button>
+
         <Button
           type="button"
           variant="ghost"
           onClick={onClose}
           disabled={submitting}
-          className="mt-3 w-full rounded-xl py-2.5 text-sm font-medium text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg"
+          className="mt-2 w-full rounded-xl py-2.5 text-sm font-medium text-hir-muted-fg transition-colors hover:bg-hir-surface hover:text-hir-fg"
         >
           Anulează
         </Button>
