@@ -351,6 +351,18 @@ export default async function DashboardHome() {
                 </Link>
               )}
             </div>
+            {/* Recovery escape hatch on the PRIMARY surface: routes into the
+                order detail where cancel + "call dispatcher/support" live, so a
+                courier stuck at a closed vendor / absent client / wrong address
+                isn't dead-ended on the home card (where those actions don't
+                exist). Shown in both pickup and delivery phases. */}
+            <Link
+              href={`/dashboard/orders/${topOrder.id}`}
+              className="mt-3 flex items-center justify-center gap-1 text-center text-[11px] font-medium text-amber-300/90 underline-offset-2 transition-colors hover:text-amber-200 hover:underline focus-visible:outline-2 focus-visible:outline-amber-500 focus-visible:outline-offset-2"
+            >
+              Ai o problemă cu comanda?
+              <ArrowRight className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+            </Link>
             {activeOrders.length > 1 ? (
               <Link
                 href="/dashboard/orders"
