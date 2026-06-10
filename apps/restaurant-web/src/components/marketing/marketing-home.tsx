@@ -205,8 +205,8 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
               </Link>
               <p className="mt-3 text-sm leading-relaxed text-[#475569]">
                 {currentLocale === 'ro'
-                  ? 'Restaurantele cu 30 comenzi/zi × 80 lei bon mediu economisesc ~540 RON/zi față de Glovo. Calculator interactiv pe pagina de tarife.'
-                  : 'Restaurants with 30 orders/day × 80 lei average order save ~540 RON/day vs Glovo. Interactive calculator on the pricing page.'}
+                  ? 'Vendorii cu 30 comenzi/zi × 80 lei bon mediu economisesc ~540 RON/zi față de Glovo. Calculator interactiv pe pagina de tarife.'
+                  : 'Vendors with 30 orders/day × 80 lei average order save ~540 RON/day vs Glovo. Interactive calculator on the pricing page.'}
               </p>
             </div>
           </div>

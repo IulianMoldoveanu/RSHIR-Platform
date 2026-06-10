@@ -34,7 +34,7 @@ const OG_IMAGE = marketingOgImageUrl({
 export const metadata: Metadata = {
   title: 'Tarife — HIRforYOU',
   description:
-    '2 lei pe comandă procesată online. Un singur plan. Fără abonament, fără procent, fără setup. Livrarea este separată, prin ofertă personalizată. Instalare gratuită pentru primele 50 de restaurante.',
+    '2 lei pe comandă procesată online. Un singur plan. Fără abonament, fără procent, fără setup. Livrarea este separată, prin ofertă personalizată. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
   alternates: {
     canonical: PRICING_URL,
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },

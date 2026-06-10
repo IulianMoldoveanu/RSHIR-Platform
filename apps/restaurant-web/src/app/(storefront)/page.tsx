@@ -143,7 +143,7 @@ export default async function StorefrontHomePage() {
       {
         question: 'Cum mă mut de pe GloriaFood pe HIRforYOU?',
         answer:
-          'Echipa noastră preia meniul și butonul de comandă, înlocuiește integrarea actuală în 24-48 de ore. Migrarea este GRATUITĂ pentru primele 50 de restaurante.',
+          'Echipa noastră preia meniul și butonul de comandă, înlocuiește integrarea actuală în 24-48 de ore. Migrarea este GRATUITĂ pentru primele 50 de vendori (restaurante, florării, magazine).',
       },
       {
         question: 'Ce diferență față de Glovo / Wolt / Bolt?',

@@ -12,7 +12,7 @@ import { ArrowRight, Trophy, Users, Zap } from 'lucide-react';
 import { marketingOgImageUrl } from '@/lib/seo-marketing';
 
 export const metadata: Metadata = {
-  title: 'Program Reseller HIR for You v3 — Recomandă restaurante, câștigă recurent',
+  title: 'Program Reseller HIR for You v3 — Recomandă vendori, câștigă recurent',
   description:
     'Adă restaurante pe HIR for You și câștigă 25% Y1 + 20% recurring + override din echipă. Wave 0 — 5 sloturi cu bonus permanent pe viață. Termeni finali confirmați la semnarea contractului.',
   alternates: { canonical: 'https://hirforyou.ro/parteneriat' },
@@ -154,7 +154,7 @@ export default function ParteneriatPage() {
           Wave 0 — 5 sloturi disponibile
         </div>
         <h1 className="text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
-          Recomandă restaurante.{' '}
+          Recomandă vendori.{' '}
           <span className="text-violet-700">Construiește echipă. Câștigă pasiv.</span>
         </h1>
         <p className="mt-4 text-base text-zinc-700 sm:text-lg">

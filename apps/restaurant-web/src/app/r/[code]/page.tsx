@@ -150,14 +150,14 @@ export default async function ResellerLandingPage(
         cta: 'Get started with HIR',
         ref_code: 'Referral code:',
         powered_by: 'Powered by HIR',
-        floor_suffix: 'restaurants already on HIR',
+        floor_suffix: 'vendors already on HIR',
       }
     : {
         recommended_by: 'Recomandat de',
         cta: 'Începe acum cu HIR',
         ref_code: 'Cod referal:',
         powered_by: 'Powered by HIR',
-        floor_suffix: 'restaurante folosesc deja HIR',
+        floor_suffix: 'vendori folosesc deja HIR',
       };
 
   return (
