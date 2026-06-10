@@ -751,6 +751,108 @@ export async function cancelOrderByCourierAction(
   );
 }
 
+// Reasons a courier may report when a delivery could NOT be completed at the
+// door. Stored verbatim as the human-readable suffix; the machine-parseable
+// prefix is `courier_failed:`.
+const COURIER_FAILED_REASONS = [
+  'Clientul nu răspunde / e absent',
+  'Clientul refuză comanda',
+  'Adresa este greșită',
+  'Clientul refuză plata',
+  'Altă cauză',
+] as const;
+type CourierFailedReason = (typeof COURIER_FAILED_REASONS)[number];
+
+function isCourierFailedReason(v: unknown): v is CourierFailedReason {
+  return typeof v === 'string' && (COURIER_FAILED_REASONS as readonly string[]).includes(v);
+}
+
+/**
+ * Courier-reported failed delivery — for the delivery leg (PICKED_UP or
+ * IN_TRANSIT), when the client is absent/refuses/can't pay/wrong address.
+ * Previously the courier was hard-stuck at the door: cancel is blocked past
+ * PICKED_UP, so they had to fake a delivery or call dispatch. Now they report
+ * it as not-delivered.
+ *
+ * The order goes to the terminal CANCELLED status (courier_orders.status has no
+ * FAILED value in its CHECK constraint, and adding one would ripple through
+ * triggers/RLS/realtime). What distinguishes a FAILED delivery from an ordinary
+ * cancel is the `courier_failed:` reason prefix + the `order.failed_by_courier`
+ * audit event — so settlement/dispatch can tell the two apart. No cash/payment
+ * side-effects fire (it's not DELIVERED, so the COD UNPAID→PAID trigger never
+ * runs). Settlement decides any trip compensation; this records the truth, it
+ * does not promise money.
+ */
+export async function markFailedByCourierAction(
+  orderId: string,
+  reason: string,
+  notes?: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const userId = await requireUserId();
+
+  if (!isCourierFailedReason(reason)) {
+    return { ok: false, error: 'Motiv invalid.' };
+  }
+  const trimmedNotes = (notes ?? '').trim().slice(0, 300);
+  const reasonStr = trimmedNotes
+    ? `courier_failed: ${reason} | ${trimmedNotes}`.slice(0, 500)
+    : `courier_failed: ${reason}`;
+
+  return withRunLog(
+    'courier.markFailed',
+    { courier_user_id: userId, order_id: orderId, reason },
+    async () => {
+      const admin = createAdminClient();
+
+      // Defense-in-depth fleet gate (admin client bypasses RLS).
+      const fleetId = await resolveCourierFleetId(admin, userId);
+      if (!fleetId) {
+        return { ok: false as const, error: 'Comanda nu poate fi marcată în starea curentă.' };
+      }
+
+      const { data } = await admin
+        .from('courier_orders')
+        .update({
+          status: 'CANCELLED',
+          updated_at: new Date().toISOString(),
+          cancellation_reason: reasonStr,
+        })
+        .eq('id', orderId)
+        .eq('fleet_id', fleetId)
+        .eq('assigned_courier_user_id', userId)
+        .in('status', ['PICKED_UP', 'IN_TRANSIT'])
+        .select('id')
+        .maybeSingle();
+
+      if (!data) {
+        return {
+          ok: false as const,
+          error: 'Comanda nu poate fi marcată ca nelivrată în starea curentă.',
+        };
+      }
+
+      await logAudit({
+        actorUserId: userId,
+        action: 'order.failed_by_courier',
+        entityType: 'courier_order',
+        entityId: orderId,
+        metadata: { reason, notes: trimmedNotes || undefined },
+      });
+      await notifySubscriber(orderId, 'CANCELLED', userId);
+      Sentry.addBreadcrumb({
+        category: 'order',
+        message: 'Order failed by courier',
+        level: 'warning',
+        data: { orderId, reason },
+      });
+
+      revalidatePath(`/dashboard/orders/${orderId}`);
+      revalidatePath('/dashboard/orders');
+      return { ok: true as const };
+    },
+  );
+}
+
 export async function acceptOrderAction(orderId: string) {
   const userId = await requireUserId();
   return withRunLog(

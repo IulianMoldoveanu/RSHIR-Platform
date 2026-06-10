@@ -51,7 +51,28 @@ type ActiveOrderRow = {
   customer_phone: string | null;
   // Delivery instructions from the customer ("interfon 3B, etaj 2") — dropoff leg.
   dropoff_notes: string | null;
+  // Decision info for the directed-offer overlay: courier fee, order total (COD
+  // amount), payment method — so the courier accepts informed, not blind.
+  delivery_fee_ron: number | null;
+  total_ron: number | null;
+  payment_method: 'CARD' | 'COD' | null;
 };
+
+// Straight-line pickup→dropoff distance (km) for the offer overlay, so the
+// courier sees roughly how far the job is before accepting.
+function offerHaversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
 
 // Always-on full-screen map. Offline → swipe-start overlay above the map.
 // Online → live rider pin + active-order pickups (violet) and dropoffs (emerald).
@@ -83,7 +104,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes',
+          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -144,6 +165,23 @@ export default async function DashboardHome() {
   // Surfaced as a big swipe-to-accept overlay on the main map.
   const incomingOffer =
     ((activeOrdersData ?? []) as ActiveOrderRow[]).find((o) => o.status === 'OFFERED') ?? null;
+
+  // Offer decision chips: courier fee, pickup→dropoff distance, COD amount —
+  // so the courier doesn't accept blind.
+  const offerFeeRon = incomingOffer?.delivery_fee_ron ?? null;
+  const offerCodRon =
+    incomingOffer?.payment_method === 'COD' ? (incomingOffer?.total_ron ?? null) : null;
+  const offerDistanceKm =
+    incomingOffer &&
+    incomingOffer.pickup_lat != null &&
+    incomingOffer.pickup_lng != null &&
+    incomingOffer.dropoff_lat != null &&
+    incomingOffer.dropoff_lng != null
+      ? offerHaversineKm(
+          { lat: incomingOffer.pickup_lat, lng: incomingOffer.pickup_lng },
+          { lat: incomingOffer.dropoff_lat, lng: incomingOffer.dropoff_lng },
+        )
+      : null;
 
   // The single active order the courier is "in" right now (highest priority).
   // Its one primary action is shown inline on the home map — pickup while
@@ -274,6 +312,25 @@ export default async function DashboardHome() {
             ) : (
               <div className="mb-3" />
             )}
+            {offerFeeRon != null || offerDistanceKm != null || offerCodRon != null ? (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {offerFeeRon != null ? (
+                  <span className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-200">
+                    +{Number(offerFeeRon).toFixed(0)} RON
+                  </span>
+                ) : null}
+                {offerDistanceKm != null ? (
+                  <span className="inline-flex items-center rounded-full border border-hir-border bg-hir-surface px-2.5 py-1 text-xs font-medium text-hir-fg">
+                    ~{offerDistanceKm.toFixed(1)} km
+                  </span>
+                ) : null}
+                {offerCodRon != null ? (
+                  <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-200">
+                    Ramburs {Number(offerCodRon).toFixed(0)} RON
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <SwipeButton
               label="→ Glisează pentru a accepta"
               onConfirm={acceptOrderAction.bind(null, incomingOffer.id)}

@@ -55,6 +55,7 @@ export type CourierAuditAction =
   | 'order.cash_not_collected'
   | 'order.force_cancelled_by_courier'
   | 'order.cancelled_by_courier'
+  | 'order.failed_by_courier'
   | 'delivery.geofence_warning'
   | 'courier.geofence_alert'
   | 'pharma.callback_sent'
