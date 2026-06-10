@@ -95,7 +95,15 @@ export type FleetRiderPin = {
   vehicle?: Vehicle;
   /** courier_shifts.last_heading_deg — defaults to 0 when absent. */
   heading?: number;
+  /** courier_shifts.last_seen_at — drives the stale-pin degrade so a frozen
+   *  position doesn't read as a live one. */
+  lastSeenAt?: string | null;
 };
+
+// A GPS fix older than this is treated as stale: the pin greys out (even for an
+// ONLINE shift) and the tooltip shows the age, so the dispatcher never trusts a
+// frozen position as the courier's current location.
+const PIN_STALE_MS = 5 * 60_000;
 
 /**
  * Mini live-map for the fleet overview. Plots each rider with a known
@@ -140,10 +148,16 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
         );
 
         for (const pin of pins) {
+          const ageMs = pin.lastSeenAt
+            ? Date.now() - new Date(pin.lastSeenAt).getTime()
+            : Infinity;
+          const isStale = ageMs > PIN_STALE_MS;
+          const live = pin.online && !isStale;
           const markerHtml = renderToStaticMarkup(
             React.createElement(CourierMarker, {
               vehicle: pin.vehicle ?? 'bike',
-              status: pin.online ? 'online' : 'offline',
+              // Stale fix → greyed (offline-style) even if the shift is ONLINE.
+              status: live ? 'online' : 'offline',
               heading: pin.heading ?? 0,
               animate: false,
               size: 32,
@@ -155,10 +169,12 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
             iconSize: [32, 40],
             iconAnchor: [16, 40],
           });
+          const ageLabel =
+            isStale && Number.isFinite(ageMs) ? ` · acum ${Math.round(ageMs / 60_000)} min` : '';
           const tooltip =
             pin.inProgressCount > 0
-              ? `${pin.name} · ${pin.inProgressCount} în curs`
-              : `${pin.name} · ${pin.online ? 'liber' : 'offline'}`;
+              ? `${pin.name} · ${pin.inProgressCount} în curs${ageLabel}`
+              : `${pin.name} · ${live ? 'liber' : 'offline'}${ageLabel}`;
           L.marker([pin.lat, pin.lng], { icon })
             .bindTooltip(tooltip, { direction: 'top', offset: [0, -42] })
             .addTo(map);

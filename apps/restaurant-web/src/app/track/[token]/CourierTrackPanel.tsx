@@ -30,6 +30,14 @@ type CourierTrack = {
 
 const ACTIVE_STATUSES = new Set(['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
 
+// Staleness gating for the courier pin/ETA. On web/PWA the courier's GPS watch
+// stops firing when the app is backgrounded or the screen locks, so last_seen_at
+// silently ages. Showing a confident pin + ETA off a 10-min-old position is
+// actively misleading at the most sensitive moment of the order, so we suppress
+// the ETA past STALE and hide the pin entirely past LOST.
+const STALE_MS = 3 * 60_000; // 3 min — stop trusting the ETA
+const LOST_MS = 10 * 60_000; // 10 min — hide the pin, keep only the route
+
 export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
   const [data, setData] = useState<CourierTrack | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +101,10 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
     const cl = data.courier?.last_lat;
     const cg = data.courier?.last_lng;
     if (cl == null || cg == null) return null;
+    // Never show an ETA computed from a stale fix — it would lie about how
+    // close the courier is.
+    const seenAt = data.courier?.last_seen_at;
+    if (!seenAt || Date.now() - new Date(seenAt).getTime() >= STALE_MS) return null;
     const target =
       data.status === 'PICKED_UP' || data.status === 'IN_TRANSIT'
         ? data.dropoff
@@ -125,6 +137,12 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
     data.courier.last_lat != null && data.courier.last_lng != null
       ? { lat: data.courier.last_lat, lng: data.courier.last_lng }
       : null;
+  // How fresh is the courier's position? Drives whether we trust the pin/ETA.
+  const courierAgeMs = data.courier.last_seen_at
+    ? Date.now() - new Date(data.courier.last_seen_at).getTime()
+    : Infinity;
+  const courierStale = courierAgeMs >= STALE_MS;
+  const courierLost = courierAgeMs >= LOST_MS;
 
   return (
     <section className="overflow-hidden rounded-xl border border-purple-200 bg-purple-50/40">
@@ -137,10 +155,16 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
             <p className="text-sm font-semibold text-zinc-900">
               {courierFirst} este pe drum
             </p>
-            {data.courier.last_seen_at && (
-              <p className="text-[11px] text-zinc-500">
-                ultima poziție acum {timeAgo(data.courier.last_seen_at)}
+            {courierStale ? (
+              <p className="text-[11px] text-amber-600">
+                actualizăm poziția curierului…
               </p>
+            ) : (
+              data.courier.last_seen_at && (
+                <p className="text-[11px] text-zinc-500">
+                  ultima poziție acum {timeAgo(data.courier.last_seen_at)}
+                </p>
+              )
             )}
           </div>
         </div>
@@ -154,7 +178,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
       <CourierMap
         pickup={data.pickup}
         dropoff={data.dropoff}
-        courier={courierGps}
+        courier={courierLost ? null : courierGps}
         status={data.status}
       />
       {eta && (
