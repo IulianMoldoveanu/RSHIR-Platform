@@ -50,14 +50,23 @@ export async function POST(
     return NextResponse.json({ error: 'Tenant inexistent' }, { status: 404 });
   }
 
-  // Verify courier has an ONLINE shift.
-  const { data: shift } = await admin
-    .from('courier_shifts')
-    .select('id')
-    .eq('courier_user_id', courier_user_id)
-    .eq('status', 'ONLINE')
-    .limit(1)
-    .maybeSingle();
+  // Verify courier has an ONLINE shift + resolve their fleet. A tablet operator
+  // must not be able to assign a courier from an UNRELATED fleet to this
+  // tenant's order — so we bind the claim to the courier's own fleet below.
+  const [{ data: shift }, { data: courierProfile }] = await Promise.all([
+    admin
+      .from('courier_shifts')
+      .select('id')
+      .eq('courier_user_id', courier_user_id)
+      .eq('status', 'ONLINE')
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from('courier_profiles')
+      .select('fleet_id')
+      .eq('user_id', courier_user_id)
+      .maybeSingle(),
+  ]);
 
   if (!shift) {
     return NextResponse.json(
@@ -65,6 +74,10 @@ export async function POST(
       { status: 422 },
     );
   }
+  if (!courierProfile) {
+    return NextResponse.json({ error: 'Curier inexistent' }, { status: 404 });
+  }
+  const courierFleetId = (courierProfile as { fleet_id: string | null }).fleet_id;
 
   // TODO: check max_parallel_orders when column exists:
   //   const { count } = await admin.from('courier_orders')
@@ -76,7 +89,7 @@ export async function POST(
   // Atomic assign — only succeeds if order is still unassigned AND belongs to
   // the tenant this display is authenticated for (source_tenant_id match
   // prevents claiming another tenant's order from this tablet).
-  const { data: updated, error } = await admin
+  let claim = admin
     .from('courier_orders')
     .update({
       assigned_courier_user_id: courier_user_id,
@@ -86,7 +99,12 @@ export async function POST(
     .eq('id', orderId)
     .eq('source_tenant_id', tenant.id)
     .is('assigned_courier_user_id', null)
-    .in('status', ['CREATED', 'OFFERED'])
+    .in('status', ['CREATED', 'OFFERED']);
+  // Fleet binding: the order must belong to the courier's fleet (or both be
+  // platform/null-fleet). Closes the cross-fleet assignment gap.
+  claim = courierFleetId ? claim.eq('fleet_id', courierFleetId) : claim.is('fleet_id', null);
+
+  const { data: updated, error } = await claim
     .select('id, assigned_courier_user_id')
     .maybeSingle();
 

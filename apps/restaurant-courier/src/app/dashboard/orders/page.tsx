@@ -68,35 +68,41 @@ export default async function OrdersPage() {
 
   const admin = createAdminClient();
 
-  const [{ data: assignedData }, { data: openData }, riderMode, { data: profileData }] =
-    await Promise.all([
-      admin
-        .from('courier_orders')
-        .select(ORDER_COLUMNS)
-        .eq('assigned_courier_user_id', user.id)
-        .in('status', ACTIVE_STATUSES)
-        .order('created_at', { ascending: false }),
-      // Available orders are sorted OLDEST first so couriers naturally pick
-      // the order closest to its SLA breach. Assigned orders above stay
-      // newest-first because the rider already chose them.
-      admin
-        .from('courier_orders')
-        .select(ORDER_COLUMNS)
-        .is('assigned_courier_user_id', null)
-        .in('status', ['CREATED', 'OFFERED'])
-        .order('created_at', { ascending: true })
-        .limit(20),
-      resolveRiderMode(user.id),
-      // Realtime needs the rider's own fleet_id (always backfilled, even for
-      // Mode A/B on the platform-default fleet) to subscribe to fresh
-      // OFFERED orders. resolveRiderMode returns null for Mode A/B by design,
-      // so we read the column directly here.
-      admin
-        .from('courier_profiles')
-        .select('fleet_id')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-    ]);
+  // Resolve the rider's fleet FIRST so the open-pool list can be scoped to it.
+  // A partner fleet's couriers must see only THEIR fleet's open orders — the
+  // pool list previously had NO fleet filter (only `accept` enforced it), so a
+  // rider saw orders from other fleets they could never claim. Realtime also
+  // needs this fleet_id (always backfilled, even Mode A/B on the platform fleet).
+  const { data: profileData } = await admin
+    .from('courier_profiles')
+    .select('fleet_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const fleetId = (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
+
+  // Open-pool query scoped to the rider's fleet (or platform/null-fleet orders
+  // for a fleetless platform courier — mirrors acceptOrderAction's fleet gate).
+  const openPool = admin
+    .from('courier_orders')
+    .select(ORDER_COLUMNS)
+    .is('assigned_courier_user_id', null)
+    .in('status', ['CREATED', 'OFFERED'])
+    .order('created_at', { ascending: true })
+    .limit(20);
+  const scopedOpenPool = fleetId ? openPool.eq('fleet_id', fleetId) : openPool.is('fleet_id', null);
+
+  const [{ data: assignedData }, { data: openData }, riderMode] = await Promise.all([
+    admin
+      .from('courier_orders')
+      .select(ORDER_COLUMNS)
+      .eq('assigned_courier_user_id', user.id)
+      .in('status', ACTIVE_STATUSES)
+      .order('created_at', { ascending: false }),
+    // Available orders sorted OLDEST first so couriers naturally pick the
+    // order closest to its SLA breach.
+    scopedOpenPool,
+    resolveRiderMode(user.id),
+  ]);
 
   // Sort assigned orders by status priority so the prefix number always
   // reflects what the rider should do next: PICKED_UP first (in transit),
@@ -119,9 +125,6 @@ export default async function OrdersPage() {
   // Mode C riders are dispatched by their fleet manager — they don't
   // browse open orders; surfacing the section is a useless affordance.
   const showOpenOrders = riderMode.mode !== 'C';
-
-  const fleetId =
-    (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
 
   // Mode B riders see orders from multiple tenants — surface the
   // restaurant/pharmacy name on each card so they can distinguish

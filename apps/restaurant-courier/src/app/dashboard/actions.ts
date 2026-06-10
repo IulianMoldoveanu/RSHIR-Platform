@@ -177,7 +177,10 @@ export async function startShiftAction() {
         .select('status')
         .eq('user_id', userId)
         .maybeSingle();
-      if (profileRow && (profileRow as { status: string }).status === 'SUSPENDED') {
+      // No courier profile → not a courier; never create a dangling shift for a
+      // profile-less user (e.g. a fleet manager / admin who hits this action).
+      if (!profileRow) return;
+      if ((profileRow as { status: string }).status === 'SUSPENDED') {
         // Silent no-op — surfacing an error toast here would require client
         // changes for every caller. The dashboard already renders a
         // "Suspendat" badge from the same column, which is the visible signal.
