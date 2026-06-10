@@ -168,6 +168,9 @@ export default async function FleetOverviewPage() {
       lng: s.last_lng,
       online: s.status === 'ONLINE',
       inProgressCount: inProgressByRider.get(s.courier_user_id) ?? 0,
+      // Pass the fix age so the map can flag pins whose GPS has gone stale
+      // (a frozen position must not read as a live one to the dispatcher).
+      lastSeenAt: s.last_seen_at ?? null,
     });
   }
 

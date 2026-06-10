@@ -3,7 +3,11 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-const REFRESH_INTERVAL_MS = 60_000;
+// 25s, not 60s: the fleet live-map pins advance ONLY on this refresh (there is
+// no realtime location feed reaching the map — couriers persist a GPS fix
+// ~every 30s, so a 60s cadence made the dispatcher's pins lag a full minute
+// behind). 25s keeps the map roughly in step with the GPS cadence.
+const REFRESH_INTERVAL_MS = 25_000;
 
 /**
  * Periodic router.refresh() on /fleet to keep KPIs and the live map
