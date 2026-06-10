@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { SUPPORT_PHONE_E164, SUPPORT_PHONE_DISPLAY, SUPPORT_HOURS } from '@/lib/support-contact';
 import {
   HelpCircle,
   X,
@@ -151,9 +152,9 @@ export function HelpDrawer({ dispatcherPhone }: Props) {
                       <DrawerItem
                         icon={<Phone className="h-5 w-5 text-emerald-300" aria-hidden strokeWidth={2.25} />}
                         label="Sună suportul HIR"
-                        sublabel="+40 21 204 0000 · L–V 09–18"
+                        sublabel={`${SUPPORT_PHONE_DISPLAY} · ${SUPPORT_HOURS}`}
                         as="tel"
-                        href="tel:+40212040000"
+                        href={`tel:${SUPPORT_PHONE_E164}`}
                       />
                     )}
                     <DrawerItem

@@ -4,6 +4,7 @@ import { ArrowRight, MessageSquare, Phone, Wrench } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cardClasses } from '@/components/card';
+import { SUPPORT_PHONE_E164, SUPPORT_PHONE_DISPLAY, SUPPORT_HOURS } from '@/lib/support-contact';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,11 +59,11 @@ export default async function MessagesPage() {
   const hasDispatcher = !!dispatcherPhone;
   const phoneHref = hasDispatcher
     ? `tel:${dispatcherPhone!.replace(/\s+/g, '')}`
-    : 'tel:+40213000000';
+    : `tel:${SUPPORT_PHONE_E164}`;
   const phoneLabel = hasDispatcher
     ? `Sună dispecerul${fleetName ? ` · ${fleetName}` : ''}`
     : 'Sună suportul HIR';
-  const phoneText = hasDispatcher ? dispatcherPhone! : '021 300 0000 · L–V 09–18';
+  const phoneText = hasDispatcher ? dispatcherPhone! : `${SUPPORT_PHONE_DISPLAY} · ${SUPPORT_HOURS}`;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { SUPPORT_PHONE_E164, SUPPORT_PHONE_DISPLAY } from '@/lib/support-contact';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -197,14 +198,14 @@ export default function HelpPage() {
         <h2 className="mb-3 text-sm font-semibold text-hir-fg">Suport HIR</h2>
         <div className="flex flex-col gap-2">
           <a
-            href="tel:+40212040000"
+            href={`tel:${SUPPORT_PHONE_E164}`}
             className="group flex min-h-[56px] items-center gap-3 rounded-xl border border-hir-border bg-hir-bg px-3 py-2.5 transition-all hover:-translate-y-px hover:border-emerald-500/40 hover:bg-emerald-500/5 hover:shadow-md hover:shadow-emerald-500/10 active:translate-y-0 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 ring-1 ring-emerald-500/30">
               <Phone className="h-4 w-4 text-emerald-300" aria-hidden strokeWidth={2.25} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold tabular-nums text-hir-fg">+40 21 204 0000</p>
+              <p className="text-sm font-semibold tabular-nums text-hir-fg">{SUPPORT_PHONE_DISPLAY}</p>
               <p className="mt-0.5 text-[11px] leading-relaxed text-hir-muted-fg">L–V 09–18 · sună rapid</p>
             </div>
             <ChevronRight

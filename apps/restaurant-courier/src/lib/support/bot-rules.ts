@@ -197,7 +197,7 @@ export function classify(message: string): BotResponse {
         '1. Sună clientul direct (butonul Apelează în pagina comenzii).\n' +
         '2. Dacă nu răspunde 3 ori, marchează comanda "Imposibil de livrat — adresa greșită" și ' +
         'returnează produsul la restaurant.\n\n' +
-        'Câștigul de livrare îți rămâne — plătim pentru deplasarea făcută.',
+        'Apoi contactează dispecerul ca să confirme situația comenzii.',
       topic: 'address',
       escalate: false,
       quick_replies: [
