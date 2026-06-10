@@ -1,5 +1,6 @@
 // /politica-livrare — Politica de livrare publicată pentru conformitate
-// Netopia Payments + obligații generale OUG 34/2014, Legea 449/2003, GDPR.
+// Netopia Payments + obligații generale OUG 34/2014, Legea 140/2021 (transpunere
+// Directiva (UE) 2019/771, abrogă Legea 449/2003), GDPR.
 //
 // Conținut hardcodat RO (page-level legal copy — nu trece prin dictionar
 // i18n pentru că textul juridic se revizuiește direct aici de juristul HIR).
@@ -68,7 +69,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       {
         kind: 'ul',
         items: [
-          'Vendorul (restaurantul, florăria, magazinul, farmacia) este vânzătorul produsului. Vendorul încheie direct contractul de vânzare cu tine, emite bonul fiscal și răspunde pentru produs conform Legii 449/2003 privind vânzarea produselor și garanțiile asociate.',
+          'Vendorul (restaurantul, florăria, magazinul, farmacia) este vânzătorul produsului. Vendorul încheie direct contractul de vânzare cu tine, emite bonul fiscal și răspunde pentru produs conform Legii 140/2021 privind vânzarea produselor și garanțiile asociate (transpunere Directiva (UE) 2019/771, care abrogă Legea 449/2003).',
           'HIR este furnizorul infrastructurii tehnologice (storefront, plată online, dispecerizare curier, suport AI). HIR nu vinde produse în nume propriu prin această platformă.',
         ],
       },
@@ -200,7 +201,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       },
       {
         kind: 'p',
-        text: 'Dacă vendorul nu poate onora comanda (produs indisponibil, închis în acel moment, în afara programului), vei fi anunțat în maximum 30 de minute și suma plătită cu cardul îți va fi returnată integral.',
+        text: 'Dacă vendorul nu poate onora comanda (produs indisponibil, închis în acel moment, în afara programului), de regulă, vei fi anunțat în maximum 30 de minute și suma plătită cu cardul îți va fi returnată integral.',
       },
     ],
   },
@@ -210,7 +211,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
     body: [
       {
         kind: 'p',
-        text: 'Dacă livrarea nu poate fi efectuată din motive independente de tine (curier indisponibil, vendor care nu poate onora, eroare tehnică), suma achitată îți este returnată integral, prin același mijloc de plată folosit la comandă, în termenul standard al procesatorului (în general 3–10 zile lucrătoare pentru carduri).',
+        text: 'Dacă livrarea nu poate fi efectuată din motive independente de tine (curier indisponibil, vendor care nu poate onora, eroare tehnică), vendorul, prin canalul HIR, îți returnează suma achitată integral, prin același mijloc de plată folosit la comandă, în termenul standard al procesatorului (în general 3–10 zile lucrătoare pentru carduri).',
       },
       {
         kind: 'p',
@@ -247,7 +248,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
         items: [
           'Contactează în primul rând vendorul (datele de contact sunt pe pagina magazinului și pe confirmarea comenzii) — vendorul este vânzătorul și gestionează direct livrarea.',
           'Contactează HIR ca platformă la suport@hirforyou.ro dacă problema ține de funcționarea tehnică a platformei sau dacă vendorul nu răspunde într-un termen rezonabil.',
-          'ANPC — Autoritatea Națională pentru Protecția Consumatorilor, anpc.ro, pentru sesizări neclarificate.',
+          'ANPC — Autoritatea Națională pentru Protecția Consumatorilor, anpc.ro (fallback: anpc.ro/protectia-consumatorilor/), pentru sesizări neclarificate.',
           'SOL — platforma europeană de soluționare online a litigiilor, ec.europa.eu/consumers/odr.',
         ],
       },
@@ -264,6 +265,10 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       {
         kind: 'p',
         text: 'Detalii complete în Politica de confidențialitate (/privacy).',
+      },
+      {
+        kind: 'note',
+        text: 'Acest document este orientativ; T&C vendor specifici și bonul fiscal prevalează pentru relația contractuală individuală.',
       },
     ],
   },

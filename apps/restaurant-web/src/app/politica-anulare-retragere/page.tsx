@@ -1,5 +1,6 @@
 // /politica-anulare-retragere — Politica de anulare + dreptul de retragere
-// OUG 34/2014 (Directiva 2011/83/UE) + Legea 449/2003. Cerință Netopia
+// OUG 34/2014 (Directiva 2011/83/UE) + Legea 140/2021 (transpunere Directiva
+// (UE) 2019/771, abrogă Legea 449/2003). Cerință Netopia
 // Payments pentru aprobarea contului de comerciant (must-have alături de
 // /politica-livrare, /privacy, /terms).
 //
@@ -75,7 +76,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       },
       {
         kind: 'p',
-        text: 'Drepturile descrise mai jos sunt cele prevăzute de OUG 34/2014 privind drepturile consumatorilor în contractele încheiate cu profesioniștii (transpunere a Directivei 2011/83/UE) și de Legea 449/2003 privind garanțiile produselor.',
+        text: 'Drepturile descrise mai jos sunt cele prevăzute de OUG 34/2014 privind drepturile consumatorilor în contractele încheiate cu profesioniștii (transpunere a Directivei 2011/83/UE) și de Legea 140/2021 privind anumite aspecte referitoare la contractele de vânzare de bunuri (transpunere Directiva (UE) 2019/771, care abrogă Legea 449/2003).',
       },
     ],
   },
@@ -132,15 +133,19 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
         text: 'Conform OUG 34/2014, la contractele încheiate la distanță ai dreptul să te retragi fără justificare în termen de 14 zile calendaristice de la primirea produsului, CU EXCEPȚIILE de mai jos.',
       },
       {
+        kind: 'note',
+        text: 'Important: dacă vendorul NU te-a informat despre dreptul de retragere înainte de plasarea comenzii, termenul se prelungește la 12 luni (OUG 34/2014, art. 11 alin. (2)). Dacă vendorul te informează ulterior, în interiorul celor 12 luni, termenul de retragere se calculează 14 zile de la data informării.',
+      },
+      {
         kind: 'h3',
         text: 'EXCEPȚII APLICABILE (art. 16 din OUG 34/2014) — NU ai drept de retragere de 14 zile:',
       },
       {
         kind: 'ul',
         items: [
-          'Art. 16 lit. d) — produse susceptibile a se deteriora sau a expira rapid: mâncarea preparată (livrată de restaurante); produsele alimentare proaspete; florile tăiate și aranjamentele florale; produsele farmaceutice cu termen scurt sau care necesită lanț de frig.',
-          'Art. 16 lit. c) — produse confecționate după specificațiile clientului sau personalizate: meniuri / preparate la comandă specială; buchete personalizate (flori alese de tine, mesaj inscripționat); coșuri cadou compuse la cererea ta; obiecte gravate, imprimate cu nume etc.',
-          'Art. 16 lit. e) — produse sigilate care nu pot fi returnate din motive de protecție a sănătății sau igienă, dacă au fost desigilate: produse cosmetice desigilate; anumite produse farmaceutice OTC desigilate.',
+          'Art. 16 lit. c) — produse confecționate după specificațiile clientului sau personalizate clar: mâncarea gătită la comandă (preparate la cererea ta din meniul restaurantului); meniuri / preparate la comandă specială; buchete personalizate (flori alese de tine, mesaj inscripționat); coșuri cadou compuse la cererea ta; obiecte gravate, imprimate cu nume etc.',
+          'Art. 16 lit. d) — produse susceptibile a se deteriora sau a expira rapid: produsele alimentare proaspete; florile tăiate și aranjamentele florale standard; produsele farmaceutice cu termen scurt sau care necesită lanț de frig; prin analogie, mâncarea preparată livrată de restaurante (dacă nu se încadrează deja la lit. c)).',
+          'Art. 16 lit. e) — produse sigilate care nu pot fi returnate din motive de protecție a sănătății sau igienă, dacă au fost desigilate: produse cosmetice desigilate; produse farmaceutice OTC desigilate.',
         ],
       },
       {
@@ -205,7 +210,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
     body: [
       {
         kind: 'p',
-        text: 'Dacă produsul primit este defect, neconform sau diferit de descriere, ai dreptul, conform Legii 449/2003, la:',
+        text: 'Dacă produsul primit este defect, neconform sau diferit de descriere, ai dreptul, conform Legii 140/2021 (transpunere Directiva (UE) 2019/771, care abrogă Legea 449/2003), la:',
       },
       {
         kind: 'ul',
@@ -234,10 +239,14 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
         items: [
           'Contact vendor (prima instanță) — datele sunt pe pagina comenzii. Vendorul are obligația să răspundă în maximum 5 zile lucrătoare.',
           'Contact HIR la suport@hirforyou.ro — dacă vendorul nu răspunde sau dacă problema ține de platformă (ex: dublă debitare card). HIR poate media, dar nu este parte în contract.',
-          'ANPC — Autoritatea Națională pentru Protecția Consumatorilor, anpc.ro, pentru sesizări neclarificate. Sediu central: B-dul Aviatorilor 72, sector 1, București.',
+          'ANPC — Autoritatea Națională pentru Protecția Consumatorilor, anpc.ro (fallback: anpc.ro/protectia-consumatorilor/), pentru sesizări neclarificate. Sediu central: B-dul Aviatorilor 72, sector 1, București.',
           'SAL — soluționare alternativă a litigiilor: anpc.ro/sal sau entitățile SAL recunoscute.',
           'SOL — platforma europeană de soluționare online a litigiilor pentru achiziții transfrontaliere: ec.europa.eu/consumers/odr.',
         ],
+      },
+      {
+        kind: 'note',
+        text: 'Notă pentru vendori: Vendorul este obligat să afișeze acest link SOL pe propriul site/email comandă conform Regulamentului (UE) 524/2013 art. 14.',
       },
     ],
   },
@@ -258,7 +267,7 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       },
       {
         kind: 'p',
-        text: 'HIR nu reține sume din refund. Eventualele comisioane bancare la transfer sunt suportate de vendor.',
+        text: 'HIR nu reține sume din refund. Eventualele comisioane bancare la transfer sunt suportate de vendor potrivit acordului său comercial cu HIR.',
       },
     ],
   },
@@ -294,11 +303,19 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
       },
       {
         kind: 'p',
+        text: 'Prelucrarea datelor pentru refund are temei juridic în art. 6(1)(b) GDPR (executare contract) și art. 6(1)(c) GDPR pentru păstrarea documentelor fiscale conform Codului fiscal (termen 10 ani).',
+      },
+      {
+        kind: 'p',
         text: 'Contact HIR ca platformă: suport@hirforyou.ro · hirforyou.ro/contact',
       },
       {
         kind: 'p',
         text: 'Contact vendor: datele sunt afișate pe pagina magazinului și pe confirmarea comenzii.',
+      },
+      {
+        kind: 'note',
+        text: 'Acest document este orientativ; T&C vendor specifici și bonul fiscal prevalează pentru relația contractuală individuală.',
       },
     ],
   },
@@ -315,7 +332,7 @@ export default function PoliticaAnulareRetragerePage() {
       <LegalShell
         locale="ro"
         title={PAGE_TITLE}
-        subtitle="Drepturile tale conform OUG 34/2014 și Legii 449/2003"
+        subtitle="Drepturile tale conform OUG 34/2014 și Legii 140/2021"
         lastUpdated={PAGE_LAST_UPDATED}
         version={PAGE_VERSION}
         sections={SECTIONS}
