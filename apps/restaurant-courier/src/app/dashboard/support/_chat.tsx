@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react';
 import { Send, Phone, CheckCircle2, Bot, User as UserIcon, Headphones } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { sendUserMessage, closeConversation } from './_actions';
+import { SUPPORT_PHONE_E164 } from '@/lib/support-contact';
 
 type Message = {
   id: string;
@@ -123,7 +124,7 @@ export function SupportChat({
   }
 
   const showCallButton = status === 'OPERATOR_ACTIVE' && operatorMsgCount >= 2;
-  const supportPhone = process.env.NEXT_PUBLIC_HIR_SUPPORT_PHONE ?? '+40-xxx-xxx-xxx';
+  const supportPhone = SUPPORT_PHONE_E164;
 
   return (
     <div className="flex flex-col gap-3">

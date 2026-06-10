@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { isOfferSoundEnabled, playOfferChirp } from '@/lib/offer-sound';
+import * as haptics from '@/lib/haptics';
 
 const REFRESH_THROTTLE_MS = 1500;
 
@@ -106,6 +107,25 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       triggerRefresh();
     };
 
+    // A directed offer landed for THIS courier (CREATED→OFFERED, assigned to
+    // me) via the assigned-filter subscription. The big swipe-to-accept overlay
+    // lives on the home/map tab where the open-pool chirp never fires
+    // (watchFleetOpenOrders=false), so a personally-assigned job was previously
+    // SILENT — easy to miss on a bike mount. Announce it with sound + a
+    // vibration (at least one channel always fires, independent of the toggle).
+    const triggerOnAssignedActivity = (payload: { new: OrderRowPayload }) => {
+      const row = payload.new ?? {};
+      if (row.status === 'OFFERED') {
+        if (isOfferSoundEnabled()) playOfferChirp();
+        try {
+          haptics.custom([0, 140, 70, 140]);
+        } catch {
+          // haptics unavailable — non-fatal.
+        }
+      }
+      triggerRefresh();
+    };
+
     const assignedFilter = `assigned_courier_user_id=eq.${courierUserId}`;
 
     const channel = supabase
@@ -113,12 +133,12 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'courier_orders', filter: assignedFilter },
-        triggerRefresh,
+        triggerOnAssignedActivity,
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter: assignedFilter },
-        triggerRefresh,
+        triggerOnAssignedActivity,
       );
 
     // Second subscription: fleet-wide unassigned orders. Postgres realtime

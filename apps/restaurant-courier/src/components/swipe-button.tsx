@@ -105,8 +105,26 @@ export function SwipeButton({
       setPending(false);
       setHoldProgress(false);
       armedRef.current = false;
-      // Surfaced to the dashboard error boundary if it bubbles past;
-      // log defensively so the courier sees something in dev tools.
+      // The action FAILED (network / server). Tell the courier instead of just
+      // springing the handle back in silence — otherwise they think the app
+      // ignored them and don't know to retry. Accept/pickup/deliver are the
+      // most important actions and were failing with zero feedback.
+      const name = (err as { name?: string } | null)?.name;
+      const networky =
+        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        name === 'TypeError' ||
+        name === 'AbortError';
+      toast(
+        networky
+          ? 'Fără semnal — încearcă din nou când revii online.'
+          : 'Nu am putut trimite acțiunea. Încearcă din nou.',
+        { duration: 5000 },
+      );
+      try {
+        haptics.custom([80, 40, 80]);
+      } catch {
+        // haptics unavailable — non-fatal.
+      }
       console.error('[swipe-button] action failed', err);
     }
   }
