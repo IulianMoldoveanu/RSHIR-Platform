@@ -42,9 +42,10 @@ export function InviteCourierForm() {
               Invitație trimisă către {done.email}
             </p>
             <p className="mt-1 text-xs text-zinc-400">
-              Curierul apare în flotă cu status Inactiv și devine Activ când
-              pornește prima tură. Își confirmă identitatea din aplicație (foto
-              buletin/permis), iar validarea o face platforma.
+              Curierul primește un email, își setează parola și își confirmă
+              identitatea din aplicație (foto buletin/permis). Apoi îl validezi
+              din roster (sau platforma, dacă flota ta nu are validare proprie),
+              iar el devine Activ când pornește prima tură.
             </p>
             <div className="mt-3 flex gap-2">
               <Button
