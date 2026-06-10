@@ -207,7 +207,7 @@ export function softwareApplicationJsonLd(baseUrl: string) {
     operatingSystem: 'Web, iOS, Android',
     url: baseUrl,
     description:
-      'Platformă românească de comenzi online pentru restaurante: site propriu, KDS, livrare, AI, fără comision procentual.',
+      'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI, fără comision procentual.',
     offers: {
       '@type': 'Offer',
       price: '2',

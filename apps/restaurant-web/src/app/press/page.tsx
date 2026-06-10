@@ -114,7 +114,7 @@ export default async function PressPage() {
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#0F172A]">
               <strong>HIRforYOU</strong> este platforma all-in-one
-              pentru restaurante din România: storefront pentru clienți, panou
+              pentru restaurante, florării, magazine de cadouri și alți vendori din România: storefront pentru clienți, panou
               de administrare, aplicație de curier și rețea de livrare —
               construite să înlocuiască Wolt, Glovo și GloriaFood la un
               cost previzibil de <strong>2 lei pe comandă procesată online</strong>,
@@ -130,7 +130,7 @@ export default async function PressPage() {
             </h2>
             <p className="mt-3 text-base leading-relaxed text-[#0F172A]">
               <strong>HIRforYOU</strong> is the all-in-one platform
-              for Romanian restaurants: customer storefront, admin dashboard,
+              for Romanian restaurants, florists, gift shops and other vendors: customer storefront, admin dashboard,
               courier app and delivery network — built to replace Wolt, Glovo
               and GloriaFood at a flat{' '}
               <strong>2 lei per online order processed</strong> cost, with no

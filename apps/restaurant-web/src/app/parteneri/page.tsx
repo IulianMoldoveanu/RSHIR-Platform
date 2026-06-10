@@ -20,7 +20,7 @@ import { ResellerRevenueCalculator } from './_components/reseller-revenue-calcul
 const WHATSAPP_PHONE = '+40743700916';
 
 export const metadata: Metadata = {
-  title: 'Program partener HIR for You — câștigi 500 RON + 10% recurring per restaurant adus',
+  title: 'Program partener HIR for You — câștigi 500 RON + 10% recurring per vendor adus',
   description:
     'Adu restaurante pe HIR for You și câștigi 500 RON la fiecare semnare + 10% din factura primelor 6 luni. Termeni finali se confirmă la aprobare.',
   alternates: { canonical: 'https://hirforyou.ro/parteneri' },
@@ -98,7 +98,7 @@ export default function ParteneriPage() {
           Programul partener este deschis pentru reseller activi din 2026
         </div>
         <h1 className="text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
-          Adu restaurante pe HIR. <br />
+          Adu vendori pe HIR. <br />
           <span className="text-violet-700">Câștigi 500 RON + 10% recurring.</span>
         </h1>
         <p className="mt-4 text-base text-zinc-700 sm:text-lg">

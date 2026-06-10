@@ -652,7 +652,7 @@ export const dictionaries = {
         page_description:
           'Comenzi online cu storefront white-label, 2 lei pe comandă procesată de site, import rapid de meniu și CRM. Pentru restaurante, florării, magazine de cadouri și alți vendori. Livrare opțională, prin ofertă personalizată. Construit în România.',
         hero_badge: '',
-        hero_title_pre: 'Restaurantul tău. Comenzile tale.',
+        hero_title_pre: 'Afacerea ta. Comenzile tale.',
         hero_title_price: 'Clienții tăi.',
         hero_title_post: '',
         hero_body:
@@ -666,11 +666,11 @@ export const dictionaries = {
         stat_importer_label: 'Setup rapid meniu',
         stat_importer_value: '<5 min',
         stat_importer_sub: 'meniu, opțiuni, prețuri publicate live',
-        stat_pilot_label: 'Restaurant pilot',
+        stat_pilot_label: 'Vendor pilot',
         stat_pilot_value: '158 de produse',
         stat_pilot_sub: 'FOISORUL A · live din 03.05.2026',
         value_section_title:
-          'Tot ce vă trebuie pentru a vinde mâncare online — într-o singură soluție.',
+          'Tot ce vă trebuie pentru a vinde online — într-o singură soluție.',
         value_section_intro:
           'Nu mai cumpărați POS de la unul, livrare de la altul, CRM de la al treilea.',
         value_storefront_title: 'Storefront white-label',
@@ -717,7 +717,7 @@ export const dictionaries = {
         connect_body:
           'HIR Connect este stratul invizibil pentru restaurantele care au deja interfața lor de comenzi. Comenzile vin din site-ul tău printr-un API simplu, intră direct în flota HIR pentru livrare și sunt analizate de agenții AI. Tu controlezi brandul; noi controlăm operațiunile.',
         connect_point_1:
-          'Același tarif: 2 lei/comandă procesată. Fără abonament, fără setup. Gratuit primele 50 de restaurante.',
+          'Același tarif: 2 lei/comandă procesată. Fără abonament, fără setup. Gratuit primele 50 de vendori.',
         connect_point_2:
           'Acces complet la dashboard HIR și asistentul Hepy — fără nicio modificare pe site-ul tău.',
         connect_point_3:
@@ -772,12 +772,12 @@ export const dictionaries = {
         og_subtitle:
           'Storefront white-label, livrare proprie, import rapid meniu, CRM, loyalty, rezervări.',
         og_description:
-          'Tot ce are nevoie un restaurant pentru a vinde online, livra cu curier propriu și păstra datele clienților.',
+          'Tot ce are nevoie o afacere pentru a vinde online, livra cu curier propriu și păstra datele clienților.',
         eyebrow: 'Funcționalități',
-        hero_title: 'Tot ce-i trebuie unui restaurant. Simplu.',
+        hero_title: 'Tot ce-i trebuie unei afaceri. Simplu.',
         hero_body:
           'Comenzi online, livrare proprie, CRM, loyalty — totul într-un singur ecran. Securitate periodică auditată, RGPD-ready. Fără mărci albe revândute.',
-        group1_title: 'Pentru restaurante',
+        group1_title: 'Pentru orice afacere',
         group1_intro: 'Ce primește patronul în primele 5 minute după onboarding.',
         item_storefront_title: 'Storefront white-label',
         item_storefront_body:
@@ -887,8 +887,8 @@ export const dictionaries = {
       card1_title: 'HIR Direct',
       card1_price: '2 lei',
       card1_price_sub: '/ comandă procesată online',
-      card1_description: 'Pentru orice restaurant — tariful acoperă procesarea comenzii prin site. Livrarea se contractează separat: îți facem o ofertă personalizată de curierat sau folosești echipa ta proprie.',
-      card1_badge: 'Implementare gratuită — primele 50 de restaurante',
+      card1_description: 'Pentru orice afacere — tariful acoperă procesarea comenzii prin site. Livrarea se contractează separat: îți facem o ofertă personalizată de curierat sau folosești echipa ta proprie.',
+      card1_badge: 'Implementare gratuită — primele 50 de vendori (restaurante, florării, magazine)',
       card1_p1: 'Storefront white-label cu brand propriu',
       card1_p2: 'Import rapid meniu (GloriaFood / WooCommerce / CSV) inclus',
       card1_p3: 'CRM + loyalty + reviews + rezervări',
@@ -1723,7 +1723,7 @@ export const dictionaries = {
         page_description:
           'Online orders with a white-label storefront, 2 lei per order processed by the site, fast menu setup and CRM. For restaurants, florists, gift shops and other vendors. Delivery is optional and contracted separately via a tailored offer. Built in Romania.',
         hero_badge: '',
-        hero_title_pre: 'Your restaurant. Your orders.',
+        hero_title_pre: 'Your business. Your orders.',
         hero_title_price: 'Your customers.',
         hero_title_post: '',
         hero_body:
@@ -1737,11 +1737,11 @@ export const dictionaries = {
         stat_importer_label: 'Fast menu setup',
         stat_importer_value: '<5 min',
         stat_importer_sub: 'menu, options, prices published live',
-        stat_pilot_label: 'Pilot restaurant',
+        stat_pilot_label: 'Vendor pilot',
         stat_pilot_value: '158 items',
         stat_pilot_sub: 'FOISORUL A · live since 03.05.2026',
         value_section_title:
-          'Everything you need to sell food online — in one solution.',
+          'Everything you need to sell online — in one solution.',
         value_section_intro:
           'Stop buying POS from one vendor, delivery from another, CRM from a third.',
         value_storefront_title: 'White-label storefront',
@@ -1782,13 +1782,13 @@ export const dictionaries = {
         pricing_card2_cta: '',
         pricing_disclaimer:
           'All prices exclude VAT. The 2 lei fee is retained automatically at the moment of customer payment via real-time split — no monthly invoice.',
-        connect_eyebrow: 'HIR Connect — for restaurants with an existing site',
+        connect_eyebrow: 'HIR Connect — for businesses with an existing site',
         connect_title:
           'Already have an ordering site? Keep it. We add only delivery and AI.',
         connect_body:
           'HIR Connect is the invisible service layer for restaurants that already have their own checkout. Orders flow from your site through a simple API, land in HIR’s courier fleet, and are analysed by AI agents. You own the brand; we run operations.',
         connect_point_1:
-          'Same pricing: 2 lei per processed order. No subscription, no setup fee. Free for the first 50 restaurants.',
+          'Same pricing: 2 lei per processed order. No subscription, no setup fee. Free for the first 50 vendors.',
         connect_point_2:
           'Full access to the HIR dashboard and the Hepy assistant — without changing a single line on your site.',
         connect_point_3:
@@ -1843,12 +1843,12 @@ export const dictionaries = {
         og_subtitle:
           'White-label storefront, in-house delivery, fast menu setup, CRM, loyalty, reservations.',
         og_description:
-          'Everything a restaurant needs to sell online, deliver with its own courier and keep its customer data.',
+          'Everything a business needs to sell online, deliver with its own courier and keep customer data.',
         eyebrow: 'Features',
-        hero_title: 'Everything a restaurant needs. Simple.',
+        hero_title: 'Everything a business needs. Simple.',
         hero_body:
           'Online orders, in-house delivery, CRM, loyalty — all on one screen. Periodic security audits, GDPR-ready. No resold white labels.',
-        group1_title: 'For restaurants',
+        group1_title: 'For any business',
         group1_intro: 'What the owner gets in the first 5 minutes after onboarding.',
         item_storefront_title: 'White-label storefront',
         item_storefront_body:
@@ -1877,9 +1877,9 @@ export const dictionaries = {
         item_courier_map_title: 'Map + real-time GPS',
         item_courier_map_body:
           'The courier sees orders on a map, navigates in-app with Google Maps, status syncs in real time with the restaurant and customer.',
-        item_courier_multifleet_title: 'For chains and high-volume restaurants',
+        item_courier_multifleet_title: 'For chains and high-volume vendors',
         item_courier_multifleet_body:
-          'A courier can pick up orders from several restaurants at once. HIR operators see aggregated KPIs and revenue per courier.',
+          'A courier can pick up orders from several vendors at once. HIR operators see aggregated KPIs and revenue per courier.',
         group3_title: 'For customers',
         group3_intro:
           'The end experience the buyer sees when they open your page.',
@@ -1953,8 +1953,8 @@ export const dictionaries = {
       card1_title: 'HIR Direct',
       card1_price: '2 lei',
       card1_price_sub: '/ online order processed',
-      card1_description: 'For any restaurant — the fee covers order processing through the site. Delivery is contracted separately: we build you a tailored courier offer, or you keep using your own team.',
-      card1_badge: 'Free setup — first 50 restaurants',
+      card1_description: 'For any business — the fee covers order processing through the site. Delivery is contracted separately: we build you a tailored courier offer, or you keep using your own team.',
+      card1_badge: 'Free setup — first 50 vendors (restaurants, florists, gift shops)',
       card1_p1: 'White-label storefront with your own brand',
       card1_p2: 'GloriaFood importer included',
       card1_p3: 'CRM + loyalty + reviews + reservations',

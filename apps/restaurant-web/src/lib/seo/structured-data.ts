@@ -143,9 +143,9 @@ export function pricingProductJsonLd(input: { url: string; imageUrl?: string }) 
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: 'HIRforYOU — comandă online pentru restaurante',
+    name: 'HIRforYOU — comandă online pentru orice tip de business',
     description:
-      'Tarif unic 2 lei per comandă procesată online prin site. Fără abonament, fără procent, fără taxă de setup. Livrarea este separată și se contractează printr-o ofertă personalizată. Instalare gratuită pentru primele 50 de restaurante.',
+      'Tarif unic 2 lei per comandă procesată online prin site. Fără abonament, fără procent, fără taxă de setup. Livrarea este separată și se contractează printr-o ofertă personalizată. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
     brand: { '@type': 'Brand', name: 'HIRforYOU' },
     image: input.imageUrl ? [input.imageUrl] : undefined,
     offers: {
