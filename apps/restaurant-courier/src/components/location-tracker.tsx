@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { watchPosition as bridgeWatchPosition } from '@/lib/native/geolocation';
+import {
+  watchPosition as bridgeWatchPosition,
+  getCurrentPosition,
+} from '@/lib/native/geolocation';
 import { useBgLocationDisclosureGate } from '@/components/background-location-rationale';
 
 // Battery-adaptive multipliers. Courier shifts are long (4–12h on
@@ -155,6 +158,21 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
     }
 
     if (typeof window === 'undefined') return;
+
+    // Seed an immediate one-shot fix the moment the shift goes online, so the
+    // courier is visible to dispatch (and gets nearby offers) right away — the
+    // native background watcher only emits after ~25m of movement, so a
+    // stationary courier who just went online would otherwise have no
+    // last_lat/lng until they start moving. Best-effort; ignored on failure.
+    void getCurrentPosition()
+      .then((pos) => {
+        if (!pos) return;
+        lastSentAtRef.current = Date.now();
+        return onFix(pos.lat, pos.lng);
+      })
+      .catch(() => {
+        // No initial fix (permission/timeout) — the watcher will catch up.
+      });
 
     // Unified bridge: native Capacitor Geolocation on Android/iOS (foreground
     // tracking only at launch — see geolocation.ts), navigator.geolocation in

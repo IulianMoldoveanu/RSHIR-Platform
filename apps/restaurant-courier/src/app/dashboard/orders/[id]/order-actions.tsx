@@ -7,6 +7,7 @@ import { Button } from '@hir/ui';
 import { PharmaChecks, type PharmaMetadata } from '@/components/pharma-checks';
 import { PhotoProofUpload } from '@/components/photo-proof-upload';
 import { CancelOrderModal } from '@/components/cancel-order-modal';
+import { FailedDeliveryModal } from '@/components/failed-delivery-modal';
 import { useRiderMode } from '@/components/rider-mode-provider';
 import { runTransitionOrQueue } from '@/lib/transition-runner';
 import { AppreciationToast } from '@/components/appreciation-toast';
@@ -47,6 +48,13 @@ type Props = {
     reason: string,
     notes?: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
+  // Mark the delivery FAILED (client absent/refuses/wrong address) in the
+  // delivery leg, where cancel is no longer allowed — so the courier isn't
+  // stuck at the door.
+  failAction: (
+    reason: string,
+    notes?: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function OrderActions({
@@ -62,6 +70,7 @@ export function OrderActions({
   pickedUpAction,
   deliveredAction,
   cancelAction,
+  failAction,
 }: Props) {
   const [pharmaOk, setPharmaOk] = useState(false);
   const [pharmaProofUrl, setPharmaProofUrl] = useState<string | undefined>(undefined);
@@ -277,6 +286,12 @@ export function OrderActions({
       {isMine && (status === 'ACCEPTED' || status === 'PICKED_UP') ? (
         <CancelOrderModal cancelAction={cancelAction} />
       ) : null}
+
+      {/* Failed-delivery escape hatch on the delivery leg (PICKED_UP /
+          IN_TRANSIT): client absent/refuses/wrong address. Without this the
+          courier was hard-stuck at the door — cancel is blocked past PICKED_UP
+          and the only "exit" was faking a delivery. */}
+      {isDeliveryPhase ? <FailedDeliveryModal failAction={failAction} /> : null}
 
       {/* COD cash-collection pop-up: appears before finalizing. Checking the
           box IS the confirmation — it marks the order delivered, no extra step. */}
