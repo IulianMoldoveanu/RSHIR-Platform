@@ -95,11 +95,26 @@ function LoginInner() {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Se autentifica...' : 'Conectare'}
             </Button>
-            <p className="text-center text-xs text-zinc-500">
-              <a href="/signup" className="underline">
-                Înregistrează un restaurant nou
-              </a>
-            </p>
+            <div className="space-y-1.5 text-center text-xs text-zinc-500">
+              <p>
+                <a href="/signup" className="underline">
+                  Înregistrează un restaurant nou
+                </a>
+              </p>
+              <p>
+                <a href="/fleet-signup" className="underline">
+                  Înregistrează o flotă nouă
+                </a>
+              </p>
+              <p>
+                <a
+                  href="https://hirforyou.ro/parteneriat/inscriere"
+                  className="underline"
+                >
+                  Devino partener reseller
+                </a>
+              </p>
+            </div>
           </Form>
         </CardContent>
       </Card>
