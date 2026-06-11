@@ -120,12 +120,16 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (createdFleet?.id) {
+    // Seed fleet_kyf row. Status must be one of PENDING/VERIFIED/REJECTED per
+    // fleet_kyf_kyf_status_check constraint on prod (verified 2026-06-11 after
+    // a previous "PENDING_DOCS" value silently violated the constraint and the
+    // .catch() swallowed the error, leaving fleet_kyf with no row).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (admin as any).from('fleet_kyf').insert({
       fleet_id: createdFleet.id,
       cui: cui.toUpperCase().replace(/^RO/, ''),
       company_name: name,
-      kyf_status: 'PENDING_DOCS',
+      kyf_status: 'PENDING',
     }).then(() => {}).catch(() => {});
   }
 
