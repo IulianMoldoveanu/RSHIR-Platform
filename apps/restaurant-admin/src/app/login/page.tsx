@@ -118,16 +118,11 @@ function LoginInner() {
           </Form>
         </CardContent>
       </Card>
-      <p className="mt-4 text-center text-xs text-zinc-400">
-        <a
-          href="https://hir-restaurant-web.vercel.app/status"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-zinc-600"
-        >
-          Status platformă
-        </a>
-      </p>
+      {/* "Status platformă" link removed from public login 2026-06-11 per
+          Iulian directive ("doar eu trebuie sa am acces. sau eventual dupa
+          logare sa poata vedea si managerii de flota sau cei de restaurant").
+          Status page itself still resolves at /status for direct access; will
+          be surfaced post-login in dashboard footer in a follow-up. */}
     </main>
   );
 }

@@ -3,7 +3,9 @@ import { createServerClient as createSsrClient, type CookieOptions } from '@supa
 
 // `/api/healthz` + `/api/version` are public so external uptime monitors and
 // release-watchers can probe without auth.
-const PUBLIC_PATHS = ['/login', '/signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/healthz', '/api/version'];
+// 2026-06-11 — /fleet-signup + /api/fleet-signup added for self-serve fleet
+// manager onboarding (parallel to tenant /signup flow).
+const PUBLIC_PATHS = ['/login', '/signup', '/fleet-signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/fleet-signup', '/api/healthz', '/api/version'];
 
 /**
  * Auth guard: any /dashboard/* path requires a Supabase session, otherwise
