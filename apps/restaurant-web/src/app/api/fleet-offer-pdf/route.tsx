@@ -1,88 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { FleetManagerOfferPDF } from '@/lib/sales-sheet/FleetManagerOfferPDF';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// GET /api/fleet-offer-pdf?fleet=<name>
-//
-// Generates a tailored multi-page PDF commercial proposal for a fleet
-// manager. Linked from the platform-admin Fleet Managers panel
-// (apps/restaurant-admin/.../fleet-managers) so Iulian can hand a
-// branded PDF to each prospect.
-//
-// Public route by design — no PII, no DB read, content is static
-// commercial copy + the supplied fleet name. If we ever wire pricing
-// per-fleet we will move the route behind a platform-admin gate.
-//
-// Rewritten 2026-06-11: previous version had 96 null bytes embedded by the
-// Workflow generator. Git treated the file as binary and the Next.js build
-// either skipped or compiled a corrupt route handler, manifesting as
-// `render_failed` 500 on prod.
+// 2026-06-11 — react-pdf renderToBuffer fails on Next 15 with reconciler
+// error #31. Pivoted to a printable HTML page at /oferta-flota (browser
+// Ctrl/Cmd+P -> Save as PDF is the most reliable cross-platform fallback).
+// This route now 302s to the HTML page so any existing share links keep working.
 
-const DEFAULT_FLEET_NAME = 'Flota fara nume';
-const MAX_FLEET_NAME_LENGTH = 100;
-
-function sanitizeFleetName(raw: string | null): string {
-  if (!raw) return DEFAULT_FLEET_NAME;
-  // Strip ASCII control chars (\x00-\x1F + DEL) before truncating.
-  // eslint-disable-next-line no-control-regex
-  const cleaned = raw.replace(/[\x00-\x1F\x7F]/g, '').trim();
-  if (!cleaned) return DEFAULT_FLEET_NAME;
-  return cleaned.slice(0, MAX_FLEET_NAME_LENGTH);
-}
-
-function asciiFilenameSafe(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[^\x20-\x7E]/g, '-')
-    .replace(/[\\/:*?"<>|]/g, '-')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'flota';
-}
-
-function formatPreparedDate(): string {
-  const ro = new Intl.DateTimeFormat('ro-RO', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'Europe/Bucharest',
-  }).format(new Date());
-  // Strip combining diacritic marks so the Helvetica fallback in react-pdf
-  // can render the month name without missing glyph squares.
-  return ro.normalize('NFKD').replace(/[̀-ͯ]/g, '');
-}
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const fleetName = sanitizeFleetName(searchParams.get('fleet'));
-  const preparedDate = formatPreparedDate();
-
-  let pdf: Buffer;
-  try {
-    pdf = await renderToBuffer(
-      <FleetManagerOfferPDF fleetName={fleetName} preparedDate={preparedDate} />,
-    );
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const stack = e instanceof Error ? (e.stack || '').slice(0, 2000) : '';
-    console.error('[fleet-offer-pdf] render error:', msg, '\n', stack);
-    return NextResponse.json(
-      { error: 'render_failed', detail: msg, stack },
-      { status: 500 },
-    );
-  }
-
-  const filename = `HIR-Oferta-Flota-${asciiFilenameSafe(fleetName)}.pdf`;
-
-  return new NextResponse(new Uint8Array(pdf), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
-    },
-  });
+export function GET(req: NextRequest) {
+  const fleet = req.nextUrl.searchParams.get('fleet') ?? '';
+  const target = new URL('/oferta-flota', req.nextUrl.origin);
+  if (fleet) target.searchParams.set('fleet', fleet);
+  return NextResponse.redirect(target.toString(), 302);
 }
