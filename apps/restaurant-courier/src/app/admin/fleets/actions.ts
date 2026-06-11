@@ -45,7 +45,10 @@ type AdminSb = {
   };
   auth: {
     admin: {
-      inviteUserByEmail: (email: string) => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
+      inviteUserByEmail: (
+        email: string,
+        opts?: { redirectTo?: string },
+      ) => Promise<{ data: Record<string, unknown> | null; error: { message: string } | null }>;
       createUser: (opts: Record<string, unknown>) => Promise<{ data: { user: { id: string } | null } | null; error: { message: string } | null }>;
     };
   };
@@ -53,6 +56,18 @@ type AdminSb = {
 
 function adminSb(): AdminSb {
   return createAdminClient() as unknown as AdminSb;
+}
+
+// Where an invite magic-link lands. MUST be a public client page that consumes
+// the #access_token fragment and lets the invitee set a password — NOT
+// /dashboard (middleware bounces it to /login and the fragment is lost, leaving
+// the invitee at a password screen for a password they were never given).
+// /login/reset already handles the SIGNED_IN event an invite fires. Mirrors the
+// fleet-manager invite fix (inviteCourierToFleetAction).
+function inviteRedirectTo(): string {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_COURIER_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  return baseUrl ? `${baseUrl.replace(/\/$/, '')}/login/reset` : '/login/reset';
 }
 
 // ── createFleet ──────────────────────────────────────────────────────────────
@@ -93,7 +108,10 @@ export async function createFleet(formData: FormData): Promise<ActionResult & { 
     if (found) {
       ownerUserId = found.id;
     } else {
-      const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(ownerEmail);
+      const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(
+        ownerEmail,
+        { redirectTo: inviteRedirectTo() },
+      );
       if (inviteErr) return { ok: false, error: `Invite failed: ${inviteErr.message}` };
       ownerUserId = (invited as unknown as { user?: { id: string } } | null)?.user?.id ?? null;
     }
@@ -203,7 +221,9 @@ export async function inviteCourier(
 
   const sb = adminSb();
   // Invite or create the user.
-  const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email.trim());
+  const { data: invited, error: inviteErr } = await sb.auth.admin.inviteUserByEmail(email.trim(), {
+    redirectTo: inviteRedirectTo(),
+  });
   if (inviteErr) return { ok: false, error: `Invite failed: ${inviteErr.message}` };
 
   const userId = (invited as unknown as { user?: { id: string } } | null)?.user?.id;
