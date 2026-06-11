@@ -177,7 +177,9 @@ export function FleetSignupForm() {
             ) : slugStatus.state === 'taken' ? (
               <p className="text-xs text-rose-700">Slug deja folosit — alege altul.</p>
             ) : slugStatus.state === 'invalid' && slug.length > 0 ? (
-              <p className="text-xs text-rose-700">3-30 caractere, doar litere mici, cifre, „-".</p>
+              <p className="text-xs text-rose-700">
+                {'3-30 caractere, doar litere mici, cifre, „-".'}
+              </p>
             ) : null}
           </FormField>
 
