@@ -12,6 +12,15 @@ const nextConfig = {
   // supabase-browser.ts). Excluding it from transpilation breaks `next build`
   // and runtime module parsing.
   transpilePackages: ['@hir/ui', '@hir/supabase-types', '@hir/integration-core'],
+  // 2026-06-11 — @react-pdf/renderer (+ ntp-logo-react which depends on it)
+  // ships with fontkit/pdfkit native deps. Next 15 silently breaks the React
+  // tree when webpack bundles the reconciler — every renderToBuffer() call
+  // throws Minified React error #31 ("object with keys $$typeof type key
+  // ref props" — element shape mismatch between bundler-rewritten React
+  // and the standalone reconciler module). Externalizing the package keeps
+  // it as a CommonJS require from node_modules at runtime, which is what
+  // both /api/sales-sheet and /api/fleet-offer-pdf need to render PDFs.
+  serverExternalPackages: ['@react-pdf/renderer', 'ntp-logo-react'],
   experimental: {
     // 52+ files import from lucide-react across web + admin. Without this
     // flag Next bundles the full barrel; with it Next emits per-icon
