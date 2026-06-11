@@ -154,10 +154,11 @@ export function BackgroundLocationRationale() {
           De ce avem nevoie de locația ta în timpul turei
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-hir-muted-fg">
-          Cât ești pe tură trimitem poziția ta către dispecerat, ca să primești
-          comenzile apropiate și clientul să urmărească livrarea. Funcționează și
-          când telefonul e blocat sau aplicația e în fundal. La ecranul de
-          permisiuni alege <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
+          Cât ești pe tură, HIR Curier folosește <strong className="text-hir-fg">locația</strong> ta —
+          inclusiv <strong className="text-hir-fg">în fundal, când aplicația este închisă</strong> sau
+          telefonul e blocat — ca să primești comenzile apropiate și clientul să
+          urmărească livrarea. La ecranul de permisiuni alege{' '}
+          <strong className="text-hir-fg">&bdquo;Permite tot timpul&rdquo;</strong>.
         </p>
         <p className="mt-2 text-xs leading-relaxed text-hir-muted-fg">
           Cât urmărirea e activă vezi o notificare permanentă în bara de sus. Locația
