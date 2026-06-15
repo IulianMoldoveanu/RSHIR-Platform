@@ -22,12 +22,12 @@ function LoginInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  // 2026-06-15 — "keep me logged in" per Iulian directive. Default ON so
-  // fleet managers / restaurant owners don't get bounced out on every browser
-  // restart. When unchecked, we keep the session JWT memory-only (token in
-  // tab session storage instead of localStorage), so closing the browser ends
-  // the session. Checked = persistent across reboots (default 30 days
-  // Supabase JWT refresh).
+  // 2026-06-15 — "keep me logged in" per Iulian directive: forever (not
+  // 30 days). Supabase refresh tokens have no built-in expiry — the access
+  // JWT is silently rotated by supabase-js as long as the refresh token
+  // is held. Checked = session persists until explicit logout (browser
+  // restart safe). Unchecked = beforeunload signOut wipes the session
+  // on tab close.
   const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
   useEffect(() => {
@@ -138,7 +138,7 @@ function LoginInner() {
                 onChange={(e) => setKeepLoggedIn(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
               />
-              Tine-ma logat (30 de zile)
+              Tine-ma logat
             </label>
             {error ? <FormMessage>{error}</FormMessage> : null}
             <Button type="submit" disabled={submitting}>
