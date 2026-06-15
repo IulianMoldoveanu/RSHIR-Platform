@@ -104,19 +104,22 @@ export async function saveKyfMetaAction(formData: FormData) {
   const address = String(formData.get('address') ?? '').trim();
   const city_id = String(formData.get('city_id') ?? '').trim();
 
-  // 2026-06-15 — Reg. Comertului validation accepts ALL the formats real
-  // RO companies use, per Iulian directive (multe firme nu si-au updatat
-  // la registrul nou):
-  //   - Old letter format:  J40/123/2020, F12/45/2019, C03/7/2024
-  //                         (J=SRL/SA, F=PFA, C=cooperative; year 2 or 4 digits)
-  //   - EUID alias prefix:  ROONRCJ40/123/2020 or ROONRC.J40/123/2020
-  //   - Pure numeric EUID:  10-20 digit strings (ONRC 2024 reform alias)
-  // Iulian reviews everything in /dashboard/admin/verifications anyway.
-  const REG_COM_RE = /^(ROONRC\.?)?[JFC]\d{1,2}\/\d{1,6}\/(\d{2}|\d{4})$|^\d{10,20}$/;
+  // 2026-06-15 — Reg. Comertului accepts EVERY real RO format. Iulian reviews
+  // everything in /dashboard/admin/verifications anyway; this regex is the
+  // floor for "obviously malformed", not legal source of truth.
+  //
+  // Formats seen on actual fleets:
+  //   1. Old with slashes:   J40/123/2020, F12/45/2019, C03/7/2024
+  //   2. NEW 2024 reform:    J2024038688005 (J + year + county + seq, no slashes)
+  //                          observed on ELS Courier Delivery SRL 2026-06-15
+  //   3. EUID alias prefix:  ROONRCJ40/123/2020, ROONRC.J40/123/2020
+  //   4. Pure numeric EUID:  10-20 digit strings
+  const REG_COM_RE =
+    /^(ROONRC\.?)?[JFC](\d{1,2}\/\d{1,6}\/(\d{2}|\d{4})|\d{6,18})$|^\d{10,20}$/;
   if (reg_com && !REG_COM_RE.test(reg_com)) {
     return {
       ok: false,
-      error: 'Format Reg. Com. invalid. Acceptam: J40/123/2020 (vechi), F12/45/2019, ROONRC.J40/123/2020 sau EUID numeric (10-20 cifre).',
+      error: 'Reg. Com. nu pare valid. Acceptam: J40/123/2020 (vechi cu slashe-uri), J2024038688005 (nou 2024, fara slashe-uri), ROONRC.J40/... sau EUID numeric (10-20 cifre).',
     };
   }
   if (caen_code && !/^\d{4}$/.test(caen_code)) {
