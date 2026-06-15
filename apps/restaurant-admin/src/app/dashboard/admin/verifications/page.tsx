@@ -18,12 +18,16 @@ export const metadata = {
   robots: 'noindex,nofollow',
 };
 
+type SelectBuilder = {
+  eq: (c: string, v: string) => SelectBuilder & Promise<{ data: Record<string, unknown>[] | null }>;
+  in: (c: string, v: string[]) => SelectBuilder & Promise<{ data: Record<string, unknown>[] | null }>;
+  not: (c: string, op: string, v: unknown) => SelectBuilder & Promise<{ data: Record<string, unknown>[] | null }>;
+  order: (c: string, opts: { ascending: boolean }) => SelectBuilder & Promise<{ data: Record<string, unknown>[] | null }>;
+};
+
 type Sb = {
   from: (t: string) => {
-    select: (cols: string) => {
-      eq: (c: string, v: string) => Promise<{ data: Record<string, unknown>[] | null }>;
-      in: (c: string, v: string[]) => Promise<{ data: Record<string, unknown>[] | null }>;
-    };
+    select: (cols: string) => SelectBuilder & Promise<{ data: Record<string, unknown>[] | null }>;
   };
   storage: {
     from: (b: string) => {
@@ -56,17 +60,25 @@ export default async function VerificationsPage() {
     return data?.signedUrl ?? null;
   }
 
+  // 2026-06-15 — only show forms that have been TRIMIS spre verificare
+  // (submitted_at IS NOT NULL). Drafts in progress are visible separately at
+  // /dashboard/admin/fleets so Iulian doesn't get a flood of incomplete rows
+  // in his review queue.
   const [{ data: kycRows }, { data: kyfRows }] = await Promise.all([
     db
       .from('courier_kyc')
       .select('courier_user_id, fleet_id, legal_name, cnp_last4, id_doc_url, selfie_url, submitted_at, created_at')
-      .eq('kyc_status', 'PENDING'),
+      .eq('kyc_status', 'PENDING')
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: true }),
     db
       .from('fleet_kyf')
       .select(
         'fleet_id, cui, company_name, reg_com, caen_code, address, vat_payer, anaf_active, act_constitutiv_url, extras_cont_url, certificat_inreg_url, submitted_at',
       )
-      .eq('kyf_status', 'PENDING'),
+      .eq('kyf_status', 'PENDING')
+      .not('submitted_at', 'is', null)
+      .order('submitted_at', { ascending: true }),
   ]);
 
   const kyc = (kycRows ?? []) as Array<{

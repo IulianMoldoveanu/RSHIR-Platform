@@ -12,6 +12,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { lookupAnaf, normaliseCui } from '@/lib/anaf';
 
 const BUCKET = 'fleet-kyf';
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB per bucket config
@@ -99,6 +100,7 @@ export async function saveKyfMetaAction(formData: FormData) {
   const caen_code = String(formData.get('caen_code') ?? '').trim();
   const iban = String(formData.get('iban') ?? '').trim().replace(/\s+/g, '').toUpperCase();
   const address = String(formData.get('address') ?? '').trim();
+  const city_id = String(formData.get('city_id') ?? '').trim();
 
   // Loose validation — Iulian reviews everything anyway.
   if (reg_com && !/^J\d{2}\/\d{1,6}\/\d{4}$/i.test(reg_com)) {
@@ -109,6 +111,9 @@ export async function saveKyfMetaAction(formData: FormData) {
   }
   if (iban && !/^RO\d{2}[A-Z0-9]{20,}$/.test(iban)) {
     return { ok: false, error: 'IBAN invalid (trebuie sa inceapa cu RO).' };
+  }
+  if (city_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(city_id)) {
+    return { ok: false, error: 'Oras invalid.' };
   }
 
   const { fleetId } = await requireFleetForUser();
@@ -127,6 +132,17 @@ export async function saveKyfMetaAction(formData: FormData) {
   if (error) {
     console.error('[fleet/kyf] meta update error:', error.message);
     return { ok: false, error: 'Eroare la salvare.' };
+  }
+  // 2026-06-15 — also update courier_fleets.primary_city_id so dispatch can
+  // match fleet↔tenant by city. Pre-existing fleets without a city use this
+  // form to set it the first time they log in.
+  if (city_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any)
+      .from('courier_fleets')
+      .update({ primary_city_id: city_id })
+      .eq('id', fleetId);
+    revalidatePath('/fleet');
   }
   revalidatePath('/fleet/kyf');
   return { ok: true };
@@ -169,6 +185,66 @@ export async function submitKyfAction() {
   revalidatePath('/fleet');
   revalidatePath('/fleet/kyf');
   return { ok: true };
+}
+
+export async function anafSyncAction(formData: FormData) {
+  // 2026-06-15 — Iulian directive: when fleet manager enters CUI on KYF page,
+  // pull official data from ANAF and persist it to fleet_kyf (name, address,
+  // reg_com, caen_code, vat_payer, anaf_active, anaf_checked_at). Returns
+  // the snapshot so the form can prefill its inputs.
+  const cuiRaw = String(formData.get('cui') ?? '').trim();
+  const cui = normaliseCui(cuiRaw);
+  if (!cui) return { ok: false as const, error: 'CUI invalid.' };
+
+  const { fleetId } = await requireFleetForUser();
+  const company = await lookupAnaf(cui);
+  if (!company) {
+    return {
+      ok: false as const,
+      error: 'ANAF nu a gasit firma cu acest CUI (sau API-ul nu raspunde). Verifica CUI-ul si reincearca.',
+    };
+  }
+  if (!company.active) {
+    return {
+      ok: false as const,
+      error: 'Firma figureaza ca inactiva/radiata in ANAF. Nu poate opera o flota HIR.',
+    };
+  }
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin as any)
+    .from('fleet_kyf')
+    .update({
+      cui: company.cui,
+      company_name: company.name,
+      address: company.address ?? null,
+      reg_com: company.regCom ?? null,
+      caen_code: company.caenCode ?? null,
+      vat_payer: company.vatPayer,
+      anaf_active: company.active,
+      anaf_checked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('fleet_id', fleetId);
+  if (error) {
+    console.error('[fleet/kyf] anaf save error:', error.message);
+    return { ok: false as const, error: 'Eroare la salvare datelor ANAF.' };
+  }
+  revalidatePath('/fleet/kyf');
+  revalidatePath('/fleet');
+  return {
+    ok: true as const,
+    company: {
+      cui: company.cui,
+      name: company.name,
+      address: company.address,
+      regCom: company.regCom,
+      caenCode: company.caenCode,
+      vatPayer: company.vatPayer,
+      active: company.active,
+    },
+  };
 }
 
 export async function signedUrlAction(formData: FormData): Promise<{ url?: string; error?: string }> {

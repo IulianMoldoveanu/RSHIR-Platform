@@ -2,6 +2,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { KyfUploadForm } from './kyf-upload-form';
+import { listActiveCities } from '@/lib/cities';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +44,17 @@ export default async function FleetKyfPage() {
     .maybeSingle();
 
   if (!fleet) redirect('/fleet-signup');
+
+  // 2026-06-15 — also load fleet primary_city_id so the form picker can
+  // reflect the currently-saved value (and let the manager change it).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: fleetMeta } = await (admin as any)
+    .from('courier_fleets')
+    .select('primary_city_id')
+    .eq('id', fleet.id)
+    .maybeSingle();
+
+  const cities = await listActiveCities();
 
   const { data } = await admin
     .from('fleet_kyf')
@@ -89,6 +101,8 @@ export default async function FleetKyfPage() {
       )}
 
       <KyfUploadForm
+        cities={cities}
+        currentCityId={(fleetMeta as { primary_city_id: string | null } | null)?.primary_city_id ?? null}
         fleetName={fleet.name as string}
         kyf={kyf}
         readOnly={isVerified}

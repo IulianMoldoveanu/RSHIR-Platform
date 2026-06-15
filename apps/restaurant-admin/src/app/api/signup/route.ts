@@ -90,9 +90,27 @@ export async function POST(req: NextRequest) {
   }
   const userId = created.user.id;
 
+  // 2026-06-15 — Default to cod_only + cod_enabled=true so every new tenant
+  // has a working payment surface from day 1. Without this, the legacy path
+  // (PSP_TENANT_TOGGLE_ENABLED=false) defaults to cardEnabled=true with no
+  // PSP credentials → checkout fails when customer picks CARD. Operator
+  // upgrades to card_sandbox / card_live from /dashboard/settings/payments
+  // once Netopia/Viva credentials are wired per-tenant.
+  const initialSettings = {
+    cod_enabled: true,
+    payments: { mode: 'cod_only' as const, provider: 'netopia' as const },
+  };
+
   const { data: tenantRow, error: tenantErr } = await admin
     .from('tenants')
-    .insert({ name, slug, status: 'ACTIVE', vertical: 'RESTAURANT', city_id })
+    .insert({
+      name,
+      slug,
+      status: 'ACTIVE',
+      vertical: 'RESTAURANT',
+      city_id,
+      settings: initialSettings as never,
+    })
     .select('id')
     .single();
   if (tenantErr || !tenantRow) {
