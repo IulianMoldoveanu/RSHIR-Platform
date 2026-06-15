@@ -210,6 +210,19 @@ jobs:
           STUB
           fi
 
+      # Google Play rejects an upload whose versionCode is not strictly greater
+      # than every prior upload. `cap add android` regenerates the project with
+      # Capacitor's default versionCode 1 on every run, so without this step
+      # every AAB collides at versionCode 1. Use the monotonic workflow run
+      # number — always increasing, already > 1.
+      - name: Bump versionCode for Play (monotonic = run number)
+        working-directory: apps/restaurant-courier
+        run: |
+          GRADLE=android/app/build.gradle
+          sed -i "s/versionCode 1\b/versionCode ${{ github.run_number }}/" "$GRADLE"
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" "$GRADLE"
+          echo "Applied version:" && grep -E "versionCode|versionName" "$GRADLE"
+
       - name: Decode keystore
         if: ${{ env.HAS_KEYSTORE == 'true' }}
         run: |

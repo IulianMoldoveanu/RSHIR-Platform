@@ -65,9 +65,14 @@ function adminSb(): AdminSb {
 // /login/reset already handles the SIGNED_IN event an invite fires. Mirrors the
 // fleet-manager invite fix (inviteCourierToFleetAction).
 function inviteRedirectTo(): string {
+  // Absolute fallback to the production courier URL — a relative path would
+  // resolve against the project's site_url (misconfigured to localhost on this
+  // shared project), dead-ending the invite. Env vars override for non-prod.
   const baseUrl =
-    process.env.NEXT_PUBLIC_COURIER_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? '';
-  return baseUrl ? `${baseUrl.replace(/\/$/, '')}/login/reset` : '/login/reset';
+    process.env.NEXT_PUBLIC_COURIER_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    'https://courier.hirforyou.ro';
+  return `${baseUrl.replace(/\/$/, '')}/login/reset`;
 }
 
 // ── createFleet ──────────────────────────────────────────────────────────────

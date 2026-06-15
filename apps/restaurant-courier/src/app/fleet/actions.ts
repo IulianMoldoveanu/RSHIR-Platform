@@ -823,16 +823,16 @@ export async function inviteCourierToFleetAction(
         };
       };
     };
-    // After accepting the invite Supabase redirects the user to the
-    // configured site URL. Pin it to the courier dashboard so the
-    // first-time experience lands them on the live map instead of a
-    // generic auth confirmation page. Falls back to NEXT_PUBLIC_SITE_URL,
-    // then to a relative path the auth backend will resolve against the
-    // project's site URL setting.
+    // After accepting the invite Supabase redirects the user to this URL.
+    // It MUST be absolute: a relative path falls back to the project's
+    // site_url, which is misconfigured to localhost on this shared project —
+    // so the invited courier would get a dead localhost link. Hardcode the
+    // production courier URL as the final fallback so onboarding works even
+    // when the Vercel env is not set. (Env overrides allow non-prod targets.)
     const baseUrl =
       process.env.NEXT_PUBLIC_COURIER_URL ??
       process.env.NEXT_PUBLIC_SITE_URL ??
-      '';
+      'https://courier.hirforyou.ro';
     // Invite magic-links must land on a PUBLIC client page that consumes the
     // #access_token fragment and lets the courier set a password — NOT on
     // /dashboard, which middleware bounces to /login (the fragment is never
