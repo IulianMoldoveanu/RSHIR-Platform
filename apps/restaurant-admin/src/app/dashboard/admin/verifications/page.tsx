@@ -60,25 +60,27 @@ export default async function VerificationsPage() {
     return data?.signedUrl ?? null;
   }
 
-  // 2026-06-15 — only show forms that have been TRIMIS spre verificare
-  // (submitted_at IS NOT NULL). Drafts in progress are visible separately at
-  // /dashboard/admin/fleets so Iulian doesn't get a flood of incomplete rows
-  // in his review queue.
+  // 2026-06-15 — show ALL submitted forms (PENDING + VERIFIED + REJECTED).
+  // Iulian needs to be able to re-open documents after he's verified or
+  // rejected a fleet (to re-check or download for support). Drafts (rows
+  // with submitted_at NULL) stay invisible here — they're work-in-progress.
+  // Sort: PENDING first (review queue), then VERIFIED/REJECTED desc by
+  // submitted_at so recent decisions are at the top.
   const [{ data: kycRows }, { data: kyfRows }] = await Promise.all([
     db
       .from('courier_kyc')
-      .select('courier_user_id, fleet_id, legal_name, cnp_last4, id_doc_url, selfie_url, submitted_at, created_at')
-      .eq('kyc_status', 'PENDING')
+      .select('courier_user_id, fleet_id, legal_name, cnp_last4, id_doc_url, selfie_url, kyc_status, submitted_at, created_at, verified_at, rejected_reason')
+      .in('kyc_status', ['PENDING', 'VERIFIED', 'REJECTED'])
       .not('submitted_at', 'is', null)
-      .order('submitted_at', { ascending: true }),
+      .order('submitted_at', { ascending: false }),
     db
       .from('fleet_kyf')
       .select(
-        'fleet_id, cui, company_name, reg_com, caen_code, address, vat_payer, anaf_active, act_constitutiv_url, extras_cont_url, certificat_inreg_url, submitted_at',
+        'fleet_id, cui, company_name, reg_com, caen_code, address, vat_payer, anaf_active, act_constitutiv_url, extras_cont_url, certificat_inreg_url, kyf_status, submitted_at, verified_at, rejected_reason',
       )
-      .eq('kyf_status', 'PENDING')
+      .in('kyf_status', ['PENDING', 'VERIFIED', 'REJECTED'])
       .not('submitted_at', 'is', null)
-      .order('submitted_at', { ascending: true }),
+      .order('submitted_at', { ascending: false }),
   ]);
 
   const kyc = (kycRows ?? []) as Array<{
@@ -88,8 +90,11 @@ export default async function VerificationsPage() {
     cnp_last4: string | null;
     id_doc_url: string | null;
     selfie_url: string | null;
+    kyc_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
     submitted_at: string | null;
     created_at: string | null;
+    verified_at: string | null;
+    rejected_reason: string | null;
   }>;
   const kyf = (kyfRows ?? []) as Array<{
     fleet_id: string;
@@ -103,7 +108,10 @@ export default async function VerificationsPage() {
     act_constitutiv_url: string | null;
     extras_cont_url: string | null;
     certificat_inreg_url: string | null;
+    kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
     submitted_at: string | null;
+    verified_at: string | null;
+    rejected_reason: string | null;
   }>;
 
   const courierIds = kyc.map((k) => k.courier_user_id);
@@ -146,6 +154,9 @@ export default async function VerificationsPage() {
         fleetName: fleet?.name ?? null,
         fleetPrefix: fleet?.prefix ?? null,
         cnpLast4: k.cnp_last4,
+        status: k.kyc_status,
+        verifiedAt: k.verified_at,
+        rejectedReason: k.rejected_reason,
         submittedAt: k.submitted_at ?? k.created_at,
         idDocUrl,
         selfieUrl,
@@ -170,6 +181,9 @@ export default async function VerificationsPage() {
         address: f.address,
         vatPayer: f.vat_payer,
         anafActive: f.anaf_active,
+        status: f.kyf_status,
+        verifiedAt: f.verified_at,
+        rejectedReason: f.rejected_reason,
         submittedAt: f.submitted_at,
         actUrl,
         extrasUrl,

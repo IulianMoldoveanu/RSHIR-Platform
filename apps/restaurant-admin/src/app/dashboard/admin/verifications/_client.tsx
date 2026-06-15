@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { verifyCourierKyc, verifyFleetKyf, type Decision } from './actions';
 
+export type VStatus = 'PENDING' | 'VERIFIED' | 'REJECTED';
+
 export type CourierVM = {
   userId: string;
   legalName: string | null;
@@ -12,6 +14,9 @@ export type CourierVM = {
   fleetName: string | null;
   fleetPrefix: string | null;
   cnpLast4: string | null;
+  status: VStatus;
+  verifiedAt: string | null;
+  rejectedReason: string | null;
   submittedAt: string | null;
   idDocUrl: string | null;
   selfieUrl: string | null;
@@ -27,6 +32,9 @@ export type FleetVM = {
   address: string | null;
   vatPayer: boolean | null;
   anafActive: boolean | null;
+  status: VStatus;
+  verifiedAt: string | null;
+  rejectedReason: string | null;
   submittedAt: string | null;
   actUrl: string | null;
   extrasUrl: string | null;
@@ -47,6 +55,8 @@ function courierDisplay(prefix: string | null, name: string | null): string {
   return p ? `${p} ${n}` : n;
 }
 
+type Filter = 'PENDING' | 'ALL' | 'VERIFIED' | 'REJECTED';
+
 export function VerificationsClient({
   couriers,
   fleets,
@@ -56,20 +66,53 @@ export function VerificationsClient({
 }) {
   const [doneCouriers, setDoneCouriers] = useState<Record<string, Decision>>({});
   const [doneFleets, setDoneFleets] = useState<Record<string, Decision>>({});
+  // 2026-06-15 — Iulian needs to see VERIFIED and REJECTED submissions too,
+  // not just the PENDING review queue. Default tab is PENDING (most common
+  // use case = "what do I need to action") but he can switch.
+  const [filter, setFilter] = useState<Filter>('PENDING');
 
-  const pendingCouriers = couriers.filter((c) => !doneCouriers[c.userId]);
-  const pendingFleets = fleets.filter((f) => !doneFleets[f.fleetId]);
+  function match(status: 'PENDING' | 'VERIFIED' | 'REJECTED'): boolean {
+    if (filter === 'ALL') return true;
+    return status === filter;
+  }
+
+  const visibleFleets = fleets.filter((f) => !doneFleets[f.fleetId] && match(f.status));
+  const visibleCouriers = couriers.filter((c) => !doneCouriers[c.userId] && match(c.status));
+
+  const counts = {
+    PENDING: fleets.filter((f) => f.status === 'PENDING').length + couriers.filter((c) => c.status === 'PENDING').length,
+    VERIFIED: fleets.filter((f) => f.status === 'VERIFIED').length + couriers.filter((c) => c.status === 'VERIFIED').length,
+    REJECTED: fleets.filter((f) => f.status === 'REJECTED').length + couriers.filter((c) => c.status === 'REJECTED').length,
+    ALL: fleets.length + couriers.length,
+  };
 
   return (
     <div className="flex flex-col gap-8">
+      <div className="flex flex-wrap items-center gap-2">
+        {(['PENDING', 'ALL', 'VERIFIED', 'REJECTED'] as const).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              filter === f
+                ? 'bg-violet-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            {f === 'PENDING' ? `În așteptare (${counts.PENDING})` : f === 'VERIFIED' ? `Aprobate (${counts.VERIFIED})` : f === 'REJECTED' ? `Respinse (${counts.REJECTED})` : `Toate (${counts.ALL})`}
+          </button>
+        ))}
+      </div>
+
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-          Firme (KYF) · {pendingFleets.length}
+          Firme (KYF) · {visibleFleets.length}
         </h2>
-        {pendingFleets.length === 0 ? (
-          <EmptyState label="Nicio firmă în așteptare." />
+        {visibleFleets.length === 0 ? (
+          <EmptyState label="Nicio firmă în această categorie." />
         ) : (
-          pendingFleets.map((f) => (
+          visibleFleets.map((f) => (
             <FleetCard
               key={f.fleetId}
               fleet={f}
@@ -81,12 +124,12 @@ export function VerificationsClient({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
-          Curieri (KYC) · {pendingCouriers.length}
+          Curieri (KYC) · {visibleCouriers.length}
         </h2>
-        {pendingCouriers.length === 0 ? (
-          <EmptyState label="Niciun curier în așteptare." />
+        {visibleCouriers.length === 0 ? (
+          <EmptyState label="Niciun curier în această categorie." />
         ) : (
-          pendingCouriers.map((c) => (
+          visibleCouriers.map((c) => (
             <CourierCard
               key={c.userId}
               courier={c}
@@ -96,6 +139,20 @@ export function VerificationsClient({
         )}
       </section>
     </div>
+  );
+}
+
+function StatusBadge({ status }: { status: VStatus }) {
+  const config =
+    status === 'VERIFIED'
+      ? { label: 'Aprobat', cls: 'bg-emerald-500/20 text-emerald-300' }
+      : status === 'REJECTED'
+        ? { label: 'Respins', cls: 'bg-rose-500/20 text-rose-300' }
+        : { label: 'In asteptare', cls: 'bg-amber-500/20 text-amber-300' };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${config.cls}`}>
+      {config.label}
+    </span>
   );
 }
 
@@ -227,6 +284,7 @@ function CourierCard({ courier, onDone }: { courier: CourierVM; onDone: (d: Deci
             {courier.vehicleType ? ` · ${courier.vehicleType}` : ''}
           </p>
         </div>
+        <StatusBadge status={courier.status} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <DocLink label="Act identitate" url={courier.idDocUrl} />
@@ -237,16 +295,24 @@ function CourierCard({ courier, onDone }: { courier: CourierVM; onDone: (d: Deci
           Curierul nu a încărcat încă documentele de identitate.
         </p>
       ) : null}
-      <p className="mt-2 text-[11px] text-slate-600">Trimis: {fmtDate(courier.submittedAt)}</p>
-      <div className="mt-3">
-        <DecisionControls
-          onDecide={async (decision, reason) => {
-            const r = await verifyCourierKyc(courier.userId, decision, reason);
-            if (r.ok) onDone(decision);
-            return r;
-          }}
-        />
-      </div>
+      <p className="mt-2 text-[11px] text-slate-600">
+        Trimis: {fmtDate(courier.submittedAt)}
+        {courier.verifiedAt ? ` · Aprobat: ${fmtDate(courier.verifiedAt)}` : ''}
+      </p>
+      {courier.status === 'REJECTED' && courier.rejectedReason ? (
+        <p className="mt-1 text-[11px] text-rose-300">Motiv respingere: {courier.rejectedReason}</p>
+      ) : null}
+      {courier.status === 'PENDING' ? (
+        <div className="mt-3">
+          <DecisionControls
+            onDecide={async (decision, reason) => {
+              const r = await verifyCourierKyc(courier.userId, decision, reason);
+              if (r.ok) onDone(decision);
+              return r;
+            }}
+          />
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -266,15 +332,18 @@ function FleetCard({ fleet, onDone }: { fleet: FleetVM; onDone: (d: Decision) =>
             {fleet.caenCode ? ` · CAEN ${fleet.caenCode}` : ''}
           </p>
         </div>
-        {fleet.anafActive === false ? (
-          <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[11px] font-semibold text-rose-300">
-            ANAF: inactivă
-          </span>
-        ) : fleet.anafActive ? (
-          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
-            ANAF: activă
-          </span>
-        ) : null}
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={fleet.status} />
+          {fleet.anafActive === false ? (
+            <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
+              ANAF: inactivă
+            </span>
+          ) : fleet.anafActive ? (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">
+              ANAF: activă
+            </span>
+          ) : null}
+        </div>
       </div>
       {fleet.address ? <p className="mt-1 text-[11px] text-slate-500">{fleet.address}</p> : null}
       {caenMismatch ? (
@@ -285,16 +354,24 @@ function FleetCard({ fleet, onDone }: { fleet: FleetVM; onDone: (d: Decision) =>
         <DocLink label="Extras de cont" url={fleet.extrasUrl} />
         <DocLink label="Certificat înreg." url={fleet.certificatUrl} />
       </div>
-      <p className="mt-2 text-[11px] text-slate-600">Trimis: {fmtDate(fleet.submittedAt)}</p>
-      <div className="mt-3">
-        <DecisionControls
-          onDecide={async (decision, reason) => {
-            const r = await verifyFleetKyf(fleet.fleetId, decision, reason);
-            if (r.ok) onDone(decision);
-            return r;
-          }}
-        />
-      </div>
+      <p className="mt-2 text-[11px] text-slate-600">
+        Trimis: {fmtDate(fleet.submittedAt)}
+        {fleet.verifiedAt ? ` · Aprobat: ${fmtDate(fleet.verifiedAt)}` : ''}
+      </p>
+      {fleet.status === 'REJECTED' && fleet.rejectedReason ? (
+        <p className="mt-1 text-[11px] text-rose-300">Motiv respingere: {fleet.rejectedReason}</p>
+      ) : null}
+      {fleet.status === 'PENDING' ? (
+        <div className="mt-3">
+          <DecisionControls
+            onDecide={async (decision, reason) => {
+              const r = await verifyFleetKyf(fleet.fleetId, decision, reason);
+              if (r.ok) onDone(decision);
+              return r;
+            }}
+          />
+        </div>
+      ) : null}
     </article>
   );
 }
