@@ -1,54 +1,23 @@
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ExternalLink } from 'lucide-react';
 import { requireFleetManager } from '@/lib/fleet-manager';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { KyfForm } from './kyf-form';
 
 export const dynamic = 'force-dynamic';
 
-type KyfRow = {
-  kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
-  cui: string | null;
-  company_name: string | null;
-  caen_code: string | null;
-  reg_com: string | null;
-  rejected_reason: string | null;
-};
+// 2026-06-15 — Per Iulian directive, fleet KYF document upload moved
+// EXCLUSIVELY to the admin panel (app.hirforyou.ro/fleet/kyf). The courier
+// PWA was never a great surface for managing company documents (designed
+// for drivers on phones, with the camera capture UX) — fleet managers
+// already work from desktop on app.hirforyou.ro to invoice/dispatch, so
+// KYF lives there. Couriers (drivers) still upload their personal ID card
+// on the courier app via /onboarding (separate flow).
 
-// Know Your Fleet: the fleet OWNER proves the company is real + active before
-// the fleet can operate. CUI is auto-validated against the free ANAF API; the
-// three documents ANAF doesn't expose are uploaded to the private fleet-kyf
-// bucket. The platform (echipa HIR) verifies.
+const ADMIN_HOST = 'https://app.hirforyou.ro';
+
 export default async function FleetKyfPage() {
-  const fleet = await requireFleetManager();
-
-  const admin = createAdminClient();
-  const { data } = await (
-    admin as unknown as {
-      from: (t: string) => {
-        select: (cols: string) => {
-          eq: (c: string, v: string) => {
-            maybeSingle: () => Promise<{ data: KyfRow | null }>;
-          };
-        };
-      };
-    }
-  )
-    .from('fleet_kyf')
-    .select('kyf_status, cui, company_name, caen_code, reg_com, rejected_reason')
-    .eq('fleet_id', fleet.fleetId)
-    .maybeSingle();
-
-  const initial = data
-    ? {
-        status: data.kyf_status,
-        cui: data.cui ?? '',
-        companyName: data.company_name,
-        caenCode: data.caen_code,
-        regCom: data.reg_com,
-        rejectedReason: data.rejected_reason,
-      }
-    : null;
+  // Still gate on requireFleetManager so the back-link to /fleet/settings
+  // makes sense.
+  await requireFleetManager();
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -60,18 +29,26 @@ export default async function FleetKyfPage() {
         Înapoi la setări
       </Link>
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-100">
-          Verificare firmă (KYF)
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Înainte ca flota să poată opera, confirmăm că firma este reală și activă:
-          CUI verificat automat la ANAF, plus act constitutiv, extras de cont și
-          certificat de înregistrare. Verificarea o face echipa HIR.
+      <div className="rounded-xl border border-violet-500/40 bg-violet-500/10 p-5">
+        <h1 className="text-lg font-semibold text-zinc-100">Verificarea firmei se face în panou</h1>
+        <p className="mt-2 text-sm text-zinc-300">
+          Documentele KYF (act constitutiv, extras de cont, certificat înregistrare ONRC) se
+          încarcă în panoul de control al flotei pe <strong>app.hirforyou.ro/fleet/kyf</strong> —
+          o singură locație, pe desktop, cu drag-and-drop.
         </p>
+        <p className="mt-2 text-xs text-zinc-400">
+          Pe aplicația HIR Curier rămâne doar fluxul curierilor (încărcare buletin la onboarding).
+        </p>
+        <a
+          href={`${ADMIN_HOST}/fleet/kyf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-500"
+        >
+          Deschide panoul
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
       </div>
-
-      <KyfForm fleetId={fleet.fleetId} initial={initial} />
     </div>
   );
 }

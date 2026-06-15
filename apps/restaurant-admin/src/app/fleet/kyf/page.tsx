@@ -1,28 +1,35 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
+import { KyfUploadForm } from './kyf-upload-form';
 
 export const dynamic = 'force-dynamic';
 
-// /fleet/kyf — KYF document review surface. Today this is read-only on
-// the admin host: actual upload happens on courier.hirforyou.ro/fleet/kyf
-// where the dropzone + camera capture flow lives (built for mobile fleet
-// managers on the PWA). This page surfaces status + a deep link.
+// /fleet/kyf — KYF upload happens HERE, on the admin panel. Per Iulian
+// directive 2026-06-15: fleet managers do NOT go to the courier app to
+// upload company documents. Only couriers (drivers) upload their ID card
+// later, on the courier app, after the fleet manager invites them.
 
 type KyfRow = {
-  kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  fleet_id: string;
   cui: string | null;
   company_name: string | null;
-  reg_com_no: string | null;
-  rejection_reason: string | null;
-  updated_at: string | null;
+  reg_com: string | null;
+  caen_code: string | null;
+  address: string | null;
+  iban: string | null;
+  act_constitutiv_url: string | null;
+  extras_cont_url: string | null;
+  certificat_inreg_url: string | null;
+  kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  rejected_reason: string | null;
+  submitted_at: string | null;
+  verified_at: string | null;
 };
 
 export default async function FleetKyfPage() {
   const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,86 +44,55 @@ export default async function FleetKyfPage() {
 
   if (!fleet) redirect('/fleet-signup');
 
-  const { data: kyfData } = await admin
+  const { data } = await admin
     .from('fleet_kyf')
-    .select('kyf_status, cui, company_name, reg_com_no, rejection_reason, updated_at')
+    .select('*')
     .eq('fleet_id', fleet.id)
     .maybeSingle();
-  const kyf = kyfData as KyfRow | null;
+  const kyf = (data as KyfRow | null) ?? null;
+
+  const isVerified = kyf?.kyf_status === 'VERIFIED';
+  const isRejected = kyf?.kyf_status === 'REJECTED';
+  const submitted = Boolean(kyf?.submitted_at);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">Verificare KYF</h1>
+        <h1 className="text-2xl font-semibold text-zinc-900">Verificare KYF</h1>
         <p className="mt-1 text-sm text-zinc-600">
-          Pentru a opera flota pe HIR trebuie sa verificam identitatea companiei si a administratorului.
-          Toate documentele sunt criptate si vizibile doar pentru administratorul HIR.
+          Incarca documentele de identificare ale companiei. Toate sunt criptate si vizibile doar pentru
+          administratorul HIR. Aprobarea dureaza de regula sub 24h.
         </p>
       </div>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">Datele firmei</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-xs text-zinc-500">CUI</dt>
-            <dd className="text-zinc-900">{kyf?.cui ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Firma</dt>
-            <dd className="text-zinc-900">{kyf?.company_name ?? fleet.name}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Reg. Comertului</dt>
-            <dd className="text-zinc-900">{kyf?.reg_com_no ?? '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-zinc-500">Status</dt>
-            <dd>
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  kyf?.kyf_status === 'VERIFIED'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : kyf?.kyf_status === 'REJECTED'
-                      ? 'bg-rose-100 text-rose-700'
-                      : 'bg-amber-100 text-amber-700'
-                }`}
-              >
-                {kyf?.kyf_status ?? 'PENDING'}
-              </span>
-            </dd>
-          </div>
-        </dl>
-        {kyf?.rejection_reason ? (
-          <div className="mt-4 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-            <strong>Motiv respingere:</strong> {kyf.rejection_reason}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">Incarcare documente</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Fluxul de incarcare documente (CUI, certificat ONRC, asigurare RCA flota, ID administrator,
-          ITP) este disponibil pe aplicatia HIR Curier — mult mai usor cu camera de pe telefon. Daca esti
-          pe desktop, scaneaza cu telefonul codul QR primit pe email sau acceseaza direct linkul.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <a
-            href="https://courier.hirforyou.ro/fleet/kyf"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-          >
-            Incarca pe HIR Curier
-          </a>
-          <a
-            href="mailto:contact@hirforyou.ro?subject=KYF%20flota"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            Trimite pe email
-          </a>
+      {isVerified ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <strong>Verificare confirmata.</strong> Flota este activa pe HIR. Toate functiile sunt deblocate.
         </div>
-      </section>
+      ) : isRejected ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <strong>Verificare respinsa.</strong>
+          {kyf?.rejected_reason ? <span className="ml-1">Motiv: {kyf.rejected_reason}.</span> : null}
+          <span className="ml-1">Corecteaza documentele si retrimite mai jos.</span>
+        </div>
+      ) : submitted ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <strong>Verificare in curs.</strong> Documentele au fost trimise
+          {kyf?.submitted_at ? ` la ${new Date(kyf.submitted_at).toLocaleString('ro-RO')}` : ''}.
+          Iti raspundem in sub 24h.
+        </div>
+      ) : (
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">
+          Incarca cele 3 documente + IBAN + Reg. Comertului. Cand sunt complete, apasa{' '}
+          <strong>&ldquo;Trimite spre verificare&rdquo;</strong>.
+        </div>
+      )}
+
+      <KyfUploadForm
+        fleetName={fleet.name as string}
+        kyf={kyf}
+        readOnly={isVerified}
+      />
     </div>
   );
 }
