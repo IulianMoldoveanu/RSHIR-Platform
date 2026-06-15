@@ -280,7 +280,7 @@ begin
 end;
 $$;
 
-comment on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz) is
+comment on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz, uuid) is
   'Generates courier payout_periods (PENDING) + payout_items from DELIVERED '
   'orders in [start,end). Amount per delivery = fleet tariff (zone override → '
   'fleet flat) else zone courier_payout_cents else 0 (unrated). Idempotent — a '
