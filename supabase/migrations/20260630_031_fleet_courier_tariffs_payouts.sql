@@ -100,6 +100,16 @@ alter table public.payout_items
 create unique index if not exists uq_payout_items_delivery
   on public.payout_items (delivery_id);
 
+-- The original unique(delivery_pricing_id) constraint predates the nullable
+-- column. Now that delivery_pricing_id can be NULL (zone-less cities), drop the
+-- whole-column constraint and re-express its real intent — "a pricing row maps
+-- to at most one payout_item" — as a partial unique that ignores NULLs. The new
+-- uq_payout_items_delivery is the actual idempotency arbiter.
+alter table public.payout_items drop constraint if exists payout_items_unique_pricing;
+create unique index if not exists uq_payout_items_pricing_nonnull
+  on public.payout_items (delivery_pricing_id)
+  where delivery_pricing_id is not null;
+
 comment on column public.payout_items.delivery_id is
   'The courier_order this payout line pays for. Authoritative link (works even '
   'when delivery_pricing_id is NULL in zone-less cities).';
@@ -111,7 +121,8 @@ comment on column public.payout_items.source is
 -- ════════════════════════════════════════════════════════════════════════════
 create or replace function public.fn_generate_courier_payout_periods(
   p_period_start timestamptz,
-  p_period_end   timestamptz
+  p_period_end   timestamptz,
+  p_fleet_id     uuid default null  -- null = all fleets (cron); set = one fleet (manual)
 )
 returns integer
 language plpgsql
@@ -149,6 +160,7 @@ begin
        and co.delivered_at <  p_period_end
        and co.assigned_courier_user_id is not null
        and co.city_id is not null
+       and (p_fleet_id is null or co.fleet_id = p_fleet_id)
        and not exists (
          select 1 from public.payout_items pi where pi.delivery_id = co.id
        )
@@ -188,6 +200,10 @@ begin
       end if;
     end if;
 
+    -- COD bonus is a FLEET-tariff concept, so it applies only when a fleet rate
+    -- is used (zone defaults have no COD notion). source='unrated' (amount 0)
+    -- means neither a fleet tariff nor a zone price matched — it is stored as a
+    -- top-level column so the fleet UI can flag those deliveries for a rate.
     if v_fleet_payout is not null then
       v_amount := v_fleet_payout
         + case when v_rec.payment_method = 'COD' then coalesce(v_fleet_cod, 0) else 0 end;
@@ -206,12 +222,17 @@ begin
       (v_rec.courier_user_id, v_rec.city_id, p_period_start, p_period_end, 'PENDING')
     on conflict (courier_user_id, period_start, period_end) do nothing;
 
+    -- FOR UPDATE serializes this generation against a concurrent approval or a
+    -- second generation run: an APPROVE (FOR NO KEY UPDATE) or another
+    -- generator blocks on this row until we commit, so the status we read here
+    -- can't change under us and the end-of-run totals recompute stays consistent.
     select id, status
       into v_period_id, v_period_status
       from public.payout_periods
      where courier_user_id = v_rec.courier_user_id
        and period_start = p_period_start
-       and period_end = p_period_end;
+       and period_end = p_period_end
+     for update;
 
     -- Never add items to a period the manager already approved/paid.
     if v_period_status is distinct from 'PENDING' then
@@ -266,7 +287,12 @@ comment on function public.fn_generate_courier_payout_periods(timestamptz, times
   'delivery is paid once; never mutates an APPROVED/PAID period. The fleet pays '
   'the courier; HIR only reports.';
 
--- Prior full Bucharest week [last-Mon-7, last-Mon) — what the weekly cron settles.
+-- date_trunc('week', <timestamp WITHOUT tz>) truncates the Bucharest wall-clock
+-- value directly (no server-TZ involved), so the Monday is the Bucharest Monday;
+-- re-stamping that date at Europe/Bucharest yields the correct absolute instant.
+
+-- Prior full Bucharest week [last-Mon-7, last-Mon) — what the weekly cron settles
+-- (all fleets).
 create or replace function public.fn_generate_courier_payouts_prior_week()
 returns integer
 language sql
@@ -277,13 +303,17 @@ as $$
     ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date - 7)::timestamp)
       at time zone 'Europe/Bucharest',
     ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date)::timestamp)
-      at time zone 'Europe/Bucharest'
+      at time zone 'Europe/Bucharest',
+    null
   );
 $$;
 
--- Current Bucharest week [this-Mon, next-Mon) — the fleet UI's "generate now".
--- Stable bounds, so re-running mid-week reuses the same period (no duplicates).
-create or replace function public.fn_generate_courier_payouts_current_week()
+-- Current Bucharest week [this-Mon, next-Mon) for ONE fleet — the fleet UI's
+-- "generate now". Stable bounds (re-running mid-week reuses the same period) and
+-- fleet-scoped so a manager only ever generates their own fleet's settlement.
+create or replace function public.fn_generate_courier_payouts_current_week_for_fleet(
+  p_fleet_id uuid
+)
 returns integer
 language sql
 security definer
@@ -293,27 +323,67 @@ as $$
     ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date)::timestamp)
       at time zone 'Europe/Bucharest',
     ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date + 7)::timestamp)
-      at time zone 'Europe/Bucharest'
+      at time zone 'Europe/Bucharest',
+    p_fleet_id
   );
 $$;
 
 -- Locked down: only the cron (definer) + service_role (fleet server action) run these.
-revoke all on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz) from public, anon, authenticated;
+revoke all on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz, uuid) from public, anon, authenticated;
 revoke all on function public.fn_generate_courier_payouts_prior_week() from public, anon, authenticated;
-revoke all on function public.fn_generate_courier_payouts_current_week() from public, anon, authenticated;
-grant execute on function public.fn_generate_courier_payouts_current_week() to service_role;
-grant execute on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz) to service_role;
+revoke all on function public.fn_generate_courier_payouts_current_week_for_fleet(uuid) from public, anon, authenticated;
+grant execute on function public.fn_generate_courier_payouts_current_week_for_fleet(uuid) to service_role;
+grant execute on function public.fn_generate_courier_payout_periods(timestamptz, timestamptz, uuid) to service_role;
 
 -- ════════════════════════════════════════════════════════════════════════════
--- D. Weekly schedule (pg_cron) — Mondays 02:30 UTC settle the prior week.
+-- D2. Atomic fleet flat-tariff set — expire prior active + insert new in ONE
+--     transaction so a partial failure can never leave a fleet with no rate (or
+--     two active rates under a concurrent double-submit).
+-- ════════════════════════════════════════════════════════════════════════════
+create or replace function public.fn_set_fleet_flat_tariff(
+  p_fleet_id        uuid,
+  p_payout_cents    int,
+  p_cod_bonus_cents int,
+  p_created_by      uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.fleet_courier_tariffs
+     set valid_until = now()
+   where fleet_id = p_fleet_id
+     and zone_id is null
+     and valid_until is null;
+
+  insert into public.fleet_courier_tariffs
+    (fleet_id, zone_id, payout_cents, cod_bonus_cents, reason, created_by)
+  values
+    (p_fleet_id, null, p_payout_cents, p_cod_bonus_cents,
+     'Tarif flat setat de managerul flotei', p_created_by);
+end;
+$$;
+
+revoke all on function public.fn_set_fleet_flat_tariff(uuid, int, int, uuid) from public, anon, authenticated;
+grant execute on function public.fn_set_fleet_flat_tariff(uuid, int, int, uuid) to service_role;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- D3. Weekly schedule (pg_cron) — Mondays 02:30 UTC settle the prior week.
+--     Unschedule-then-schedule so a re-apply corrects any drift (idempotent).
 -- ════════════════════════════════════════════════════════════════════════════
 do $$
+declare
+  v_jobid bigint;
 begin
-  if not exists (select 1 from cron.job where jobname = 'courier-payout-rollup-weekly') then
-    perform cron.schedule(
-      'courier-payout-rollup-weekly',
-      '30 2 * * 1',
-      $cron$ select public.fn_generate_courier_payouts_prior_week(); $cron$
-    );
+  select jobid into v_jobid from cron.job where jobname = 'courier-payout-rollup-weekly';
+  if v_jobid is not null then
+    perform cron.unschedule(v_jobid);
   end if;
+  perform cron.schedule(
+    'courier-payout-rollup-weekly',
+    '30 2 * * 1',
+    $cron$ select public.fn_generate_courier_payouts_prior_week(); $cron$
+  );
 end$$;

@@ -54,28 +54,17 @@ export async function setFleetFlatTariffAction(
   const admin = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
-  const now = new Date().toISOString();
 
-  // Expire the current active flat tariff (zone_id IS NULL) before inserting the
-  // new one — the partial unique index allows only one active row per (fleet,
-  // zone), so the old must be closed first.
-  const { error: expireErr } = await sb
-    .from('fleet_courier_tariffs')
-    .update({ valid_until: now })
-    .eq('fleet_id', ctx.fleetId)
-    .is('zone_id', null)
-    .is('valid_until', null);
-  if (expireErr) return { ok: false, error: expireErr.message };
-
-  const { error: insertErr } = await sb.from('fleet_courier_tariffs').insert({
-    fleet_id: ctx.fleetId,
-    zone_id: null,
-    payout_cents: payoutCents,
-    cod_bonus_cents: codBonusCents,
-    reason: 'Tarif flat setat de managerul flotei',
-    created_by: ctx.userId,
+  // Atomic: expire the prior active flat tariff + insert the new one in ONE
+  // transaction (DB function), so a partial failure or concurrent double-submit
+  // can never leave the fleet with no rate or two active rates.
+  const { error } = await sb.rpc('fn_set_fleet_flat_tariff', {
+    p_fleet_id: ctx.fleetId,
+    p_payout_cents: payoutCents,
+    p_cod_bonus_cents: codBonusCents,
+    p_created_by: ctx.userId,
   });
-  if (insertErr) return { ok: false, error: insertErr.message };
+  if (error) return { ok: false, error: error.message };
 
   await logAudit({
     actorUserId: ctx.userId,
@@ -99,9 +88,8 @@ export async function setFleetFlatTariffAction(
  * period). Lets a fleet manager see the running week's settlement without
  * waiting for the Monday cron. Idempotent — a delivery is paid at most once.
  *
- * The underlying function aggregates platform-wide (same as the cron); the UI
- * still shows only this fleet's periods (RLS + fleet filter), so this is just
- * an early, harmless run of the scheduled job.
+ * Scoped to THIS fleet only (p_fleet_id) so a manager never triggers
+ * platform-wide computation for other fleets.
  */
 export async function generateCurrentWeekPayoutsAction(): Promise<TariffActionResult> {
   const ctx = await getFleetManagerContext();
@@ -110,7 +98,9 @@ export async function generateCurrentWeekPayoutsAction(): Promise<TariffActionRe
   const admin = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
-  const { error } = await sb.rpc('fn_generate_courier_payouts_current_week');
+  const { error } = await sb.rpc('fn_generate_courier_payouts_current_week_for_fleet', {
+    p_fleet_id: ctx.fleetId,
+  });
   if (error) return { ok: false, error: error.message };
 
   await logAudit({
