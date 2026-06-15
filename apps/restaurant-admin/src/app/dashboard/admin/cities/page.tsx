@@ -199,6 +199,12 @@ export default async function AdminCitiesRollupPage() {
                       >
                         Vendori →
                       </Link>
+                      <Link
+                        href={`/dashboard/admin/cities/${encodeURIComponent(r.slug)}/zones`}
+                        className="text-xs font-medium text-violet-600 hover:underline"
+                      >
+                        Zone preț →
+                      </Link>
                     </div>
                   </td>
                 </tr>
