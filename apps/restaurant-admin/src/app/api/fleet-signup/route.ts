@@ -75,11 +75,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'slug indisponibil' }, { status: 409 });
   }
 
-  // Create auth user. Do NOT pass email_confirm:true — Supabase sends a
-  // confirmation email; the user cannot sign in until they click the link.
+  // Create auth user with email_confirm:true — bypasses Supabase's email
+  // confirmation step. Why: Supabase's default shared email sender is rate-
+  // limited (4/h) and routinely blocked by Yahoo/Outlook (no SPF/DKIM for
+  // their senders). Fleet managers were getting stuck on "Email not confirmed"
+  // with no email arriving. KYF approval (Iulian reviews CUI + docs via
+  // /dashboard/admin/verifications, is_active stays false until approved) is
+  // the REAL gate — confirming a Yahoo address adds friction with no real
+  // verification value here.
   const { data: created, error: authErr } = await admin.auth.admin.createUser({
     email,
     password,
+    email_confirm: true,
   });
   if (authErr || !created.user) {
     return NextResponse.json(
@@ -133,5 +140,5 @@ export async function POST(req: NextRequest) {
     }).then(() => {}).catch(() => {});
   }
 
-  return NextResponse.json({ ok: true, checkEmail: true }, { status: 201 });
+  return NextResponse.json({ ok: true, autoConfirmed: true }, { status: 201 });
 }

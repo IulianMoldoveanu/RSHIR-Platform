@@ -300,7 +300,7 @@ export default async function OfertaFlotaPage(props: {
             </tbody>
           </table>
           <p className="mt-3 text-xs italic text-zinc-500">
-            Facturare saptamanala (luni dimineata pentru saptamana precedenta), termen plata 7 zile.
+            Facturare saptamanala (luni dimineata pentru saptamana precedenta), termen plata 3 zile lucratoare.
             TVA 21% pass-through (colectata si virata la ANAF), nu intra in marja HIR.
           </p>
         </section>

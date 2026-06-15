@@ -120,18 +120,16 @@ export function FleetSignupForm() {
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
-        checkEmail?: boolean;
+        autoConfirmed?: boolean;
       };
       if (!res.ok) {
         setError(json.error || 'Eroare la creare cont.');
         setSubmitting(false);
         return;
       }
-      // Same pattern as /signup: redirect to /login with toast prompt to
-      // confirm email before logging in. Once they log in, the dashboard
-      // layout routes them to /fleet/kyf (on the courier host) to upload
-      // KYF documents.
-      router.push('/login?checkEmail=1');
+      // Email is auto-confirmed server-side (see /api/fleet-signup). Fleet
+      // manager can log in immediately; KYF approval gates dispatch access.
+      router.push('/login?created=fleet');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Eroare neașteptată.');
       setSubmitting(false);

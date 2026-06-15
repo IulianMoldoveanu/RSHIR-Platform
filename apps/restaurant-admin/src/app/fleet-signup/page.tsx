@@ -1,13 +1,14 @@
 // /fleet-signup — self-serve onboarding for new fleet managers.
 //
 // Created 2026-06-11 per Iulian directive (no admin must hand-create new
-// fleets; fleet managers self-onboard from login page). After successful
-// signup the user receives an email confirmation; once they log in, a
-// `courier_fleets` row exists for them (kyf_required=true, is_active=false)
-// and the dashboard layout redirects them to /fleet/kyf (on the courier
-// PWA host) to upload the required documents. Iulian approves the KYF
-// from /dashboard/admin/verifications, which flips kyf_status to VERIFIED
-// and is_active to true.
+// fleets; fleet managers self-onboard from login page). Email is auto-
+// confirmed server-side (Supabase shared sender is rate-limited + blocked
+// by Yahoo/Outlook — KYF review is the real gate). After signup the user
+// can log in immediately; `courier_fleets` row exists for them (kyf_
+// required=true, is_active=false) and the dashboard layout redirects them
+// to /fleet/kyf (on the courier PWA host) to upload KYF docs. Iulian
+// approves from /dashboard/admin/verifications → kyf_status=VERIFIED,
+// is_active=true.
 
 import { FleetSignupForm } from './fleet-signup-form';
 
