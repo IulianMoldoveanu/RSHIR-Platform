@@ -35,7 +35,9 @@ type SlugStatus =
   | { state: 'invalid' }
   | { state: 'taken' };
 
-export function SignupForm({ referralCode }: { referralCode?: string }) {
+type CityOption = { id: string; name: string; slug: string };
+
+export function SignupForm({ referralCode, cities }: { referralCode?: string; cities: CityOption[] }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -43,6 +45,7 @@ export function SignupForm({ referralCode }: { referralCode?: string }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [cityId, setCityId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>({ state: 'idle' });
@@ -91,6 +94,10 @@ export function SignupForm({ referralCode }: { referralCode?: string }) {
       setError('Parolele nu coincid.');
       return;
     }
+    if (!cityId) {
+      setError('Alege orașul restaurantului.');
+      return;
+    }
     if (slugStatus.state === 'taken') {
       setError('Slug indisponibil — alege altul.');
       return;
@@ -105,7 +112,7 @@ export function SignupForm({ referralCode }: { referralCode?: string }) {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, slug, email, password, ...(referralCode ? { ref: referralCode } : {}) }),
+        body: JSON.stringify({ name, slug, email, password, city_id: cityId, ...(referralCode ? { ref: referralCode } : {}) }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -179,6 +186,23 @@ export function SignupForm({ referralCode }: { referralCode?: string }) {
               pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
             />
             {slugHelp}
+          </FormField>
+          <FormField>
+            <Label htmlFor="signup_city">Oraș restaurant *</Label>
+            <select
+              id="signup_city"
+              value={cityId}
+              onChange={(e) => setCityId(e.target.value)}
+              required
+              className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="">Selectează orașul…</option>
+              {cities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </FormField>
           <FormField>
             <Label htmlFor="email">Email proprietar</Label>

@@ -36,7 +36,9 @@ type SlugStatus =
   | { state: 'invalid' }
   | { state: 'taken' };
 
-export function FleetSignupForm() {
+type CityOption = { id: string; name: string; slug: string };
+
+export function FleetSignupForm({ cities }: { cities: CityOption[] }) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -46,6 +48,7 @@ export function FleetSignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [cityId, setCityId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [slugStatus, setSlugStatus] = useState<SlugStatus>({ state: 'idle' });
@@ -90,6 +93,10 @@ export function FleetSignupForm() {
       setError('CUI invalid. Format: RO12345678 sau 12345678.');
       return;
     }
+    if (!cityId) {
+      setError('Alege orașul principal de operare.');
+      return;
+    }
     if (phone.replace(/\D/g, '').length < 9) {
       setError('Telefon invalid (minim 9 cifre).');
       return;
@@ -116,7 +123,7 @@ export function FleetSignupForm() {
       const res = await fetch('/api/fleet-signup', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, slug, cui, phone, email, password }),
+        body: JSON.stringify({ name, slug, cui, phone, email, password, primary_city_id: cityId }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -193,6 +200,28 @@ export function FleetSignupForm() {
             />
             <p className="text-xs text-zinc-500">
               Va fi verificat la ANAF după înregistrare.
+            </p>
+          </FormField>
+
+          <FormField>
+            <Label htmlFor="primary_city">Oraș principal de operare *</Label>
+            <select
+              id="primary_city"
+              value={cityId}
+              onChange={(e) => setCityId(e.target.value)}
+              required
+              className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="">Selectează un oraș…</option>
+              {cities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-zinc-500">
+              Orașul unde flota operează majoritar. Comenzile din alte orașe nu îți vor fi alocate
+              implicit (le poți accepta manual din panou).
             </p>
           </FormField>
 

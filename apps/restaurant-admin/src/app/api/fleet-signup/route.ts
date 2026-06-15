@@ -32,6 +32,10 @@ const fleetSignupSchema = z.object({
   phone: z.string().trim().min(9).max(30),
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(10).max(72),
+  // 2026-06-15 — primary_city_id required so fleet-allocation can match
+  // tenant↔fleet city. Maps to courier_fleets.primary_city_id (migration
+  // 20260615_004).
+  primary_city_id: z.string().uuid('Oraș invalid'),
 });
 
 export async function POST(req: NextRequest) {
@@ -57,7 +61,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { name, slug, cui, phone, email, password } = parsed.data;
+  const { name, slug, cui, phone, email, password, primary_city_id } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -105,6 +109,7 @@ export async function POST(req: NextRequest) {
     slug,
     owner_user_id: userId,
     contact_phone: phone,
+    primary_city_id,
     is_active: false,
     kyf_required: true,
     tier: 'partner',

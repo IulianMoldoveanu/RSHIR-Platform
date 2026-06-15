@@ -27,6 +27,10 @@ const signupSchema = z.object({
   // v3 Loop 3 — Restaurant-Champion attribution. 8-char code from
   // tenants.champion_code. Never fails the signup.
   champion: z.string().trim().toUpperCase().min(6).max(16).optional(),
+  // 2026-06-15 — collect city at signup so tenants.city_id is non-NULL from
+  // day 1. Required because the audit found city-less tenants disappear from
+  // listTenantsByCity / fleet-allocation joins.
+  city_id: z.string().uuid('Oraș invalid'),
 });
 
 export async function POST(req: NextRequest) {
@@ -52,7 +56,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const { name, slug, email, password, ref, champion } = parsed.data;
+  const { name, slug, email, password, ref, champion, city_id } = parsed.data;
 
   const admin = createAdminClient();
 
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
 
   const { data: tenantRow, error: tenantErr } = await admin
     .from('tenants')
-    .insert({ name, slug, status: 'ACTIVE', vertical: 'RESTAURANT' })
+    .insert({ name, slug, status: 'ACTIVE', vertical: 'RESTAURANT', city_id })
     .select('id')
     .single();
   if (tenantErr || !tenantRow) {

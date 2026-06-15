@@ -11,10 +11,17 @@
 // is_active=true.
 
 import { FleetSignupForm } from './fleet-signup-form';
+import { listActiveCities } from '@/lib/cities';
 
 export const dynamic = 'force-dynamic';
 
-export default function FleetSignupPage() {
+export default async function FleetSignupPage() {
+  // 2026-06-15 — Surface active cities to the picker so the fleet manager
+  // explicitly chooses where the fleet operates. Pairs with the new
+  // courier_fleets.primary_city_id column (migration 20260615_004) so
+  // fleet-allocation can match fleet↔tenant city correctly.
+  const cities = await listActiveCities();
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10">
       <div className="w-full max-w-md space-y-6">
@@ -26,7 +33,7 @@ export default function FleetSignupPage() {
             după validarea KYF începi să operezi.
           </p>
         </div>
-        <FleetSignupForm />
+        <FleetSignupForm cities={cities} />
         <p className="text-center text-xs text-zinc-500">
           Ai deja cont?{' '}
           <a href="/login" className="underline">
