@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 type ItemRow = {
   id: string;
   amount_cents: number;
+  delivery_id: string | null;
   delivery_pricings: {
     delivery_id: string;
     computed_at: string;
@@ -77,7 +78,7 @@ export async function GET(
   const { data: itemsData } = await sb
     .from('payout_items')
     .select(
-      'id, amount_cents, delivery_pricings ( delivery_id, computed_at )',
+      'id, amount_cents, delivery_id, delivery_pricings ( delivery_id, computed_at )',
     )
     .eq('payout_period_id', periodId)
     .order('id', { ascending: true });
@@ -105,7 +106,7 @@ export async function GET(
         csvField(periodData.period_start),
         csvField(periodData.period_end),
         csvField(it.id),
-        csvField(it.delivery_pricings?.delivery_id ?? ''),
+        csvField(it.delivery_id ?? it.delivery_pricings?.delivery_id ?? ''),
         csvField(it.delivery_pricings?.computed_at ?? ''),
         csvField(amountRon),
       ].join(','),

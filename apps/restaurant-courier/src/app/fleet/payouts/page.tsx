@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Banknote, CheckCircle2, Clock, Download } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { FleetTariffCard } from './_tariff-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,19 @@ export default async function FleetPayoutsPage({
   const courierIds = couriers.map((c) => c.user_id);
   const courierName = new Map(couriers.map((c) => [c.user_id, c.full_name ?? '—']));
 
+  // Current active flat tariff for this fleet (zone_id IS NULL = applies
+  // everywhere, including zone-less cities). Drives the tariff card defaults.
+  const { data: tariffData } = await sb
+    .from('fleet_courier_tariffs')
+    .select('payout_cents, cod_bonus_cents')
+    .eq('fleet_id', fleet.fleetId)
+    .is('zone_id', null)
+    .is('valid_until', null)
+    .maybeSingle();
+  const tariff = tariffData as
+    | { payout_cents: number; cod_bonus_cents: number }
+    | null;
+
   let periods: PayoutPeriodRow[] = [];
   if (courierIds.length > 0) {
     let query = sb
@@ -110,6 +124,11 @@ export default async function FleetPayoutsPage({
           </p>
         </div>
       </div>
+
+      <FleetTariffCard
+        payoutCents={tariff?.payout_cents ?? null}
+        codBonusCents={tariff?.cod_bonus_cents ?? 0}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kpi
