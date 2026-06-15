@@ -4,8 +4,9 @@ import { useEffect, useId, useState } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@hir/ui';
 import {
+  armOfferAudio,
   isOfferSoundEnabled,
-  playOfferChirp,
+  playOfferAlarm,
   setOfferSoundEnabled,
 } from '@/lib/offer-sound';
 import { cardClasses } from './card';
@@ -27,12 +28,16 @@ export function OfferSoundToggle() {
   function onToggle(v: boolean) {
     setEnabled(v);
     setOfferSoundEnabled(v);
+    // This tap is a user gesture — unlock audio so later realtime alarms play.
+    armOfferAudio();
     // Audition on enable so the user hears what they just turned on.
-    if (v) playOfferChirp();
+    if (v) playOfferAlarm();
   }
 
   function onAudition() {
-    playOfferChirp();
+    // Tapping "Test sunet" is a gesture — also unlock audio for live alarms.
+    armOfferAudio();
+    playOfferAlarm();
   }
 
   if (!hydrated) {
@@ -62,8 +67,9 @@ export function OfferSoundToggle() {
             Sunet la ofertă nouă
           </label>
           <p className="text-xs leading-relaxed text-hir-muted-fg">
-            Un semnal scurt de două tonuri (E5→A5) când apare o comandă
-            nouă. Distinct de sunetul standard al telefonului.
+            Un sunet de alarmă (mai multe tonuri în creștere) când intră o
+            comandă nouă — suficient de puternic să-l auzi pe stradă sau în
+            trafic. Distinct de sunetul standard al telefonului.
           </p>
         </div>
         <input

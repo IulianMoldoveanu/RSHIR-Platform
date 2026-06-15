@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { isOfferSoundEnabled, playOfferChirp } from '@/lib/offer-sound';
+import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm } from '@/lib/offer-sound';
 import * as haptics from '@/lib/haptics';
 
 const REFRESH_THROTTLE_MS = 1500;
@@ -59,6 +59,11 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
   useEffect(() => {
     const supabase = getBrowserSupabase();
 
+    // Unlock WebAudio so the new-order alarm actually sounds when an offer
+    // lands while the courier is idle (mobile blocks audio until a gesture
+    // has resumed the context). Idempotent — safe to call on every mount.
+    armOfferAudio();
+
     const triggerRefresh = () => {
       const now = Date.now();
       const elapsed = now - lastRefreshRef.current;
@@ -94,15 +99,21 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
     }) => {
       const row = payload.new ?? {};
       if (!row.status || !OPEN_LIST_RELEVANT_STATUSES.has(row.status)) return;
-      // Play the offer chirp on transitions that surface a new claimable
-      // order (INSERT or UPDATE landing on CREATED/OFFERED). ACCEPTED and
-      // CANCELLED still trigger a refresh but no sound — the courier
-      // either lost the race or saw a peer claim, no new opportunity.
+      // Sound the alarm on transitions that surface a new claimable order
+      // (INSERT or UPDATE landing on CREATED/OFFERED). ACCEPTED and CANCELLED
+      // still trigger a refresh but no alarm — the courier either lost the
+      // race or saw a peer claim, no new opportunity. Vibration fires too so
+      // a new order is felt even with the phone on silent.
       const isNewOpenOrder =
         (row.status === 'CREATED' || row.status === 'OFFERED') &&
         (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE');
-      if (isNewOpenOrder && isOfferSoundEnabled()) {
-        playOfferChirp();
+      if (isNewOpenOrder) {
+        if (isOfferSoundEnabled()) playOfferAlarm();
+        try {
+          haptics.custom([0, 140, 70, 140]);
+        } catch {
+          // haptics unavailable — non-fatal.
+        }
       }
       triggerRefresh();
     };
@@ -116,7 +127,7 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
     const triggerOnAssignedActivity = (payload: { new: OrderRowPayload }) => {
       const row = payload.new ?? {};
       if (row.status === 'OFFERED') {
-        if (isOfferSoundEnabled()) playOfferChirp();
+        if (isOfferSoundEnabled()) playOfferAlarm();
         try {
           haptics.custom([0, 140, 70, 140]);
         } catch {
