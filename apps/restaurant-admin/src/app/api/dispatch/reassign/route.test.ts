@@ -67,6 +67,7 @@ function chainStub(result: unknown) {
   const chain = {
     select: () => chain,
     eq: () => chain,
+    in: () => chain,
     limit: () => chain,
     update: () => chain,
     maybeSingle: () => Promise.resolve(result),
@@ -107,6 +108,7 @@ function setupHappyPath() {
   const updateResult = {
     select: () => updateResult,
     eq: () => updateResult,
+    in: () => updateResult,
     maybeSingle: () =>
       Promise.resolve({
         data: { id: ORDER_ID, status: 'OFFERED', assigned_courier_user_id: NEW_COURIER },
@@ -116,6 +118,7 @@ function setupHappyPath() {
   const orderChainWithUpdate = {
     select: () => orderChainWithUpdate,
     eq: () => orderChainWithUpdate,
+    in: () => orderChainWithUpdate,
     limit: () => orderChainWithUpdate,
     update: () => updateResult,
     maybeSingle: () =>
@@ -193,6 +196,7 @@ describe('POST /api/dispatch/reassign', () => {
     const deliveredChain = {
       select: () => deliveredChain,
       eq: () => deliveredChain,
+      in: () => deliveredChain,
       update: () => deliveredChain,
       limit: () => deliveredChain,
       maybeSingle: () =>
@@ -228,6 +232,7 @@ describe('POST /api/dispatch/reassign', () => {
     const sameChain = {
       select: () => sameChain,
       eq: () => sameChain,
+      in: () => sameChain,
       update: () => sameChain,
       limit: () => sameChain,
       maybeSingle: () =>
@@ -263,6 +268,7 @@ describe('POST /api/dispatch/reassign', () => {
     const orderChain = {
       select: () => orderChain,
       eq: () => orderChain,
+      in: () => orderChain,
       update: () => orderChain,
       limit: () => orderChain,
       maybeSingle: () =>
@@ -280,6 +286,7 @@ describe('POST /api/dispatch/reassign', () => {
     const missingProfileChain = {
       select: () => missingProfileChain,
       eq: () => missingProfileChain,
+      in: () => missingProfileChain,
       update: () => missingProfileChain,
       limit: () => missingProfileChain,
       maybeSingle: () => Promise.resolve({ data: null, error: null }),

@@ -42,11 +42,21 @@ vi.mock('@/lib/supabase-admin', () => ({
               }),
             }),
           }),
-          update: (patch: unknown) => ({
-            eq: () => ({
-              eq: () => Promise.resolve(pspPaymentsUpdateMock(patch)),
-            }),
-          }),
+          // Chainable so it covers BOTH update shapes the route uses:
+          //   captured/authorized: .update().eq().eq().eq().select('id')  (CAS claim)
+          //   failed/refunded:     .update().eq().eq()  (awaited)
+          // `then` makes the chain awaitable; `select` resolves the claim.
+          update: (patch: unknown) => {
+            const exec = () => Promise.resolve(pspPaymentsUpdateMock(patch));
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const chain: any = {
+              eq: () => chain,
+              select: () => exec(),
+              then: (onF: (v: unknown) => unknown, onR: (e: unknown) => unknown) =>
+                exec().then(onF, onR),
+            };
+            return chain;
+          },
         };
       }
       if (table === 'restaurant_orders') {
@@ -106,7 +116,10 @@ describe('POST /api/webhooks/netopia', () => {
     process.env.NETOPIA_WEBHOOK_SECRET = WEBHOOK_SECRET;
     insertMock.mockResolvedValue({ error: null });
     pspPaymentsSelectMock.mockResolvedValue({ data: { order_id: ORDER_ID, status: 'PENDING' } });
-    pspPaymentsUpdateMock.mockResolvedValue({ error: null });
+    // CAS claim returns a row (data.length > 0) so the captured/authorized path
+    // proceeds to markOrderPaidAndDispatch. The TOCTOU fix (#929) bails when the
+    // claim returns no rows.
+    pspPaymentsUpdateMock.mockResolvedValue({ data: [{ id: 'claim-1' }], error: null });
     ordersUpdateMock.mockResolvedValue({ error: null });
   });
 
