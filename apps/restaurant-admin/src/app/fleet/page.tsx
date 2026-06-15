@@ -138,6 +138,12 @@ export default async function FleetHome() {
           locked={!isVerified}
         />
         <FeatureCard
+          title="Tarife (curier + vendor)"
+          desc="Setezi cat platesti curierilor si cat incasezi de la vendori. Pickup fix + RON/km. Auto-sync cu HIR Curier."
+          href="/fleet/tariffs"
+          locked={!isVerified}
+        />
+        <FeatureCard
           title="Hepi — self improvements"
           desc="Asistent AI cu recomandari personalizate pentru cresterea flotei."
           href="/fleet/hepi"

@@ -109,6 +109,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
     { href: '/fleet/kyf', label: 'Verificare KYF', external: false, dot: !isVerified },
     ...(isVerified
       ? [
+          { href: '/fleet/tariffs', label: 'Tarife (curier + vendor)', external: false, dot: false },
           { href: `${FLEET_OPS_HOST}/fleet`, label: 'Panou de control', external: true, dot: false },
           { href: `${FLEET_OPS_HOST}/fleet/orders`, label: 'Comenzi & dispatch', external: true, dot: false },
           { href: `${FLEET_OPS_HOST}/fleet/couriers`, label: 'Curieri', external: true, dot: false },
