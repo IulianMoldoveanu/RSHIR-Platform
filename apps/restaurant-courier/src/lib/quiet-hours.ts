@@ -86,7 +86,7 @@ export function isInsideQuietHours(q: QuietHours, now: Date = new Date()): boole
 }
 
 /**
- * Convenience: short-circuits playOfferChirp / speak callers without each
+ * Convenience: short-circuits playOfferAlarm / speak callers without each
  * of them needing to read+parse the JSON themselves.
  */
 export function isSilentNow(): boolean {
