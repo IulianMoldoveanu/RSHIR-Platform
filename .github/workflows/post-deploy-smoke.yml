@@ -1,0 +1,47 @@
+name: Post-deploy smoke (10 endpoints)
+
+# Quick curl-based smoke that runs after every push to main. Hits the 10
+# most critical user surfaces and exits non-zero if any returns != 200.
+# Complements the playwright global-smoke job (slower, deeper) — this one
+# is the 30-second floor catch right after Vercel deploy lands.
+#
+# 2026-06-15 — Iulian directive: "cand rezolvam un bug nu trebuie sa
+# apara altul" — this workflow is the line of defense.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: post-deploy-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Curl 10 critical endpoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: Wait 90s for Vercel deploy to land
+        run: sleep 90
+      - name: Run smoke
+        run: bash scripts/smoke-post-deploy.sh
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets unset; skipping notification."
+            exit 0
+          fi
+          MSG="🔴 Post-deploy smoke FAILED on \`main\` @ ${{ github.sha }}
+          Run: $RUN_URL"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_CHAT_ID}" \
+            -d "parse_mode=Markdown" \
+            -d "text=${MSG}" || true

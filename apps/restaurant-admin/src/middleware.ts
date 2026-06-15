@@ -44,6 +44,16 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // 2026-06-15 — SSO cross-host: when running on *.hirforyou.ro, set the
+  // Supabase auth cookie with domain=.hirforyou.ro so courier.hirforyou.ro
+  // sees the same session a fleet manager established here on
+  // app.hirforyou.ro. Local dev / vercel.app previews use host-default
+  // (no domain override) so dev cookies stay isolated per port.
+  const reqHost = (request.headers.get('host') ?? '').split(':')[0].toLowerCase();
+  const sharedDomain = reqHost.endsWith('.hirforyou.ro') || reqHost === 'hirforyou.ro'
+    ? '.hirforyou.ro'
+    : undefined;
+
   const supabase = createSsrClient(
     supabaseUrl,
     supabaseAnon,
@@ -53,10 +63,20 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions): void {
-          response.cookies.set({ name, value, ...options });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+            ...(sharedDomain ? { domain: sharedDomain } : {}),
+          });
         },
         remove(name: string, options: CookieOptions): void {
-          response.cookies.set({ name, value: '', ...options });
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+            ...(sharedDomain ? { domain: sharedDomain } : {}),
+          });
         },
       },
     },

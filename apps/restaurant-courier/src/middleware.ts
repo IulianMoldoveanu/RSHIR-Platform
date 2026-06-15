@@ -20,6 +20,15 @@ export async function middleware(request: NextRequest) {
     request: { headers: request.headers },
   });
 
+  // 2026-06-15 — SSO cross-host: when running on *.hirforyou.ro, share the
+  // Supabase auth cookie with domain=.hirforyou.ro so a session established
+  // on app.hirforyou.ro carries here transparently (and vice versa). Local
+  // dev / vercel.app previews keep host-default scope.
+  const reqHost = (request.headers.get('host') ?? '').split(':')[0].toLowerCase();
+  const sharedDomain = reqHost.endsWith('.hirforyou.ro') || reqHost === 'hirforyou.ro'
+    ? '.hirforyou.ro'
+    : undefined;
+
   const supabase = createSsrClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -29,10 +38,20 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions): void {
-          response.cookies.set({ name, value, ...options });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+            ...(sharedDomain ? { domain: sharedDomain } : {}),
+          });
         },
         remove(name: string, options: CookieOptions): void {
-          response.cookies.set({ name, value: '', ...options });
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+            ...(sharedDomain ? { domain: sharedDomain } : {}),
+          });
         },
       },
     },
