@@ -169,6 +169,10 @@ type Referral = {
   partner_default_pct: number;
   referred_at: string; // when the referral was created (Y1 boundary for this referral)
   wave_label: string;
+  // Faza 0 (2026-06-15) — min active vendors a reseller must have attributed
+  // before their DIRECT commission unlocks. WAVE/OVERRIDE/CHAMPION are NOT
+  // gated by this threshold.
+  partner_min_vendors_threshold: number;
 };
 
 // v3 — wave bonus config fetched once per run.
@@ -199,7 +203,7 @@ async function fetchActiveReferrals(
   const { data, error } = await supabase
     .from('partner_referrals')
     .select(
-      'id, partner_id, tenant_id, commission_pct, ended_at, referred_at, partners!inner(status, default_commission_pct, wave_label)',
+      'id, partner_id, tenant_id, commission_pct, ended_at, referred_at, partners!inner(status, default_commission_pct, wave_label, min_vendors_threshold)',
     )
     .eq('partners.status', 'ACTIVE');
   if (error) {
@@ -219,8 +223,50 @@ async function fetchActiveReferrals(
       referred_at: (row.referred_at as string) ?? new Date(0).toISOString(),
       partner_default_pct: Number(partner.default_commission_pct ?? 0),
       wave_label: (partner.wave_label as string) ?? 'OPEN',
+      // Default 5 mirrors the column default in migration 20260616_001.
+      // L2 — safeThreshold rejects NaN / negative drift (e.g. column nulled
+      // out by an ops script) and falls back to the spec default.
+      partner_min_vendors_threshold: safeThreshold(partner.min_vendors_threshold),
     };
   });
+}
+
+// Faza 0 (2026-06-15) — L2: validate threshold is a finite non-negative
+// number. Anything else (null, NaN, Infinity, negative) collapses to the
+// spec default of 5 so a single bad row can't unlock or stall DIRECT.
+function safeThreshold(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 5;
+}
+
+// Faza 0 (2026-06-15) — count a partner's currently live referrals using
+// the SAME operational definition as the dashboard: v_partner_kpis
+// .tenants_live_30d = distinct referred tenants with ≥1 delivered order in
+// the last 30 days. Iulian directive 2026-06-15: cron + UI must agree.
+//
+// H1 — on DB error or missing row we THROW. The per-referral catch in
+// `processReferrals` will mark this referral as commissionsFailed and
+// MOVE ON without populating `activeLiveCountByPartner`, so the next
+// referral for the same partner retries the lookup (no silent zeroing of
+// DIRECT for a qualified partner due to a transient error).
+async function countActiveLiveReferrals(
+  supabase: SupabaseClient,
+  partnerId: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('v_partner_kpis')
+    .select('tenants_live_30d')
+    .eq('partner_id', partnerId)
+    .maybeSingle();
+  if (error) {
+    throw new Error(
+      `v_partner_kpis lookup failed for ${partnerId}: ${error.message}`,
+    );
+  }
+  if (!data || (data as { tenants_live_30d: number | null }).tenants_live_30d == null) {
+    throw new Error(`v_partner_kpis returned no row for ${partnerId}`);
+  }
+  return Number((data as { tenants_live_30d: number | null }).tenants_live_30d);
 }
 
 async function countOrdersInPeriod(
@@ -605,6 +651,10 @@ Deno.serve(async (req: Request) => {
   // sponsor → sum of DIRECT amounts this period across all subs it sponsors.
   const sponsorDirectSum = new Map<string, number>();
 
+  // Faza 0 (2026-06-15) — per-partner cache: how many live referrals does
+  // this partner have right now? Threshold gates DIRECT only.
+  const activeLiveCountByPartner = new Map<string, number>();
+
   for (const r of referrals) {
     referralsProcessed += 1;
 
@@ -642,27 +692,60 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      totalAmountCents += amountCents;
+      // ── Faza 0 (2026-06-15) — DIRECT gate: min active live vendors ──
+      // The partner only earns DIRECT once they have >= threshold live
+      // referrals attributed right now. WAVE_BONUS / OVERRIDE / CHAMPION
+      // are intentionally NOT gated.
+      let activeLiveCount = activeLiveCountByPartner.get(r.partner_id);
+      if (activeLiveCount === undefined) {
+        activeLiveCount = await countActiveLiveReferrals(supabase, r.partner_id);
+        activeLiveCountByPartner.set(r.partner_id, activeLiveCount);
+      }
+      const directUnlocked = activeLiveCount >= r.partner_min_vendors_threshold;
 
-      if (!dryRun) {
-        const res = await upsertCommission(supabase, {
-          partner_id: r.partner_id,
-          referral_id: r.id,
-          period_start: period.periodStartDate,
-          period_end: period.periodEndDate,
-          amount_cents: amountCents,
-          order_count: orderCount,
-        });
-        if (res.ok) {
-          commissionsInserted += 1;
+      if (!directUnlocked) {
+        console.log(
+          `[partner-commission-calc] DIRECT skipped — partner=${r.partner_id} referral=${r.id} period=${period.label} active_live=${activeLiveCount} threshold=${r.partner_min_vendors_threshold}`,
+        );
+      } else {
+        totalAmountCents += amountCents;
+
+        if (!dryRun) {
+          const res = await upsertCommission(supabase, {
+            partner_id: r.partner_id,
+            referral_id: r.id,
+            period_start: period.periodStartDate,
+            period_end: period.periodEndDate,
+            amount_cents: amountCents,
+            order_count: orderCount,
+          });
+          if (res.ok) {
+            commissionsInserted += 1;
+          } else {
+            commissionsFailed += 1;
+            console.error(
+              `[partner-commission-calc] upsert failed referral=${r.id}: ${res.error ?? 'unknown'}`,
+            );
+          }
         } else {
-          commissionsFailed += 1;
-          console.error(
-            `[partner-commission-calc] upsert failed referral=${r.id}: ${res.error ?? 'unknown'}`,
+          commissionsInserted += 1;
+        }
+
+        // BLOCKER B1 (2026-06-15) — sponsor OVERRIDE cap denominator
+        // ONLY accumulates DIRECT amounts that were actually granted.
+        // Previously this ran unconditionally below, which inflated the
+        // 40% cap with sub-DIRECT that the gate had skipped, allowing
+        // sponsors to over-earn OVERRIDE on still-locked subs.
+        const sponsor = await fetchSponsor(supabase, r.partner_id);
+        if (
+          sponsor &&
+          new Date(sponsor.sunset_at).getTime() > new Date(period.periodEndDate).getTime()
+        ) {
+          sponsorDirectSum.set(
+            sponsor.sponsor_partner_id,
+            (sponsorDirectSum.get(sponsor.sponsor_partner_id) ?? 0) + amountCents,
           );
         }
-      } else {
-        commissionsInserted += 1;
       }
 
       // ── v3 WAVE_BONUS ────────────────────────────────────────────
@@ -717,17 +800,12 @@ Deno.serve(async (req: Request) => {
           hir_net_cents: hirNetCents,
         });
 
-        // Accumulate the sponsor's DIRECT total (sponsor earns DIRECT on their
-        // OWN referrals; here we track what DIRECT was generated for the sub
-        // — this is used as the denominator for the cap rule).
-        // Per spec: cap = 40% of sponsor's own DIRECT sum this period.
-        // We accumulate sub's direct amounts keyed by sponsor; at cap-enforcement
-        // time we'll compare total OVERRIDE against 40% of sponsor's OWN direct.
-        // Simplest safe approach: track sum of this sub's direct amounts per sponsor.
-        sponsorDirectSum.set(
-          sponsor.sponsor_partner_id,
-          (sponsorDirectSum.get(sponsor.sponsor_partner_id) ?? 0) + amountCents,
-        );
+        // NOTE (BLOCKER B1, 2026-06-15) — sponsorDirectSum was previously
+        // accumulated here unconditionally. It moved into the
+        // `if (directUnlocked)` branch above so the 40% OVERRIDE cap
+        // denominator only counts DIRECT cents that were actually
+        // granted. WAVE/OVERRIDE/CHAMPION rows themselves remain
+        // ungated — only the cap math changed.
       }
 
       // ── v3 CHAMPION_GIFT ─────────────────────────────────────────

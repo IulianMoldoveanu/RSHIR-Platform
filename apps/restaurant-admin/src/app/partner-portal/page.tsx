@@ -40,6 +40,9 @@ type Partner = {
   code: string | null;
   notification_settings: Record<string, unknown> | null;
   landing_settings: Record<string, unknown> | null;
+  // Faza 0 (2026-06-15) — min active live referrals required to unlock the
+  // 20% DIRECT commission. Default 5.
+  min_vendors_threshold: number;
 };
 
 type Referral = {
@@ -100,6 +103,14 @@ function fmtDate(iso: string): string {
   });
 }
 
+// Faza 0 (2026-06-15) — L2: validate threshold is a finite non-negative
+// number. Anything else (null, NaN, Infinity, negative) collapses to the
+// spec default of 5. Mirrors `safeThreshold` in partner-commission-calc.
+function safeThreshold(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 5;
+}
+
 // ────────────────────────────────────────────────────────────
 // Page
 // ────────────────────────────────────────────────────────────
@@ -120,7 +131,7 @@ export default async function PartnerPortalPage() {
   const { data: rawPartner } = await admin
     .from('partners')
     .select(
-      'id, name, email, phone, default_commission_pct, status, code, notification_settings, landing_settings',
+      'id, name, email, phone, default_commission_pct, status, code, notification_settings, landing_settings, min_vendors_threshold',
     )
     .eq('user_id', user.id)
     .in('status', ['PENDING', 'ACTIVE'])
@@ -140,7 +151,35 @@ export default async function PartnerPortalPage() {
       (rawPartner.notification_settings as Record<string, unknown> | null) ?? null,
     landing_settings:
       (rawPartner.landing_settings as Record<string, unknown> | null) ?? null,
+    // L2 (2026-06-15) — safeThreshold guards against NaN/Infinity/negative
+    // drift in min_vendors_threshold (e.g. column nulled by ops script).
+    min_vendors_threshold: safeThreshold(rawPartner.min_vendors_threshold),
   };
+
+  // Faza 0 (2026-06-15) — Iulian-confirmed operational definition:
+  // "active live vendor" = v_partner_kpis.tenants_live_30d (distinct
+  // referred tenants with ≥1 delivered order in last 30d). Same source
+  // the cron uses, so the dashboard message matches the actual payout.
+  //
+  // H3 — kpiErr / missing row → activeLiveCount = null (neutral state in
+  // the UI below), never silently 0 (which would render an alarmist
+  // "0/5 amber" for a partner who is in fact qualified).
+  const { data: kpiRow, error: kpiErr } = await admin
+    .from('v_partner_kpis')
+    .select('tenants_live_30d')
+    .eq('partner_id', partner.id)
+    .maybeSingle();
+  const activeLiveCount: number | null =
+    kpiErr || !kpiRow ? null : Number(kpiRow.tenants_live_30d ?? 0);
+
+  // H4 — never auto-unlock at threshold=0 (column drift). The effective
+  // threshold floor is 1 vendor: a partner with zero deliveries is not
+  // "unlocked" by virtue of a misconfigured zero default.
+  const effectiveThreshold = Math.max(1, partner.min_vendors_threshold);
+  const directUnlocked =
+    activeLiveCount !== null && activeLiveCount >= effectiveThreshold;
+  const remainingToUnlock =
+    activeLiveCount === null ? null : Math.max(0, effectiveThreshold - activeLiveCount);
 
   // PR3: extract the 3 UI-exposed toggles. Default-on if missing (matches
   // PR1 migration default jsonb). Only an explicit `false` is opt-out.
@@ -321,6 +360,129 @@ export default async function PartnerPortalPage() {
           </div>
         </div>
       ) : null}
+
+      {/* Faza 0 (2026-06-15) — DIRECT commission unlock progress.
+          Four states (mirrors the cron gate, never lies about progress):
+            - neutral (zinc): we couldn't read v_partner_kpis (H3)
+            - empty   (zinc): zero referrals total — onboarding hint (H4)
+            - amber:          referred but under threshold
+            - emerald:        unlocked
+          Iulian directive 2026-06-15: definiția operațională =
+          v_partner_kpis.tenants_live_30d (a livrat în ultimele 30 zile). */}
+      {(() => {
+        const hasNoReferrals =
+          activeLiveCount !== null && activeLiveCount === 0 && referrals.length === 0;
+        const isNeutral = activeLiveCount === null;
+
+        // H3 — KPI unavailable: neutral zinc card, no number, no alarm.
+        if (isNeutral) {
+          return (
+            <section
+              aria-label="Bonificație DIRECT — progres deblocare"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700"
+                >
+                  ?
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-800">
+                    Verificăm progresul partenerilor…
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Reîmprospătăm datele de livrare. Bonificația DIRECT
+                    (20% pe Anul 1) se deblochează când vendorii tăi
+                    încep să livreze.
+                  </p>
+                </div>
+              </div>
+            </section>
+          );
+        }
+
+        // H4 — no referrals at all: empty onboarding state, no progress bar.
+        if (hasNoReferrals) {
+          return (
+            <section
+              aria-label="Bonificație DIRECT — progres deblocare"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  aria-hidden
+                  className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700"
+                >
+                  +
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold text-zinc-800">
+                    Niciun vendor referit încă
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Începe înscriind primul vendor prin codul tău.
+                    Bonificația DIRECT (20% pe Anul 1) se deblochează după{' '}
+                    {effectiveThreshold} vendori care livrează în
+                    ultimele 30 zile.
+                  </p>
+                </div>
+              </div>
+            </section>
+          );
+        }
+
+        return (
+          <section
+            aria-label="Bonificație DIRECT — progres deblocare"
+            className={`rounded-lg border p-4 ${
+              directUnlocked
+                ? 'border-emerald-300 bg-emerald-50'
+                : 'border-amber-300 bg-amber-50'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className={`mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full text-xs font-bold ${
+                  directUnlocked
+                    ? 'bg-emerald-200 text-emerald-900'
+                    : 'bg-amber-200 text-amber-900'
+                }`}
+              >
+                {directUnlocked ? '✓' : '!'}
+              </span>
+              <div>
+                <h2
+                  className={`text-sm font-semibold ${
+                    directUnlocked ? 'text-emerald-900' : 'text-amber-900'
+                  }`}
+                >
+                  {directUnlocked
+                    ? `Bonificație activă: ${partner.default_commission_pct.toFixed(0)}%`
+                    : `Vendori care livrează (ultimele 30 zile): ${activeLiveCount}/${effectiveThreshold} — încă ${remainingToUnlock ?? 0} pentru bonificație ${partner.default_commission_pct.toFixed(0)}% Anul 1`}
+                </h2>
+                <p
+                  className={`mt-1 text-sm ${
+                    directUnlocked ? 'text-emerald-800' : 'text-amber-800'
+                  }`}
+                >
+                  {directUnlocked
+                    ? 'Bonificația DIRECT se calculează lunar pe livrările tenanților referiți.'
+                    : 'Bonificația DIRECT (20% pe Anul 1) se deblochează după ce ai cel puțin pragul de vendori care livrează în ultimele 30 zile. Bonusurile WAVE, OVERRIDE și CHAMPION nu sunt afectate de prag.'}
+                </p>
+                {!directUnlocked ? (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Un vendor referit contează abia după prima livrare
+                    confirmată în ultimele 30 zile.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 5-tile KPI strip — extended via v_partner_kpis */}
       <section
