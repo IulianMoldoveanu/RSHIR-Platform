@@ -96,15 +96,28 @@ export async function uploadKyfDocumentAction(formData: FormData) {
 }
 
 export async function saveKyfMetaAction(formData: FormData) {
-  const reg_com = String(formData.get('reg_com') ?? '').trim();
+  // Strip spaces + normalize case for the Reg. Comertului — many firms
+  // type "J 40 / 123 / 2020" or paste with spaces.
+  const reg_com = String(formData.get('reg_com') ?? '').trim().replace(/\s+/g, '').toUpperCase();
   const caen_code = String(formData.get('caen_code') ?? '').trim();
   const iban = String(formData.get('iban') ?? '').trim().replace(/\s+/g, '').toUpperCase();
   const address = String(formData.get('address') ?? '').trim();
   const city_id = String(formData.get('city_id') ?? '').trim();
 
-  // Loose validation — Iulian reviews everything anyway.
-  if (reg_com && !/^J\d{2}\/\d{1,6}\/\d{4}$/i.test(reg_com)) {
-    return { ok: false, error: 'Format Reg. Com. invalid (ex: J40/123/2020).' };
+  // 2026-06-15 — Reg. Comertului validation accepts ALL the formats real
+  // RO companies use, per Iulian directive (multe firme nu si-au updatat
+  // la registrul nou):
+  //   - Old letter format:  J40/123/2020, F12/45/2019, C03/7/2024
+  //                         (J=SRL/SA, F=PFA, C=cooperative; year 2 or 4 digits)
+  //   - EUID alias prefix:  ROONRCJ40/123/2020 or ROONRC.J40/123/2020
+  //   - Pure numeric EUID:  10-20 digit strings (ONRC 2024 reform alias)
+  // Iulian reviews everything in /dashboard/admin/verifications anyway.
+  const REG_COM_RE = /^(ROONRC\.?)?[JFC]\d{1,2}\/\d{1,6}\/(\d{2}|\d{4})$|^\d{10,20}$/;
+  if (reg_com && !REG_COM_RE.test(reg_com)) {
+    return {
+      ok: false,
+      error: 'Format Reg. Com. invalid. Acceptam: J40/123/2020 (vechi), F12/45/2019, ROONRC.J40/123/2020 sau EUID numeric (10-20 cifre).',
+    };
   }
   if (caen_code && !/^\d{4}$/.test(caen_code)) {
     return { ok: false, error: 'Cod CAEN trebuie sa fie 4 cifre.' };

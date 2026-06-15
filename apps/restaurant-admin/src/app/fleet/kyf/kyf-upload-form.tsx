@@ -323,10 +323,13 @@ export function KyfUploadForm({
               type="text"
               value={regCom}
               onChange={(e) => setRegCom(e.target.value)}
-              placeholder="J40/123/2020"
+              placeholder="J40/123/2020 sau EUID numeric"
               disabled={readOnly || pending}
               className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none disabled:bg-zinc-100"
             />
+            <p className="mt-1 text-[10px] text-zinc-500">
+              Accept format vechi (J40/123/2020, F12/45/2019) si EUID (ROONRC.J40/... sau 10-20 cifre).
+            </p>
           </div>
           <div>
             <label className="block text-xs font-medium text-zinc-600">Cod CAEN</label>
