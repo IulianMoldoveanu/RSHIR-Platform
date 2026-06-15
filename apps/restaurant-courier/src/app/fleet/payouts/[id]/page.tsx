@@ -27,8 +27,10 @@ type PeriodRow = {
 type ItemRow = {
   id: string;
   amount_cents: number;
-  delivery_pricing_id: string;
-  // Sourced via the join on delivery_pricings:
+  // Authoritative link to the order (works even with no pricing row).
+  delivery_id: string | null;
+  delivery_pricing_id: string | null;
+  // Sourced via the join on delivery_pricings (null in zone-less cities):
   delivery_pricings: {
     delivery_id: string;
     computed_at: string;
@@ -99,7 +101,7 @@ export default async function FleetPayoutDetailPage({
   const { data: itemsData } = await sb
     .from('payout_items')
     .select(
-      'id, amount_cents, delivery_pricing_id, delivery_pricings ( delivery_id, computed_at, restaurant_fee_cents, courier_payout_cents )',
+      'id, amount_cents, delivery_id, delivery_pricing_id, delivery_pricings ( delivery_id, computed_at, restaurant_fee_cents, courier_payout_cents )',
     )
     .eq('payout_period_id', periodId)
     .order('id', { ascending: true });
@@ -197,7 +199,7 @@ export default async function FleetPayoutDetailPage({
               <li key={it.id} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate font-mono text-[10px] text-hir-muted-fg">
-                    {it.delivery_pricings?.delivery_id ?? it.delivery_pricing_id}
+                    {it.delivery_id ?? it.delivery_pricings?.delivery_id ?? it.delivery_pricing_id ?? '—'}
                   </p>
                   <p className="mt-0.5 text-[10px] text-hir-muted-fg">
                     {it.delivery_pricings?.computed_at

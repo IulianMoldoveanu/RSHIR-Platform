@@ -63,6 +63,8 @@ export type CourierAuditAction =
   | 'fleet.payout_period_approved'
   | 'fleet.payout_period_paid'
   | 'fleet.payouts_exported'
+  | 'fleet.tariff_updated'
+  | 'fleet.payouts_generated'
   | 'courier.time_off_requested'
   | 'admin.courier_kyc_verified'
   | 'admin.courier_kyc_rejected'
