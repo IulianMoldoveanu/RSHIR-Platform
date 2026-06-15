@@ -7,6 +7,8 @@ import { getTenantDeliveryMode, isHeadless } from '@/lib/tenant-mode';
 import { hasMultipleLocations } from '@/lib/brand';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { getUserRoleSnapshot, roleLanding } from '@/lib/auth/user-role';
+import { createServerClient } from '@/lib/supabase/server';
 import { logoutAction } from './actions';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
@@ -23,7 +25,23 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   } catch (err) {
     const msg = (err as Error).message ?? '';
     if (msg.includes('Unauthenticated')) redirect('/login');
-    if (msg.includes('not a member')) redirect('/signup');
+    if (msg.includes('not a member')) {
+      // User logged in but has no tenant membership. Before assuming they
+      // need to create a restaurant, check whether they own a fleet
+      // (FLEET role) or are a reseller (RESELLER role) and route them to
+      // the correct surface. Predictable routing per Iulian directive
+      // 2026-06-15: RESTAURANT=/dashboard, FLEET=/dashboard/fleet,
+      // RESELLER=/partner-portal.
+      const supa = await createServerClient();
+      const { data: { user } } = await supa.auth.getUser();
+      if (user) {
+        const snapshot = await getUserRoleSnapshot(user.id);
+        if (snapshot.primary !== 'NONE' && snapshot.primary !== 'RESTAURANT') {
+          redirect(roleLanding(snapshot.primary));
+        }
+      }
+      redirect('/signup');
+    }
     console.error('[dashboard/layout] unexpected getActiveTenant failure:', msg);
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 text-center">
