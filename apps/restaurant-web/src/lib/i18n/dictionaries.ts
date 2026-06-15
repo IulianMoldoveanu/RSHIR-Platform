@@ -582,7 +582,8 @@ export const dictionaries = {
         nav_case_studies: 'Studiu de caz',
         nav_contact: 'Contact',
         cta_become_partner: 'Devino partener',
-        cta_signup_restaurant: 'Conectează-te / Creează cont',
+        cta_signup_restaurant: 'Creează cont',
+        cta_login: 'Conectează-te',
         locale_switcher_label: 'Schimbă limba',
         footer_tagline:
           'Infrastructură de comenzi și livrare pentru restaurante, florării, magazine de cadouri și alți vendori: storefront propriu, CRM, loyalty, dispatch curieri. Construit în România.',
@@ -1656,7 +1657,8 @@ export const dictionaries = {
         nav_case_studies: 'Case study',
         nav_contact: 'Contact',
         cta_become_partner: 'Become a partner',
-        cta_signup_restaurant: 'Log in / Sign up',
+        cta_signup_restaurant: 'Create account',
+        cta_login: 'Log in',
         locale_switcher_label: 'Switch language',
         footer_tagline:
           'Ordering and delivery infrastructure for restaurants, florists, gift shops and other vendors: own storefront, CRM, loyalty, courier dispatch. Built in Romania.',

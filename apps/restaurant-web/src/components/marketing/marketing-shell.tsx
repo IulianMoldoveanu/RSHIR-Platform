@@ -86,18 +86,26 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          <Link
-            href="/parteneriat/inscriere"
+          {/* 2026-06-15 — restored direct Log in link per Iulian directive.
+              Previously this CTA pointed to /intra-in-cont (a hub asking
+              "login or signup?"), which forced an extra click on returning
+              users. Now: Log in is the primary CTA (direct to admin /login),
+              Create account is the secondary CTA. /intra-in-cont still exists
+              as a fallback hub but is no longer reached from the header. */}
+          <a
+            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/signup`}
             className="hidden rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] sm:inline-flex"
-          >
-            {t(currentLocale, 'marketing.shell.cta_become_partner')}
-          </Link>
-          <Link
-            href="/intra-in-cont"
-            className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+            rel="noopener"
           >
             {t(currentLocale, 'marketing.shell.cta_signup_restaurant')}
-          </Link>
+          </a>
+          <a
+            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/login`}
+            className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+            rel="noopener"
+          >
+            {t(currentLocale, 'marketing.shell.cta_login')}
+          </a>
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
