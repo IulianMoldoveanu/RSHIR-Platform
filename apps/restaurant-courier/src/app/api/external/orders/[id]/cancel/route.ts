@@ -16,14 +16,19 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const admin = createAdminClient();
 
   // Verify ownership first.
+  // 2026-06-15 — IDOR + TOCTOU fix: external API keys are scoped by FLEET
+  // (not just "no tenant id"). Update WHERE includes the same scope guard
+  // so a concurrent ownership change between SELECT and UPDATE cannot
+  // bypass the check.
+  const orderId = (await ctx.params).id;
   const lookup = admin
     .from('courier_orders')
-    .select('id, source_tenant_id, status')
-    .eq('id', (await ctx.params).id);
+    .select('id, source_tenant_id, status, fleet_id')
+    .eq('id', orderId);
   if (auth.ctx.hirTenantId) {
     lookup.eq('source_tenant_id', auth.ctx.hirTenantId);
   } else {
-    lookup.is('source_tenant_id', null);
+    lookup.is('source_tenant_id', null).eq('fleet_id', auth.ctx.fleetId);
   }
   const { data: existing } = await lookup.maybeSingle();
   if (!existing) {
@@ -38,14 +43,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     );
   }
 
-  const { data, error } = await admin
+  let updateQuery = admin
     .from('courier_orders')
     .update({ status: 'CANCELLED', updated_at: new Date().toISOString() })
-    .eq('id', (await ctx.params).id)
+    .eq('id', orderId)
+    .in('status', CANCELLABLE);
+  if (auth.ctx.hirTenantId) {
+    updateQuery = updateQuery.eq('source_tenant_id', auth.ctx.hirTenantId);
+  } else {
+    updateQuery = updateQuery.is('source_tenant_id', null).eq('fleet_id', auth.ctx.fleetId);
+  }
+  const { data, error } = await updateQuery
     .select('id, source_order_id, status, public_track_token, created_at, updated_at')
-    .single();
+    .maybeSingle();
+  if (!data && !error) {
+    return NextResponse.json({ error: 'not_cancellable_race' }, { status: 409 });
+  }
 
-  if (error || !data) {
+  if (error) {
     return NextResponse.json({ error: 'cancel_failed' }, { status: 500 });
   }
 

@@ -13,15 +13,18 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const admin = createAdminClient();
   const query = admin
     .from('courier_orders')
-    .select('id, source_order_id, source_tenant_id, status, public_track_token, created_at, updated_at')
+    .select('id, source_order_id, source_tenant_id, status, public_track_token, created_at, updated_at, fleet_id')
     .eq('id', (await ctx.params).id);
 
-  // Tenant-scoped: an HIR tenant can only see its own orders. External API
-  // keys can only see orders posted with that key (no tenant id).
+  // Tenant-scoped: an HIR tenant can only see its own orders.
+  // 2026-06-15 — IDOR fix: external API keys are scoped by FLEET, not just by
+  // "no tenant id". Previously any external key could fetch any order with
+  // source_tenant_id=null by guessing UUIDs. Now: external keys must own the
+  // fleet that received the order.
   if (auth.ctx.hirTenantId) {
     query.eq('source_tenant_id', auth.ctx.hirTenantId);
   } else {
-    query.is('source_tenant_id', null);
+    query.is('source_tenant_id', null).eq('fleet_id', auth.ctx.fleetId);
   }
 
   const { data } = await query.maybeSingle();
