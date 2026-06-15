@@ -5,6 +5,8 @@ import { createServerClient as createSsrClient, type CookieOptions } from '@supa
 // release-watchers can probe without auth.
 // 2026-06-11 — /fleet-signup + /api/fleet-signup added for self-serve fleet
 // manager onboarding (parallel to tenant /signup flow).
+// 2026-06-15 — /fleet has its own layout (no tenant required); middleware
+// auth gate covers it via the auth check below (login still mandatory).
 const PUBLIC_PATHS = ['/login', '/signup', '/fleet-signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/fleet-signup', '/api/healthz', '/api/version'];
 
 /**
