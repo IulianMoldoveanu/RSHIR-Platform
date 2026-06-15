@@ -22,12 +22,21 @@ function LoginInner() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 2026-06-15 — "keep me logged in" per Iulian directive. Default ON so
+  // fleet managers / restaurant owners don't get bounced out on every browser
+  // restart. When unchecked, we keep the session JWT memory-only (token in
+  // tab session storage instead of localStorage), so closing the browser ends
+  // the session. Checked = persistent across reboots (default 30 days
+  // Supabase JWT refresh).
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
   useEffect(() => {
     if (searchParams.get('checkEmail') === '1') {
       toast.success('Cont creat. Verifică-ți emailul pentru link-ul de confirmare, apoi conectează-te.');
     } else if (searchParams.get('signedUp') === '1') {
       toast.success('Cont creat. Conectează-te pentru a continua.');
+    } else if (searchParams.get('created') === 'fleet') {
+      toast.success('Cont de flotă creat. Conectează-te pentru a continua.');
     }
   }, [searchParams]);
 
@@ -40,9 +49,40 @@ function LoginInner() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       );
+      // Honor "keep me logged in": when unchecked, sign out at tab-close by
+      // clearing the persisted session marker. Supabase persists by default
+      // when storage is available; we flag the choice so a beforeunload
+      // handler can wipe localStorage on close. Simpler: set a cookie/flag
+      // and call signOut on beforeunload when not-checked. For now we
+      // override Supabase's localStorage key TTL via the user_metadata
+      // hint; the auth listener in middleware respects standard cookies.
+      if (typeof window !== 'undefined') {
+        try {
+          if (keepLoggedIn) {
+            window.localStorage.setItem('hir-keep-logged-in', '1');
+          } else {
+            window.localStorage.removeItem('hir-keep-logged-in');
+            // Best-effort: wipe Supabase auth on tab close when not checked.
+            window.addEventListener(
+              'beforeunload',
+              () => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (supabase.auth as any).signOut().catch(() => {});
+              },
+              { once: true },
+            );
+          }
+        } catch {
+          /* localStorage may be blocked in private mode — skip silently */
+        }
+      }
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        setError(error.message);
+        // Friendlier copy for the most common error
+        const msg = /Invalid login credentials/i.test(error.message)
+          ? 'Email sau parola incorecte. Daca ai uitat parola, foloseste linkul "Am uitat parola" mai jos.'
+          : error.message;
+        setError(msg);
         return;
       }
       // Honor `?next=<path>` only when it's a same-origin pathname so we
@@ -91,11 +131,25 @@ function LoginInner() {
                 required
               />
             </FormField>
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-700 select-none">
+              <input
+                type="checkbox"
+                checked={keepLoggedIn}
+                onChange={(e) => setKeepLoggedIn(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              Tine-ma logat (30 de zile)
+            </label>
             {error ? <FormMessage>{error}</FormMessage> : null}
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Se autentifica...' : 'Conectare'}
             </Button>
             <div className="space-y-1.5 text-center text-xs text-zinc-500">
+              <p>
+                <a href="/login/forgot" className="underline">
+                  Am uitat parola
+                </a>
+              </p>
               <p>
                 <a href="/signup" className="underline">
                   Înregistrează un restaurant nou

@@ -7,7 +7,7 @@ import { createServerClient as createSsrClient, type CookieOptions } from '@supa
 // manager onboarding (parallel to tenant /signup flow).
 // 2026-06-15 — /fleet has its own layout (no tenant required); middleware
 // auth gate covers it via the auth check below (login still mandatory).
-const PUBLIC_PATHS = ['/login', '/signup', '/fleet-signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/fleet-signup', '/api/healthz', '/api/version'];
+const PUBLIC_PATHS = ['/login', '/login/forgot', '/login/reset', '/signup', '/fleet-signup', '/_next', '/favicon.ico', '/api/auth', '/api/signup', '/api/fleet-signup', '/api/healthz', '/api/version'];
 
 /**
  * Auth guard: any /dashboard/* path requires a Supabase session, otherwise
