@@ -125,9 +125,8 @@ export default async function FleetHome() {
         />
         <FeatureCard
           title="Curierii mei"
-          desc="Invita curieri in flota, vezi statusul si KYC-ul lor."
-          href="https://courier.hirforyou.ro/fleet/couriers"
-          external
+          desc="Lista curierilor flotei tale + status KYC. Nume prefixat cu acronimul firmei."
+          href="/fleet/couriers"
           locked={!isVerified}
         />
         <FeatureCard

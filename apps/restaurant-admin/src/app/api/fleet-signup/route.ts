@@ -104,12 +104,21 @@ export async function POST(req: NextRequest) {
   // Create the fleet row. is_active=false until KYF approval; kyf_required=true
   // forces the user through /fleet/kyf before they can dispatch couriers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // 2026-06-15 — derive a 3-letter display_prefix from the first word of
+  // the fleet name (e.g. "Els courier delivery srl" -> "ELS", "Eazy Roads"
+  // -> "EAZ"). Shows up next to courier names in /verifications and the
+  // admin /fleet/couriers list so Iulian instantly sees which fleet a
+  // rider belongs to. Owner can override later from /fleet/settings.
+  const firstWord = name.trim().split(/\s+/)[0] ?? '';
+  const display_prefix = firstWord.slice(0, 3).toUpperCase() || null;
+
   const { error: fleetErr } = await (admin as any).from('courier_fleets').insert({
     name,
     slug,
     owner_user_id: userId,
     contact_phone: phone,
     primary_city_id,
+    display_prefix,
     is_active: false,
     kyf_required: true,
     tier: 'partner',
