@@ -41,8 +41,11 @@ export async function GET() {
 
     sb
       .from('courier_orders')
+      // 2026-06-15 — column rename: customer_address→dropoff_line1,
+      // pickup_address→pickup_line1 (per current schema). Old names caused
+      // the GET to 500 on every page load.
       .select(
-        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, customer_address, pickup_address, created_at, picked_up_at, delivered_at',
+        'id, source_tenant_id, assigned_courier_user_id, status, delivery_fee_ron, dropoff_line1, pickup_line1, created_at, picked_up_at, delivered_at',
       )
       .gte('created_at', todayIso)
       .order('created_at', { ascending: false }),

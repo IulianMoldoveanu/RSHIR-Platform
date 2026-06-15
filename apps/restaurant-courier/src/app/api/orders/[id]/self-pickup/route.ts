@@ -56,13 +56,19 @@ export async function POST(
   }
 
   // KYC gate (per-fleet, default off): blocks taking orders when the courier's
-  // fleet requires KYC and the courier is not VERIFIED. No-op while every fleet
-  // has kyc_required=false.
+  // fleet requires KYC and the courier is not VERIFIED.
+  // 2026-06-15 — FAIL-CLOSED: if the RPC errors or returns null (function
+  // missing / renamed / no grant for service_role), treat as denied. Previous
+  // `canTake === false` evaluated false on null → KYC was bypassed silently.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: canTake } = await (admin.rpc as any)('courier_can_take_orders', {
+  const { data: canTake, error: kycErr } = await (admin.rpc as any)('courier_can_take_orders', {
     p_user_id: user.id,
   });
-  if (canTake === false) {
+  if (kycErr) {
+    console.error('[self-pickup] KYC RPC error:', kycErr.message);
+    return NextResponse.json({ error: 'kyc_check_failed' }, { status: 500 });
+  }
+  if (canTake !== true) {
     return NextResponse.json({ error: 'kyc_required' }, { status: 403 });
   }
 

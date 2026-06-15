@@ -98,19 +98,29 @@ export async function POST(req: Request) {
 
     try {
       if (event.kind === 'payment.captured' || event.kind === 'payment.authorized') {
-        // Idempotency: skip if the psp_payments row is already CAPTURED to
-        // avoid a duplicate markOrderPaidAndDispatch on webhook replays.
+        // 2026-06-15 — TOCTOU fix: claim the row via CAS BEFORE dispatching.
+        // Previous code SELECTed then dispatched then UPDATEd — two concurrent
+        // webhook deliveries both saw status!='CAPTURED' and both fired
+        // markOrderPaidAndDispatch, double-dispatching the order. Now we claim
+        // first (UPDATE ... WHERE status=<prior> RETURNING) and only the winner
+        // proceeds; the loser sees rowCount=0 and bails as a duplicate.
         if (pspRow.status === 'CAPTURED') {
+          return NextResponse.json({ received: true, duplicate: true });
+        }
+        const claim = await sb
+          .from('psp_payments')
+          .update({ status: 'CAPTURED', updated_at: new Date().toISOString() })
+          .eq('provider', 'netopia')
+          .eq('provider_ref', event.providerRef)
+          .eq('status', pspRow.status)
+          .select('id');
+        if (!claim.data || claim.data.length === 0) {
+          Sentry.addBreadcrumb({ category: 'webhook.netopia', message: 'order.race_lost', level: 'info', data: { orderId: pspRow.orderId } });
           return NextResponse.json({ received: true, duplicate: true });
         }
         Sentry.addBreadcrumb({ category: 'webhook.netopia', message: 'order.marked_paid', level: 'info', data: { orderId: pspRow.orderId } });
         await markOrderPaidAndDispatch(pspRow.orderId);
         Sentry.addBreadcrumb({ category: 'webhook.netopia', message: 'dispatch.triggered', level: 'info', data: { orderId: pspRow.orderId } });
-        await sb
-          .from('psp_payments')
-          .update({ status: 'CAPTURED', updated_at: new Date().toISOString() })
-          .eq('provider', 'netopia')
-          .eq('provider_ref', event.providerRef);
       } else if (event.kind === 'payment.failed') {
         await markOrderPaymentFailed(pspRow.orderId);
         await sb

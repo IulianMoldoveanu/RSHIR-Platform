@@ -182,6 +182,11 @@ export async function POST(req: NextRequest) {
   // Reset to OFFERED only if the order was ACCEPTED (courier had taken it).
   const newStatus: string = order.status === 'ACCEPTED' ? 'OFFERED' : order.status;
 
+  // 2026-06-15 — Status guard: only reassign if the order is still in a
+  // reassignable state. Without this, a concurrent DELIVERED/CANCELLED write
+  // from the courier app could be silently overwritten by this UPDATE
+  // (the .eq('id', …) alone would match regardless of status).
+  const REASSIGNABLE = ['CREATED', 'OFFERED', 'ACCEPTED'];
   const { data: updated, error: updateErr } = await sb
     .from('courier_orders')
     .update({
@@ -190,11 +195,19 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', courier_order_id)
+    .in('status', REASSIGNABLE)
     .select('id, status, assigned_courier_user_id')
     .maybeSingle();
 
   if (updateErr || !updated) {
     console.error('[reassign] update error', updateErr?.message);
+    // Distinguish race-lost (terminal status already reached) from a real DB error.
+    if (!updateErr) {
+      return NextResponse.json(
+        { error: 'order_terminal', message: 'Order already delivered or cancelled.' },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: 'update_failed' }, { status: 500 });
   }
 
