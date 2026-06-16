@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Package, Users, Wallet, Banknote, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Package, Users, Wallet, Banknote, Gavel, Settings as SettingsIcon } from 'lucide-react';
 import { logoutAction } from '../dashboard/actions';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { Button } from '@hir/ui';
@@ -8,17 +8,33 @@ import { FleetNewOrderAlert } from './fleet-new-order-alert';
 import { FleetShortcuts } from './fleet-shortcuts';
 import { OfflineBanner } from '@/components/offline-banner';
 
-const NAV = [
+// Bottom-nav items. Marketplace is conditionally appended when the feature
+// flag is on so a fleet without B2B marketplace access doesn't see a tab
+// that 404s. Kept as a non-readonly array because of that conditional push.
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+const BASE_NAV: NavItem[] = [
   { href: '/fleet', label: 'Privire', icon: LayoutDashboard },
   { href: '/fleet/orders', label: 'Comenzi', icon: Package },
   { href: '/fleet/couriers', label: 'Curieri', icon: Users },
   { href: '/fleet/earnings', label: 'Decontări', icon: Wallet },
   { href: '/fleet/payouts', label: 'Plăți', icon: Banknote },
   { href: '/fleet/settings', label: 'Setări', icon: SettingsIcon },
-] as const;
+];
 
 export default async function FleetLayout({ children }: { children: ReactNode }) {
   const fleet = await requireFleetManager();
+
+  // Append the marketplace tab only when the feature is on. The marketplace
+  // pages themselves notFound() on the same flag, so leaving the tab visible
+  // without the flag would create a dead-end nav entry.
+  const NAV: NavItem[] = [...BASE_NAV];
+  if (process.env.HIR_FEATURE_MARKETPLACE_ENABLED === 'true') {
+    NAV.splice(BASE_NAV.length - 1, 0, {
+      href: '/fleet/marketplace',
+      label: 'Piață',
+      icon: Gavel,
+    });
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-hir-bg text-hir-fg">
