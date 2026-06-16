@@ -13,6 +13,7 @@ const LEAFLET_JS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.js
 const LEAFLET_CSS = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
 
 const DEFAULT_CENTER: [number, number] = [45.6427, 25.5887]; // Brașov
+const DEFAULT_ZOOM = 12;
 
 type LeafletGlobal = {
   map: (el: HTMLElement, opts?: Record<string, unknown>) => LeafletMap;
@@ -23,6 +24,7 @@ type LeafletGlobal = {
   ) => LeafletMarker;
   divIcon: (opts: Record<string, unknown>) => unknown;
   latLngBounds: (corner1: [number, number], corner2: [number, number]) => LeafletBounds;
+  layerGroup: () => LeafletLayerGroup;
 };
 type LeafletMap = {
   setView: (latlng: [number, number], zoom: number) => LeafletMap;
@@ -31,6 +33,11 @@ type LeafletMap = {
   invalidateSize: () => void;
 };
 type LeafletLayer = { addTo: (map: LeafletMap) => LeafletLayer };
+type LeafletLayerGroup = {
+  addTo: (map: LeafletMap) => LeafletLayerGroup;
+  addLayer: (layer: LeafletMarker) => LeafletLayerGroup;
+  clearLayers: () => LeafletLayerGroup;
+};
 type LeafletMarker = {
   addTo: (map: LeafletMap) => LeafletMarker;
   bindTooltip: (txt: string, opts?: Record<string, unknown>) => LeafletMarker;
@@ -105,83 +112,121 @@ export type FleetRiderPin = {
 // frozen position as the courier's current location.
 const PIN_STALE_MS = 5 * 60_000;
 
+// Compute the bounding box around a set of pins (for fit/recenter).
+function boundsForPins(L: LeafletGlobal, pins: FleetRiderPin[]): LeafletBounds | null {
+  if (pins.length === 0) return null;
+  const bounds = L.latLngBounds([pins[0].lat, pins[0].lng], [pins[0].lat, pins[0].lng]);
+  for (const pin of pins) bounds.extend([pin.lat, pin.lng]);
+  return bounds;
+}
+
+// Repaint the marker layer from the current pins. Crucially this only swaps
+// the markers — it never moves the map view, so the dispatcher's manual
+// zoom/pan survives the 30s auto-refresh and realtime re-renders. The view is
+// fitted exactly once (first non-empty paint, tracked by `didFitRef`). Before
+// this, the whole Leaflet instance was torn down + re-fit on every `pins`
+// change, which reset the zoom and made the map feel like it couldn't zoom.
+function paintPins(
+  L: LeafletGlobal,
+  map: LeafletMap,
+  markers: LeafletLayerGroup,
+  pins: FleetRiderPin[],
+  didFitRef: React.MutableRefObject<boolean>,
+): void {
+  markers.clearLayers();
+  if (pins.length === 0) return;
+
+  for (const pin of pins) {
+    const ageMs = pin.lastSeenAt
+      ? Date.now() - new Date(pin.lastSeenAt).getTime()
+      : Infinity;
+    const isStale = ageMs > PIN_STALE_MS;
+    const live = pin.online && !isStale;
+    const markerHtml = renderToStaticMarkup(
+      React.createElement(CourierMarker, {
+        vehicle: pin.vehicle ?? 'bike',
+        // Stale fix → greyed (offline-style) even if the shift is ONLINE.
+        status: live ? 'online' : 'offline',
+        heading: pin.heading ?? 0,
+        animate: false,
+        size: 32,
+      }),
+    );
+    const icon = L.divIcon({
+      className: '',
+      html: markerHtml,
+      iconSize: [32, 40],
+      iconAnchor: [16, 40],
+    });
+    const ageLabel =
+      isStale && Number.isFinite(ageMs) ? ` · acum ${Math.round(ageMs / 60_000)} min` : '';
+    const tooltip =
+      pin.inProgressCount > 0
+        ? `${pin.name} · ${pin.inProgressCount} în curs${ageLabel}`
+        : `${pin.name} · ${live ? 'liber' : 'offline'}${ageLabel}`;
+    const marker = L.marker([pin.lat, pin.lng], { icon }).bindTooltip(tooltip, {
+      direction: 'top',
+      offset: [0, -42],
+    });
+    markers.addLayer(marker);
+  }
+
+  if (!didFitRef.current) {
+    const bounds = boundsForPins(L, pins);
+    if (bounds) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    didFitRef.current = true;
+  }
+}
+
 /**
  * Mini live-map for the fleet overview. Plots each rider with a known
  * GPS fix: emerald pin if online + idle, violet if online + carrying
  * an active order, zinc if last-seen but currently offline.
  *
- * Only renders pins for riders with a `last_lat`/`last_lng` in the last
- * shift row. We don't poll — the parent Server Component re-runs on
- * router.refresh() (driven by fleet-orders-realtime + manual refresh).
+ * The Leaflet instance is created ONCE (on mount); the parent Server
+ * Component re-runs on router.refresh() (driven by fleet-orders-realtime +
+ * the 30s auto-refresh) and re-passes new `pins`, which only swap the marker
+ * layer — the map keeps the dispatcher's zoom/pan. "Recentrează" re-fits to
+ * all current pins on demand.
  */
 export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const leafletRef = useRef<LeafletGlobal | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
+  const markersRef = useRef<LeafletLayerGroup | null>(null);
+  const didFitRef = useRef(false);
   const cancelledRef = useRef(false);
+  // Latest pins, so the (mount-only) init effect can paint whatever arrived
+  // while Leaflet was still loading.
+  const pinsRef = useRef<FleetRiderPin[]>(pins);
+  pinsRef.current = pins;
 
+  // Create the map exactly once.
   useEffect(() => {
     cancelledRef.current = false;
 
     void loadLeaflet()
       .then((L) => {
-        if (cancelledRef.current || !containerRef.current) return;
+        if (cancelledRef.current || !containerRef.current || mapRef.current) return;
 
         const map = L.map(containerRef.current, {
           zoomControl: true,
-          // Rider pins are the focal point; tile interaction stays on but
-          // the manager rarely needs to scroll a city-wide view.
-        }).setView(DEFAULT_CENTER, 12);
+          scrollWheelZoom: true,
+        }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(map);
 
+        const markers = L.layerGroup().addTo(map);
+
+        leafletRef.current = L;
         mapRef.current = map;
+        markersRef.current = markers;
         setTimeout(() => map.invalidateSize(), 0);
 
-        if (pins.length === 0) return;
-
-        const bounds = L.latLngBounds(
-          [pins[0].lat, pins[0].lng],
-          [pins[0].lat, pins[0].lng],
-        );
-
-        for (const pin of pins) {
-          const ageMs = pin.lastSeenAt
-            ? Date.now() - new Date(pin.lastSeenAt).getTime()
-            : Infinity;
-          const isStale = ageMs > PIN_STALE_MS;
-          const live = pin.online && !isStale;
-          const markerHtml = renderToStaticMarkup(
-            React.createElement(CourierMarker, {
-              vehicle: pin.vehicle ?? 'bike',
-              // Stale fix → greyed (offline-style) even if the shift is ONLINE.
-              status: live ? 'online' : 'offline',
-              heading: pin.heading ?? 0,
-              animate: false,
-              size: 32,
-            }),
-          );
-          const icon = L.divIcon({
-            className: '',
-            html: markerHtml,
-            iconSize: [32, 40],
-            iconAnchor: [16, 40],
-          });
-          const ageLabel =
-            isStale && Number.isFinite(ageMs) ? ` · acum ${Math.round(ageMs / 60_000)} min` : '';
-          const tooltip =
-            pin.inProgressCount > 0
-              ? `${pin.name} · ${pin.inProgressCount} în curs${ageLabel}`
-              : `${pin.name} · ${live ? 'liber' : 'offline'}${ageLabel}`;
-          L.marker([pin.lat, pin.lng], { icon })
-            .bindTooltip(tooltip, { direction: 'top', offset: [0, -42] })
-            .addTo(map);
-          bounds.extend([pin.lat, pin.lng]);
-        }
-
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+        paintPins(L, map, markers, pinsRef.current, didFitRef);
       })
       .catch((err) => {
         if (!cancelledRef.current) {
@@ -194,16 +239,34 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
+        markersRef.current = null;
+        leafletRef.current = null;
+        didFitRef.current = false;
       }
     };
-    // The map is rebuilt when pins change. router.refresh() inside the
-    // realtime subscription only re-renders the parent server component
-    // and re-passes new props — the client component itself is NOT
-    // unmounted, so without `pins` in the deps the map would keep stale
-    // markers indefinitely. Tearing down + re-creating the Leaflet
-    // instance is cheap (CDN cached after first load) and avoids the
-    // complexity of incrementally diffing markers.
+    // Mount-only: the map lives across re-renders. Pin updates are handled by
+    // the effect below so the view is never reset out from under the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Repaint markers when pins change — preserves the current zoom/pan.
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    const markers = markersRef.current;
+    // Map not ready yet — the init effect paints the initial pins itself.
+    if (!L || !map || !markers) return;
+    paintPins(L, map, markers, pins, didFitRef);
   }, [pins]);
+
+  function handleRecenter() {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!L || !map) return;
+    const bounds = boundsForPins(L, pinsRef.current);
+    if (bounds) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }
 
   return (
     <div className="relative">
@@ -211,6 +274,15 @@ export function FleetLiveMap({ pins }: { pins: FleetRiderPin[] }) {
         ref={containerRef}
         className="h-72 w-full overflow-hidden rounded-2xl border border-hir-border bg-hir-surface"
       />
+      {pins.length > 0 ? (
+        <button
+          type="button"
+          onClick={handleRecenter}
+          className="absolute right-3 top-3 z-[500] min-h-[36px] rounded-lg border border-hir-border bg-zinc-900/90 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 shadow-md backdrop-blur hover:bg-zinc-800"
+        >
+          Recentrează
+        </button>
+      ) : null}
       {pins.length === 0 ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-zinc-950/60 p-6 text-center backdrop-blur-sm">
           <p className="max-w-xs text-xs text-zinc-400">
