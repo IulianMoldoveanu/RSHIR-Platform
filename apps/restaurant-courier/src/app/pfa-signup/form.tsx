@@ -225,7 +225,7 @@ export function PfaSignupForm({
             <h2 className="text-sm font-semibold text-hir-fg">Pasul 1 — CUI și nume PFA</h2>
           </div>
           <p className="text-xs text-hir-muted-fg">
-            Introdu CUI-ul PFA și apasă „Verifică ANAF". Preluăm automat
+            Introdu CUI-ul PFA și apasă „Verifică ANAF&rdquo;. Preluăm automat
             denumirea oficială.
           </p>
 
@@ -466,8 +466,8 @@ export function PfaSignupForm({
             />
             <span>
               Confirm că PFA-ul meu are codul <strong>CAEN 4933</strong> („Transporturi cu
-              taxiuri") sau <strong>CAEN 5320</strong> („Alte activități poștale și de
-              curier") autorizat la ONRC pentru această activitate.
+              taxiuri&rdquo;) sau <strong>CAEN 5320</strong> („Alte activități poștale și de
+              curier&rdquo;) autorizat la ONRC pentru această activitate.
             </span>
           </label>
 
