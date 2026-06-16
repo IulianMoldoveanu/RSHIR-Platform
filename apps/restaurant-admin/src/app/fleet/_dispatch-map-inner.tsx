@@ -49,7 +49,7 @@ export default function LeafletMap({
     <MapContainer
       center={[center.lat, center.lng]}
       zoom={12}
-      scrollWheelZoom={false}
+      scrollWheelZoom={true}
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
