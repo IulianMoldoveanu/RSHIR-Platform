@@ -226,7 +226,7 @@ export function OrderRow({
               type="button"
               disabled={pending}
               onClick={handleAutoAssign}
-              className="gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
+              className="min-h-[40px] gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -240,7 +240,7 @@ export function OrderRow({
               variant="outline"
               disabled={pending}
               onClick={() => setPicker((v) => !v)}
-              className="gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
+              className="min-h-[40px] gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
             >
               <UserCheck className="h-3.5 w-3.5" aria-hidden />
               {picker ? 'Anulează' : 'Manual'}
@@ -254,7 +254,7 @@ export function OrderRow({
             variant="outline"
             disabled={pending}
             onClick={handleUnassign}
-            className="gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
+            className="min-h-[40px] gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
           >
             {pending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -284,7 +284,7 @@ export function OrderRow({
                     type="button"
                     disabled={pending}
                     onClick={() => handleAssign(c.user_id)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-hir-surface/60 disabled:opacity-60"
+                    className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-hir-surface/60 disabled:opacity-60"
                   >
                     <span className="flex items-center gap-2">
                       <span
