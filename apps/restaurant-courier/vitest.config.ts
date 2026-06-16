@@ -10,7 +10,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     // Only unit tests — e2e specs under tests/e2e/ are run by Playwright.
-    include: ['tests/*.spec.ts'],
+    // Co-located *.test.ts under src/** is supported for action-level units
+    // (marketplace, future fleet flows). Top-level tests/*.spec.ts is the
+    // historical pure-logic suite (auto-assign-score, courier-documents, etc.).
+    include: ['tests/*.spec.ts', 'src/**/*.test.ts'],
     globals: false,
   },
 });
