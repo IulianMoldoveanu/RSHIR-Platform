@@ -127,17 +127,82 @@ export default async function TeamPage() {
   const inviteCode = partnerCode ?? partnerId.slice(0, 8);
   const inviteLink = `${appUrl}/parteneriat?sponsor=${inviteCode}`;
 
+  // Hierarchy summary across active subs (single-level tree — sub-of-sub
+  // is captured but not currently displayed here, that comes when the
+  // override engine surfaces L3+).
+  const activeCount = subs.filter((s) => s.status === 'ACTIVE').length;
+  const pendingCount = subs.filter((s) => s.status === 'PENDING').length;
+  const totalReferrals = subs.reduce((acc, s) => acc + s.referral_count, 0);
+  const bronzeCount = subs.filter((s) => s.referral_count >= 5).length;
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 pb-20 lg:pb-0">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Echipa ta</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Sub-reselleri aduși de tine — primești 10% Y1 + €200 bonus când ajung la 5 restaurante.
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+          Echipa ta
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600">
+          Sub-reselleri aduși de tine — câștigi 10% în primul an din comisionul
+          lor și €200 bonus când fiecare ajunge la 5 vendori activi.
         </p>
       </header>
 
+      {/* Team summary tiles */}
+      {subs.length > 0 ? (
+        <section
+          aria-label="Sumar echipă"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        >
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              Total sub-reselleri
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
+              {subs.length}
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-400">
+              {activeCount} activi · {pendingCount} în așteptare
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              Vendori aduși de echipă
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
+              {totalReferrals}
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-400">
+              însumat pe toți sub-reseller-ii
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+              Bonusuri Bronze
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-900">
+              {bronzeCount}
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700">
+              €200 fiecare la 5 vendori
+            </p>
+          </div>
+          <div className="rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-purple-700">
+              Override primit total
+            </p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-purple-900">
+              €
+              {centsToEur(
+                subs.reduce((acc, s) => acc + s.override_paid_cents, 0),
+              )}
+            </p>
+            <p className="mt-0.5 text-xs text-purple-700">plătit istoric</p>
+          </div>
+        </section>
+      ) : null}
+
       {/* Invite link */}
-      <section className="rounded-lg border border-purple-200 bg-purple-50 p-5">
+      <section className="rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-purple-50/40 p-5">
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-purple-700">
           Linkul tău de invitație reseller
         </div>
@@ -149,21 +214,31 @@ export default async function TeamPage() {
             aria-label="Link invitație sub-reseller"
           />
         </div>
-        <p className="mt-2 text-xs text-purple-700">
-          Trimite acest link prietenilor care vor să devină reselleri sub echipa ta. Vei câștiga
-          10% din comisionul lor în primul an + bonus €200 per sub-reseller care ajunge la 5
-          restaurante.
+        <p className="mt-2 text-xs text-purple-800">
+          Trimite acest link oamenilor din rețeaua ta care vor să facă parte
+          din echipa ta de reselleri. Câștigi 10% pe Anul 1 din comisionul lor
+          + €200 bonus la primul lor prag de 5 vendori.
         </p>
       </section>
 
-      {/* Sub-reseller table */}
+      {/* Sub-reseller table — single-level hierarchy.
+          Visualises each sub as a node under "you" via an indented row +
+          connector line. When the override engine starts surfacing L3 we
+          recursively render the same shape (deferred — schema in place
+          but no UI consumer yet). */}
       <section aria-label="Sub-reselleri">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-900">Sub-reselleri activi</h2>
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900">
+          Sub-reselleri din echipa ta
+        </h2>
         {subs.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
-            <p className="text-sm text-zinc-500">
-              Nu ai sub-reselleri încă. Trimite linkul de mai sus prietenilor care vor să facă
-              parte din echipa ta — primești 10% Y1 + €200 bonus când ajung la 5 restaurante.
+          <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
+            <p className="text-sm font-medium text-zinc-700">
+              Niciun sub-reseller activ încă.
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Trimite linkul de invitație de mai sus prietenilor din rețeaua
+              ta. Câștigi 10% pe Anul 1 + €200 bonus când ajung la 5 vendori
+              activi.
             </p>
           </div>
         ) : (
