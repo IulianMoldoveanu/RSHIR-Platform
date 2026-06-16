@@ -1,0 +1,54 @@
+{
+  "name": "@hir/shared-types",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "default": "./dist/identity.js"
+    },
+    "./order": {
+      "types": "./dist/order.d.ts",
+      "default": "./dist/order.js"
+    },
+    "./payment": {
+      "types": "./dist/payment.d.ts",
+      "default": "./dist/payment.js"
+    },
+    "./marketplace": {
+      "types": "./dist/marketplace.d.ts",
+      "default": "./dist/marketplace.js"
+    },
+    "./ai": {
+      "types": "./dist/ai.d.ts",
+      "default": "./dist/ai.js"
+    },
+    "./hepi": {
+      "types": "./dist/hepi.d.ts",
+      "default": "./dist/hepi.js"
+    },
+    "./multi-vendor": {
+      "types": "./dist/multi-vendor.d.ts",
+      "default": "./dist/multi-vendor.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
