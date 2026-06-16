@@ -71,7 +71,19 @@ async function loadStats(tenantId: string): Promise<Stats> {
     .eq('id', tenantId)
     .maybeSingle();
 
-  const [todayQ, yesterdayQ, reviewsQ, dailyQ, flagsQ] = await Promise.all([
+  // Audit P16 — fire the inventory probe in parallel with the rest of the
+  // KPIs (it used to await *after* Promise.all resolved, adding a serial
+  // round-trip to the dashboard render). It still costs nothing for
+  // non-premium tenants because the RLS-scoped query returns an error
+  // (handled below), but for premium tenants this saves one full DB hop.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lowStockP = (admin as any)
+    .from('inventory_items')
+    .select('current_stock, reorder_threshold')
+    .eq('tenant_id', tenantId)
+    .gt('reorder_threshold', 0);
+
+  const [todayQ, yesterdayQ, reviewsQ, dailyQ, flagsQ, lowQ] = await Promise.all([
     admin
       .from('restaurant_orders')
       .select('total_ron, status, created_at')
@@ -92,6 +104,7 @@ async function loadStats(tenantId: string): Promise<Stats> {
       .gte('created_at', weekStart),
     dailyP,
     flagsP,
+    lowStockP,
   ]);
 
   const sumRon = (rows: Array<{ total_ron: number | string | null }> | null) =>
@@ -110,16 +123,15 @@ async function loadStats(tenantId: string): Promise<Stats> {
   const inventoryEnabled =
     flags.inventory_enabled === true || flags.inventory_enabled === 'true';
 
+  // Consume the pre-fetched inventory result (audit P16). When the feature
+  // flag is off we ignore it entirely, so the cost of the parallel probe is
+  // amortised across all dashboard renders without ever surfacing the
+  // "Stoc redus" pill for non-premium tenants.
   let lowStockCount: number | null = null;
   if (inventoryEnabled) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lowQ = await (admin as any)
-      .from('inventory_items')
-      .select('current_stock, reorder_threshold')
-      .eq('tenant_id', tenantId)
-      .gt('reorder_threshold', 0);
-    if (!lowQ.error) {
-      const rows = (lowQ.data ?? []) as Array<{
+    const lowResult = lowQ as { data: unknown[] | null; error: unknown };
+    if (!lowResult.error) {
+      const rows = (lowResult.data ?? []) as Array<{
         current_stock: number | string | null;
         reorder_threshold: number | string | null;
       }>;

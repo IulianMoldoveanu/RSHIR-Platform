@@ -1,7 +1,12 @@
 name: Codex Review Poll
 on:
   schedule:
-    - cron: '*/2 * * * *'
+    # Audit P15 — was '*/2 * * * *' (720 runs/day, ~22k/month consuming
+    # free-tier minutes for a polling job that has zero hard-realtime SLA).
+    # Backed off to every 10 minutes (144 runs/day); the Codex review queue
+    # tolerates 10-min latency just fine and this frees ~80% of the minutes
+    # this workflow burned. Use workflow_dispatch for a manual poke.
+    - cron: '*/10 * * * *'
   workflow_dispatch: {}
 permissions:
   contents: read

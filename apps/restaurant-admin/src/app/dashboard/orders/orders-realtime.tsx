@@ -22,6 +22,14 @@ type OrderInsertRow = {
  *  - shows a Notification (if permission granted)
  *  - increments a counter in the document title until the tab is focused.
  */
+// Audit P18 — UPDATE-driven refresh throttle. When a courier walks a route
+// the dashboard gets a UPDATE stream every few seconds (status, GPS
+// breadcrumbs propagated by triggers, etc.). Each one used to fire a full
+// `router.refresh()` → SSR round-trip. We coalesce burst UPDATEs into at
+// most one refresh per window. INSERTs are NOT throttled — a brand-new
+// order is the moment the operator must hear the chime and see the row.
+const UPDATE_REFRESH_THROTTLE_MS = 2000;
+
 export function OrdersRealtime({ tenantId }: { tenantId: string }) {
   const router = useRouter();
   const unreadRef = useRef(0);
@@ -29,6 +37,8 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flashEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastUpdateRefreshRef = useRef(0);
+  const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function stopFlash() {
     if (flashTimerRef.current !== null) {
@@ -116,7 +126,24 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           filter: `tenant_id=eq.${tenantId}`,
         },
         () => {
-          router.refresh();
+          // Audit P18 — leading-edge throttle: fire immediately if the
+          // window has elapsed since the last refresh, otherwise schedule
+          // a single trailing refresh so the final UPDATE in a burst still
+          // lands on screen. Coalesces dozens of breadcrumb-driven
+          // UPDATEs/min into ~1 SSR round-trip every 2s.
+          const now = Date.now();
+          const elapsed = now - lastUpdateRefreshRef.current;
+          if (elapsed >= UPDATE_REFRESH_THROTTLE_MS) {
+            lastUpdateRefreshRef.current = now;
+            router.refresh();
+            return;
+          }
+          if (pendingUpdateRef.current) return;
+          pendingUpdateRef.current = setTimeout(() => {
+            pendingUpdateRef.current = null;
+            lastUpdateRefreshRef.current = Date.now();
+            router.refresh();
+          }, UPDATE_REFRESH_THROTTLE_MS - elapsed);
         },
       )
       .subscribe((status: string) => {
@@ -132,6 +159,10 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
       });
 
     return () => {
+      if (pendingUpdateRef.current) {
+        clearTimeout(pendingUpdateRef.current);
+        pendingUpdateRef.current = null;
+      }
       void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
