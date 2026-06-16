@@ -63,6 +63,12 @@ export function middleware(request: NextRequest) {
     response.cookies.set('selected_tenant', validParam, {
       path: '/',
       sameSite: 'lax',
+      // S7: gate on prod so `Secure` doesn't break local dev over http://lvh.me.
+      // In production all canonical hosts are HTTPS, so the cookie must be
+      // marked Secure to prevent it from being sent over an accidental
+      // http:// downgrade. httpOnly stays false — the storefront reads the
+      // cookie in client code to render the current tenant badge.
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: false,
       maxAge: 60 * 60 * 24 * 7,
     });
