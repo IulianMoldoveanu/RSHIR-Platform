@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { checkPlatformAdmin } from '@/lib/platform-admin';
 import { getFleetManagerContext } from '@/lib/fleet-manager';
 
@@ -22,8 +22,7 @@ export async function updateFeedbackStatusAction(formData: FormData): Promise<Ac
   if (!id) return { ok: false, error: 'ID lipsă.' };
   if (!VALID_STATUS.includes(status)) return { ok: false, error: 'Status invalid.' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: row, error: rowErr } = await sb
     .from('courier_feedback')

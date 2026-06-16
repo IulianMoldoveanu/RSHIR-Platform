@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -16,8 +16,7 @@ export default async function FleetHepiPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data: fleet } = await admin
     .from('courier_fleets')
     .select('id, name')

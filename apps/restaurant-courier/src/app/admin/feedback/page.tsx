@@ -1,7 +1,7 @@
 // /admin/feedback — all courier suggestions + bug reports. PLATFORM_ADMIN only.
 
 import { requirePlatformAdmin } from '@/lib/platform-admin';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { FeedbackList, type FeedbackRow } from '@/components/feedback-list';
 
 export const dynamic = 'force-dynamic';
@@ -26,8 +26,7 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 export default async function AdminFeedbackPage() {
   await requirePlatformAdmin();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: raw, error } = await sb
     .from('courier_feedback')

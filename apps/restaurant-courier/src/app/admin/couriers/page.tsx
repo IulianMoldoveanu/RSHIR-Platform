@@ -2,7 +2,7 @@
 // PLATFORM_ADMIN only (also enforced by admin/layout.tsx).
 
 import { requirePlatformAdmin } from '@/lib/platform-admin';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { CouriersTransferClient } from './_client';
 
 export const dynamic = 'force-dynamic';
@@ -27,8 +27,7 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 export default async function AdminCouriersPage() {
   await requirePlatformAdmin();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: couriersRaw, error } = await sb
     .from('courier_profiles')

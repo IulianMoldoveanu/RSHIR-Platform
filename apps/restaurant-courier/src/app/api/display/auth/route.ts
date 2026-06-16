@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { verifyPin } from '@/lib/display-pin';
 import { checkRateLimit, clientIpFrom } from '@/lib/rate-limit';
 
@@ -39,8 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'tenantSlug and pin required' }, { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any;
+  const supabase = createAdminClientUntyped();
 
   // Resolve tenantSlug → tenant_id
   const { data: tenant, error: tenantErr } = await supabase

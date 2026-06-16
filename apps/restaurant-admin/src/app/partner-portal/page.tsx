@@ -18,7 +18,7 @@
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { InvitePanel } from './_components/invite-panel';
 import { ProfileForm } from './_components/profile-form';
 import { NotificationSettings } from './_components/notification-settings';
@@ -132,9 +132,9 @@ export default async function PartnerPortalPage() {
   if (!user) redirect('/login');
 
   // Service-role bypasses RLS on partners + views.
-  // Cast loosely because partner tables aren't in generated DB types yet.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  // Loose helper: schema drift on `partners` (min_vendors_threshold, tier,
+  // wave_label, notification_settings, landing_settings) and embedded views.
+  const admin = createAdminClientUntyped();
 
   // 1. Partner row (PENDING + ACTIVE both allowed; PENDING shows banner)
   const { data: rawPartner } = await admin

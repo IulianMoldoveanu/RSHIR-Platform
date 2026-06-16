@@ -2,7 +2,7 @@
 // Fleet managers own the support relationship (Phase 0 of the support model).
 
 import { requireFleetManager } from '@/lib/fleet-manager';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { FeedbackList, type FeedbackRow } from '@/components/feedback-list';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,7 @@ type Raw = {
 export default async function FleetFeedbackPage() {
   const ctx = await requireFleetManager();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: raw, error } = await sb
     .from('courier_feedback')

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { getOrCreateMaskedSession, isCallMaskingEnabled } from '@/lib/call-masking';
 
 export const runtime = 'nodejs';
@@ -33,8 +33,7 @@ export async function POST(_req: NextRequest, ctx: { params: Promise<{ id: strin
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data: order } = await admin
     .from('courier_orders')
     .select('id, status, assigned_courier_user_id, customer_phone')

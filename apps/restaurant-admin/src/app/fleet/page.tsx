@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { lookupCityCenter } from '@/app/dashboard/zones/default-city-centers';
 import { loadDispatchSnapshot } from './_dispatch-snapshot';
@@ -29,8 +29,7 @@ async function loadFleetMeta(): Promise<Snapshot> {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data: fleet } = await admin
     .from('courier_fleets')
     .select('id, name, slug, is_active, primary_city_id')

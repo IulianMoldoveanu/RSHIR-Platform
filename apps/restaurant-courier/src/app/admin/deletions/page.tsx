@@ -2,7 +2,7 @@
 // PLATFORM_ADMIN only.
 
 import { requirePlatformAdmin } from '@/lib/platform-admin';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import {
   DeletionRequestsList,
   FleetApprovalPermissions,
@@ -30,8 +30,7 @@ function one<T>(v: T | T[] | null | undefined): T | null {
 export default async function AdminDeletionsPage() {
   await requirePlatformAdmin();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: raw, error } = await sb
     .from('courier_account_deletion_requests')

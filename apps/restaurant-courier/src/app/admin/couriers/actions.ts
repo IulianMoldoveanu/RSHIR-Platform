@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { checkPlatformAdmin } from '@/lib/platform-admin';
 
 const REVALIDATE = '/admin/couriers';
@@ -33,8 +33,7 @@ export async function transferCourierAction(formData: FormData): Promise<ActionR
   if (!courierUserId) return { ok: false, error: 'Curier lipsă.' };
   if (!toFleetId) return { ok: false, error: 'Selectează flota destinație.' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   // Current profile → records the "from" side and lets us detect a no-op.
   const { data: profile, error: profErr } = await sb

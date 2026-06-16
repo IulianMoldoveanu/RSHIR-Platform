@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { checkPlatformAdmin } from '@/lib/platform-admin';
 import { getFleetManagerContext } from '@/lib/fleet-manager';
 
@@ -27,8 +27,7 @@ export async function decideDeletionAction(formData: FormData): Promise<ActionRe
     return { ok: false, error: 'Decizie invalidă.' };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: req, error: reqErr } = await sb
     .from('courier_account_deletion_requests')
@@ -111,8 +110,7 @@ export async function setFleetCanApproveDeletionsAction(formData: FormData): Pro
   const enabled = (formData.get('enabled') as string | null) === 'true';
   if (!fleetId) return { ok: false, error: 'Flotă lipsă.' };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
   const { error } = await sb
     .from('courier_fleets')
     .update({ can_approve_deletions: enabled })

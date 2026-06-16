@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { TariffsClient } from './tariffs-client';
 
@@ -32,8 +32,7 @@ export default async function FleetTariffsPage() {
   const { data: { user } } = await supa.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data: fleet } = await admin
     .from('courier_fleets')
     .select('id, name')

@@ -1,5 +1,5 @@
 import 'server-only';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 
 // Wolt-style call masking via the Twilio Proxy REST API.
 //
@@ -97,8 +97,7 @@ export async function getOrCreateMaskedSession(opts: {
   }
 
   const serviceSid = process.env.TWILIO_PROXY_SERVICE_SID as string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
 
   // 1. Reuse a live stored session.
   const { data: existing } = await admin

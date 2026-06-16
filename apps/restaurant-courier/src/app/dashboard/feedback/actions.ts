@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 
 export type SubmitFeedbackResult = { ok: true } | { ok: false; error: string };
 
@@ -36,8 +36,7 @@ export async function submitFeedbackAction(formData: FormData): Promise<SubmitFe
     return { ok: false, error: `Mesajul e prea lung (max ${MAX_MESSAGE} caractere).` };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
 
   const { data: profile } = await admin
     .from('courier_profiles')

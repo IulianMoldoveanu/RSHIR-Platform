@@ -4,7 +4,7 @@
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { LeadForm } from './_components/lead-form';
 import { ExtendButton } from './_components/extend-button';
 
@@ -60,8 +60,7 @@ export default async function LeadsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
 
   const { data: rawPartner } = await admin
     .from('partners')

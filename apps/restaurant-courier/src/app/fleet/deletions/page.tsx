@@ -3,7 +3,7 @@
 // fleet can_approve_deletions; otherwise the list is read-only.
 
 import { requireFleetManager } from '@/lib/fleet-manager';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { DeletionRequestsList, type DeletionRow } from '@/app/admin/deletions/_client';
 
 export const dynamic = 'force-dynamic';
@@ -20,8 +20,7 @@ type Raw = {
 export default async function FleetDeletionsPage() {
   const ctx = await requireFleetManager();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClientUntyped();
 
   const { data: fleet } = await sb
     .from('courier_fleets')

@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { KyfUploadForm } from './kyf-upload-form';
 import { listActiveCities } from '@/lib/cities';
@@ -33,8 +33,7 @@ export default async function FleetKyfPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data: fleet } = await admin
     .from('courier_fleets')
     .select('id, name')
@@ -47,8 +46,7 @@ export default async function FleetKyfPage() {
 
   // 2026-06-15 — also load fleet primary_city_id so the form picker can
   // reflect the currently-saved value (and let the manager change it).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: fleetMeta } = await (admin as any)
+  const { data: fleetMeta } = await admin
     .from('courier_fleets')
     .select('primary_city_id')
     .eq('id', fleet.id)

@@ -4,7 +4,7 @@
 
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,8 +40,7 @@ export default async function TeamPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
 
   // Current partner row
   const { data: rawPartner } = await admin

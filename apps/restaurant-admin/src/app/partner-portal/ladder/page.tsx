@@ -34,8 +34,7 @@ export default async function LadderPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClient();
 
   const { data: rawPartner } = await admin
     .from('partners')

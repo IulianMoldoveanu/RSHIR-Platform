@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { logoutAction } from '../dashboard/actions';
 
 export const dynamic = 'force-dynamic';
@@ -37,8 +37,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
 
   if (!user) redirect('/login');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any;
+  const admin = createAdminClientUntyped();
   const { data, error } = await admin
     .from('courier_fleets')
     .select('id, slug, name, is_active, kyf_required, fleet_kyf:fleet_kyf(kyf_status)')

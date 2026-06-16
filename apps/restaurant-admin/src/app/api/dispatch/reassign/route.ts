@@ -111,8 +111,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Load the courier_order ────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = createAdminClient() as any;
+  const sb = createAdminClient();
 
   const { data: order, error: orderErr } = await sb
     .from('courier_orders')
