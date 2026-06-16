@@ -1,0 +1,430 @@
+'use client';
+
+// Casual vendor signup wizard — 3 steps.
+//
+//   Step 1: CUI ANAF lookup (server action) → company name + address echo.
+//   Step 2: Brand picker (default to ANAF name, editable) + email + phone.
+//   Step 3: Subscription tier selector (3 cards) + final confirm.
+//
+// Mobile-first: each step renders as a single column on small screens; tier
+// cards stack on phones, grid on ≥sm. Wizard state lives in this component;
+// the only server roundtrips are anafLookupAction + submitCasualSignupAction.
+
+import { useState, useTransition, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@hir/ui';
+import {
+  anafLookupAction,
+  submitCasualSignupAction,
+  type SubscriptionTier,
+} from './actions';
+
+export type SubscriptionPlanOption = {
+  tierCode: SubscriptionTier;
+  displayName: string;
+  description: string;
+  monthlyPriceRon: number;
+  maxListingsPerMonth: number | null;
+  maxOffersPerMonth: number | null;
+};
+
+type AnafSnapshot = {
+  cui: string;
+  name: string;
+  address: string | null;
+  vatPayer: boolean;
+};
+
+type WizardStep = 1 | 2 | 3;
+
+const CUI_RE = /^(RO)?\d{2,10}$/i;
+
+function planFeatureBullets(plan: SubscriptionPlanOption): string[] {
+  const bullets: string[] = [];
+  bullets.push(
+    plan.maxListingsPerMonth === null
+      ? 'Listinguri nelimitate / lună'
+      : `${plan.maxListingsPerMonth} listinguri / lună`,
+  );
+  bullets.push(
+    plan.maxOffersPerMonth === null
+      ? 'Oferte nelimitate / lună'
+      : `${plan.maxOffersPerMonth} oferte / lună`,
+  );
+  if (plan.description) bullets.push(plan.description);
+  return bullets;
+}
+
+export function CasualSignupForm({
+  plans,
+  prefillEmail,
+}: {
+  plans: SubscriptionPlanOption[];
+  prefillEmail: string;
+}): JSX.Element {
+  const router = useRouter();
+  const [step, setStep] = useState<WizardStep>(1);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  // Step 1 state
+  const [cui, setCui] = useState('');
+  const [anaf, setAnaf] = useState<AnafSnapshot | null>(null);
+
+  // Step 2 state
+  const [brandName, setBrandName] = useState('');
+  const [email, setEmail] = useState(prefillEmail);
+  const [phone, setPhone] = useState('');
+
+  // Step 3 state — default to the cheapest active plan so the form is never
+  // submitted with a null selection.
+  const defaultTier: SubscriptionTier = plans[0]?.tierCode ?? 'basic';
+  const [tier, setTier] = useState<SubscriptionTier>(defaultTier);
+
+  function resetAnaf(): void {
+    setAnaf(null);
+    setBrandName('');
+  }
+
+  function onCuiSubmit(e: FormEvent): void {
+    e.preventDefault();
+    setError(null);
+    if (!CUI_RE.test(cui.trim())) {
+      setError('CUI invalid. Format: RO12345678 sau 12345678.');
+      return;
+    }
+    startTransition(async () => {
+      const result = await anafLookupAction(cui.trim());
+      if (!result.ok) {
+        if (result.error === 'not_found') {
+          setError('CUI-ul nu a fost găsit la ANAF.');
+        } else if (result.error === 'cif_inactive') {
+          setError('Firma figurează inactivă/radiată la ANAF.');
+        } else if (result.error === 'unauthenticated') {
+          setError('Sesiunea a expirat. Reîncarcă pagina.');
+        } else {
+          setError('Eroare la verificarea ANAF. Reîncearcă peste câteva secunde.');
+        }
+        return;
+      }
+      setAnaf({
+        cui: result.company.cui,
+        name: result.company.name,
+        address: result.company.address,
+        vatPayer: result.company.vatPayer,
+      });
+      // Pre-fill brand name with the ANAF "denumire" — user can edit on step 2.
+      setBrandName(result.company.name);
+      setStep(2);
+    });
+  }
+
+  function onBrandSubmit(e: FormEvent): void {
+    e.preventDefault();
+    setError(null);
+    if (brandName.trim().length < 2 || brandName.trim().length > 100) {
+      setError('Numele brandului trebuie să aibă 2-100 caractere.');
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      setError('Email invalid.');
+      return;
+    }
+    if (phone.replace(/\D/g, '').length < 9) {
+      setError('Telefon invalid (minim 9 cifre).');
+      return;
+    }
+    setStep(3);
+  }
+
+  function onFinalSubmit(e: FormEvent): void {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await submitCasualSignupAction({
+        cui: cui.trim(),
+        brandName: brandName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        subscriptionTier: tier,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      // Successful enrollment → land on the casual dashboard. router.refresh()
+      // also invalidates the layout so the new tenant_member row is visible.
+      router.push('/casual-dashboard?created=1');
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <StepIndicator step={step} />
+
+      {step === 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>1. Verificare CUI</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onCuiSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="cui">CUI firmă *</Label>
+                <Input
+                  id="cui"
+                  inputMode="numeric"
+                  value={cui}
+                  onChange={(e) => setCui(e.target.value.trim())}
+                  placeholder="RO46864293"
+                  maxLength={12}
+                  required
+                />
+                <p className="text-xs text-zinc-500">
+                  Verificăm CUI-ul la ANAF înainte de a continua. Firmele
+                  radiate/inactive nu pot fi înregistrate.
+                </p>
+              </div>
+              {error && (
+                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" disabled={isPending} className="w-full">
+                {isPending ? 'Verific la ANAF…' : 'Verifică CUI'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 2 && anaf && (
+        <Card>
+          <CardHeader>
+            <CardTitle>2. Date brand + contact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onBrandSubmit} className="space-y-4">
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                <p className="font-medium">ANAF: firmă activă ✓</p>
+                <p className="mt-0.5 text-zinc-700">
+                  <span className="font-semibold">{anaf.name}</span>
+                  {' · CUI '}{anaf.cui}
+                  {anaf.vatPayer ? ' · plătitor TVA' : ''}
+                </p>
+                {anaf.address && (
+                  <p className="text-zinc-700">{anaf.address}</p>
+                )}
+                <button
+                  type="button"
+                  className="mt-1 text-[11px] underline"
+                  onClick={() => {
+                    resetAnaf();
+                    setStep(1);
+                  }}
+                >
+                  Schimbă CUI
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="brand">Nume brand (vizibil pe marketplace) *</Label>
+                <Input
+                  id="brand"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder={anaf.name}
+                  maxLength={100}
+                  required
+                />
+                <p className="text-xs text-zinc-500">
+                  Implicit este denumirea ANAF. Poți alege un brand mai scurt
+                  (ex: „Bakery 24/7").
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email contact *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="phone">Telefon contact *</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+40 743 700 916"
+                  autoComplete="tel"
+                  required
+                />
+              </div>
+
+              {error && (
+                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {error}
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  disabled={isPending}
+                >
+                  Înapoi
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  Continuă la abonament
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {step === 3 && anaf && (
+        <Card>
+          <CardHeader>
+            <CardTitle>3. Alege planul + confirmă</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onFinalSubmit} className="space-y-5">
+              <p className="text-sm text-zinc-600">
+                Toate planurile vin cu <strong>30 de zile trial</strong>. Plata
+                lunară pornește după trial; poți anula oricând din panou.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {plans.map((plan) => {
+                  const selected = plan.tierCode === tier;
+                  return (
+                    <label
+                      key={plan.tierCode}
+                      htmlFor={`tier-${plan.tierCode}`}
+                      className={
+                        'flex cursor-pointer flex-col rounded-lg border p-4 transition ' +
+                        (selected
+                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600'
+                          : 'border-zinc-200 bg-white hover:border-zinc-400')
+                      }
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">
+                            {plan.displayName}
+                          </p>
+                          <p className="text-2xl font-bold text-zinc-900">
+                            {plan.monthlyPriceRon}
+                            <span className="text-sm font-normal text-zinc-500"> RON / lună</span>
+                          </p>
+                        </div>
+                        <input
+                          id={`tier-${plan.tierCode}`}
+                          type="radio"
+                          name="tier"
+                          value={plan.tierCode}
+                          checked={selected}
+                          onChange={() => setTier(plan.tierCode)}
+                          className="mt-1 h-4 w-4 accent-purple-600"
+                        />
+                      </div>
+                      <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+                        {planFeatureBullets(plan).map((b, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span aria-hidden="true" className="mt-0.5 text-emerald-600">
+                              ✓
+                            </span>
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-700">
+                <p className="font-semibold text-zinc-900">Confirmi că:</p>
+                <ul className="mt-1 list-disc pl-5">
+                  <li>Brand-ul „{brandName.trim()}" va fi vizibil public pe marketplace.</li>
+                  <li>Contul devine activ după validare manuală (24h lucrătoare).</li>
+                  <li>Primești o lună trial; după aceea {plans.find((p) => p.tierCode === tier)?.monthlyPriceRon} RON/lună.</li>
+                </ul>
+              </div>
+
+              {error && (
+                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  {error}
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(2)}
+                  disabled={isPending}
+                >
+                  Înapoi
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? 'Se înregistrează…' : 'Finalizează înregistrarea'}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function StepIndicator({ step }: { step: WizardStep }): JSX.Element {
+  const labels = ['CUI', 'Date brand', 'Abonament'];
+  return (
+    <ol className="flex items-center justify-center gap-2 text-xs sm:gap-4">
+      {labels.map((label, i) => {
+        const n = (i + 1) as WizardStep;
+        const active = n === step;
+        const done = n < step;
+        return (
+          <li key={label} className="flex items-center gap-2">
+            <span
+              className={
+                'inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ' +
+                (active
+                  ? 'bg-purple-600 text-white'
+                  : done
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-zinc-200 text-zinc-600')
+              }
+            >
+              {done ? '✓' : n}
+            </span>
+            <span
+              className={active || done ? 'font-medium text-zinc-900' : 'text-zinc-500'}
+            >
+              {label}
+            </span>
+            {i < labels.length - 1 && (
+              <span aria-hidden="true" className="text-zinc-300">
+                →
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
