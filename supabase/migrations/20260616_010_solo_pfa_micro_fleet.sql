@@ -31,10 +31,7 @@
 ALTER TABLE IF EXISTS public.courier_fleets
   ADD COLUMN IF NOT EXISTS is_pfa_solo BOOLEAN NOT NULL DEFAULT FALSE;
 
-COMMENT ON COLUMN public.courier_fleets.is_pfa_solo IS
-  'TRUE = solo PFA micro-fleet (single member = owner). KYF-light flow ' ||
-  '(ANAF CUI + ID + selfie). Vision LOCKED 2026-06-16: each PFA owns its ' ||
-  'own fleet to preserve HIR4You firewall (Dir UE 2024/2831).';
+COMMENT ON COLUMN public.courier_fleets.is_pfa_solo IS $cmt$TRUE = solo PFA micro-fleet (single member = owner). KYF-light flow (ANAF CUI + ID + selfie). Vision LOCKED 2026-06-16: each PFA owns its own fleet to preserve HIR4You firewall (Dir UE 2024/2831).$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 2. courier_fleets.pfa_cui — ANAF unique identifier (nullable, validated
@@ -43,10 +40,7 @@ COMMENT ON COLUMN public.courier_fleets.is_pfa_solo IS
 ALTER TABLE IF EXISTS public.courier_fleets
   ADD COLUMN IF NOT EXISTS pfa_cui TEXT;
 
-COMMENT ON COLUMN public.courier_fleets.pfa_cui IS
-  'ANAF CUI (Cod Unic de Înregistrare) for solo PFA. Nullable until ' ||
-  'KYF-light verification. Validated server-side via ANAF public API ' ||
-  '(anaf.ro/info-cui). Format: 8-10 digits, no RO prefix.';
+COMMENT ON COLUMN public.courier_fleets.pfa_cui IS $cmt$ANAF CUI (Cod Unic de Înregistrare) for solo PFA. Nullable until KYF-light verification. Validated server-side via ANAF public API (anaf.ro/info-cui). Format: 8-10 digits, no RO prefix.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 3. courier_fleets.pfa_owner_user_id — auth user that IS the PFA holder
@@ -56,11 +50,7 @@ COMMENT ON COLUMN public.courier_fleets.pfa_cui IS
 ALTER TABLE IF EXISTS public.courier_fleets
   ADD COLUMN IF NOT EXISTS pfa_owner_user_id UUID;
 
-COMMENT ON COLUMN public.courier_fleets.pfa_owner_user_id IS
-  'auth.users.id of the PFA holder when is_pfa_solo=TRUE. ' ||
-  'For non-solo (multi-member) fleets this is NULL. Use owner_user_id ' ||
-  'for generic fleet ownership checks; pfa_owner_user_id disambiguates ' ||
-  'micro-fleets where owner == sole courier.';
+COMMENT ON COLUMN public.courier_fleets.pfa_owner_user_id IS $cmt$auth.users.id of the PFA holder when is_pfa_solo=TRUE. For non-solo (multi-member) fleets this is NULL. Use owner_user_id for generic fleet ownership checks; pfa_owner_user_id disambiguates micro-fleets where owner == sole courier.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 4. fleet_kyf.kyf_status — extend CHECK to accept VERIFIED_PFA_LIGHT
@@ -98,10 +88,7 @@ EXCEPTION
 END;
 $$;
 
-COMMENT ON COLUMN public.fleet_kyf.kyf_status IS
-  'KYF lifecycle: PENDING (submitted), VERIFIED (full multi-member fleet), ' ||
-  'REJECTED (manual review failed), VERIFIED_PFA_LIGHT (solo PFA KYF-light: ' ||
-  'ANAF CUI + ID + selfie verified — added 2026-06-16).';
+COMMENT ON COLUMN public.fleet_kyf.kyf_status IS $cmt$KYF lifecycle: PENDING (submitted), VERIFIED (full multi-member fleet), REJECTED (manual review failed), VERIFIED_PFA_LIGHT (solo PFA KYF-light: ANAF CUI + ID + selfie verified — added 2026-06-16).$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 5. Partial index for active solo PFA fleets (hot path: marketplace match,
@@ -111,20 +98,12 @@ CREATE INDEX IF NOT EXISTS ix_courier_fleets_pfa_solo_active
   ON public.courier_fleets (is_pfa_solo, is_active)
   WHERE is_pfa_solo = TRUE;
 
-COMMENT ON INDEX public.ix_courier_fleets_pfa_solo_active IS
-  'Hot path for solo PFA filters (marketplace match scoring, admin dashboards). ' ||
-  'Partial index keeps non-PFA fleets out of the index — small footprint.';
+COMMENT ON INDEX public.ix_courier_fleets_pfa_solo_active IS $cmt$Hot path for solo PFA filters (marketplace match scoring, admin dashboards). Partial index keeps non-PFA fleets out of the index — small footprint.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 6. Table-level comment summarising the vision for future maintainers
 -- ---------------------------------------------------------------------------
-COMMENT ON TABLE public.courier_fleets IS
-  'Courier fleets registry. Vision LOCKED 2026-06-16: each PFA = its own ' ||
-  'micro-fleet (is_pfa_solo=TRUE) with a single member (himself). KYF-light ' ||
-  'flow (ANAF CUI + ID + selfie) is sufficient for solo PFAs. HIR4You firewall ' ||
-  '(Dir UE 2024/2831) preserved on all 3 legs: money vendor->PFA direct, ' ||
-  'algorithmic control at PFA level, HIR = infra/data only. Feature flag ' ||
-  'HIR_FEATURE_SOLO_PFA_ENABLED gates onboarding UI; schema is forward-safe.';
+COMMENT ON TABLE public.courier_fleets IS $cmt$Courier fleets registry. Vision LOCKED 2026-06-16: each PFA = its own micro-fleet (is_pfa_solo=TRUE) with a single member (himself). KYF-light flow (ANAF CUI + ID + selfie) is sufficient for solo PFAs. HIR4You firewall (Dir UE 2024/2831) preserved on all 3 legs: money vendor->PFA direct, algorithmic control at PFA level, HIR = infra/data only. Feature flag HIR_FEATURE_SOLO_PFA_ENABLED gates onboarding UI; schema is forward-safe.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 7. Cod fiscal RO 10y retention — mark courier_fleets as financial record
@@ -133,9 +112,7 @@ COMMENT ON TABLE public.courier_fleets IS
 ALTER TABLE IF EXISTS public.courier_fleets
   ADD COLUMN IF NOT EXISTS is_financial_record BOOLEAN NOT NULL DEFAULT TRUE;
 
-COMMENT ON COLUMN public.courier_fleets.is_financial_record IS
-  'Cod fiscal RO 10y retention. Purge crons MUST exclude WHERE is_financial_record = TRUE. ' ||
-  'Solo PFA fleets carry CUI (fiscal identity) — never purge.';
+COMMENT ON COLUMN public.courier_fleets.is_financial_record IS $cmt$Cod fiscal RO 10y retention. Purge crons MUST exclude WHERE is_financial_record = TRUE. Solo PFA fleets carry CUI (fiscal identity) — never purge.$cmt$;
 
 -- ============================================================================
 -- Feature flag note (NOT applied here, schema-only migration):

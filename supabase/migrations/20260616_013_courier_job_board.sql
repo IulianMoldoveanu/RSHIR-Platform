@@ -66,11 +66,7 @@ CREATE TABLE IF NOT EXISTS public.courier_job_listings (
     )
 );
 
-COMMENT ON TABLE public.courier_job_listings IS
-  'Fleet-authored job postings for couriers (Layer 1 firewall: HIR hosts the ' ||
-  'listing only — fleet contracts + pays the courier). employment_type one of ' ||
-  'PFA / salariat / contractor; status flows OPEN -> PAUSED -> CLOSED with ' ||
-  'EXPIRED set by fn_expire_courier_job_listings cron (>30d default).';
+COMMENT ON TABLE public.courier_job_listings IS $cmt$Fleet-authored job postings for couriers (Layer 1 firewall: HIR hosts the listing only — fleet contracts + pays the courier). employment_type one of PFA / salariat / contractor; status flows OPEN -> PAUSED -> CLOSED with EXPIRED set by fn_expire_courier_job_listings cron (>30d default).$cmt$;
 
 COMMENT ON COLUMN public.courier_job_listings.languages_required IS
   'Optional array of ISO 639-1 codes (e.g. {ro,en}). Empty = no requirement.';
@@ -93,12 +89,7 @@ CREATE TABLE IF NOT EXISTS public.courier_job_applications (
     UNIQUE (job_listing_id, courier_user_id)
 );
 
-COMMENT ON TABLE public.courier_job_applications IS
-  'Courier applications to fleet job listings. One row per (listing, courier). ' ||
-  'Status flow: PENDING -> REVIEWING -> INTERVIEWED -> HIRED | REJECTED. ' ||
-  'Courier may transition own row to WITHDRAWN any time before HIRED. ' ||
-  'Rate-limit: max 5 active (PENDING/REVIEWING/INTERVIEWED) per courier — ' ||
-  'enforced by trg_courier_job_applications_rate_limit.';
+COMMENT ON TABLE public.courier_job_applications IS $cmt$Courier applications to fleet job listings. One row per (listing, courier). Status flow: PENDING -> REVIEWING -> INTERVIEWED -> HIRED | REJECTED. Courier may transition own row to WITHDRAWN any time before HIRED. Rate-limit: max 5 active (PENDING/REVIEWING/INTERVIEWED) per courier — enforced by trg_courier_job_applications_rate_limit.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 3. Indices
@@ -146,11 +137,7 @@ $$;
 REVOKE ALL ON FUNCTION public.fn_courier_application_count(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.fn_courier_application_count(uuid) TO authenticated;
 
-COMMENT ON FUNCTION public.fn_courier_application_count(uuid) IS
-  'Courier job board rate-limit helper. Returns count of ACTIVE applications ' ||
-  '(PENDING/REVIEWING/INTERVIEWED) for the given courier. Used by ' ||
-  'trg_courier_job_applications_rate_limit + UI badge. SECDEF with hardened ' ||
-  'search_path per 20260616_008.';
+COMMENT ON FUNCTION public.fn_courier_application_count(uuid) IS $cmt$Courier job board rate-limit helper. Returns count of ACTIVE applications (PENDING/REVIEWING/INTERVIEWED) for the given courier. Used by trg_courier_job_applications_rate_limit + UI badge. SECDEF with hardened search_path per 20260616_008.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 5. Rate-limit trigger: max 5 active applications per courier
@@ -191,10 +178,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.fn_enforce_courier_application_limit() FROM PUBLIC;
 
-COMMENT ON FUNCTION public.fn_enforce_courier_application_limit() IS
-  'BEFORE INSERT/UPDATE trigger fn for courier_job_applications. Caps active ' ||
-  '(PENDING/REVIEWING/INTERVIEWED) applications at 5 per courier. SECDEF with ' ||
-  'hardened search_path per 20260616_008.';
+COMMENT ON FUNCTION public.fn_enforce_courier_application_limit() IS $cmt$BEFORE INSERT/UPDATE trigger fn for courier_job_applications. Caps active (PENDING/REVIEWING/INTERVIEWED) applications at 5 per courier. SECDEF with hardened search_path per 20260616_008.$cmt$;
 
 DROP TRIGGER IF EXISTS trg_courier_job_applications_rate_limit
   ON public.courier_job_applications;
@@ -263,10 +247,7 @@ $$;
 REVOKE ALL ON FUNCTION public.fn_expire_courier_job_listings() FROM PUBLIC;
 -- service_role is the only caller (cron edge fn). No GRANT to authenticated.
 
-COMMENT ON FUNCTION public.fn_expire_courier_job_listings() IS
-  'Cron-driven sweep that flips OPEN courier_job_listings to EXPIRED when ' ||
-  'expires_at is past OR created_at is older than 30 days. Returns the row ' ||
-  'count expired. Schema-only here; cron wiring lands in a follow-up.';
+COMMENT ON FUNCTION public.fn_expire_courier_job_listings() IS $cmt$Cron-driven sweep that flips OPEN courier_job_listings to EXPIRED when expires_at is past OR created_at is older than 30 days. Returns the row count expired. Schema-only here; cron wiring lands in a follow-up.$cmt$;
 
 -- ---------------------------------------------------------------------------
 -- 8. REVOKE base privileges (least privilege first)
