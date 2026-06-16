@@ -42,7 +42,7 @@ export function CourierStatusActions({ userId, status }: Props) {
           type="button"
           disabled={pending}
           onClick={handleReactivate}
-          className="gap-1 rounded-lg border border-emerald-700/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20"
+          className="min-h-[40px] gap-1 rounded-lg border border-emerald-700/40 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20"
         >
           {pending ? (
             <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
@@ -64,7 +64,7 @@ export function CourierStatusActions({ userId, status }: Props) {
           variant="destructive"
           disabled={pending}
           onClick={handleSuspend}
-          className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
+          className="min-h-[40px] rounded-lg px-3 py-1.5 text-[11px] font-semibold"
         >
           {pending ? 'Se suspendă…' : 'Confirmă'}
         </Button>
@@ -73,7 +73,7 @@ export function CourierStatusActions({ userId, status }: Props) {
           variant="outline"
           disabled={pending}
           onClick={() => setConfirmSuspend(false)}
-          className="rounded-lg border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-300 hover:bg-zinc-800"
+          className="min-h-[40px] rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[11px] text-zinc-300 hover:bg-zinc-800"
         >
           Anulează
         </Button>
@@ -87,7 +87,7 @@ export function CourierStatusActions({ userId, status }: Props) {
         type="button"
         variant="outline"
         onClick={() => setConfirmSuspend(true)}
-        className="gap-1 rounded-lg border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-800"
+        className="min-h-[40px] gap-1 rounded-lg border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-800"
       >
         <ShieldOff className="h-3 w-3" aria-hidden />
         Suspendă
