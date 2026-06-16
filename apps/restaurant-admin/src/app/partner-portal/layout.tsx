@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logoutAction } from '../dashboard/actions';
+import { BottomNav } from './_components/bottom-nav';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,10 +84,12 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
 
   const navLinks = [
     { href: '/partner-portal', label: 'Tablou de bord' },
-    { href: '/partner-portal/team', label: 'Echipa' },
     { href: '/partner-portal/leads', label: 'Lead-uri' },
+    { href: '/partner-portal/team', label: 'Echipa' },
+    { href: '/partner-portal/commissions', label: 'Comisioane' },
     { href: '/partner-portal/calculator', label: 'Calculator' },
     { href: '/partner-portal/ladder', label: 'Progres' },
+    { href: '/partner-portal/marketing', label: 'Materiale' },
     { href: '/partner-portal/library', label: 'Sales kit' },
   ];
 
@@ -116,16 +119,16 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 sm:px-6">
-          <span className="text-sm font-medium text-zinc-700">
-            Portal Partener — {partner.name as string}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 backdrop-blur sm:px-6">
+          <span className="truncate text-sm font-medium text-zinc-700">
+            Portal Partener — <span className="text-zinc-900">{partner.name as string}</span>
           </span>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-500 md:inline">{user.email}</span>
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-1"
               >
                 Logout
               </button>
@@ -133,6 +136,10 @@ export default async function PartnerPortalLayout({ children }: { children: Reac
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>
+        {/* Mobile-only bottom nav (lg:hidden inside). Adds safe-area
+            inset for iOS home indicator; pages add pb-20 lg:pb-0 to
+            their root container to keep CTAs above the nav. */}
+        <BottomNav />
       </div>
     </div>
   );

@@ -99,15 +99,54 @@ export default async function LeadsPage() {
   const activeLeads = leads.filter((l) => l.status === 'active');
   const historyLeads = leads.filter((l) => l.status !== 'active');
 
+  // Summary stats for the warm header tiles.
+  const activeCount = activeLeads.length;
+  const expiringSoonCount = activeLeads.filter(
+    (l) => daysUntil(l.unlocks_at) <= 5,
+  ).length;
+  const wonCount = historyLeads.filter((l) => l.status === 'closed_won').length;
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6 pb-20 lg:pb-0">
       <header>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Lead-uri</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Înregistrează un restaurant ca lead exclusiv — ai 30 de zile să îl închizi. Nimeni
-          altcineva nu poate înregistra același contact în această perioadă.
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+          Lead-uri
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600">
+          Înregistrează un vendor ca lead exclusiv — ai 30 de zile să îl închizi
+          fără ca alt partener să poată revendica același contact.
         </p>
       </header>
+
+      {leads.length > 0 ? (
+        <section
+          aria-label="Sumar lead-uri"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        >
+          <SummaryTile
+            label="Lock-uri active"
+            value={String(activeCount)}
+            sub={`${expiringSoonCount} expiră în ≤5 zile`}
+            tone={expiringSoonCount > 0 ? 'amber' : 'default'}
+          />
+          <SummaryTile
+            label="Câștigate"
+            value={String(wonCount)}
+            sub="closed_won istoric"
+            tone="emerald"
+          />
+          <SummaryTile
+            label="Total înregistrate"
+            value={String(leads.length)}
+            sub="active + istoric"
+          />
+          <SummaryTile
+            label="Extensii folosite"
+            value={String(activeLeads.filter((l) => l.extended).length)}
+            sub="din lock-urile active"
+          />
+        </section>
+      ) : null}
 
       {/* Registration form */}
       <section className="rounded-lg border border-zinc-200 bg-white p-6">
@@ -122,8 +161,14 @@ export default async function LeadsPage() {
           <span className="text-xs text-zinc-400">{activeLeads.length} total</span>
         </div>
         {activeLeads.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-8 text-center">
-            <p className="text-sm text-zinc-500">Nu ai lock-uri active. Înregistrează primul tău lead mai sus.</p>
+          <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-8 text-center">
+            <p className="text-sm font-medium text-zinc-700">
+              Niciun lock activ momentan.
+            </p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Înregistrează primul tău vendor mai sus — îți garantăm 30 de zile
+              de exclusivitate pentru închidere.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
@@ -226,6 +271,42 @@ export default async function LeadsPage() {
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  sub,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  tone?: 'default' | 'emerald' | 'amber';
+}) {
+  const toneCls =
+    tone === 'emerald'
+      ? 'text-emerald-700'
+      : tone === 'amber'
+        ? 'text-amber-700'
+        : 'text-zinc-900';
+  const borderCls =
+    tone === 'emerald'
+      ? 'border-emerald-200'
+      : tone === 'amber'
+        ? 'border-amber-200'
+        : 'border-zinc-200';
+  return (
+    <div className={`rounded-xl border bg-white p-4 ${borderCls}`}>
+      <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${toneCls}`}>
+        {value}
+      </p>
+      <p className="mt-0.5 text-xs text-zinc-400">{sub}</p>
     </div>
   );
 }

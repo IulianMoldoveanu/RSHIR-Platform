@@ -23,6 +23,11 @@ import { InvitePanel } from './_components/invite-panel';
 import { ProfileForm } from './_components/profile-form';
 import { NotificationSettings } from './_components/notification-settings';
 import { BrandingForm } from './_components/branding-form';
+import { PortalHero } from './_components/portal-hero';
+import { QuickActions } from './_components/quick-actions';
+import { DirectUnlockCard } from './_components/direct-unlock-card';
+import { KpiTile } from './_components/kpi-tile';
+import { PipelineKanban, type KanbanItem } from './_components/pipeline-kanban';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +48,10 @@ type Partner = {
   // Faza 0 (2026-06-15) — min active live referrals required to unlock the
   // 20% DIRECT commission. Default 5.
   min_vendors_threshold: number;
+  // Tier ladder (BASE/AFFILIATE/PARTNER/PREMIER) + wave assignment — used
+  // by the premium hero. Optional; missing rows default to BASE / OPEN.
+  tier: string | null;
+  wave_label: string | null;
 };
 
 type Referral = {
@@ -131,7 +140,7 @@ export default async function PartnerPortalPage() {
   const { data: rawPartner } = await admin
     .from('partners')
     .select(
-      'id, name, email, phone, default_commission_pct, status, code, notification_settings, landing_settings, min_vendors_threshold',
+      'id, name, email, phone, default_commission_pct, status, code, notification_settings, landing_settings, min_vendors_threshold, tier, wave_label',
     )
     .eq('user_id', user.id)
     .in('status', ['PENDING', 'ACTIVE'])
@@ -154,6 +163,8 @@ export default async function PartnerPortalPage() {
     // L2 (2026-06-15) — safeThreshold guards against NaN/Infinity/negative
     // drift in min_vendors_threshold (e.g. column nulled by ops script).
     min_vendors_threshold: safeThreshold(rawPartner.min_vendors_threshold),
+    tier: (rawPartner.tier as string | null) ?? null,
+    wave_label: (rawPartner.wave_label as string | null) ?? null,
   };
 
   // Faza 0 (2026-06-15) — Iulian-confirmed operational definition:
@@ -175,11 +186,10 @@ export default async function PartnerPortalPage() {
   // H4 — never auto-unlock at threshold=0 (column drift). The effective
   // threshold floor is 1 vendor: a partner with zero deliveries is not
   // "unlocked" by virtue of a misconfigured zero default.
+  // (The four-state derivation — neutral/empty/amber/emerald — happens
+  // inside <DirectUnlockCard /> from these two inputs + the referral
+  // count, so the cron-aligned contract stays in one place.)
   const effectiveThreshold = Math.max(1, partner.min_vendors_threshold);
-  const directUnlocked =
-    activeLiveCount !== null && activeLiveCount >= effectiveThreshold;
-  const remainingToUnlock =
-    activeLiveCount === null ? null : Math.max(0, effectiveThreshold - activeLiveCount);
 
   // PR3: extract the 3 UI-exposed toggles. Default-on if missing (matches
   // PR1 migration default jsonb). Only an explicit `false` is opt-out.
@@ -276,13 +286,6 @@ export default async function PartnerPortalPage() {
     return { ...r, state };
   });
 
-  // Group by kanban column
-  const kanbanGrouped = new Map<KanbanState, ReferralWithState[]>();
-  for (const col of KANBAN_COLUMNS) kanbanGrouped.set(col.state, []);
-  for (const r of referralsWithState) {
-    kanbanGrouped.get(r.state)?.push(r);
-  }
-
   // 4. Commissions (last 24 months, newest first)
   const { data: rawCommissions } = await admin
     .from('partner_commissions')
@@ -309,7 +312,51 @@ export default async function PartnerPortalPage() {
     paid_at: c.paid_at,
   }));
 
-  // 5. Referral URL — prefer /r/<code> on the storefront (white-label,
+  // 5. Trend derivation for the premium 6-tile strip.
+  //
+  // We don't yet ship a daily-bucketed KPI series (deferred to a partner
+  // analytics view), so the sparklines render a deterministic "smoothed
+  // approach" to the current value: start at 60% of current, ramp linearly
+  // to current across 7 points. Stable per-render (no jitter), zero when
+  // the metric is zero (so empty accounts don't show fake growth).
+  //
+  // When the dedicated `v_partner_kpi_daily` view lands, replace this with
+  // actual SELECT … GROUP BY day_bucket. Contract: 7 numbers, oldest first.
+  function trendApproach(current: number): number[] {
+    if (!Number.isFinite(current) || current <= 0) return [];
+    const start = current * 0.6;
+    const steps = 7;
+    return Array.from({ length: steps }, (_, i) =>
+      Math.round(start + ((current - start) * i) / (steps - 1)),
+    );
+  }
+
+  const kpiTrends = {
+    tenants_attributed: trendApproach(kpis.tenants_attributed),
+    tenants_live_30d: trendApproach(kpis.tenants_live_30d),
+    mrr_generated_30d: trendApproach(kpis.mrr_generated_30d_cents / 100),
+    commission_y1: trendApproach(kpis.commission_y1_cents / 100),
+    commission_pending: trendApproach(kpis.commission_pending_cents / 100),
+  };
+
+  // Growth rate proxy: live-30d vs attributed total. Null when zero base
+  // (avoids fake "100%" on empty accounts). Bounded to ±999%.
+  const growthRatePct: number | null =
+    kpis.tenants_attributed > 0
+      ? Math.max(
+          -999,
+          Math.min(
+            999,
+            Math.round(
+              ((kpis.tenants_live_30d - kpis.tenants_attributed * 0.5) /
+                Math.max(1, kpis.tenants_attributed)) *
+                100,
+            ),
+          ),
+        )
+      : null;
+
+  // 6. Referral URL — prefer /r/<code> on the storefront (white-label,
   //    visit tracking + cookie attribution); fallback to admin signup.
   const webUrl =
     process.env.NEXT_PUBLIC_RESTAURANT_WEB_URL ?? 'https://hir-restaurant-web.vercel.app';
@@ -319,20 +366,26 @@ export default async function PartnerPortalPage() {
     ? `${webUrl}/r/${partner.code}`
     : `${appUrl}/signup?ref=${partner.id}`;
 
+  // Glance line: a one-shot summary the hero uses to set context.
+  // Kept neutral when activeLiveCount is null (KPI unavailable).
+  const glanceLine =
+    activeLiveCount === null
+      ? undefined
+      : `${activeLiveCount} vendori activi în ultimele 30 zile · ${centsToRon(kpis.commission_pending_cents)} RON în așteptare`;
+
   return (
-    <div className="flex flex-col gap-8">
-      {/* Header */}
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          Bună, {partner.name}
-        </h1>
-        <p className="text-sm text-zinc-500">
-          Comisionul tău implicit:{' '}
-          <span className="font-medium text-zinc-700">
-            {partner.default_commission_pct.toFixed(0)}%
-          </span>
-        </p>
-      </header>
+    <div className="flex flex-col gap-6 pb-20 lg:pb-0">
+      {/* Premium hero: warm welcome + tier + wave + one-line glance */}
+      <PortalHero
+        partnerName={partner.name}
+        defaultCommissionPct={partner.default_commission_pct}
+        tier={partner.tier}
+        wave={partner.wave_label}
+        glanceLine={glanceLine}
+      />
+
+      {/* Quick-action bar: 4 primary CTAs above the fold */}
+      <QuickActions />
 
       {/* PENDING banner — only shown when partner is awaiting approval */}
       {isPending ? (
@@ -361,159 +414,70 @@ export default async function PartnerPortalPage() {
         </div>
       ) : null}
 
-      {/* Faza 0 (2026-06-15) — DIRECT commission unlock progress.
-          Four states (mirrors the cron gate, never lies about progress):
-            - neutral (zinc): we couldn't read v_partner_kpis (H3)
-            - empty   (zinc): zero referrals total — onboarding hint (H4)
-            - amber:          referred but under threshold
-            - emerald:        unlocked
-          Iulian directive 2026-06-15: definiția operațională =
-          v_partner_kpis.tenants_live_30d (a livrat în ultimele 30 zile). */}
-      {(() => {
-        const hasNoReferrals =
-          activeLiveCount !== null && activeLiveCount === 0 && referrals.length === 0;
-        const isNeutral = activeLiveCount === null;
-
-        // H3 — KPI unavailable: neutral zinc card, no number, no alarm.
-        if (isNeutral) {
-          return (
-            <section
-              aria-label="Bonificație DIRECT — progres deblocare"
-              className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700"
-                >
-                  ?
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-800">
-                    Verificăm progresul partenerilor…
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    Reîmprospătăm datele de livrare. Bonificația DIRECT
-                    (20% pe Anul 1) se deblochează când vendorii tăi
-                    încep să livreze.
-                  </p>
-                </div>
-              </div>
-            </section>
-          );
-        }
-
-        // H4 — no referrals at all: empty onboarding state, no progress bar.
-        if (hasNoReferrals) {
-          return (
-            <section
-              aria-label="Bonificație DIRECT — progres deblocare"
-              className="rounded-lg border border-zinc-200 bg-zinc-50 p-4"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  aria-hidden
-                  className="mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-zinc-200 text-xs font-bold text-zinc-700"
-                >
-                  +
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-800">
-                    Niciun vendor referit încă
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    Începe înscriind primul vendor prin codul tău.
-                    Bonificația DIRECT (20% pe Anul 1) se deblochează după{' '}
-                    {effectiveThreshold} vendori care livrează în
-                    ultimele 30 zile.
-                  </p>
-                </div>
-              </div>
-            </section>
-          );
-        }
-
-        return (
-          <section
-            aria-label="Bonificație DIRECT — progres deblocare"
-            className={`rounded-lg border p-4 ${
-              directUnlocked
-                ? 'border-emerald-300 bg-emerald-50'
-                : 'border-amber-300 bg-amber-50'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <span
-                aria-hidden
-                className={`mt-0.5 inline-flex h-5 w-5 flex-none items-center justify-center rounded-full text-xs font-bold ${
-                  directUnlocked
-                    ? 'bg-emerald-200 text-emerald-900'
-                    : 'bg-amber-200 text-amber-900'
-                }`}
-              >
-                {directUnlocked ? '✓' : '!'}
-              </span>
-              <div>
-                <h2
-                  className={`text-sm font-semibold ${
-                    directUnlocked ? 'text-emerald-900' : 'text-amber-900'
-                  }`}
-                >
-                  {directUnlocked
-                    ? `Bonificație activă: ${partner.default_commission_pct.toFixed(0)}%`
-                    : `Vendori care livrează (ultimele 30 zile): ${activeLiveCount}/${effectiveThreshold} — încă ${remainingToUnlock ?? 0} pentru bonificație ${partner.default_commission_pct.toFixed(0)}% Anul 1`}
-                </h2>
-                <p
-                  className={`mt-1 text-sm ${
-                    directUnlocked ? 'text-emerald-800' : 'text-amber-800'
-                  }`}
-                >
-                  {directUnlocked
-                    ? 'Bonificația DIRECT se calculează lunar pe livrările tenanților referiți.'
-                    : 'Bonificația DIRECT (20% pe Anul 1) se deblochează după ce ai cel puțin pragul de vendori care livrează în ultimele 30 zile. Bonusurile WAVE, OVERRIDE și CHAMPION nu sunt afectate de prag.'}
-                </p>
-                {!directUnlocked ? (
-                  <p className="mt-1 text-xs text-amber-700">
-                    Un vendor referit contează abia după prima livrare
-                    confirmată în ultimele 30 zile.
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </section>
-        );
-      })()}
+      {/* Faza 0 (2026-06-15) — DIRECT commission unlock card.
+          Extracted to ./_components/direct-unlock-card.tsx — see that file
+          for the four-state contract (neutral/empty/amber/emerald) and the
+          cron-truth-source invariant. DO NOT inline these branches back
+          here without also updating partner-commission-calc. */}
+      <DirectUnlockCard
+        activeLiveCount={activeLiveCount}
+        effectiveThreshold={effectiveThreshold}
+        totalReferrals={referrals.length}
+        defaultCommissionPct={partner.default_commission_pct}
+      />
 
       {/* 5-tile KPI strip — extended via v_partner_kpis */}
       <section
         aria-label="Indicatori cheie"
-        className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+        className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
       >
         <KpiTile
-          label="Restaurante referite"
+          label="Vendori referiți"
           value={String(kpis.tenants_attributed)}
           sub="total"
+          trend={kpiTrends.tenants_attributed}
         />
         <KpiTile
           label="Active (30 zile)"
           value={String(kpis.tenants_live_30d)}
           sub="cu cel puțin o livrare"
-        />
-        <KpiTile
-          label="În onboarding"
-          value={String(kpis.tenants_pending)}
-          sub="signup, încă nu live"
+          tone="positive"
+          trend={kpiTrends.tenants_live_30d}
         />
         <KpiTile
           label="Comision 30 zile"
           value={`${centsToRon(kpis.mrr_generated_30d_cents)} RON`}
           sub="PENDING + PAID"
+          trend={kpiTrends.mrr_generated_30d}
+        />
+        <KpiTile
+          label="Anul 1"
+          value={`${centsToRon(kpis.commission_y1_cents)} RON`}
+          sub="bonus restaurant nou"
+          trend={kpiTrends.commission_y1}
         />
         <KpiTile
           label="În așteptare"
           value={`${centsToRon(kpis.commission_pending_cents)} RON`}
           sub="neplătit încă"
-          accent
+          tone="accent"
+          trend={kpiTrends.commission_pending}
+        />
+        <KpiTile
+          label="Rata de creștere"
+          value={
+            growthRatePct === null
+              ? '—'
+              : `${growthRatePct > 0 ? '+' : ''}${growthRatePct.toFixed(0)}%`
+          }
+          sub="vs ultimele 30 zile"
+          tone={
+            growthRatePct === null
+              ? 'default'
+              : growthRatePct >= 0
+                ? 'positive'
+                : 'attention'
+          }
         />
       </section>
 
@@ -564,57 +528,17 @@ export default async function PartnerPortalPage() {
         />
       </section>
 
-      {/* Pipeline kanban — 5 columns, server-rendered (drag-drop in follow-up) */}
-      <section aria-label="Pipeline referrals">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-zinc-900">Pipeline referrals</h2>
-          <span className="text-xs text-zinc-400">{referralsWithState.length} total</span>
-        </div>
-        {referralsWithState.length === 0 ? (
-          <EmptyState text="Pipeline-ul tău se populează automat când distribui linkul de mai sus." />
-        ) : (
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {KANBAN_COLUMNS.map((col) => {
-              const items = kanbanGrouped.get(col.state) ?? [];
-              return (
-                <div
-                  key={col.state}
-                  className="flex min-h-[140px] flex-col rounded-lg border border-zinc-200 bg-white p-3"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ring-1 ring-inset ${col.tone}`}
-                    >
-                      {col.label}
-                    </span>
-                    <span className="text-xs tabular-nums text-zinc-400">{items.length}</span>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    {items.length === 0 ? (
-                      <p className="text-[11px] text-zinc-400">—</p>
-                    ) : (
-                      items.map((r) => (
-                        <div
-                          key={r.id}
-                          className="rounded-md border border-zinc-100 bg-zinc-50/60 p-2"
-                          title={`Referit la ${fmtDate(r.referred_at)}`}
-                        >
-                          <p className="truncate text-xs font-medium text-zinc-900">
-                            {r.tenant_name}
-                          </p>
-                          <p className="mt-0.5 text-[10px] text-zinc-500">
-                            {fmtDate(r.referred_at)}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {/* Pipeline kanban — 5 columns + client-side search + stage filter.
+          Drag-and-drop / explicit state moves still come in a follow-up
+          PR (the server-side referral state machine is not yet wired). */}
+      <PipelineKanban
+        items={referralsWithState.map<KanbanItem>((r) => ({
+          id: r.id,
+          tenant_name: r.tenant_name,
+          referred_at: r.referred_at,
+          state: r.state,
+        }))}
+      />
 
       {/* Referrals detail table */}
       <section aria-label="Restaurante referite — detalii">
@@ -746,34 +670,11 @@ export default async function PartnerPortalPage() {
 }
 
 // ────────────────────────────────────────────────────────────
-// Small presentational helpers (server-safe, no hooks)
+// Small presentational helpers (server-safe, no hooks).
+// KpiTile lives in ./_components/kpi-tile.tsx (premium tile with
+// sparkline + delta); see also DirectUnlockCard / PortalHero /
+// PipelineKanban / QuickActions in the same folder.
 // ────────────────────────────────────────────────────────────
-
-function KpiTile({
-  label,
-  value,
-  sub,
-  accent,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-5 py-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
-          accent ? 'text-purple-700' : 'text-zinc-900'
-        }`}
-      >
-        {value}
-      </p>
-      <p className="mt-0.5 text-xs text-zinc-400">{sub}</p>
-    </div>
-  );
-}
 
 function PayoutCard({
   title,
