@@ -177,7 +177,11 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
         clearTimeout(pendingRef.current);
         pendingRef.current = null;
       }
-      channel.unsubscribe();
+      // Audit B21: `channel.unsubscribe()` closes the websocket leg but
+      // leaves the channel registered with the client, which leaks a slot
+      // on every shift change / fleet flip and eventually trips Supabase's
+      // per-client channel cap. `removeChannel` does both.
+      void supabase.removeChannel(channel);
     };
   }, [router, courierUserId, fleetId, watchFleetOpenOrders]);
 

@@ -63,7 +63,11 @@ export async function decideDeletionAction(formData: FormData): Promise<ActionRe
     const purgeAt = new Date(
       new Date(req.requested_at).getTime() + RETENTION_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString();
-    const { error } = await sb
+    // Audit B18 (TOCTOU): guard the UPDATE on status='PENDING' so two
+    // approvers who load the queue simultaneously can't both flip the same
+    // request (the SELECT above is non-locking — the second approver would
+    // race past the status check and overwrite the winner's review_by/note).
+    const { data: updated, error } = await sb
       .from('courier_account_deletion_requests')
       .update({
         status: 'APPROVED',
@@ -72,11 +76,16 @@ export async function decideDeletionAction(formData: FormData): Promise<ActionRe
         review_note: note,
         scheduled_purge_at: purgeAt,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', 'PENDING')
+      .select('id')
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+    if (!updated) return { ok: false, error: 'Cererea a fost deja procesată.' };
   } else {
     // REJECT: deny erasure, close the request, restore the account.
-    const { error } = await sb
+    // Same TOCTOU guard as APPROVE — only the winner flips the row.
+    const { data: updated, error } = await sb
       .from('courier_account_deletion_requests')
       .update({
         status: 'REJECTED',
@@ -85,8 +94,12 @@ export async function decideDeletionAction(formData: FormData): Promise<ActionRe
         review_note: note,
         completed_at: nowIso,
       })
-      .eq('id', id);
+      .eq('id', id)
+      .eq('status', 'PENDING')
+      .select('id')
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+    if (!updated) return { ok: false, error: 'Cererea a fost deja procesată.' };
     await sb
       .from('courier_profiles')
       .update({ status: 'INACTIVE', deletion_requested_at: null })

@@ -169,6 +169,20 @@ export async function POST(req: Request) {
         orderId: pspRow.orderId,
         err: (err as Error).message,
       });
+      // Audit B20 — previously this catch silently swallowed post-claim
+      // failures (no alert surface). Now route the error to Sentry with
+      // a fingerprint that groups by kind so the on-call sees one issue
+      // per failure mode instead of one per order. Breadcrumbs above
+      // ("order.marked_paid", "dispatch.triggered") preserve context.
+      Sentry.captureException(err, {
+        tags: {
+          subsystem: 'webhook.viva',
+          event_kind: event.kind,
+          side_effect: 'failed',
+        },
+        extra: { orderId: pspRow.orderId, providerRef: event.providerRef },
+        fingerprint: ['webhook.viva.side_effect_failed', event.kind],
+      });
     }
   } else {
     console.warn('[webhooks/viva] no psp_payments row for provider_ref', {

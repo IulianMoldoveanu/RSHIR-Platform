@@ -821,7 +821,10 @@ export async function inviteCourierToFleetAction(
             opts?: { redirectTo?: string },
           ) => Promise<{
             data: { user: { id: string } | null } | null;
-            error: { message: string } | null;
+            // Supabase auth returns AuthError with `status` (HTTP code) and
+            // `code` (machine-readable). We surface both so we can branch on
+            // "already registered" vs every other failure mode (audit B23).
+            error: { message: string; status?: number; code?: string } | null;
           }>;
           listUsers: (params?: { page?: number; perPage?: number }) => Promise<{
             data: { users: Array<{ id: string; email: string }> } | null;
@@ -858,6 +861,19 @@ export async function inviteCourierToFleetAction(
     if (!inviteErr && invited?.user?.id) {
       userId = invited.user.id;
     } else {
+      // Audit B23 — only fall through to the expensive listUsers pagination
+      // (up to 50 × 200 = 10k users, ~5-10s at p99) on the specific
+      // "already registered" path. Any OTHER auth error (network, 5xx,
+      // rate-limit, project-paused) used to silently scan every user in
+      // the project and then return a confusing "Nu am putut crea contul"
+      // — surface the real error so the operator can act on it.
+      const isAlreadyRegistered =
+        inviteErr?.status === 422 ||
+        inviteErr?.code === 'email_exists' ||
+        /already (been )?registered|email exists/i.test(inviteErr?.message ?? '');
+      if (!isAlreadyRegistered && inviteErr) {
+        return { ok: false, error: `Invitare eșuată: ${inviteErr.message}` };
+      }
       // Already registered → walk listUsers pages until we hit the user.
       // Hard cap at 50 pages × 200 = 10 000 users to bound the worst case
       // — well above any realistic fleet's reach but enough for projects

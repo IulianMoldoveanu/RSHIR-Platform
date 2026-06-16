@@ -703,6 +703,12 @@ Deno.serve(async (req: Request) => {
       }
       const directUnlocked = activeLiveCount >= r.partner_min_vendors_threshold;
 
+      // Audit B22 — hoist fetchSponsor once per referral. Previously this ran
+      // twice: once inside the DIRECT branch for the cap denominator, once
+      // again below for the OVERRIDE accumulator. Both call sites use the
+      // exact same (supabase, r.partner_id) args so the result is identical.
+      const sponsor = await fetchSponsor(supabase, r.partner_id);
+
       if (!directUnlocked) {
         console.log(
           `[partner-commission-calc] DIRECT skipped — partner=${r.partner_id} referral=${r.id} period=${period.label} active_live=${activeLiveCount} threshold=${r.partner_min_vendors_threshold}`,
@@ -736,7 +742,7 @@ Deno.serve(async (req: Request) => {
         // Previously this ran unconditionally below, which inflated the
         // 40% cap with sub-DIRECT that the gate had skipped, allowing
         // sponsors to over-earn OVERRIDE on still-locked subs.
-        const sponsor = await fetchSponsor(supabase, r.partner_id);
+        // (sponsor was hoisted above for B22 — re-use it here.)
         if (
           sponsor &&
           new Date(sponsor.sunset_at).getTime() > new Date(period.periodEndDate).getTime()
@@ -777,7 +783,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // ── v3 OVERRIDE (accumulate for cap enforcement later) ────────
-      const sponsor = await fetchSponsor(supabase, r.partner_id);
+      // sponsor is the same record fetched once at the top of the loop (B22).
       if (sponsor && new Date(sponsor.sunset_at).getTime() > new Date(period.periodEndDate).getTime()) {
         const withinY1 = isWithinY1(r.referred_at, period.periodEndDate);
         let overridePct = withinY1 ? sponsor.override_pct_y1 : sponsor.override_pct_recurring;
