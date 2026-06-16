@@ -147,9 +147,13 @@ export async function GET(request: NextRequest) {
 
   for (const o of orders) {
     const d = new Date(o.updated_at);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
+    // Bucket by UTC day to stay consistent with the UTC period bounds above.
+    // Using the local getDate()/getMonth() here split orders near midnight into
+    // the wrong day (and sometimes outside the requested period) whenever the
+    // server timezone was not UTC — a real mis-bucketing bug on Vercel.
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
     const key = `${yyyy}-${mm}-${dd}`;
 
     const km =

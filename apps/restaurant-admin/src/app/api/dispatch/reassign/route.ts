@@ -37,8 +37,12 @@ const bodySchema = z.object({
   reason: z.string().min(1, { message: 'reason must be at least 1 character' }),
 });
 
-// Statuses from which reassign is permitted.
-const REASSIGNABLE_STATUSES = ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'] as const;
+// Statuses from which reassign is permitted. Single source of truth for BOTH
+// the request validation and the UPDATE status guard below — they previously
+// diverged (validation allowed PICKED_UP/IN_TRANSIT which the UPDATE guard then
+// rejected, surfacing a confusing 409). Reassign is pre-pickup only: once a
+// courier has the order in hand, moving it to another rider is not supported.
+const REASSIGNABLE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED'] as const;
 type ReassignableStatus = (typeof REASSIGNABLE_STATUSES)[number];
 
 function isReassignable(status: string): status is ReassignableStatus {
@@ -186,7 +190,6 @@ export async function POST(req: NextRequest) {
   // reassignable state. Without this, a concurrent DELIVERED/CANCELLED write
   // from the courier app could be silently overwritten by this UPDATE
   // (the .eq('id', …) alone would match regardless of status).
-  const REASSIGNABLE = ['CREATED', 'OFFERED', 'ACCEPTED'];
   const { data: updated, error: updateErr } = await sb
     .from('courier_orders')
     .update({
@@ -195,7 +198,7 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', courier_order_id)
-    .in('status', REASSIGNABLE)
+    .in('status', [...REASSIGNABLE_STATUSES])
     .select('id, status, assigned_courier_user_id')
     .maybeSingle();
 

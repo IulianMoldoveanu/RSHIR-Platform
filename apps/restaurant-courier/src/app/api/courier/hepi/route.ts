@@ -573,11 +573,38 @@ async function execAcceptOrder(
   // Resolve courier profile (fleet + parallel limit).
   const { data: profile } = await admin
     .from('courier_profiles')
-    .select('fleet_id, max_parallel_orders')
+    .select('fleet_id, max_parallel_orders, status')
     .eq('user_id', userId)
     .maybeSingle();
   if (!profile) return JSON.stringify({ error: 'profile_not_found' });
-  const profileRow = profile as { fleet_id: string | null; max_parallel_orders: number | null };
+  const profileRow = profile as {
+    fleet_id: string | null;
+    max_parallel_orders: number | null;
+    status: string | null;
+  };
+
+  // Same claim gates as acceptOrderAction + the self-pickup routes — this AI
+  // assistant path must NOT be a bypass. KYC (per-fleet, fail-closed),
+  // suspension, and fleet activity all block claiming new orders here too.
+  const { data: canTakeKyc, error: kycErr } = await admin.rpc('courier_can_take_orders', {
+    p_user_id: userId,
+  });
+  if (kycErr) {
+    console.error('[hepi-accept] KYC RPC error:', kycErr.message);
+    return JSON.stringify({ error: 'kyc_check_failed' });
+  }
+  if (canTakeKyc !== true) return JSON.stringify({ error: 'kyc_required' });
+  if (profileRow.status === 'SUSPENDED') return JSON.stringify({ error: 'courier_suspended' });
+  if (profileRow.fleet_id) {
+    const { data: fleetRow } = await admin
+      .from('courier_fleets')
+      .select('is_active')
+      .eq('id', profileRow.fleet_id)
+      .maybeSingle();
+    if (!(fleetRow as { is_active: boolean } | null)?.is_active) {
+      return JSON.stringify({ error: 'fleet_inactive' });
+    }
+  }
 
   if (profileRow.max_parallel_orders != null) {
     const { count } = await admin

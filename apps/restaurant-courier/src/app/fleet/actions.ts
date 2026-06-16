@@ -175,19 +175,25 @@ export async function assignOrderToCourierAction(
       select: (cols: string) => {
         eq: (col: string, val: string) => {
           eq: (col: string, val: string) => {
-            maybeSingle: () => Promise<{ data: { user_id: string } | null }>;
+            maybeSingle: () => Promise<{
+              data: { user_id: string; status: string | null } | null;
+            }>;
           };
         };
       };
     };
   })
     .from('courier_profiles')
-    .select('user_id')
+    .select('user_id, status')
     .eq('user_id', courierUserId)
     .eq('fleet_id', ctx.fleetId)
     .maybeSingle();
 
   if (!courierRow) return { ok: false, error: 'Curierul nu aparține flotei.' };
+  // A manager cannot assign a new order to a suspended courier.
+  if (courierRow.status === 'SUSPENDED') {
+    return { ok: false, error: 'Curierul este suspendat.' };
+  }
 
   // Update + gate on assignable pre-state. Without the status + assignment
   // filters, a stale tab could reassign an in-flight or already-DELIVERED

@@ -63,7 +63,7 @@ export async function POST(
       .maybeSingle(),
     admin
       .from('courier_profiles')
-      .select('fleet_id')
+      .select('fleet_id, status')
       .eq('user_id', courier_user_id)
       .maybeSingle(),
   ]);
@@ -77,7 +77,25 @@ export async function POST(
   if (!courierProfile) {
     return NextResponse.json({ error: 'Curier inexistent' }, { status: 404 });
   }
-  const courierFleetId = (courierProfile as { fleet_id: string | null }).fleet_id;
+  const courierRow = courierProfile as { fleet_id: string | null; status: string | null };
+  const courierFleetId = courierRow.fleet_id;
+
+  // A suspended courier (suspended mid-shift) or one in a deactivated fleet
+  // cannot be assigned new orders from the tablet. The admin client bypasses
+  // the courier_orders RLS that enforces fleet.is_active, so gate explicitly.
+  if (courierRow.status === 'SUSPENDED') {
+    return NextResponse.json({ error: 'Curierul este suspendat' }, { status: 422 });
+  }
+  if (courierFleetId) {
+    const { data: fleetRow } = await admin
+      .from('courier_fleets')
+      .select('is_active')
+      .eq('id', courierFleetId)
+      .maybeSingle();
+    if (!(fleetRow as { is_active: boolean } | null)?.is_active) {
+      return NextResponse.json({ error: 'Flota curierului este inactivă' }, { status: 422 });
+    }
+  }
 
   // TODO: check max_parallel_orders when column exists:
   //   const { count } = await admin.from('courier_orders')

@@ -47,7 +47,7 @@ export async function POST(
   // Resolve courier's fleet + active order count in one round-trip.
   const { data: profile } = await admin
     .from('courier_profiles')
-    .select('fleet_id, max_parallel_orders')
+    .select('fleet_id, max_parallel_orders, status')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -75,7 +75,26 @@ export async function POST(
   const profileRow = profile as {
     fleet_id: string | null;
     max_parallel_orders: number | null;
+    status: string | null;
   };
+
+  // Suspended couriers + couriers in a deactivated fleet cannot claim new
+  // orders. The admin client bypasses the courier_orders RLS that enforces
+  // fleet.is_active, so gate explicitly here (fleetless platform couriers have
+  // no fleet to deactivate).
+  if (profileRow.status === 'SUSPENDED') {
+    return NextResponse.json({ error: 'courier_suspended' }, { status: 403 });
+  }
+  if (profileRow.fleet_id) {
+    const { data: fleetRow } = await admin
+      .from('courier_fleets')
+      .select('is_active')
+      .eq('id', profileRow.fleet_id)
+      .maybeSingle();
+    if (!(fleetRow as { is_active: boolean } | null)?.is_active) {
+      return NextResponse.json({ error: 'fleet_inactive' }, { status: 403 });
+    }
+  }
 
   // Check parallel order limit (PR #717). NULL = unlimited.
   if (profileRow.max_parallel_orders != null) {
