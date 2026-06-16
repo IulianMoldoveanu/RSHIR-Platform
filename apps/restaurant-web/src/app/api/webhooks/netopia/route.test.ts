@@ -93,10 +93,10 @@ vi.mock('@hir/integration-core', async (importOriginal) => {
   };
 });
 
-vi.mock('@sentry/nextjs', () => ({
-  addBreadcrumb: vi.fn(),
-  captureException: vi.fn(),
-}));
+// Sentry surface is shared across PSP webhook + checkout tests; the central
+// mock at apps/restaurant-web/__mocks__/@sentry/nextjs.ts covers every method
+// the routes use. See RCA rank 5 SENTRY-MOCK-CENTRALIZATION.
+vi.mock('@sentry/nextjs');
 
 import { netopiaAdapter } from '@hir/integration-core';
 import { POST } from './route';

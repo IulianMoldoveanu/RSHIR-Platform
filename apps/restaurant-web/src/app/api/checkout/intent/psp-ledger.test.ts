@@ -174,9 +174,10 @@ vi.mock('@/lib/idempotency', () => ({
   storeIdempotency: vi.fn(),
 }));
 
-vi.mock('@sentry/nextjs', () => ({
-  addBreadcrumb: vi.fn(),
-}));
+// Sentry surface is shared across PSP webhook + checkout tests; the central
+// mock at apps/restaurant-web/__mocks__/@sentry/nextjs.ts covers every method
+// the routes use. See RCA rank 5 SENTRY-MOCK-CENTRALIZATION.
+vi.mock('@sentry/nextjs');
 
 import { POST } from './route';
 

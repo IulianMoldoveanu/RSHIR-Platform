@@ -34,17 +34,28 @@ jobs:
           node-version: '22'
           cache: pnpm
 
-      - name: Install dependencies
+      # --frozen-lockfile doubles as the lockfile-drift gate: if a workspace
+      # package.json was changed without regenerating pnpm-lock.yaml (cluster 4
+      # of the recent CI noise), this step fails in ~15s with
+      # ERR_PNPM_OUTDATED_LOCKFILE before any lint/typecheck/test runs.
+      # See RCA rank 6 LOCKFILE-DRIFT-FAST-FAIL.
+      - name: Install dependencies (lockfile drift gate)
         run: pnpm install --frozen-lockfile
 
       # --if-present skips workspaces (config-*, etc.) that don't define
       # the script — keeps the gate strict where it matters and quiet
       # where it doesn't.
+      #
+      # Lint runs FIRST as a fast-fail (~30s) to catch react/no-unescaped-entities
+      # and similar style errors before the slower typecheck + test stages.
+      # Past two CI failure waves (pfa-signup → casual-signup raw-quote bugs)
+      # would have been blocked here in under a minute instead of after the
+      # full pipeline. See RCA rank 4 PRE-COMMIT-NO-LINT-RECURRENCE.
+      - name: Lint (all workspaces) — fast-fail gate
+        run: pnpm -r --if-present lint
+
       - name: Typecheck (all workspaces)
         run: pnpm -r --if-present typecheck
-
-      - name: Lint (all workspaces)
-        run: pnpm -r --if-present lint
 
       - name: Test (all workspaces)
         run: pnpm -r --if-present test
