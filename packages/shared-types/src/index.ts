@@ -19,3 +19,8 @@ export * from "./order";
 export * from "./marketplace";
 export * from "./ai";
 export * from "./hepi";
+export * from "./solo-pfa";
+export * from "./subscription";
+export * from "./rating";
+export * from "./job-board";
+export * from "./non-eu-permit";

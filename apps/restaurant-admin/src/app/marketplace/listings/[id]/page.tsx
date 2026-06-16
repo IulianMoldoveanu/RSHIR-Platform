@@ -41,6 +41,9 @@ type Offer = {
   status: OfferStatus;
   expires_at: string;
   created_at: string;
+  // Stream 3 (AI matching) — 0..100 cached composite score from
+  // ai-marketplace-match-score edge fn. NULL until the offer has been scored.
+  ai_match_score: number | null;
 };
 
 const LISTING_STATUS_BADGE: Record<ListingStatus, { label: string; cls: string }> = {
@@ -165,7 +168,14 @@ export default async function ListingDetailPage({
   if (!member) notFound();
 
   // 3. Load offers placed on this listing.
-  const { data: rawOffers, error: offersErr } = await admin
+  //
+  // Stream 3 (AI matching) — we additionally select ai_match_score (numeric,
+  // nullable) from migration 20260616_015. When HIR_FEATURE_AI_MATCHING_ENABLED
+  // is on we sort by score DESC (NULLS LAST) so the highest-ranked fleet shows
+  // first; otherwise we keep the original "cheapest first" ordering.
+  const aiMatchingEnabled = process.env.HIR_FEATURE_AI_MATCHING_ENABLED === 'true';
+
+  let offersQuery = admin
     .from('marketplace_offers')
     .select(
       [
@@ -178,11 +188,19 @@ export default async function ListingDetailPage({
         'status',
         'expires_at',
         'created_at',
+        'ai_match_score',
         'courier_fleets:courier_fleets(name)',
       ].join(', '),
     )
-    .eq('listing_id', listingId)
-    .order('offered_price_cents', { ascending: true });
+    .eq('listing_id', listingId);
+
+  offersQuery = aiMatchingEnabled
+    ? offersQuery
+        .order('ai_match_score', { ascending: false, nullsFirst: false })
+        .order('offered_price_cents', { ascending: true })
+    : offersQuery.order('offered_price_cents', { ascending: true });
+
+  const { data: rawOffers, error: offersErr } = await offersQuery;
 
   const offers: Offer[] = (rawOffers ?? []).map(
     (o: {
@@ -195,6 +213,7 @@ export default async function ListingDetailPage({
       status: OfferStatus;
       expires_at: string;
       created_at: string;
+      ai_match_score: number | string | null;
       courier_fleets: { name: string } | null;
     }) => ({
       id: o.id,
@@ -207,6 +226,10 @@ export default async function ListingDetailPage({
       status: o.status,
       expires_at: o.expires_at,
       created_at: o.created_at,
+      ai_match_score:
+        o.ai_match_score === null || o.ai_match_score === undefined
+          ? null
+          : Number(o.ai_match_score),
     }),
   );
 
@@ -325,6 +348,14 @@ export default async function ListingDetailPage({
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-3 text-left font-medium">Flotă</th>
+                  {aiMatchingEnabled ? (
+                    <th
+                      className="px-4 py-3 text-right font-medium"
+                      title="Scor compus AI (0..100, mai mare = mai potrivit). Sortat descrescător."
+                    >
+                      AI
+                    </th>
+                  ) : null}
                   <th className="px-4 py-3 text-right font-medium">Preț</th>
                   <th className="px-4 py-3 text-right font-medium">ETA</th>
                   <th className="px-4 py-3 text-right font-medium">Rating</th>
@@ -344,6 +375,11 @@ export default async function ListingDetailPage({
                           <div className="mt-0.5 text-xs text-zinc-500">{o.notes}</div>
                         ) : null}
                       </td>
+                      {aiMatchingEnabled ? (
+                        <td className="px-4 py-3 text-right">
+                          <AiMatchScoreBadge score={o.ai_match_score} />
+                        </td>
+                      ) : null}
                       <td className="px-4 py-3 text-right tabular-nums font-medium text-zinc-900">
                         {centsToRon(o.offered_price_cents)} RON
                       </td>
@@ -385,4 +421,23 @@ export default async function ListingDetailPage({
 // Next.js boundary).
 function CancelButton({ listingId }: { listingId: string }): JSX.Element {
   return <CancelButtonClient listingId={listingId} />;
+}
+
+// AI Match Score badge (Stream 3) — mov gradient pill rendering the cached
+// 0..100 composite score from ai-marketplace-match-score. Score is NULL until
+// the edge fn has been called for this offer; we show a neutral dash so the
+// vendor knows the row is unscored (versus a real 0).
+function AiMatchScoreBadge({ score }: { score: number | null }): JSX.Element {
+  if (score === null || !Number.isFinite(score)) {
+    return <span className="text-xs text-zinc-400">—</span>;
+  }
+  const clamped = Math.max(0, Math.min(100, score));
+  return (
+    <span
+      className="inline-flex min-w-[2.5rem] items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-2 py-0.5 text-xs font-semibold tabular-nums text-white shadow-sm"
+      title={`Scor AI ${clamped.toFixed(1)} / 100 — compus din preț, ETA, reputație și istoric.`}
+    >
+      {clamped.toFixed(0)}
+    </span>
+  );
 }

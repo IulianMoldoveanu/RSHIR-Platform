@@ -235,3 +235,251 @@ export async function withdrawOfferAction(
 
   return { ok: true };
 }
+
+// ────────────────────────────────────────────────────────────
+// Stream 3 (AI matching) — suggested-price tooltip for the bid form.
+//
+// Calls the ai-marketplace-price-suggest edge fn with the listing's
+// vertical/city/distance/weight/urgency derived server-side from
+// marketplace_listings, then returns the suggested low/mid/high RON range
+// + a one-sentence rationale the fleet UI renders as a tooltip.
+//
+// Cache: 5-minute TTL keyed by `listing_id:fleet_id` (one cache slot per
+// fleet-listing pair). Bounds LLM cost when the bid form is opened multiple
+// times during a session. The cache is in-memory per server instance — fine
+// for the friction-reduction use case (a stale-by-5min anchor isn't a
+// correctness problem; the actual decision data is the score on the offer).
+//
+// Gated by HIR_FEATURE_AI_MATCHING_ENABLED so the cost-multiplier stays off
+// until the platform team flips the flag.
+// ────────────────────────────────────────────────────────────
+
+export type PriceSuggestResult =
+  | {
+      ok: true;
+      suggested: { low_ron: number; mid_ron: number; high_ron: number };
+      rationale: string;
+      market_samples: number;
+      cached: boolean;
+    }
+  | { ok: false; error: string };
+
+type PriceSuggestCacheEntry = {
+  fetchedAt: number;
+  payload: {
+    suggested: { low_ron: number; mid_ron: number; high_ron: number };
+    rationale: string;
+    market_samples: number;
+  };
+};
+
+const PRICE_SUGGEST_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Module-scoped cache. Server actions run inside a long-lived Node process;
+// the Map persists across requests on the same instance. A different Vercel
+// region / instance has its own cache — that's acceptable for an anchor hint.
+const priceSuggestCache = new Map<string, PriceSuggestCacheEntry>();
+
+function priceSuggestCacheKey(listingId: string, fleetId: string): string {
+  return `${listingId}:${fleetId}`;
+}
+
+type ListingForSuggest = {
+  vertical: string | null;
+  city_id: string | null;
+  delivery_window_start: string | null;
+  delivery_window_end: string | null;
+  package_weight_grams: number | null;
+  pickup_address: Record<string, unknown> | null;
+  dropoff_address: Record<string, unknown> | null;
+};
+
+function extractLatLng(addr: Record<string, unknown> | null): {
+  lat: number | null;
+  lng: number | null;
+} {
+  if (!addr || typeof addr !== 'object') return { lat: null, lng: null };
+  const rawLat = (addr.lat ?? addr.latitude) as unknown;
+  const rawLng = (addr.lng ?? addr.longitude) as unknown;
+  const lat = typeof rawLat === 'number' && Number.isFinite(rawLat) ? rawLat : null;
+  const lng = typeof rawLng === 'number' && Number.isFinite(rawLng) ? rawLng : null;
+  return { lat, lng };
+}
+
+const SUPPORTED_VERTICALS = new Set(['restaurant', 'pharmacy', 'retail', 'other']);
+
+export async function suggestBidPriceAction(
+  listingId: string,
+): Promise<PriceSuggestResult> {
+  if (!featureEnabled()) {
+    // Reuse the marketplace flag for the surface gate (the AI flag gates the
+    // edge fn itself — we still want the suggest call to short-circuit when
+    // marketplace is off).
+    return { ok: false, error: 'feature_not_enabled' };
+  }
+
+  // Gate at the action layer too — the edge fn returns 503 when off, but
+  // skipping the network call entirely saves the round-trip + reduces noise
+  // in the network panel.
+  if (process.env.HIR_FEATURE_AI_MATCHING_ENABLED !== 'true') {
+    return { ok: false, error: 'feature_not_enabled' };
+  }
+
+  if (!UUID_RE.test(listingId)) {
+    return { ok: false, error: 'invalid_listing_id' };
+  }
+
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'forbidden' };
+
+  const cacheKey = priceSuggestCacheKey(listingId, ctx.fleetId);
+  const cached = priceSuggestCache.get(cacheKey);
+  if (cached && Date.now() - cached.fetchedAt < PRICE_SUGGEST_TTL_MS) {
+    return { ok: true, ...cached.payload, cached: true };
+  }
+
+  // Load the listing server-side so we never trust client-provided params for
+  // the LLM context. The edge fn re-validates everything but reading from the
+  // DB here keeps the action's signature minimal (just listingId).
+  const admin = createAdminClient();
+  // courier-side admin client is untyped — cast through a narrow shape.
+  const { data: listingRaw, error: listingErr } = await (
+    admin as unknown as {
+      from: (t: string) => {
+        select: (cols: string) => {
+          eq: (
+            c: string,
+            v: string,
+          ) => {
+            maybeSingle: () => Promise<{
+              data: ListingForSuggest | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    }
+  )
+    .from('marketplace_listings')
+    .select(
+      'vertical, city_id, delivery_window_start, delivery_window_end, package_weight_grams, pickup_address, dropoff_address',
+    )
+    .eq('id', listingId)
+    .maybeSingle();
+
+  if (listingErr || !listingRaw) {
+    return { ok: false, error: 'listing_not_found' };
+  }
+
+  const verticalCandidate = (listingRaw.vertical ?? 'restaurant').toLowerCase();
+  const vertical = SUPPORTED_VERTICALS.has(verticalCandidate)
+    ? verticalCandidate
+    : 'other';
+
+  const pickup = extractLatLng(listingRaw.pickup_address);
+  const dropoff = extractLatLng(listingRaw.dropoff_address);
+
+  // Urgency proxy: minutes between now and the start of the delivery window.
+  // Negative values (window already open) clamp to 0 → "as soon as possible".
+  let urgentMin: number | null = null;
+  if (listingRaw.delivery_window_start) {
+    const startMs = Date.parse(listingRaw.delivery_window_start);
+    if (Number.isFinite(startMs)) {
+      urgentMin = Math.max(0, Math.round((startMs - Date.now()) / 60_000));
+    }
+  }
+
+  const packageKg =
+    listingRaw.package_weight_grams !== null &&
+    listingRaw.package_weight_grams !== undefined
+      ? Number(listingRaw.package_weight_grams) / 1000
+      : null;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) return { ok: false, error: 'supabase_url_missing' };
+
+  const supabase = await createServerClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { ok: false, error: 'session_expired' };
+
+  // Build the edge fn body using only documented fields (parseBody in
+  // ai-marketplace-price-suggest is strict — undefined fields are fine, but
+  // unsupported keys are ignored).
+  const body: Record<string, unknown> = { vertical };
+  if (listingRaw.city_id) body.city_id = listingRaw.city_id;
+  if (pickup.lat !== null) body.pickup_lat = pickup.lat;
+  if (pickup.lng !== null) body.pickup_lng = pickup.lng;
+  if (dropoff.lat !== null) body.dropoff_lat = dropoff.lat;
+  if (dropoff.lng !== null) body.dropoff_lng = dropoff.lng;
+  if (packageKg !== null) body.package_kg = packageKg;
+  if (urgentMin !== null) body.urgent_min = urgentMin;
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${supabaseUrl}/functions/v1/ai-marketplace-price-suggest`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      },
+    );
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'network_error',
+    };
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    return { ok: false, error: 'invalid_response' };
+  }
+
+  const parsed = (payload ?? {}) as {
+    ok?: boolean;
+    error?: string;
+    suggested?: { low_ron?: number; mid_ron?: number; high_ron?: number };
+    rationale?: string;
+    market_samples?: number;
+  };
+
+  if (!response.ok || parsed.ok !== true || !parsed.suggested) {
+    return {
+      ok: false,
+      error: parsed.error ?? `http_${response.status}`,
+    };
+  }
+
+  const suggested = {
+    low_ron: Number(parsed.suggested.low_ron ?? 0),
+    mid_ron: Number(parsed.suggested.mid_ron ?? 0),
+    high_ron: Number(parsed.suggested.high_ron ?? 0),
+  };
+  const rationale = typeof parsed.rationale === 'string' ? parsed.rationale : '';
+  const marketSamples = Number(parsed.market_samples ?? 0);
+
+  const cacheEntry: PriceSuggestCacheEntry = {
+    fetchedAt: Date.now(),
+    payload: {
+      suggested,
+      rationale,
+      market_samples: Number.isFinite(marketSamples) ? marketSamples : 0,
+    },
+  };
+  priceSuggestCache.set(cacheKey, cacheEntry);
+
+  return {
+    ok: true,
+    suggested,
+    rationale,
+    market_samples: cacheEntry.payload.market_samples,
+    cached: false,
+  };
+}

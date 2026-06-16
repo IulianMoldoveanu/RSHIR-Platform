@@ -193,3 +193,54 @@ export interface MarketplaceErrorResponse {
 export type ListingCreateResult = ListingCreateResponse | MarketplaceErrorResponse;
 export type OfferSubmitResult = OfferSubmitResponse | MarketplaceErrorResponse;
 export type MatchAcceptResult = MatchAcceptResponse | MarketplaceErrorResponse;
+
+// ─────────────────────────────────────────────────────────────────────────
+// AI matching-engine surfaces (Stream 3).
+//
+// These are the typed input/output contracts the two AI edge functions
+// speak:
+//   - ai-marketplace-match-score   — scores an OFFER against its LISTING
+//   - ai-marketplace-price-suggest — suggests a fair price range for a
+//                                    listing about to be published
+//
+// The job rows live in `ai_jobs` with `job_type` in
+// {'marketplace_match_score', 'marketplace_price_suggest'}.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * MatchScoreResult — per-offer score and factor breakdown produced by
+ * `ai-marketplace-match-score`.
+ *
+ * `aiScore` is a 0..100 composite (higher is better) the vendor UI ranks
+ * offers by. `factors` is the additive breakdown (each key in
+ * [0, 1]) so the UI can show "why this fleet ranks higher".
+ */
+export interface MatchScoreResult {
+  readonly offerId: Uuid;
+  readonly listingId: Uuid;
+  readonly aiScore: number;
+  readonly factors: Readonly<Record<string, number>>;
+  readonly modelVersion?: string | null;
+  readonly computedAt: IsoTimestamp;
+}
+
+/**
+ * PriceSuggestion — the suggested fair-price range for a new listing,
+ * produced by `ai-marketplace-price-suggest` and surfaced inline as the
+ * vendor fills the listing form.
+ *
+ * `lowRon` / `midRon` / `highRon` are integer RON (whole-RON granularity
+ * is enough for vendor-facing UI; bani-level math is settlement's job).
+ * `rationale` is a short human-readable explanation the UI displays as
+ * a tooltip ("based on 12 similar deliveries in this city this week").
+ */
+export interface PriceSuggestion {
+  readonly listingId?: Uuid | null;
+  readonly cityId?: Uuid | null;
+  readonly lowRon: number;
+  readonly midRon: number;
+  readonly highRon: number;
+  readonly rationale: string;
+  readonly modelVersion?: string | null;
+  readonly computedAt: IsoTimestamp;
+}

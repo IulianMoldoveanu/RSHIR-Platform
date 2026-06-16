@@ -32,6 +32,8 @@ type MyOfferRow = {
   eta_minutes: number;
   status: string;
   expires_at: string;
+  // Stream 3 (AI matching) — cached 0..100 composite. NULL until first scored.
+  ai_match_score: number | string | null;
 };
 
 function formatRon(cents: number): string {
@@ -80,7 +82,9 @@ export default async function FleetMarketplaceListingDetail({
     // Use maybeSingle since the unique constraint guarantees ≤1 row.
     admin
       .from('marketplace_offers')
-      .select('id, offered_price_cents, eta_minutes, status, expires_at')
+      .select(
+        'id, offered_price_cents, eta_minutes, status, expires_at, ai_match_score',
+      )
       .eq('listing_id', listingId)
       .eq('fleet_id', fleet.fleetId)
       .maybeSingle(),
@@ -94,6 +98,16 @@ export default async function FleetMarketplaceListingDetail({
   // Bid form is only useful while the listing is OPEN. After MATCHED/CANCELLED
   // we hide it; the fleet can still read the listing + see their offer history.
   const canBid = listing.status === 'OPEN';
+
+  // Stream 3 (AI matching) — surface fleet's own composite score next to their
+  // bid so the manager knows how their offer ranks vs. competitors. Gated by
+  // HIR_FEATURE_AI_MATCHING_ENABLED. NULL score = unscored yet (edge fn hasn't
+  // run for this offer).
+  const aiMatchingEnabled = process.env.HIR_FEATURE_AI_MATCHING_ENABLED === 'true';
+  const myAiScore: number | null =
+    myOffer && myOffer.ai_match_score !== null && myOffer.ai_match_score !== undefined
+      ? Number(myOffer.ai_match_score)
+      : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
@@ -173,14 +187,28 @@ export default async function FleetMarketplaceListingDetail({
       {myOffer ? (
         <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
           <h2 className="mb-3 text-sm font-semibold text-hir-fg">Oferta mea</h2>
-          <div className="grid grid-cols-3 gap-3 text-xs">
+          <div
+            className={`grid gap-3 text-xs ${aiMatchingEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}
+          >
             <Stat label="Preț" value={formatRon(myOffer.offered_price_cents)} />
             <Stat label="ETA" value={`${myOffer.eta_minutes} min`} />
             <Stat label="Status" value={myOffer.status} />
+            {aiMatchingEnabled ? (
+              <Stat
+                label="Scor AI"
+                value={myAiScore === null ? '—' : `${myAiScore.toFixed(0)} / 100`}
+              />
+            ) : null}
           </div>
           <p className="mt-2 text-[11px] text-hir-muted-fg">
             Valabilă până la {formatTs(myOffer.expires_at)}.
           </p>
+          {aiMatchingEnabled ? (
+            <p className="mt-2 text-[11px] text-hir-muted-fg">
+              Scorul AI ține cont de preț, ETA, reputația flotei și istoric.
+              Mai mare = mai potrivit pentru această cerere.
+            </p>
+          ) : null}
         </section>
       ) : null}
 
@@ -190,6 +218,7 @@ export default async function FleetMarketplaceListingDetail({
           listingId={listing.id}
           windowEndIso={listing.delivery_window_end}
           alreadyBid={alreadyBid}
+          aiMatchingEnabled={aiMatchingEnabled}
         />
       ) : (
         <section className="rounded-2xl border border-dashed border-hir-border bg-hir-surface p-4 text-center text-xs text-hir-muted-fg">
