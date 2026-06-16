@@ -240,7 +240,7 @@ export function CasualSignupForm({
                 />
                 <p className="text-xs text-zinc-500">
                   Implicit este denumirea ANAF. Poți alege un brand mai scurt
-                  (ex: „Bakery 24/7").
+                  (ex: „Bakery 24/7&rdquo;).
                 </p>
               </div>
 
@@ -357,7 +357,7 @@ export function CasualSignupForm({
               <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-700">
                 <p className="font-semibold text-zinc-900">Confirmi că:</p>
                 <ul className="mt-1 list-disc pl-5">
-                  <li>Brand-ul „{brandName.trim()}" va fi vizibil public pe marketplace.</li>
+                  <li>Brand-ul „{brandName.trim()}&rdquo; va fi vizibil public pe marketplace.</li>
                   <li>Contul devine activ după validare manuală (24h lucrătoare).</li>
                   <li>Primești o lună trial; după aceea {plans.find((p) => p.tierCode === tier)?.monthlyPriceRon} RON/lună.</li>
                 </ul>

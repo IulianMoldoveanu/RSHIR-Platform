@@ -196,7 +196,7 @@ export default async function CasualVendorsAdminPage(props: {
         <p className="text-sm text-zinc-600">
           Lista vendorilor înregistrați prin{' '}
           <code className="rounded bg-zinc-100 px-1">/casual-signup</code>. Tab-ul
-          „Pending" este coada de revizuire manuală — aprobă vendorii după ce
+          „Pending&rdquo; este coada de revizuire manuală — aprobă vendorii după ce
           verifici CIF + brand-ul.
         </p>
       </header>
