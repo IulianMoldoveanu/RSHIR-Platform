@@ -95,6 +95,7 @@ vi.mock('@hir/integration-core', async (importOriginal) => {
 
 vi.mock('@sentry/nextjs', () => ({
   addBreadcrumb: vi.fn(),
+  captureException: vi.fn(),
 }));
 
 import { netopiaAdapter } from '@hir/integration-core';
