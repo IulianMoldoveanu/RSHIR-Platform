@@ -222,7 +222,7 @@ export default async function MarketingLibraryPage({
         <p className="text-sm text-zinc-600">
           Tot ce ai nevoie ca să prezinți HIR profesionist: pitch deck-uri,
           comparații cu marketplace-urile, testimoniale, video și template-uri
-          e-mail. Caută după etichetă (ex. „glovo", „pdf", „testimonial").
+          e-mail. Caută după etichetă (ex. „glovo”, „pdf”, „testimonial”).
         </p>
       </header>
 
@@ -281,12 +281,12 @@ export default async function MarketingLibraryPage({
       {q ? (
         <section aria-label={`Rezultate pentru "${q}"`}>
           <h2 className="mb-3 text-sm font-semibold text-zinc-900">
-            {visible.length} rezultat{visible.length === 1 ? '' : 'e'} pentru „{q}"
+            {visible.length} rezultat{visible.length === 1 ? '' : 'e'} pentru „{q}”
           </h2>
           {visible.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
               <p className="text-sm text-zinc-500">
-                Nimic găsit. Încearcă cu „pdf", „video", „testimonial" sau „glovo".
+                Nimic găsit. Încearcă cu „pdf”, „video”, „testimonial” sau „glovo”.
               </p>
             </div>
           ) : (

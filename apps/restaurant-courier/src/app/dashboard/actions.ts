@@ -870,7 +870,7 @@ export async function acceptOrderAction(orderId: string) {
       // the UPDATE on `fleet_id` matching.
       const { data: profile } = await admin
         .from('courier_profiles')
-        .select('fleet_id')
+        .select('fleet_id, status')
         .eq('user_id', userId)
         .maybeSingle();
       if (!profile) return false; // not a courier — silent no-op preserves prior contract
@@ -886,7 +886,26 @@ export async function acceptOrderAction(orderId: string) {
         return false;
       }
       if (canTakeKyc !== true) return false;
-      const fleetId = (profile as { fleet_id: string }).fleet_id;
+      const prof = profile as { fleet_id: string; status: string | null };
+      const fleetId = prof.fleet_id;
+
+      // Suspended couriers + couriers in a deactivated fleet cannot CLAIM new
+      // orders. The admin client bypasses the courier_orders RLS that enforces
+      // fleet.is_active, so gate explicitly here. In-progress deliveries are
+      // intentionally NOT blocked (see markPickedUp/markDelivered) so a frozen
+      // fleet/suspended rider can still finish a job they already accepted.
+      if (prof.status === 'SUSPENDED') return false;
+      // Fleet activity gate — only when the courier belongs to a fleet.
+      // Fleetless platform couriers (fleet_id null) have no fleet to deactivate;
+      // skipping the check keeps their prior accept behaviour intact.
+      if (fleetId) {
+        const { data: fleetRow } = await admin
+          .from('courier_fleets')
+          .select('is_active')
+          .eq('id', fleetId)
+          .maybeSingle();
+        if (!(fleetRow as { is_active: boolean } | null)?.is_active) return false;
+      }
 
       // Only accept if currently CREATED or OFFERED AND the order belongs to
       // the courier's fleet, and it is EITHER an open-pool order (unassigned)
