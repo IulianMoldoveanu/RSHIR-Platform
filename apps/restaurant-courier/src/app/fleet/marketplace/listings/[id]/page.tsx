@@ -6,9 +6,19 @@
 
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, MapPin, Package, Thermometer } from 'lucide-react';
+import { ArrowLeft, Package, Thermometer } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import {
+  PageHeader,
+  Card,
+  VerticalBadge,
+  RouteSteps,
+  OfferStatusBadge,
+  ListingStatusBadge,
+  EmptyMarketplaceState,
+} from '@/app/_marketplace-ui';
+import type { ListingStatus, OfferStatus } from '@/app/_marketplace-ui';
 import { BidForm } from './_bid-form';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +60,43 @@ function formatTs(iso: string): string {
     minute: '2-digit',
   }).format(d);
 }
+
+// Map the raw package_temperature enum to a ro-RO label so the fleet never
+// sees the bare "ambient"/"chilled" value.
+function temperatureLabel(value: string | null): string {
+  switch ((value ?? '').toLowerCase()) {
+    case 'frozen':
+      return 'Congelat';
+    case 'chilled':
+    case 'refrigerated':
+      return 'Refrigerat';
+    case 'ambient':
+    case '':
+      return 'Ambient';
+    default:
+      return value ?? 'Ambient';
+  }
+}
+
+// Status sets that back the typed shared badges — keeps the raw enum from
+// leaking and lets us pass the DB string through the typed components safely.
+const LISTING_STATUSES: ReadonlyArray<ListingStatus> = [
+  'DRAFT',
+  'OPEN',
+  'MATCHED',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'EXPIRED',
+  'DISPUTED',
+];
+const OFFER_STATUSES: ReadonlyArray<OfferStatus> = [
+  'PENDING',
+  'ACCEPTED',
+  'REJECTED',
+  'EXPIRED',
+  'WITHDRAWN',
+];
 
 function addressSummary(addr: Record<string, unknown> | null): string {
   if (!addr) return '—';
@@ -109,49 +156,55 @@ export default async function FleetMarketplaceListingDetail({
       ? Number(myOffer.ai_match_score)
       : null;
 
+  // Narrow the DB string columns to the typed badge unions; unknown values
+  // fall back to a neutral chip rather than leaking the raw enum.
+  const listingStatus = LISTING_STATUSES.includes(listing.status as ListingStatus)
+    ? (listing.status as ListingStatus)
+    : null;
+  const myOfferStatus =
+    myOffer && OFFER_STATUSES.includes(myOffer.status as OfferStatus)
+      ? (myOffer.status as OfferStatus)
+      : null;
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/fleet/marketplace/listings"
-          className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
-        >
-          <ArrowLeft className="h-3 w-3" aria-hidden />
-          Toate cererile
-        </Link>
-      </div>
-
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-            {listing.vertical}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              listing.status === 'OPEN'
-                ? 'bg-emerald-500/15 text-emerald-300'
-                : 'bg-zinc-500/15 text-zinc-300'
-            }`}
+      <PageHeader
+        variant="shell"
+        title={listing.package_description ?? 'Pachet B2B'}
+        breadcrumb={
+          <Link
+            href="/fleet/marketplace/listings"
+            className="inline-flex items-center gap-1 rounded-md font-medium text-hir-muted-fg hover:text-hir-fg"
           >
-            {listing.status}
-          </span>
-        </div>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight text-hir-fg">
-          {listing.package_description ?? 'Pachet B2B'}
-        </h1>
-      </div>
+            <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+            Toate cererile
+          </Link>
+        }
+        actions={
+          <>
+            <VerticalBadge vertical={listing.vertical} />
+            {listingStatus ? <ListingStatusBadge status={listingStatus} /> : null}
+          </>
+        }
+      />
 
       {/* Package + window facts. */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-        <h2 className="mb-3 text-sm font-semibold text-hir-fg">Detalii livrare</h2>
-        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Card className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-hir-fg">Detalii livrare</h2>
+
+        <RouteSteps
+          pickup={addressSummary(listing.pickup_address)}
+          dropoff={addressSummary(listing.dropoff_address)}
+        />
+
+        <dl className="grid grid-cols-1 gap-3 border-t border-white/5 pt-4 sm:grid-cols-3">
           <Field
-            icon={<Package className="h-3.5 w-3.5" aria-hidden />}
+            icon={<Package className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />}
             label="Fereastră de livrare"
             value={`${formatTs(listing.delivery_window_start)} → ${formatTs(listing.delivery_window_end)}`}
           />
           <Field
-            icon={<Package className="h-3.5 w-3.5" aria-hidden />}
+            icon={<Package className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />}
             label="Greutate"
             value={
               listing.package_weight_grams != null
@@ -160,39 +213,37 @@ export default async function FleetMarketplaceListingDetail({
             }
           />
           <Field
-            icon={<Thermometer className="h-3.5 w-3.5" aria-hidden />}
+            icon={<Thermometer className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />}
             label="Temperatură"
-            value={listing.package_temperature ?? 'ambient'}
-          />
-          <Field
-            icon={<MapPin className="h-3.5 w-3.5" aria-hidden />}
-            label="Ridicare"
-            value={addressSummary(listing.pickup_address)}
-          />
-          <Field
-            icon={<MapPin className="h-3.5 w-3.5" aria-hidden />}
-            label="Livrare"
-            value={addressSummary(listing.dropoff_address)}
+            value={temperatureLabel(listing.package_temperature)}
           />
         </dl>
-        <p className="mt-3 rounded-md bg-amber-500/5 px-3 py-2 text-[11px] text-amber-200/80">
+
+        <p className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-200/80">
           Datele clientului (nume, telefon complet) se dezvăluie automat la
           acceptarea ofertei de către vendor.
         </p>
-      </section>
+      </Card>
 
       {/* My existing offer panel — only shown when we have one for this
           listing. Lets the manager confirm the live state without bouncing
           to the /offers list. */}
       {myOffer ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-hir-fg">Oferta mea</h2>
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-hir-fg">Oferta mea</h2>
           <div
-            className={`grid gap-3 text-xs ${aiMatchingEnabled ? 'grid-cols-4' : 'grid-cols-3'}`}
+            className={`grid gap-3 ${aiMatchingEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}
           >
             <Stat label="Preț" value={formatRon(myOffer.offered_price_cents)} />
             <Stat label="ETA" value={`${myOffer.eta_minutes} min`} />
-            <Stat label="Status" value={myOffer.status} />
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
+                Status
+              </p>
+              <div className="mt-1">
+                {myOfferStatus ? <OfferStatusBadge status={myOfferStatus} /> : null}
+              </div>
+            </div>
             {aiMatchingEnabled ? (
               <Stat
                 label="Scor AI"
@@ -200,16 +251,16 @@ export default async function FleetMarketplaceListingDetail({
               />
             ) : null}
           </div>
-          <p className="mt-2 text-[11px] text-hir-muted-fg">
-            Valabilă până la {formatTs(myOffer.expires_at)}.
+          <p className="text-[11px] text-hir-muted-fg">
+            Valabilă până la <span className="tabular-nums">{formatTs(myOffer.expires_at)}</span>.
           </p>
           {aiMatchingEnabled ? (
-            <p className="mt-2 text-[11px] text-hir-muted-fg">
+            <p className="text-[11px] text-hir-muted-fg">
               Scorul AI ține cont de preț, ETA, reputația flotei și istoric.
               Mai mare = mai potrivit pentru această cerere.
             </p>
           ) : null}
-        </section>
+        </Card>
       ) : null}
 
       {/* Bid form — gated on listing OPEN. */}
@@ -221,9 +272,10 @@ export default async function FleetMarketplaceListingDetail({
           aiMatchingEnabled={aiMatchingEnabled}
         />
       ) : (
-        <section className="rounded-2xl border border-dashed border-hir-border bg-hir-surface p-4 text-center text-xs text-hir-muted-fg">
-          Această cerere nu mai acceptă oferte (status: {listing.status}).
-        </section>
+        <EmptyMarketplaceState
+          title="Cererea nu mai acceptă oferte."
+          description={`Status curent: ${listing.status}.`}
+        />
       )}
     </div>
   );
@@ -244,7 +296,7 @@ function Field({
         {icon}
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-hir-fg">{value}</dd>
+      <dd className="mt-1 text-sm tabular-nums text-hir-fg">{value}</dd>
     </div>
   );
 }
@@ -255,7 +307,7 @@ function Stat({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
       </p>
-      <p className="mt-0.5 text-sm font-semibold text-hir-fg">{value}</p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-hir-fg">{value}</p>
     </div>
   );
 }

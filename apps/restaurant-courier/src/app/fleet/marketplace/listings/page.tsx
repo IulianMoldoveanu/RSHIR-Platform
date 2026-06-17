@@ -10,6 +10,15 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ArrowRight, MapPin, Package } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import {
+  PageHeader,
+  Card,
+  VerticalBadge,
+  OfferStatusBadge,
+  ETAPill,
+  EmptyMarketplaceState,
+  buttonClass,
+} from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,20 +44,6 @@ type SearchParams = {
   city?: string; // 'all' | 'mine' | uuid
   vertical?: string;
 };
-
-function formatWindow(startIso: string, endIso: string): string {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return '—';
-  const dateFmt = new Intl.DateTimeFormat('ro-RO', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const timeFmt = new Intl.DateTimeFormat('ro-RO', { hour: '2-digit', minute: '2-digit' });
-  return `${dateFmt.format(start)} → ${timeFmt.format(end)}`;
-}
 
 function pickupSummary(addr: Record<string, unknown> | null): string {
   if (!addr) return '—';
@@ -139,36 +134,34 @@ export default async function FleetMarketplaceListings({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/fleet/marketplace"
-          className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
-        >
-          <ArrowLeft className="h-3 w-3" aria-hidden />
-          Marketplace
-        </Link>
-      </div>
-
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Cereri deschise</h1>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          {listings.length} cereri active — alege una și trimite o ofertă.
-        </p>
-      </div>
+      <PageHeader
+        variant="shell"
+        title="Cereri deschise"
+        description={`${listings.length} cereri active — alege una și trimite o ofertă.`}
+        breadcrumb={
+          <Link
+            href="/fleet/marketplace"
+            className="inline-flex items-center gap-1 rounded-md font-medium text-hir-muted-fg hover:text-hir-fg"
+          >
+            <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+            Marketplace
+          </Link>
+        }
+      />
 
       {/* Filter bar — form GETs back to this page so filters end up in URL
           and the manager can bookmark a particular view (e.g. pharmacy
           only). Defaults are "my city" + all verticals. */}
       <form
         method="GET"
-        className="flex flex-wrap items-end gap-3 rounded-2xl border border-hir-border bg-hir-surface p-3"
+        className="flex flex-wrap items-end gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4"
       >
-        <label className="flex flex-col gap-1 text-xs text-hir-muted-fg">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           <span>Oraș</span>
           <select
             name="city"
             defaultValue={cityParam}
-            className="rounded-md border border-hir-border bg-hir-bg px-2 py-1.5 text-sm text-hir-fg"
+            className="rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-hir-fg"
           >
             <option value="mine">
               {primaryCityId ? 'Orașul flotei' : 'Toate orașele (flotă fără oraș)'}
@@ -182,12 +175,12 @@ export default async function FleetMarketplaceListings({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1 text-xs text-hir-muted-fg">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
           <span>Vertical</span>
           <select
             name="vertical"
             defaultValue={verticalParam}
-            className="rounded-md border border-hir-border bg-hir-bg px-2 py-1.5 text-sm text-hir-fg"
+            className="rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm font-normal normal-case tracking-normal text-hir-fg"
           >
             <option value="all">Toate</option>
             <option value="restaurant">Restaurant</option>
@@ -196,10 +189,7 @@ export default async function FleetMarketplaceListings({
             <option value="other">Alt tip</option>
           </select>
         </label>
-        <button
-          type="submit"
-          className="rounded-md bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-400"
-        >
+        <button type="submit" className={buttonClass('primary', 'md')}>
           Aplică
         </button>
       </form>
@@ -207,64 +197,61 @@ export default async function FleetMarketplaceListings({
       {/* Listings — empty state explains the most common cause (no city set
           on the fleet) so the manager knows where to act. */}
       {listings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface p-6 text-center">
-          <p className="text-sm text-hir-fg">Nu sunt cereri deschise.</p>
-          <p className="mt-1 text-xs text-hir-muted-fg">
-            {primaryCityId
+        <EmptyMarketplaceState
+          title="Nu sunt cereri deschise."
+          description={
+            primaryCityId
               ? 'Încearcă altă combinație de filtre sau revino mai târziu.'
-              : 'Setează orașul flotei în /fleet/settings ca să primești cereri din zona ta.'}
-          </p>
-        </div>
+              : 'Setează orașul flotei în /fleet/settings ca să primești cereri din zona ta.'
+          }
+        />
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {listings.map((listing) => {
             const myStatus = myOfferByListing.get(listing.id);
             return (
-              <li key={listing.id}>
-                <Link
-                  href={`/fleet/marketplace/listings/${listing.id}`}
-                  className="block rounded-2xl border border-hir-border bg-hir-surface p-4 hover:border-violet-500/40 hover:bg-hir-border"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                          {listing.vertical}
-                        </span>
-                        <p className="truncate text-sm font-medium text-hir-fg">
-                          {listing.package_description ?? 'Pachet'}
-                        </p>
-                        {myStatus ? (
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                              myStatus === 'ACCEPTED'
-                                ? 'bg-emerald-500/15 text-emerald-300'
-                                : 'bg-sky-500/15 text-sky-300'
-                            }`}
-                          >
-                            {myStatus === 'ACCEPTED' ? 'Câștigat' : 'Ofertat'}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1.5 flex items-center gap-1.5 text-xs text-hir-muted-fg">
-                        <MapPin className="h-3 w-3" aria-hidden />
-                        {pickupSummary(listing.pickup_address)}
+              <Card
+                key={listing.id}
+                as="li"
+                interactive
+                href={`/fleet/marketplace/listings/${listing.id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <VerticalBadge vertical={listing.vertical} />
+                      <p className="truncate text-sm font-semibold text-hir-fg">
+                        {listing.package_description ?? 'Pachet'}
                       </p>
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-hir-muted-fg">
-                        <Package className="h-3 w-3" aria-hidden />
-                        {formatWindow(listing.delivery_window_start, listing.delivery_window_end)}
-                        {listing.package_weight_grams != null
-                          ? ` · ${(listing.package_weight_grams / 1000).toFixed(1)} kg`
-                          : ''}
-                      </p>
+                      {myStatus === 'ACCEPTED' ? (
+                        <OfferStatusBadge status="ACCEPTED" />
+                      ) : myStatus ? (
+                        <OfferStatusBadge status="PENDING" />
+                      ) : null}
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
-                      Ofertează
-                      <ArrowRight className="h-3 w-3" aria-hidden />
-                    </span>
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-hir-muted-fg">
+                      <MapPin className="h-3 w-3 flex-shrink-0" strokeWidth={1.75} aria-hidden />
+                      <span className="truncate">{pickupSummary(listing.pickup_address)}</span>
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-hir-muted-fg">
+                      <ETAPill
+                        startIso={listing.delivery_window_start}
+                        endIso={listing.delivery_window_end}
+                      />
+                      {listing.package_weight_grams != null ? (
+                        <span className="inline-flex items-center gap-1 tabular-nums">
+                          <Package className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                          {(listing.package_weight_grams / 1000).toFixed(1)} kg
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                </Link>
-              </li>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
+                    Ofertează
+                    <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                  </span>
+                </div>
+              </Card>
             );
           })}
         </ul>

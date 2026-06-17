@@ -22,11 +22,18 @@ import {
   FileSearch,
   Gavel,
   MapPin,
-  Package,
   ShieldCheck,
 } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  PageHeader,
+  Card,
+  StatCard,
+  VerticalBadge,
+  ETAPill,
+  EmptyMarketplaceState,
+} from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,20 +84,6 @@ function formatRon(cents: number | null | undefined): string {
   return `${(cents / 100).toFixed(2)} RON`;
 }
 
-function formatWindow(startIso: string, endIso: string): string {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) return '—';
-  const dateFmt = new Intl.DateTimeFormat('ro-RO', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const timeFmt = new Intl.DateTimeFormat('ro-RO', { hour: '2-digit', minute: '2-digit' });
-  return `${dateFmt.format(start)} → ${timeFmt.format(end)}`;
-}
-
 function pickupSummary(addr: Record<string, unknown> | null): string {
   if (!addr) return '—';
   const street = (addr.street ?? addr.line1 ?? addr.address) as string | undefined;
@@ -128,26 +121,28 @@ export default async function PfaDashboardPage() {
     return (
       <main className="min-h-screen bg-hir-bg px-4 py-8 text-hir-fg">
         <div className="mx-auto flex w-full max-w-md flex-col gap-6">
-          <header className="flex items-start gap-3">
+          <PageHeader
+            variant="hero"
+            eyebrow="PANOU PFA"
+            title="Devino curier PFA"
+            description="Nu ai încă un cont PFA înregistrat. Înrolează-te în 3 pași."
+          />
+          <Card accent className="flex flex-col items-start gap-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
               <ShieldCheck className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
             </span>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
-                Panou PFA
-              </h1>
-              <p className="mt-1 text-sm leading-relaxed text-hir-muted-fg">
-                Nu ai încă un cont PFA înregistrat. Înrolează-te în 3 pași.
-              </p>
-            </div>
-          </header>
-          <Link
-            href="/pfa-signup"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-violet-500 px-5 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
-          >
-            Începe înregistrarea PFA
-            <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden />
-          </Link>
+            <p className="text-sm leading-relaxed text-hir-muted-fg">
+              Ai propria flotă cu un singur membru — tu. KYF-light (CUI ANAF + act + selfie)
+              durează sub un minut.
+            </p>
+            <Link
+              href="/pfa-signup"
+              className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-md bg-violet-500 px-5 text-sm font-semibold text-white shadow-[0_2px_12px_rgba(139,92,246,0.3)] transition-colors hover:bg-violet-400 active:bg-violet-600 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+            >
+              Începe înregistrarea PFA
+              <ArrowRight className="h-4 w-4" aria-hidden strokeWidth={1.75} />
+            </Link>
+          </Card>
         </div>
       </main>
     );
@@ -170,7 +165,12 @@ export default async function PfaDashboardPage() {
     return (
       <main className="min-h-screen bg-hir-bg px-4 py-8 text-hir-fg">
         <div className="mx-auto flex w-full max-w-md flex-col gap-6">
-          <PfaHeader fleetName={fleet.name} cui={fleet.pfa_cui} />
+          <PageHeader
+            variant="hero"
+            eyebrow="PANOU PFA"
+            title={fleet.name}
+            description={fleet.pfa_cui ? `PFA • CUI ${fleet.pfa_cui}` : 'PFA • CUI nesetat'}
+          />
           <StatusCard kyf={kyf} />
         </div>
       </main>
@@ -237,37 +237,45 @@ export default async function PfaDashboardPage() {
   return (
     <main className="min-h-screen bg-hir-bg px-4 py-8 text-hir-fg">
       <div className="mx-auto flex w-full max-w-md flex-col gap-6">
-        <PfaHeader fleetName={fleet.name} cui={fleet.pfa_cui} />
+        <PageHeader
+          variant="hero"
+          eyebrow="PANOU PFA"
+          title={fleet.name}
+          description={fleet.pfa_cui ? `PFA • CUI ${fleet.pfa_cui}` : 'PFA • CUI nesetat'}
+        />
 
         {!fleet.is_active ? (
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-            Verificarea a fost aprobată, dar flota este momentan inactivă. Activeaz-o
-            din panou pentru a putea oferta.
+          <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden strokeWidth={1.75} />
+            <span>
+              Verificarea a fost aprobată, dar flota este momentan inactivă. Activeaz-o
+              din panou pentru a putea oferta.
+            </span>
           </div>
         ) : null}
 
         {/* KPI grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Kpi
-            icon={<FileSearch className="h-4 w-4 text-violet-400" aria-hidden />}
+          <StatCard
+            icon={<FileSearch className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Cereri deschise"
-            value={String(openListings.length)}
+            value={openListings.length}
             hint="în orașul tău"
           />
-          <Kpi
-            icon={<Gavel className="h-4 w-4 text-sky-400" aria-hidden />}
+          <StatCard
+            icon={<Gavel className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Ofertele mele"
-            value={String(pendingOffers.length)}
+            value={pendingOffers.length}
             hint="în așteptare"
           />
-          <Kpi
-            icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden />}
+          <StatCard
+            icon={<CheckCircle2 className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Câștigate"
-            value={String(acceptedCount)}
+            value={acceptedCount}
             hint="ultimele 50"
           />
-          <Kpi
-            icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
+          <StatCard
+            icon={<Banknote className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Taxe HIR luna"
             value={formatRon(feesMtdCents)}
             hint="comision platformă"
@@ -275,62 +283,65 @@ export default async function PfaDashboardPage() {
         </div>
 
         {/* Open listings preview — same shape as fleet marketplace */}
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-hir-fg">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-hir-fg">
+              <span aria-hidden className="h-4 w-1 rounded-full bg-gradient-to-b from-violet-500 to-violet-400" />
               Cereri deschise{' '}
-              <span className="text-hir-muted-fg">({openListings.length})</span>
+              <span className="tabular-nums text-hir-muted-fg">({openListings.length})</span>
             </h2>
             <Link
               href="/fleet/marketplace/listings"
               className="inline-flex min-h-[44px] items-center gap-1 px-2 text-xs font-medium text-violet-300 hover:text-violet-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
             >
               Vezi toate
-              <ArrowRight className="h-3 w-3" aria-hidden />
+              <ArrowRight className="h-3 w-3" aria-hidden strokeWidth={1.75} />
             </Link>
           </div>
           {openListings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-hir-border bg-hir-surface px-4 py-6 text-center text-xs text-hir-muted-fg">
-              {fleet.primary_city_id
-                ? 'Nu sunt cereri deschise în orașul tău acum.'
-                : 'Setează orașul principal în setări ca să vezi cereri din zonă.'}
-            </div>
+            <EmptyMarketplaceState
+              title="Nicio cerere deschisă"
+              description={
+                fleet.primary_city_id
+                  ? 'Nu sunt cereri deschise în orașul tău acum. Revino mai târziu.'
+                  : 'Setează orașul principal în setări ca să vezi cereri din zonă.'
+              }
+            />
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {openListings.map((listing) => (
-                <li key={listing.id}>
-                  <Link
-                    href={`/fleet/marketplace/listings/${listing.id}`}
-                    className="block rounded-xl border border-hir-border bg-hir-surface p-3 hover:border-violet-500/40 hover:bg-hir-border focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                            {listing.vertical}
-                          </span>
-                          <p className="truncate text-sm font-medium text-hir-fg">
-                            {listing.package_description ?? 'Pachet'}
-                          </p>
-                        </div>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-hir-muted-fg">
-                          <MapPin className="h-3 w-3" aria-hidden />
-                          {pickupSummary(listing.pickup_address)}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-hir-muted-fg">
-                          <Package className="h-3 w-3" aria-hidden />
-                          {formatWindow(
-                            listing.delivery_window_start,
-                            listing.delivery_window_end,
-                          )}
+                <Card
+                  key={listing.id}
+                  as="li"
+                  accent
+                  interactive
+                  href={`/fleet/marketplace/listings/${listing.id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <VerticalBadge vertical={listing.vertical} />
+                        <p className="truncate text-sm font-medium text-hir-fg">
+                          {listing.package_description ?? 'Pachet'}
                         </p>
                       </div>
-                      <span className="inline-flex shrink-0 items-center rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
-                        Ofertează
-                      </span>
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-hir-muted-fg">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden strokeWidth={1.75} />
+                        <span className="truncate">{pickupSummary(listing.pickup_address)}</span>
+                      </p>
+                      <div className="mt-2">
+                        <ETAPill
+                          startIso={listing.delivery_window_start}
+                          endIso={listing.delivery_window_end}
+                        />
+                      </div>
                     </div>
-                  </Link>
-                </li>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
+                      Ofertează
+                      <ArrowRight className="h-3 w-3" aria-hidden strokeWidth={1.75} />
+                    </span>
+                  </div>
+                </Card>
               ))}
             </ul>
           )}
@@ -340,13 +351,13 @@ export default async function PfaDashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           <QuickLink
             href="/fleet/marketplace/offers"
-            icon={<Gavel className="h-4 w-4" aria-hidden />}
+            icon={<Gavel className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Ofertele mele"
             hint={`${pendingOffers.length} în așteptare`}
           />
           <QuickLink
             href="/fleet/marketplace/matches"
-            icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+            icon={<CheckCircle2 className="h-4 w-4" aria-hidden strokeWidth={1.75} />}
             label="Livrări câștigate"
             hint={`${acceptedCount} active`}
           />
@@ -354,30 +365,12 @@ export default async function PfaDashboardPage() {
 
         <Link
           href="/fleet/settings"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-surface px-4 text-sm font-medium text-hir-fg hover:bg-hir-border focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-surface px-4 text-sm font-medium text-hir-fg transition-colors hover:bg-hir-border focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
         >
           Setări PFA
         </Link>
       </div>
     </main>
-  );
-}
-
-function PfaHeader({ fleetName, cui }: { fleetName: string; cui: string | null }) {
-  return (
-    <header className="flex items-start gap-3">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
-        <ShieldCheck className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={2.25} />
-      </span>
-      <div className="min-w-0">
-        <h1 className="truncate text-xl font-semibold tracking-tight text-hir-fg">
-          {fleetName}
-        </h1>
-        <p className="mt-0.5 text-xs text-hir-muted-fg">
-          PFA • {cui ? `CUI ${cui}` : 'CUI nesetat'}
-        </p>
-      </div>
-    </header>
   );
 }
 
@@ -429,29 +422,6 @@ function StatusCard({ kyf }: { kyf: KyfRow | null }) {
         verificarea trece (de obicei sub un minut).
       </p>
     </section>
-  );
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-hir-border bg-hir-surface p-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-        {icon}
-        {label}
-      </div>
-      <p className="mt-1 text-xl font-semibold text-hir-fg">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-hir-muted-fg">{hint}</p> : null}
-    </div>
   );
 }
 
