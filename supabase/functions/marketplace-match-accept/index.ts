@@ -309,26 +309,35 @@ Deno.serve(async (req: Request) => {
     console.error('[marketplace-match-accept] sibling reject failed (non-fatal):', rejectErr.message);
   }
 
-  // Step 7: pillar 2 (autofactură placeholder) — best-effort enqueue.
-  // ai_jobs_queue may not be present in all environments; ignore failures
-  // so the accept stays committed.
-  try {
-    await admin.from('ai_jobs_queue').insert({
-      kind: 'marketplace_autoinvoice_enqueue',
-      payload: {
-        match_id: match.id,
-        listing_id: listing.id,
-        offer_id: offer.id,
-        fleet_id: offer.fleet_id,
-        vendor_tenant_id: listing.vendor_tenant_id,
-        final_price_cents: finalPriceCents,
-        hir_fee_cents: body.hir_fee_cents,
-      },
-    });
-  } catch (e) {
-    console.warn(
-      '[marketplace-match-accept] ai_jobs_queue enqueue skipped:',
-      e instanceof Error ? e.message : String(e),
+  // Step 7: pillar 2 (autofactură placeholder) — best-effort enqueue into ai_jobs.
+  // The table is `ai_jobs` (not `ai_jobs_queue`) with columns job_type/input_payload
+  // (migration 20260616_007); the old call targeted a non-existent table with
+  // non-existent columns, and supabase-js .insert() returns { error } rather than
+  // throwing, so the previous try/catch was dead code and EVERY accepted match was
+  // silently created with no settlement/autoinvoice job enqueued (orphaned financial
+  // record). Map to the real table/columns and read .error. 'marketplace_autoinvoice'
+  // is added to the job_type CHECK in migration 20260630_041.
+  const { error: jobErr } = await admin.from('ai_jobs').insert({
+    job_type: 'marketplace_autoinvoice',
+    tenant_id: listing.vendor_tenant_id,
+    status: 'PENDING',
+    input_payload: {
+      match_id: match.id,
+      listing_id: listing.id,
+      offer_id: offer.id,
+      fleet_id: offer.fleet_id,
+      vendor_tenant_id: listing.vendor_tenant_id,
+      final_price_cents: finalPriceCents,
+      hir_fee_cents: body.hir_fee_cents,
+    },
+  });
+  if (jobErr) {
+    // Best-effort: the match is committed and canonical. Log loudly so a sweeper can
+    // reconcile financial matches that lack an autoinvoice job (ix on input_payload
+    // ->>'match_id' in 20260630_041 makes that scan cheap).
+    console.error(
+      '[marketplace-match-accept] ai_jobs enqueue FAILED (match orphaned for settlement):',
+      jobErr.message,
     );
   }
 
