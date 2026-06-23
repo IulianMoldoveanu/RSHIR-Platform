@@ -51,12 +51,18 @@ function isSafeCallbackUrl(raw: string): boolean {
       return false;
     }
   }
-  // IPv6 loopback / unspecified / unique-local (fc00::/7) / link-local (fe80::/10)
-  if (
-    host === '::1' || host === '::' ||
-    host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')
-  ) {
-    return false;
+  // IPv6 loopback / unspecified / unique-local (fc00::/7) / link-local (fe80::/10).
+  // Only apply these prefix checks to actual IPv6 literals — an IPv6 address always
+  // contains a colon, a DNS hostname never does. Without this gate a perfectly valid
+  // public host like `fc.example.com` or `fd-cdn.net` would be misread as fc00::/7
+  // and its callback URL silently dropped (Codex P2).
+  if (host.includes(':')) {
+    if (
+      host === '::1' || host === '::' ||
+      host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')
+    ) {
+      return false;
+    }
   }
   return true;
 }
