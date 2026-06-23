@@ -15,6 +15,52 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { timingSafeEqual } from 'node:crypto';
 
+// SSRF guard. The pharma backend supplies `pharma_callback_url`, and we later
+// POST delivery notifications (order IDs + customer/courier contact) to it. A
+// malicious or misconfigured payload could point it at an internal host, so we
+// only persist HTTPS URLs whose host is not loopback/private/link-local/reserved.
+// (Deeper defense — re-resolve + IP-check at send time to defeat DNS rebinding.)
+function isSafeCallbackUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+  if (
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal')
+  ) {
+    return false;
+  }
+  const v4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const a = Number(v4[1]);
+    const b = Number(v4[2]);
+    if (
+      a === 0 || a === 127 || a === 10 ||
+      (a === 192 && b === 168) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 169 && b === 254) || // link-local + cloud metadata (169.254.169.254)
+      a >= 224 // multicast / reserved
+    ) {
+      return false;
+    }
+  }
+  // IPv6 loopback / unspecified / unique-local (fc00::/7) / link-local (fe80::/10)
+  if (
+    host === '::1' || host === '::' ||
+    host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -341,7 +387,13 @@ Deno.serve(async (req: Request) => {
     if ((order.status ?? '').toUpperCase() === 'READY_FOR_PICKUP') insertRow.pharma_ready_at = at;
     if (order.payment_method) insertRow.payment_method = order.payment_method;
     if (typeof order.cod_amount_ron === 'number') insertRow.cod_amount_ron = order.cod_amount_ron;
-    if (order.pharma_callback_url) insertRow.pharma_callback_url = order.pharma_callback_url;
+    if (order.pharma_callback_url) {
+      if (isSafeCallbackUrl(order.pharma_callback_url)) {
+        insertRow.pharma_callback_url = order.pharma_callback_url;
+      } else {
+        console.warn('[courier-mirror-pharma] rejected unsafe pharma_callback_url (SSRF guard) on create');
+      }
+    }
     // Delivery instructions for the courier (optional).
     if (order.dropoff?.notes) insertRow.dropoff_notes = order.dropoff.notes;
     // pharma_callback_secret is no longer stored on courier_orders — see
@@ -450,7 +502,13 @@ Deno.serve(async (req: Request) => {
     if (event === 'order.cancelled' || statusRank(targetStatus) > statusRank((existing.status as string) ?? 'CREATED')) {
       updateRow.status = targetStatus;
     }
-    if (order.pharma_callback_url) updateRow.pharma_callback_url = order.pharma_callback_url;
+    if (order.pharma_callback_url) {
+      if (isSafeCallbackUrl(order.pharma_callback_url)) {
+        updateRow.pharma_callback_url = order.pharma_callback_url;
+      } else {
+        console.warn('[courier-mirror-pharma] rejected unsafe pharma_callback_url (SSRF guard) on update');
+      }
+    }
     // Backfill the optional vendor phone/name if a later event carries them.
     if (order.pickup?.contact_phone) updateRow.pickup_phone = order.pickup.contact_phone;
     if (order.pickup?.contact_name) updateRow.pickup_name = order.pickup.contact_name;
