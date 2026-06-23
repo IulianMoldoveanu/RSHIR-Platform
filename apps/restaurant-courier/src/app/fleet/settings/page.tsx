@@ -1,12 +1,44 @@
 import Link from 'next/link';
 import { ChevronRight, ShieldCheck } from 'lucide-react';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { FleetSettingsForm } from './_form';
+import { AutoDispatchToggle } from './_auto-dispatch-toggle';
 
 export const dynamic = 'force-dynamic';
 
+// Defensive read: returns false if courier_fleets.auto_dispatch_enabled doesn't
+// exist yet (migration 20260630_038 not applied). Keeps the page working
+// regardless of app-vs-migration deploy order — the feature just stays off.
+async function readAutoDispatch(fleetId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await (admin as unknown as {
+      from: (t: string) => {
+        select: (c: string) => {
+          eq: (col: string, val: string) => {
+            maybeSingle: () => Promise<{
+              data: { auto_dispatch_enabled: boolean | null } | null;
+              error: unknown;
+            }>;
+          };
+        };
+      };
+    })
+      .from('courier_fleets')
+      .select('auto_dispatch_enabled')
+      .eq('id', fleetId)
+      .maybeSingle();
+    if (error) return false;
+    return Boolean(data?.auto_dispatch_enabled);
+  } catch {
+    return false;
+  }
+}
+
 export default async function FleetSettingsPage() {
   const fleet = await requireFleetManager();
+  const autoDispatch = await readAutoDispatch(fleet.fleetId);
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
@@ -25,6 +57,8 @@ export default async function FleetSettingsPage() {
           contactPhone: fleet.contactPhone ?? '',
         }}
       />
+
+      <AutoDispatchToggle initial={autoDispatch} />
 
       <Link
         href="/fleet/kyf"

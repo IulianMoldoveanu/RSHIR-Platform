@@ -151,6 +151,49 @@ export async function updateFleetSettingsAction(
 }
 
 /**
+ * Toggle FLEET-LEVEL automatic dispatch for the manager's own fleet. When ON,
+ * fn_auto_dispatch_sweep (migration 20260630_038) auto-OFFERS open-pool orders to
+ * the nearest available online courier; when OFF, allocation stays manual (the
+ * manager / dispatcher assigns, or couriers self-accept from the broadcast). This
+ * is the "flexible — I allocate, or I hand the fleet off" switch: each fleet owns
+ * its own flag, so a delegated fleet runs its own dispatch and HIR never touches
+ * another fleet's couriers (same-fleet invariant + firewall).
+ *
+ * Resilient to the migration not being applied yet: the update simply errors and
+ * the toggle reports it, never breaking the page.
+ */
+export async function setFleetAutoDispatchAction(enabled: boolean): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+  const { error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+      };
+    };
+  })
+    .from('courier_fleets')
+    .update({ auto_dispatch_enabled: enabled })
+    .eq('id', ctx.fleetId);
+
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.auto_dispatch_toggled',
+    entityType: 'courier_fleet',
+    entityId: ctx.fleetId,
+    metadata: { auto_dispatch_enabled: enabled },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/settings');
+  return { ok: true };
+}
+
+/**
  * Manager-driven rider assignment. Sets `assigned_courier_user_id` on the
  * order and flips `status` to ACCEPTED if it was CREATED/OFFERED. The order
  * MUST belong to the manager's fleet — we filter by both `id` and `fleet_id`

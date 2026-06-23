@@ -43,6 +43,7 @@ export type CourierAuditAction =
   | 'fleet.api_key_created'
   | 'fleet.api_key_revoked'
   | 'fleet.settings_updated'
+  | 'fleet.auto_dispatch_toggled'
   | 'fleet.order_assigned'
   | 'fleet.order_unassigned'
   | 'fleet.courier_suspended'
