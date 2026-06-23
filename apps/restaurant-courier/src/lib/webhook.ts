@@ -248,6 +248,38 @@ export async function notifyPharmaCallback(
   const body = JSON.stringify(payload);
   const signature = createHmac('sha256', pharmaCallbackSecret).update(body).digest('hex');
 
+  // Durable queue (Lane F, migration 20260630_039): enqueue the delivery BEFORE the
+  // inline send so a crash mid-send can't lose it, and so a transient double-failure
+  // is retried by pharma-callback-dispatcher with backoff instead of being abandoned.
+  // Idempotent on (courier_order_id, event_id) — re-firing the same status is a no-op
+  // insert (ignoreDuplicates). Safe before the migration is applied: the untyped
+  // client returns an error (not a throw) for a missing table; we log + continue so
+  // current behavior is unchanged until both the migration and this code land.
+  try {
+    const { error: enqErr } = await admin
+      .from('pharma_callback_deliveries')
+      .upsert(
+        {
+          courier_order_id: orderId,
+          event_id: payload.eventId,
+          pharma_status: pharmaStatus,
+          pharma_callback_url: safeUrl.toString(),
+          request_body: payload,
+          // 60s grace (> max inline send of 2×8s) so the 30s dispatcher cron does
+          // NOT race the inline send. The reconcile below pulls this forward to +30s
+          // on inline failure; on success delivered_at is set so the cron skips it;
+          // on a crash mid-send the row still fires after the grace (never lost).
+          next_retry_at: new Date(Date.now() + 60_000).toISOString(),
+        },
+        { onConflict: 'courier_order_id,event_id', ignoreDuplicates: true },
+      );
+    if (enqErr) {
+      console.warn('[pharma-callback] enqueue skipped (migration not applied?)', orderId, enqErr.message);
+    }
+  } catch (e) {
+    console.warn('[pharma-callback] enqueue failed', orderId, (e as Error).message);
+  }
+
   let success = false;
   let httpStatus: number | null = null;
   let attempt = 1;
@@ -275,6 +307,45 @@ export async function notifyPharmaCallback(
       console.warn('[pharma-callback] send failed', orderId, attempt, (e as Error).message);
       // Network error — retry once, then give up
     }
+  }
+
+  // Reconcile the durable row with the inline outcome. On success → mark delivered so
+  // the cron never re-sends. On a 4xx → dead-letter (pharma contract bug, retrying
+  // won't help — mirrors the `< 500 → break` above). On 5xx / network failure → leave
+  // it pending (one backoff step out) so pharma-callback-dispatcher takes over. Wrapped
+  // for the pre-migration case (untyped client returns an error, not a throw).
+  // Record the REAL number of inline attempts (1 or 2) — after the loop `attempt` is
+  // 3 when both tries failed — so the dispatcher's backoff continues from the right
+  // step instead of under-counting (which would make retries too aggressive).
+  const inlineAttempts = Math.min(attempt, 2);
+  try {
+    if (success) {
+      await admin
+        .from('pharma_callback_deliveries')
+        .update({ delivered_at: new Date().toISOString(), attempt_count: inlineAttempts, response_status: httpStatus })
+        .eq('courier_order_id', orderId)
+        .eq('event_id', payload.eventId);
+    } else if (httpStatus !== null && httpStatus >= 400 && httpStatus < 500) {
+      await admin
+        .from('pharma_callback_deliveries')
+        .update({ attempt_count: inlineAttempts, dead: true, response_status: httpStatus, last_error: `HTTP ${httpStatus}` })
+        .eq('courier_order_id', orderId)
+        .eq('event_id', payload.eventId);
+    } else {
+      // 5xx / network — hand off to the dispatcher (~30s out), counting the inline try.
+      await admin
+        .from('pharma_callback_deliveries')
+        .update({
+          attempt_count: inlineAttempts,
+          response_status: httpStatus,
+          next_retry_at: new Date(Date.now() + 30_000).toISOString(),
+          last_error: httpStatus !== null ? `HTTP ${httpStatus}` : 'network_error',
+        })
+        .eq('courier_order_id', orderId)
+        .eq('event_id', payload.eventId);
+    }
+  } catch (e) {
+    console.warn('[pharma-callback] durable reconcile failed', orderId, (e as Error).message);
   }
 
   if (actorUserId) {
