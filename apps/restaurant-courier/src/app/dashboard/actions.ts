@@ -302,8 +302,7 @@ export async function forceEndShiftAction(
         .from('courier_orders')
         .select('id, status')
         .eq('assigned_courier_user_id', userId)
-        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-        .select('id, status');
+        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
 
       const rows = (activeOrders ?? []) as Array<{ id: string; status: string }>;
       let cancelled = 0;
