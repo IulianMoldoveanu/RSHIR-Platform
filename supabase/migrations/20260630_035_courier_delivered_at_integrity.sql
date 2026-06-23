@@ -16,15 +16,14 @@
 
 begin;
 
--- 1. Backfill existing DELIVERED rows missing delivered_at.
---    Best available timestamp: delivered_at -> updated_at -> now().
-update public.courier_orders
-   set delivered_at = coalesce(delivered_at, updated_at, now())
- where status = 'DELIVERED'
-   and delivered_at is null;
-
--- 2. Add the invariant as NOT VALID first (fast — only a catalog change, no
+-- 1. Add the invariant as NOT VALID FIRST (fast — only a catalog change, no
 --    full-table scan, brief ACCESS EXCLUSIVE), guarded for idempotency.
+--    Ordering matters (Codex P2): a NOT VALID constraint still enforces every
+--    *subsequent* insert/update immediately, so once it exists no concurrent
+--    trigger-bypassing writer can create a fresh DELIVERED + NULL row. If the
+--    backfill ran first instead, a legacy writer could slip a violating row into
+--    the gap before the constraint existed, and the later VALIDATE would then fail
+--    and roll back the whole migration, leaving the payout invariant unapplied.
 do $$
 begin
   if not exists (
@@ -39,8 +38,18 @@ begin
   end if;
 end $$;
 
+-- 2. Backfill existing DELIVERED rows missing delivered_at.
+--    Best available timestamp: delivered_at -> updated_at -> now().
+--    NOT VALID skips pre-existing rows, so these legacy violators are untouched by
+--    step 1 and must be repaired here before VALIDATE (step 3) can succeed.
+update public.courier_orders
+   set delivered_at = coalesce(delivered_at, updated_at, now())
+ where status = 'DELIVERED'
+   and delivered_at is null;
+
 -- 3. Validate it (SHARE UPDATE EXCLUSIVE — does not block reads/writes).
---    No-op if already validated. After step 1 every DELIVERED row qualifies.
+--    No-op if already validated. After step 2 every DELIVERED row qualifies, and
+--    because step 1 already blocks new violators the set can no longer grow.
 alter table public.courier_orders
   validate constraint courier_orders_delivered_at_required;
 
