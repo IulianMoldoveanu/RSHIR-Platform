@@ -17,6 +17,7 @@ import { requireFleetManager } from '@/lib/fleet-manager';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { JobStatusBadge } from '@/app/_components';
 import { isJobBoardEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card, EmptyMarketplaceState, buttonClass } from '@/app/_marketplace-ui';
 import { updateJobListingStatusAction } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -101,90 +102,95 @@ export default async function FleetJobsPage({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Joburi flotă</h1>
-          <p className="mt-0.5 text-sm text-hir-muted-fg">
-            Postează posturi deschise, vezi curierii care aplică.
-          </p>
-        </div>
-        <Link
-          href="/fleet/jobs/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-2 text-sm font-medium text-white hover:bg-violet-600"
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Postare nouă
-        </Link>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="MARKETPLACE FLOTĂ"
+        title="Joburi flotă"
+        description="Postează posturi deschise, vezi curierii care aplică."
+        actions={
+          <Link href="/fleet/jobs/new" className={buttonClass('primary', 'md')}>
+            <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+            Postare nouă
+          </Link>
+        }
+      />
 
       {errorParam ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200"
+        >
           {errorParam}
         </div>
       ) : null}
 
       {/* Listings list */}
       {listings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface px-4 py-8 text-center text-sm text-hir-muted-fg">
-          Nu ai joburi postate. Începe cu o postare nouă.
-        </div>
+        <EmptyMarketplaceState
+          title="Niciun job postat."
+          description="Începe cu o postare nouă și apare pe board-ul curierilor."
+          action={
+            <Link href="/fleet/jobs/new" className={buttonClass('primary', 'md')}>
+              <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+              Postare nouă
+            </Link>
+          }
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {listings.map((l) => {
             const city = l.city_id ? cityById.get(l.city_id) : null;
             const counts = countsByListing.get(l.id) ?? { total: 0, active: 0 };
             return (
-              <li
-                key={l.id}
-                className="rounded-2xl border border-hir-border bg-hir-surface p-4"
-              >
+              <Card key={l.id} as="li" accent>
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     href={`/fleet/jobs/${l.id}/applications`}
                     className="min-w-0 flex-1 hover:text-violet-200"
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-hir-fg">
+                      <p className="truncate text-sm font-bold text-hir-fg">
                         {l.position_title}
                       </p>
                       <JobStatusBadge status={l.status} />
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-hir-muted-fg">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 font-medium text-violet-300">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-hir-muted-fg">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-medium text-violet-300 ring-1 ring-inset ring-violet-500/30">
                         {EMPLOYMENT_LABEL[l.employment_type]}
                       </span>
                       {city ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-                          <MapPin className="h-3 w-3" aria-hidden />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+                          <MapPin className="h-3 w-3" strokeWidth={1.75} aria-hidden />
                           {city.name}
                         </span>
                       ) : null}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-                        <Users className="h-3 w-3" aria-hidden />
-                        {counts.active} active / {counts.total} total
+                      <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+                        <Users className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                        <span className="tabular-nums">{counts.active}</span> active /{' '}
+                        <span className="tabular-nums">{counts.total}</span> total
                       </span>
                     </div>
                   </Link>
                   <Link
                     href={`/fleet/jobs/${l.id}/applications`}
-                    className="inline-flex items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200 hover:bg-violet-500/25"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-200 ring-1 ring-inset ring-violet-500/30 transition-colors hover:bg-violet-500/25"
                   >
                     Aplicații
-                    <ArrowRight className="h-3 w-3" aria-hidden />
+                    <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden />
                   </Link>
                 </div>
 
                 {/* Quick status toggles. EXPIRED is read-only (cron-set) so
                     we hide the toggle row when the listing is expired. */}
                 {l.status !== 'EXPIRED' ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hir-border pt-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/5 pt-3">
                     {l.status === 'OPEN' ? (
                       <form action={statusTransitionAction}>
                         <input type="hidden" name="listing_id" value={l.id} />
                         <input type="hidden" name="next_status" value="PAUSED" />
                         <button
                           type="submit"
-                          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-200 hover:bg-amber-500/20"
+                          className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-200 transition-colors hover:bg-amber-500/20"
                         >
                           Pune pe pauză
                         </button>
@@ -196,7 +202,7 @@ export default async function FleetJobsPage({
                         <input type="hidden" name="next_status" value="OPEN" />
                         <button
                           type="submit"
-                          className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-200 hover:bg-emerald-500/20"
+                          className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-200 transition-colors hover:bg-emerald-500/20"
                         >
                           Redeschide
                         </button>
@@ -208,7 +214,7 @@ export default async function FleetJobsPage({
                         <input type="hidden" name="next_status" value="CLOSED" />
                         <button
                           type="submit"
-                          className="rounded-md border border-hir-border bg-hir-bg px-2 py-1 text-[11px] font-medium text-hir-muted-fg hover:text-rose-200 hover:border-rose-500/40"
+                          className="rounded-md border border-hir-border bg-hir-bg px-2.5 py-1 text-[11px] font-medium text-hir-muted-fg transition-colors hover:border-rose-500/40 hover:text-rose-200"
                         >
                           Închide definitiv
                         </button>
@@ -216,7 +222,7 @@ export default async function FleetJobsPage({
                     ) : null}
                   </div>
                 ) : null}
-              </li>
+              </Card>
             );
           })}
         </ul>

@@ -8,6 +8,7 @@
 // currently visible PENDING permits.
 
 import { useMemo, useState, useTransition } from 'react';
+import { Icon } from '@/app/marketplace/_components/ui';
 import {
   bulkApproveCourierPermits,
   verifyCourierPermit,
@@ -57,15 +58,15 @@ function courierDisplay(prefix: string | null, name: string | null): string {
 
 function StatusBadge({ status }: { status: PermitStatus }) {
   const config: Record<PermitStatus, { label: string; cls: string }> = {
-    PENDING: { label: 'În așteptare', cls: 'bg-amber-500/20 text-amber-300' },
-    VERIFIED: { label: 'Verificat', cls: 'bg-emerald-500/20 text-emerald-300' },
-    REJECTED: { label: 'Respins', cls: 'bg-rose-500/20 text-rose-300' },
-    EXPIRED: { label: 'Expirat', cls: 'bg-slate-500/20 text-slate-300' },
+    PENDING: { label: 'În așteptare', cls: 'bg-amber-500/20 text-amber-300 ring-amber-500/30' },
+    VERIFIED: { label: 'Verificat', cls: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30' },
+    REJECTED: { label: 'Respins', cls: 'bg-rose-500/20 text-rose-300 ring-rose-500/30' },
+    EXPIRED: { label: 'Expirat', cls: 'bg-slate-500/20 text-slate-300 ring-slate-500/30' },
   };
   const c = config[status];
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.cls}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${c.cls}`}
     >
       {c.label}
     </span>
@@ -83,7 +84,8 @@ function EmptyState({ label }: { label: string }) {
 function DocLink({ url }: { url: string | null }) {
   if (!url) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-500">
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-500">
+        <Icon name="file-search" className="h-3.5 w-3.5" />
         Scan permis: lipsă
       </span>
     );
@@ -93,9 +95,11 @@ function DocLink({ url }: { url: string | null }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-violet-300 hover:bg-slate-800"
+      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-violet-300 transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
     >
-      Scan permis ↗
+      <Icon name="file-search" className="h-3.5 w-3.5" />
+      Scan permis
+      <Icon name="arrow-right" className="h-3 w-3 -rotate-45" title="Deschide într-o filă nouă" />
     </a>
   );
 }
@@ -148,7 +152,7 @@ function DecisionControls({
             type="button"
             disabled={pending}
             onClick={confirmReject}
-            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+            className="min-h-[36px] rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-500 focus-visible:outline-2 focus-visible:outline-rose-400 focus-visible:outline-offset-2 disabled:opacity-50"
           >
             {pending ? 'Se respinge…' : 'Confirmă respingerea'}
           </button>
@@ -156,7 +160,7 @@ function DecisionControls({
             type="button"
             disabled={pending}
             onClick={() => setRejecting(false)}
-            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            className="min-h-[36px] rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
             Anulează
           </button>
@@ -172,7 +176,7 @@ function DecisionControls({
         type="button"
         disabled={pending}
         onClick={approve}
-        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+        className="min-h-[36px] rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-emerald-400 focus-visible:outline-offset-2 disabled:opacity-50"
       >
         {pending ? 'Se aprobă…' : 'Aprobă'}
       </button>
@@ -180,7 +184,7 @@ function DecisionControls({
         type="button"
         disabled={pending}
         onClick={() => setRejecting(true)}
-        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+        className="min-h-[36px] rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-rose-400 focus-visible:outline-offset-2 disabled:opacity-50"
       >
         Respinge
       </button>
@@ -317,7 +321,7 @@ export function PermitsClient({ permits }: { permits: PermitVM[] }) {
             key={f}
             type="button"
             onClick={() => setFilter(f)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+            className={`min-h-[36px] rounded-full px-3 py-1 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2 ${
               filter === f
                 ? 'bg-violet-600 text-white'
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -338,7 +342,7 @@ export function PermitsClient({ permits }: { permits: PermitVM[] }) {
             type="button"
             disabled={bulkPending}
             onClick={runBulkApprove}
-            className="ml-auto rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="ml-auto min-h-[36px] rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-500 focus-visible:outline-2 focus-visible:outline-emerald-400 focus-visible:outline-offset-2 disabled:opacity-50"
           >
             {bulkPending ? 'Se aprobă în bloc…' : 'Aprobă în bloc'}
           </button>
@@ -350,7 +354,7 @@ export function PermitsClient({ permits }: { permits: PermitVM[] }) {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-          Curieri non-UE · {visible.length}
+          Curieri non-UE · <span className="tabular-nums">{visible.length}</span>
         </h2>
         {visible.length === 0 ? (
           <EmptyState label="Niciun curier în această categorie." />

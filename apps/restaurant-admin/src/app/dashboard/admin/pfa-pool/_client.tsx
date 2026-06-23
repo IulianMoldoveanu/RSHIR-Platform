@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import { Icon } from '@/app/marketplace/_components/ui';
 import {
   overridePfaKyf,
   togglePfaFleetActive,
@@ -284,16 +285,16 @@ function OverrideControls({ vm }: { vm: PfaFleetVM }) {
 function KyfBadge({ status }: { status: KyfStatus | null }) {
   const cfg =
     status === 'VERIFIED_PFA_LIGHT'
-      ? { label: 'PFA-light verificat', cls: 'bg-emerald-500/20 text-emerald-300' }
+      ? { label: 'PFA-light verificat', cls: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30' }
       : status === 'VERIFIED'
-        ? { label: 'KYF complet', cls: 'bg-emerald-500/20 text-emerald-300' }
+        ? { label: 'KYF complet', cls: 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/30' }
         : status === 'REJECTED'
-          ? { label: 'Respins', cls: 'bg-rose-500/20 text-rose-300' }
+          ? { label: 'Respins', cls: 'bg-rose-500/20 text-rose-300 ring-rose-500/30' }
           : status === 'PENDING'
-            ? { label: 'În așteptare', cls: 'bg-amber-500/20 text-amber-300' }
-            : { label: 'Fără KYF', cls: 'bg-slate-700 text-slate-300' };
+            ? { label: 'În așteptare', cls: 'bg-amber-500/20 text-amber-300 ring-amber-500/30' }
+            : { label: 'Fără KYF', cls: 'bg-slate-700 text-slate-300 ring-slate-600' };
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${cfg.cls}`}>
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${cfg.cls}`}>
       {cfg.label}
     </span>
   );
@@ -314,7 +315,8 @@ function ActiveBadge({ isActive }: { isActive: boolean }) {
 function DocLink({ label, url }: { label: string; url: string | null }) {
   if (!url) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-500">
+      <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-500">
+        <Icon name="file-search" className="h-3.5 w-3.5" />
         {label}: lipsă
       </span>
     );
@@ -324,9 +326,11 @@ function DocLink({ label, url }: { label: string; url: string | null }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 text-[11px] font-medium text-violet-300 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 px-2.5 text-[11px] font-medium text-violet-300 transition-colors hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
     >
-      {label} ↗
+      <Icon name="file-search" className="h-3.5 w-3.5" />
+      {label}
+      <Icon name="arrow-right" className="h-3 w-3 -rotate-45" title="Deschide într-o filă nouă" />
     </a>
   );
 }

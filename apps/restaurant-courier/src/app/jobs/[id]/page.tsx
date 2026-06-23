@@ -31,6 +31,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { JobStatusBadge } from '@/app/_components';
 import { isJobBoardEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card, buttonClass } from '@/app/_marketplace-ui';
 import { applyToJobAction, withdrawApplicationAction } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -156,20 +157,25 @@ export default async function JobDetailPage({
   const canWithdraw =
     application != null && ['PENDING', 'REVIEWING', 'INTERVIEWED'].includes(application.status);
 
+  const backLink = (
+    <Link
+      href="/jobs"
+      className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
+    >
+      <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+      Înapoi la joburi
+    </Link>
+  );
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-24 pt-6">
-      <Link
-        href="/jobs"
-        className="inline-flex items-center gap-1 self-start text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
-      >
-        <ArrowLeft className="h-3 w-3" aria-hidden />
-        Înapoi la joburi
-      </Link>
-
       {/* Status banners */}
       {errorParam ? (
-        <div className="flex items-start gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
-          <AlertCircle className="h-4 w-4 shrink-0 text-rose-300" aria-hidden />
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-300" strokeWidth={1.75} aria-hidden />
           {errorParam}
         </div>
       ) : null}
@@ -185,76 +191,70 @@ export default async function JobDetailPage({
       ) : null}
 
       {/* Listing header */}
-      <header>
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
-            {listing.position_title}
-          </h1>
-          <JobStatusBadge status={listing.status} />
-        </div>
-        {fleet ? (
-          <p className="mt-1 text-sm text-hir-muted-fg">
-            Publicat de: <span className="text-hir-fg">{fleet.name}</span>
-          </p>
-        ) : null}
-      </header>
+      <PageHeader
+        variant="shell"
+        breadcrumb={backLink}
+        title={listing.position_title}
+        description={fleet ? `Publicat de ${fleet.name}` : undefined}
+        actions={<JobStatusBadge status={listing.status} />}
+      />
 
       {/* Chip row */}
       <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-hir-muted-fg">
-        <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 font-medium text-violet-300">
-          <Briefcase className="h-3 w-3" aria-hidden />
+        <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-medium text-violet-300 ring-1 ring-inset ring-violet-500/30">
+          <Briefcase className="h-3 w-3" strokeWidth={1.75} aria-hidden />
           {EMPLOYMENT_LABEL[listing.employment_type]}
         </span>
         {city ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-            <MapPin className="h-3 w-3" aria-hidden />
+          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+            <MapPin className="h-3 w-3" strokeWidth={1.75} aria-hidden />
             {city.name}
             {city.county ? `, ${city.county}` : ''}
           </span>
         ) : null}
         {salary ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-            <Banknote className="h-3 w-3" aria-hidden />
+          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 tabular-nums ring-1 ring-inset ring-hir-border">
+            <Banknote className="h-3 w-3" strokeWidth={1.75} aria-hidden />
             {salary}
           </span>
         ) : null}
         {listing.shift_pattern ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-            <Clock className="h-3 w-3" aria-hidden />
+          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+            <Clock className="h-3 w-3" strokeWidth={1.75} aria-hidden />
             {listing.shift_pattern}
           </span>
         ) : null}
         {listing.vehicle_required ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-            <Car className="h-3 w-3" aria-hidden />
+          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+            <Car className="h-3 w-3" strokeWidth={1.75} aria-hidden />
             {listing.vehicle_required}
           </span>
         ) : null}
       </div>
 
       {/* Description */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-        <h2 className="text-sm font-semibold text-hir-fg">Descriere</h2>
+      <Card>
+        <h2 className="text-sm font-bold text-hir-fg">Descriere</h2>
         <p className="mt-2 whitespace-pre-line text-sm text-hir-muted-fg">
           {listing.description}
         </p>
-      </section>
+      </Card>
 
       {/* Requirements */}
       {listing.requirements ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <h2 className="text-sm font-semibold text-hir-fg">Cerințe</h2>
+        <Card>
+          <h2 className="text-sm font-bold text-hir-fg">Cerințe</h2>
           <p className="mt-2 whitespace-pre-line text-sm text-hir-muted-fg">
             {listing.requirements}
           </p>
-        </section>
+        </Card>
       ) : null}
 
       {/* Languages */}
       {listing.languages_required && listing.languages_required.length > 0 ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-hir-fg">
-            <Languages className="h-4 w-4" aria-hidden />
+        <Card>
+          <h2 className="flex items-center gap-1.5 text-sm font-bold text-hir-fg">
+            <Languages className="h-4 w-4 text-violet-400" strokeWidth={1.75} aria-hidden />
             Limbi cerute
           </h2>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -267,16 +267,16 @@ export default async function JobDetailPage({
               </span>
             ))}
           </div>
-        </section>
+        </Card>
       ) : null}
 
       {/* Existing application state */}
       {application ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
+        <Card accent>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-sm font-semibold text-hir-fg">Aplicația ta</h2>
-              <p className="mt-0.5 text-xs text-hir-muted-fg">
+              <h2 className="text-sm font-bold text-hir-fg">Aplicația ta</h2>
+              <p className="mt-0.5 text-xs tabular-nums text-hir-muted-fg">
                 Trimisă{' '}
                 {new Intl.DateTimeFormat('ro-RO', {
                   day: '2-digit',
@@ -292,28 +292,25 @@ export default async function JobDetailPage({
             <form action={withdrawFormAction} className="mt-3">
               <input type="hidden" name="application_id" value={application.id} />
               <input type="hidden" name="job_listing_id" value={listing.id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-200 hover:bg-rose-500/20"
-              >
+              <button type="submit" className={buttonClass('danger', 'sm')}>
                 Retrage aplicația
               </button>
             </form>
           ) : null}
-        </section>
+        </Card>
       ) : null}
 
       {/* Apply form */}
       {canApply ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <h2 className="text-sm font-semibold text-hir-fg">Aplică acum</h2>
+        <Card accent>
+          <h2 className="text-sm font-bold text-hir-fg">Aplică acum</h2>
           <p className="mt-0.5 text-xs text-hir-muted-fg">
             Flota îți va răspunde direct prin platformă. Maxim 5 aplicații active.
           </p>
           <form action={applyFormAction} className="mt-3 flex flex-col gap-3">
             <input type="hidden" name="job_listing_id" value={listing.id} />
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
                 Mesaj (opțional)
               </span>
               <textarea
@@ -321,11 +318,11 @@ export default async function JobDetailPage({
                 rows={4}
                 maxLength={2000}
                 placeholder="Spune flotei câteva cuvinte despre experiența ta…"
-                className="rounded-lg border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
+                className="rounded-md border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] uppercase tracking-wide text-hir-muted-fg">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
                 Link CV (opțional)
               </span>
               <input
@@ -333,20 +330,17 @@ export default async function JobDetailPage({
                 name="cv_doc_url"
                 placeholder="https://…"
                 maxLength={1000}
-                className="rounded-lg border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
+                className="rounded-md border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
               />
               <span className="text-[10px] text-hir-muted-fg">
                 Sfat: încarcă CV-ul pe Drive / Dropbox și pune link-ul aici.
               </span>
             </label>
-            <button
-              type="submit"
-              className="self-start rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white hover:bg-violet-600"
-            >
+            <button type="submit" className={buttonClass('primary', 'md', 'self-start')}>
               Trimite aplicația
             </button>
           </form>
-        </section>
+        </Card>
       ) : null}
 
       {!canApply && !application ? (
