@@ -276,6 +276,8 @@ export default async function ResellerLandingPage(
             <img
               src={safeHero}
               alt={merged.headline ?? 'HIR'}
+              width={920}
+              height={517}
               style={{ width: '100%', maxWidth: 920, borderRadius: 12, boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}
             />
           </div>
