@@ -54,8 +54,18 @@ export type PspCredentials = {
    * Shared secret for incoming webhook HMAC / Bearer verification.
    * Populated by the route layer from env (NETOPIA_WEBHOOK_SECRET /
    * VIVA_WEBHOOK_KEY) so adapters never read process.env directly.
+   * Not used by Netopia (see webhookPublicKeyPem) — Netopia's IPN is
+   * verified via RSA/JWT, not a shared-secret HMAC.
    */
   webhookSecret?: string;
+  /**
+   * Netopia only. PEM-encoded RSA public key issued per point-of-sale in
+   * the Netopia dashboard ("Punct de vânzare" → digital certificates).
+   * Netopia signs IPN notifications as a JWT (RS256); this key verifies
+   * that signature. Populated by the route layer from
+   * NETOPIA_{SANDBOX|LIVE}_WEBHOOK_PUBLIC_KEY.
+   */
+  webhookPublicKeyPem?: string;
   /**
    * Viva-specific payment source code (configured in Viva dashboard).
    * Populated by the route layer from VIVA_{SANDBOX|LIVE}_SOURCE_CODE.

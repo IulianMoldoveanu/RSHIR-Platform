@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ORDER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const PROVIDER_REF = 'NTP123456';
-const WEBHOOK_SECRET = 'test-netopia-secret';
+const WEBHOOK_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----';
 
 // --- mock psp_webhook_events insert ---
 const insertMock = vi.fn();
@@ -106,7 +106,7 @@ const verifyWebhookMock = vi.mocked(netopiaAdapter.verifyWebhook);
 function makeReq(body: string) {
   return new Request('http://localhost/api/webhooks/netopia', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-netopia-signature': 'sig' },
+    headers: { 'content-type': 'application/json', 'verification-token': 'sig' },
     body,
   });
 }
@@ -114,7 +114,7 @@ function makeReq(body: string) {
 describe('POST /api/webhooks/netopia', () => {
   beforeEach(() => {
     process.env.NETOPIA_ENABLED = 'true';
-    process.env.NETOPIA_WEBHOOK_SECRET = WEBHOOK_SECRET;
+    process.env.NETOPIA_SANDBOX_WEBHOOK_PUBLIC_KEY = WEBHOOK_PUBLIC_KEY;
     insertMock.mockResolvedValue({ error: null });
     pspPaymentsSelectMock.mockResolvedValue({ data: { order_id: ORDER_ID, status: 'PENDING' } });
     // CAS claim returns a row (data.length > 0) so the captured/authorized path
@@ -126,7 +126,7 @@ describe('POST /api/webhooks/netopia', () => {
 
   afterEach(() => {
     delete process.env.NETOPIA_ENABLED;
-    delete process.env.NETOPIA_WEBHOOK_SECRET;
+    delete process.env.NETOPIA_SANDBOX_WEBHOOK_PUBLIC_KEY;
     vi.clearAllMocks();
   });
 
