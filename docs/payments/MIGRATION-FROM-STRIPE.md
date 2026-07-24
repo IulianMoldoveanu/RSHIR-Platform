@@ -46,7 +46,7 @@ re-saves the mode through the admin UI.
 |------------------------------|-------------------------------------------------------------|
 | `STRIPE_SECRET_KEY`          | `NETOPIA_LIVE_API_KEY`, `VIVA_LIVE_API_KEY`                 |
 | `STRIPE_SECRET_KEY_TEST`     | `NETOPIA_SANDBOX_API_KEY`, `VIVA_SANDBOX_API_KEY`           |
-| `STRIPE_WEBHOOK_SECRET`      | `NETOPIA_WEBHOOK_SECRET` (and `VIVA_WEBHOOK_SECRET` when V2)|
+| `STRIPE_WEBHOOK_SECRET`      | `NETOPIA_{SANDBOX\|LIVE}_WEBHOOK_PUBLIC_KEY` — RSA public key (PEM), not a shared secret; Netopia IPN is JWT/RS256-verified (and `VIVA_WEBHOOK_SECRET` when V2)|
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | _(not needed — PSPs use hosted-checkout redirect)_   |
 
 The provider router (`apps/restaurant-web/src/lib/payments/provider-router.ts`)

@@ -41,7 +41,9 @@ export async function POST(req: Request) {
       mode: 'STANDARD',
       signature: '',
       apiKey: '',
-      webhookSecret: process.env.NETOPIA_WEBHOOK_SECRET,
+      webhookPublicKeyPem: process.env.NETOPIA_LIVE_MODE === 'true'
+        ? process.env.NETOPIA_LIVE_WEBHOOK_PUBLIC_KEY
+        : process.env.NETOPIA_SANDBOX_WEBHOOK_PUBLIC_KEY,
       live: process.env.NETOPIA_LIVE_MODE === 'true',
     },
     fetch: globalThis.fetch.bind(globalThis),
