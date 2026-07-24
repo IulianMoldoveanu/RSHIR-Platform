@@ -47,7 +47,7 @@ import type {
 
 export const NETOPIA_BASE = {
   sandbox: 'https://secure.sandbox.netopia-payments.com',
-  live: 'https://secure.netopia-payments.com',
+  live: 'https://secure.mobilpay.ro/pay',
 } as const;
 
 // 2 RON in minor units (bani). Retained by HIR in MARKETPLACE mode.
@@ -148,7 +148,7 @@ async function netopiaCreateIntent(
   });
 
   try {
-    const res = await ctx.fetch(`${base}/payment/card`, {
+    const res = await ctx.fetch(`${base}/payment/card/start`, {
       method: 'POST',
       headers: {
         // Netopia v2: API key passed directly (no "Bearer" prefix)
