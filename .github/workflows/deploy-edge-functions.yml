@@ -114,9 +114,17 @@ jobs:
             done
           fi
 
+          # Skip names whose directory no longer exists — a function that was
+          # deleted/moved (e.g. archived to supabase/_archive/) still shows up
+          # in the HEAD~1..HEAD diff as a changed path, but there is nothing
+          # left to deploy and the script would exit(2) fatally on it.
           list=""
           for k in "${!fns[@]}"; do
-            list="$list $k"
+            if [ -f "supabase/functions/$k/index.ts" ]; then
+              list="$list $k"
+            else
+              echo "Skipping $k — directory no longer exists (deleted/moved)."
+            fi
           done
           list=$(echo "$list" | xargs)
           echo "Functions to redeploy: $list"
