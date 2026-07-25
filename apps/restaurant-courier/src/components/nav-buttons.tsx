@@ -6,12 +6,14 @@ import { MapPin, Phone } from 'lucide-react';
 /**
  * Two link buttons next to a pickup/dropoff address.
  *
- *   "Deschide în Maps" → `geo:lat,lng?q=address` (Android handles natively;
- *      iOS falls back to the Google Maps URL when the geo: scheme isn't
- *      claimed by an installed app).
+ *   "Deschide în Maps" → the universal Google Maps directions URL
+ *      (`https://www.google.com/maps/dir/?api=1&destination=...`). Works
+ *      everywhere: opens the Google Maps app on Android/iOS when installed,
+ *      falls back to the website otherwise — including desktop browsers,
+ *      which have no handler at all for the `geo:` scheme and would
+ *      otherwise open a blank tab.
  *
- * If lat/lng are missing we still render with just `q=` (geo will refuse
- * but the universal-link fallback still works).
+ * If lat/lng are missing we fall back to a text search query.
  */
 export function MapLink({
   address,
@@ -24,17 +26,13 @@ export function MapLink({
 }) {
   const hasCoords = lat != null && lng != null;
   const q = encodeURIComponent(address ?? '');
-  const geoHref = hasCoords ? `geo:${lat},${lng}?q=${q}` : null;
-  const universalHref = hasCoords
+  const href = hasCoords
     ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
     : `https://www.google.com/maps/search/?api=1&query=${q}`;
 
-  // Single anchor: prefer geo:, but most browsers will still open the
-  // platform's chosen handler. We render universal-href as the primary
-  // since geo: sometimes prompts an app picker dialog instead of opening.
   return (
     <a
-      href={geoHref ?? universalHref}
+      href={href}
       target="_blank"
       rel="noreferrer"
       className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 transition-all hover:-translate-y-px hover:border-violet-500/60 hover:bg-violet-500/20 hover:shadow-md hover:shadow-violet-500/15 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
