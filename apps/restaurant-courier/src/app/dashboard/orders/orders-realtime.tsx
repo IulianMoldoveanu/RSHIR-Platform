@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm } from '@/lib/offer-sound';
+import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm, playMessageChime } from '@/lib/offer-sound';
 import * as haptics from '@/lib/haptics';
 
 const REFRESH_THROTTLE_MS = 1500;
@@ -37,6 +37,12 @@ type Props = {
   // "available orders" section. Skip the fleet-wide subscription for them
   // so we don't wake their device on every fleet event they can't act on.
   watchFleetOpenOrders: boolean;
+  // courier_orders.id of this rider's currently active orders (OFFERED/
+  // ACCEPTED/PICKED_UP/IN_TRANSIT). Used to watch order_messages for an
+  // incoming client chat message — the chat only lives on the per-order
+  // detail page, so without this the rider has no cue a client wrote
+  // anything unless they happen to open that page.
+  activeOrderIds: string[];
 };
 
 // Subscribes to changes on courier_orders rows assigned to this courier
@@ -51,7 +57,12 @@ type Props = {
 //      In-flight noise (PICKED_UP/IN_TRANSIT/DELIVERED/FAILED on peer
 //      orders) is filtered out in the handler so we don't churn the
 //      page on every map-tick worth of status updates.
-export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }: Props) {
+export function OrdersRealtime({
+  courierUserId,
+  fleetId,
+  watchFleetOpenOrders,
+  activeOrderIds,
+}: Props) {
   const router = useRouter();
   const lastRefreshRef = useRef(0);
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,6 +181,32 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
         );
     }
 
+    // Client chat messages on this rider's active orders. The chat UI only
+    // exists on /dashboard/orders/[id] — without this, a message from the
+    // client is silent until the rider happens to open that page. Chimes +
+    // vibrates + refreshes so the home-screen badge (isClientMessageUnread)
+    // picks it up. Skipped when there are no active orders (nothing to
+    // filter on) or too many for a realtime `in.(...)` filter to stay sane.
+    type MessageRowPayload = { from_role?: string; channel?: string };
+    if (activeOrderIds.length > 0 && activeOrderIds.length <= 50) {
+      const messagesFilter = `courier_order_id=in.(${activeOrderIds.join(',')})`;
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'order_messages', filter: messagesFilter },
+        (payload: { new: MessageRowPayload }) => {
+          const row = payload.new ?? {};
+          if (row.from_role !== 'CLIENT' || row.channel !== 'CLIENT_COURIER') return;
+          if (isOfferSoundEnabled()) playMessageChime();
+          try {
+            haptics.attention();
+          } catch {
+            // haptics unavailable — non-fatal.
+          }
+          triggerRefresh();
+        },
+      );
+    }
+
     channel.subscribe();
 
     return () => {
@@ -183,7 +220,7 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       // per-client channel cap. `removeChannel` does both.
       void supabase.removeChannel(channel);
     };
-  }, [router, courierUserId, fleetId, watchFleetOpenOrders]);
+  }, [router, courierUserId, fleetId, watchFleetOpenOrders, activeOrderIds]);
 
   return null;
 }

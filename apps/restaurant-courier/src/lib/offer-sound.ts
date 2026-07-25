@@ -155,3 +155,34 @@ export function playOfferAlarm(): void {
     // Scheduling failed (context in a bad state) — non-fatal.
   }
 }
+
+/**
+ * Plays a short single-tone chime for an incoming client chat message —
+ * deliberately distinct from `playOfferAlarm` (a two-burst rising alarm) so
+ * the courier can tell "new order" from "client wrote something" by ear
+ * without looking at the screen. Same shared-context / quiet-hours handling.
+ */
+export function playMessageChime(): void {
+  if (typeof window === 'undefined') return;
+  if (isSilentNow()) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+  try {
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(987.77, now); // B5 — soft, not alarm-like
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.3, now + 0.015);
+    g.gain.setValueAtTime(0.3, now + 0.16);
+    g.gain.exponentialRampToValueAtTime(0.0008, now + 0.22);
+    o.connect(g).connect(ctx.destination);
+    o.start(now);
+    o.stop(now + 0.24);
+  } catch {
+    // Scheduling failed (context in a bad state) — non-fatal.
+  }
+}

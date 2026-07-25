@@ -111,6 +111,7 @@ export default async function AvailablePoolPage() {
         courierUserId={user.id}
         fleetId={profile.fleet_id}
         watchFleetOpenOrders={true}
+        activeOrderIds={[]}
       />
 
       <header className="flex flex-col gap-1">

@@ -158,6 +158,7 @@ export default async function OrdersPage() {
         courierUserId={user.id}
         fleetId={fleetId}
         watchFleetOpenOrders={showOpenOrders}
+        activeOrderIds={assigned.map((o) => o.id)}
       />
       <InsuranceStatusPill />
       <TodaySummaryPill />
