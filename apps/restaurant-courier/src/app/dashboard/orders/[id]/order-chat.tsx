@@ -57,6 +57,18 @@ export function OrderChat({
       else setMessages((data ?? []) as Message[]);
     })();
 
+    // Opening this page IS reading the chat — stamp any unread client
+    // messages so the home-screen badge (dashboard/page.tsx) clears. Fire
+    // and forget; a failure here just leaves the badge showing next visit,
+    // not a broken chat.
+    void (supabase as any)
+      .from('order_messages')
+      .update({ courier_read_at: new Date().toISOString() })
+      .eq('courier_order_id', courierOrderId)
+      .eq('from_role', 'CLIENT')
+      .eq('channel', 'CLIENT_COURIER')
+      .is('courier_read_at', null);
+
     const channel: RealtimeChannel = supabase
       .channel(`order:${courierOrderId}:chat`)
       .on(
