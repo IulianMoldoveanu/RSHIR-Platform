@@ -372,10 +372,13 @@ export async function markPickedUpAction(orderId: string) {
       // Kitchen/pharmacist-ready gate (Model Y): an order may be allocated to
       // and accepted by the courier BEFORE the restaurant/pharmacist finishes
       // preparing it, so the courier can already be heading over. Pickup is
-      // allowed only once the source has marked it ready — the restaurant
-      // trigger stamps `restaurant_ready_at` on entry into READY, the pharma
-      // mirror stamps `pharma_ready_at` when it receives READY_FOR_PICKUP.
-      // MANUAL-source orders (no restaurant/pharma backing) are unaffected.
+      // allowed only once the source has marked it ready — the RSHIR trigger
+      // stamps `restaurant_ready_at` on entry into READY, the pharma mirror
+      // stamps `pharma_ready_at` when it receives READY_FOR_PICKUP. Gated
+      // ONLY for orders actually backed by a source system: HIR_TENANT
+      // (RSHIR restaurant) or EXTERNAL_API (pharma mirror). MANUAL orders —
+      // created directly by a dispatcher, no kitchen/pharmacist upstream to
+      // wait on — are unaffected, same as before this gate existed.
       // Defense-in-depth: the home swipe is also hidden until ready. A blocked
       // pickup matches no row → silent no-op (same contract as the status guard).
       const { data } = await admin
@@ -386,7 +389,7 @@ export async function markPickedUpAction(orderId: string) {
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED'])
         .or('vertical.neq.pharma,pharma_ready_at.not.is.null')
-        .or('vertical.neq.restaurant,restaurant_ready_at.not.is.null')
+        .or('source_type.neq.HIR_TENANT,restaurant_ready_at.not.is.null')
         .select('id')
         .maybeSingle();
       if (data) {

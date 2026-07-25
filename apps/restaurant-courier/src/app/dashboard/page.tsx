@@ -32,6 +32,7 @@ type ActiveOrderRow = {
   id: string;
   status: string;
   vertical: 'restaurant' | 'pharma' | null;
+  source_type: string | null;
   pickup_lat: number | null;
   pickup_lng: number | null;
   dropoff_lat: number | null;
@@ -127,7 +128,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, restaurant_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
+          'id, status, vertical, source_type, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, restaurant_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -231,7 +232,7 @@ export default async function DashboardHome() {
     : !topIsPickup
       ? true
       : (topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null) &&
-        (topOrder.vertical !== 'restaurant' || topOrder.restaurant_ready_at != null);
+        (topOrder.source_type !== 'HIR_TENANT' || topOrder.restaurant_ready_at != null);
   const topAddress = !topOrder
     ? null
     : topIsPickup
