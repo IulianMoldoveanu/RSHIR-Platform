@@ -37,6 +37,8 @@ export type DispatchOrder = {
   customer_phone: string | null;
   pickup_line1: string | null;
   dropoff_line1: string | null;
+  dropoff_lat: number | null;
+  dropoff_lng: number | null;
   total_ron: number | null;
   delivery_fee_ron: number | null;
   payment_method: 'CARD' | 'COD' | null;

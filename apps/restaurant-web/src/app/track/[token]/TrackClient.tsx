@@ -608,7 +608,7 @@ const STATUS_KEYS: Record<string, TKey> = {
   CANCELLED: 'track.status_CANCELLED',
 };
 
-const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'IN_DELIVERY', 'DELIVERED'] as const;
+const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY', 'DELIVERED'] as const;
 const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'] as const;
 
 // Honest fallbacks when the tenant hasn't configured prep time. Pickup gets
