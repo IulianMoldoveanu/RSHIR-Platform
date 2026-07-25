@@ -8,12 +8,18 @@ import type { OrderStatus } from '../status-machine';
 
 const FORWARD_LABEL: Partial<Record<OrderStatus, string>> = {
   CONFIRMED: 'Confirmă',
-  PREPARING: 'Trece în preparare',
   READY: 'Marchează gata',
   DISPATCHED: 'Trimite',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Marchează livrată',
 };
+
+function forwardLabelFor(current: OrderStatus, next: OrderStatus): string {
+  if (next === 'PREPARING') {
+    return current === 'PENDING' ? 'Confirmă și trece în preparare' : 'Trece în preparare';
+  }
+  return FORWARD_LABEL[next] ?? next;
+}
 
 export function StatusActions({
   orderId,
@@ -70,7 +76,7 @@ export function StatusActions({
             disabled={pending}
             onClick={() => onForward(next)}
           >
-            {FORWARD_LABEL[next] ?? next}
+            {forwardLabelFor(current, next)}
           </Button>
         ))}
         {cancellable && (

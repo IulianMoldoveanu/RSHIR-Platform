@@ -435,6 +435,7 @@ export async function POST(req: NextRequest) {
       currency: 'RON',
       successUrl: `${baseUrl}/checkout/success?order_id=${order.id}&token=${order.public_track_token}`,
       cancelUrl: `${baseUrl}/checkout/cancel?order_id=${order.id}`,
+      notifyUrl: `${baseUrl}/api/webhooks/${paymentSurface.provider}`,
       customer: {
         email: parsed.data.customer.email ?? '',
         firstName: parsed.data.customer.firstName,

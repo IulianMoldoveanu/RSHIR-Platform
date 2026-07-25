@@ -15,7 +15,7 @@ export type OrderStatus =
 // CANCELLED is allowed from any non-terminal state (handled separately in
 // `cancelOrder`); DELIVERED and CANCELLED are terminal.
 export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ['CONFIRMED', 'CANCELLED'],
+  PENDING: ['PREPARING', 'CANCELLED'],
   CONFIRMED: ['PREPARING', 'CANCELLED'],
   PREPARING: ['READY', 'CANCELLED'],
   READY: ['DISPATCHED', 'CANCELLED'],
