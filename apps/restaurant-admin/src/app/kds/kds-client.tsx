@@ -94,7 +94,7 @@ function elapsedLabel(iso: string, nowMs: number): string {
 function nextForwardForKds(s: OrderStatus): OrderStatus | null {
   switch (s) {
     case 'PENDING':
-      return 'CONFIRMED';
+      return 'PREPARING';
     case 'CONFIRMED':
       return 'PREPARING';
     case 'PREPARING':
@@ -109,7 +109,7 @@ function nextForwardForKds(s: OrderStatus): OrderStatus | null {
 function forwardLabel(from: OrderStatus, fulfillment: 'delivery' | 'pickup'): string {
   switch (from) {
     case 'PENDING':
-      return 'Confirmă';
+      return 'Confirmă și începe pregătirea';
     case 'CONFIRMED':
       return 'Începe pregătirea';
     case 'PREPARING':
@@ -280,7 +280,7 @@ export function KdsClient({
         },
         (payload) => {
           maybePlayChime();
-          // Edge case: an order can be inserted directly in CONFIRMED state
+          // Edge case: an order can be inserted directly in PREPARING state
           // (e.g. integration imports). Treat that as an auto-print trigger too.
           // No `old` for INSERT — pass null to skip the transition gate.
           maybeAutoPrintFromPayload(payload.new, null);
@@ -314,18 +314,18 @@ export function KdsClient({
     const r = row as { id?: unknown; status?: unknown };
     const id = typeof r.id === 'string' ? r.id : null;
     const status = typeof r.status === 'string' ? r.status : null;
-    if (!id || status !== 'CONFIRMED') return;
+    if (!id || status !== 'PREPARING') return;
 
-    // Transition gate: only fire on actual entry into CONFIRMED. If `oldRow` is
+    // Transition gate: only fire on actual entry into PREPARING. If `oldRow` is
     // present and includes a `status` field (Supabase Realtime ships old fields
     // when REPLICA IDENTITY FULL is set on the table) and that prior status was
-    // already CONFIRMED, this is a non-status update (e.g. payment_status flip
+    // already PREPARING, this is a non-status update (e.g. payment_status flip
     // via markCodOrderPaid) and we must not reprint. When `oldRow` is null (INSERT)
     // or its `status` is missing (default REPLICA IDENTITY), fall through to the
     // dedupe set — that prevents reprints on tab reloads + repeat updates.
     if (oldRow && typeof oldRow === 'object') {
       const o = oldRow as { status?: unknown };
-      if (typeof o.status === 'string' && o.status === 'CONFIRMED') return;
+      if (typeof o.status === 'string' && o.status === 'PREPARING') return;
     }
 
     if (printedIdsRef.current.has(id)) return;
