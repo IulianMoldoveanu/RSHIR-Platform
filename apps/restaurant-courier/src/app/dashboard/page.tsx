@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ArrowRight, Clock, Phone, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -31,6 +32,7 @@ type ActiveOrderRow = {
   id: string;
   status: string;
   vertical: 'restaurant' | 'pharma' | null;
+  source_type: string | null;
   pickup_lat: number | null;
   pickup_lng: number | null;
   dropoff_lat: number | null;
@@ -42,6 +44,9 @@ type ActiveOrderRow = {
   // Pharma readiness: set by the mirror when the pharmacist marks the order
   // "ready for pickup". null for pharma orders not yet prepared → pickup gated.
   pharma_ready_at: string | null;
+  // Restaurant readiness: set by the RSHIR trigger when the kitchen marks
+  // the order READY. null for restaurant orders still cooking → pickup gated.
+  restaurant_ready_at: string | null;
   // Optional vendor (pharmacy/restaurant) name + phone for the pickup card.
   pickup_phone: string | null;
   pickup_name: string | null;
@@ -87,6 +92,25 @@ export default async function DashboardHome() {
 
   const admin = createAdminClient();
 
+  // Fleet managers/owners (courier_fleets.owner_user_id) don't ride — send
+  // them straight to the dispatch board instead of an empty rider home.
+  // Only checked when the account has no rider profile, so an owner who is
+  // ALSO a rider on their own fleet still lands on the rider home by default.
+  const { data: profileCheck } = await admin
+    .from('courier_profiles')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!profileCheck) {
+    const { data: ownedFleet } = await admin
+      .from('courier_fleets')
+      .select('id')
+      .eq('owner_user_id', user.id)
+      .limit(1)
+      .maybeSingle();
+    if (ownedFleet) redirect('/fleet/orders');
+  }
+
   const [{ data: profileData }, { data: shiftData }, { data: activeOrdersData }, { data: kycData }] =
     await Promise.all([
       admin
@@ -104,7 +128,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
+          'id, status, vertical, source_type, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, restaurant_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -207,7 +231,8 @@ export default async function DashboardHome() {
     ? false
     : !topIsPickup
       ? true
-      : topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null;
+      : (topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null) &&
+        (topOrder.source_type !== 'HIR_TENANT' || topOrder.restaurant_ready_at != null);
   const topAddress = !topOrder
     ? null
     : topIsPickup

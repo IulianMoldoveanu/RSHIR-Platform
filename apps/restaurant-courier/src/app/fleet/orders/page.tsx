@@ -8,13 +8,14 @@ import { FleetOrdersVirtualList } from './fleet-orders-virtual-list';
 import { FleetOrdersRealtime } from './fleet-orders-realtime';
 import { FleetOrdersSearch } from './fleet-orders-search';
 import { BulkAutoAssignButton } from './bulk-auto-assign-button';
+import { FleetOrdersMap, type OrderMapPin } from './fleet-orders-map';
 
 export const dynamic = 'force-dynamic';
 
 const ACTIVE_STATUSES = ['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'];
 
 const ORDER_COLS =
-  'id, status, customer_first_name, customer_phone, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_tenant_id, created_at, updated_at';
+  'id, status, customer_first_name, customer_phone, pickup_line1, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_tenant_id, created_at, updated_at';
 
 export default async function FleetOrdersPage() {
   const fleet = await requireFleetManager();
@@ -66,6 +67,20 @@ export default async function FleetOrdersPage() {
   const active = orders.filter((o) => o.assigned_courier_user_id !== null);
   const courierName = new Map(couriers.map((c) => [c.user_id, c.full_name ?? '—']));
 
+  // Dropoff pins for every active order with a known address, so the
+  // dispatcher can see at a glance where deliveries are headed before
+  // allocating a rider — amber for unassigned (needs a decision), violet
+  // for already-assigned (informational).
+  const mapPins: OrderMapPin[] = orders
+    .filter((o) => o.dropoff_lat != null && o.dropoff_lng != null)
+    .map((o) => ({
+      id: o.id,
+      lat: o.dropoff_lat as number,
+      lng: o.dropoff_lng as number,
+      label: `${o.customer_first_name ?? 'Client'} · ${o.dropoff_line1 ?? '—'}`,
+      assigned: o.assigned_courier_user_id !== null,
+    }));
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
       <FleetOrdersRealtime fleetId={fleet.fleetId} />
@@ -96,6 +111,8 @@ export default async function FleetOrdersPage() {
           </Link>
         </div>
       </div>
+
+      <FleetOrdersMap pins={mapPins} />
 
       <FleetOrdersSearch />
 
