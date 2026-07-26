@@ -690,7 +690,14 @@ function Timeline({
             const completed = i < currentIdx || delivered;
             const current = i === currentIdx && !delivered;
             const isLast = i === steps.length - 1;
-            const labelKey = STATUS_KEYS[s];
+            // PICKUP orders have no courier leg — "Ready for delivery" /
+            // "Delivered" read wrong when the customer collects in person.
+            // Use the _pickup variant of the same two steps when it exists.
+            const pickupKey = `${STATUS_KEYS[s]}_pickup` as TKey;
+            const labelKey =
+              fulfillment === 'PICKUP' && (s === 'READY' || s === 'DELIVERED')
+                ? pickupKey
+                : STATUS_KEYS[s];
             return (
               <li key={s} className="relative flex items-start gap-3">
                 {!isLast && (
