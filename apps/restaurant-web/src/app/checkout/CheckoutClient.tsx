@@ -159,6 +159,9 @@ export function CheckoutClient(props: {
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
+  // Scheduled pickup time — 'ASAP' (default) or a specific 15-min slot ISO
+  // string. Pickup-only; delivery orders always dispatch immediately.
+  const [pickupTime, setPickupTime] = useState<string>('ASAP');
   // Default to whichever method is enabled. Legacy + card_live + card_test
   // tenants get CARD; cod_only tenants get COD (CARD radio is hidden and the
   // intent route refuses CARD bodies).
@@ -565,6 +568,9 @@ export function CheckoutClient(props: {
         ...(newsletterOptin && email.trim().length > 0
           ? { newsletterOptin: true }
           : {}),
+        ...(fulfillment === 'PICKUP' && pickupTime !== 'ASAP'
+          ? { scheduledPickupAt: pickupTime }
+          : {}),
       };
       if (fulfillment === 'DELIVERY') {
         // Defensive: the user may have reached the review step with coords
@@ -821,6 +827,9 @@ export function CheckoutClient(props: {
             onChange={setFulfillment}
             locale={locale}
           />
+        )}
+        {pickupEnabled && fulfillment === 'PICKUP' && (
+          <PickupTimeSelect value={pickupTime} onChange={setPickupTime} locale={locale} />
         )}
 
         <Section title={t(locale, 'checkout.section_your_data')}>
@@ -1654,6 +1663,56 @@ function FulfillmentToggle({
           label={t(locale, 'checkout.fulfillment_pickup')}
         />
       </div>
+    </section>
+  );
+}
+
+// 15-min slots covering the next 4 hours. Delivery House is 24/7 fast-food
+// with no closing time, so there's no restaurant-hours bound to check —
+// just "ASAP" plus a same-day time picker, kept deliberately simple.
+function pickupSlots(now: Date): { value: string; label: string }[] {
+  const slots: { value: string; label: string }[] = [];
+  const start = new Date(now);
+  start.setSeconds(0, 0);
+  const remainder = start.getMinutes() % 15;
+  start.setMinutes(start.getMinutes() + (remainder === 0 ? 15 : 15 - remainder));
+  for (let i = 0; i < 16; i++) {
+    const slot = new Date(start.getTime() + i * 15 * 60_000);
+    slots.push({
+      value: slot.toISOString(),
+      label: slot.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+  return slots;
+}
+
+function PickupTimeSelect({
+  value,
+  onChange,
+  locale,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  locale: Locale;
+}) {
+  const slots = useMemo(() => pickupSlots(new Date()), []);
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <label className="mb-2 block text-sm font-semibold text-zinc-900">
+        {t(locale, 'checkout.pickup_time_label')}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+      >
+        <option value="ASAP">{t(locale, 'checkout.pickup_time_asap')}</option>
+        {slots.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
     </section>
   );
 }
