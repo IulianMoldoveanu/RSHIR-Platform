@@ -258,7 +258,21 @@ export async function computeQuote(
   const tier = await findTierForDistance(admin, tenant.id, distanceKm);
   if (!tier) return { ok: false, reason: { kind: 'NO_TIER', distanceKm } };
 
-  const deliveryFeeRon = round2(tier.price_ron);
+  const tierFeeRon = round2(tier.price_ron);
+
+  // Tenant-configured free-delivery threshold (shown to the customer as an
+  // always-visible progress pill on the storefront — see
+  // FreeDeliveryProgress). That UI only reflected the promise; nothing
+  // actually zeroed the fee here, so a cart past the threshold still got
+  // charged delivery at checkout.
+  const settings = tenant.settings as Record<string, unknown> | null;
+  const freeDeliveryThresholdRon =
+    typeof settings?.free_delivery_threshold_ron === 'number' &&
+    settings.free_delivery_threshold_ron > 0
+      ? Number(settings.free_delivery_threshold_ron)
+      : 0;
+  const deliveryFeeRon =
+    freeDeliveryThresholdRon > 0 && subtotalRon >= freeDeliveryThresholdRon ? 0 : tierFeeRon;
 
   const promoApplied = await applyPromo(admin, tenant.id, promoCode, subtotalRon, deliveryFeeRon);
   if (!promoApplied.ok) return { ok: false, reason: promoApplied.reason };
