@@ -9,6 +9,7 @@ const DEFAULTS: OperationsSettings = {
   is_accepting_orders: true,
   pause_reason: null,
   pickup_eta_minutes: 30,
+  pickup_noshow_alert_minutes: 30,
   pickup_enabled: true,
   pickup_address: null,
   min_order_ron: 0,
@@ -54,6 +55,10 @@ export default async function OperationsSettingsPage() {
       typeof settings.pickup_eta_minutes === 'number' && settings.pickup_eta_minutes > 0
         ? settings.pickup_eta_minutes
         : DEFAULTS.pickup_eta_minutes,
+    pickup_noshow_alert_minutes:
+      typeof settings.pickup_noshow_alert_minutes === 'number' && settings.pickup_noshow_alert_minutes > 0
+        ? settings.pickup_noshow_alert_minutes
+        : DEFAULTS.pickup_noshow_alert_minutes,
     pickup_enabled:
       typeof settings.pickup_enabled === 'boolean'
         ? settings.pickup_enabled

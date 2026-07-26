@@ -133,8 +133,18 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   } = await supabaseServer.auth.getUser();
 
   const items = Array.isArray(order.items) ? (order.items as OrderItemSnapshot[]) : [];
-  const allowedNext = nextStatuses(order.status);
-  const cancellable = order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
+  // READY branches to DISPATCHED (delivery) or PICKED_UP/NO_SHOW (pickup) --
+  // status-machine.ts stays fulfillment-agnostic, so filter here to whichever
+  // branch applies to this order. Elsewhere READY has one path so this is a
+  // no-op filter.
+  const allowedNext = nextStatuses(order.status).filter((s) =>
+    isPickup ? s !== 'DISPATCHED' : s !== 'PICKED_UP' && s !== 'NO_SHOW',
+  );
+  const cancellable =
+    order.status !== 'DELIVERED' &&
+    order.status !== 'PICKED_UP' &&
+    order.status !== 'NO_SHOW' &&
+    order.status !== 'CANCELLED';
   const trackUrl = publicTrackUrl(order.public_track_token);
 
   // Probe for an active Custom-webhook provider (e.g. Datecs companion).

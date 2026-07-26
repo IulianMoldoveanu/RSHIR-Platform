@@ -12,6 +12,8 @@ const FORWARD_LABEL: Partial<Record<OrderStatus, string>> = {
   DISPATCHED: 'Trimite',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Marchează livrată',
+  PICKED_UP: 'Comandă ridicată',
+  NO_SHOW: 'Marchează neridicată',
 };
 
 function forwardLabelFor(current: OrderStatus, next: OrderStatus): string {

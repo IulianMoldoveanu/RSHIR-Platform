@@ -27,6 +27,8 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   DISPATCHED: 'Trimisă',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Livrată',
+  PICKED_UP: 'Ridicată',
+  NO_SHOW: 'Neridicată',
   CANCELLED: 'Anulată',
 };
 
@@ -38,6 +40,8 @@ const STATUS_PILL: Record<OrderStatus, string> = {
   DISPATCHED: 'bg-purple-100 text-purple-800 ring-purple-200',
   IN_DELIVERY: 'bg-purple-100 text-purple-800 ring-purple-200',
   DELIVERED: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  PICKED_UP: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  NO_SHOW: 'bg-rose-100 text-rose-800 ring-rose-200',
   CANCELLED: 'bg-rose-100 text-rose-800 ring-rose-200',
 };
 

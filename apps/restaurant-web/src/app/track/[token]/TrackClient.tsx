@@ -233,7 +233,11 @@ function TrackInner({
           </motion.div>
         )}
 
-      {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+      {order.tenant?.phone &&
+        order.status !== 'DELIVERED' &&
+        order.status !== 'PICKED_UP' &&
+        order.status !== 'NO_SHOW' &&
+        order.status !== 'CANCELLED' && (
         <a
           href={`tel:${order.tenant.phone}`}
           className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
@@ -310,11 +314,11 @@ function TrackInner({
 
       <PushOptInTile token={token} orderStatus={order.status} locale={locale} />
 
-      {order.status === 'DELIVERED' && order.tenant && (
+      {(order.status === 'DELIVERED' || order.status === 'PICKED_UP') && order.tenant && (
         <ReorderRail tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
 
-      {order.status === 'DELIVERED' && (
+      {(order.status === 'DELIVERED' || order.status === 'PICKED_UP') && (
         <ReviewWidget token={token} initialDone={order.hasReview} locale={locale} />
       )}
 
@@ -390,9 +394,23 @@ function Hero({
     iconClass = 'text-rose-600';
     bg = 'bg-rose-50';
     border = 'border-rose-200';
+  } else if (s === 'NO_SHOW') {
+    titleKey = 'track.hero_noshow_title';
+    bodyKey = 'track.hero_noshow_body';
+    Icon = XCircle;
+    iconClass = 'text-rose-600';
+    bg = 'bg-rose-50';
+    border = 'border-rose-200';
   } else if (s === 'DELIVERED') {
     titleKey = 'track.hero_delivered_title';
     bodyKey = 'track.hero_delivered_body';
+    Icon = PartyPopper;
+    iconClass = 'text-emerald-600';
+    bg = 'bg-emerald-50';
+    border = 'border-emerald-200';
+  } else if (s === 'PICKED_UP') {
+    titleKey = 'track.hero_pickedup_title';
+    bodyKey = 'track.hero_pickedup_body';
     Icon = PartyPopper;
     iconClass = 'text-emerald-600';
     bg = 'bg-emerald-50';
@@ -458,7 +476,7 @@ function Hero({
           aria-hidden
           className={`flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-white/70 ${iconClass} shadow-sm`}
           animate={
-            s === 'CANCELLED' || s === 'DELIVERED'
+            s === 'CANCELLED' || s === 'DELIVERED' || s === 'PICKED_UP' || s === 'NO_SHOW'
               ? undefined
               : { scale: [1, 1.06, 1] }
           }
@@ -605,11 +623,16 @@ const STATUS_KEYS: Record<string, TKey> = {
   DISPATCHED: 'track.status_DISPATCHED',
   IN_DELIVERY: 'track.status_IN_DELIVERY',
   DELIVERED: 'track.status_DELIVERED',
+  PICKED_UP: 'track.status_DELIVERED_pickup',
+  NO_SHOW: 'track.status_CANCELLED',
   CANCELLED: 'track.status_CANCELLED',
 };
 
 const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY', 'DELIVERED'] as const;
-const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'] as const;
+// PICKED_UP (not DELIVERED) is the real terminal status a PICKUP order
+// reaches — restaurant_orders now has a dedicated status for it (2026-07-27)
+// instead of overloading DELIVERED for an order with no courier leg.
+const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'PICKED_UP'] as const;
 
 // Honest fallbacks when the tenant hasn't configured prep time. Pickup gets
 // a tighter default (no driving) than delivery. Operators set
@@ -636,8 +659,8 @@ function Timeline({
   targetMinutes: number | null;
 }) {
   const steps = fulfillment === 'PICKUP' ? PICKUP_STEPS : DELIVERY_STEPS;
-  const cancelled = status === 'CANCELLED';
-  const delivered = status === 'DELIVERED';
+  const cancelled = status === 'CANCELLED' || status === 'NO_SHOW';
+  const delivered = status === 'DELIVERED' || status === 'PICKED_UP';
   const currentIdx = (steps as readonly string[]).indexOf(status);
 
   const totalMinutes =
@@ -690,13 +713,14 @@ function Timeline({
             const completed = i < currentIdx || delivered;
             const current = i === currentIdx && !delivered;
             const isLast = i === steps.length - 1;
-            // PICKUP orders have no courier leg — "Ready for delivery" /
-            // "Delivered" read wrong when the customer collects in person.
-            // Use the _pickup variant of the same two steps when it exists.
-            const pickupKey = `${STATUS_KEYS[s]}_pickup` as TKey;
+            // PICKUP_STEPS' terminal step is PICKED_UP (its own STATUS_KEYS
+            // entry already points at the _pickup copy), but READY is shared
+            // with DELIVERY_STEPS and needs the _pickup variant only when
+            // fulfillment is PICKUP — "Ready for delivery" reads wrong when
+            // the customer collects in person.
             const labelKey =
-              fulfillment === 'PICKUP' && (s === 'READY' || s === 'DELIVERED')
-                ? pickupKey
+              fulfillment === 'PICKUP' && s === 'READY'
+                ? ('track.status_READY_pickup' as TKey)
                 : STATUS_KEYS[s];
             return (
               <li key={s} className="relative flex items-start gap-3">
