@@ -27,6 +27,8 @@ const STATUS_GROUPS: OrderStatus[] = [
   'DISPATCHED',
   'IN_DELIVERY',
   'DELIVERED',
+  'PICKED_UP',
+  'NO_SHOW',
   'CANCELLED',
 ];
 
@@ -38,6 +40,8 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   DISPATCHED: 'Trimise',
   IN_DELIVERY: 'In livrare',
   DELIVERED: 'Livrate',
+  PICKED_UP: 'Ridicate',
+  NO_SHOW: 'Neridicate',
   CANCELLED: 'Anulate',
 };
 
@@ -82,6 +86,7 @@ type OrderRow = {
   payment_method: 'CARD' | 'COD' | null;
   total_ron: number;
   created_at: string;
+  ready_at: string | null;
   delivery_address_id: string | null;
   items: unknown;
   customers: { first_name: string | null; last_name: string | null } | null;
@@ -196,14 +201,26 @@ export default async function OrdersPage({
   const { tenant } = await getActiveTenant();
   const admin = createAdminClient();
 
+  const { data: tenantRow } = await admin
+    .from('tenants')
+    .select('settings')
+    .eq('id', tenant.id)
+    .single();
+  const tenantSettings = (tenantRow?.settings as Record<string, unknown> | null) ?? {};
+  const noshowAlertMinutes =
+    typeof tenantSettings.pickup_noshow_alert_minutes === 'number' &&
+    tenantSettings.pickup_noshow_alert_minutes > 0
+      ? tenantSettings.pickup_noshow_alert_minutes
+      : 30;
+
   // Try the SELECT with payment_method (added by 20260504_001). If the
   // migration hasn't applied yet, fall back to the legacy column set so the
   // admin queue keeps working — payment_method is undefined and the Cash
   // chip just doesn't render until the column exists.
   const COLS_FULL =
-    'id, status, source, payment_method, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
+    'id, status, source, payment_method, total_ron, created_at, ready_at, delivery_address_id, items, customers(first_name, last_name)';
   const COLS_LEGACY =
-    'id, status, source, total_ron, created_at, delivery_address_id, items, customers(first_name, last_name)';
+    'id, status, source, total_ron, created_at, ready_at, delivery_address_id, items, customers(first_name, last_name)';
 
   async function loadOrders(cols: string, includeCashFilter: boolean) {
     let q = admin
@@ -301,6 +318,16 @@ export default async function OrdersPage({
                   {items.map((o) => {
                     const ageMs = Date.now() - new Date(o.created_at).getTime();
                     const stalePending = o.status === 'PENDING' && ageMs > PENDING_DANGER_MS;
+                    // Pickup order sitting READY past the tenant's configured
+                    // no-show alert window — never auto-cancels, just flags
+                    // it so the operator remembers to check / mark no-show.
+                    const isPickupRow = o.delivery_address_id === null;
+                    const readyAgeMs = o.ready_at ? Date.now() - new Date(o.ready_at).getTime() : 0;
+                    const pickupNoShowRisk =
+                      isPickupRow &&
+                      o.status === 'READY' &&
+                      o.ready_at !== null &&
+                      readyAgeMs > noshowAlertMinutes * 60_000;
                     const count = itemCount(o.items);
                     // Don't render the status pill while grouped (the section
                     // heading already announces the state). Show it only when
@@ -327,6 +354,11 @@ export default async function OrdersPage({
                                 aria-label="În așteptare de >5 minute"
                                 className="h-2 w-2 flex-none rounded-full bg-rose-500"
                               />
+                            )}
+                            {pickupNoShowRisk && (
+                              <span className="inline-flex flex-none items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-800 ring-1 ring-inset ring-rose-200">
+                                Neridicată?
+                              </span>
                             )}
                             <span className="font-mono text-xs text-zinc-500">#{shortId(o.id)}</span>
                             <span className="min-w-0 max-w-full truncate font-medium text-zinc-900">

@@ -27,6 +27,7 @@ export function OperationsClient({
   const [accepting, setAccepting] = useState(initial.is_accepting_orders);
   const [reason, setReason] = useState(initial.pause_reason ?? '');
   const [eta, setEta] = useState(String(initial.pickup_eta_minutes));
+  const [noshowAlert, setNoshowAlert] = useState(String(initial.pickup_noshow_alert_minutes));
   const [pickupEnabled, setPickupEnabled] = useState(initial.pickup_enabled);
   const [pickupAddress, setPickupAddress] = useState(initial.pickup_address ?? '');
   const [codEnabled, setCodEnabled] = useState(initial.cod_enabled);
@@ -64,6 +65,11 @@ export function OperationsClient({
     const etaNum = Number(eta);
     if (!Number.isFinite(etaNum) || etaNum < 1) {
       setFeedback({ ok: false, error: 'invalid_input', detail: 'ETA trebuie să fie un număr pozitiv.' });
+      return;
+    }
+    const noshowAlertNum = Number(noshowAlert);
+    if (!Number.isFinite(noshowAlertNum) || noshowAlertNum < 5 || noshowAlertNum > 240) {
+      setFeedback({ ok: false, error: 'invalid_input', detail: 'Alerta de neridicare trebuie să fie între 5 și 240 minute.' });
       return;
     }
     const minOrderNum = Number(minOrder);
@@ -120,6 +126,7 @@ export function OperationsClient({
           is_accepting_orders: accepting,
           pause_reason: reason.trim() || null,
           pickup_eta_minutes: etaNum,
+          pickup_noshow_alert_minutes: noshowAlertNum,
           pickup_enabled: pickupEnabled,
           pickup_address: pickupAddress.trim() || null,
           min_order_ron: minOrderNum,
@@ -187,6 +194,25 @@ export function OperationsClient({
             disabled={!canEdit}
             value={eta}
             onChange={(e) => setEta(e.target.value)}
+            className="mt-1 w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-zinc-600">
+            Alertă neridicare după (minute)
+          </label>
+          <p className="mt-0.5 text-[11px] text-zinc-500">
+            După ce o comandă e gata de ridicare (READY) și nimeni nu a preluat-o în acest interval, apare un
+            avertisment în comenzi/KDS. Nu se anulează automat — decizi tu.
+          </p>
+          <input
+            type="number"
+            min={5}
+            max={240}
+            disabled={!canEdit}
+            value={noshowAlert}
+            onChange={(e) => setNoshowAlert(e.target.value)}
             className="mt-1 w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
           />
         </div>

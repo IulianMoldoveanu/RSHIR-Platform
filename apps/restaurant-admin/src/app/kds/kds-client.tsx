@@ -40,6 +40,8 @@ const STATUS_LABEL_RO: Record<OrderStatus, string> = {
   DISPATCHED: 'Trimisă',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Livrată',
+  PICKED_UP: 'Ridicată',
+  NO_SHOW: 'Neridicată',
   CANCELLED: 'Anulată',
 };
 
@@ -91,7 +93,7 @@ function elapsedLabel(iso: string, nowMs: number): string {
   return `${hr}h ${min % 60}m`;
 }
 
-function nextForwardForKds(s: OrderStatus): OrderStatus | null {
+function nextForwardForKds(s: OrderStatus, fulfillment: 'delivery' | 'pickup'): OrderStatus | null {
   switch (s) {
     case 'PENDING':
       return 'PREPARING';
@@ -100,7 +102,12 @@ function nextForwardForKds(s: OrderStatus): OrderStatus | null {
     case 'PREPARING':
       return 'READY';
     case 'READY':
-      return 'DISPATCHED';
+      // Pickup orders have no courier leg -- READY's forward action is
+      // "handed to the customer" (PICKED_UP), never DISPATCHED. Previously
+      // this always returned DISPATCHED regardless of fulfillment, so
+      // tapping "Predată" on a pickup order silently sent it into the
+      // courier-delivery flow instead.
+      return fulfillment === 'pickup' ? 'PICKED_UP' : 'DISPATCHED';
     default:
       return null;
   }
@@ -561,7 +568,7 @@ function OrderCard({
 
   const fulfillment = fulfillmentOf(order);
   const items = itemsOf(order);
-  const next = nextForwardForKds(order.status);
+  const next = nextForwardForKds(order.status, fulfillment);
   const isStale = now - new Date(order.updated_at).getTime() > STALE_MS;
   const needsAck = ALARM_STATUSES_NEEDING_ACK.has(order.status) && !acknowledged;
 

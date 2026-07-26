@@ -25,6 +25,8 @@ export type RestaurantOrderStatus =
   | 'DISPATCHED'
   | 'IN_DELIVERY'
   | 'DELIVERED'
+  | 'PICKED_UP'
+  | 'NO_SHOW'
   | 'CANCELLED';
 
 export const RESTAURANT_ORDER_STATUS_LABEL_RO: Record<RestaurantOrderStatus, string> = {
@@ -35,6 +37,8 @@ export const RESTAURANT_ORDER_STATUS_LABEL_RO: Record<RestaurantOrderStatus, str
   DISPATCHED: 'Trimisă',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Livrată',
+  PICKED_UP: 'Ridicată',
+  NO_SHOW: 'Neridicată',
   CANCELLED: 'Anulată',
 };
 
@@ -49,6 +53,10 @@ const OPERATOR_PALETTE: Record<RestaurantOrderStatus, PillClasses> = {
   DISPATCHED: 'bg-purple-100 text-purple-800 ring-purple-200',
   IN_DELIVERY: 'bg-purple-100 text-purple-800 ring-purple-200',
   DELIVERED: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  // PICKED_UP is the pickup-flow equivalent of DELIVERED — same terminal
+  // "done" signal. NO_SHOW is the pickup-flow equivalent of CANCELLED.
+  PICKED_UP: 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+  NO_SHOW: 'bg-rose-100 text-rose-800 ring-rose-200',
   CANCELLED: 'bg-rose-100 text-rose-800 ring-rose-200',
 };
 

@@ -107,8 +107,11 @@ export async function updateOrderStatus(
     });
   }
 
-  // Award loyalty points on DELIVERED. Best-effort — never throws.
-  if (newStatus === 'DELIVERED') {
+  // Award loyalty points on the order's completion state — DELIVERED for
+  // courier orders, PICKED_UP for customer-pickup orders. NO_SHOW never
+  // earns points (the customer didn't actually receive the order).
+  // Best-effort — never throws.
+  if (newStatus === 'DELIVERED' || newStatus === 'PICKED_UP') {
     await awardLoyaltyForDeliveredOrder({ tenantId, orderId });
   }
 

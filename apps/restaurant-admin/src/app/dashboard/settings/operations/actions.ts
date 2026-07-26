@@ -12,6 +12,10 @@ export type OperationsSettings = {
   pickup_eta_minutes: number;
   pickup_enabled: boolean;
   pickup_address: string | null;
+  // Minutes after a PICKUP order is marked READY before it's flagged in
+  // admin/KDS as at risk of no-show. Does NOT auto-cancel — only surfaces
+  // a badge + the "Mark as no-show" action; the operator still decides.
+  pickup_noshow_alert_minutes: number;
   // Commerce thresholds (per-tenant, both stored in tenant.settings JSONB).
   // 0 means "not configured" — UI hides the corresponding nudge.
   min_order_ron: number;
@@ -109,6 +113,10 @@ export async function saveOperationsAction(
   if (!Number.isFinite(eta) || eta < 1 || eta > 480) {
     return { ok: false, error: 'invalid_input', detail: 'pickup_eta_minutes must be 1-480' };
   }
+  const noshowAlert = Number(input.pickup_noshow_alert_minutes);
+  if (!Number.isFinite(noshowAlert) || noshowAlert < 5 || noshowAlert > 240) {
+    return { ok: false, error: 'invalid_input', detail: 'pickup_noshow_alert_minutes must be 5-240' };
+  }
 
   const cleanReason =
     typeof input.pause_reason === 'string' ? input.pause_reason.trim().slice(0, 200) : '';
@@ -167,6 +175,7 @@ export async function saveOperationsAction(
     is_accepting_orders: input.is_accepting_orders,
     pause_reason: cleanReason || null,
     pickup_eta_minutes: Math.round(eta),
+    pickup_noshow_alert_minutes: Math.round(noshowAlert),
     pickup_enabled: input.pickup_enabled !== false,
     pickup_address: cleanPickupAddress || null,
     min_order_ron: Math.round(minOrder * 100) / 100,
