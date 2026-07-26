@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, RotateCcw, UserCheck, Wand2 } from 'lucide-reac
 import {
   assignOrderToCourierAction,
   autoAssignOrderAction,
+  reassignOrderToCourierAction,
   unassignOrderAction,
 } from '../actions';
 import { OrderStatusBadge } from '@/components/order-status-badge';
@@ -88,8 +89,12 @@ export function OrderRow({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
+  const [reassignPicker, setReassignPicker] = useState(false);
 
   const isAssigned = order.assigned_courier_user_id !== null;
+  // Same restriction as the unassign action: only while the rider hasn't
+  // picked up yet. Mid-flight reassignment needs a heavier hand-off
+  // workflow we don't have — see reassignOrderToCourierAction's comment.
   const canUnassign = order.status === 'ACCEPTED';
 
   // SLA aging signal: row card-bg drifts neutral → amber-soft → red as
@@ -138,6 +143,18 @@ export function OrderRow({
     start(async () => {
       const result = await unassignOrderAction(order.id);
       if (!result.ok) setError(result.error);
+    });
+  }
+
+  function handleReassign(newCourierUserId: string) {
+    setError(null);
+    start(async () => {
+      const result = await reassignOrderToCourierAction(order.id, newCourierUserId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setReassignPicker(false);
     });
   }
 
@@ -251,26 +268,77 @@ export function OrderRow({
         ) : null}
 
         {isAssigned && canUnassign ? (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={handleUnassign}
-            className="min-h-[40px] gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
-          >
-            {pending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            ) : (
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
-            )}
-            Reasignează
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => setReassignPicker((v) => !v)}
+              className="min-h-[40px] gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
+            >
+              <UserCheck className="h-3.5 w-3.5" aria-hidden />
+              {reassignPicker ? 'Anulează' : 'Schimbă curier'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={handleUnassign}
+              className="min-h-[40px] gap-1.5 rounded-lg border-hir-border bg-hir-surface px-3 py-1.5 text-xs font-semibold text-hir-muted-fg hover:bg-hir-surface/60"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+              )}
+              Dezasignează
+            </Button>
+          </>
         ) : null}
 
         {error ? (
           <span className="text-[11px] text-red-400">{error}</span>
         ) : null}
       </div>
+
+      {reassignPicker && isAssigned ? (
+        <div className="mt-3 rounded-lg border border-hir-border bg-hir-surface p-2">
+          {couriers.filter((c) => c.user_id !== order.assigned_courier_user_id).length === 0 ? (
+            <p className="px-2 py-3 text-xs text-hir-muted-fg">
+              Niciun alt curier disponibil în flotă.
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {couriers
+                .filter((c) => c.user_id !== order.assigned_courier_user_id)
+                .map((c) => (
+                  <li key={c.user_id}>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleReassign(c.user_id)}
+                      className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-xs hover:bg-hir-surface/60 disabled:opacity-60"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-label={c.online ? 'Online' : 'Offline'}
+                          className={`h-1.5 w-1.5 rounded-full ${c.online ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+                        />
+                        <span className="font-medium text-hir-fg">
+                          {c.full_name ?? 'Curier'}
+                        </span>
+                        <span className="text-hir-muted-fg">{VEHICLE_LABEL[c.vehicle_type]}</span>
+                      </span>
+                      {c.online ? (
+                        <span className="text-[10px] uppercase tracking-wide text-emerald-300">Online</span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       {picker && !isAssigned ? (
         <div className="mt-3 rounded-lg border border-hir-border bg-hir-surface p-2">

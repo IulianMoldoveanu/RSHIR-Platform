@@ -46,6 +46,7 @@ export type CourierAuditAction =
   | 'fleet.auto_dispatch_toggled'
   | 'fleet.order_assigned'
   | 'fleet.order_unassigned'
+  | 'fleet.order_reassigned'
   | 'fleet.courier_suspended'
   | 'fleet.courier_reactivated'
   | 'fleet.order_auto_assigned'
