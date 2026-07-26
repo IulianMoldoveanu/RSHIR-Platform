@@ -324,11 +324,80 @@ async function netopiaVerifyWebhook(
   }
 }
 
+// Reconciliation fallback — Netopia's IPN webhook is not reliably delivered
+// in sandbox (confirmed empirically 2026-07-27: a real sandbox-approved
+// payment, error.code "00" "Approved", never triggered our notifyUrl; 0 rows
+// ever landed in psp_webhook_events). /operation/status is Netopia's actual
+// status-query endpoint — not documented on their public Stoplight site, but
+// present in and confirmed against their own Python SDK
+// (github.com/netopiapayments/python-sdk, PaymentService.get_status): POST
+// {posID, ntpID, orderID}, same Authorization header as /payment/card/start.
+// Status codes match the IPN payload's `payment.status` (3=authorized,
+// 5=captured, 6=failed/declined, 7=refunded) — reuses the same mapping.
+export type NetopiaStatusResult =
+  | { ok: true; kind: 'payment.authorized' | 'payment.captured' | 'payment.failed' | 'payment.refunded' | 'payment.pending'; amountBani: number }
+  | { ok: false; error: string };
+
+export async function netopiaGetStatus(
+  ctx: PspContext,
+  params: { ntpId: string; orderId: string },
+): Promise<NetopiaStatusResult> {
+  const { credentials, log } = ctx;
+  if (!credentials.apiKey) return { ok: false, error: 'netopia_credentials_missing' };
+
+  const base = credentials.live ? NETOPIA_BASE.live : NETOPIA_BASE.sandbox;
+
+  try {
+    const res = await ctx.fetch(`${base}/operation/status`, {
+      method: 'POST',
+      headers: {
+        Authorization: credentials.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        posID: credentials.signature ?? '',
+        ntpID: params.ntpId,
+        orderID: params.orderId,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      log('error', 'netopia.getStatus failed', { status: res.status, body: errText });
+      return { ok: false, error: `netopia_status_failed:${res.status}` };
+    }
+
+    const data = (await res.json()) as {
+      payment?: { status?: number; amount?: number };
+    };
+    const statusCode = Number(data.payment?.status ?? 0);
+    const amountRon = Number(data.payment?.amount ?? 0);
+    const amountBani = Math.round(amountRon * 100);
+
+    switch (statusCode) {
+      case 3:
+        return { ok: true, kind: 'payment.authorized', amountBani };
+      case 5:
+        return { ok: true, kind: 'payment.captured', amountBani };
+      case 6:
+        return { ok: true, kind: 'payment.failed', amountBani };
+      case 7:
+        return { ok: true, kind: 'payment.refunded', amountBani };
+      default:
+        return { ok: true, kind: 'payment.pending', amountBani };
+    }
+  } catch (err) {
+    log('error', 'netopia.getStatus exception', { err: String(err) });
+    return { ok: false, error: 'netopia_status_exception' };
+  }
+}
+
 export const netopiaAdapter: PspAdapter = {
   providerKey: 'netopia',
 
   createIntent: netopiaCreateIntent,
   verifyWebhook: netopiaVerifyWebhook,
+  getStatus: netopiaGetStatus,
 
   async getPayoutStatus(_ctx: PspContext, _tenantId: string): Promise<PspPayoutStatus> {
     // Netopia does not expose a real-time balance API. Return zeros so

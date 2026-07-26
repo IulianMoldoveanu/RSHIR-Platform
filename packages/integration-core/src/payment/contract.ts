@@ -174,4 +174,19 @@ export interface PspAdapter {
    * fall back to the request-queue UX when this returns null.
    */
   onboardingUrl(ctx: PspContext, tenantId: string): Promise<string | null>;
+
+  /**
+   * Optional reconciliation fallback: actively query the gateway for a
+   * payment's current status by its provider reference, for gateways whose
+   * webhook delivery isn't reliable enough to depend on exclusively. Not
+   * every adapter implements this — callers must treat a missing method as
+   * "no reconciliation available", not an error.
+   */
+  getStatus?(
+    ctx: PspContext,
+    params: { ntpId: string; orderId: string },
+  ): Promise<
+    | { ok: true; kind: 'payment.authorized' | 'payment.captured' | 'payment.failed' | 'payment.refunded' | 'payment.pending'; amountBani: number }
+    | { ok: false; error: string }
+  >;
 }

@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { friendlyDbError } from '@/lib/db-error';
 import { nextStatuses, type OrderStatus } from '../status-machine';
-import { markCodOrderPaid } from '../actions';
+import { markCodOrderPaid, reconcileCardOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
 import { FiscalReceiptButton } from './fiscal-receipt-button';
 import { OrderChat } from './order-chat';
@@ -300,6 +300,20 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
                 </button>
                 <p className="mt-1 text-[11px] text-zinc-500">
                   Apasă după ce curierul a încasat numerarul.
+                </p>
+              </form>
+            )}
+            {order.payment_method === 'CARD' && order.payment_status !== 'PAID' && (
+              <form action={reconcileCardOrderPaid.bind(null, order.id, tenant.id)} className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center rounded-md bg-amber-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-amber-700"
+                >
+                  Reconciliază manual — plata a fost confirmată de gateway
+                </button>
+                <p className="mt-1 text-[11px] text-amber-900">
+                  Folosește DOAR dacă ai verificat independent (email de confirmare de la Netopia/Viva) că plata a
+                  reușit, dar comanda a rămas neplătită aici — de obicei webhook-ul gateway-ului nu a ajuns.
                 </p>
               </form>
             )}
