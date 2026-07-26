@@ -1201,3 +1201,133 @@ export async function unassignOrderAction(orderId: string): Promise<FleetActionR
   revalidatePath(`/fleet/orders/${orderId}`);
   return { ok: true };
 }
+
+/**
+ * Reassign an already-accepted order directly to a different rider, in one
+ * atomic step — no intermediate OFFERED window where another rider could
+ * grab it via the open pool. Same pre-pickup-only restriction as
+ * unassignOrderAction: once the rider has the parcel (PICKED_UP+),
+ * mid-flight reassignment needs a heavier hand-off/parcel-transfer workflow
+ * we don't have yet.
+ */
+export async function reassignOrderToCourierAction(
+  orderId: string,
+  newCourierUserId: string,
+): Promise<FleetActionResult> {
+  const ctx = await getFleetManagerContext();
+  if (!ctx) return { ok: false, error: 'Acces interzis.' };
+
+  const admin = createAdminClient();
+
+  const { data: courierRow } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          eq: (col: string, val: string) => {
+            maybeSingle: () => Promise<{
+              data: { user_id: string; status: string | null } | null;
+            }>;
+          };
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .select('user_id, status')
+    .eq('user_id', newCourierUserId)
+    .eq('fleet_id', ctx.fleetId)
+    .maybeSingle();
+
+  if (!courierRow) return { ok: false, error: 'Curierul nu aparține flotei.' };
+  if (courierRow.status === 'SUSPENDED') {
+    return { ok: false, error: 'Curierul este suspendat.' };
+  }
+
+  // Read the current assignee first so the audit entry can record
+  // from/to — useful when a manager needs to explain "why did this order
+  // move couriers" after the fact.
+  const { data: before } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            maybeSingle: () => Promise<{
+              data: { assigned_courier_user_id: string | null } | null;
+            }>;
+          };
+        };
+      };
+    };
+  })
+    .from('courier_orders')
+    .select('assigned_courier_user_id')
+    .eq('id', orderId)
+    .eq('fleet_id', ctx.fleetId)
+    .maybeSingle();
+
+  if (!before?.assigned_courier_user_id) {
+    return { ok: false, error: 'Comanda nu are momentan un curier asignat — folosește Asignare, nu Reasignare.' };
+  }
+  if (before.assigned_courier_user_id === newCourierUserId) {
+    return { ok: false, error: 'Comanda este deja asignată acestui curier.' };
+  }
+  const previousCourierUserId = before.assigned_courier_user_id;
+
+  const { data, error } = await (admin as unknown as {
+    from: (t: string) => {
+      update: (row: Record<string, unknown>) => {
+        eq: (c: string, v: string) => {
+          eq: (c: string, v: string) => {
+            eq: (c: string, v: string) => {
+              in: (c: string, v: string[]) => {
+                select: (cols: string) => {
+                  maybeSingle: () => Promise<{
+                    data: { id: string } | null;
+                    error: { message: string } | null;
+                  }>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  })
+    .from('courier_orders')
+    .update({
+      assigned_courier_user_id: newCourierUserId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('fleet_id', ctx.fleetId)
+    .eq('assigned_courier_user_id', previousCourierUserId)
+    // Only pre-pickup — same restriction as unassignOrderAction.
+    .in('status', ['ACCEPTED'])
+    .select('id')
+    .maybeSingle();
+
+  if (error) return { ok: false, error: error.message };
+  if (!data) {
+    return {
+      ok: false,
+      error: 'Comanda nu mai poate fi reasignată — curierul a ridicat-o deja sau statusul s-a schimbat.',
+    };
+  }
+
+  await logAudit({
+    actorUserId: ctx.userId,
+    action: 'fleet.order_reassigned',
+    entityType: 'courier_order',
+    entityId: orderId,
+    metadata: {
+      fleet_id: ctx.fleetId,
+      from_courier_user_id: previousCourierUserId,
+      to_courier_user_id: newCourierUserId,
+    },
+  });
+
+  revalidatePath('/fleet');
+  revalidatePath('/fleet/orders');
+  revalidatePath(`/fleet/orders/${orderId}`);
+  return { ok: true };
+}
