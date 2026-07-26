@@ -252,6 +252,16 @@ export async function POST(req: NextRequest) {
     notes: parsed.data.notes || null,
     status: 'PENDING',
     payment_status: 'UNPAID',
+    // Same-day pickup slot — PICKUP only, ignored for delivery orders even
+    // if a stale client somehow sent one. A slot in the past (clock drift,
+    // slow submit) silently falls back to ASAP rather than rejecting the
+    // whole order over a few seconds of skew.
+    scheduled_pickup_at:
+      isPickup &&
+      parsed.data.scheduledPickupAt &&
+      new Date(parsed.data.scheduledPickupAt).getTime() > Date.now()
+        ? parsed.data.scheduledPickupAt
+        : null,
     promo_code_id: q.promo?.id ?? null,
     discount_ron: finalDiscountRon,
   };
