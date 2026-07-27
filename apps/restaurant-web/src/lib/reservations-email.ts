@@ -35,6 +35,10 @@ export type CustomerNotifyInput = {
   /** Absolute /rezervari/track/[token] URL. When set the email gets a CTA
    *  button so the customer can see live status. */
   trackUrl?: string | null;
+  /** White-label tenant (custom_domain set) — footer shows the tenant's own
+   *  name instead of "HIR · hirforyou.ro". This email goes to the END
+   *  CUSTOMER, unlike notifyRestaurantOfNewReservation (operator-facing). */
+  whiteLabel?: boolean;
 };
 
 function formatDate(iso: string): string {
@@ -139,7 +143,9 @@ export async function notifyCustomerOfReservationRequest(
     'Mulțumim,',
     `Echipa ${input.tenantName}`,
     '',
-    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
+    input.whiteLabel
+      ? input.tenantName
+      : `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   const trackHtml = input.trackUrl
@@ -165,6 +171,6 @@ export async function notifyCustomerOfReservationRequest(
     </p>
   `;
 
-  const html = renderEmail({ brand, preheader, title: subject, bodyHtml });
+  const html = renderEmail({ brand, preheader, title: subject, bodyHtml, whiteLabel: input.whiteLabel });
   await sendEmail({ to: input.customerEmail, subject, html, text });
 }

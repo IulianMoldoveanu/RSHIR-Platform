@@ -29,6 +29,9 @@ export function magicLinkEmail(args: {
   brand: TenantBrand;
   redeemUrl: string;
   expiresAtIso: string;
+  /** White-label tenant (custom_domain set) — footer shows the tenant's own
+   *  name instead of "HIR · hirforyou.ro". */
+  whiteLabel?: boolean;
 }): { subject: string; html: string; text: string } {
   // Subject deliberately neutral — the recipient knows what it is from the
   // sender domain + branding inside, but a leaked subject line doesn't
@@ -59,6 +62,7 @@ export function magicLinkEmail(args: {
     preheader,
     title: subject,
     bodyHtml,
+    whiteLabel: args.whiteLabel,
   });
 
   const text = [
@@ -71,7 +75,9 @@ export function magicLinkEmail(args: {
     '',
     'Dacă nu dumneavoastră ați cerut acest link, ignorați e-mailul.',
     '',
-    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
+    args.whiteLabel
+      ? `— ${args.brand.name}`
+      : `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
 
   return { subject, html, text };
