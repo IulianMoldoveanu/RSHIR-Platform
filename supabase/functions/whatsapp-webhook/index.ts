@@ -40,6 +40,13 @@ import {
   decideHandshake,
   gatePostRequest,
 } from '../_shared/whatsapp.ts';
+import {
+  classifyIntent,
+  formatWhatsApp,
+  type HepyIntent,
+  type HepyPeriod,
+} from '../_shared/hepy-brain.ts';
+import { dispatchIntent } from '../_shared/master-orchestrator.ts';
 
 const NONCE_TTL_MS = 60 * 60 * 1000; // 1h
 const GRAPH_VERSION = 'v19.0';
@@ -197,59 +204,154 @@ async function consumeNonce(
 }
 
 // ────────────────────────────────────────────────────────────
-// Read-only intent stubs — Sprint 15 replaces with Master Orchestrator
-// dispatch. Skeleton just queries the obvious tables and replies.
+// Real Hepy intents over WhatsApp. Uses the SHARED brain classifier
+// (_shared/hepy-brain.ts) + the SAME Master Orchestrator dispatcher the
+// Telegram webhook uses (dispatchIntent). Read intents run directly; write
+// intents (offers, menu) go through dispatchIntent's trust gate, so a
+// tenant with a PROPOSE_ONLY category gets a proposal to confirm — the
+// owner-configured guardrails apply unchanged. Replies are WhatsApp plain
+// text (no HTML), 4096-capped via formatWhatsApp.
 // ────────────────────────────────────────────────────────────
-async function intentOrdersNow(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  tenantId: string,
-): Promise<string> {
-  // restaurant_orders schema (20260425_000_initial.sql):
-  //   tenant_id uuid (NOT restaurant_id)
-  //   status check (PENDING|CONFIRMED|PREPARING|READY|DISPATCHED|IN_DELIVERY|DELIVERED|CANCELLED)
-  // "Active" = anything not yet delivered or cancelled.
-  const { count } = await supabase
-    .from('restaurant_orders')
-    .select('id', { count: 'exact', head: true })
-    .eq('tenant_id', tenantId)
-    .in('status', ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY']);
-  const n = count ?? 0;
-  return `Aveți ${n} ${n === 1 ? 'comandă activă' : 'comenzi active'} acum.`;
-}
 
-async function intentSalesToday(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  tenantId: string,
-): Promise<string> {
-  // restaurant_orders.total_ron numeric(10,2) is the canonical total.
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const { data } = await supabase
-    .from('restaurant_orders')
-    .select('total_ron')
-    .eq('tenant_id', tenantId)
-    .eq('status', 'DELIVERED')
-    .gte('created_at', start.toISOString());
-  const sum = (data ?? []).reduce(
-    (acc: number, r: { total_ron: number | string | null }) => acc + Number(r.total_ron ?? 0),
-    0,
-  );
-  return `Vânzări astăzi: ${sum.toFixed(2)} RON.`;
+function fmtRon(n: number): string {
+  return `${n.toFixed(2)} RON`;
 }
 
 function helpReply(tenantName: string): string {
-  return [
-    `Hepy WhatsApp · ${tenantName}`,
-    '',
-    'Comenzi disponibile:',
-    '· „comenzi" — câte sunt active acum',
-    '· „vânzări" — total astăzi',
-    '· „ajutor" — această listă',
-    '',
-    'Doar citire pentru moment. Mai multe comenzi în curând.',
-  ].join('\n');
+  return formatWhatsApp(
+    [
+      `Hepy · ${tenantName}`,
+      '',
+      'Întrebați-mă firesc, de ex.:',
+      '· „câte comenzi am acum”',
+      '· „cum a mers azi” / „vânzări azi”',
+      '· „top produse săptămâna asta”',
+      '· „câți curieri sunt online”',
+      '· „ce recomandări am azi”',
+      '',
+      'Scrieți normal — vă răspund în secunde.',
+    ].join('\n'),
+  );
+}
+
+// Run one classified Hepy intent for a bound tenant and return a
+// WhatsApp-ready reply string. Mirrors the Telegram runIntent read paths;
+// analytics/growth intents flow through the shared orchestrator.
+async function runWhatsAppIntent(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  tenantId: string,
+  tenantName: string,
+  intent: HepyIntent,
+  period: HepyPeriod | undefined,
+): Promise<string> {
+  if (intent === 'orders_now') {
+    const { count } = await supabase
+      .from('restaurant_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId)
+      .in('status', ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY']);
+    const c = count ?? 0;
+    return formatWhatsApp(
+      `📋 ${tenantName} — comenzi în desfășurare\n${c} comen${c === 1 ? 'dă' : 'zi'} active acum.`,
+    );
+  }
+
+  if (intent === 'couriers_online') {
+    const { count } = await supabase
+      .from('courier_shifts')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'ONLINE');
+    const c = count ?? 0;
+    return formatWhatsApp(`🛵 Curieri online acum\n${c} curier${c === 1 ? '' : 'i'} în tură.`);
+  }
+
+  if (intent === 'orders_summary') {
+    const r = await dispatchIntent(supabase, {
+      tenantId,
+      channel: 'whatsapp',
+      intent: 'analytics.summary',
+      payload: { period: period ?? 'today' },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return formatWhatsApp(`📊 ${tenantName}\nNu am putut citi sumarul momentan.`);
+    }
+    const d = r.data as {
+      label: string;
+      orders: number;
+      revenue_ron: number;
+      cancelled: number;
+      orders_delta: string;
+      revenue_delta: string;
+      top_products: Array<{ name: string; qty: number; revenue: number }>;
+    };
+    const lines = [
+      `📊 ${tenantName} — cum a mers ${d.label}`,
+      '',
+      `Comenzi: ${d.orders}  ${d.orders_delta}`,
+      `Încasări: ${fmtRon(Number(d.revenue_ron))}  ${d.revenue_delta}`,
+    ];
+    if (d.cancelled > 0) lines.push(`Anulate: ${d.cancelled}`);
+    if (d.top_products.length) {
+      lines.push('', 'Top produse:');
+      for (const t of d.top_products) {
+        lines.push(`· ${t.name} — ${t.qty} buc · ${fmtRon(Number(t.revenue))}`);
+      }
+    }
+    return formatWhatsApp(lines.join('\n'));
+  }
+
+  if (intent === 'top_products') {
+    const r = await dispatchIntent(supabase, {
+      tenantId,
+      channel: 'whatsapp',
+      intent: 'analytics.top_products',
+      payload: { period: period ?? 'week', limit: 10 },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return formatWhatsApp(`🍽️ ${tenantName}\nNu am putut citi topul produselor momentan.`);
+    }
+    const d = r.data as { label: string; products: Array<{ name: string; qty: number; revenue: number }> };
+    if (d.products.length === 0) {
+      return formatWhatsApp(`🍽️ ${tenantName} — top produse (${d.label})\nNiciun produs vândut în această perioadă.`);
+    }
+    const lines = [`🍽️ ${tenantName} — top produse (${d.label})`];
+    for (const p of d.products) {
+      lines.push(`· ${p.name} — ${p.qty} buc · ${fmtRon(Number(p.revenue))}`);
+    }
+    return formatWhatsApp(lines.join('\n'));
+  }
+
+  if (intent === 'recommendations_today') {
+    const r = await dispatchIntent(supabase, {
+      tenantId,
+      channel: 'whatsapp',
+      intent: 'analytics.recommendations_today',
+      payload: { days: 7 },
+    });
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      return formatWhatsApp(`💡 ${tenantName} — recomandări\nNu am putut citi recomandările momentan.`);
+    }
+    const d = r.data as {
+      days: number;
+      recommendations: Array<{ priority: string; category: string; title_ro: string; suggested_action_ro: string }>;
+    };
+    if (!d.recommendations || d.recommendations.length === 0) {
+      return formatWhatsApp(`💡 ${tenantName} — recomandări\nNicio recomandare nouă în ultimele ${d.days} zile.`);
+    }
+    const prioEmoji: Record<string, string> = { critical: '🔴', high: '🟠', medium: '🟡', low: '⚪' };
+    const lines = [`💡 ${tenantName} — recomandări (ultimele ${d.days} zile)`];
+    for (const rec of d.recommendations.slice(0, 5)) {
+      const e = prioEmoji[rec.priority] ?? '·';
+      lines.push('', `${e} ${rec.title_ro}`, `${rec.category} · ${(rec.suggested_action_ro || '').slice(0, 180)}`);
+    }
+    return formatWhatsApp(lines.join('\n'));
+  }
+
+  // Unknown / NONE — nudge toward help.
+  return formatWhatsApp(
+    `Nu am înțeles exact. Trimiteți „ajutor” pentru ce pot face, sau întrebați firesc (ex. „câte comenzi am acum”).`,
+  );
 }
 
 // ────────────────────────────────────────────────────────────
@@ -486,20 +588,25 @@ Deno.serve(async (req: Request) => {
       .eq('id', binding.binding_id)
       .then(() => undefined, () => undefined);
 
+    // Post-binding routing uses the REAL shared brain (same classifier as
+    // Telegram) + the Master Orchestrator dispatcher. `classifySkeletonIntent`
+    // above is retained only to detect the connect handshake / nonce.
     let reply: string;
-    switch (classified.intent) {
-      case 'orders_now':
-        reply = await intentOrdersNow(supabase, binding.tenant_id);
-        break;
-      case 'sales_today':
-        reply = await intentSalesToday(supabase, binding.tenant_id);
-        break;
-      case 'help':
-        reply = helpReply(binding.tenant_name);
-        break;
-      default:
-        reply = `Comanda nu este recunoscută. Trimiteți „ajutor" pentru lista de comenzi disponibile.`;
-        break;
+    let ranIntent: string = classified.intent;
+    if (classified.intent === 'help') {
+      reply = helpReply(binding.tenant_name);
+      ranIntent = 'help';
+    } else {
+      const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+      const nlu = await classifyIntent(body, anthropicKey);
+      ranIntent = nlu.intent;
+      reply = await runWhatsAppIntent(
+        supabase,
+        binding.tenant_id,
+        binding.tenant_name,
+        nlu.intent,
+        nlu.period,
+      );
     }
 
     const sentId = await waSendText(phoneId, accessToken, waPhoneNumber, reply);
@@ -511,7 +618,7 @@ Deno.serve(async (req: Request) => {
       waMessageId: sentId,
       messageType: 'text',
       body: reply,
-      intent: classified.intent,
+      intent: ranIntent,
       rawPayload: null,
       errorText: sentId ? null : 'send_failed',
     });
