@@ -18,6 +18,8 @@ import { MessageSquare, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { WhatsAppConnectClient } from './client';
+import { HepiPersonaClient } from './persona-client';
+import { loadHepiPersona } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +79,7 @@ export default async function WhatsAppSettingsPage() {
 
   const binding = await loadActiveBinding(tenant.id, user.id);
   const bizConfigured = bizPhoneConfigured();
+  const persona = await loadHepiPersona();
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,6 +179,12 @@ export default async function WhatsAppSettingsPage() {
               }
             : null
         }
+      />
+
+      <HepiPersonaClient
+        tenantId={tenant.id}
+        initialName={persona.assistant_name}
+        initialTone={persona.persona_tone}
       />
 
       <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">

@@ -128,6 +128,7 @@ export type AuditAction =
   | 'whatsapp.message_received'
   | 'whatsapp.message_sent'
   | 'whatsapp.owner_bound'
+  | 'hepi.persona_updated'
   | 'branding.theme_previewed'
   | 'branding.theme_applied'
   | 'pre_orders.settings_updated'
