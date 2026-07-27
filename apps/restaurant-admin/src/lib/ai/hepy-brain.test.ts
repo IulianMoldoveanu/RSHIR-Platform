@@ -12,6 +12,7 @@ import {
   detectIntentRegex,
   classifyIntent,
   formatWhatsApp,
+  buildPersonaPreamble,
 } from '../../../../../supabase/functions/_shared/hepy-brain';
 
 describe('detectIntentRegex — RO intent classification (characterization)', () => {
@@ -128,5 +129,35 @@ describe('formatWhatsApp', () => {
 
   test('short plain text passes through unchanged', () => {
     expect(formatWhatsApp('Aveți 3 comenzi active.')).toBe('Aveți 3 comenzi active.');
+  });
+});
+
+describe('buildPersonaPreamble', () => {
+  test('defaults to Hepi + neutral tone when nothing set', () => {
+    const p = buildPersonaPreamble(null);
+    expect(p).toContain('Ești Hepi,');
+    expect(p).toContain('profesionist');
+    expect(p).toContain('Nu inventezi date');
+  });
+
+  test('uses the configured name and tone', () => {
+    const p = buildPersonaPreamble({ assistantName: 'Ana', personaTone: 'prietenos, direct' });
+    expect(p).toContain('Ești Ana,');
+    expect(p).toContain('Ton: prietenos, direct.');
+  });
+
+  test('trims empty/whitespace fields back to defaults', () => {
+    const p = buildPersonaPreamble({ assistantName: '   ', personaTone: '' });
+    expect(p).toContain('Ești Hepi,');
+    expect(p).toContain('profesionist');
+  });
+
+  test('collapses whitespace and caps a long tone', () => {
+    const longTone = 'x'.repeat(600);
+    const p = buildPersonaPreamble({ assistantName: 'Chef', personaTone: `a\n\n  b   ${longTone}` });
+    expect(p).toContain('Ești Chef,');
+    // Tone is single-lined and length-capped (400) — the preamble stays bounded.
+    expect(p.length).toBeLessThan(500);
+    expect(p).not.toContain('\n');
   });
 });

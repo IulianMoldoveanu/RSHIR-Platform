@@ -132,6 +132,43 @@ export async function classifyIntent(
 // markup with a hard 4096-char cap (Meta's text message limit).
 // ────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────
+// Configurable persona. Owners set an assistant name + tone per tenant
+// (tenant_hepi_persona table); this turns those two fields into a system-
+// prompt preamble. Both optional — empty inputs yield the default persona.
+// Pure + channel-neutral so it's unit-testable and shared by every surface
+// that composes a Hepi reply.
+// ────────────────────────────────────────────────────────────
+
+export type HepiPersona = {
+  assistantName?: string | null;
+  personaTone?: string | null;
+};
+
+const DEFAULT_ASSISTANT_NAME = 'Hepi';
+// Keep injected free-text bounded so a persona field can't blow the prompt.
+const MAX_TONE_CHARS = 400;
+
+/** Build the persona preamble injected at the top of a Hepi reply prompt.
+ *  Falls back to "Hepi" + a neutral-professional tone when unset. The tone
+ *  is sanitized (single-line, length-capped) since it's owner free text. */
+export function buildPersonaPreamble(persona?: HepiPersona | null): string {
+  const name = (persona?.assistantName ?? '').trim() || DEFAULT_ASSISTANT_NAME;
+  const toneRaw = (persona?.personaTone ?? '').trim();
+  const tone = toneRaw
+    .replace(/\s+/g, ' ')
+    .slice(0, MAX_TONE_CHARS)
+    .trim();
+  const toneLine = tone
+    ? `Ton: ${tone}.`
+    : 'Ton: profesionist, prietenos, concis, în română.';
+  return [
+    `Ești ${name}, asistentul AI al acestui restaurant.`,
+    toneLine,
+    'Nu inventezi date pe care nu le ai.',
+  ].join(' ');
+}
+
 /** WhatsApp text: strip any HTML tags a Telegram-shaped string might carry,
  *  and hard-cap at 4096 chars (Meta limit). Bold uses *asterisks* on WA. */
 export function formatWhatsApp(text: string): string {

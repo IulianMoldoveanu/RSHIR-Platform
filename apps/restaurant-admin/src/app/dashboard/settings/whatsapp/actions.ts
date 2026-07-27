@@ -202,3 +202,98 @@ export async function unbindWhatsApp(input: {
   revalidatePath(REVALIDATE);
   return { ok: true };
 }
+
+// ────────────────────────────────────────────────────────────
+// Hepi persona (identity) — owner configures the assistant's name + tone.
+// Presentation only; does NOT change what Hepi may do (that is
+// tenant_agent_trust). Stored in tenant_hepi_persona, injected into the
+// system prompt by _shared/hepy-brain.ts buildPersonaPreamble.
+// ────────────────────────────────────────────────────────────
+
+const MAX_NAME_LEN = 40;
+const MAX_TONE_LEN = 400;
+
+export type HepiPersonaValue = {
+  assistant_name: string;
+  persona_tone: string;
+};
+
+export type SaveHepiPersonaResult =
+  | { ok: true }
+  | { ok: false; error: 'unauthenticated' | 'forbidden_owner_only' | 'forbidden_tenant_mismatch' | 'db_error' };
+
+export async function loadHepiPersona(): Promise<HepiPersonaValue> {
+  let active;
+  try {
+    active = await getActiveTenant();
+  } catch {
+    return { assistant_name: '', persona_tone: '' };
+  }
+  const { tenant } = active;
+  const admin = createAdminClient();
+  // tenant_hepi_persona ships in 20260728_001; not yet in generated types.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  const { data } = await sb
+    .from('tenant_hepi_persona')
+    .select('assistant_name, persona_tone')
+    .eq('tenant_id', tenant.id)
+    .maybeSingle();
+  return {
+    assistant_name: (data?.assistant_name as string | null) ?? '',
+    persona_tone: (data?.persona_tone as string | null) ?? '',
+  };
+}
+
+export async function saveHepiPersona(input: {
+  expectedTenantId: string;
+  assistantName: string;
+  personaTone: string;
+}): Promise<SaveHepiPersonaResult> {
+  let active;
+  try {
+    active = await getActiveTenant();
+  } catch {
+    return { ok: false, error: 'unauthenticated' };
+  }
+  const { user, tenant } = active;
+  if (!input.expectedTenantId || tenant.id !== input.expectedTenantId) {
+    return { ok: false, error: 'forbidden_tenant_mismatch' };
+  }
+  const role = await getTenantRole(user.id, tenant.id).catch(() => null);
+  if (role !== 'OWNER') return { ok: false, error: 'forbidden_owner_only' };
+
+  // Trim + cap; empty → NULL so the prompt builder falls back to defaults.
+  const name = input.assistantName.trim().slice(0, MAX_NAME_LEN);
+  const tone = input.personaTone.trim().slice(0, MAX_TONE_LEN);
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  const { error } = await sb.from('tenant_hepi_persona').upsert(
+    {
+      tenant_id: tenant.id,
+      assistant_name: name || null,
+      persona_tone: tone || null,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    },
+    { onConflict: 'tenant_id' },
+  );
+  if (error) {
+    console.error('[hepi-persona] upsert failed', error.message);
+    return { ok: false, error: 'db_error' };
+  }
+
+  await logAudit({
+    tenantId: tenant.id,
+    actorUserId: user.id,
+    action: 'hepi.persona_updated',
+    entityType: 'tenant_hepi_persona',
+    entityId: tenant.id,
+    metadata: { assistant_name: name || null, has_tone: Boolean(tone) },
+  });
+
+  revalidatePath(REVALIDATE);
+  return { ok: true };
+}
