@@ -62,7 +62,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     id, tenant_id, status, payment_status, payment_method, items,
     subtotal_ron, delivery_fee_ron, total_ron, notes,
     public_track_token, created_at, updated_at,
-    delivery_address_id,
+    delivery_address_id, scheduled_pickup_at,
     customers ( first_name, last_name, phone ),
     customer_addresses ( line1, line2, city, postal_code )
   `;
@@ -70,7 +70,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     id, tenant_id, status, payment_status, items,
     subtotal_ron, delivery_fee_ron, total_ron, notes,
     public_track_token, created_at, updated_at,
-    delivery_address_id,
+    delivery_address_id, scheduled_pickup_at,
     customers ( first_name, last_name, phone ),
     customer_addresses ( line1, line2, city, postal_code )
   `;
@@ -104,6 +104,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     created_at: string;
     updated_at: string;
     delivery_address_id: string | null;
+    scheduled_pickup_at: string | null;
     customers: { first_name: string | null; last_name: string | null; phone: string | null } | null;
     customer_addresses: {
       line1: string | null;
@@ -183,6 +184,16 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </div>
         <p className="text-xs text-zinc-500">
           Creată {new Date(order.created_at).toLocaleString('ro-RO')}
+          {isPickup && order.scheduled_pickup_at && (
+            <>
+              {' '}
+              · Ridicare programată{' '}
+              {new Date(order.scheduled_pickup_at).toLocaleString('ro-RO', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </>
+          )}
         </p>
       </header>
 

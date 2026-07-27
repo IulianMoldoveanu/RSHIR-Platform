@@ -53,6 +53,7 @@ type TrackOrder = {
   updatedAt: string;
   publicTrackToken: string;
   fulfillment: 'DELIVERY' | 'PICKUP';
+  scheduledPickupAt: string | null;
   hasReview: boolean;
   tenant: {
     name: string;
@@ -256,6 +257,16 @@ function TrackInner({
               ? t(locale, 'track.pickup_at_template', { address: order.tenant.pickupAddress })
               : t(locale, 'track.pickup_at_label')}
           </p>
+          {order.scheduledPickupAt && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200">
+              {t(locale, 'track.scheduled_pickup_time_template', {
+                time: new Date(order.scheduledPickupAt).toLocaleTimeString(
+                  locale === 'en' ? 'en-GB' : 'ro-RO',
+                  { hour: '2-digit', minute: '2-digit' },
+                ),
+              })}
+            </p>
+          )}
         </section>
       ) : courierTrackToken ? (
         <CourierTrackPanel ctoken={courierTrackToken} />

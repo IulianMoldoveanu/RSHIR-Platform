@@ -87,6 +87,7 @@ type OrderRow = {
   total_ron: number;
   created_at: string;
   ready_at: string | null;
+  scheduled_pickup_at: string | null;
   delivery_address_id: string | null;
   items: unknown;
   customers: { first_name: string | null; last_name: string | null } | null;
@@ -218,9 +219,9 @@ export default async function OrdersPage({
   // admin queue keeps working — payment_method is undefined and the Cash
   // chip just doesn't render until the column exists.
   const COLS_FULL =
-    'id, status, source, payment_method, total_ron, created_at, ready_at, delivery_address_id, items, customers(first_name, last_name)';
+    'id, status, source, payment_method, total_ron, created_at, ready_at, scheduled_pickup_at, delivery_address_id, items, customers(first_name, last_name)';
   const COLS_LEGACY =
-    'id, status, source, total_ron, created_at, ready_at, delivery_address_id, items, customers(first_name, last_name)';
+    'id, status, source, total_ron, created_at, ready_at, scheduled_pickup_at, delivery_address_id, items, customers(first_name, last_name)';
 
   async function loadOrders(cols: string, includeCashFilter: boolean) {
     let q = admin
@@ -375,6 +376,14 @@ export default async function OrdersPage({
                             {o.delivery_address_id === null && (
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
                                 Ridicare
+                              </span>
+                            )}
+                            {isPickupRow && o.scheduled_pickup_at && (
+                              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200">
+                                {new Date(o.scheduled_pickup_at).toLocaleTimeString('ro-RO', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
                               </span>
                             )}
                             {o.source && o.source !== 'INTERNAL_STOREFRONT' && (() => {
