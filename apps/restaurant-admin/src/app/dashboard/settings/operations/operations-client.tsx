@@ -60,6 +60,15 @@ export function OperationsClient({
     setHours((h) => ({ ...h, [day]: h[day].filter((_, i) => i !== idx) }));
   }
 
+  function setNonStop() {
+    setHours(() =>
+      DAYS.reduce(
+        (acc, { key }) => ({ ...acc, [key]: [{ open: '00:00', close: '23:59' }] }),
+        {} as OperationsSettings['opening_hours'],
+      ),
+    );
+  }
+
   function submit() {
     setFeedback(null);
     const etaNum = Number(eta);
@@ -446,6 +455,16 @@ export function OperationsClient({
           Adaugă mai multe intervale dacă închizi la prânz (ex. 10:00–14:00 + 17:00–22:00).
           Lasă lista goală pentru zilele închise.
         </p>
+
+        {canEdit && (
+          <button
+            type="button"
+            onClick={setNonStop}
+            className="mt-3 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Program non-stop (24/7)
+          </button>
+        )}
 
         <div className="mt-4 flex flex-col gap-3">
           {DAYS.map(({ key, label }) => {
