@@ -8,6 +8,7 @@ import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { getLoyaltyBalance, getLoyaltyHistory, type LoyaltyLedgerEntry } from '@/lib/loyalty';
+import { PhoneLoginForm } from '@/components/storefront/phone-login-form';
 import { repeatOrder } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -129,6 +130,8 @@ export default async function AccountPage() {
           {t(locale, 'account.title')}
         </h1>
       </div>
+
+      {!customerId && <PhoneLoginForm locale={locale} />}
 
       {loyalty && (
         <section className="mb-4 rounded-2xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-4">

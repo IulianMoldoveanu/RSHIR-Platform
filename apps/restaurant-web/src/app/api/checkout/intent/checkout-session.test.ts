@@ -115,7 +115,16 @@ function makeAdminMock() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fromHandler = (table: string): any => {
     if (table === 'customers') {
-      return { insert: () => make({ id: 'cust-1' }) };
+      return {
+        // Lookup-by-phone (upsert-by-phone path) — no existing customer in
+        // these tests, so the route falls through to insert.
+        select: () => ({
+          eq: () => ({
+            eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+          }),
+        }),
+        insert: () => make({ id: 'cust-1' }),
+      };
     }
     if (table === 'customer_addresses') {
       return { insert: () => make({ id: 'addr-1' }) };
