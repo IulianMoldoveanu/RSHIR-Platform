@@ -209,12 +209,21 @@ export function CheckoutClient(props: {
   const [coordsForText, setCoordsForText] = useState<string>('');
   const [geocoding, setGeocoding] = useState(false);
   const [locating, setLocating] = useState(false);
+  // Browser geolocation → reverse-geocode is an approximation (Wi-Fi/cell
+  // positioning indoors can be off by 100-300m, and Nominatim's nearest-road
+  // match isn't always the actual street — reported live: device on Strada
+  // Lungă, auto-filled Strada Mureșenilor). This flag drives a "verify this"
+  // banner right after auto-fill so the customer double-checks instead of
+  // trusting it blindly; clears the same way `coords` invalidates below —
+  // any manual edit means they're already looking at the field.
+  const [locatedAddress, setLocatedAddress] = useState(false);
 
   const currentAddressKey = `${line1.trim()}|${line2.trim()}|${city.trim()}|${postalCode.trim()}`;
   useEffect(() => {
     if (coords && coordsForText && coordsForText !== currentAddressKey) {
       setCoords(null);
       setCoordsForText('');
+      setLocatedAddress(false);
     }
   }, [coords, coordsForText, currentAddressKey]);
 
@@ -431,6 +440,7 @@ export function CheckoutClient(props: {
           setCoordsForText(
             `${data.line1 ?? line1}|${line2}|${data.city ?? city}|${data.postalCode ?? postalCode}`,
           );
+          setLocatedAddress(true);
         } catch {
           setError(t(locale, 'checkout.err_geolocation_not_found'));
         } finally {
@@ -984,6 +994,12 @@ export function CheckoutClient(props: {
                   </span>
                 </button>
               </div>
+              {locatedAddress && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700">
+                  <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {t(locale, 'checkout.located_address_warning')}
+                </p>
+              )}
             </Field>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="text-xs font-medium text-zinc-700">
