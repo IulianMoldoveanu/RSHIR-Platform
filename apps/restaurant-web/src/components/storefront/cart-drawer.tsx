@@ -101,6 +101,9 @@ export function CartPill({
             exit={reduceMotion ? undefined : { y: 80, opacity: 0 }}
             transition={{ duration: motionDurations.sheet, ease: easeOutSoft }}
             whileTap={reduceMotion ? undefined : tapPress}
+            // marginBottom respects the home-indicator on notched phones so
+            // the pill never sits under it (bottom-4 alone can overlap).
+            style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
             className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand,#7c3aed)] px-5 text-white shadow-xl"
           >
             <span className="flex items-center gap-2.5">
@@ -146,7 +149,7 @@ export function CartPill({
                 className="py-8"
               >
                 <EmptyState
-                  icon={<ShoppingBag className="h-8 w-8 text-purple-400" />}
+                  icon={<ShoppingBag className="h-8 w-8" style={{ color: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 55%, white)' }} />}
                   title={t(locale, 'storefront.empty_cart_title')}
                   description={t(locale, 'storefront.empty_cart_desc')}
                   action={{

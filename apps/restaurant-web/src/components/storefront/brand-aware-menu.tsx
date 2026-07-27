@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { MenuBrand, MenuCategory } from '@/lib/menu';
 import { MenuList } from './menu-list';
 import type { Locale } from '@/lib/i18n';
@@ -22,6 +23,7 @@ export function BrandAwareMenu({
   locale: Locale;
 }) {
   const [activeBrandId, setActiveBrandId] = useState<string | null>(brands[0]?.id ?? null);
+  const reduceMotion = useReducedMotion();
 
   const visible = useMemo(() => {
     if (brands.length === 0) return categories;
@@ -45,12 +47,28 @@ export function BrandAwareMenu({
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveBrandId(b.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold tracking-tight transition-colors ${
+                className={`relative flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold tracking-tight transition-colors ${
                   active
-                    ? 'border-transparent bg-zinc-900 text-white shadow-sm'
+                    ? 'border-transparent text-white shadow-sm'
                     : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
                 }`}
               >
+                {/* Sliding active background — Wolt-style, brand-colored.
+                    Same layoutId across brand tabs so framer morphs the pill
+                    smoothly between selections. Matches CategoryTabs. */}
+                {active ? (
+                  <motion.span
+                    layoutId="brand-tab-active"
+                    className="absolute inset-0 rounded-full"
+                    style={{ backgroundColor: 'var(--hir-brand, #7c3aed)' }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 500,
+                      damping: 35,
+                      duration: reduceMotion ? 0 : undefined,
+                    }}
+                  />
+                ) : null}
                 {b.logo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -58,10 +76,10 @@ export function BrandAwareMenu({
                     alt=""
                     width={20}
                     height={20}
-                    className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    className="relative z-10 h-5 w-5 shrink-0 rounded-full object-cover"
                   />
                 ) : null}
-                {b.name}
+                <span className="relative z-10">{b.name}</span>
               </button>
             );
           })}
