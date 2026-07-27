@@ -76,10 +76,24 @@ vi.mock('@/lib/supabase-admin', () => ({
 const markOrderPaidAndDispatchMock = vi.fn(async () => undefined);
 const markOrderPaymentFailedMock = vi.fn(async () => undefined);
 
-vi.mock('@/app/api/checkout/order-finalize', () => ({
-  markOrderPaidAndDispatch: (...args: unknown[]) => markOrderPaidAndDispatchMock(...(args as [])),
-  markOrderPaymentFailed: (...args: unknown[]) => markOrderPaymentFailedMock(...(args as [])),
-}));
+// Class declared inside the factory (vi.mock is hoisted); re-imported below.
+vi.mock('@/app/api/checkout/order-finalize', () => {
+  class PaymentAmountMismatchError extends Error {
+    constructor(
+      public orderId: string,
+      public expectedBani: number,
+      public capturedBani: number,
+    ) {
+      super(`payment amount mismatch for order ${orderId}`);
+      this.name = 'PaymentAmountMismatchError';
+    }
+  }
+  return {
+    markOrderPaidAndDispatch: (...args: unknown[]) => markOrderPaidAndDispatchMock(...(args as [])),
+    markOrderPaymentFailed: (...args: unknown[]) => markOrderPaymentFailedMock(...(args as [])),
+    PaymentAmountMismatchError,
+  };
+});
 
 // Mock the adapter so we control verifyWebhook output without real Bearer checks
 vi.mock('@hir/integration-core', async (importOriginal) => {
@@ -99,6 +113,7 @@ vi.mock('@hir/integration-core', async (importOriginal) => {
 vi.mock('@sentry/nextjs');
 
 import { vivaAdapter } from '@hir/integration-core';
+import { PaymentAmountMismatchError } from '@/app/api/checkout/order-finalize';
 import { GET, POST } from './route';
 
 const verifyWebhookMock = vi.mocked(vivaAdapter.verifyWebhook);
@@ -204,10 +219,31 @@ describe('POST /api/webhooks/viva', () => {
     const res = await POST(makePostReq(JSON.stringify({ EventTypeId: 1796 })));
     expect(res.status).toBe(200);
     expect(markOrderPaidAndDispatchMock).toHaveBeenCalledOnce();
-    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID);
+    // Now passes the captured amount so order-finalize can validate it (B1).
+    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID, 10000);
     expect(markOrderPaymentFailedMock).not.toHaveBeenCalled();
     expect(pspPaymentsUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'CAPTURED' }),
+    );
+  });
+
+  it('amount mismatch → order NOT marked paid, psp row set FAILED, 200 amount_mismatch', async () => {
+    verifyWebhookMock.mockResolvedValue({
+      kind: 'payment.captured',
+      providerRef: PROVIDER_REF,
+      amountBani: 100, // gateway reports 1 RON…
+      eventId: 'txn-mismatch',
+    });
+    // …but order-finalize knows the order was for 100 RON and rejects it.
+    markOrderPaidAndDispatchMock.mockRejectedValueOnce(
+      new PaymentAmountMismatchError(ORDER_ID, 10000, 100),
+    );
+    const res = await POST(makePostReq(JSON.stringify({ EventTypeId: 1796 })));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { received: boolean; amount_mismatch?: boolean };
+    expect(json.amount_mismatch).toBe(true);
+    expect(pspPaymentsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'FAILED' }),
     );
   });
 

@@ -21,6 +21,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import {
   markOrderPaidAndDispatch,
   markOrderPaymentFailed,
+  PaymentAmountMismatchError,
 } from '@/app/api/checkout/order-finalize';
 
 export const runtime = 'nodejs';
@@ -123,15 +124,47 @@ export async function POST(req: Request) {
           .eq('status', row.status)
           .select('id');
         if (claim.data && claim.data.length > 0) {
-          await markOrderPaidAndDispatch(row.order_id);
-          reconciled++;
-          results.push({ orderId: row.order_id, outcome: 'reconciled_paid' });
-          Sentry.addBreadcrumb({
-            category: 'cron.reconcile_payments',
-            message: 'order.reconciled_paid',
-            level: 'info',
-            data: { orderId: row.order_id, provider: row.provider },
-          });
+          try {
+            // Pass the amount Netopia reports so a short/partial capture is
+            // rejected before the order is marked PAID (security B1).
+            await markOrderPaidAndDispatch(row.order_id, statusResult.amountBani);
+            reconciled++;
+            results.push({ orderId: row.order_id, outcome: 'reconciled_paid' });
+            Sentry.addBreadcrumb({
+              category: 'cron.reconcile_payments',
+              message: 'order.reconciled_paid',
+              level: 'info',
+              data: { orderId: row.order_id, provider: row.provider },
+            });
+          } catch (finalizeErr) {
+            if (finalizeErr instanceof PaymentAmountMismatchError) {
+              // Move to FAILED (only terminal non-paid status the CHECK
+              // constraint allows) so the order is not treated as paid, and
+              // surface loudly. Do NOT count as reconciled. The Sentry event +
+              // log carry the real amount_mismatch reason.
+              await sb
+                .from('psp_payments')
+                .update({ status: 'FAILED', updated_at: new Date().toISOString() })
+                .eq('id', row.id);
+              console.error('[cron/reconcile-payments] amount mismatch — order NOT marked paid', {
+                orderId: finalizeErr.orderId,
+                expectedBani: finalizeErr.expectedBani,
+                capturedBani: finalizeErr.capturedBani,
+              });
+              Sentry.captureException(finalizeErr, {
+                tags: { subsystem: 'cron.reconcile_payments', side_effect: 'amount_mismatch' },
+                extra: {
+                  orderId: finalizeErr.orderId,
+                  expectedBani: finalizeErr.expectedBani,
+                  capturedBani: finalizeErr.capturedBani,
+                },
+                fingerprint: ['cron.reconcile_payments.amount_mismatch'],
+              });
+              results.push({ orderId: row.order_id, outcome: 'amount_mismatch' });
+            } else {
+              throw finalizeErr;
+            }
+          }
         } else {
           results.push({ orderId: row.order_id, outcome: 'race_lost' });
         }
