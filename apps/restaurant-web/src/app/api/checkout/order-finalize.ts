@@ -7,6 +7,56 @@ import {
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
 
+/** Raised when a PSP reports a captured amount that doesn't match the amount
+ *  the order was created for. The caller must NOT mark the order paid. */
+export class PaymentAmountMismatchError extends Error {
+  constructor(
+    readonly orderId: string,
+    readonly expectedBani: number,
+    readonly capturedBani: number,
+  ) {
+    super(
+      `payment amount mismatch for order ${orderId}: expected ${expectedBani} bani, captured ${capturedBani} bani`,
+    );
+    this.name = 'PaymentAmountMismatchError';
+  }
+}
+
+/**
+ * Security invariant (2026-07-27): before flipping an order to PAID we confirm
+ * the PSP actually captured the amount the order was created for. Adapters
+ * already parse the captured amount (`event.amountBani`) and intent-creation
+ * stores the expected amount in `psp_payments.amount_bani` — but nothing
+ * downstream compared them, so a partial/short capture (or a manipulated
+ * gateway/sandbox response) would mark the order fully PAID and dispatch it.
+ *
+ * Callers pass the amount they observed from the PSP. We look up the expected
+ * amount and throw PaymentAmountMismatchError on any disagreement. When the
+ * caller can't supply an amount (e.g. legacy/COD paths) we skip the check —
+ * this only hardens the card path where a captured amount is available.
+ * Returns silently when amounts match or no expected row exists to compare.
+ */
+async function assertCapturedAmountMatches(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  orderId: string,
+  capturedAmountBani: number | null | undefined,
+): Promise<void> {
+  if (capturedAmountBani == null) return; // nothing to compare against
+  const { data: pspRow } = await admin
+    .from('psp_payments')
+    .select('amount_bani')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const expected = pspRow?.amount_bani;
+  if (typeof expected !== 'number') return; // no expected amount on file — skip
+  if (expected !== capturedAmountBani) {
+    throw new PaymentAmountMismatchError(orderId, expected, capturedAmountBani);
+  }
+}
+
 /**
  * Idempotent: marks a paid order as CONFIRMED and (when the env is wired)
  * dispatches it to the courier app. Safe to call multiple times — the
@@ -15,8 +65,16 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
  * Card flow: this is called after payment_intent.succeeded.
  * COD flow: this is NOT called automatically — the order stays PENDING/UNPAID
  * until the admin marks it paid post-delivery (separate action).
+ *
+ * `capturedAmountBani` (optional): the amount the PSP reported capturing. When
+ * provided, it is validated against `psp_payments.amount_bani` before the order
+ * is marked PAID — a mismatch throws PaymentAmountMismatchError and the order
+ * is left untouched. Omit for paths with no PSP amount (COD, manual).
  */
-export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
+export async function markOrderPaidAndDispatch(
+  orderId: string,
+  capturedAmountBani?: number | null,
+): Promise<void> {
   const admin = getSupabaseAdmin();
 
   const { data: existing } = await admin
@@ -28,6 +86,15 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
   if (existing.payment_status === 'PAID' && existing.status !== 'PENDING') {
     return; // already finalized
   }
+  // B2 (2026-07-27) — never mark a terminally-cancelled order as PAID. A late
+  // reconciliation for an order the customer/admin already cancelled must not
+  // silently flip it back to a paid state (the money question there is a
+  // refund, handled separately). CANCELLED is terminal for the payment flag.
+  if (existing.status === 'CANCELLED') {
+    return;
+  }
+  // B1 — validate the captured amount BEFORE any state change.
+  await assertCapturedAmountMatches(admin, orderId, capturedAmountBani);
 
   // 2026-07-27 — a late-arriving payment confirmation (webhook delay, or the
   // /api/cron/reconcile-payments fallback for Netopia sandbox's known

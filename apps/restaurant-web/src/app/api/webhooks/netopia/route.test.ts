@@ -76,10 +76,26 @@ vi.mock('@/lib/supabase-admin', () => ({
 const markOrderPaidAndDispatchMock = vi.fn(async () => undefined);
 const markOrderPaymentFailedMock = vi.fn(async () => undefined);
 
-vi.mock('@/app/api/checkout/order-finalize', () => ({
-  markOrderPaidAndDispatch: (...args: unknown[]) => markOrderPaidAndDispatchMock(...(args as [])),
-  markOrderPaymentFailed: (...args: unknown[]) => markOrderPaymentFailedMock(...(args as [])),
-}));
+// The error class is declared INSIDE the mock factory (vi.mock is hoisted, so
+// a top-level class isn't in scope yet). We re-derive a reference below via the
+// mocked module for use in test bodies.
+vi.mock('@/app/api/checkout/order-finalize', () => {
+  class PaymentAmountMismatchError extends Error {
+    constructor(
+      public orderId: string,
+      public expectedBani: number,
+      public capturedBani: number,
+    ) {
+      super(`payment amount mismatch for order ${orderId}`);
+      this.name = 'PaymentAmountMismatchError';
+    }
+  }
+  return {
+    markOrderPaidAndDispatch: (...args: unknown[]) => markOrderPaidAndDispatchMock(...(args as [])),
+    markOrderPaymentFailed: (...args: unknown[]) => markOrderPaymentFailedMock(...(args as [])),
+    PaymentAmountMismatchError,
+  };
+});
 
 // Mock the adapter so we control verifyWebhook output without real HMAC
 vi.mock('@hir/integration-core', async (importOriginal) => {
@@ -99,6 +115,7 @@ vi.mock('@hir/integration-core', async (importOriginal) => {
 vi.mock('@sentry/nextjs');
 
 import { netopiaAdapter } from '@hir/integration-core';
+import { PaymentAmountMismatchError } from '@/app/api/checkout/order-finalize';
 import { POST } from './route';
 
 const verifyWebhookMock = vi.mocked(netopiaAdapter.verifyWebhook);
@@ -174,7 +191,8 @@ describe('POST /api/webhooks/netopia', () => {
     const json = (await res.json()) as { received: boolean };
     expect(json.received).toBe(true);
     expect(markOrderPaidAndDispatchMock).toHaveBeenCalledOnce();
-    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID);
+    // Now passes the captured amount so order-finalize can validate it (B1).
+    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID, 5000);
     expect(markOrderPaymentFailedMock).not.toHaveBeenCalled();
     expect(pspPaymentsUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'CAPTURED' }),
@@ -190,9 +208,30 @@ describe('POST /api/webhooks/netopia', () => {
     });
     const res = await POST(makeReq(JSON.stringify({ payment: { ntpID: PROVIDER_REF, status: 3 } })));
     expect(res.status).toBe(200);
-    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID);
+    expect(markOrderPaidAndDispatchMock).toHaveBeenCalledWith(ORDER_ID, 5000);
     expect(pspPaymentsUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'CAPTURED' }),
+    );
+  });
+
+  it('amount mismatch → order NOT marked paid, psp row set FAILED, 200 amount_mismatch', async () => {
+    verifyWebhookMock.mockResolvedValue({
+      kind: 'payment.captured',
+      providerRef: PROVIDER_REF,
+      amountBani: 100, // gateway reports 1 RON…
+      eventId: 'evt-mismatch',
+    });
+    // …but order-finalize knows the order was for 50 RON and rejects it.
+    markOrderPaidAndDispatchMock.mockRejectedValueOnce(
+      new PaymentAmountMismatchError(ORDER_ID, 5000, 100),
+    );
+    const res = await POST(makeReq(JSON.stringify({ payment: { ntpID: PROVIDER_REF, status: 5 } })));
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { received: boolean; amount_mismatch?: boolean };
+    expect(json.amount_mismatch).toBe(true);
+    // psp row rolled to FAILED (not left CAPTURED), so the order is never paid.
+    expect(pspPaymentsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'FAILED' }),
     );
   });
 

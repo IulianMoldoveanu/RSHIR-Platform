@@ -24,6 +24,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import {
   markOrderPaidAndDispatch,
   markOrderPaymentFailed,
+  PaymentAmountMismatchError,
 } from '@/app/api/checkout/order-finalize';
 
 export const runtime = 'nodejs';
@@ -138,7 +139,38 @@ export async function POST(req: Request) {
           return NextResponse.json({ received: true, duplicate: true });
         }
         Sentry.addBreadcrumb({ category: 'webhook.viva', message: 'order.marked_paid', level: 'info', data: { orderId: pspRow.orderId } });
-        await markOrderPaidAndDispatch(pspRow.orderId);
+        try {
+          // Pass the captured amount so order-finalize rejects a short/partial
+          // capture BEFORE marking the order PAID (security B1).
+          await markOrderPaidAndDispatch(pspRow.orderId, event.amountBani);
+        } catch (finalizeErr) {
+          if (finalizeErr instanceof PaymentAmountMismatchError) {
+            // FAILED is the only terminal non-paid status the CHECK constraint
+            // allows; the Sentry event + log carry the real amount_mismatch reason.
+            await sb
+              .from('psp_payments')
+              .update({ status: 'FAILED', updated_at: new Date().toISOString() })
+              .eq('provider', 'viva')
+              .eq('provider_ref', event.providerRef);
+            console.error('[webhooks/viva] payment amount mismatch — order NOT marked paid', {
+              orderId: finalizeErr.orderId,
+              expectedBani: finalizeErr.expectedBani,
+              capturedBani: finalizeErr.capturedBani,
+            });
+            Sentry.captureException(finalizeErr, {
+              tags: { subsystem: 'webhook.viva', side_effect: 'amount_mismatch' },
+              extra: {
+                orderId: finalizeErr.orderId,
+                expectedBani: finalizeErr.expectedBani,
+                capturedBani: finalizeErr.capturedBani,
+                providerRef: event.providerRef,
+              },
+              fingerprint: ['webhook.viva.amount_mismatch'],
+            });
+            return NextResponse.json({ received: true, amount_mismatch: true });
+          }
+          throw finalizeErr;
+        }
         Sentry.addBreadcrumb({ category: 'webhook.viva', message: 'dispatch.triggered', level: 'info', data: { orderId: pspRow.orderId } });
       } else if (event.kind === 'payment.failed') {
         await markOrderPaymentFailed(pspRow.orderId);
