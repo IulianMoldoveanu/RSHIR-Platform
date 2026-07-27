@@ -300,10 +300,10 @@ export default async function StorefrontHomePage() {
         reservationsEnabled={reservationsEnabled}
         loyaltyPoints={loyalty?.points ?? null}
         rating={rating}
-        minOrderRon={
-          typeof tenant.settings.min_order_ron === 'number' && tenant.settings.min_order_ron > 0
-            ? Number(tenant.settings.min_order_ron)
-            : 0
+        freeDeliveryEverywhere={
+          typeof tenant.settings.min_order_ron === 'number' &&
+          tenant.settings.min_order_ron > 0 &&
+          freeDeliveryThresholdRon === 0
         }
         freeDeliveryThresholdRon={freeDeliveryThresholdRon}
         todayOrderCount={todayOrderCount}
