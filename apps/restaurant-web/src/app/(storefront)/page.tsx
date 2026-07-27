@@ -7,11 +7,11 @@ import { EmptyState } from '@/components/storefront/empty-state';
 import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
 import { brandingFor, resolveTenantFromHost, tenantBaseUrl, type TenantSettings } from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
-import { getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
+import { getMenuBrands, getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
-import { MenuList } from '@/components/storefront/menu-list';
+import { BrandAwareMenu } from '@/components/storefront/brand-aware-menu';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
@@ -195,8 +195,9 @@ export default async function StorefrontHomePage() {
   if (coverUrl) {
     ReactDOM.preload(coverUrl, { as: 'image', fetchPriority: 'high' });
   }
-  const [menu, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
+  const [menu, brands, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
     getMenuByTenant(tenant.id),
+    getMenuBrands(tenant.id),
     getReviewSummary(tenant.id),
     getTodayOrderCount(tenant.id),
     isReservationsEnabled(tenant.id),
@@ -374,7 +375,7 @@ export default async function StorefrontHomePage() {
           </EmptyState>
         </div>
       ) : (
-        <MenuList categories={menu} locale={locale} />
+        <BrandAwareMenu categories={menu} brands={brands} locale={locale} />
       )}
       {menu.length > 0 && (
         <section className="mx-auto mt-8 max-w-2xl px-4">

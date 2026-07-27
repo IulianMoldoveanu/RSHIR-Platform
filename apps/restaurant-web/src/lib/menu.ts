@@ -60,6 +60,21 @@ export type MenuCategory = {
   name: string;
   sort_order: number;
   items: MenuItemWithModifiers[];
+  /** Null for tenants that don't use the multi-brand menu feature (the vast
+   *  majority — one tenant, one brand, no selector rendered). Set when the
+   *  category belongs to one of the tenant's restaurant_menu_brands rows
+   *  (e.g. Delivery House: one kitchen, several customer-facing brands). */
+  menu_brand_id: string | null;
+};
+
+export type MenuBrand = {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
+  sort_order: number;
 };
 
 const ITEM_COLS =
@@ -130,7 +145,7 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
   const [catsRes, itemsRes, popularRanks] = await Promise.all([
     supabase
       .from('restaurant_menu_categories')
-      .select('id, name, sort_order')
+      .select('id, name, sort_order, menu_brand_id')
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('sort_order'),
@@ -142,7 +157,12 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     loadPopularRanks(tenantId),
   ]);
 
-  const cats = (catsRes.data ?? []) as Array<{ id: string; name: string; sort_order: number }>;
+  const cats = (catsRes.data ?? []) as Array<{
+    id: string;
+    name: string;
+    sort_order: number;
+    menu_brand_id: string | null;
+  }>;
   const rawItems = (itemsRes.data ?? []) as Array<
     Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
   >;
@@ -288,7 +308,25 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     name: c.name,
     sort_order: c.sort_order,
     items: itemsByCat.get(c.id) ?? [],
+    menu_brand_id: c.menu_brand_id,
   }));
+}
+
+/**
+ * Returns the tenant's active menu brands (sorted). Empty for the vast
+ * majority of tenants — one physical location, one brand, no selector UI.
+ * Non-empty only for multi-brand tenants like Delivery House (one kitchen,
+ * several customer-facing restaurant brands sharing one cart/checkout).
+ */
+export async function getMenuBrands(tenantId: string): Promise<MenuBrand[]> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from('restaurant_menu_brands')
+    .select('id, slug, name, tagline, logo_url, cover_url, sort_order')
+    .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+    .order('sort_order');
+  return (data ?? []) as MenuBrand[];
 }
 
 export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem[]> {
