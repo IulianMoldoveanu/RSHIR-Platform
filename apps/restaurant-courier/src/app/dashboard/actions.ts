@@ -651,13 +651,24 @@ export async function updateAvatarUrlAction(url: string | null): Promise<void> {
     throw new Error('avatar-url-rejected');
   }
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data, error } = await admin
     .from('courier_profiles')
     .update({ avatar_url: url })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .select('user_id');
   if (error) {
     console.error('[updateAvatarUrlAction] DB update failed', { userId, error });
     throw new Error(`avatar-save-failed: ${error.message}`);
+  }
+  // UPDATE with no matching row is NOT an error in Postgres — it succeeds
+  // silently with 0 rows affected. Without this check, a courier whose
+  // auth user has no courier_profiles row (e.g. never finished onboarding)
+  // sees the upload "succeed" client-side, then watches it vanish on the
+  // next page load — exactly what was reported live. Surface it as a real
+  // error instead of pretending the save worked.
+  if (!data || data.length === 0) {
+    console.error('[updateAvatarUrlAction] no courier_profiles row for user', { userId });
+    throw new Error('avatar-save-failed: no courier profile found for this account');
   }
   revalidatePath('/dashboard/settings');
   revalidatePath('/dashboard');
