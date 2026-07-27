@@ -261,8 +261,14 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 ? undefined
                 : tapPress
             }
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
-            className="flex h-12 w-full items-center justify-between rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            style={{
+              paddingBottom: 'env(safe-area-inset-bottom, 0)',
+              backgroundColor:
+                !item.is_available || !groupValidation.allSatisfied
+                  ? undefined
+                  : 'var(--hir-brand, #7c3aed)',
+            }}
+            className="flex h-12 w-full items-center justify-between rounded-full px-5 text-base font-semibold text-white shadow-sm transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             <span>
               {!item.is_available
@@ -343,9 +349,17 @@ function GroupSection({
               <motion.label
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                 transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+                style={
+                  isSelected
+                    ? {
+                        borderColor: 'var(--hir-brand, #7c3aed)',
+                        backgroundColor: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 8%, white)',
+                      }
+                    : undefined
+                }
                 className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5 transition-colors ${
                   isSelected
-                    ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-200'
+                    ? 'ring-1 ring-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_25%,white)]'
                     : 'border-zinc-200 bg-white hover:bg-zinc-50'
                 }`}
               >
@@ -355,7 +369,7 @@ function GroupSection({
                     name={`group-${group.id}`}
                     checked={isSelected}
                     onChange={() => onToggle(opt.id)}
-                    className="h-4 w-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                    className="h-4 w-4 rounded border-zinc-300 accent-[var(--hir-brand,#7c3aed)]"
                   />
                   {opt.name}
                 </span>

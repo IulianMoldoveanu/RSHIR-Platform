@@ -103,7 +103,8 @@ export function CategoryTabs({
               {active ? (
                 <motion.span
                   layoutId="category-tab-active"
-                  className="absolute inset-0 rounded-full bg-zinc-900"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: 'var(--hir-brand, #7c3aed)' }}
                   transition={{
                     type: 'spring',
                     stiffness: 500,
