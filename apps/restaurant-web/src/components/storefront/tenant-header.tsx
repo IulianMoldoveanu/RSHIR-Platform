@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Banknote, CalendarCheck, Clock, Flame, Gift, Phone, Star, Truck, UserRound } from 'lucide-react';
+import { CalendarCheck, Clock, Flame, Gift, Phone, Star, Truck, UserRound } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
@@ -12,7 +12,11 @@ type TenantHeaderProps = {
   locale: Locale;
   showAccountLink?: boolean;
   rating?: { average: number; count: number } | null;
-  minOrderRon?: number;
+  /** True when the tenant has a minimum order but no free-delivery
+   *  threshold — i.e. delivery is free everywhere, unconditionally.
+   *  Minimum order itself is intentionally not surfaced in the header;
+   *  it only shows up in the cart once the customer is actually ordering. */
+  freeDeliveryEverywhere?: boolean;
   freeDeliveryThresholdRon?: number;
   deliveryEtaMinMinutes?: number;
   deliveryEtaMaxMinutes?: number;
@@ -44,7 +48,7 @@ export function TenantHeader({
   locale,
   showAccountLink = false,
   rating = null,
-  minOrderRon = 0,
+  freeDeliveryEverywhere = false,
   freeDeliveryThresholdRon = 0,
   deliveryEtaMinMinutes = 0,
   deliveryEtaMaxMinutes = 0,
@@ -200,11 +204,14 @@ export function TenantHeader({
         </div>
       </div>
 
-      {/* Chip strip — ETA · min order · free delivery threshold. Renders
-          only when at least one chip is configured. Each chip has its
-          own icon + tinted bg for visual separation. */}
+      {/* Chip strip — ETA · free delivery. Renders only when at least one
+          chip is configured. Each chip has its own icon + tinted bg for
+          visual separation. Minimum order is intentionally NOT shown here —
+          it only surfaces in the cart/checkout, once the customer is
+          actually building an order (2026-07-27, Iulian: "sa nu apara minim
+          order in storefront. doar cand vrea sa dea checkout"). */}
       {(etaText ||
-        minOrderRon > 0 ||
+        freeDeliveryEverywhere ||
         freeDeliveryThresholdRon > 0 ||
         showTodayPill ||
         (loyaltyPoints !== null && loyaltyPoints > 0)) && (
@@ -232,10 +239,10 @@ export function TenantHeader({
                 {etaText}
               </span>
             )}
-            {minOrderRon > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                <Banknote className="h-3 w-3" aria-hidden />
-                {t(locale, 'header.min_order_template', { amount: formatRon(minOrderRon, locale) })}
+            {freeDeliveryEverywhere && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                <Truck className="h-3 w-3" aria-hidden />
+                {t(locale, 'header.free_delivery_everywhere')}
               </span>
             )}
             {freeDeliveryThresholdRon > 0 && (
