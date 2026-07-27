@@ -19,6 +19,7 @@ import {
 } from '@/lib/newsletter/checkout-optin';
 import { validateRedemption } from '@/lib/loyalty';
 import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from '@/lib/i18n';
+import { normalizeRoPhoneE164 } from '@/lib/checkout/otp';
 import {
   checkIdempotency,
   hashRequestBody,
@@ -187,27 +188,77 @@ export async function POST(req: NextRequest) {
     (Number(q.discountRon) + loyaltyDiscountRon).toFixed(2),
   );
 
-  // Customer (one row per checkout — no auth/dedupe in MVP).
+  // Customer — upsert-by-phone so a returning phone number maps to the
+  // SAME customer row (needed for phone+OTP login and accurate loyalty/
+  // order history) instead of accumulating a duplicate row per checkout.
+  // Guest checkout is unaffected either way — no account is required to
+  // order; this only makes "the same phone" resolve to "the same account"
+  // behind the scenes. Falls back to a plain insert when the phone doesn't
+  // normalize (non-RO / malformed) so checkout never fails because of this.
   // Persist the storefront locale so notify-customer-status emails ship in
   // the customer's chosen language. Default to RO when the cookie is unset.
   const localeCookie = req.cookies.get(LOCALE_COOKIE)?.value;
   const customerLocale = isLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
-  const { data: customer, error: custErr } = await admin
-    .from('customers')
-    .insert({
-      tenant_id: tenant.id,
-      first_name: parsed.data.customer.firstName,
-      last_name: parsed.data.customer.lastName,
-      phone: parsed.data.customer.phone,
-      email: parsed.data.customer.email || null,
-      locale: customerLocale,
-    } as never)
-    .select('id')
-    .single();
+  const normalizedPhone = normalizeRoPhoneE164(parsed.data.customer.phone);
+  let customer: { id: string } | null = null;
+  let custErr: { message: string } | null = null;
+  if (normalizedPhone) {
+    const { data: existing } = await admin
+      .from('customers')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('phone', normalizedPhone)
+      .maybeSingle();
+    if (existing) {
+      const { data: updated, error: updErr } = await admin
+        .from('customers')
+        .update({
+          first_name: parsed.data.customer.firstName,
+          last_name: parsed.data.customer.lastName,
+          email: parsed.data.customer.email || null,
+          locale: customerLocale,
+        } as never)
+        .eq('id', existing.id)
+        .select('id')
+        .single();
+      customer = updated;
+      custErr = updErr;
+    } else {
+      const { data: inserted, error: insErr } = await admin
+        .from('customers')
+        .insert({
+          tenant_id: tenant.id,
+          first_name: parsed.data.customer.firstName,
+          last_name: parsed.data.customer.lastName,
+          phone: normalizedPhone,
+          email: parsed.data.customer.email || null,
+          locale: customerLocale,
+        } as never)
+        .select('id')
+        .single();
+      customer = inserted;
+      custErr = insErr;
+    }
+  } else {
+    const { data: inserted, error: insErr } = await admin
+      .from('customers')
+      .insert({
+        tenant_id: tenant.id,
+        first_name: parsed.data.customer.firstName,
+        last_name: parsed.data.customer.lastName,
+        phone: parsed.data.customer.phone,
+        email: parsed.data.customer.email || null,
+        locale: customerLocale,
+      } as never)
+      .select('id')
+      .single();
+    customer = inserted;
+    custErr = insErr;
+  }
   if (custErr || !customer) {
     // SECURITY: don't echo DB error.message to public callers — leaks
     // constraint names, columns, and bound values. Log server-side.
-    console.error('[checkout/intent] customer insert failed', custErr?.message);
+    console.error('[checkout/intent] customer upsert failed', custErr?.message);
     return NextResponse.json({ error: 'customer_insert_failed' }, { status: 500 });
   }
 
