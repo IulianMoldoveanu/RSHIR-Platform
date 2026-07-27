@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import L from 'leaflet';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CourierMarker } from '@hir/ui';
+import { CourierMarker, type Vehicle } from '@hir/ui';
 
 const defaultIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -18,24 +18,43 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+// courier_profiles.vehicle_type is stored uppercase ('BIKE'/'SCOOTER'/'CAR');
+// CourierMarker's Vehicle type is lowercase and has no 'scooter' — maps to
+// 'moto', the closest visual equivalent. Falls back to 'bike' only when the
+// value is missing/unrecognized (never silently wrong — 'bike' was the old
+// hardcoded default that caused the "shows bike, delivers by car" bug).
+function toMarkerVehicle(raw: string | null | undefined): Vehicle {
+  switch (raw) {
+    case 'CAR':
+      return 'car';
+    case 'SCOOTER':
+      return 'moto';
+    case 'BIKE':
+      return 'bike';
+    default:
+      return 'bike';
+  }
+}
+
 // Build courier divIcon using CourierMarker. This module is lazy-loaded via
 // next/dynamic with ssr:false so it only runs client-side.
-// vehicle: 'bike' — no vehicle_type data on tracking page, default to bike.
 // animate: true — single courier on customer tracking deserves the pulse halo.
-const courierIcon = L.divIcon({
-  className: '',
-  html: renderToStaticMarkup(
-    React.createElement(CourierMarker, {
-      vehicle: 'bike',
-      status: 'online',
-      heading: 0,
-      animate: true,
-      size: 64,
-    }),
-  ),
-  iconSize: [64, 80],
-  iconAnchor: [32, 80],
-});
+function buildCourierIcon(vehicle: Vehicle): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: renderToStaticMarkup(
+      React.createElement(CourierMarker, {
+        vehicle,
+        status: 'online',
+        heading: 0,
+        animate: true,
+        size: 64,
+      }),
+    ),
+    iconSize: [64, 80],
+    iconAnchor: [32, 80],
+  });
+}
 
 type LatLng = { lat: number; lng: number };
 type MaybeLatLng = { lat: number | null; lng: number | null };
@@ -63,15 +82,21 @@ export function CourierMap({
   dropoff,
   courier,
   status,
+  vehicleType,
 }: {
   pickup: MaybeLatLng;
   dropoff: MaybeLatLng;
   courier: LatLng | null;
   status: string;
+  vehicleType?: string | null;
 }) {
   const pickupPt = isPoint(pickup) ? pickup : null;
   const dropoffPt = isPoint(dropoff) ? dropoff : null;
   const isAfterPickup = status === 'PICKED_UP' || status === 'IN_TRANSIT';
+  const courierIcon = useMemo(
+    () => buildCourierIcon(toMarkerVehicle(vehicleType)),
+    [vehicleType],
+  );
 
   const points = useMemo(() => {
     const arr: LatLng[] = [];
