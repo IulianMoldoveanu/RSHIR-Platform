@@ -238,6 +238,39 @@ export async function assignOrderToCourierAction(
     return { ok: false, error: 'Curierul este suspendat.' };
   }
 
+  // Parallel-order cap (same check as the self-pickup route — PR #717's
+  // max_parallel_orders was previously only enforced there, so a dispatcher
+  // could manually stack a rider past their own configured limit). NULL =
+  // unlimited.
+  const { data: courierLimitRow } = await (admin as unknown as {
+    from: (t: string) => {
+      select: (cols: string) => {
+        eq: (col: string, val: string) => {
+          maybeSingle: () => Promise<{ data: { max_parallel_orders: number | null } | null }>;
+        };
+      };
+    };
+  })
+    .from('courier_profiles')
+    .select('max_parallel_orders')
+    .eq('user_id', courierUserId)
+    .maybeSingle();
+
+  if (courierLimitRow?.max_parallel_orders != null) {
+    const { count: activeCount } = await admin
+      .from('courier_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_courier_user_id', courierUserId)
+      .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+
+    if ((activeCount ?? 0) >= courierLimitRow.max_parallel_orders) {
+      return {
+        ok: false,
+        error: `Curierul are deja ${activeCount} comenzi active (limita: ${courierLimitRow.max_parallel_orders}).`,
+      };
+    }
+  }
+
   // Update + gate on assignable pre-state. Without the status + assignment
   // filters, a stale tab could reassign an in-flight or already-DELIVERED
   // order back to ACCEPTED, breaking the state machine and the audit trail.
@@ -571,14 +604,19 @@ export async function autoAssignOrderAction(
               c: string,
               v: string,
             ) => Promise<{
-              data: Array<{ user_id: string; full_name: string | null; status: string }>;
+              data: Array<{
+                user_id: string;
+                full_name: string | null;
+                status: string;
+                max_parallel_orders: number | null;
+              }>;
             }>;
           };
         };
       }
     )
       .from('courier_profiles')
-      .select('user_id, full_name, status')
+      .select('user_id, full_name, status, max_parallel_orders')
       .eq('fleet_id', ctx.fleetId),
   ]);
 
@@ -667,10 +705,15 @@ export async function autoAssignOrderAction(
   for (const c of couriers) {
     if (c.status === 'SUSPENDED') continue;
     if (!latestShift.has(c.user_id)) continue;
+    const activeLoad = inProgress.get(c.user_id) ?? 0;
+    // Parallel-order cap (same limit self-pickup enforces) — a rider at or
+    // over their configured max is not a valid auto-assign candidate at all,
+    // not just a low-scoring one. NULL = unlimited.
+    if (c.max_parallel_orders != null && activeLoad >= c.max_parallel_orders) continue;
     const fix = latestShift.get(c.user_id)!;
     scoringCouriers.push({
       userId: c.user_id,
-      activeLoad: inProgress.get(c.user_id) ?? 0,
+      activeLoad,
       lastLat: fix.lat,
       lastLng: fix.lng,
     });
