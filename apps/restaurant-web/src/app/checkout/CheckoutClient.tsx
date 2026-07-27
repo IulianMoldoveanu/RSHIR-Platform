@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ShoppingBag, TriangleAlert } from 'lucide-react';
+import { ChevronDown, LocateFixed, ShoppingBag, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
@@ -206,6 +206,7 @@ export function CheckoutClient(props: {
   // we invalidate to force a fresh geocode on the next quote attempt.
   const [coordsForText, setCoordsForText] = useState<string>('');
   const [geocoding, setGeocoding] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const currentAddressKey = `${line1.trim()}|${line2.trim()}|${city.trim()}|${postalCode.trim()}`;
   useEffect(() => {
@@ -389,6 +390,57 @@ export function CheckoutClient(props: {
     } finally {
       setGeocoding(false);
     }
+  }
+
+  // Browser geolocation → reverse-geocode → prefill address fields. Fully
+  // optional convenience on top of manual entry; any failure just leaves
+  // the form as-is with an inline error, same UX contract as handleGeocode.
+  function handleUseMyLocation() {
+    setError(null);
+    if (!('geolocation' in navigator)) {
+      setError(t(locale, 'checkout.err_geolocation_unsupported'));
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch('/api/checkout/reverse-geocode', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            }),
+          });
+          if (!res.ok) {
+            setError(t(locale, 'checkout.err_geolocation_not_found'));
+            return;
+          }
+          const data = (await res.json()) as {
+            line1: string;
+            city: string;
+            postalCode: string;
+          };
+          if (data.line1) setLine1(data.line1);
+          if (data.city) setCity(data.city);
+          if (data.postalCode) setPostalCode(data.postalCode);
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setCoordsForText(
+            `${data.line1 ?? line1}|${line2}|${data.city ?? city}|${data.postalCode ?? postalCode}`,
+          );
+        } catch {
+          setError(t(locale, 'checkout.err_geolocation_not_found'));
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setError(t(locale, 'checkout.err_geolocation_denied'));
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
   }
 
   async function handleRequestOtp() {
@@ -908,7 +960,22 @@ export function CheckoutClient(props: {
               </div>
             ) : null}
             <Field label={t(locale, 'checkout.field_street')}>
-              <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
+              <div className="flex items-center gap-2">
+                <input className={`${inputCls} flex-1`} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                  aria-label={t(locale, 'checkout.use_my_location')}
+                  title={t(locale, 'checkout.use_my_location')}
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+                >
+                  <LocateFixed className={`h-4 w-4 ${locating ? 'animate-pulse' : ''}`} aria-hidden />
+                  <span className="hidden sm:inline">
+                    {locating ? t(locale, 'checkout.locating') : t(locale, 'checkout.use_my_location')}
+                  </span>
+                </button>
+              </div>
             </Field>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="text-xs font-medium text-zinc-700">
