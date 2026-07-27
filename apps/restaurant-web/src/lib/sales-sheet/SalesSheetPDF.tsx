@@ -269,7 +269,7 @@ function AudienceBlock({ audience }: { audience: SalesSheetAudience }) {
           Conduci o flotă de curieri? Câștigă 25% Y1 + 20% recurring.
         </Text>
         <Text style={styles.audienceBody}>
-          Fiecare restaurant adus pe HIRforYOU plătește 2 lei / comandă. Tu
+          Fiecare restaurant adus pe HIRforYOU plătește un abonament lunar. Tu
           primești 25% din MRR în primul an și 20% recurring după aceea.
           Curierii flotei tale primesc dispatch direct prin aplicația HIR
           Curier — fără app nou de instalat. Plată trimestrial pe factură SRL.
@@ -290,13 +290,13 @@ function AudienceBlock({ audience }: { audience: SalesSheetAudience }) {
           Import rapid meniu (GloriaFood, WooCommerce, CSV) sau introducere manuală.
           Primești pagina ta de comenzi cu logo + brand propriu, fără
           cross-promote la concurenți. Datele clienților rămân la tine — CRM,
-          SMS, email, loyalty. Plătești 2 lei / comandă procesată online și atât.
+          SMS, email, loyalty. Plătești un abonament lunar simplu, fără comision pe comandă.
         </Text>
       </View>
     );
   }
 
-  // reseller — quick ROI calculator. 5 restaurante × 800 ord/lună × 2 lei × 25%.
+  // reseller — commission is 25% Y1 / 20% recurring of each restaurant's MRR.
   return (
     <View style={styles.audience}>
       <Text style={styles.audienceTag}>PENTRU RESELLERI</Text>
@@ -333,7 +333,7 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
             Soluția de comenzi care nu îți ia comision din vânzări.
           </Text>
           <Text style={styles.heroSub}>
-            2 lei flat per comandă. White-label per restaurant. Datele
+            Abonament lunar, fără comision pe comandă. White-label per restaurant. Datele
             clientului rămân la tine. Construit în România.
           </Text>
         </View>
@@ -368,7 +368,7 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
           </View>
           <View style={styles.tr}>
             <Text style={styles.tdFirst}>Comision din vânzare</Text>
-            <Text style={styles.tdHir}>0% (2 lei / comandă flat)</Text>
+            <Text style={styles.tdHir}>0% (abonament lunar)</Text>
             <Text style={styles.td}>~30%</Text>
             <Text style={styles.td}>~50 EUR / lună abonament</Text>
           </View>
@@ -397,11 +397,11 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
         <View style={styles.pricingRow}>
           <View style={styles.pricingCard}>
             <Text style={styles.pricingTag}>SINGURUL PLAN</Text>
-            <Text style={styles.pricingTitle}>2 lei / comandă</Text>
+            <Text style={styles.pricingTitle}>Abonament lunar</Text>
             <Text style={styles.pricingBody}>
-              Tarif flat per comandă livrată. Restaurantul folosește curier
-              propriu, curier HIR sau rețeaua HIR de curieri. Fără abonament,
-              fără setup fee, fără procent din valoare.
+              Tarif fix lunar, fără comision pe comandă. Restaurantul folosește curier
+              propriu, curier HIR sau rețeaua HIR de curieri. Fără setup fee,
+              fără procent din valoare.
             </Text>
           </View>
           <View style={styles.pricingCard}>
@@ -410,8 +410,7 @@ export function SalesSheetDocument({ audience, stats }: SalesSheetProps) {
             <Text style={styles.pricingBody}>
               Pentru primii 50 de vendori onboarded (restaurante, florării, magazine
               de cadouri): implementare, import meniu (GloriaFood/WooCommerce/CSV) și
-              configurare curier — toate gratuite. Plătești doar 2 lei pe comanda
-              procesată, începând cu prima livrare.
+              configurare curier — toate gratuite, începând cu prima livrare.
             </Text>
           </View>
         </View>

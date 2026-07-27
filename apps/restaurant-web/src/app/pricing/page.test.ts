@@ -26,7 +26,7 @@ describe('/pricing JSON-LD render path', () => {
     expect(html).not.toContain('<');
   });
 
-  it('serializes Product @type with Offer + RON pricing', () => {
+  it('serializes Product @type without a published price (subscription figure not locked yet)', () => {
     const html = safeJsonLd(
       pricingProductJsonLd({
         url: 'https://hirforyou.ro/pricing',
@@ -34,8 +34,6 @@ describe('/pricing JSON-LD render path', () => {
       }),
     );
     expect(html).toContain('"@type":"Product"');
-    expect(html).toContain('"@type":"Offer"');
-    expect(html).toContain('"priceCurrency":"RON"');
-    expect(html).toContain('"price":"2.00"');
+    expect(html).not.toContain('"@type":"Offer"');
   });
 });

@@ -24,7 +24,7 @@ const LAST_UPDATED = '2026-05-05';
 
 // Absolute canonical URL — relative `/press` would require `metadataBase`
 // in the root layout, which this app does not set. Match the pattern used
-// by /case-studies/foisorul-a and the rest of the marketing routes.
+// by the rest of the marketing routes.
 const PRIMARY_DOMAIN = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || '';
 const CANONICAL_BASE = PRIMARY_DOMAIN
   ? `https://${PRIMARY_DOMAIN}`
@@ -116,8 +116,8 @@ export default async function PressPage() {
               <strong>HIRforYOU</strong> este platforma all-in-one
               pentru restaurante, florării, magazine de cadouri și alți vendori din România: storefront pentru clienți, panou
               de administrare, aplicație de curier și rețea de livrare —
-              construite să înlocuiască Wolt, Glovo și GloriaFood la un
-              cost previzibil de <strong>2 lei pe comandă procesată online</strong>,
+              construite să înlocuiască Wolt, Glovo și GloriaFood printr-un{' '}
+              <strong>abonament lunar simplu</strong>,
               fără comisioane procentuale. Livrarea este opțională și se
               contractează separat printr-o ofertă personalizată. Lansat în
               Brașov, scalează la nivel național printr-o rețea de afiliați
@@ -132,8 +132,8 @@ export default async function PressPage() {
               <strong>HIRforYOU</strong> is the all-in-one platform
               for Romanian restaurants, florists, gift shops and other vendors: customer storefront, admin dashboard,
               courier app and delivery network — built to replace Wolt, Glovo
-              and GloriaFood at a flat{' '}
-              <strong>2 lei per online order processed</strong> cost, with no
+              and GloriaFood through a{' '}
+              <strong>simple monthly subscription</strong>, with no
               percentage commission. Delivery is optional and contracted
               separately through a tailored offer. Launched in Brașov, scaling
               nationally through an affiliate and fleet-manager network.
@@ -146,7 +146,7 @@ export default async function PressPage() {
           <FactCard label="Fondator" value="Iulian Moldoveanu" />
           <FactCard label="Sediu" value="Brașov, România" />
           <FactCard label="Lansare pilot" value="2026" />
-          <FactCard label="Tarif platformă" value="2 lei / comandă procesată online" />
+          <FactCard label="Tarif platformă" value="Abonament lunar, fără comision" />
         </div>
       </section>
 
@@ -327,13 +327,6 @@ export default async function PressPage() {
           </ul>
 
           <div className="mt-10 flex flex-wrap gap-3">
-            <a
-              href="/case-studies/foisorul-a"
-              className="inline-flex items-center gap-1 rounded-md bg-[#4F46E5] px-4 py-2 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
-            >
-              Studiu de caz: Foișorul A
-              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            </a>
             <a
               href="/features"
               className="inline-flex items-center gap-1 rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"

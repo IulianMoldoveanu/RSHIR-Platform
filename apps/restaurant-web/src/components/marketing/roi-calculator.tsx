@@ -8,8 +8,9 @@
  * Lane MARKETING-ROI (2026-05-06 → enhanced 2026-05-28).
  * Static rendering, no server queries — all math is client-side.
  *
- * Pricing transparency updated per CEO decision 2026-05-28:
- *   - Quotes 2 lei/comandă explicitly (Standard HIR price)
+ * Pricing model updated (subscription, no per-order platform fee — the
+ * subscription figure is not published yet, so this widget no longer
+ * computes a specific HIR platform cost or savings total):
  *   - Quotes Glovo 30% commission explicitly
  *   - Toggles for HIR Curier + Content OS Pro (Hepi)
  *   - Lead capture form → POST /api/marketing/calculator-leads
@@ -23,7 +24,6 @@ import {
   TrendingUp,
   Truck,
   Sparkles,
-  Euro,
 } from 'lucide-react';
 import { useId, useMemo, useState } from 'react';
 
@@ -31,7 +31,6 @@ import { useId, useMemo, useState } from 'react';
 
 const DAYS_PER_MONTH = 30;
 const GLOVO_FEE = 0.3; // 30% comision Glovo/Wolt/Bolt Romania
-const HIR_COST_PER_ORDER = 2; // 2 lei/comandă Standard HIR
 const GLOVO_RIDER_PER_ORDER = 8; // ~8 lei cost rider extern Glovo
 const HIR_RIDER_PER_ORDER = 5; // ~5 lei cost HIR Curier
 const HEPI_MONTHLY_FIX = 49; // lei/lună Content OS Pro
@@ -44,8 +43,6 @@ export type CalcResult = {
   comenziLuna: number;
   venitBrut: number;
   glovoComision: number;
-  hirComision: number;
-  economieComisioane: number;
   economieRider: number;
   hepiRevenueExtra: number;
   hepiCost: number;
@@ -64,8 +61,6 @@ export function calcRoi(
   const venitBrut = comenziLuna * aov;
 
   const glovoComision = venitBrut * GLOVO_FEE;
-  const hirComision = HIR_COST_PER_ORDER * comenziLuna;
-  const economieComisioane = glovoComision - hirComision;
 
   const riderGlovo = GLOVO_RIDER_PER_ORDER * comenziLuna;
   const riderHir = HIR_RIDER_PER_ORDER * comenziLuna;
@@ -75,15 +70,13 @@ export function calcRoi(
   const hepiCost = HEPI_MONTHLY_FIX + HEPI_VARIABLE_RATE * hepiRevenueExtra;
   const hepiNetBenefit = withHepi ? hepiRevenueExtra - hepiCost : 0;
 
-  const totalLuna = economieComisioane + economieRider + hepiNetBenefit;
+  const totalLuna = economieRider + hepiNetBenefit;
   const totalAn = totalLuna * 12;
 
   return {
     comenziLuna,
     venitBrut,
     glovoComision,
-    hirComision,
-    economieComisioane,
     economieRider,
     hepiRevenueExtra,
     hepiCost,
@@ -385,7 +378,7 @@ export function RoiCalculator() {
             />
             <p className="text-xs leading-relaxed text-[#94A3B8]">
               Comision Glovo/Wolt/Bolt România: 30% din valoarea comenzii.
-              HIR Standard: 2 lei / comandă — fix, indiferent de valoare.
+              HIR Standard: abonament lunar fix, fără comision din valoare.
             </p>
           </div>
 
@@ -425,24 +418,7 @@ export function RoiCalculator() {
               unit={`30% × ${formatRon(r.venitBrut)} RON — bani pierduți la Glovo`}
             />
 
-            {/* Card 3 — Cost HIR */}
-            <ResultCard
-              icon={<Euro className="h-4 w-4" aria-hidden />}
-              label="Cost HIR Standard"
-              value={`${formatRon(r.hirComision)} RON`}
-              unit={`2 lei × ${formatRon(r.comenziLuna)} comenzi / lună`}
-            />
-
-            {/* Card 4 — Economie comisioane (accent normal) */}
-            <ResultCard
-              icon={<TrendingUp className="h-4 w-4" aria-hidden />}
-              label="Economie comisioane"
-              value={`${formatRon(r.economieComisioane)} RON / lună`}
-              unit="bani care rămân la dumneavoastră vs Glovo"
-              accent="normal"
-            />
-
-            {/* Card 5 — Economie curier (conditional) */}
+            {/* Card 3 — Economie curier (conditional) */}
             <AnimatePresence initial={false}>
               {withHirCurier && (
                 <motion.div
@@ -608,11 +584,10 @@ export function RoiCalculator() {
         {/* Disclaimer */}
         <p className="mt-8 max-w-3xl text-xs leading-relaxed text-[#94A3B8]">
           * Estimări bazate pe benchmark-uri industrie (comision Glovo/Wolt/Bolt
-          tipic 30%; HIR Standard 2 lei/comandă fix; cost curier extern ~8 lei
-          vs HIR Curier ~5 lei; Hepi minimum 15 comenzi noi/lună din social
-          media). Rezultatele variază în funcție de volumul și specificul
-          restaurantului dumneavoastră. Cifrele nu reprezintă o garanție
-          contractuală.
+          tipic 30%; cost curier extern ~8 lei vs HIR Curier ~5 lei; Hepi
+          minimum 15 comenzi noi/lună din social media). Rezultatele variază
+          în funcție de volumul și specificul restaurantului dumneavoastră.
+          Cifrele nu reprezintă o garanție contractuală.
         </p>
 
         {/* Footer CTA */}
