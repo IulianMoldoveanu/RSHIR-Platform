@@ -63,6 +63,11 @@ export type SmsSendResult =
 export async function sendOtpSms(
   phoneE164: string,
   code: string,
+  // White-label tenants (custom_domain configured) must not have "HIR"
+  // appear in a text message their customer receives — the platform is
+  // invisible infrastructure to them. Defaults to 'HIR' so every existing
+  // call site keeps its current wording unless it opts in with a name.
+  brandName = 'HIR',
 ): Promise<SmsSendResult> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -74,7 +79,7 @@ export async function sendOtpSms(
   const body = new URLSearchParams({
     To: phoneE164,
     From: from,
-    Body: `Codul tau HIR: ${code}. Expira in 5 minute. Nu il transmite nimanui.`,
+    Body: `Codul tau ${brandName}: ${code}. Expira in 5 minute. Nu il transmite nimanui.`,
   });
   const auth = Buffer.from(`${sid}:${token}`).toString('base64');
   let res: Response;

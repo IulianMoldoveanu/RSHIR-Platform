@@ -8,10 +8,11 @@ import { renderEmail, renderButton, escapeHtml, type EmailBrand } from '@/lib/em
 export type ConfirmEmailInput = {
   brand: EmailBrand;
   confirmUrl: string;
+  whiteLabel?: boolean;
 };
 
 export function confirmationEmail(input: ConfirmEmailInput): { subject: string; html: string; text: string } {
-  const { brand, confirmUrl } = input;
+  const { brand, confirmUrl, whiteLabel } = input;
   const subject = `Confirmă-ți abonarea la ${brand.name}`;
   const preheader = `Ultimul pas: confirmă adresa pentru a primi codul de 10% reducere la prima comandă la ${brand.name}.`;
   const bodyHtml = `
@@ -34,6 +35,7 @@ export function confirmationEmail(input: ConfirmEmailInput): { subject: string; 
     preheader,
     title: subject,
     bodyHtml,
+    whiteLabel,
   });
   const text = [
     `Confirmare abonare la ${brand.name}`,
@@ -43,7 +45,7 @@ export function confirmationEmail(input: ConfirmEmailInput): { subject: string; 
     '',
     'Dacă nu dumneavoastră ați cerut acest abonament, ignorați e-mailul.',
     '',
-    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
+    whiteLabel ? brand.name : `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ].join('\n');
   return { subject, html, text };
 }
@@ -55,10 +57,11 @@ export type WelcomeEmailInput = {
   /** Optional storefront URL to deep-link into so the customer can use the
    *  code immediately. When omitted only the code is shown. */
   storefrontUrl?: string | null;
+  whiteLabel?: boolean;
 };
 
 export function welcomeEmail(input: WelcomeEmailInput): { subject: string; html: string; text: string } {
-  const { brand, promoCode, unsubscribeUrl, storefrontUrl } = input;
+  const { brand, promoCode, unsubscribeUrl, storefrontUrl, whiteLabel } = input;
   const subject = `Bun venit la ${brand.name} — codul de 10%`;
   const preheader = `Codul de 10% reducere la prima comandă: ${promoCode}. Aplicați-l la finalizarea comenzii.`;
   const ctaButton = storefrontUrl
@@ -88,6 +91,7 @@ export function welcomeEmail(input: WelcomeEmailInput): { subject: string; html:
     title: subject,
     bodyHtml,
     unsubscribeUrl,
+    whiteLabel,
   });
   const text = [
     `Bun venit la ${brand.name}!`,
@@ -98,7 +102,7 @@ export function welcomeEmail(input: WelcomeEmailInput): { subject: string; html:
     storefrontUrl ? `\nComandă: ${storefrontUrl}` : '',
     '',
     `Dezabonare: ${unsubscribeUrl}`,
-    `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
+    whiteLabel ? brand.name : `— HIR · ${process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro'}`,
   ]
     .filter(Boolean)
     .join('\n');

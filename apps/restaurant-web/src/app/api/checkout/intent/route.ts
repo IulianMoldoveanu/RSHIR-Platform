@@ -401,7 +401,7 @@ export async function POST(req: NextRequest) {
         // (source='checkout', created_at) joined to orders by email.
         await sendCheckoutWelcomeEmail({
           email: customerEmail,
-          tenant: { name: tenant.name, settings: tenant.settings },
+          tenant: { name: tenant.name, settings: tenant.settings, custom_domain: tenant.custom_domain },
           promoCode: ensured.code,
         });
       }

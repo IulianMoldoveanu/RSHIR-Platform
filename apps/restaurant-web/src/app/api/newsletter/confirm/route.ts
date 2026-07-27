@@ -106,6 +106,7 @@ export async function GET(req: NextRequest) {
       brand: { name: tenant.name, logoUrl, brandColor },
       promoCode,
       unsubscribeUrl,
+      whiteLabel: tenant.custom_domain !== null,
     });
     const sent = await sendEmail({ to: row.email, subject: email.subject, html: email.html, text: email.text });
     if (!sent.ok) {

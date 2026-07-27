@@ -96,6 +96,11 @@ export default async function StorefrontLayout({ children }: { children: React.R
   // not HIR chrome). The `hir-embed` class on the wrapper is also a
   // hook for future merchant CSS overrides if we ever expose them.
   const embed = isEmbedMode();
+  // White-label tenants (custom_domain configured — e.g. deliveryhouse.ro)
+  // must never show HIR branding to their end customers: the platform is
+  // invisible infrastructure from the customer's point of view. Same gate
+  // as embed mode, for the same reason.
+  const whiteLabel = tenant.custom_domain !== null;
 
   return (
     <div
@@ -114,8 +119,8 @@ export default async function StorefrontLayout({ children }: { children: React.R
     >
       <StorefrontShell tenantId={tenant.id}>
         {children}
-        {!embed && <HirFooter />}
-        {!embed && (
+        {!embed && !whiteLabel && <HirFooter />}
+        {!embed && !whiteLabel && (
           <PoweredByHirBadge
             tenantSlug={tenant.slug ?? tenant.id}
             enabled={

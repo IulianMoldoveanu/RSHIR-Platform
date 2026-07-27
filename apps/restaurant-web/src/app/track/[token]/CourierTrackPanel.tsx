@@ -132,7 +132,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
     return null;
   }
 
-  const courierFirst = data.courier.first_name || 'Curierul HIR';
+  const courierFirst = data.courier.first_name || 'Curierul';
   const courierGps =
     data.courier.last_lat != null && data.courier.last_lng != null
       ? { lat: data.courier.last_lat, lng: data.courier.last_lng }

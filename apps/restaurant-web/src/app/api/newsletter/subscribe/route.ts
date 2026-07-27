@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
   const email = confirmationEmail({
     brand: { name: tenant.name, logoUrl, brandColor },
     confirmUrl,
+    whiteLabel: tenant.custom_domain !== null,
   });
   const sent = await sendEmail({ to: row.email, subject: email.subject, html: email.html, text: email.text });
   if (!sent.ok) {

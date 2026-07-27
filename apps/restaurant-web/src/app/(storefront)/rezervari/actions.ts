@@ -83,6 +83,7 @@ export async function requestReservation(
     tenant.id,
     tenant.name,
     tenant.slug,
+    tenant.custom_domain !== null,
     data,
     sb,
     trackToken,
@@ -99,6 +100,7 @@ async function fireReservationEmails(
   tenantId: string,
   tenantName: string,
   tenantSlug: string,
+  whiteLabel: boolean,
   data: z.infer<typeof requestSchema>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sb: any,
@@ -149,6 +151,7 @@ async function fireReservationEmails(
       partySize: data.party_size,
       requestedAtIso: data.requested_at,
       trackUrl,
+      whiteLabel,
     });
   }
 
