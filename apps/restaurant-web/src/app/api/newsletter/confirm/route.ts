@@ -17,9 +17,9 @@ type SubscriberRow = {
   consent_at: string | null;
 };
 
-const PROMO_CODE = 'NEWLY10';
+const PROMO_CODE = 'FIRST10';
 
-// Ensures a tenant-scoped NEWLY10 PERCENT/10 promo exists. Idempotent: if
+// Ensures a tenant-scoped FIRST10 PERCENT/10 promo exists. Idempotent: if
 // the row is already there we reuse it. Per-email usage enforcement is a
 // follow-up — the existing promos schema only has a global `max_uses`.
 async function ensureWelcomePromo(

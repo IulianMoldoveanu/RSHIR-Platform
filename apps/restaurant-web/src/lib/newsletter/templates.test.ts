@@ -43,7 +43,7 @@ describe('confirmationEmail', () => {
 describe('welcomeEmail', () => {
   const r = welcomeEmail({
     brand: BRAND,
-    promoCode: 'NEWLY10',
+    promoCode: 'FIRST10',
     unsubscribeUrl: 'https://foisorula.hir.ro/api/newsletter/unsubscribe?token=u',
     storefrontUrl: 'https://foisorula.hir.ro',
   });
@@ -53,8 +53,8 @@ describe('welcomeEmail', () => {
   });
 
   it('embeds the promo code prominently', () => {
-    expect(r.html).toContain('NEWLY10');
-    expect(r.text).toContain('NEWLY10');
+    expect(r.html).toContain('FIRST10');
+    expect(r.text).toContain('FIRST10');
   });
 
   it('renders the storefront CTA when storefrontUrl is provided', () => {
@@ -70,7 +70,7 @@ describe('welcomeEmail', () => {
   it('omits the storefront CTA when storefrontUrl is not provided', () => {
     const r2 = welcomeEmail({
       brand: BRAND,
-      promoCode: 'NEWLY10',
+      promoCode: 'FIRST10',
       unsubscribeUrl: 'https://x/u',
     });
     expect(r2.html).not.toContain('Comandă acum');
