@@ -16,6 +16,7 @@ export type KdsOrder = {
   items: unknown;
   notes: string | null;
   delivery_address_id: string | null;
+  scheduled_pickup_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -598,6 +599,15 @@ function OrderCard({
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs uppercase tracking-wide text-zinc-300">
             {fulfillment === 'pickup' ? 'Ridicare' : 'Livrare'}
           </span>
+          {fulfillment === 'pickup' && order.scheduled_pickup_at && (
+            <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-indigo-500/40">
+              Ora{' '}
+              {new Date(order.scheduled_pickup_at).toLocaleTimeString('ro-RO', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          )}
           {order.source && order.source !== 'INTERNAL_STOREFRONT' && (() => {
             const display = resolveSourceDisplay(order.source, 'dark');
             return (
