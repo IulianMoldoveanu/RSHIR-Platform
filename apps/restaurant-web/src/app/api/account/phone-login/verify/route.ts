@@ -63,6 +63,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_phone' }, { status: 422 });
   }
 
+  // Per-phone gate (security audit 2026-07-27) — the IP limit above doesn't
+  // stop a distributed attacker (rotating IPs) from hammering one victim's
+  // phone with login attempts. Each OTP code is already capped at
+  // OTP_MAX_ATTEMPTS (5) tries before it's exhausted, but that only bites
+  // once a code exists; this caps how often a fresh code can be requested-
+  // and-guessed against for a single number, mirroring otp/request's own
+  // per-phone limiter.
+  const phoneRl = checkLimit(`phone-login-verify-phone:${phoneE164}`, {
+    capacity: 10,
+    refillPerSec: 10 / 3600,
+  });
+  if (!phoneRl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited_phone' },
+      { status: 429, headers: { 'Retry-After': String(phoneRl.retryAfterSec) } },
+    );
+  }
+
   const admin = getSupabaseAdmin();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = admin as any;
