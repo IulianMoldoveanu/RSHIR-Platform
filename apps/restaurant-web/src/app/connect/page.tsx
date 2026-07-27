@@ -65,7 +65,7 @@ export default async function ConnectPage() {
             tracking live și insights AI — direct pe fluxul tău de comenzi.
           </p>
           <p className="mx-auto mt-4 inline-flex max-w-xl items-center gap-2 rounded-md bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-            Același tarif: 2 lei/comandă · Setup GRATUIT primele 50 de restaurante
+            Același abonament lunar, fără comision pe comandă · Setup GRATUIT primele 50 de restaurante
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <a
@@ -136,16 +136,16 @@ export default async function ConnectPage() {
               Tarif simplu, identic pentru toți
             </h2>
             <p className="mb-10 text-center text-sm text-zinc-500">
-              Fără abonament. Fără diferențe între SaaS clasic și Connect. Plătești doar comenzile procesate.
+              Fără diferențe între SaaS clasic și Connect. Un singur abonament, fără comision pe comandă.
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
-                <div className="text-3xl font-bold text-zinc-900">2 lei</div>
+                <div className="text-3xl font-bold text-zinc-900">Abonament</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
-                  per comandă procesată
+                  lunar, fără comision pe comandă
                 </div>
                 <p className="mt-3 text-xs text-zinc-600">
-                  Restaurantul plătește pe fiecare comandă livrată cu succes.
+                  Restaurantul plătește un abonament fix, indiferent de câte comenzi procesează.
                 </p>
               </div>
               <div className="rounded-xl border-2 border-emerald-300 bg-emerald-50 p-6 text-center">
@@ -158,7 +158,7 @@ export default async function ConnectPage() {
                 </p>
               </div>
               <div className="rounded-xl border border-zinc-200 bg-white p-6 text-center">
-                <div className="text-3xl font-bold text-zinc-900">+1 leu</div>
+                <div className="text-3xl font-bold text-zinc-900">Ofertă separată</div>
                 <div className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
                   livrare prin HIR (opțional)
                 </div>
@@ -168,7 +168,7 @@ export default async function ConnectPage() {
               </div>
             </div>
             <p className="mt-6 text-center text-xs text-zinc-400">
-              Toate tarifele exclud TVA. Pentru HIR Connect (site propriu) facturarea este automată — generăm și emitem factura periodic, fără intervenție manuală. Pentru restaurantele care folosesc portalul HIR direct, cei 2 lei se rețin în timp real prin split payment (Netopia / Viva).
+              Toate tarifele exclud TVA. Abonamentul se facturează lunar — generăm și emitem factura automat, fără intervenție manuală.
             </p>
           </div>
         </section>

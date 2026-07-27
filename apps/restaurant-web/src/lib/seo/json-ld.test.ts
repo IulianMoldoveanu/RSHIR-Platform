@@ -1,5 +1,5 @@
 // Lane MARKETING-POLISH-V4B (2026-05-16) — unit tests for the marketing
-// JSON-LD helpers used by /pricing + /case-studies + /orase.
+// JSON-LD helpers used by /pricing + /orase.
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -35,19 +35,11 @@ describe('pricingProductJsonLd', () => {
     imageUrl: 'https://hirforyou.ro/og.png',
   });
 
-  it('emits Product @type with priced Offer', () => {
+  it('emits Product @type without a published price (subscription figure not locked yet)', () => {
     expect(ld['@type']).toBe('Product');
     expect(ld['@context']).toBe('https://schema.org');
-    expect(ld.offers['@type']).toBe('Offer');
-    expect(ld.offers.priceCurrency).toBe('RON');
-    expect(ld.offers.price).toBe('2.00');
-    expect(ld.offers.url).toBe('https://hirforyou.ro/pricing');
-    expect(ld.offers.availability).toBe('https://schema.org/InStock');
-  });
-
-  it('carries unit price specification for per-order pricing', () => {
-    expect(ld.offers.priceSpecification['@type']).toBe('UnitPriceSpecification');
-    expect(ld.offers.priceSpecification.unitText).toContain('comandă');
+    expect(ld.url).toBe('https://hirforyou.ro/pricing');
+    expect(ld).not.toHaveProperty('offers');
   });
 
   it('omits image when not provided', () => {

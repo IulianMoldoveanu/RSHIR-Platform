@@ -21,7 +21,7 @@ const WHATSAPP_PHONE = '+40743700916';
 export const metadata: Metadata = {
   title: 'HIR for You — Demo gratuit | Scapă de comisionul Glovo în 5 minute',
   description:
-    'Vezi cum funcționează HIR pentru restaurantul tău. Demo de 15 minute, fără card, fără obligații. Comenzi proprii pe site-ul tău, 2 lei pe comandă procesată online, livrare opțională prin ofertă personalizată.',
+    'Vezi cum funcționează HIR pentru restaurantul tău. Demo de 15 minute, fără card, fără obligații. Comenzi proprii pe site-ul tău, abonament lunar simplu, livrare opțională prin ofertă personalizată.',
   alternates: { canonical: 'https://hirforyou.ro/demo' },
   openGraph: {
     title: 'HIR for You — Demo gratuit pentru restaurantul tău',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
       {
         url: marketingOgImageUrl({
           title: 'Demo gratuit HIR for You',
-          subtitle: 'Comenzi proprii. 2 lei pe comandă procesată online. Livrare prin ofertă personalizată.',
+          subtitle: 'Comenzi proprii. Abonament lunar simplu. Livrare prin ofertă personalizată.',
           variant: 'case-study',
         }),
         width: 1200,
@@ -54,7 +54,7 @@ const OUTCOMES: ReadonlyArray<{ headline: string; sub: string }> = [
   },
   {
     headline: 'Mai puțin comision',
-    sub: 'În loc de 25-30% (variază în funcție de contract) către agregator, plătești 2 lei fix pe comandă. Restul rămâne la tine.',
+    sub: 'În loc de 25-30% (variază în funcție de contract) către agregator, plătești un abonament lunar fix. Restul rămâne la tine.',
   },
   {
     headline: 'Echipa scapă de stres',
@@ -75,13 +75,9 @@ export default function DemoPage() {
     <main className="min-h-screen bg-zinc-50 text-zinc-900">
       {/* Hero — 5-second clarity. H1 + 1-line subhead + 2 CTAs. */}
       <section className="mx-auto max-w-3xl px-4 pb-10 pt-12 sm:pt-20">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-          Foișorul A — primul restaurant HIR live din 03.05.2026
-        </div>
         <h1 className="text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
           Comenzile tale. <br />
-          <span className="text-violet-700">2 lei pe comandă procesată online.</span>
+          <span className="text-violet-700">Abonament lunar, fără comision pe comandă.</span>
         </h1>
         <p className="mt-4 text-base text-zinc-700 sm:text-lg">
           Înlocuim Glovo, Wolt și Bolt cu site-ul tău, AI care lucrează 24/7 și o ofertă personalizată de livrare. Demo de 15 minute, fără card.

@@ -36,7 +36,7 @@ type PartnerRow = {
 const DEFAULT_LANDING = {
   headline: 'HIRforYOU — soluția de comenzi online pentru restaurante',
   blurb:
-    'Plătești doar 2 lei / comandă. Fără abonament. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
+    'Abonament lunar simplu, fără comision pe comandă. White-label, multi-locație, cu AI care optimizează vânzările zilnic.',
   cta_url: '/migrate-from-gloriafood',
   accent_color: '#0f766e',
 };
@@ -316,7 +316,7 @@ export async function generateMetadata(props: { params: Promise<{ code: string }
   const code = (params.code ?? '').toUpperCase();
   return {
     title: `HIRforYOU — ${code}`,
-    description: 'Soluția de comenzi online pentru restaurante. 2 lei/comandă, fără abonament.',
+    description: 'Soluția de comenzi online pentru restaurante. Abonament lunar, fără comision pe comandă.',
     robots: { index: false, follow: false },
   };
 }

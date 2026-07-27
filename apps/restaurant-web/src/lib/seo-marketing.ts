@@ -22,7 +22,6 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   // /alternativa-gloriafood-romania → 301 redirect to /migrate-from-gloriafood (2026-06-02)
   // per Iulian directive: only ONE dedicated GloriaFood page on the marketing site.
-  { path: '/case-studies/foisorul-a', priority: 0.6 },
   // Lane DEMO-LANDING-V1 (2026-05-12) — paid-ads + reseller-link landing
   // optimized for 60-second decision. Indexable so direct organic
   // discoveries also land here.
@@ -183,7 +182,7 @@ export function localBusinessJsonLd(baseUrl: string) {
     url: baseUrl,
     telephone: '+40743700916',
     email: 'office@hirforyou.ro',
-    priceRange: '2 RON / comandă procesată online',
+    priceRange: 'Abonament lunar, fără comision pe comandă',
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'RO',
@@ -213,12 +212,6 @@ export function softwareApplicationJsonLd(baseUrl: string) {
     url: baseUrl,
     description:
       'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI, fără comision procentual.',
-    offers: {
-      '@type': 'Offer',
-      price: '2',
-      priceCurrency: 'RON',
-      description: '2 RON per comandă livrată — fără comision procentual',
-    },
     publisher: {
       '@type': 'Organization',
       name: 'HIRforYOU',

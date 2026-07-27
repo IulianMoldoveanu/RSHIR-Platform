@@ -26,15 +26,15 @@ const PRICING_URL = PRIMARY_DOMAIN
   : 'https://hir-restaurant-web.vercel.app/pricing';
 
 const OG_IMAGE = marketingOgImageUrl({
-  title: 'Tarife — 2 lei pe comandă procesată',
-  subtitle: 'Fără abonament. Fără procent. Livrare prin ofertă personalizată.',
+  title: 'Tarife — abonament lunar, fără comision',
+  subtitle: 'Fără procent din comandă. Livrare prin ofertă personalizată.',
   variant: 'pricing',
 });
 
 export const metadata: Metadata = {
   title: 'Tarife — HIRforYOU',
   description:
-    '2 lei pe comandă procesată online. Un singur plan. Fără abonament, fără procent, fără setup. Livrarea este separată, prin ofertă personalizată. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
+    'Abonament lunar simplu, fără comision procentual din valoarea comenzii, fără setup. Livrarea este separată, prin ofertă personalizată. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
   alternates: {
     canonical: PRICING_URL,
     languages: { 'ro-RO': PRICING_URL, en: PRICING_URL, 'x-default': PRICING_URL },
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Tarife — HIRforYOU',
     description:
-      'Plătești doar pentru comenzile procesate de site. 2 lei pe comandă. Livrare opțională prin ofertă personalizată.',
+      'Plătești un abonament lunar, nu comision pe comandă. Livrare opțională prin ofertă personalizată.',
     type: 'website',
     locale: 'ro_RO',
     images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: 'Tarife HIR' }],
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Tarife — HIRforYOU',
-    description: '2 lei pe comandă procesată online. Livrare separată, prin ofertă personalizată.',
+    description: 'Abonament lunar, fără comision pe comandă. Livrare separată, prin ofertă personalizată.',
     images: [OG_IMAGE],
   },
   robots: { index: true, follow: true },
@@ -181,20 +181,6 @@ export default async function PricingPage() {
             <p className="mt-3 text-sm leading-relaxed text-[#475569]">
               {t(locale, 'pricing.math_body')}
             </p>
-            <dl className="mt-6 space-y-3">
-              <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
-                <dt className="text-[#475569]">{t(locale, 'pricing.math_row1_label')}</dt>
-                <dd className="font-semibold text-[#0F172A]">{t(locale, 'pricing.math_row1_value')}</dd>
-              </div>
-              <div className="flex justify-between border-b border-[#F1F5F9] pb-3 text-sm">
-                <dt className="text-[#475569]">{t(locale, 'pricing.math_row2_label')}</dt>
-                <dd className="font-semibold text-red-600">{t(locale, 'pricing.math_row2_value')}</dd>
-              </div>
-              <div className="flex justify-between pb-3 text-sm">
-                <dt className="text-[#475569]">{t(locale, 'pricing.math_row3_label')}</dt>
-                <dd className="font-semibold text-emerald-700">{t(locale, 'pricing.math_row3_value')}</dd>
-              </div>
-            </dl>
             <p className="mt-4 text-xs text-[#94A3B8]">{t(locale, 'pricing.math_note')}</p>
           </div>
         </div>

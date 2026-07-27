@@ -19,16 +19,6 @@ describe('calcRoi — base math', () => {
     const r = calcRoi(100, 80, false, false);
     expect(r.glovoComision).toBe(72_000); // 30% × 240_000
   });
-
-  it('calculates hirComision at 2 lei × comenziLuna', () => {
-    const r = calcRoi(100, 80, false, false);
-    expect(r.hirComision).toBe(6_000); // 2 × 3000
-  });
-
-  it('calculates economieComisioane = glovoComision − hirComision', () => {
-    const r = calcRoi(100, 80, false, false);
-    expect(r.economieComisioane).toBe(66_000);
-  });
 });
 
 describe('calcRoi — curier toggle', () => {
@@ -67,17 +57,14 @@ describe('calcRoi — hepi toggle', () => {
 });
 
 describe('calcRoi — totals', () => {
-  it('totalLuna = economieComisioane when both toggles off', () => {
+  it('totalLuna = 0 when both toggles off', () => {
     const r = calcRoi(100, 80, false, false);
-    expect(r.totalLuna).toBe(r.economieComisioane);
+    expect(r.totalLuna).toBe(0);
   });
 
-  it('totalLuna = economieComisioane + hepiNetBenefit + economieRider (all on)', () => {
+  it('totalLuna = hepiNetBenefit + economieRider (all on)', () => {
     const r = calcRoi(100, 80, true, true);
-    expect(r.totalLuna).toBeCloseTo(
-      r.economieComisioane + r.hepiNetBenefit + r.economieRider,
-      1,
-    );
+    expect(r.totalLuna).toBeCloseTo(r.hepiNetBenefit + r.economieRider, 1);
   });
 
   it('totalAn = totalLuna × 12', () => {
@@ -91,18 +78,12 @@ describe('calcRoi — edge cases', () => {
     const r = calcRoi(5, 20, false, false);
     expect(r.comenziLuna).toBe(150);
     expect(r.venitBrut).toBe(3_000);
-    expect(r.economieComisioane).toBeGreaterThan(0);
+    expect(r.glovoComision).toBeGreaterThan(0);
   });
 
   it('handles maximum slider values (500 comenzi/zi, 200 lei AOV)', () => {
     const r = calcRoi(500, 200, true, true);
     expect(r.totalLuna).toBeGreaterThan(0);
     expect(r.totalAn).toBeCloseTo(r.totalLuna * 12, 1);
-  });
-
-  it('economieComisioane is always positive (HIR cheaper than Glovo at any scale)', () => {
-    // 2 lei/comandă is always less than 30% × AOV (as long as AOV > ~7 lei)
-    const r = calcRoi(5, 20, false, false);
-    expect(r.economieComisioane).toBeGreaterThan(0);
   });
 });

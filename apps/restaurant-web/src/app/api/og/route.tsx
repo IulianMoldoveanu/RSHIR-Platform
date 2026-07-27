@@ -9,7 +9,7 @@
 // Lane Q already shipped sitemap + Organization/WebSite/BreadcrumbList
 // JSON-LD on the canonical host. This route closes the social-preview gap
 // for /, /pricing, /features, /parteneriat/inscriere,
-// /case-studies/foisorul-a, /migrate-from-gloriafood, /contact.
+// /migrate-from-gloriafood, /contact.
 //
 // We intentionally accept arbitrary `title` strings up to 120 chars and
 // truncate — better to render a slightly-cropped headline than 500 the
@@ -240,7 +240,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           }}
         >
           <div>hirforyou.ro</div>
-          <div style={{ fontWeight: 600, color: accent }}>2 lei / comandă · zero comision</div>
+          <div style={{ fontWeight: 600, color: accent }}>Abonament lunar · zero comision</div>
         </div>
       </div>
     ),
