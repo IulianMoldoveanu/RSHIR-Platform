@@ -22,6 +22,8 @@ type CourierTrack = {
   customer_first_name: string | null;
   courier: {
     first_name: string;
+    vehicle_type: string | null;
+    avatar_url: string | null;
     last_lat: number | null;
     last_lng: number | null;
     last_seen_at: string | null;
@@ -132,7 +134,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
     return null;
   }
 
-  const courierFirst = data.courier.first_name || 'Curierul HIR';
+  const courierFirst = data.courier.first_name || 'Curierul';
   const courierGps =
     data.courier.last_lat != null && data.courier.last_lng != null
       ? { lat: data.courier.last_lat, lng: data.courier.last_lng }
@@ -148,9 +150,18 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
     <section className="overflow-hidden rounded-xl border border-purple-200 bg-purple-50/40">
       <header className="flex items-baseline justify-between gap-3 border-b border-purple-200/60 px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600 text-white">
-            <Bike className="h-5 w-5" aria-hidden />
-          </span>
+          {data.courier.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={data.courier.avatar_url}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-purple-200"
+            />
+          ) : (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white">
+              <Bike className="h-5 w-5" aria-hidden />
+            </span>
+          )}
           <div>
             <p className="text-sm font-semibold text-zinc-900">
               {courierFirst} este pe drum
@@ -180,6 +191,7 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
         dropoff={data.dropoff}
         courier={courierLost ? null : courierGps}
         status={data.status}
+        vehicleType={data.courier.vehicle_type}
       />
       {eta && (
         <p className="px-4 py-2 text-xs text-purple-900/80">
