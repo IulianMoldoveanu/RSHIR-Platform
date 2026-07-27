@@ -29,6 +29,30 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     return; // already finalized
   }
 
+  // 2026-07-27 — a late-arriving payment confirmation (webhook delay, or the
+  // /api/cron/reconcile-payments fallback for Netopia sandbox's known
+  // unreliable IPN delivery — see that route's header comment) can land
+  // AFTER the order has already progressed past PENDING through the normal
+  // kitchen/courier flow (observed live: an order went PREPARING → READY →
+  // DISPATCHED → DELIVERED by the courier while payment_status was still
+  // UNPAID, then reconciliation fired minutes later). Force-setting status
+  // back to CONFIRMED and re-dispatching in that case creates a SECOND
+  // courier_orders row for an order that was already delivered — the
+  // dispatcher then shows a phantom "unassigned" order for something
+  // already handed to the customer. Only advance status + dispatch when the
+  // order is still genuinely PENDING; otherwise just settle the
+  // payment_status flag for bookkeeping and stop.
+  if (existing.status !== 'PENDING') {
+    if (existing.payment_status === 'UNPAID') {
+      await admin
+        .from('restaurant_orders')
+        .update({ payment_status: 'PAID' })
+        .eq('id', orderId)
+        .eq('payment_status', 'UNPAID');
+    }
+    return;
+  }
+
   // Atomic guard: the Stripe webhook and the client-driven /confirm both call
   // this function and can race within ~100ms of each other on the happy path.
   // Without the payment_status filter both threads would (a) flip the order
@@ -41,6 +65,7 @@ export async function markOrderPaidAndDispatch(orderId: string): Promise<void> {
     .update({ payment_status: 'PAID', status: 'CONFIRMED' })
     .eq('id', orderId)
     .eq('payment_status', 'UNPAID')
+    .eq('status', 'PENDING')
     .select('id');
   if (updErr) throw new Error(updErr.message);
   if (!claimed || claimed.length === 0) {
