@@ -34,6 +34,7 @@ export const dictionaries = {
     },
     home: {
       menu_not_published: 'Meniul nu e încă publicat.',
+      last_order_banner: 'Vezi comanda ta recentă →',
       banner_not_accepting_title: 'Restaurantul nu acceptă comenzi acum',
       banner_closed_title: 'Restaurantul este închis acum',
       banner_next_open_template: 'Deschidem {when}',
@@ -1059,6 +1060,7 @@ export const dictionaries = {
     },
     home: {
       menu_not_published: 'The menu has not been published yet.',
+      last_order_banner: 'See your recent order →',
       banner_not_accepting_title: 'The restaurant is not accepting orders',
       banner_call_template: 'Call {phone}',
       banner_whatsapp: 'Message on WhatsApp',

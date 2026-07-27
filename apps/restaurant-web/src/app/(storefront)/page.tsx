@@ -13,6 +13,7 @@ import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
 import { BrandAwareMenu } from '@/components/storefront/brand-aware-menu';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
+import { LastOrderBanner } from '@/components/storefront/last-order-banner';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
 import { isReservationsEnabled } from '@/lib/reservations';
@@ -290,6 +291,7 @@ export default async function StorefrontHomePage() {
         ga4MeasurementId={hasAnalyticsConsent() ? socialSettings.ga4_measurement_id ?? null : null}
       />
       <NewsletterBanner />
+      <LastOrderBanner tenantId={tenant.id} locale={locale} />
       <TenantHeader
         name={tenant.name}
         logoUrl={logoUrl}

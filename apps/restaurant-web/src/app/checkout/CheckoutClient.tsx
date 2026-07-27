@@ -9,6 +9,8 @@ import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
+import { getCartStore } from '@/lib/cart/store';
+import { writeLastOrder } from '@/lib/cart/last-order';
 import {
   clearSavedAddress,
   readSavedAddress,
@@ -721,9 +723,15 @@ export function CheckoutClient(props: {
       if (response.paymentMethod === 'COD') {
         // COD path: order is final the moment the intent returns OK. Cart
         // cleanup is safe here because the user is leaving for /track and
-        // can't re-submit the same cart.
+        // can't re-submit the same cart. Clears both the sessionStorage
+        // checkout snapshot AND the real Zustand+localStorage storefront
+        // cart (lib/cart/store.ts) — the latter was missed originally,
+        // which left the storefront cart pill showing the just-ordered
+        // items after a successful COD order.
         sessionStorage.removeItem(CART_STORAGE_KEY);
         writeStoredPromo(null);
+        getCartStore(props.tenantId).getState().clear();
+        writeLastOrder(props.tenantId, response.publicTrackToken);
         // COD orders skip the PSP entirely. Order is already PENDING in the
         // DB; the customer goes straight to /track and the restaurant
         // confirms via the admin UI.
