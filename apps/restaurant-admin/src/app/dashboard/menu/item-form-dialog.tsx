@@ -197,7 +197,7 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
             <input
               id="image"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/heic,image/heif,.jfif,.jpe,.heic,.heif"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
               className="text-sm"
             />

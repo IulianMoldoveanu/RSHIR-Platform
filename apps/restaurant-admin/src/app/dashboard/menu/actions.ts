@@ -34,8 +34,42 @@ import {
 } from './schemas';
 
 const MENU_BUCKET = 'menu-images';
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/gif',
+  'image/bmp',
+  'image/heic',
+  'image/heif',
+]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Browsers don't reliably report a MIME type for every extension a menu
+// photo actually arrives in — .jfif/.jpe are plain JPEG under a different
+// extension convention (.jfif is what Windows "Save image as" produces from
+// many sites), and Chrome on Windows often leaves `file.type` empty or
+// reports `image/pjpeg` for them. iPhone photos (.heic/.heif) are similarly
+// inconsistent. Resolve those by extension instead of trusting the
+// browser-supplied type when it's missing or a known-unreliable alias.
+const EXT_TO_MIME: Record<string, string> = {
+  jfif: 'image/jpeg',
+  jpe: 'image/jpeg',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+const UNRELIABLE_TYPES = new Set(['', 'image/pjpeg', 'application/octet-stream']);
+
+/** Resolves the real MIME type to store, falling back to filename extension
+ *  when the browser didn't supply (or mis-supplied) one for a known format. */
+function resolveImageMime(file: File): string | null {
+  if (ALLOWED_MIME.has(file.type)) return file.type;
+  if (!UNRELIABLE_TYPES.has(file.type)) return null;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  return (ext && EXT_TO_MIME[ext]) || null;
+}
 
 async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
   const supabase = await createServerClient();
@@ -58,19 +92,20 @@ async function uploadImage(
   itemId: string,
   file: File,
 ): Promise<string> {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error(`Tip imagine neacceptat: ${file.type}`);
+  const mime = resolveImageMime(file);
+  if (!mime) {
+    throw new Error(`Tip imagine neacceptat: ${file.type || file.name}`);
   }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new Error('Imaginea depaseste 5 MB.');
   }
-  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+  const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
   const path = `${tenantId}/${itemId}.${ext}`;
   const admin = createAdminClient();
   const { error } = await admin.storage
     .from(MENU_BUCKET)
     .upload(path, await file.arrayBuffer(), {
-      contentType: file.type,
+      contentType: mime,
       upsert: true,
     });
   if (error) {

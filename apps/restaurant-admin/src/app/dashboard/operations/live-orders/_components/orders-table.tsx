@@ -39,6 +39,8 @@ function deliveryDuration(order: LiveOrder): string | null {
   return `${Math.round(ms / 60_000)} min`;
 }
 
+const FINAL_STATUSES: Set<CourierOrderStatus> = new Set(['DELIVERED', 'CANCELLED']);
+
 function itemCount(items: unknown): number {
   if (!Array.isArray(items)) return 0;
   return items.reduce<number>((s, it) => {
@@ -150,6 +152,15 @@ function OrderCard({
           >
             {timeAgo(order.created_at)}
           </time>
+          {FINAL_STATUSES.has(order.status) && (
+            <time
+              dateTime={order.updated_at}
+              title={`Ultima actualizare: ${new Date(order.updated_at).toLocaleString('ro-RO')}`}
+              className="tabular-nums text-zinc-400"
+            >
+              act. {timeAgo(order.updated_at)}
+            </time>
+          )}
           {expanded
             ? <ChevronDown className="h-4 w-4 text-zinc-400" aria-hidden />
             : <ChevronRight className="h-4 w-4 text-zinc-400" aria-hidden />
