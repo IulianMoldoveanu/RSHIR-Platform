@@ -54,6 +54,22 @@ export async function POST(req: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = auth.supabase as any;
+
+  // sort_order defaults to 0 at the DB level — without an explicit value
+  // here every new zone would land tied for FIRST checkout precedence
+  // (findEnclosingZoneId picks the first sort_order match), silently
+  // outranking whatever careful ordering the operator already set up.
+  // Append to the end instead: max existing sort_order + 1, or 0 for the
+  // tenant's first zone.
+  const { data: maxRow } = await sb
+    .from('delivery_zones')
+    .select('sort_order')
+    .eq('tenant_id', auth.tenantId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextSortOrder = typeof maxRow?.sort_order === 'number' ? maxRow.sort_order + 1 : 0;
+
   const { data, error } = await sb
     .from('delivery_zones')
     .insert({
@@ -61,6 +77,7 @@ export async function POST(req: NextRequest) {
       name: parsed.data.name,
       polygon: parsed.data.polygon as unknown as Json,
       is_active: parsed.data.is_active,
+      sort_order: nextSortOrder,
     })
     .select('id, name, polygon, is_active, sort_order, created_at')
     .single();
