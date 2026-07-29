@@ -9,6 +9,7 @@ import {
   type HelpStep,
   type HelpTopic,
 } from '../../content';
+import { LocaleSwitcher } from '../../locale-switcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,7 @@ export default async function HelpTopicPage(
         related: 'See also',
         back: 'Back to help center',
         screenshot: 'SCREENSHOT',
+        switchLocale: 'Switch language',
       }
     : {
         crumbHome: 'Ajutor',
@@ -66,24 +68,28 @@ export default async function HelpTopicPage(
         related: 'Vezi și',
         back: 'Înapoi la centrul de ajutor',
         screenshot: 'SCREENSHOT',
+        switchLocale: 'Schimbă limba',
       };
 
   return (
     <article className="mx-auto flex max-w-3xl flex-col gap-6">
-      <nav className="flex items-center gap-1 text-xs text-zinc-500">
-        <Link href="/dashboard/help" className="hover:text-zinc-900">
-          {labels.crumbHome}
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden />
-        <Link
-          href={`/dashboard/help#${category.slug}`}
-          className="hover:text-zinc-900"
-        >
-          {pickLocale(category.title, locale)}
-        </Link>
-        <ChevronRight className="h-3 w-3" aria-hidden />
-        <span className="truncate text-zinc-700">{pickLocale(topic.title, locale)}</span>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav className="flex items-center gap-1 text-xs text-zinc-500">
+          <Link href="/dashboard/help" className="hover:text-zinc-900">
+            {labels.crumbHome}
+          </Link>
+          <ChevronRight className="h-3 w-3" aria-hidden />
+          <Link
+            href={`/dashboard/help#${category.slug}`}
+            className="hover:text-zinc-900"
+          >
+            {pickLocale(category.title, locale)}
+          </Link>
+          <ChevronRight className="h-3 w-3" aria-hidden />
+          <span className="truncate text-zinc-700">{pickLocale(topic.title, locale)}</span>
+        </nav>
+        <LocaleSwitcher current={locale} ariaLabel={labels.switchLocale} />
+      </div>
 
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
