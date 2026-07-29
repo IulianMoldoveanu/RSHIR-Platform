@@ -200,7 +200,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {
           label: 'Comenzi (extra)',
           items: [
-            { href: '/dashboard/orders/aggregator-inbox', label: 'Inbox preluare email' },
             { href: '/dashboard/reservations', label: 'Rezervări' },
             { href: '/dashboard/pre-orders', label: 'Pre-comenzi' },
             { href: '/dashboard/voice', label: 'Apeluri vocale' },
