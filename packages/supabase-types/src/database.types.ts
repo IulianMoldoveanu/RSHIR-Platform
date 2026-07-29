@@ -154,7 +154,21 @@ export type Database = {
             foreignKeyName: "affiliate_bounties_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "affiliate_bounties_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "affiliate_bounties_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -219,7 +233,21 @@ export type Database = {
             foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -336,7 +364,21 @@ export type Database = {
             foreignKeyName: "aggregator_email_jobs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "aggregator_email_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "aggregator_email_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -382,7 +424,21 @@ export type Database = {
             foreignKeyName: "aggregator_intake_aliases_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "aggregator_intake_aliases_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "aggregator_intake_aliases_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -400,6 +456,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ai_jobs: {
+        Row: {
+          completed_at: string | null
+          cost_bani: number | null
+          created_at: string
+          error_text: string | null
+          id: string
+          input_payload: Json
+          input_tokens: number | null
+          job_type: string
+          metadata: Json
+          model_used: string | null
+          output_payload: Json | null
+          output_tokens: number | null
+          partner_id: string | null
+          started_at: string | null
+          status: string
+          tenant_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          cost_bani?: number | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          input_payload: Json
+          input_tokens?: number | null
+          job_type: string
+          metadata?: Json
+          model_used?: string | null
+          output_payload?: Json | null
+          output_tokens?: number | null
+          partner_id?: string | null
+          started_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          cost_bani?: number | null
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          input_payload?: Json
+          input_tokens?: number | null
+          job_type?: string
+          metadata?: Json
+          model_used?: string | null
+          output_payload?: Json | null
+          output_tokens?: number | null
+          partner_id?: string | null
+          started_at?: string | null
+          status?: string
+          tenant_id?: string | null
+        }
+        Relationships: []
       }
       analytics_digest_log: {
         Row: {
@@ -443,7 +556,21 @@ export type Database = {
             foreignKeyName: "analytics_digest_log_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "analytics_digest_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "analytics_digest_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -504,7 +631,21 @@ export type Database = {
             foreignKeyName: "audit_log_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "audit_log_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -625,7 +766,21 @@ export type Database = {
             foreignKeyName: "champion_referrals_referred_tenant_id_fkey"
             columns: ["referred_tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "champion_referrals_referred_tenant_id_fkey"
+            columns: ["referred_tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "champion_referrals_referred_tenant_id_fkey"
+            columns: ["referred_tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -646,7 +801,21 @@ export type Database = {
             foreignKeyName: "champion_referrals_referrer_tenant_id_fkey"
             columns: ["referrer_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "champion_referrals_referrer_tenant_id_fkey"
+            columns: ["referrer_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "champion_referrals_referrer_tenant_id_fkey"
+            columns: ["referrer_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -686,7 +855,21 @@ export type Database = {
             foreignKeyName: "chat_active_tenant_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "chat_active_tenant_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "chat_active_tenant_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -809,6 +992,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cities"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "city_events_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
           },
         ]
       }
@@ -1012,6 +1202,192 @@ export type Database = {
         }
         Relationships: []
       }
+      connect_leads: {
+        Row: {
+          contact_email: string
+          contact_phone: string | null
+          contacted_at: string | null
+          created_at: string
+          estimated_orders_per_day: number | null
+          id: string
+          internal_notes: string | null
+          ip: string | null
+          notes: string | null
+          onboarded_at: string | null
+          onboarded_tenant_id: string | null
+          restaurant_name: string
+          source: string
+          status: Database["public"]["Enums"]["connect_lead_status"]
+          user_agent: string | null
+          website_url: string
+        }
+        Insert: {
+          contact_email: string
+          contact_phone?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          estimated_orders_per_day?: number | null
+          id?: string
+          internal_notes?: string | null
+          ip?: string | null
+          notes?: string | null
+          onboarded_at?: string | null
+          onboarded_tenant_id?: string | null
+          restaurant_name: string
+          source?: string
+          status?: Database["public"]["Enums"]["connect_lead_status"]
+          user_agent?: string | null
+          website_url: string
+        }
+        Update: {
+          contact_email?: string
+          contact_phone?: string | null
+          contacted_at?: string | null
+          created_at?: string
+          estimated_orders_per_day?: number | null
+          id?: string
+          internal_notes?: string | null
+          ip?: string | null
+          notes?: string | null
+          onboarded_at?: string | null
+          onboarded_tenant_id?: string | null
+          restaurant_name?: string
+          source?: string
+          status?: Database["public"]["Enums"]["connect_lead_status"]
+          user_agent?: string | null
+          website_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connect_leads_onboarded_tenant_id_fkey"
+            columns: ["onboarded_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_leads_onboarded_tenant_id_fkey"
+            columns: ["onboarded_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_leads_onboarded_tenant_id_fkey"
+            columns: ["onboarded_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_leads_onboarded_tenant_id_fkey"
+            columns: ["onboarded_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connect_leads_onboarded_tenant_id_fkey"
+            columns: ["onboarded_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connect_tenant_invoices: {
+        Row: {
+          breakdown: Json
+          created_at: string
+          currency: string
+          data_fee_cents: number
+          delivery_fees_cents: number
+          id: string
+          is_financial_record: boolean
+          issued_at: string | null
+          orders_count: number
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          smartbill_invoice_id: string | null
+          status: string
+          tenant_id: string
+          total_cents: number | null
+        }
+        Insert: {
+          breakdown?: Json
+          created_at?: string
+          currency?: string
+          data_fee_cents?: number
+          delivery_fees_cents?: number
+          id?: string
+          is_financial_record?: boolean
+          issued_at?: string | null
+          orders_count?: number
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          smartbill_invoice_id?: string | null
+          status?: string
+          tenant_id: string
+          total_cents?: number | null
+        }
+        Update: {
+          breakdown?: Json
+          created_at?: string
+          currency?: string
+          data_fee_cents?: number
+          delivery_fees_cents?: number
+          id?: string
+          is_financial_record?: boolean
+          issued_at?: string | null
+          orders_count?: number
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          smartbill_invoice_id?: string | null
+          status?: string
+          tenant_id?: string
+          total_cents?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connect_tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connect_tenant_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connect_webhook_deliveries: {
         Row: {
           attempt_count: number
@@ -1122,7 +1498,21 @@ export type Database = {
             foreignKeyName: "connect_webhook_endpoints_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_webhook_endpoints_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "connect_webhook_endpoints_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1140,6 +1530,473 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      content_agent_prompts: {
+        Row: {
+          agent_kind: string
+          brand_code: string
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          performance: Json | null
+          persona: string | null
+          prompt_text: string
+          version: number
+        }
+        Insert: {
+          agent_kind: string
+          brand_code: string
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          performance?: Json | null
+          persona?: string | null
+          prompt_text: string
+          version: number
+        }
+        Update: {
+          agent_kind?: string
+          brand_code?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          performance?: Json | null
+          persona?: string | null
+          prompt_text?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      content_brand_contexts: {
+        Row: {
+          brand_code: string
+          business_type: string | null
+          competitors: string[]
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          kind: string
+          legal_json: Json | null
+          monthly_budget_cents: number
+          preferred_messaging: string
+          tenant_id: string | null
+          tier: string
+          updated_at: string
+          visual_json: Json
+          voice_json: Json
+        }
+        Insert: {
+          brand_code: string
+          business_type?: string | null
+          competitors?: string[]
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          legal_json?: Json | null
+          monthly_budget_cents?: number
+          preferred_messaging?: string
+          tenant_id?: string | null
+          tier?: string
+          updated_at?: string
+          visual_json?: Json
+          voice_json?: Json
+        }
+        Update: {
+          brand_code?: string
+          business_type?: string | null
+          competitors?: string[]
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          legal_json?: Json | null
+          monthly_budget_cents?: number
+          preferred_messaging?: string
+          tenant_id?: string | null
+          tier?: string
+          updated_at?: string
+          visual_json?: Json
+          voice_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_brand_contexts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "content_brand_contexts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "content_brand_contexts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "content_brand_contexts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_brand_contexts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_briefs: {
+        Row: {
+          brand_id: string
+          created_at: string
+          goal: string
+          id: string
+          metadata: Json
+          persona: string | null
+          pillar: string
+          source: string
+          source_ref: string | null
+          template_id: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          goal: string
+          id?: string
+          metadata?: Json
+          persona?: string | null
+          pillar: string
+          source: string
+          source_ref?: string | null
+          template_id?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          goal?: string
+          id?: string
+          metadata?: Json
+          persona?: string | null
+          pillar?: string
+          source?: string
+          source_ref?: string | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_briefs_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "content_brand_contexts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_briefs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "content_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_drafts: {
+        Row: {
+          agent_kind: string
+          body_json: Json
+          brief_id: string
+          cost_cents: number
+          created_at: string
+          format: string
+          id: string
+          language: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          variant_of: string | null
+        }
+        Insert: {
+          agent_kind: string
+          body_json: Json
+          brief_id: string
+          cost_cents?: number
+          created_at?: string
+          format: string
+          id?: string
+          language?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          variant_of?: string | null
+        }
+        Update: {
+          agent_kind?: string
+          body_json?: Json
+          brief_id?: string
+          cost_cents?: number
+          created_at?: string
+          format?: string
+          id?: string
+          language?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          variant_of?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_drafts_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "content_briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_drafts_variant_of_fkey"
+            columns: ["variant_of"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_messaging_channels: {
+        Row: {
+          brand_id: string
+          channel_kind: string
+          connected_at: string
+          credentials: Json
+          external_id: string
+          id: string
+          is_active: boolean
+          last_message_at: string | null
+          webhook_secret: string
+        }
+        Insert: {
+          brand_id: string
+          channel_kind: string
+          connected_at?: string
+          credentials: Json
+          external_id: string
+          id?: string
+          is_active?: boolean
+          last_message_at?: string | null
+          webhook_secret: string
+        }
+        Update: {
+          brand_id?: string
+          channel_kind?: string
+          connected_at?: string
+          credentials?: Json
+          external_id?: string
+          id?: string
+          is_active?: boolean
+          last_message_at?: string | null
+          webhook_secret?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_messaging_channels_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "content_brand_contexts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_metrics: {
+        Row: {
+          clicks: number
+          collected_at: string
+          conversions: number
+          cost_cents: number
+          engagements: number
+          id: string
+          impressions: number
+          publication_id: string
+          raw_json: Json | null
+          reach: number
+        }
+        Insert: {
+          clicks?: number
+          collected_at?: string
+          conversions?: number
+          cost_cents?: number
+          engagements?: number
+          id?: string
+          impressions?: number
+          publication_id: string
+          raw_json?: Json | null
+          reach?: number
+        }
+        Update: {
+          clicks?: number
+          collected_at?: string
+          conversions?: number
+          cost_cents?: number
+          engagements?: number
+          id?: string
+          impressions?: number
+          publication_id?: string
+          raw_json?: Json | null
+          reach?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_metrics_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "content_publications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_provider_credentials: {
+        Row: {
+          brand_id: string
+          connected_at: string
+          credentials: Json
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          provider_kind: string
+        }
+        Insert: {
+          brand_id: string
+          connected_at?: string
+          credentials: Json
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          provider_kind: string
+        }
+        Update: {
+          brand_id?: string
+          connected_at?: string
+          credentials?: Json
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          provider_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_provider_credentials_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "content_brand_contexts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_publications: {
+        Row: {
+          channel: string
+          channel_account: string
+          created_at: string
+          draft_id: string
+          error_message: string | null
+          external_id: string | null
+          id: string
+          published_at: string | null
+          scheduled_for: string
+          status: string
+          trust_level: string
+        }
+        Insert: {
+          channel: string
+          channel_account: string
+          created_at?: string
+          draft_id: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          published_at?: string | null
+          scheduled_for: string
+          status?: string
+          trust_level?: string
+        }
+        Update: {
+          channel?: string
+          channel_account?: string
+          created_at?: string
+          draft_id?: string
+          error_message?: string | null
+          external_id?: string | null
+          id?: string
+          published_at?: string | null
+          scheduled_for?: string
+          status?: string
+          trust_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_publications_draft_id_fkey"
+            columns: ["draft_id"]
+            isOneToOne: false
+            referencedRelation: "content_drafts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_templates: {
+        Row: {
+          body_template: Json
+          business_type: string
+          created_at: string
+          created_by: string
+          format: string
+          goal: string
+          id: string
+          is_active: boolean
+          performance: Json
+          persona: string
+          pillar: string
+        }
+        Insert: {
+          body_template: Json
+          business_type: string
+          created_at?: string
+          created_by?: string
+          format: string
+          goal: string
+          id?: string
+          is_active?: boolean
+          performance?: Json
+          persona: string
+          pillar: string
+        }
+        Update: {
+          body_template?: Json
+          business_type?: string
+          created_at?: string
+          created_by?: string
+          format?: string
+          goal?: string
+          id?: string
+          is_active?: boolean
+          performance?: Json
+          persona?: string
+          pillar?: string
+        }
+        Relationships: []
       }
       copilot_agent_runs: {
         Row: {
@@ -1269,7 +2126,21 @@ export type Database = {
             foreignKeyName: "copilot_agent_runs_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_agent_runs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_agent_runs_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1430,7 +2301,21 @@ export type Database = {
             foreignKeyName: "copilot_brief_schedules_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_brief_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_brief_schedules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1497,7 +2382,21 @@ export type Database = {
             foreignKeyName: "copilot_content_items_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_content_items_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_content_items_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1634,7 +2533,21 @@ export type Database = {
             foreignKeyName: "copilot_revenue_events_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_revenue_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_revenue_events_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1699,7 +2612,21 @@ export type Database = {
             foreignKeyName: "copilot_subscriptions_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_subscriptions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_subscriptions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1766,7 +2693,21 @@ export type Database = {
             foreignKeyName: "copilot_tenant_authorized_users_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_authorized_users_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_authorized_users_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1857,7 +2798,21 @@ export type Database = {
             foreignKeyName: "copilot_tenant_config_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_config_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1915,7 +2870,21 @@ export type Database = {
             foreignKeyName: "copilot_tenant_facts_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_facts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_tenant_facts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1978,7 +2947,21 @@ export type Database = {
             foreignKeyName: "copilot_threads_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_threads_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "copilot_threads_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -1996,6 +2979,95 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      courier_account_deletion_requests: {
+        Row: {
+          completed_at: string | null
+          courier_user_id: string
+          email: string
+          fleet_id: string | null
+          id: string
+          requested_at: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scheduled_purge_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          courier_user_id: string
+          email: string
+          fleet_id?: string | null
+          id?: string
+          requested_at?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          courier_user_id?: string
+          email?: string
+          fleet_id?: string | null
+          id?: string
+          requested_at?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_account_deletion_requests_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_agent_runs: {
+        Row: {
+          agent_name: string
+          courier_id: string
+          created_at: string
+          error: string | null
+          id: string
+          model: string | null
+          prompt: string
+          prompt_tokens: number | null
+          response: string | null
+          response_tokens: number | null
+        }
+        Insert: {
+          agent_name?: string
+          courier_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          prompt: string
+          prompt_tokens?: number | null
+          response?: string | null
+          response_tokens?: number | null
+        }
+        Update: {
+          agent_name?: string
+          courier_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          model?: string | null
+          prompt?: string
+          prompt_tokens?: number | null
+          response?: string | null
+          response_tokens?: number | null
+        }
+        Relationships: []
       }
       courier_api_keys: {
         Row: {
@@ -2049,7 +3121,21 @@ export type Database = {
             foreignKeyName: "courier_api_keys_hir_tenant_id_fkey"
             columns: ["hir_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_api_keys_hir_tenant_id_fkey"
+            columns: ["hir_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_api_keys_hir_tenant_id_fkey"
+            columns: ["hir_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2068,19 +3154,217 @@ export type Database = {
           },
         ]
       }
+      courier_call_sessions: {
+        Row: {
+          client_proxy_number: string | null
+          closed_at: string | null
+          courier_order_id: string
+          courier_proxy_number: string | null
+          created_at: string
+          expires_at: string | null
+          status: string
+          twilio_session_sid: string | null
+        }
+        Insert: {
+          client_proxy_number?: string | null
+          closed_at?: string | null
+          courier_order_id: string
+          courier_proxy_number?: string | null
+          created_at?: string
+          expires_at?: string | null
+          status?: string
+          twilio_session_sid?: string | null
+        }
+        Update: {
+          client_proxy_number?: string | null
+          closed_at?: string | null
+          courier_order_id?: string
+          courier_proxy_number?: string | null
+          created_at?: string
+          expires_at?: string | null
+          status?: string
+          twilio_session_sid?: string | null
+        }
+        Relationships: []
+      }
+      courier_combo_pushes: {
+        Row: {
+          accepted_at: string | null
+          accepted_order_id: string | null
+          anchor_order_id: string
+          combo_order_ids: string[]
+          courier_user_id: string
+          id: string
+          sent_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_order_id?: string | null
+          anchor_order_id: string
+          combo_order_ids?: string[]
+          courier_user_id: string
+          id?: string
+          sent_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_order_id?: string | null
+          anchor_order_id?: string
+          combo_order_ids?: string[]
+          courier_user_id?: string
+          id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_combo_pushes_accepted_order_id_fkey"
+            columns: ["accepted_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_combo_pushes_accepted_order_id_fkey"
+            columns: ["accepted_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_combo_pushes_anchor_order_id_fkey"
+            columns: ["anchor_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_combo_pushes_anchor_order_id_fkey"
+            columns: ["anchor_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders_feed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_daily_kpis: {
+        Row: {
+          avg_rating: number | null
+          combo_pushes_accepted: number
+          combo_pushes_sent: number
+          courier_user_id: string
+          created_at: string
+          deliveries_cancelled: number
+          deliveries_completed: number
+          earnings_ron: number
+          kpi_date: string
+          online_minutes: number
+          ratings_count: number
+          updated_at: string
+        }
+        Insert: {
+          avg_rating?: number | null
+          combo_pushes_accepted?: number
+          combo_pushes_sent?: number
+          courier_user_id: string
+          created_at?: string
+          deliveries_cancelled?: number
+          deliveries_completed?: number
+          earnings_ron?: number
+          kpi_date: string
+          online_minutes?: number
+          ratings_count?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_rating?: number | null
+          combo_pushes_accepted?: number
+          combo_pushes_sent?: number
+          courier_user_id?: string
+          created_at?: string
+          deliveries_cancelled?: number
+          deliveries_completed?: number
+          earnings_ron?: number
+          kpi_date?: string
+          online_minutes?: number
+          ratings_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      courier_feedback: {
+        Row: {
+          app_version: string | null
+          courier_user_id: string
+          created_at: string
+          fleet_id: string | null
+          id: string
+          kind: string
+          message: string
+          platform: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          app_version?: string | null
+          courier_user_id: string
+          created_at?: string
+          fleet_id?: string | null
+          id?: string
+          kind: string
+          message: string
+          platform?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          app_version?: string | null
+          courier_user_id?: string
+          created_at?: string
+          fleet_id?: string | null
+          id?: string
+          kind?: string
+          message?: string
+          platform?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_feedback_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courier_fleets: {
         Row: {
           allowed_verticals: string[]
           brand_color: string
+          can_approve_deletions: boolean
+          can_validate_couriers: boolean
           contact_phone: string | null
           created_at: string
           custom_domain: string | null
+          deleted_at: string | null
           delivery_app: string
+          display_prefix: string | null
           id: string
           is_active: boolean
+          is_financial_record: boolean
+          is_pfa_solo: boolean
+          kyc_required: boolean
+          kyf_required: boolean
           logo_url: string | null
           name: string
           owner_user_id: string | null
+          pfa_cui: string | null
+          pfa_owner_user_id: string | null
+          primary_city_id: string | null
           slug: string
           tier: string
           webhook_url: string | null
@@ -2088,15 +3372,26 @@ export type Database = {
         Insert: {
           allowed_verticals?: string[]
           brand_color?: string
+          can_approve_deletions?: boolean
+          can_validate_couriers?: boolean
           contact_phone?: string | null
           created_at?: string
           custom_domain?: string | null
+          deleted_at?: string | null
           delivery_app?: string
+          display_prefix?: string | null
           id?: string
           is_active?: boolean
+          is_financial_record?: boolean
+          is_pfa_solo?: boolean
+          kyc_required?: boolean
+          kyf_required?: boolean
           logo_url?: string | null
           name: string
           owner_user_id?: string | null
+          pfa_cui?: string | null
+          pfa_owner_user_id?: string | null
+          primary_city_id?: string | null
           slug: string
           tier?: string
           webhook_url?: string | null
@@ -2104,18 +3399,227 @@ export type Database = {
         Update: {
           allowed_verticals?: string[]
           brand_color?: string
+          can_approve_deletions?: boolean
+          can_validate_couriers?: boolean
           contact_phone?: string | null
           created_at?: string
           custom_domain?: string | null
+          deleted_at?: string | null
           delivery_app?: string
+          display_prefix?: string | null
           id?: string
           is_active?: boolean
+          is_financial_record?: boolean
+          is_pfa_solo?: boolean
+          kyc_required?: boolean
+          kyf_required?: boolean
           logo_url?: string | null
           name?: string
           owner_user_id?: string | null
+          pfa_cui?: string | null
+          pfa_owner_user_id?: string | null
+          primary_city_id?: string | null
           slug?: string
           tier?: string
           webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_fleets_primary_city_id_fkey"
+            columns: ["primary_city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_fleets_primary_city_id_fkey"
+            columns: ["primary_city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+        ]
+      }
+      courier_job_applications: {
+        Row: {
+          applied_at: string
+          courier_user_id: string
+          cv_doc_url: string | null
+          hired_at: string | null
+          id: string
+          job_listing_id: string
+          message: string | null
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          applied_at?: string
+          courier_user_id: string
+          cv_doc_url?: string | null
+          hired_at?: string | null
+          id?: string
+          job_listing_id: string
+          message?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          applied_at?: string
+          courier_user_id?: string
+          cv_doc_url?: string | null
+          hired_at?: string | null
+          id?: string
+          job_listing_id?: string
+          message?: string | null
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_job_applications_job_listing_id_fkey"
+            columns: ["job_listing_id"]
+            isOneToOne: false
+            referencedRelation: "courier_job_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_job_listings: {
+        Row: {
+          city_id: string | null
+          created_at: string
+          description: string
+          employment_type: string
+          expires_at: string | null
+          fleet_id: string
+          id: string
+          languages_required: string[]
+          position_title: string
+          requirements: string | null
+          salary_range_max_ron: number | null
+          salary_range_min_ron: number | null
+          shift_pattern: string | null
+          status: string
+          updated_at: string
+          vehicle_required: string | null
+        }
+        Insert: {
+          city_id?: string | null
+          created_at?: string
+          description: string
+          employment_type: string
+          expires_at?: string | null
+          fleet_id: string
+          id?: string
+          languages_required?: string[]
+          position_title: string
+          requirements?: string | null
+          salary_range_max_ron?: number | null
+          salary_range_min_ron?: number | null
+          shift_pattern?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_required?: string | null
+        }
+        Update: {
+          city_id?: string | null
+          created_at?: string
+          description?: string
+          employment_type?: string
+          expires_at?: string | null
+          fleet_id?: string
+          id?: string
+          languages_required?: string[]
+          position_title?: string
+          requirements?: string | null
+          salary_range_max_ron?: number | null
+          salary_range_min_ron?: number | null
+          shift_pattern?: string | null
+          status?: string
+          updated_at?: string
+          vehicle_required?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_job_listings_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_job_listings_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+          {
+            foreignKeyName: "courier_job_listings_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_kyc: {
+        Row: {
+          cnp_last4: string | null
+          courier_user_id: string
+          created_at: string
+          cui: string | null
+          deleted_at: string | null
+          device_fingerprints: string[]
+          fleet_id: string | null
+          id_doc_url: string | null
+          kyc_status: string
+          legal_name: string | null
+          rejected_reason: string | null
+          selfie_url: string | null
+          submitted_at: string | null
+          updated_at: string
+          validated_by: string | null
+          validated_by_user_id: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          cnp_last4?: string | null
+          courier_user_id: string
+          created_at?: string
+          cui?: string | null
+          deleted_at?: string | null
+          device_fingerprints?: string[]
+          fleet_id?: string | null
+          id_doc_url?: string | null
+          kyc_status?: string
+          legal_name?: string | null
+          rejected_reason?: string | null
+          selfie_url?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          validated_by?: string | null
+          validated_by_user_id?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          cnp_last4?: string | null
+          courier_user_id?: string
+          created_at?: string
+          cui?: string | null
+          deleted_at?: string | null
+          device_fingerprints?: string[]
+          fleet_id?: string | null
+          id_doc_url?: string | null
+          kyc_status?: string
+          legal_name?: string | null
+          rejected_reason?: string | null
+          selfie_url?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          validated_by?: string | null
+          validated_by_user_id?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -2160,12 +3664,17 @@ export type Database = {
       }
       courier_orders: {
         Row: {
+          accepted_at: string | null
           assigned_courier_user_id: string | null
           cancellation_reason: string | null
+          cancelled_at: string | null
+          city_id: string | null
           cod_amount_ron: number | null
+          courier_push_dispatched_at: string | null
           created_at: string
           customer_first_name: string | null
           customer_phone: string | null
+          delivered_at: string | null
           delivered_proof_id_url: string | null
           delivered_proof_prescription_url: string | null
           delivered_proof_taken_at: string | null
@@ -2174,21 +3683,30 @@ export type Database = {
           dropoff_lat: number | null
           dropoff_line1: string | null
           dropoff_lng: number | null
+          dropoff_notes: string | null
           external_ref: string | null
           fleet_id: string
           id: string
+          in_transit_at: string | null
           items: Json
           last_webhook_attempt_at: string | null
           last_webhook_status: string | null
+          offer_expires_at: string | null
+          offered_at: string | null
           payment_method: string | null
           pharma_callback_secret: string | null
           pharma_callback_url: string | null
           pharma_metadata: Json | null
+          pharma_ready_at: string | null
+          picked_up_at: string | null
           pickup_lat: number | null
           pickup_line1: string | null
           pickup_lng: number | null
+          pickup_name: string | null
+          pickup_phone: string | null
           public_track_token: string
           restaurant_order_id: string | null
+          restaurant_ready_at: string | null
           source_order_id: string | null
           source_tenant_id: string | null
           source_type: string
@@ -2199,14 +3717,21 @@ export type Database = {
           webhook_callback_url: string | null
           webhook_failure_count: number
           webhook_secret: string | null
+          zone_id: string | null
+          zone_type: string | null
         }
         Insert: {
+          accepted_at?: string | null
           assigned_courier_user_id?: string | null
           cancellation_reason?: string | null
+          cancelled_at?: string | null
+          city_id?: string | null
           cod_amount_ron?: number | null
+          courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
           customer_phone?: string | null
+          delivered_at?: string | null
           delivered_proof_id_url?: string | null
           delivered_proof_prescription_url?: string | null
           delivered_proof_taken_at?: string | null
@@ -2215,21 +3740,30 @@ export type Database = {
           dropoff_lat?: number | null
           dropoff_line1?: string | null
           dropoff_lng?: number | null
+          dropoff_notes?: string | null
           external_ref?: string | null
           fleet_id: string
           id?: string
+          in_transit_at?: string | null
           items?: Json
           last_webhook_attempt_at?: string | null
           last_webhook_status?: string | null
+          offer_expires_at?: string | null
+          offered_at?: string | null
           payment_method?: string | null
           pharma_callback_secret?: string | null
           pharma_callback_url?: string | null
           pharma_metadata?: Json | null
+          pharma_ready_at?: string | null
+          picked_up_at?: string | null
           pickup_lat?: number | null
           pickup_line1?: string | null
           pickup_lng?: number | null
+          pickup_name?: string | null
+          pickup_phone?: string | null
           public_track_token: string
           restaurant_order_id?: string | null
+          restaurant_ready_at?: string | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type: string
@@ -2240,14 +3774,21 @@ export type Database = {
           webhook_callback_url?: string | null
           webhook_failure_count?: number
           webhook_secret?: string | null
+          zone_id?: string | null
+          zone_type?: string | null
         }
         Update: {
+          accepted_at?: string | null
           assigned_courier_user_id?: string | null
           cancellation_reason?: string | null
+          cancelled_at?: string | null
+          city_id?: string | null
           cod_amount_ron?: number | null
+          courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
           customer_phone?: string | null
+          delivered_at?: string | null
           delivered_proof_id_url?: string | null
           delivered_proof_prescription_url?: string | null
           delivered_proof_taken_at?: string | null
@@ -2256,21 +3797,30 @@ export type Database = {
           dropoff_lat?: number | null
           dropoff_line1?: string | null
           dropoff_lng?: number | null
+          dropoff_notes?: string | null
           external_ref?: string | null
           fleet_id?: string
           id?: string
+          in_transit_at?: string | null
           items?: Json
           last_webhook_attempt_at?: string | null
           last_webhook_status?: string | null
+          offer_expires_at?: string | null
+          offered_at?: string | null
           payment_method?: string | null
           pharma_callback_secret?: string | null
           pharma_callback_url?: string | null
           pharma_metadata?: Json | null
+          pharma_ready_at?: string | null
+          picked_up_at?: string | null
           pickup_lat?: number | null
           pickup_line1?: string | null
           pickup_lng?: number | null
+          pickup_name?: string | null
+          pickup_phone?: string | null
           public_track_token?: string
           restaurant_order_id?: string | null
+          restaurant_ready_at?: string | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type?: string
@@ -2281,8 +3831,24 @@ export type Database = {
           webhook_callback_url?: string | null
           webhook_failure_count?: number
           webhook_secret?: string | null
+          zone_id?: string | null
+          zone_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "courier_orders_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_orders_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
           {
             foreignKeyName: "courier_orders_fleet_id_fkey"
             columns: ["fleet_id"]
@@ -2308,7 +3874,21 @@ export type Database = {
             foreignKeyName: "courier_orders_source_tenant_id_fkey"
             columns: ["source_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_orders_source_tenant_id_fkey"
+            columns: ["source_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_orders_source_tenant_id_fkey"
+            columns: ["source_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2327,14 +3907,63 @@ export type Database = {
           },
         ]
       }
+      courier_permit_audit_log: {
+        Row: {
+          actor_user_id: string | null
+          courier_user_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_status: string
+          old_status: string | null
+          permit_country_iso: string | null
+          permit_munca_valid_until: string | null
+          reason: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          courier_user_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          old_status?: string | null
+          permit_country_iso?: string | null
+          permit_munca_valid_until?: string | null
+          reason?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          courier_user_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          old_status?: string | null
+          permit_country_iso?: string | null
+          permit_munca_valid_until?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       courier_profiles: {
         Row: {
           avatar_url: string | null
+          city: string | null
           created_at: string
+          deleted_at: string | null
+          deletion_requested_at: string | null
           fleet_id: string
           full_name: string
+          is_non_eu_resident: boolean
           manager_note: string | null
           max_parallel_orders: number | null
+          permit_country_iso: string | null
+          permit_doc_url: string | null
+          permit_munca_valid_until: string | null
+          permit_status: string
+          permit_verified_at: string | null
+          permit_verified_by: string | null
           phone: string
           status: string
           user_id: string
@@ -2342,11 +3971,21 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          city?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deletion_requested_at?: string | null
           fleet_id: string
           full_name: string
+          is_non_eu_resident?: boolean
           manager_note?: string | null
           max_parallel_orders?: number | null
+          permit_country_iso?: string | null
+          permit_doc_url?: string | null
+          permit_munca_valid_until?: string | null
+          permit_status?: string
+          permit_verified_at?: string | null
+          permit_verified_by?: string | null
           phone: string
           status?: string
           user_id: string
@@ -2354,11 +3993,21 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          city?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deletion_requested_at?: string | null
           fleet_id?: string
           full_name?: string
+          is_non_eu_resident?: boolean
           manager_note?: string | null
           max_parallel_orders?: number | null
+          permit_country_iso?: string | null
+          permit_doc_url?: string | null
+          permit_munca_valid_until?: string | null
+          permit_status?: string
+          permit_verified_at?: string | null
+          permit_verified_by?: string | null
           phone?: string
           status?: string
           user_id?: string
@@ -2403,6 +4052,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      courier_push_tokens: {
+        Row: {
+          courier_user_id: string
+          created_at: string
+          fcm_token: string
+          id: string
+          last_seen_at: string
+          platform: string
+        }
+        Insert: {
+          courier_user_id: string
+          created_at?: string
+          fcm_token: string
+          id?: string
+          last_seen_at?: string
+          platform: string
+        }
+        Update: {
+          courier_user_id?: string
+          created_at?: string
+          fcm_token?: string
+          id?: string
+          last_seen_at?: string
+          platform?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_push_tokens_courier_user_id_fkey"
+            columns: ["courier_user_id"]
+            isOneToOne: false
+            referencedRelation: "courier_profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       courier_shift_slots: {
         Row: {
@@ -2501,6 +4185,96 @@ export type Database = {
           },
         ]
       }
+      courier_tips: {
+        Row: {
+          amount_ron: number
+          courier_user_id: string
+          delivery_id: string
+          id: string
+          recorded_at: string
+        }
+        Insert: {
+          amount_ron: number
+          courier_user_id: string
+          delivery_id: string
+          id?: string
+          recorded_at?: string
+        }
+        Update: {
+          amount_ron?: number
+          courier_user_id?: string
+          delivery_id?: string
+          id?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_tips_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: true
+            referencedRelation: "courier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_tips_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: true
+            referencedRelation: "courier_orders_feed"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_transfers: {
+        Row: {
+          courier_user_id: string
+          created_at: string
+          from_city: string | null
+          from_fleet_id: string | null
+          id: string
+          reason: string | null
+          to_city: string | null
+          to_fleet_id: string
+          transferred_by: string | null
+        }
+        Insert: {
+          courier_user_id: string
+          created_at?: string
+          from_city?: string | null
+          from_fleet_id?: string | null
+          id?: string
+          reason?: string | null
+          to_city?: string | null
+          to_fleet_id: string
+          transferred_by?: string | null
+        }
+        Update: {
+          courier_user_id?: string
+          created_at?: string
+          from_city?: string | null
+          from_fleet_id?: string | null
+          id?: string
+          reason?: string | null
+          to_city?: string | null
+          to_fleet_id?: string
+          transferred_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courier_transfers_from_fleet_id_fkey"
+            columns: ["from_fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courier_transfers_to_fleet_id_fkey"
+            columns: ["to_fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_agent_responses: {
         Row: {
           created_at: string
@@ -2546,7 +4320,21 @@ export type Database = {
             foreignKeyName: "cs_agent_responses_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cs_agent_responses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "cs_agent_responses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2572,12 +4360,14 @@ export type Database = {
           created_at: string
           customer_id: string
           id: string
+          is_default: boolean
           label: string | null
           latitude: number | null
           line1: string
           line2: string | null
           longitude: number | null
           postal_code: string | null
+          updated_at: string
         }
         Insert: {
           city: string
@@ -2585,12 +4375,14 @@ export type Database = {
           created_at?: string
           customer_id: string
           id?: string
+          is_default?: boolean
           label?: string | null
           latitude?: number | null
           line1: string
           line2?: string | null
           longitude?: number | null
           postal_code?: string | null
+          updated_at?: string
         }
         Update: {
           city?: string
@@ -2598,12 +4390,14 @@ export type Database = {
           created_at?: string
           customer_id?: string
           id?: string
+          is_default?: boolean
           label?: string | null
           latitude?: number | null
           line1?: string
           line2?: string | null
           longitude?: number | null
           postal_code?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -2614,6 +4408,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customer_phone_verifications: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          phone: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone?: string
+          verified_at?: string | null
+        }
+        Relationships: []
       }
       customer_push_subscriptions: {
         Row: {
@@ -2662,7 +4486,21 @@ export type Database = {
             foreignKeyName: "customer_push_subscriptions_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_push_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2711,7 +4549,21 @@ export type Database = {
             foreignKeyName: "customer_reactivation_contacts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_reactivation_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customer_reactivation_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2732,6 +4584,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          auth_user_id: string | null
           created_at: string
           deleted_at: string | null
           email: string | null
@@ -2744,8 +4597,10 @@ export type Database = {
           marketing_consent_source: string | null
           phone: string | null
           tenant_id: string
+          updated_at: string
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -2758,8 +4613,10 @@ export type Database = {
           marketing_consent_source?: string | null
           phone?: string | null
           tenant_id: string
+          updated_at?: string
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string
           deleted_at?: string | null
           email?: string | null
@@ -2772,13 +4629,28 @@ export type Database = {
           marketing_consent_source?: string | null
           phone?: string | null
           tenant_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "customers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2796,6 +4668,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      delivery_complaints: {
+        Row: {
+          canonical_order_id: string | null
+          category: string
+          courier_order_id: string
+          courier_user_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          source_tenant_id: string | null
+          status: string
+        }
+        Insert: {
+          canonical_order_id?: string | null
+          category: string
+          courier_order_id: string
+          courier_user_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          source_tenant_id?: string | null
+          status?: string
+        }
+        Update: {
+          canonical_order_id?: string | null
+          category?: string
+          courier_order_id?: string
+          courier_user_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          source_tenant_id?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       delivery_dispatch_failures: {
         Row: {
@@ -2859,7 +4773,21 @@ export type Database = {
             foreignKeyName: "delivery_dispatch_failures_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_dispatch_failures_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_dispatch_failures_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2908,7 +4836,21 @@ export type Database = {
             foreignKeyName: "delivery_pricing_tiers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_pricing_tiers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_pricing_tiers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -2992,6 +4934,45 @@ export type Database = {
           },
         ]
       }
+      delivery_ratings: {
+        Row: {
+          canonical_order_id: string | null
+          comment: string | null
+          courier_order_id: string
+          courier_user_id: string | null
+          created_at: string
+          id: string
+          rated_by_role: string
+          source_tenant_id: string | null
+          stars: number
+          tags: string[]
+        }
+        Insert: {
+          canonical_order_id?: string | null
+          comment?: string | null
+          courier_order_id: string
+          courier_user_id?: string | null
+          created_at?: string
+          id?: string
+          rated_by_role?: string
+          source_tenant_id?: string | null
+          stars: number
+          tags?: string[]
+        }
+        Update: {
+          canonical_order_id?: string | null
+          comment?: string | null
+          courier_order_id?: string
+          courier_user_id?: string | null
+          created_at?: string
+          id?: string
+          rated_by_role?: string
+          source_tenant_id?: string | null
+          stars?: number
+          tags?: string[]
+        }
+        Relationships: []
+      }
       delivery_zones: {
         Row: {
           created_at: string
@@ -3025,7 +5006,21 @@ export type Database = {
             foreignKeyName: "delivery_zones_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_zones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "delivery_zones_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3092,7 +5087,21 @@ export type Database = {
             foreignKeyName: "demand_forecast_cells_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "demand_forecast_cells_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "demand_forecast_cells_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3110,6 +5119,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      demand_signals: {
+        Row: {
+          distance_km: number | null
+          dropoff_lat_1km: number | null
+          dropoff_lng_1km: number | null
+          id: string
+          occurred_at: string
+          payload: Json
+          reason: string | null
+          signal_type: string
+          source_tenant_id: string | null
+          vertical: string
+          zone_id: string | null
+        }
+        Insert: {
+          distance_km?: number | null
+          dropoff_lat_1km?: number | null
+          dropoff_lng_1km?: number | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          reason?: string | null
+          signal_type: string
+          source_tenant_id?: string | null
+          vertical?: string
+          zone_id?: string | null
+        }
+        Update: {
+          distance_km?: number | null
+          dropoff_lat_1km?: number | null
+          dropoff_lng_1km?: number | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          reason?: string | null
+          signal_type?: string
+          source_tenant_id?: string | null
+          vertical?: string
+          zone_id?: string | null
+        }
+        Relationships: []
+      }
+      driver_scores: {
+        Row: {
+          breakdown: Json
+          courier_user_id: string
+          created_at: string
+          id: string
+          last_calculated_at: string
+          rolling_window_count: number
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          breakdown?: Json
+          courier_user_id: string
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          rolling_window_count?: number
+          score?: number
+          updated_at?: string
+        }
+        Update: {
+          breakdown?: Json
+          courier_user_id?: string
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          rolling_window_count?: number
+          score?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       experiments: {
         Row: {
@@ -3147,7 +5231,21 @@ export type Database = {
             foreignKeyName: "experiments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "experiments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "experiments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3228,7 +5326,21 @@ export type Database = {
             foreignKeyName: "external_dispatch_attempts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "external_dispatch_attempts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "external_dispatch_attempts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3349,7 +5461,21 @@ export type Database = {
             foreignKeyName: "feedback_reports_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "feedback_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "feedback_reports_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3458,6 +5584,102 @@ export type Database = {
           },
         ]
       }
+      fleet_aggregate_scores: {
+        Row: {
+          auto_pause_reason: string | null
+          auto_paused_at: string | null
+          avg_rating: number | null
+          calculated_at: string
+          dispute_count: number
+          fleet_id: string
+          on_time_pct: number | null
+          total_matches: number
+        }
+        Insert: {
+          auto_pause_reason?: string | null
+          auto_paused_at?: string | null
+          avg_rating?: number | null
+          calculated_at?: string
+          dispute_count?: number
+          fleet_id: string
+          on_time_pct?: number | null
+          total_matches?: number
+        }
+        Update: {
+          auto_pause_reason?: string | null
+          auto_paused_at?: string | null
+          avg_rating?: number | null
+          calculated_at?: string
+          dispute_count?: number
+          fleet_id?: string
+          on_time_pct?: number | null
+          total_matches?: number
+        }
+        Relationships: []
+      }
+      fleet_courier_tariffs: {
+        Row: {
+          cod_bonus_cents: number
+          created_at: string
+          created_by: string | null
+          fleet_id: string
+          id: string
+          is_financial_record: boolean
+          payout_cents: number
+          per_km_cents: number | null
+          pickup_fee_cents: number | null
+          reason: string | null
+          valid_from: string
+          valid_until: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          cod_bonus_cents?: number
+          created_at?: string
+          created_by?: string | null
+          fleet_id: string
+          id?: string
+          is_financial_record?: boolean
+          payout_cents: number
+          per_km_cents?: number | null
+          pickup_fee_cents?: number | null
+          reason?: string | null
+          valid_from?: string
+          valid_until?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          cod_bonus_cents?: number
+          created_at?: string
+          created_by?: string | null
+          fleet_id?: string
+          id?: string
+          is_financial_record?: boolean
+          payout_cents?: number
+          per_km_cents?: number | null
+          pickup_fee_cents?: number | null
+          reason?: string | null
+          valid_from?: string
+          valid_until?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_courier_tariffs_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_courier_tariffs_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_demand_estimates: {
         Row: {
           city_id: string
@@ -3507,10 +5729,31 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fleet_demand_estimates_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+          {
+            foreignKeyName: "fleet_demand_estimates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
             foreignKeyName: "fleet_demand_estimates_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fleet_demand_estimates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3525,6 +5768,83 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_kyf: {
+        Row: {
+          act_constitutiv_url: string | null
+          address: string | null
+          anaf_active: boolean | null
+          anaf_checked_at: string | null
+          caen_code: string | null
+          certificat_inreg_url: string | null
+          company_name: string | null
+          created_at: string
+          cui: string | null
+          deleted_at: string | null
+          extras_cont_url: string | null
+          fleet_id: string
+          iban: string | null
+          kyf_status: string
+          reg_com: string | null
+          rejected_reason: string | null
+          submitted_at: string | null
+          updated_at: string
+          vat_payer: boolean | null
+          verified_at: string | null
+        }
+        Insert: {
+          act_constitutiv_url?: string | null
+          address?: string | null
+          anaf_active?: boolean | null
+          anaf_checked_at?: string | null
+          caen_code?: string | null
+          certificat_inreg_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          cui?: string | null
+          deleted_at?: string | null
+          extras_cont_url?: string | null
+          fleet_id: string
+          iban?: string | null
+          kyf_status?: string
+          reg_com?: string | null
+          rejected_reason?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          vat_payer?: boolean | null
+          verified_at?: string | null
+        }
+        Update: {
+          act_constitutiv_url?: string | null
+          address?: string | null
+          anaf_active?: boolean | null
+          anaf_checked_at?: string | null
+          caen_code?: string | null
+          certificat_inreg_url?: string | null
+          company_name?: string | null
+          created_at?: string
+          cui?: string | null
+          deleted_at?: string | null
+          extras_cont_url?: string | null
+          fleet_id?: string
+          iban?: string | null
+          kyf_status?: string
+          reg_com?: string | null
+          rejected_reason?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          vat_payer?: boolean | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_kyf_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: true
+            referencedRelation: "courier_fleets"
             referencedColumns: ["id"]
           },
         ]
@@ -3587,7 +5907,21 @@ export type Database = {
             foreignKeyName: "fleet_restaurant_assignments_restaurant_tenant_id_fkey"
             columns: ["restaurant_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fleet_restaurant_assignments_restaurant_tenant_id_fkey"
+            columns: ["restaurant_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fleet_restaurant_assignments_restaurant_tenant_id_fkey"
+            columns: ["restaurant_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3605,6 +5939,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fleet_sla_daily: {
+        Row: {
+          accept_p50_sec: number | null
+          accept_p90_sec: number | null
+          cancelled: number
+          computed_at: string
+          day: string
+          delivered: number
+          delivery_rate: number | null
+          dropoff_p50_sec: number | null
+          dropoff_p90_sec: number | null
+          fleet_id: string
+          orders_total: number
+          pickup_p50_sec: number | null
+          pickup_p90_sec: number | null
+          total_p50_sec: number | null
+          total_p90_sec: number | null
+          vertical: string
+        }
+        Insert: {
+          accept_p50_sec?: number | null
+          accept_p90_sec?: number | null
+          cancelled?: number
+          computed_at?: string
+          day: string
+          delivered?: number
+          delivery_rate?: number | null
+          dropoff_p50_sec?: number | null
+          dropoff_p90_sec?: number | null
+          fleet_id: string
+          orders_total?: number
+          pickup_p50_sec?: number | null
+          pickup_p90_sec?: number | null
+          total_p50_sec?: number | null
+          total_p90_sec?: number | null
+          vertical: string
+        }
+        Update: {
+          accept_p50_sec?: number | null
+          accept_p90_sec?: number | null
+          cancelled?: number
+          computed_at?: string
+          day?: string
+          delivered?: number
+          delivery_rate?: number | null
+          dropoff_p50_sec?: number | null
+          dropoff_p90_sec?: number | null
+          fleet_id?: string
+          orders_total?: number
+          pickup_p50_sec?: number | null
+          pickup_p90_sec?: number | null
+          total_p50_sec?: number | null
+          total_p90_sec?: number | null
+          vertical?: string
+        }
+        Relationships: []
       }
       fleet_strikes: {
         Row: {
@@ -3659,7 +6050,21 @@ export type Database = {
             foreignKeyName: "fleet_strikes_restaurant_tenant_id_fkey"
             columns: ["restaurant_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fleet_strikes_restaurant_tenant_id_fkey"
+            columns: ["restaurant_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fleet_strikes_restaurant_tenant_id_fkey"
+            columns: ["restaurant_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3674,6 +6079,63 @@ export type Database = {
             columns: ["restaurant_tenant_id"]
             isOneToOne: false
             referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_vendor_tariffs: {
+        Row: {
+          cod_bonus_cents: number
+          created_at: string
+          created_by: string | null
+          fleet_id: string
+          id: string
+          per_km_cents: number
+          pickup_fee_cents: number
+          reason: string | null
+          valid_from: string
+          valid_until: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          cod_bonus_cents?: number
+          created_at?: string
+          created_by?: string | null
+          fleet_id: string
+          id?: string
+          per_km_cents?: number
+          pickup_fee_cents?: number
+          reason?: string | null
+          valid_from?: string
+          valid_until?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          cod_bonus_cents?: number
+          created_at?: string
+          created_by?: string | null
+          fleet_id?: string
+          id?: string
+          per_km_cents?: number
+          pickup_fee_cents?: number
+          reason?: string | null
+          valid_from?: string
+          valid_until?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_vendor_tariffs_fleet_id_fkey"
+            columns: ["fleet_id"]
+            isOneToOne: false
+            referencedRelation: "courier_fleets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_vendor_tariffs_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_zones"
             referencedColumns: ["id"]
           },
         ]
@@ -3753,6 +6215,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fleet_zones_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+          {
             foreignKeyName: "fleet_zones_fleet_id_fkey"
             columns: ["fleet_id"]
             isOneToOne: false
@@ -3803,7 +6272,21 @@ export type Database = {
             foreignKeyName: "fm_invites_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fm_invites_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "fm_invites_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -3855,6 +6338,30 @@ export type Database = {
           started_at?: string
           status?: string
           tenant_id?: string | null
+        }
+        Relationships: []
+      }
+      geocode_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          display_name: string
+          lat: number
+          lng: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          display_name: string
+          lat: number
+          lng: number
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          display_name?: string
+          lat?: number
+          lng?: number
         }
         Relationships: []
       }
@@ -3966,7 +6473,21 @@ export type Database = {
             foreignKeyName: "gloriafood_import_runs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "gloriafood_import_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "gloriafood_import_runs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4045,7 +6566,21 @@ export type Database = {
             foreignKeyName: "growth_recommendations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "growth_recommendations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "growth_recommendations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4115,6 +6650,30 @@ export type Database = {
         }
         Relationships: []
       }
+      hepi_settings: {
+        Row: {
+          id: string
+          mode: string
+          per_action_mode: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          mode?: string
+          per_action_mode?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          mode?: string
+          per_action_mode?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       hepy_connect_nonces: {
         Row: {
           consumed_at: string | null
@@ -4145,7 +6704,21 @@ export type Database = {
             foreignKeyName: "hepy_connect_nonces_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_connect_nonces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_connect_nonces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4200,7 +6773,21 @@ export type Database = {
             foreignKeyName: "hepy_conversation_state_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_conversation_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_conversation_state_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4255,7 +6842,21 @@ export type Database = {
             foreignKeyName: "hepy_owner_bindings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_owner_bindings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "hepy_owner_bindings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4279,24 +6880,24 @@ export type Database = {
           created_at: string
           idempotency_key: string
           request_hash: string
-          response: Json
-          status_code: number
+          response: Json | null
+          status_code: number | null
           tenant_id: string
         }
         Insert: {
           created_at?: string
           idempotency_key: string
           request_hash: string
-          response: Json
-          status_code: number
+          response?: Json | null
+          status_code?: number | null
           tenant_id: string
         }
         Update: {
           created_at?: string
           idempotency_key?: string
           request_hash?: string
-          response?: Json
-          status_code?: number
+          response?: Json | null
+          status_code?: number | null
           tenant_id?: string
         }
         Relationships: []
@@ -4346,7 +6947,21 @@ export type Database = {
             foreignKeyName: "integration_events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "integration_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "integration_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4401,7 +7016,21 @@ export type Database = {
             foreignKeyName: "integration_providers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "integration_providers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "integration_providers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4472,7 +7101,21 @@ export type Database = {
             foreignKeyName: "inventory_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "inventory_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "inventory_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4537,7 +7180,21 @@ export type Database = {
             foreignKeyName: "inventory_movements_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4686,7 +7343,21 @@ export type Database = {
             foreignKeyName: "loyalty_accounts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_accounts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4772,7 +7443,21 @@ export type Database = {
             foreignKeyName: "loyalty_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4833,7 +7518,21 @@ export type Database = {
             foreignKeyName: "loyalty_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "loyalty_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4895,7 +7594,21 @@ export type Database = {
             foreignKeyName: "magic_link_tokens_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "magic_link_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "magic_link_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -4959,6 +7672,39 @@ export type Database = {
           sort_order?: number
           thumb_url?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      marketing_calculator_leads: {
+        Row: {
+          aov_lei: number | null
+          city: string | null
+          comenzi_per_zi: number | null
+          created_at: string | null
+          estimated_savings_monthly_lei: number | null
+          id: string
+          phone: string
+          restaurant_name: string | null
+        }
+        Insert: {
+          aov_lei?: number | null
+          city?: string | null
+          comenzi_per_zi?: number | null
+          created_at?: string | null
+          estimated_savings_monthly_lei?: number | null
+          id?: string
+          phone: string
+          restaurant_name?: string | null
+        }
+        Update: {
+          aov_lei?: number | null
+          city?: string | null
+          comenzi_per_zi?: number | null
+          created_at?: string | null
+          estimated_savings_monthly_lei?: number | null
+          id?: string
+          phone?: string
+          restaurant_name?: string | null
         }
         Relationships: []
       }
@@ -5028,7 +7774,21 @@ export type Database = {
             foreignKeyName: "marketing_drafts_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "marketing_drafts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "marketing_drafts_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5050,6 +7810,191 @@ export type Database = {
             columns: ["source_run_id"]
             isOneToOne: false
             referencedRelation: "copilot_agent_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_listings: {
+        Row: {
+          city_id: string | null
+          created_at: string
+          customer_phone_redacted: string | null
+          delivery_window_end: string
+          delivery_window_start: string
+          dropoff_address: Json
+          id: string
+          is_financial_record: boolean
+          metadata: Json
+          package_description: string | null
+          package_temperature: string | null
+          package_weight_grams: number | null
+          pickup_address: Json
+          requested_at: string
+          status: string
+          updated_at: string
+          vendor_tenant_id: string
+          vertical: string
+        }
+        Insert: {
+          city_id?: string | null
+          created_at?: string
+          customer_phone_redacted?: string | null
+          delivery_window_end: string
+          delivery_window_start: string
+          dropoff_address: Json
+          id?: string
+          is_financial_record?: boolean
+          metadata?: Json
+          package_description?: string | null
+          package_temperature?: string | null
+          package_weight_grams?: number | null
+          pickup_address: Json
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          vendor_tenant_id: string
+          vertical?: string
+        }
+        Update: {
+          city_id?: string | null
+          created_at?: string
+          customer_phone_redacted?: string | null
+          delivery_window_end?: string
+          delivery_window_start?: string
+          dropoff_address?: Json
+          id?: string
+          is_financial_record?: boolean
+          metadata?: Json
+          package_description?: string | null
+          package_temperature?: string | null
+          package_weight_grams?: number | null
+          pickup_address?: Json
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          vendor_tenant_id?: string
+          vertical?: string
+        }
+        Relationships: []
+      }
+      marketplace_matches: {
+        Row: {
+          courier_order_id: string | null
+          created_at: string
+          dispute_reason: string | null
+          final_price_cents: number
+          fleet_id: string
+          hir_fee_cents: number
+          id: string
+          is_financial_record: boolean
+          listing_id: string
+          matched_at: string
+          offer_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          courier_order_id?: string | null
+          created_at?: string
+          dispute_reason?: string | null
+          final_price_cents: number
+          fleet_id: string
+          hir_fee_cents?: number
+          id?: string
+          is_financial_record?: boolean
+          listing_id: string
+          matched_at?: string
+          offer_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          courier_order_id?: string | null
+          created_at?: string
+          dispute_reason?: string | null
+          final_price_cents?: number
+          fleet_id?: string
+          hir_fee_cents?: number
+          id?: string
+          is_financial_record?: boolean
+          listing_id?: string
+          matched_at?: string
+          offer_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_matches_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_offers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marketplace_offers: {
+        Row: {
+          ai_match_score: number | null
+          ai_match_score_at: string | null
+          created_at: string
+          eta_minutes: number
+          expires_at: string
+          fleet_id: string
+          fleet_rating: number | null
+          id: string
+          is_financial_record: boolean
+          listing_id: string
+          notes: string | null
+          offered_price_cents: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_match_score?: number | null
+          ai_match_score_at?: string | null
+          created_at?: string
+          eta_minutes: number
+          expires_at: string
+          fleet_id: string
+          fleet_rating?: number | null
+          id?: string
+          is_financial_record?: boolean
+          listing_id: string
+          notes?: string | null
+          offered_price_cents: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_match_score?: number | null
+          ai_match_score_at?: string | null
+          created_at?: string
+          eta_minutes?: number
+          expires_at?: string
+          fleet_id?: string
+          fleet_rating?: number | null
+          id?: string
+          is_financial_record?: boolean
+          listing_id?: string
+          notes?: string | null
+          offered_price_cents?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_offers_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
             referencedColumns: ["id"]
           },
         ]
@@ -5120,7 +8065,21 @@ export type Database = {
             foreignKeyName: "menu_agent_invocations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_agent_invocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_agent_invocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5203,7 +8162,21 @@ export type Database = {
             foreignKeyName: "menu_agent_proposals_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_agent_proposals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_agent_proposals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5256,7 +8229,21 @@ export type Database = {
             foreignKeyName: "menu_events_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5322,7 +8309,21 @@ export type Database = {
             foreignKeyName: "menu_item_recipes_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_item_recipes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "menu_item_recipes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5464,7 +8465,21 @@ export type Database = {
             foreignKeyName: "newsletter_subscribers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "newsletter_subscribers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "newsletter_subscribers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5476,6 +8491,161 @@ export type Database = {
           },
           {
             foreignKeyName: "newsletter_subscribers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ops_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json
+          resolved_at: string | null
+          severity: string
+          tenant_id: string | null
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json
+          resolved_at?: string | null
+          severity: string
+          tenant_id?: string | null
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json
+          resolved_at?: string | null
+          severity?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ops_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "ops_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "ops_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "ops_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ops_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_messages: {
+        Row: {
+          body: string
+          channel: string
+          courier_order_id: string
+          courier_read_at: string | null
+          created_at: string
+          from_role: string
+          from_user_id: string | null
+          id: string
+          tenant_id: string | null
+        }
+        Insert: {
+          body: string
+          channel?: string
+          courier_order_id: string
+          courier_read_at?: string | null
+          created_at?: string
+          from_role: string
+          from_user_id?: string | null
+          id?: string
+          tenant_id?: string | null
+        }
+        Update: {
+          body?: string
+          channel?: string
+          courier_order_id?: string
+          courier_read_at?: string | null
+          created_at?: string
+          from_role?: string
+          from_user_id?: string | null
+          id?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_messages_courier_order_id_fkey"
+            columns: ["courier_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_messages_courier_order_id_fkey"
+            columns: ["courier_order_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders_feed"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "order_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "order_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "order_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_messages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "v_tenants_storefront"
@@ -5552,6 +8722,7 @@ export type Database = {
           commission_type: string
           created_at: string
           id: string
+          is_financial_record: boolean
           notes: string | null
           order_count: number
           paid_at: string | null
@@ -5569,6 +8740,7 @@ export type Database = {
           commission_type?: string
           created_at?: string
           id?: string
+          is_financial_record?: boolean
           notes?: string | null
           order_count?: number
           paid_at?: string | null
@@ -5586,6 +8758,7 @@ export type Database = {
           commission_type?: string
           created_at?: string
           id?: string
+          is_financial_record?: boolean
           notes?: string | null
           order_count?: number
           paid_at?: string | null
@@ -5641,6 +8814,7 @@ export type Database = {
           created_at: string
           gross_cents: number
           id: string
+          is_financial_record: boolean
           net_cents: number
           notes: string | null
           paid_at: string
@@ -5657,6 +8831,7 @@ export type Database = {
           created_at?: string
           gross_cents: number
           id?: string
+          is_financial_record?: boolean
           net_cents: number
           notes?: string | null
           paid_at?: string
@@ -5673,6 +8848,7 @@ export type Database = {
           created_at?: string
           gross_cents?: number
           id?: string
+          is_financial_record?: boolean
           net_cents?: number
           notes?: string | null
           paid_at?: string
@@ -5787,7 +8963,21 @@ export type Database = {
             foreignKeyName: "partner_referrals_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "partner_referrals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "partner_referrals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -5932,6 +9122,7 @@ export type Database = {
           kyc_status: string
           kyc_verified_at: string | null
           landing_settings: Json
+          min_vendors_threshold: number
           name: string
           notification_settings: Json
           phone: string | null
@@ -5959,6 +9150,7 @@ export type Database = {
           kyc_status?: string
           kyc_verified_at?: string | null
           landing_settings?: Json
+          min_vendors_threshold?: number
           name: string
           notification_settings?: Json
           phone?: string | null
@@ -5986,6 +9178,7 @@ export type Database = {
           kyc_status?: string
           kyc_verified_at?: string | null
           landing_settings?: Json
+          min_vendors_threshold?: number
           name?: string
           notification_settings?: Json
           phone?: string | null
@@ -6057,30 +9250,53 @@ export type Database = {
       payout_items: {
         Row: {
           amount_cents: number
-          delivery_pricing_id: string
+          delivery_id: string | null
+          delivery_pricing_id: string | null
           formula_snapshot: Json
           id: string
+          is_financial_record: boolean
           payout_period_id: string
+          source: string | null
         }
         Insert: {
           amount_cents: number
-          delivery_pricing_id: string
+          delivery_id?: string | null
+          delivery_pricing_id?: string | null
           formula_snapshot: Json
           id?: string
+          is_financial_record?: boolean
           payout_period_id: string
+          source?: string | null
         }
         Update: {
           amount_cents?: number
-          delivery_pricing_id?: string
+          delivery_id?: string | null
+          delivery_pricing_id?: string | null
           formula_snapshot?: Json
           id?: string
+          is_financial_record?: boolean
           payout_period_id?: string
+          source?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "payout_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_items_delivery_id_fkey"
+            columns: ["delivery_id"]
+            isOneToOne: false
+            referencedRelation: "courier_orders_feed"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payout_items_delivery_pricing_id_fkey"
             columns: ["delivery_pricing_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "delivery_pricings"
             referencedColumns: ["id"]
           },
@@ -6100,6 +9316,7 @@ export type Database = {
           created_at: string
           deliveries_count: number
           id: string
+          is_financial_record: boolean
           paid_at: string | null
           paid_method: string | null
           payment_ref: string | null
@@ -6115,6 +9332,7 @@ export type Database = {
           created_at?: string
           deliveries_count?: number
           id?: string
+          is_financial_record?: boolean
           paid_at?: string | null
           paid_method?: string | null
           payment_ref?: string | null
@@ -6130,6 +9348,7 @@ export type Database = {
           created_at?: string
           deliveries_count?: number
           id?: string
+          is_financial_record?: boolean
           paid_at?: string | null
           paid_method?: string | null
           payment_ref?: string | null
@@ -6146,6 +9365,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cities"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payout_periods_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
           },
         ]
       }
@@ -6251,6 +9477,63 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_order_events: {
+        Row: {
+          actor_role: string
+          canonical_order_id: string
+          courier_order_id: string | null
+          courier_user_id: string | null
+          event_id: string
+          event_type: string
+          fleet_id: string | null
+          native_order_id: string | null
+          occurred_at: string
+          payload: Json
+          reason_code: string | null
+          recorded_at: string
+          source_system: string
+          status: string | null
+          vertical: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          actor_role?: string
+          canonical_order_id: string
+          courier_order_id?: string | null
+          courier_user_id?: string | null
+          event_id?: string
+          event_type: string
+          fleet_id?: string | null
+          native_order_id?: string | null
+          occurred_at: string
+          payload?: Json
+          reason_code?: string | null
+          recorded_at?: string
+          source_system: string
+          status?: string | null
+          vertical?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          actor_role?: string
+          canonical_order_id?: string
+          courier_order_id?: string | null
+          courier_user_id?: string | null
+          event_id?: string
+          event_type?: string
+          fleet_id?: string | null
+          native_order_id?: string | null
+          occurred_at?: string
+          payload?: Json
+          reason_code?: string | null
+          recorded_at?: string
+          source_system?: string
+          status?: string | null
+          vertical?: string | null
+          zone_id?: string | null
+        }
+        Relationships: []
+      }
       pricing_zones: {
         Row: {
           active: boolean
@@ -6301,6 +9584,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cities"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pricing_zones_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
           },
         ]
       }
@@ -6368,7 +9658,21 @@ export type Database = {
             foreignKeyName: "promo_codes_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "promo_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "promo_codes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -6498,7 +9802,21 @@ export type Database = {
             foreignKeyName: "psp_credentials_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "psp_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "psp_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -6524,6 +9842,7 @@ export type Database = {
           currency: string
           hir_fee_bani: number | null
           id: string
+          is_financial_record: boolean
           mode: string
           order_id: string | null
           provider: string
@@ -6540,6 +9859,7 @@ export type Database = {
           currency?: string
           hir_fee_bani?: number | null
           id?: string
+          is_financial_record?: boolean
           mode: string
           order_id?: string | null
           provider: string
@@ -6556,6 +9876,7 @@ export type Database = {
           currency?: string
           hir_fee_bani?: number | null
           id?: string
+          is_financial_record?: boolean
           mode?: string
           order_id?: string | null
           provider?: string
@@ -6585,7 +9906,21 @@ export type Database = {
             foreignKeyName: "psp_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "psp_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "psp_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -6774,7 +10109,21 @@ export type Database = {
             foreignKeyName: "purchase_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -6847,7 +10196,21 @@ export type Database = {
             foreignKeyName: "reseller_leads_closed_tenant_id_fkey"
             columns: ["closed_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reseller_leads_closed_tenant_id_fkey"
+            columns: ["closed_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reseller_leads_closed_tenant_id_fkey"
+            columns: ["closed_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -6928,7 +10291,21 @@ export type Database = {
             foreignKeyName: "reservation_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reservation_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reservation_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7011,7 +10388,21 @@ export type Database = {
             foreignKeyName: "reservations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reservations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "reservations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7030,11 +10421,90 @@ export type Database = {
           },
         ]
       }
+      restaurant_menu_brands: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          slug: string
+          sort_order: number
+          tagline: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          slug: string
+          sort_order?: number
+          tagline?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          sort_order?: number
+          tagline?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_menu_brands_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_brands_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_brands_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_brands_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_brands_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       restaurant_menu_categories: {
         Row: {
           created_at: string
           id: string
           is_active: boolean
+          menu_brand_id: string | null
           name: string
           sort_order: number
           tenant_id: string
@@ -7044,6 +10514,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          menu_brand_id?: string | null
           name: string
           sort_order?: number
           tenant_id: string
@@ -7053,6 +10524,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          menu_brand_id?: string | null
           name?: string
           sort_order?: number
           tenant_id?: string
@@ -7060,10 +10532,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "restaurant_menu_categories_menu_brand_id_fkey"
+            columns: ["menu_brand_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_menu_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
             foreignKeyName: "restaurant_menu_categories_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7155,7 +10648,21 @@ export type Database = {
             foreignKeyName: "restaurant_menu_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_menu_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7261,6 +10768,7 @@ export type Database = {
         Row: {
           cancellation_reason: string | null
           cancelled_at: string | null
+          confirmed_at: string | null
           courier_user_id: string | null
           created_at: string
           customer_id: string | null
@@ -7272,18 +10780,22 @@ export type Database = {
           disputed: boolean
           hir_delivery_id: string | null
           id: string
+          is_financial_record: boolean
           is_pre_order: boolean
           items: Json
           notes: string | null
           payment_method: string
           payment_status: string
+          prep_time_minutes: number | null
           promo_code_id: string | null
           public_track_token: string
+          ready_at: string | null
           refund_amount_bani: number | null
           refund_reason: string | null
           refunded_at: string | null
           review_reminder_sent_at: string | null
           scheduled_for: string | null
+          scheduled_pickup_at: string | null
           source: Database["public"]["Enums"]["order_source"]
           status: string
           stripe_payment_intent_id: string | null
@@ -7295,6 +10807,7 @@ export type Database = {
         Insert: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          confirmed_at?: string | null
           courier_user_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -7306,18 +10819,22 @@ export type Database = {
           disputed?: boolean
           hir_delivery_id?: string | null
           id?: string
+          is_financial_record?: boolean
           is_pre_order?: boolean
           items: Json
           notes?: string | null
           payment_method?: string
           payment_status?: string
+          prep_time_minutes?: number | null
           promo_code_id?: string | null
           public_track_token?: string
+          ready_at?: string | null
           refund_amount_bani?: number | null
           refund_reason?: string | null
           refunded_at?: string | null
           review_reminder_sent_at?: string | null
           scheduled_for?: string | null
+          scheduled_pickup_at?: string | null
           source?: Database["public"]["Enums"]["order_source"]
           status?: string
           stripe_payment_intent_id?: string | null
@@ -7329,6 +10846,7 @@ export type Database = {
         Update: {
           cancellation_reason?: string | null
           cancelled_at?: string | null
+          confirmed_at?: string | null
           courier_user_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -7340,18 +10858,22 @@ export type Database = {
           disputed?: boolean
           hir_delivery_id?: string | null
           id?: string
+          is_financial_record?: boolean
           is_pre_order?: boolean
           items?: Json
           notes?: string | null
           payment_method?: string
           payment_status?: string
+          prep_time_minutes?: number | null
           promo_code_id?: string | null
           public_track_token?: string
+          ready_at?: string | null
           refund_amount_bani?: number | null
           refund_reason?: string | null
           refunded_at?: string | null
           review_reminder_sent_at?: string | null
           scheduled_for?: string | null
+          scheduled_pickup_at?: string | null
           source?: Database["public"]["Enums"]["order_source"]
           status?: string
           stripe_payment_intent_id?: string | null
@@ -7400,7 +10922,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7469,7 +11005,21 @@ export type Database = {
             foreignKeyName: "restaurant_reviews_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7563,6 +11113,7 @@ export type Database = {
           created_at: string
           error_text: string | null
           id: string
+          is_financial_record: boolean
           order_id: string
           smartbill_invoice_id: string | null
           smartbill_invoice_number: string | null
@@ -7576,6 +11127,7 @@ export type Database = {
           created_at?: string
           error_text?: string | null
           id?: string
+          is_financial_record?: boolean
           order_id: string
           smartbill_invoice_id?: string | null
           smartbill_invoice_number?: string | null
@@ -7589,6 +11141,7 @@ export type Database = {
           created_at?: string
           error_text?: string | null
           id?: string
+          is_financial_record?: boolean
           order_id?: string
           smartbill_invoice_id?: string | null
           smartbill_invoice_number?: string | null
@@ -7616,7 +11169,21 @@ export type Database = {
             foreignKeyName: "smartbill_invoice_jobs_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "smartbill_invoice_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "smartbill_invoice_jobs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7716,6 +11283,39 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          created_at: string
+          features: Json
+          id: string
+          max_listings_per_month: number | null
+          max_offers_per_month: number | null
+          monthly_price_ron: number
+          tier_code: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          features?: Json
+          id?: string
+          max_listings_per_month?: number | null
+          max_offers_per_month?: number | null
+          monthly_price_ron: number
+          tier_code: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          features?: Json
+          id?: string
+          max_listings_per_month?: number | null
+          max_offers_per_month?: number | null
+          monthly_price_ron?: number
+          tier_code?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           created_at: string
@@ -7752,7 +11352,21 @@ export type Database = {
             foreignKeyName: "suppliers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "suppliers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7822,7 +11436,21 @@ export type Database = {
             foreignKeyName: "support_messages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "support_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "support_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7927,7 +11555,21 @@ export type Database = {
             foreignKeyName: "tenant_agent_trust_restaurant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_agent_trust_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_agent_trust_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -7988,7 +11630,21 @@ export type Database = {
             foreignKeyName: "tenant_api_keys_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_api_keys_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_api_keys_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8040,7 +11696,21 @@ export type Database = {
             foreignKeyName: "tenant_display_pins_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_display_pins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_display_pins_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8107,7 +11777,21 @@ export type Database = {
             foreignKeyName: "tenant_members_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_members_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8159,7 +11843,21 @@ export type Database = {
             foreignKeyName: "tenant_onboarding_drafts_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_onboarding_drafts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_onboarding_drafts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8220,7 +11918,21 @@ export type Database = {
             foreignKeyName: "tenant_pricing_overrides_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_pricing_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_pricing_overrides_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8246,6 +11958,248 @@ export type Database = {
           },
         ]
       }
+      tenant_subscriptions: {
+        Row: {
+          active_until: string
+          created_at: string
+          id: string
+          is_financial_record: boolean
+          last_payment_at: string | null
+          payment_status: string | null
+          plan_id: string
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          active_until: string
+          created_at?: string
+          id?: string
+          is_financial_record?: boolean
+          last_payment_at?: string | null
+          payment_status?: string | null
+          plan_id: string
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          active_until?: string
+          created_at?: string
+          id?: string
+          is_financial_record?: boolean
+          last_payment_at?: string | null
+          payment_status?: string | null
+          plan_id?: string
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_usage_counters: {
+        Row: {
+          cap_count: number
+          created_at: string
+          id: string
+          last_reset_at: string | null
+          period_kind: string
+          period_start: string
+          resource_kind: string
+          tenant_id: string
+          updated_at: string
+          used_count: number
+        }
+        Insert: {
+          cap_count: number
+          created_at?: string
+          id?: string
+          last_reset_at?: string | null
+          period_kind: string
+          period_start: string
+          resource_kind: string
+          tenant_id: string
+          updated_at?: string
+          used_count?: number
+        }
+        Update: {
+          cap_count?: number
+          created_at?: string
+          id?: string
+          last_reset_at?: string | null
+          period_kind?: string
+          period_start?: string
+          resource_kind?: string
+          tenant_id?: string
+          updated_at?: string
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_usage_counters_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_zone_pauses: {
+        Row: {
+          id: string
+          notes: string | null
+          paused_at: string
+          paused_by: string
+          paused_until: string | null
+          paused_via: string
+          reason: string
+          resumed_at: string | null
+          resumed_by: string | null
+          resumed_via: string | null
+          tenant_id: string
+          zone_id: string
+        }
+        Insert: {
+          id?: string
+          notes?: string | null
+          paused_at?: string
+          paused_by: string
+          paused_until?: string | null
+          paused_via: string
+          reason: string
+          resumed_at?: string | null
+          resumed_by?: string | null
+          resumed_via?: string | null
+          tenant_id: string
+          zone_id: string
+        }
+        Update: {
+          id?: string
+          notes?: string | null
+          paused_at?: string
+          paused_by?: string
+          paused_until?: string | null
+          paused_via?: string
+          reason?: string
+          resumed_at?: string | null
+          resumed_by?: string | null
+          resumed_via?: string | null
+          tenant_id?: string
+          zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           champion_code: string | null
@@ -8265,11 +12219,14 @@ export type Database = {
           id: string
           integration_mode: Database["public"]["Enums"]["integration_mode"]
           name: string
+          parent_brand_id: string | null
           powered_by_hir_badge: boolean
+          referral_code: string | null
           settings: Json
           slug: string
           status: string
           template_slug: string | null
+          tenant_kind: string
           updated_at: string
           vertical: string
         }
@@ -8291,11 +12248,14 @@ export type Database = {
           id?: string
           integration_mode?: Database["public"]["Enums"]["integration_mode"]
           name: string
+          parent_brand_id?: string | null
           powered_by_hir_badge?: boolean
+          referral_code?: string | null
           settings?: Json
           slug: string
           status?: string
           template_slug?: string | null
+          tenant_kind?: string
           updated_at?: string
           vertical?: string
         }
@@ -8317,11 +12277,14 @@ export type Database = {
           id?: string
           integration_mode?: Database["public"]["Enums"]["integration_mode"]
           name?: string
+          parent_brand_id?: string | null
           powered_by_hir_badge?: boolean
+          referral_code?: string | null
           settings?: Json
           slug?: string
           status?: string
           template_slug?: string | null
+          tenant_kind?: string
           updated_at?: string
           vertical?: string
         }
@@ -8331,6 +12294,114 @@ export type Database = {
             columns: ["city_id"]
             isOneToOne: false
             referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+          {
+            foreignKeyName: "tenants_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenants_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenants_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenants_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_parent_brand_id_fkey"
+            columns: ["parent_brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_nps_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          flagged_at: string | null
+          flagged_cluster: boolean
+          flagged_reason: string | null
+          fleet_id: string
+          id: string
+          listing_id: string | null
+          match_id: string | null
+          random_sampled: boolean
+          rater_device_hash: string | null
+          rater_ip_hash: string | null
+          score: number
+          vendor_tenant_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          flagged_at?: string | null
+          flagged_cluster?: boolean
+          flagged_reason?: string | null
+          fleet_id: string
+          id?: string
+          listing_id?: string | null
+          match_id?: string | null
+          random_sampled?: boolean
+          rater_device_hash?: string | null
+          rater_ip_hash?: string | null
+          score: number
+          vendor_tenant_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          flagged_at?: string | null
+          flagged_cluster?: boolean
+          flagged_reason?: string | null
+          fleet_id?: string
+          id?: string
+          listing_id?: string | null
+          match_id?: string | null
+          random_sampled?: boolean
+          rater_device_hash?: string | null
+          rater_ip_hash?: string | null
+          score?: number
+          vendor_tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_nps_ratings_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_nps_ratings_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_matches"
             referencedColumns: ["id"]
           },
         ]
@@ -8383,7 +12454,21 @@ export type Database = {
             foreignKeyName: "voice_calls_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "voice_calls_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "voice_calls_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8489,6 +12574,13 @@ export type Database = {
             referencedRelation: "cities"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "weather_snapshots_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
         ]
       }
       whatsapp_connect_nonces: {
@@ -8521,7 +12613,21 @@ export type Database = {
             foreignKeyName: "whatsapp_connect_nonces_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_connect_nonces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_connect_nonces_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8595,7 +12701,21 @@ export type Database = {
             foreignKeyName: "whatsapp_messages_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8650,7 +12770,21 @@ export type Database = {
             foreignKeyName: "whatsapp_owner_bindings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_owner_bindings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_owner_bindings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8720,7 +12854,21 @@ export type Database = {
             foreignKeyName: "courier_orders_source_tenant_id_fkey"
             columns: ["source_tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_orders_source_tenant_id_fkey"
+            columns: ["source_tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "courier_orders_source_tenant_id_fkey"
+            columns: ["source_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8736,6 +12884,50 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_tenants_storefront"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      courier_rating_summary: {
+        Row: {
+          avg_stars: number | null
+          cold_chain_ok_count: number | null
+          courier_user_id: string | null
+          left_without_call_count: number | null
+          ratings_count: number | null
+        }
+        Relationships: []
+      }
+      live_ops_telemetry: {
+        Row: {
+          city_id: string | null
+          delivered_24h: number | null
+          delivery_mode:
+            | Database["public"]["Enums"]["tenant_delivery_mode"]
+            | null
+          dispatched_unpicked_over_5m: number | null
+          in_courier_flow: number | null
+          kitchen_overdue_over_15m: number | null
+          kitchen_queue: number | null
+          last_order_at: string | null
+          revenue_24h_ron: number | null
+          tenant_id: string | null
+          tenant_name: string | null
+          tenant_slug: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
           },
         ]
       }
@@ -8782,7 +12974,21 @@ export type Database = {
             foreignKeyName: "restaurant_reviews_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_reviews_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8801,6 +13007,137 @@ export type Database = {
           },
         ]
       }
+      tenant_brand_family: {
+        Row: {
+          brand_root_id: string | null
+          city_id: string | null
+          created_at: string | null
+          delivery_mode:
+            | Database["public"]["Enums"]["tenant_delivery_mode"]
+            | null
+          name: string | null
+          role_in_brand: string | null
+          slug: string | null
+          status: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          brand_root_id?: never
+          city_id?: string | null
+          created_at?: string | null
+          delivery_mode?:
+            | Database["public"]["Enums"]["tenant_delivery_mode"]
+            | null
+          name?: string | null
+          role_in_brand?: never
+          slug?: string | null
+          status?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          brand_root_id?: never
+          city_id?: string | null
+          created_at?: string | null
+          delivery_mode?:
+            | Database["public"]["Enums"]["tenant_delivery_mode"]
+            | null
+          name?: string | null
+          role_in_brand?: never
+          slug?: string | null
+          status?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
+        ]
+      }
+      tenant_zone_active_pauses: {
+        Row: {
+          id: string | null
+          notes: string | null
+          paused_at: string | null
+          paused_by: string | null
+          paused_until: string | null
+          paused_via: string | null
+          reason: string | null
+          tenant_id: string | null
+          zone_id: string | null
+          zone_is_active: boolean | null
+          zone_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "v_tenants_storefront"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_zone_pauses_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_city_delivery_rollup: {
+        Row: {
+          city_id: string | null
+          county: string | null
+          is_active: boolean | null
+          name: string | null
+          orders_30d: number | null
+          orders_in_progress: number | null
+          orders_total: number | null
+          slug: string | null
+          sort_order: number | null
+          vendor_count: number | null
+        }
+        Relationships: []
+      }
       v_copilot_attributed_revenue: {
         Row: {
           order_id: string | null
@@ -8817,7 +13154,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8850,7 +13201,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["restaurant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8869,6 +13234,20 @@ export type Database = {
           },
         ]
       }
+      v_courier_kpi_7d: {
+        Row: {
+          avg_rating_7d: number | null
+          cancelled_7d: number | null
+          combo_accepted_7d: number | null
+          combo_sent_7d: number | null
+          completion_rate_7d: number | null
+          courier_user_id: string | null
+          deliveries_7d: number | null
+          earnings_7d: number | null
+          online_minutes_7d: number | null
+        }
+        Relationships: []
+      }
       v_delivery_addresses_30d: {
         Row: {
           lat: number | null
@@ -8880,7 +13259,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8921,7 +13314,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8955,7 +13362,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -8973,6 +13394,14 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      v_marketplace_summary: {
+        Row: {
+          entity: string | null
+          n: number | null
+          status: string | null
+        }
+        Relationships: []
       }
       v_mv_refresh_status: {
         Row: {
@@ -9006,7 +13435,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -9050,7 +13493,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -9084,7 +13541,21 @@ export type Database = {
             foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "agent_cost_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -9178,6 +13649,13 @@ export type Database = {
             referencedRelation: "cities"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tenants_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "v_city_delivery_rollup"
+            referencedColumns: ["city_id"]
+          },
         ]
       }
       v_top_items: {
@@ -9193,7 +13671,21 @@ export type Database = {
             foreignKeyName: "restaurant_orders_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "live_ops_telemetry"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
             referencedRelation: "mv_growth_tenant_metrics_30d"
+            referencedColumns: ["tenant_id"]
+          },
+          {
+            foreignKeyName: "restaurant_orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant_brand_family"
             referencedColumns: ["tenant_id"]
           },
           {
@@ -9267,11 +13759,22 @@ export type Database = {
           stored_hash: string
         }[]
       }
+      brand_root_id: { Args: { p_tenant_id: string }; Returns: string }
+      check_and_increment_usage: {
+        Args: {
+          p_amount?: number
+          p_cap_override?: number
+          p_resource_kind: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       claim_promo_redemption: {
         Args: { p_customer_id: string; p_order_id: string; p_promo_id: string }
         Returns: boolean
       }
       cleanup_integration_events: { Args: never; Returns: number }
+      compute_fleet_sla: { Args: { p_day: string }; Returns: number }
       connect_get_endpoint_secrets: {
         Args: { endpoint_ids: string[] }
         Returns: {
@@ -9279,6 +13782,56 @@ export type Database = {
           secret: string
         }[]
       }
+      courier_can_take_orders: { Args: { p_user_id: string }; Returns: boolean }
+      courier_is_kyc_verified: { Args: { p_user_id: string }; Returns: boolean }
+      current_courier_fleet_id: { Args: never; Returns: string }
+      fleet_is_kyf_verified: { Args: { p_fleet_id: string }; Returns: boolean }
+      fn_audit_financial_purge_protection: {
+        Args: never
+        Returns: {
+          function_name: string
+          has_financial_filter: boolean
+        }[]
+      }
+      fn_audit_secdef_search_path: {
+        Args: never
+        Returns: {
+          function_name: string
+          search_path_config: string
+        }[]
+      }
+      fn_check_permit_valid: {
+        Args: { p_courier_user_id: string }
+        Returns: boolean
+      }
+      fn_compute_delivery_pricing: {
+        Args: { p_delivery_id: string }
+        Returns: undefined
+      }
+      fn_courier_application_count: {
+        Args: { p_courier_user_id: string }
+        Returns: number
+      }
+      fn_expire_courier_job_listings: { Args: never; Returns: number }
+      fn_expire_courier_permits: { Args: never; Returns: number }
+      fn_fleet_tier: { Args: { p_fleet_id: string }; Returns: string }
+      fn_generate_connect_weekly_invoices: {
+        Args: { p_period_start?: string }
+        Returns: number
+      }
+      fn_generate_courier_payout_periods: {
+        Args: {
+          p_fleet_id?: string
+          p_period_end: string
+          p_period_start: string
+        }
+        Returns: number
+      }
+      fn_generate_courier_payouts_current_week_for_fleet: {
+        Args: { p_fleet_id: string }
+        Returns: number
+      }
+      fn_generate_courier_payouts_prior_week: { Args: never; Returns: number }
       fn_get_fleet_webhook_secret: {
         Args: { p_fleet_id: string }
         Returns: string
@@ -9316,6 +13869,15 @@ export type Database = {
         }
         Returns: number
       }
+      fn_purge_30day_retention: { Args: never; Returns: Json }
+      fn_recalc_driver_score: {
+        Args: { p_courier_user_id: string }
+        Returns: undefined
+      }
+      fn_recalc_fleet_aggregate: {
+        Args: { p_fleet_id: string }
+        Returns: undefined
+      }
       fn_reservation_request: {
         Args: {
           p_email: string
@@ -9340,9 +13902,38 @@ export type Database = {
           table_id: string
         }[]
       }
+      fn_set_fleet_flat_tariff: {
+        Args: {
+          p_cod_bonus_cents: number
+          p_created_by: string
+          p_fleet_id: string
+          p_payout_cents: number
+        }
+        Returns: undefined
+      }
+      fn_set_fleet_pickup_km_tariff: {
+        Args: {
+          p_cod_bonus_cents: number
+          p_created_by: string
+          p_fleet_id: string
+          p_per_km_cents: number
+          p_pickup_fee_cents: number
+          p_table_name: string
+        }
+        Returns: string
+      }
       gdpr_redact_customer: {
         Args: { p_customer_id: string }
         Returns: undefined
+      }
+      get_courier_track: { Args: { p_track_token: string }; Returns: Json }
+      get_courier_track_messages: {
+        Args: { p_limit?: number; p_track_token: string }
+        Returns: Json
+      }
+      get_linked_courier_track_token: {
+        Args: { p_restaurant_token: string }
+        Returns: string
       }
       get_public_order: { Args: { p_token: string }; Returns: Json }
       hir_delete_tenant_rollback: {
@@ -9362,8 +13953,39 @@ export type Database = {
         }
         Returns: undefined
       }
+      is_fleet_owner_of: { Args: { p_fleet_id: string }; Returns: boolean }
       is_tenant_member: { Args: { t_id: string }; Returns: boolean }
+      is_tenant_member_of: { Args: { p_tenant_id: string }; Returns: boolean }
       is_tenant_owner: { Args: { t_id: string }; Returns: boolean }
+      is_tenant_zone_paused: {
+        Args: { p_tenant_id: string; p_zone_id: string }
+        Returns: Json
+      }
+      offer_courier_order: {
+        Args: {
+          p_courier_user_id: string
+          p_fleet_id: string
+          p_order_id: string
+          p_timeout_seconds?: number
+        }
+        Returns: Json
+      }
+      post_courier_track_message: {
+        Args: { p_body: string; p_track_token: string }
+        Returns: Json
+      }
+      purge_due_courier_deletions: { Args: never; Returns: number }
+      record_unmet_demand: {
+        Args: {
+          p_distance_km?: number
+          p_lat: number
+          p_lng: number
+          p_reason?: string
+          p_signal_type: string
+          p_tenant_id: string
+        }
+        Returns: undefined
+      }
       refresh_mv_logged: {
         Args: { p_concurrent?: boolean; p_name: string; p_schema: string }
         Returns: undefined
@@ -9382,6 +14004,11 @@ export type Database = {
         Returns: string
       }
       reseller_leads_expire_stale: { Args: never; Returns: number }
+      revoke_expired_courier_offers: { Args: never; Returns: number }
+      rollup_courier_daily_kpis: {
+        Args: { target_date: string }
+        Returns: number
+      }
       search_code_chunks: {
         Args: {
           p_app_filter?: string
@@ -9404,10 +14031,47 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_courier_kyc: {
+        Args: {
+          p_cui?: string
+          p_device_fingerprint?: string
+          p_id_doc_url?: string
+          p_legal_name: string
+          p_selfie_url?: string
+        }
+        Returns: Json
+      }
+      submit_delivery_rating: {
+        Args: {
+          p_comment?: string
+          p_stars: number
+          p_tags?: string[]
+          p_track_token: string
+        }
+        Returns: Json
+      }
+      submit_fleet_kyf: {
+        Args: {
+          p_act_constitutiv_url?: string
+          p_address?: string
+          p_anaf_active?: boolean
+          p_caen_code?: string
+          p_certificat_inreg_url?: string
+          p_company_name?: string
+          p_cui: string
+          p_extras_cont_url?: string
+          p_fleet_id: string
+          p_iban?: string
+          p_reg_com?: string
+          p_vat_payer?: boolean
+        }
+        Returns: Json
+      }
       submit_order_review: {
         Args: { p_comment: string; p_rating: number; p_token: string }
         Returns: string
       }
+      unaccent: { Args: { "": string }; Returns: string }
       vault_create_or_update_secret: {
         Args: { secret_name: string; secret_value: string }
         Returns: undefined
@@ -9418,6 +14082,7 @@ export type Database = {
       }
     }
     Enums: {
+      connect_lead_status: "NEW" | "CONTACTED" | "ONBOARDED" | "REJECTED"
       copilot_agent_status: "ACTIVE" | "INACTIVE" | "DRAFT"
       copilot_content_status: "DRAFT" | "APPROVED" | "PUBLISHED" | "REJECTED"
       copilot_feedback_signal: "THUMBS_UP" | "THUMBS_DOWN"
@@ -9573,6 +14238,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      connect_lead_status: ["NEW", "CONTACTED", "ONBOARDED", "REJECTED"],
       copilot_agent_status: ["ACTIVE", "INACTIVE", "DRAFT"],
       copilot_content_status: ["DRAFT", "APPROVED", "PUBLISHED", "REJECTED"],
       copilot_feedback_signal: ["THUMBS_UP", "THUMBS_DOWN"],
