@@ -61,11 +61,16 @@ Deno.serve(async (req: Request) => {
     );
 
     // 1. Pull all in-flight orders (those that anchor an active route).
+    // Bounded — this feeds an O(active × candidates) in-memory nested loop
+    // below; a hard cap keeps a single invocation from growing unbounded as
+    // nationwide concurrent volume increases (no behavior change at today's
+    // pilot-scale order counts).
     const { data: activeOrders, error: activeErr } = await sb
       .from('courier_orders')
       .select('id, assigned_courier_user_id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng')
       .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-      .not('assigned_courier_user_id', 'is', null);
+      .not('assigned_courier_user_id', 'is', null)
+      .limit(500);
 
     if (activeErr) {
       console.error('[combo-tick] active query failed', activeErr);
@@ -81,12 +86,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 2. Pull all unassigned candidate orders.
+    // 2. Pull all unassigned candidate orders. Bounded for the same reason
+    // as the active-orders query above.
     const { data: candidates, error: candErr } = await sb
       .from('courier_orders')
       .select('id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, source_tenant_id')
       .in('status', ['CREATED', 'OFFERED'])
-      .is('assigned_courier_user_id', null);
+      .is('assigned_courier_user_id', null)
+      .limit(500);
 
     if (candErr) {
       console.error('[combo-tick] candidate query failed', candErr);
