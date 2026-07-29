@@ -4,12 +4,17 @@ import { ChevronLeft, Gift, Receipt } from 'lucide-react';
 import { resolveTenantFromHost } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { readCustomerCookie } from '@/lib/customer-recognition';
+import { getCurrentCustomerId } from '@/lib/account/current-customer';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { getLoyaltyBalance, getLoyaltyHistory, type LoyaltyLedgerEntry } from '@/lib/loyalty';
 import { PhoneLoginForm } from '@/components/storefront/phone-login-form';
 import { EmailLoginForm } from '@/components/storefront/email-login-form';
+import { AccountAuthForm } from '@/components/storefront/account-auth-form';
+import { AccountProfile } from '@/components/storefront/account-profile';
+import { AccountAddresses, type SavedAddress } from '@/components/storefront/account-addresses';
+import { AccountLogoutButton } from '@/components/storefront/account-logout-button';
 import { repeatOrder } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -84,6 +89,29 @@ async function loadRecentOrders(tenantId: string, customerId: string): Promise<O
   }));
 }
 
+async function loadCustomerProfile(
+  customerId: string,
+): Promise<{ first_name: string | null; last_name: string | null; phone: string | null } | null> {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from('customers')
+    .select('first_name, last_name, phone')
+    .eq('id', customerId)
+    .maybeSingle();
+  return data ?? null;
+}
+
+async function loadCustomerAddresses(customerId: string): Promise<SavedAddress[]> {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from('customer_addresses')
+    .select('id, line1, line2, city, postal_code, label, is_default')
+    .eq('customer_id', customerId)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
+
 function formatLedgerDate(iso: string, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'ro-RO', {
     dateStyle: 'medium',
@@ -110,30 +138,61 @@ export default async function AccountPage() {
   if (!tenant) notFound();
   const locale = await getLocale();
 
-  const customerId = readCustomerCookie(tenant.id);
-  const [orders, loyalty, loyaltyHistory] = await Promise.all([
+  // Real account (email+password / Google, etc.) takes priority; the
+  // legacy phone/email recognition cookie is the fallback so a customer
+  // who only ever used that quick-login path keeps working exactly as
+  // before. Both ultimately resolve to the same customers.id shape, so
+  // everything below (orders/loyalty) is unaffected by which one matched.
+  const authCustomerId = await getCurrentCustomerId(tenant.id);
+  const customerId = authCustomerId ?? readCustomerCookie(tenant.id);
+
+  const [orders, loyalty, loyaltyHistory, profile, addresses] = await Promise.all([
     customerId ? loadRecentOrders(tenant.id, customerId) : Promise.resolve([]),
     customerId ? getLoyaltyBalance(tenant.id, customerId) : Promise.resolve(null),
     customerId ? getLoyaltyHistory(tenant.id, customerId, 5) : Promise.resolve([]),
+    authCustomerId ? loadCustomerProfile(authCustomerId) : Promise.resolve(null),
+    authCustomerId ? loadCustomerAddresses(authCustomerId) : Promise.resolve([]),
   ]);
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-4 py-6 pb-32">
-      <div className="mb-4 flex items-center gap-2">
-        <Link
-          href="/"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
-          aria-label={t(locale, 'account.back_to_menu')}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
-          {t(locale, 'account.title')}
-        </h1>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-zinc-700 shadow-sm hover:text-zinc-900"
+            aria-label={t(locale, 'account.back_to_menu')}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+            {t(locale, 'account.title')}
+          </h1>
+        </div>
+        {authCustomerId && <AccountLogoutButton locale={locale} />}
       </div>
+
+      {!customerId && <AccountAuthForm locale={locale} />}
+
+      {authCustomerId && (
+        <>
+          <AccountProfile
+            locale={locale}
+            firstName={profile?.first_name ?? null}
+            lastName={profile?.last_name ?? null}
+            phone={profile?.phone ?? null}
+          />
+          <AccountAddresses locale={locale} initial={addresses} />
+        </>
+      )}
 
       {!customerId && (
         <>
+          <div className="mb-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+            <span className="h-px flex-1 bg-zinc-200" />
+            {t(locale, 'account.login_or')}
+            <span className="h-px flex-1 bg-zinc-200" />
+          </div>
           <PhoneLoginForm locale={locale} />
           <div className="mb-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
             <span className="h-px flex-1 bg-zinc-200" />
