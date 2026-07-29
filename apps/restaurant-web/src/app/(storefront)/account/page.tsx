@@ -10,7 +10,6 @@ import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
 import { getLoyaltyBalance, getLoyaltyHistory, type LoyaltyLedgerEntry } from '@/lib/loyalty';
 import { PhoneLoginForm } from '@/components/storefront/phone-login-form';
-import { EmailLoginForm } from '@/components/storefront/email-login-form';
 import { AccountAuthForm } from '@/components/storefront/account-auth-form';
 import { AccountProfile } from '@/components/storefront/account-profile';
 import { AccountAddresses, type SavedAddress } from '@/components/storefront/account-addresses';
@@ -194,12 +193,6 @@ export default async function AccountPage() {
             <span className="h-px flex-1 bg-zinc-200" />
           </div>
           <PhoneLoginForm locale={locale} />
-          <div className="mb-4 flex items-center gap-3 text-[11px] font-medium uppercase tracking-wider text-zinc-400">
-            <span className="h-px flex-1 bg-zinc-200" />
-            {t(locale, 'account.login_or')}
-            <span className="h-px flex-1 bg-zinc-200" />
-          </div>
-          <EmailLoginForm locale={locale} />
         </>
       )}
 
