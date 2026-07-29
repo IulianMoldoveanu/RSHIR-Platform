@@ -10,7 +10,12 @@ type TenantHeaderProps = {
   coverUrl: string | null;
   whatsappPhone: string | null;
   locale: Locale;
-  showAccountLink?: boolean;
+  /** True once the visitor has a customer-recognition cookie (has ordered
+   *  before). Purely cosmetic — controls whether the header account link
+   *  reads "Comenzile mele" or "Intră în cont". The link itself always
+   *  renders: a first-time visitor needs a way to find login/signup too,
+   *  not just returning customers. */
+  isRecognizedCustomer?: boolean;
   rating?: { average: number; count: number } | null;
   /** True when the tenant has a minimum order but no free-delivery
    *  threshold — i.e. delivery is free everywhere, unconditionally.
@@ -26,6 +31,11 @@ type TenantHeaderProps = {
   /** When true, surface a /rezervari link next to /bio. Driven by
    *  reservation_settings.is_enabled in the storefront page. */
   reservationsEnabled?: boolean;
+  /** When true, surface a "Despre noi" link to /poveste next to /bio.
+   *  Driven by presentation_enabled in tenant.settings — the presentation
+   *  page itself already exists and renders fully once a tenant opts in
+   *  via admin, it just had no discoverable entry point on the storefront. */
+  presentationEnabled?: boolean;
   /** Loyalty points pill for cookie-recognized customers. Null when
    *  loyalty disabled or balance is 0. */
   loyaltyPoints?: number | null;
@@ -46,7 +56,7 @@ export function TenantHeader({
   coverUrl,
   whatsappPhone,
   locale,
-  showAccountLink = false,
+  isRecognizedCustomer = false,
   rating = null,
   freeDeliveryEverywhere = false,
   freeDeliveryThresholdRon = 0,
@@ -54,6 +64,7 @@ export function TenantHeader({
   deliveryEtaMaxMinutes = 0,
   todayOrderCount = 0,
   reservationsEnabled = false,
+  presentationEnabled = false,
   loyaltyPoints = null,
 }: TenantHeaderProps) {
   const showTodayPill = todayOrderCount >= TODAY_ORDERS_PILL_FLOOR;
@@ -110,8 +121,19 @@ export function TenantHeader({
             }}
           />
         )}
-        <div className="absolute right-3 top-3">
+        {/* Top-right corner cluster: language flag + account, mirroring the
+            flag-icon / person-icon pairing used by larger delivery sites
+            (MaPizza etc.) — visible immediately on page load, not just once
+            scrolled to the identity row below. */}
+        <div className="absolute right-3 top-3 flex items-center gap-2">
           <LocaleSwitcher current={locale} ariaLabel={t(locale, 'header.switch_locale')} />
+          <Link
+            href="/account"
+            aria-label={t(locale, isRecognizedCustomer ? 'account.header_link' : 'account.header_link_guest')}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <UserRound className="h-4 w-4" aria-hidden />
+          </Link>
         </div>
       </div>
 
@@ -158,13 +180,12 @@ export function TenantHeader({
             >
               {t(locale, 'header.bio_link')}
             </Link>
-            {showAccountLink ? (
+            {presentationEnabled ? (
               <Link
-                href="/account"
-                className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-purple-700 transition-colors hover:text-purple-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
+                href="/poveste"
+                className="rounded-md text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
               >
-                <UserRound className="h-3.5 w-3.5" aria-hidden />
-                {t(locale, 'account.header_link')}
+                {t(locale, 'header.about_link')}
               </Link>
             ) : null}
           </div>

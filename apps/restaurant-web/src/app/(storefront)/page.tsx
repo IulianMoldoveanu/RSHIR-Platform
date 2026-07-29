@@ -5,7 +5,13 @@ import { ChefHat } from 'lucide-react';
 import { MarketingHome } from '@/components/marketing/marketing-home';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
-import { brandingFor, resolveTenantFromHost, tenantBaseUrl, type TenantSettings } from '@/lib/tenant';
+import {
+  brandingFor,
+  getPresentationConfig,
+  resolveTenantFromHost,
+  tenantBaseUrl,
+  type TenantSettings,
+} from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
 import { getMenuBrands, getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
@@ -203,6 +209,7 @@ export default async function StorefrontHomePage() {
     getTodayOrderCount(tenant.id),
     isReservationsEnabled(tenant.id),
   ]);
+  const presentationEnabled = getPresentationConfig(tenant.settings as TenantSettings).enabled;
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const closed = !accepting || !openStatus.open;
@@ -298,8 +305,9 @@ export default async function StorefrontHomePage() {
         coverUrl={coverUrl}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
-        showAccountLink={hasCustomerCookie}
+        isRecognizedCustomer={hasCustomerCookie}
         reservationsEnabled={reservationsEnabled}
+        presentationEnabled={presentationEnabled}
         loyaltyPoints={loyalty?.points ?? null}
         rating={rating}
         freeDeliveryEverywhere={
