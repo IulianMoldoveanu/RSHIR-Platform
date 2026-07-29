@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button, EmptyState } from '@hir/ui';
 import type {
   RealtimeChannel,
@@ -292,7 +293,7 @@ export function ZonesClient({
     });
   }
 
-  function updateZone(id: string, patch: Partial<Pick<Zone, 'name' | 'is_active'>>) {
+  function updateZone(id: string, patch: Partial<Pick<Zone, 'name' | 'is_active' | 'sort_order'>>) {
     startTransition(async () => {
       try {
         const { zone } = await api<{ zone: Zone }>(`/api/zones/${id}`, {
@@ -302,6 +303,56 @@ export function ZonesClient({
         setZones((prev) => prev.map((z) => (z.id === id ? zone : z)));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Actualizarea a eșuat.');
+      }
+    });
+  }
+
+  // Zones are checked in sort_order at checkout (findEnclosingZoneId picks
+  // the FIRST matching zone) — when a small locality polygon (e.g.
+  // "Sânpetru") overlaps a bigger radius zone, it must be checked BEFORE
+  // the bigger one or its pause/eligibility never takes effect.
+  //
+  // Every zone defaults to sort_order=0 at creation (delivery_zones DDL) —
+  // POST /api/zones never sets it explicitly, so a plain two-value swap
+  // between two zones that are both still 0 would be a silent no-op. To
+  // stay correct regardless of starting state, re-derive the WHOLE list's
+  // sort_order as sequential integers from current display position, apply
+  // the swap to that normalized sequence, then PATCH only the zones whose
+  // value actually changed (usually 2, but heals a fully-tied list the
+  // first time anyone reorders anything).
+  function moveZone(id: string, direction: 'up' | 'down') {
+    const idx = zones.findIndex((z) => z.id === id);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= zones.length) return;
+
+    const reordered = [...zones];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx]!, reordered[idx]!];
+
+    const changed = reordered
+      .map((z, i) => ({ zone: z, nextSortOrder: i }))
+      .filter(({ zone, nextSortOrder }) => zone.sort_order !== nextSortOrder);
+
+    if (changed.length === 0) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const updated = await Promise.all(
+          changed.map(({ zone, nextSortOrder }) =>
+            api<{ zone: Zone }>(`/api/zones/${zone.id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ sort_order: nextSortOrder }),
+            }),
+          ),
+        );
+        const byId = new Map(updated.map((r) => [r.zone.id, r.zone]));
+        setZones((prev) =>
+          prev
+            .map((z) => byId.get(z.id) ?? z)
+            .sort((x, y) => x.sort_order - y.sort_order),
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Reordonarea a eșuat.');
       }
     });
   }
@@ -394,10 +445,34 @@ export function ZonesClient({
               </div>
             ) : (
               <ul className="flex flex-col gap-1">
-                {zones.map((z) => {
+                {zones.map((z, idx) => {
                   const pause = pauseForZone(z.id);
                   return (
-                    <li key={z.id}>
+                    <li key={z.id} className="flex items-center gap-1">
+                      {/* Sort order controls priority at checkout — a zone
+                          higher in this list is checked first when polygons
+                          overlap (e.g. a small locality carved out of a
+                          bigger radius zone). */}
+                      <div className="flex shrink-0 flex-col">
+                        <button
+                          type="button"
+                          onClick={() => moveZone(z.id, 'up')}
+                          disabled={isPending || idx === 0}
+                          aria-label={`Mută "${z.name}" mai sus în ordinea de verificare`}
+                          className="flex h-4 w-5 items-center justify-center text-zinc-400 hover:text-zinc-800 disabled:opacity-30 disabled:hover:text-zinc-400"
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveZone(z.id, 'down')}
+                          disabled={isPending || idx === zones.length - 1}
+                          aria-label={`Mută "${z.name}" mai jos în ordinea de verificare`}
+                          className="flex h-4 w-5 items-center justify-center text-zinc-400 hover:text-zinc-800 disabled:opacity-30 disabled:hover:text-zinc-400"
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => setSelectedId(z.id === selectedId ? null : z.id)}

@@ -16,6 +16,21 @@ if (typeof window !== 'undefined') {
   (window as unknown as { L?: typeof L }).L = L;
 }
 
+// Leaflet's default marker icon resolves relative to the CSS file's own
+// path, which Next.js's bundler breaks (the icon 404s silently). Every
+// leaflet-draw vertex placed while drawing a polygon uses this same
+// default icon — with it broken/invisible, the vertex markers still exist
+// but their clickable hit-area is unreliable, making "click the first
+// vertex again to close the polygon" fail intermittently. Same fix
+// already used by courier-mini-map-leaflet.tsx / live-orders-map.tsx.
+if (typeof window !== 'undefined') {
+  L.Icon.Default.mergeOptions({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  });
+}
+
 const DEFAULT_CENTER: [number, number] = [45.6427, 25.5887];
 const DEFAULT_ZOOM = 12;
 

@@ -18,6 +18,12 @@ const updateZoneSchema = z
     name: z.string().min(1).max(100).optional(),
     polygon: polygonSchema.optional(),
     is_active: z.boolean().optional(),
+    // Controls checkout precedence — findEnclosingZoneId (restaurant-web
+    // pricing.ts) picks the FIRST matching zone in sort_order, so a small
+    // locality polygon overlapping a bigger radius zone must sort before
+    // it or its eligibility/pause never takes effect. Set via the up/down
+    // reorder controls in zones-client.tsx.
+    sort_order: z.number().int().min(0).max(100000).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'No fields to update' });
 
@@ -37,10 +43,11 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 });
   }
 
-  const updates: { name?: string; is_active?: boolean; polygon?: Json } = {};
+  const updates: { name?: string; is_active?: boolean; polygon?: Json; sort_order?: number } = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
   if (parsed.data.is_active !== undefined) updates.is_active = parsed.data.is_active;
   if (parsed.data.polygon !== undefined) updates.polygon = parsed.data.polygon as unknown as Json;
+  if (parsed.data.sort_order !== undefined) updates.sort_order = parsed.data.sort_order;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = auth.supabase as any;
