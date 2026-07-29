@@ -3,7 +3,7 @@ import { getActiveTenant } from '@/lib/tenant';
 import { ZonesClient } from './zones-client';
 import { ZoneInsightsCard } from './zone-insights-card';
 import { loadZoneInsights } from './insights';
-import type { Zone, Tier, ZonePause } from './types';
+import { normalizePolygon, type Zone, type Tier, type ZonePause } from './types';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,9 +57,30 @@ export default async function ZonesPage() {
       if (!loadError) loadError = tiersRes.error.message;
     }
 
-    zones = ((zonesRes.data ?? []) as unknown as Zone[]).filter(
-      (z) => z.polygon && Array.isArray(z.polygon.coordinates),
-    );
+    // Zones drawn through this page's own tool always save the nested
+    // GeoJSON shape (see the zod schema in api/zones/route.ts), but zones
+    // seeded outside it (sales-led onboarding via service-role script) can
+    // land in a bare-array or flat shape — checkout already tolerates all
+    // three (coercePolygon in restaurant-web). Normalize here too instead
+    // of silently filtering out anything that isn't the nested shape, or a
+    // zone that works fine at checkout disappears from this page entirely.
+    const rawZones = (zonesRes.data ?? []) as unknown as Array<Omit<Zone, 'polygon'> & { polygon: unknown }>;
+    let unrecognizedPolygonCount = 0;
+    zones = rawZones.reduce<Zone[]>((acc, z) => {
+      const polygon = normalizePolygon(z.polygon);
+      if (!polygon) {
+        unrecognizedPolygonCount++;
+        return acc;
+      }
+      acc.push({ ...z, polygon });
+      return acc;
+    }, []);
+    if (unrecognizedPolygonCount > 0) {
+      console.error('[zones] unrecognized polygon shape, zone(s) hidden from admin UI', {
+        tenantId: tenant.id,
+        count: unrecognizedPolygonCount,
+      });
+    }
     tiers = (tiersRes.data ?? []) as unknown as Tier[];
     // Pause view load failure is non-fatal — show zones without pause badges
     // rather than blocking the whole page on a follow-up migration's table.
