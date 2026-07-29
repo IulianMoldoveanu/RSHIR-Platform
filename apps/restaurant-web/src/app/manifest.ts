@@ -28,7 +28,12 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     // (e.g. next build static analysis). Fall back to HIR defaults.
   }
 
-  const shortName = name.slice(0, 12);
+  // Android + iOS both read `short_name` for the home-screen label under
+  // the icon, and both truncate/wrap long ones — but 12 chars is tighter
+  // than either actually needs and was clipping ordinary tenant names
+  // ("Delivery House" -> "Delivery Hou"). 30 covers real-world tenant names
+  // without the OS silently re-truncating on our behalf.
+  const shortName = name.length <= 30 ? name : name.slice(0, 30);
 
   return {
     name,
