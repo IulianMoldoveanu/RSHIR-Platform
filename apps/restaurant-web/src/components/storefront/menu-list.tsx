@@ -60,7 +60,10 @@ export function MenuList({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(locale, 'menu.search_placeholder')}
           aria-label={t(locale, 'menu.search_placeholder')}
-          className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm transition-all focus:border-[var(--hir-brand,#7c3aed)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_15%,transparent)]"
+          // type="search" inputs render a native browser clear-x (WebKit/
+          // Blink desktop especially) on top of our own animated X button
+          // below — suppress the native one so there's only ever one.
+          className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm transition-all [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none focus:border-[var(--hir-brand,#7c3aed)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_15%,transparent)]"
         />
         <AnimatePresence>
           {query.length > 0 && (
