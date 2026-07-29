@@ -18,6 +18,7 @@ export const dictionaries = {
     },
     header: {
       bio_link: 'link.bio',
+      about_link: 'Despre noi',
       reservations_link: 'rezervă o masă',
       call_now_long: 'Sună acum',
       call_now_short: 'Sună',
@@ -317,6 +318,7 @@ export const dictionaries = {
       empty_body: 'Plasează prima comandă și o vei găsi aici data viitoare.',
       empty_cta: 'Vezi meniul',
       header_link: 'Comenzile mele',
+      header_link_guest: 'Intră în cont',
       order_short_id: 'Comanda #{id}',
       order_items_more: '+{count} produse',
       view_order: 'Vezi comanda',
@@ -1045,6 +1047,7 @@ export const dictionaries = {
     },
     header: {
       bio_link: 'link.bio',
+      about_link: 'About us',
       reservations_link: 'book a table',
       call_now_long: 'Call now',
       call_now_short: 'Call',
@@ -1344,6 +1347,7 @@ export const dictionaries = {
       empty_body: 'Place your first order and it will appear here next time.',
       empty_cta: 'See the menu',
       header_link: 'My orders',
+      header_link_guest: 'Log in',
       order_short_id: 'Order #{id}',
       order_items_more: '+{count} items',
       view_order: 'View order',
