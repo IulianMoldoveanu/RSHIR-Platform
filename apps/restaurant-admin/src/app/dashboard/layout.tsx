@@ -230,6 +230,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Identitate & site',
           items: [
             { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
+            { href: '/dashboard/settings/menu-brands', label: 'Branduri meniu' },
             { href: '/dashboard/settings/presentation', label: 'Pagină de prezentare' },
             { href: '/dashboard/settings/domain', label: 'Domeniu' },
             { href: '/dashboard/settings/seo', label: 'SEO' },
