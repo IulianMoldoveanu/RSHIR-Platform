@@ -42,6 +42,45 @@ export function CartPill({
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
 
+  // Cart-aware upsell (co-occurrence — "goes well with what's in your cart",
+  // not just tenant-wide best-sellers). Starts from the static server-
+  // rendered `upsellItems` prop so the rail isn't empty on first paint, then
+  // replaces it once the cart-aware fetch resolves. Debounced so rapid qty
+  // taps don't fire a request per click.
+  const [cartAwareUpsell, setCartAwareUpsell] = useState<MenuItemWithModifiers[] | null>(null);
+  const cartKey = items.map((i) => `${i.itemId}:${i.qty}`).join(',');
+  useEffect(() => {
+    if (items.length === 0) {
+      setCartAwareUpsell(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch('/api/cart/upsell', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          items: items.map((i) => ({ itemId: i.itemId, quantity: i.qty })),
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { items?: MenuItemWithModifiers[] } | null) => {
+          if (data?.items) setCartAwareUpsell(data.items);
+        })
+        .catch(() => {
+          // Network/abort failure — keep whatever was showing (static
+          // fallback or the previous cart-aware result). Never surface a
+          // cart-drawer error over a missing upsell rail.
+        });
+    }, 400);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cartKey is the intentional dep, not `items` (new array identity every render)
+  }, [cartKey]);
+
   const [appliedPromo, setAppliedPromo] = useState<StoredPromo | null>(null);
   const reduceMotion = useShouldReduceMotion();
   // Track free-delivery transitions so we can fire a one-shot celebration
@@ -72,11 +111,13 @@ export function CartPill({
   }, [reachedFreeDeliveryAt]);
 
   // B2: filter upsell candidates to items not already in the cart. The rail
-  // is hidden if every popular item is already there (well-rounded order).
+  // is hidden if every candidate is already there (well-rounded order).
+  // Prefer the cart-aware (co-occurrence) result once it's back; the static
+  // tenant-wide best-sellers prop is only the pre-fetch/fallback source.
   const cartItemIds = useMemo(() => new Set(items.map((i) => i.itemId)), [items]);
   const filteredUpsell = useMemo(
-    () => upsellItems.filter((it) => !cartItemIds.has(it.id)),
-    [upsellItems, cartItemIds],
+    () => (cartAwareUpsell ?? upsellItems).filter((it) => !cartItemIds.has(it.id)),
+    [cartAwareUpsell, upsellItems, cartItemIds],
   );
 
   const count = hydrated ? getCount() : 0;
