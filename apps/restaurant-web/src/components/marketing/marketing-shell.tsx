@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
   { href: '/connect', labelKey: 'marketing.shell.nav_connect' },
   { href: '/migrate-from-gloriafood', labelKey: 'marketing.shell.nav_migrate' },
+  { href: '/demo-storefront', labelKey: 'marketing.shell.nav_demo' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
 
@@ -156,6 +157,7 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
               { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
               { href: '/connect', label: t(currentLocale, 'marketing.shell.footer_link_connect') },
               { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
+              { href: '/demo-storefront', label: t(currentLocale, 'marketing.shell.footer_link_demo') },
               // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the
               // city directory in the product column so SEO crawlers find
               // /orase from every marketing page.
