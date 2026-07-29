@@ -417,6 +417,49 @@ export async function getTopPopularItems(
 }
 
 /**
+ * Loads full menu items (with modifiers) for a specific, pre-ranked list of
+ * IDs — used by the cart-aware upsell rail, whose ranking comes from
+ * lib/upsell.ts (co-occurrence scoring), not from popularity. Preserves the
+ * input order and drops any ID that's no longer available or on the menu.
+ */
+export async function getMenuItemsByIds(
+  tenantId: string,
+  ids: string[],
+): Promise<MenuItemWithModifiers[]> {
+  if (ids.length === 0) return [];
+  const supabase = getSupabase();
+  const [itemsRes, modsRes] = await Promise.all([
+    supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),
+    supabase.from('restaurant_menu_modifiers').select('id, item_id, name, price_delta_ron').in('item_id', ids),
+  ]);
+
+  const rawItems = (itemsRes.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
+  const modsByItem = new Map<string, MenuModifier[]>();
+  for (const m of (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>) {
+    const arr = modsByItem.get(m.item_id) ?? [];
+    arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
+    modsByItem.set(m.item_id, arr);
+  }
+
+  const byId = new Map(
+    rawItems
+      .map(({ sold_out_until, ...rest }) => ({
+        ...rest,
+        is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+        popular_rank: null as 1 | 2 | 3 | null,
+        modifiers: modsByItem.get(rest.id) ?? [],
+        modifierGroups: [] as MenuModifierGroup[],
+      }))
+      .filter((it) => it.is_available)
+      .map((it) => [it.id, it] as const),
+  );
+
+  return ids.map((id) => byId.get(id)).filter((it): it is MenuItemWithModifiers => it !== undefined);
+}
+
+/**
  * Returns up to N items from the customer's most recent orders at this tenant
  * — newest first, deduped, restricted to items still on the live menu.
  * Used by the storefront home to render a "Comandă din nou" rail for
