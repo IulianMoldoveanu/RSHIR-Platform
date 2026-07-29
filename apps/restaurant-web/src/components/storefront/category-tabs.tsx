@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { t, type Locale } from '@/lib/i18n';
 import { motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
-import { iconForCategory } from './category-icon';
+import { iconForCategory, tileColorForCategory } from './category-icon';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -84,6 +84,11 @@ export function CategoryTabs({
         {categories.map((c) => {
           const active = c.id === activeId;
           const Icon = iconForCategory(c.name);
+          // Pastel per-category background (inactive state only) so tiles
+          // read as visually distinct from each other, not identical gray
+          // buttons with different labels — e.g. Pizza is amber, Salată is
+          // green, Supe is rose. Active tile always overrides to brand color.
+          const tileBg = tileColorForCategory(c.name);
           return (
             <motion.button
               key={c.id}
@@ -113,10 +118,10 @@ export function CategoryTabs({
                     }}
                   />
                 ) : (
-                  <span aria-hidden className="absolute inset-0 rounded-2xl bg-zinc-100" />
+                  <span aria-hidden className={`absolute inset-0 rounded-2xl ${tileBg.split(' ')[0]}`} />
                 )}
                 <Icon
-                  className={`relative h-6 w-6 transition-colors ${active ? 'text-white' : 'text-zinc-500'}`}
+                  className={`relative h-6 w-6 transition-colors ${active ? 'text-white' : tileBg.split(' ')[1]}`}
                   aria-hidden
                 />
               </span>
