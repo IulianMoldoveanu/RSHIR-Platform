@@ -71,6 +71,50 @@ function resolveImageMime(file: File): string | null {
   return (ext && EXT_TO_MIME[ext]) || null;
 }
 
+// RSHIR-31 H-4 pattern (see settings/branding/actions.ts,
+// settings/menu-brands/actions.ts): file.type / filename extension are both
+// attacker-controlled; verify the actual leading bytes before upload.
+function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
+  const head = new Uint8Array(bytes.slice(0, 12));
+  if (head.length < 4) return false;
+  if (mime === 'image/png') {
+    return (
+      head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47 &&
+      head[4] === 0x0d && head[5] === 0x0a && head[6] === 0x1a && head[7] === 0x0a
+    );
+  }
+  if (mime === 'image/jpeg') {
+    return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  }
+  if (mime === 'image/webp') {
+    // RIFF....WEBP
+    return (
+      head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50
+    );
+  }
+  if (mime === 'image/gif') {
+    // GIF87a / GIF89a
+    return (
+      head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x38 &&
+      (head[4] === 0x37 || head[4] === 0x39) && head[5] === 0x61
+    );
+  }
+  if (mime === 'image/bmp') {
+    return head[0] === 0x42 && head[1] === 0x4d;
+  }
+  if (mime === 'image/heic' || mime === 'image/heif' || mime === 'image/avif') {
+    // ISO base media file format: 4-byte box size, 'ftyp', then a brand.
+    if (head.length < 12) return false;
+    const isFtyp = head[4] === 0x66 && head[5] === 0x74 && head[6] === 0x79 && head[7] === 0x70;
+    if (!isFtyp) return false;
+    const brand = String.fromCharCode(head[8], head[9], head[10], head[11]);
+    if (mime === 'image/avif') return ['avif', 'avis'].includes(brand);
+    return ['heic', 'heix', 'hevc', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'].includes(brand);
+  }
+  return false;
+}
+
 async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
   const supabase = await createServerClient();
   const {
@@ -99,12 +143,16 @@ async function uploadImage(
   if (file.size > MAX_IMAGE_BYTES) {
     throw new Error('Imaginea depaseste 5 MB.');
   }
+  const bytes = await file.arrayBuffer();
+  if (!matchesDeclaredMime(mime, bytes)) {
+    throw new Error(`Tip imagine neacceptat: ${file.type || file.name}`);
+  }
   const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
   const path = `${tenantId}/${itemId}.${ext}`;
   const admin = createAdminClient();
   const { error } = await admin.storage
     .from(MENU_BUCKET)
-    .upload(path, await file.arrayBuffer(), {
+    .upload(path, bytes, {
       contentType: mime,
       upsert: true,
     });
