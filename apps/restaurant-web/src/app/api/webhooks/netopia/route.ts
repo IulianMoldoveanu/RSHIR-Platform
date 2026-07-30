@@ -110,6 +110,16 @@ export async function POST(req: Request) {
         if (pspRow.status === 'CAPTURED') {
           return NextResponse.json({ received: true, duplicate: true });
         }
+        // REFUNDED/FAILED/CANCELLED are terminal — a stale/reordered captured
+        // or authorized webhook must not flip the ledger row back to CAPTURED
+        // (e.g. a redelivered "captured" IPN arriving after a refund).
+        if (
+          pspRow.status === 'REFUNDED' ||
+          pspRow.status === 'FAILED' ||
+          pspRow.status === 'CANCELLED'
+        ) {
+          return NextResponse.json({ received: true, duplicate: true });
+        }
         const claim = await sb
           .from('psp_payments')
           .update({ status: 'CAPTURED', updated_at: new Date().toISOString() })
