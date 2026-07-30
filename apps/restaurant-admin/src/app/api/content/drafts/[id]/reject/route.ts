@@ -3,9 +3,10 @@
 // Reject a content draft. Optional reject reason persisted in body_json.
 // Same authZ shape as the approve route.
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,9 +16,14 @@ interface RejectBody {
 }
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const { id } = await ctx.params;
   if (!id) {
     return NextResponse.json({ error: 'missing_draft_id' }, { status: 400 });
