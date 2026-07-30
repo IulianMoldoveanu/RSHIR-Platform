@@ -343,7 +343,8 @@ async function findEnclosingZoneId(
     .select('id, polygon, sort_order, is_active')
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) throw new Error(`zones lookup failed: ${error.message}`);
   if (!zones) return null;
@@ -397,7 +398,8 @@ async function findTierForDistance(
     .from('delivery_pricing_tiers')
     .select('id, min_km, max_km, price_ron, sort_order')
     .eq('tenant_id', tenantId)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
 
   if (error) throw new Error(`tiers lookup failed: ${error.message}`);
   if (!tiers) return null;
