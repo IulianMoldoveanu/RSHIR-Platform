@@ -26,7 +26,7 @@ values (
   'Restaurantul Demo',
   'RESTAURANT',
   'ACTIVE',
-  '{"city":"Brașov","contact_email":"demo@example.com","pickup_enabled":true,"cod_enabled":true}'::jsonb
+  '{"city":"Brașov","contact_email":"demo@example.com","pickup_enabled":true,"cod_enabled":true,"is_accepting_orders":false}'::jsonb
 )
 on conflict (slug) do update set
   name = excluded.name,
