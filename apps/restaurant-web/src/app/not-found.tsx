@@ -22,7 +22,7 @@ export default async function NotFound() {
   let tenants: Array<{ slug: string; name: string }> = [];
   if (isPreview) {
     try {
-      const supabase = getSupabase();
+      const supabase = await getSupabase();
       const { data } = await supabase
         .from('v_tenants_storefront')
         .select('slug, name')
