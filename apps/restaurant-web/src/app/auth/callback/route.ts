@@ -29,6 +29,17 @@ export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
   const supabase = createServerSupabase(SUPABASE_URL, SUPABASE_ANON_KEY, cookieStore as unknown as UnsafeUnwrappedCookies);
 
+  // DEBUG (temporary, will be reverted) — dump every incoming cookie name
+  // (not values, to avoid leaking secrets to logs) so we can see whether
+  // the PKCE code verifier cookie actually arrives with this request.
+  const incomingCookieNames = req.cookies.getAll().map((c) => c.name);
+  console.error('[auth/callback] DEBUG incoming cookies', {
+    names: incomingCookieNames,
+    hasVerifierLike: incomingCookieNames.some((n) => n.includes('code-verifier')),
+    host: req.headers.get('host'),
+    referer: req.headers.get('referer'),
+  });
+
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error || !data.user) {
     console.error('[auth/callback] exchangeCodeForSession failed', error?.message);
