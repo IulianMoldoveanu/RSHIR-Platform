@@ -729,8 +729,29 @@ export const dictionaries = {
         hero_title_post: '',
         hero_body:
           'Abonament lunar simplu, fără comision pe fiecare comandă. Livrarea este separată — ți-o configurăm printr-o ofertă personalizată, sau o faci cu echipa ta. Instalare gratuită pentru primele 50 de vendori (restaurante, florării, magazine de cadouri).',
-        cta_signup: 'Sunați echipa HIR',
+        cta_signup: 'Vezi demo',
+        // 2026-08-01 — the hero's secondary "Încep singur" button was removed
+        // per Iulian ("scoate butonul incepe sigur fara card"). Key kept inert
+        // rather than deleted, same convention as hero_badge above.
         cta_partner: 'Încep singur — fără card',
+        cta_secondary: 'Vorbește cu noi',
+        hero_mockup_caption: 'Așa arată pentru clienții tăi',
+        hero_mockup_fallback_name: 'Restaurantul tău',
+        logos_title: 'Afaceri care folosesc HIR',
+        how_it_works_title: 'Cum funcționează',
+        how_it_works_intro: 'Patru pași. Fără contracte lungi, fără instalări complicate.',
+        how_it_works_step1_title: 'Îți configurăm meniul',
+        how_it_works_step1_body:
+          'Ne trimiți meniul sau catalogul și îl publicăm live. Durează sub 5 minute.',
+        how_it_works_step2_title: 'Clienții comandă de pe telefon',
+        how_it_works_step2_body:
+          'Comanda vine pe pagina ta, cu numele și logo-ul tău. Fără concurenți alături.',
+        how_it_works_step3_title: 'Curierul livrează',
+        how_it_works_step3_body:
+          'Îți configurăm livrarea printr-o ofertă potrivită zonei tale — sau folosești curierul tău.',
+        how_it_works_step4_title: 'Vezi totul într-un loc',
+        how_it_works_step4_body:
+          'Comenzi, clienți, plăți și livrări — un singur ecran, fără să treci prin agregator.',
         stat_pricing_label: 'Model de tarifare',
         stat_pricing_value: 'Abonament lunar',
         stat_pricing_sub: 'fără comision pe comandă · livrare facturată separat · vs comision tipic 25-30% Glovo/Wolt/Bolt',
@@ -1789,8 +1810,27 @@ export const dictionaries = {
         hero_title_post: '',
         hero_body:
           'A simple monthly subscription, no commission on each order. Delivery is separate — we set it up via a tailored offer, or you keep running your own team. Free setup for the first 50 vendors (restaurants, florists, gift shops).',
-        cta_signup: 'Call HIR Team',
+        cta_signup: 'See demo',
+        // Inert since 2026-08-01 — see the RO block for context.
         cta_partner: 'Start on my own — no card needed',
+        cta_secondary: 'Talk to us',
+        hero_mockup_caption: 'This is what your customers see',
+        hero_mockup_fallback_name: 'Your restaurant',
+        logos_title: 'Businesses using HIR',
+        how_it_works_title: 'How it works',
+        how_it_works_intro: 'Four steps. No long contracts, no complicated setup.',
+        how_it_works_step1_title: 'We set up your menu',
+        how_it_works_step1_body:
+          'Send us your menu or catalogue and we publish it live. Takes under 5 minutes.',
+        how_it_works_step2_title: 'Customers order from their phone',
+        how_it_works_step2_body:
+          'Orders land on your own page, with your name and logo. No competitors alongside you.',
+        how_it_works_step3_title: 'A courier delivers',
+        how_it_works_step3_body:
+          'We set up delivery with an offer matched to your area — or you use your own courier.',
+        how_it_works_step4_title: 'See everything in one place',
+        how_it_works_step4_body:
+          'Orders, customers, payments and deliveries — one screen, no aggregator in between.',
         stat_pricing_label: 'Pricing model',
         stat_pricing_value: 'Monthly subscription',
         stat_pricing_sub: 'no commission per order · delivery billed separately · vs typical 25-30% Glovo/Wolt/Bolt commission',
