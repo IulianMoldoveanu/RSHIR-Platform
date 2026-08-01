@@ -62,13 +62,26 @@ export async function updateOrderStatus(
     );
   }
 
+  // Optimistic-concurrency guard: only the caller that still sees the
+  // status we validated against wins the transition. Prevents a
+  // double-click / racing request from re-running the DELIVERED/PICKED_UP
+  // side effects below (loyalty points, POS dispatch) twice for one order.
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from('restaurant_orders')
     .update({ status: newStatus })
     .eq('id', orderId)
-    .eq('tenant_id', tenantId);
+    .eq('tenant_id', tenantId)
+    .eq('status', order.status)
+    .select('id');
   if (error) throw friendlyDbError(error, 'actualizarea stării comenzii');
+  if (!updated || updated.length === 0) {
+    throw new OrderTransitionError(
+      `Comanda a fost deja actualizată de altcineva (nu mai e în starea ${order.status}).`,
+      order.status,
+      newStatus,
+    );
+  }
 
   await logAudit({
     tenantId,
