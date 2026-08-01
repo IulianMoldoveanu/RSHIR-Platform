@@ -637,7 +637,7 @@ export const dictionaries = {
         footer_contact: 'Contact',
       },
       // Lane EN-I18N (2026-05-05) — chrome (header + footer) shared across
-      // every marketing page (/, /features, /pricing, /contact, /press,
+      // every marketing page (/, /cum-functioneaza, /clienti, /contact, /press,
       // /status, /case-studies/*, /embed-docs, /migrate-from-gloriafood).
       // Locale switcher pill is rendered unconditionally inside the header.
       shell: {
@@ -646,14 +646,20 @@ export const dictionaries = {
         primary_nav_label: 'Navigare principală',
         footer_nav_label: 'Navigare subsol',
         nav_home: 'Acasă',
+        // 2026-08-01 — /features (a wall of feature cards) was replaced by
+        // /cum-functioneaza, a screenshot-led walkthrough. nav_features and
+        // footer_link_features are now inert, same convention as hero_badge.
         nav_features: 'Funcționalități',
+        nav_how: 'Cum funcționează?',
         nav_clients: 'Clienți',
         nav_connect: 'HIR Connect',
         nav_migrate: 'Migrare GloriaFood',
         nav_demo: 'Vezi demo',
         nav_contact: 'Contact',
         cta_become_partner: 'Devino partener',
-        cta_account: 'Conectează-te / Creează cont',
+        // 2026-08-01 — trimmed from "Conectează-te / Creează cont" to a single
+        // word per Iulian. /intra-in-cont still asks log-in vs. sign-up.
+        cta_account: 'Conectează-te',
         locale_switcher_label: 'Schimbă limba',
         footer_tagline:
           'Infrastructură de comenzi și livrare pentru restaurante, florării, magazine de cadouri și alți vendori: storefront propriu, CRM, loyalty, dispatch curieri. Construit în România.',
@@ -661,6 +667,7 @@ export const dictionaries = {
         footer_col_partners: 'Parteneri',
         footer_col_legal: 'Legal',
         footer_link_features: 'Funcționalități',
+        footer_link_how: 'Cum funcționează?',
         footer_link_connect: 'HIR Connect (ai deja site?)',
         footer_link_migrate: 'Migrare GloriaFood',
         footer_link_status: 'Status serviciu',
@@ -715,21 +722,46 @@ export const dictionaries = {
         city_breadcrumb_home: 'Acasă',
         city_breadcrumb_cities: 'Orașe',
       },
-      // 2026-08-01 — `/clienti` page. Real signed clients, listed with a
-      // name + type + city — see lib/marketing/clients.ts for the data.
+      // 2026-08-01 — `/clienti` page. Real signed clients: logo, city, number
+      // of locations, nothing else (Iulian: "scrie simplu afaceri care
+      // folosesc hir. fara alte explicatii"). Data in lib/marketing/clients.ts.
       clients: {
         page_title: 'Clienți — HIRforYOU',
-        page_description:
-          'Afaceri din Brașov care au ales HIR pentru comenzile lor online.',
-        hero_eyebrow: 'Clienți',
-        hero_title: 'Afaceri care lucrează cu HIR',
-        hero_intro:
-          'Un instantaneu din businessurile cu care colaborăm. Fiecare a semnat direct cu echipa HIR.',
+        page_description: 'Afaceri din Brașov care folosesc HIR.',
+        hero_title: 'Afaceri care folosesc HIR',
         breadcrumb_home: 'Acasă',
         breadcrumb_self: 'Clienți',
-        cta_title: 'Vrei să fii următorul?',
-        cta_body: 'Scrieți-ne — vorbim direct, fără formulare lungi.',
-        cta_link: 'Contactați echipa HIR',
+        location_one: '{count} locație',
+        location_other: '{count} locații',
+        cta_link: 'Vrei și tu? Scrie-ne',
+      },
+      // 2026-08-01 — `/cum-functioneaza`, replacing the old `/features` wall
+      // of text (Iulian: "cativa pasi simpli cu capturi de ecran din
+      // aplicatii ... putin scris, usor de inteles. multe poze relevante").
+      // Every step is one line of copy next to one real screenshot; the
+      // screenshots live in public/guide/ and are captured from the live apps.
+      guide: {
+        page_title: 'Cum funcționează — HIRforYOU',
+        page_description:
+          'Șase pași, cu capturi reale din aplicație: cont, meniu, zone de livrare, comanda clientului, comanda la tine, livrarea.',
+        hero_eyebrow: 'Ghid',
+        hero_title: 'Cum funcționează?',
+        hero_intro: 'Șase pași. Capturi reale din aplicație.',
+        step1_title: 'Îți facem contul',
+        step1_body: 'Patru pași ghidați. Îi parcurgem împreună, la telefon.',
+        step2_title: 'Îți publicăm meniul',
+        step2_body: 'Ne trimiți meniul sau o poză cu el. Îl punem live cu poze și prețuri.',
+        step3_title: 'Stabilim zona de livrare',
+        step3_body: 'Desenăm pe hartă unde livrezi. Tariful se calculează singur, pe km.',
+        step4_title: 'Clientul comandă de pe telefon',
+        step4_body: 'Pe pagina ta, cu brandul tău. Fără concurenți alături.',
+        step5_title: 'Comanda apare la tine instant',
+        step5_body: 'Sunet, notificare și ecran de bucătărie. Nu ratezi nicio comandă.',
+        step6_title: 'Curierul livrează',
+        step6_body: 'Curierul o preia din aplicație. Clientul vede pe hartă unde e.',
+        cta_title: 'Vrei să vezi cu ochii tăi?',
+        cta_demo: 'Deschide demo-ul',
+        cta_contact: 'Scrie-ne',
       },
       // Homepage body (rendered at `/` on the canonical host when no tenant
       // is resolved). High-funnel — full bilingual coverage.
@@ -746,7 +778,7 @@ export const dictionaries = {
         hero_title_price: 'Clienții tăi.',
         hero_title_post: '',
         hero_body:
-          'Storefront propriu, cu numele și brandul tău. Clienții comandă direct de pe telefon, tu vezi comanda pe loc, curierul o livrează. Fără agregator între tine și clientul tău.',
+          'Pagina ta de comenzi, cu numele și brandul tău. Fără agregator între tine și clientul tău.',
         cta_signup: 'Vezi demo',
         // 2026-08-01 — the hero's secondary "Încep singur" button was removed
         // per Iulian ("scoate butonul incepe sigur fara card"). Key kept inert
@@ -756,7 +788,7 @@ export const dictionaries = {
         hero_mockup_caption: 'Așa arată pentru clienții tăi',
         hero_mockup_fallback_name: 'Restaurantul tău',
         hero_mockup_added: 'Adăugat în coș ✓',
-        logos_title: 'Afaceri care lucrează cu HIR',
+        logos_title: 'Afaceri care folosesc HIR',
         how_it_works_title: 'Cum funcționează',
         how_it_works_intro: 'Patru pași. Fără contracte lungi, fără instalări complicate.',
         how_it_works_step1_title: 'Îți configurăm meniul',
@@ -793,7 +825,7 @@ export const dictionaries = {
         value_data_title: 'Datele rămân ale dumneavoastră',
         value_data_body:
           'CRM, loyalty, reviews, newsletter — toate stau la restaurant. Niciun marketplace nu mai stă între dumneavoastră și client.',
-        value_more_link: 'Vedeți toate funcționalitățile',
+        value_more_link: 'Vezi ghidul complet',
         connect_eyebrow: 'HIR Connect — pentru cei care au deja site',
         connect_title:
           'Ai deja site de comenzi? Păstrează-l. Noi îți oferim doar logistica și AI.',
@@ -1647,13 +1679,14 @@ export const dictionaries = {
         footer_nav_label: 'Footer navigation',
         nav_home: 'Home',
         nav_features: 'Features',
+        nav_how: 'How it works',
         nav_clients: 'Clients',
         nav_connect: 'HIR Connect',
         nav_migrate: 'GloriaFood migration',
         nav_demo: 'View demo',
         nav_contact: 'Contact',
         cta_become_partner: 'Become a partner',
-        cta_account: 'Log in / Create account',
+        cta_account: 'Log in',
         locale_switcher_label: 'Switch language',
         footer_tagline:
           'Ordering and delivery infrastructure for restaurants, florists, gift shops and other vendors: own storefront, CRM, loyalty, courier dispatch. Built in Romania.',
@@ -1661,6 +1694,7 @@ export const dictionaries = {
         footer_col_partners: 'Partners',
         footer_col_legal: 'Legal',
         footer_link_features: 'Features',
+        footer_link_how: 'How it works',
         footer_link_connect: 'HIR Connect (have your own site?)',
         footer_link_migrate: 'GloriaFood migration',
         footer_link_status: 'Platform status',
@@ -1716,16 +1750,37 @@ export const dictionaries = {
       // 2026-08-01 — `/clienti` page EN copy.
       clients: {
         page_title: 'Clients — HIRforYOU',
-        page_description: 'Brașov businesses that have chosen HIR for their online orders.',
-        hero_eyebrow: 'Clients',
-        hero_title: 'Businesses working with HIR',
-        hero_intro:
-          'A snapshot of the businesses we work with. Each one signed directly with the HIR team.',
+        page_description: 'Brașov businesses using HIR.',
+        hero_title: 'Businesses using HIR',
         breadcrumb_home: 'Home',
         breadcrumb_self: 'Clients',
-        cta_title: 'Want to be next?',
-        cta_body: "Get in touch — we talk directly, no long forms.",
-        cta_link: 'Contact the HIR team',
+        location_one: '{count} location',
+        location_other: '{count} locations',
+        cta_link: 'Want in? Get in touch',
+      },
+      // 2026-08-01 — `/cum-functioneaza` EN copy.
+      guide: {
+        page_title: 'How it works — HIRforYOU',
+        page_description:
+          'Six steps, with real screenshots from the app: account, menu, delivery zones, the customer order, the order on your screen, the delivery.',
+        hero_eyebrow: 'Guide',
+        hero_title: 'How it works',
+        hero_intro: 'Six steps. Real screenshots from the app.',
+        step1_title: 'We set up your account',
+        step1_body: 'Four guided steps. We walk through them with you, on the phone.',
+        step2_title: 'We publish your menu',
+        step2_body: 'Send us your menu, or just a photo of it. We put it live with photos and prices.',
+        step3_title: 'We define your delivery area',
+        step3_body: 'We draw where you deliver on the map. The fee is calculated per km.',
+        step4_title: 'Customers order from their phone',
+        step4_body: 'On your page, with your brand. No competitors alongside.',
+        step5_title: 'The order reaches you instantly',
+        step5_body: 'Sound, notification and a kitchen screen. You never miss an order.',
+        step6_title: 'A courier delivers',
+        step6_body: 'The courier picks it up in the app. The customer sees where it is on the map.',
+        cta_title: 'Want to see it for yourself?',
+        cta_demo: 'Open the demo',
+        cta_contact: 'Get in touch',
       },
       // Homepage body — full bilingual coverage.
       home: {
@@ -1737,7 +1792,7 @@ export const dictionaries = {
         hero_title_price: 'Your customers.',
         hero_title_post: '',
         hero_body:
-          'Your own storefront, with your own name and brand. Customers order straight from their phone, you see the order instantly, a courier delivers it. No aggregator between you and your customer.',
+          'Your own ordering page, with your name and brand. No aggregator between you and your customer.',
         cta_signup: 'See demo',
         // Inert since 2026-08-01 — see the RO block for context.
         cta_partner: 'Start on my own — no card needed',
@@ -1745,7 +1800,7 @@ export const dictionaries = {
         hero_mockup_caption: 'This is what your customers see',
         hero_mockup_fallback_name: 'Your restaurant',
         hero_mockup_added: 'Added to cart ✓',
-        logos_title: 'Businesses working with HIR',
+        logos_title: 'Businesses using HIR',
         how_it_works_title: 'How it works',
         how_it_works_intro: 'Four steps. No long contracts, no complicated setup.',
         how_it_works_step1_title: 'We set up your menu',
@@ -1782,7 +1837,7 @@ export const dictionaries = {
         value_data_title: 'Your data stays yours',
         value_data_body:
           'CRM, loyalty, reviews, newsletter — all live with the restaurant. No marketplace stands between you and the customer anymore.',
-        value_more_link: 'See all features',
+        value_more_link: 'See the full guide',
         connect_eyebrow: 'HIR Connect — for businesses with an existing site',
         connect_title:
           'Already have an ordering site? Keep it. We add only delivery and AI.',

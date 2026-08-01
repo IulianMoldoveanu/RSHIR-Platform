@@ -1,5 +1,5 @@
 // Marketing chrome (header + footer) for the HIR brand presentation site.
-// Used on root marketing landing + /features, /pricing, /contact,
+// Used on the root marketing landing + /cum-functioneaza, /clienti, /contact,
 // and shown when no tenant is resolved from host.
 //
 // Design tokens match /affiliate + /reseller (Inter, indigo-600 primary,
@@ -29,9 +29,13 @@ type NavItem = { href: string; labelKey: TKey };
 // /migrate-from-gloriafood still resolve at their own URLs and keep their
 // sitemap entries; they're just not surfaced in the primary nav, same
 // treatment /status and /press already get in the footer below.
+//
+// 2026-08-01 (later same day) — "Funcționalități" (/features, a wall of
+// feature cards) became "Cum funcționează?" (/cum-functioneaza, a
+// screenshot-led walkthrough) per Iulian; /features 301s there.
 const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
-  { href: '/features', labelKey: 'marketing.shell.nav_features' },
+  { href: '/cum-functioneaza', labelKey: 'marketing.shell.nav_how' },
   { href: '/clienti', labelKey: 'marketing.shell.nav_clients' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
@@ -151,7 +155,7 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
           <FooterCol
             title={t(currentLocale, 'marketing.shell.footer_col_product')}
             links={[
-              { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
+              { href: '/cum-functioneaza', label: t(currentLocale, 'marketing.shell.footer_link_how') },
               { href: '/clienti', label: t(currentLocale, 'marketing.shell.nav_clients') },
               { href: '/demo-storefront', label: t(currentLocale, 'marketing.shell.footer_link_demo') },
               // 2026-08-01 — /pricing retired outright (301 to `/`, see

@@ -1,5 +1,5 @@
 // Lane Q (2026-05-04) — shared SEO helpers for the canonical/marketing host.
-// Lane H ships the actual marketing pages (/, /features, /pricing, etc.);
+// Lane H ships the actual marketing pages (/, /cum-functioneaza, etc.);
 // Lane I ships per-tenant social-commerce OG. This module is the contract
 // the three lanes share so the sitemap stays in sync with the routes that
 // actually exist.
@@ -17,7 +17,9 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   priority: number;
 }> = [
   { path: '/', priority: 1.0 },
-  { path: '/features', priority: 0.8 },
+  // /features retired 2026-08-01 (301 to /cum-functioneaza, see
+  // next.config.mjs) — the walkthrough replaced the feature-card wall.
+  { path: '/cum-functioneaza', priority: 0.8 },
   // /pricing retired 2026-08-01 (301 to `/`, see next.config.mjs) — the
   // site no longer pitches a subscription, so it's not a sitemap entry
   // either; listing a redirect target here would be a stale SEO signal.

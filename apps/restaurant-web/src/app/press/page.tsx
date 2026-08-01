@@ -328,7 +328,7 @@ export default async function PressPage() {
 
           <div className="mt-10 flex flex-wrap gap-3">
             <a
-              href="/features"
+              href="/cum-functioneaza"
               className="inline-flex items-center gap-1 rounded-md border border-[#E2E8F0] bg-white px-4 py-2 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
             >
               Funcționalități produs

@@ -7,7 +7,7 @@ import { breadcrumbJsonLd } from './structured-data';
 describe('breadcrumbJsonLd', () => {
   const ld = breadcrumbJsonLd('https://hirforyou.ro', [
     { name: 'Acasă', path: '/' },
-    { name: 'Funcționalități', path: '/features' },
+    { name: 'Cum funcționează', path: '/cum-functioneaza' },
   ]);
 
   it('emits BreadcrumbList with positional ListItem entries', () => {
@@ -21,7 +21,7 @@ describe('breadcrumbJsonLd', () => {
     });
     expect(ld.itemListElement[1]).toMatchObject({
       position: 2,
-      item: 'https://hirforyou.ro/features',
+      item: 'https://hirforyou.ro/cum-functioneaza',
     });
   });
 });
