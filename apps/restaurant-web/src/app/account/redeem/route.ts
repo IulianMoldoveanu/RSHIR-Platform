@@ -4,7 +4,9 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { redeemMagicLink } from '@/lib/account/magic-link';
 import {
   CUSTOMER_COOKIE_MAX_AGE_SECONDS,
+  canIssueCustomerCookie,
   customerCookieName,
+  customerCookieValue,
 } from '@/lib/customer-recognition';
 
 export const runtime = 'nodejs';
@@ -40,6 +42,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${baseUrl}/?account=invalid`, 302);
   }
 
+  // Bail out BEFORE redeeming. redeemMagicLink() atomically stamps used_at,
+  // so if the signing secret were missing we'd burn a perfectly good
+  // single-use link and the customer would get `already_used` on every retry
+  // even after the config was fixed — locking them out and pushing them into
+  // the rate-limited "email me another link" path.
+  if (!canIssueCustomerCookie()) {
+    console.error('[account/redeem] CUSTOMER_COOKIE_SECRET not configured — refusing to burn token');
+    return NextResponse.redirect(`${baseUrl}/?account=invalid`, 302);
+  }
+
   const admin = getSupabaseAdmin();
   const result = await redeemMagicLink(admin, { tenantId: tenant.id, rawToken: token });
   if (!result.ok) {
@@ -58,10 +70,18 @@ export async function GET(req: NextRequest) {
   // page — already reads that cookie. This means a successful redeem +
   // a brand-new browser is functionally identical to "you've ordered here
   // before", and Just Works.
+  // Signed value — the recognition cookie is a bearer credential, so it must
+  // carry the same HMAC every other issue site now sets (see
+  // lib/customer-recognition.ts). Non-null here: the secret was checked above.
+  const cookieValue = customerCookieValue(tenant.id, result.customerId);
+  if (!cookieValue) {
+    return NextResponse.redirect(`${baseUrl}/?account=invalid`, 302);
+  }
+
   const res = NextResponse.redirect(`${baseUrl}/account?welcome=1`, 302);
   res.cookies.set({
     name: customerCookieName(tenant.id),
-    value: result.customerId,
+    value: cookieValue,
     maxAge: CUSTOMER_COOKIE_MAX_AGE_SECONDS,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

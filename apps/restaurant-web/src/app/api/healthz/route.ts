@@ -97,6 +97,12 @@ export async function GET() {
   // verify signatures. Cheap config-presence check, no network call.
   const stripe_webhook_secret_configured = Boolean(process.env.STRIPE_WEBHOOK_SECRET);
 
+  // Signing key for the customer recognition cookie. Without it the cookie
+  // can't be minted or verified, so returning visitors are never recognised
+  // (no /account, no checkout prefill, no loyalty redemption). Fails quiet by
+  // design — surfaced here so a missing value is visible instead of silent.
+  const customer_cookie_secret_configured = Boolean(process.env.CUSTOMER_COOKIE_SECRET);
+
   // Critical = db reachability only. Auth + storage + stripe-webhook are
   // surfaced as degradation signals but don't flip the page red — uptime
   // monitor would otherwise alert on transient `auth.admin.listUsers`
@@ -118,6 +124,7 @@ export async function GET() {
         db,
         auth,
         stripe_webhook_secret_configured,
+        customer_cookie_secret_configured,
         supabase_storage,
       },
     },
