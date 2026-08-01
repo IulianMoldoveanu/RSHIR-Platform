@@ -185,7 +185,9 @@ export function localBusinessJsonLd(baseUrl: string) {
     url: baseUrl,
     telephone: '+40743700916',
     email: 'office@hirforyou.ro',
-    priceRange: 'Abonament lunar, fără comision pe comandă',
+    // priceRange removed 2026-08-01 — the site no longer publishes a
+    // subscription figure anywhere (see /pricing retirement); leaving a
+    // pricing description here would keep it alive in Google's index.
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'RO',
@@ -214,7 +216,7 @@ export function softwareApplicationJsonLd(baseUrl: string) {
     operatingSystem: 'Web, iOS, Android',
     url: baseUrl,
     description:
-      'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI, fără comision procentual.',
+      'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI.',
     publisher: {
       '@type': 'Organization',
       name: 'HIRforYOU',

@@ -141,11 +141,15 @@ export default async function StorefrontHomePage() {
     const host =
       (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
     const baseUrl = canonicalBaseUrl(host);
+    // 2026-08-01 — the "Cât costă?" and Glovo/Wolt commission-comparison
+    // entries were rewritten off pricing language (see /pricing retirement):
+    // this FAQPage JSON-LD is exactly what Google can surface as a rich
+    // result in the SERP, so it's as Google-facing as the page title/meta.
     const homepageFaq = [
       {
-        question: 'Cât costă HIRforYOU?',
+        question: 'Cum funcționează HIRforYOU?',
         answer:
-          'Abonament lunar simplu, fără comision procentual din valoarea coșului. Livrarea este separată — îți facem o ofertă personalizată de curierat sau folosești curierul tău.',
+          'Aveți propriul storefront, cu brandul și numele dumneavoastră. Clienții comandă direct de pe telefon, comanda ajunge instant la dumneavoastră, iar un curier o livrează. Fără agregator între dumneavoastră și clientul dumneavoastră.',
       },
       {
         question: 'Cum mă mut de pe GloriaFood pe HIRforYOU?',
@@ -155,7 +159,7 @@ export default async function StorefrontHomePage() {
       {
         question: 'Ce diferență față de Glovo / Wolt / Bolt?',
         answer:
-          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți un abonament lunar simplu (livrare contractată separat, prin ofertă personalizată), nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
+          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul — comanda vine direct pe pagina dumneavoastră, nu pe un marketplace alături de concurenți.',
       },
       {
         question: 'Asistentul vorbește română?',
