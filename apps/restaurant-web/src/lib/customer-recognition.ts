@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 import { getConsent } from './consent.server';
@@ -13,17 +14,71 @@ export function customerCookieName(tenantId: string): string {
   return `${CUSTOMER_COOKIE_PREFIX}${tenantId}`;
 }
 
+// ── Cookie signing ──────────────────────────────────────────────────────
+// This cookie is a bearer credential, not a hint: on its own it unlocks the
+// /account page (order history, saved addresses, loyalty balance), prefills
+// checkout with the customer's name/phone/address, and authorises spending
+// loyalty points at checkout. Until now its value was the bare customers.id
+// UUID, so anyone who learned a valid UUID for a tenant could paste it into
+// their own browser and become that customer. httpOnly stops a script on the
+// page from reading it, but nothing stopped an attacker from *writing* one.
+//
+// Value is now `<uuid>.<hmac>`, the HMAC covering `<tenantId>.<customerId>`
+// so a cookie minted for one tenant can never be replayed against another
+// even if the cookie name scheme changes.
+//
+// Existing unsigned cookies (no `.`) are rejected — a returning visitor is
+// simply no longer recognised until their next login or order. Accepting
+// them during a grace period would defeat the whole change, since forging
+// one is exactly the case being closed.
+
+// Read lazily rather than captured at module load: Next evaluates modules at
+// build time too, where the value may not be injected yet.
+function cookieSecret(): string {
+  return process.env.CUSTOMER_COOKIE_SECRET ?? '';
+}
+
+function signCustomerId(tenantId: string, customerId: string): string {
+  return createHmac('sha256', cookieSecret())
+    .update(`${tenantId}.${customerId}`)
+    .digest('base64url');
+}
+
+/**
+ * Builds the signed cookie value for a customer. Returns null when
+ * CUSTOMER_COOKIE_SECRET is unset — recognition then degrades to "nobody is
+ * ever recognised" rather than falling back to an unsigned, forgeable value.
+ * /api/healthz reports whether the secret is configured.
+ */
+export function customerCookieValue(tenantId: string, customerId: string): string | null {
+  if (!cookieSecret()) return null;
+  return `${customerId}.${signCustomerId(tenantId, customerId)}`;
+}
+
 export function cartBootstrapCookieName(tenantId: string): string {
   return `${CART_BOOTSTRAP_COOKIE_PREFIX}${tenantId}`;
 }
 
 /**
  * Reads the per-tenant customer recognition cookie. Server-only.
- * Returns the customer.id (UUID) if present and well-formed.
+ * Returns the customer.id (UUID) only when the cookie carries a valid
+ * signature for THIS tenant; otherwise null.
  */
 export function readCustomerCookie(tenantId: string): string | null {
+  if (!cookieSecret()) return null;
   const v = (cookies() as unknown as UnsafeUnwrappedCookies).get(customerCookieName(tenantId))?.value;
-  return v && UUID_RE.test(v) ? v : null;
+  if (!v) return null;
+
+  // A UUID contains no '.', so the first dot always separates id from signature.
+  const dot = v.indexOf('.');
+  if (dot < 0) return null; // legacy unsigned cookie, or a forgery attempt
+  const customerId = v.slice(0, dot);
+  if (!UUID_RE.test(customerId)) return null;
+
+  const got = Buffer.from(v.slice(dot + 1));
+  const expected = Buffer.from(signCustomerId(tenantId, customerId));
+  if (got.length !== expected.length || !timingSafeEqual(got, expected)) return null;
+  return customerId;
 }
 
 /**
@@ -44,9 +99,11 @@ export function maybeSetCustomerCookie(
   // essential-only via the consent banner.
   const consent = getConsent();
   if (consent && consent.analytics === false) return;
+  const value = customerCookieValue(tenantId, customerId);
+  if (!value) return;
   res.cookies.set({
     name: customerCookieName(tenantId),
-    value: customerId,
+    value,
     maxAge: CUSTOMER_COOKIE_MAX_AGE_SECONDS,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

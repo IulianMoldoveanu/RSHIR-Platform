@@ -5,6 +5,7 @@ import { redeemMagicLink } from '@/lib/account/magic-link';
 import {
   CUSTOMER_COOKIE_MAX_AGE_SECONDS,
   customerCookieName,
+  customerCookieValue,
 } from '@/lib/customer-recognition';
 
 export const runtime = 'nodejs';
@@ -58,10 +59,21 @@ export async function GET(req: NextRequest) {
   // page — already reads that cookie. This means a successful redeem +
   // a brand-new browser is functionally identical to "you've ordered here
   // before", and Just Works.
+  // Signed value — the recognition cookie is a bearer credential, so it must
+  // carry the same HMAC every other issue site now sets (see
+  // lib/customer-recognition.ts). Null means CUSTOMER_COOKIE_SECRET is unset;
+  // treat that as "cannot mint a session" rather than falling back to an
+  // unsigned, forgeable cookie.
+  const cookieValue = customerCookieValue(tenant.id, result.customerId);
+  if (!cookieValue) {
+    console.error('[account/redeem] CUSTOMER_COOKIE_SECRET not configured — cannot issue cookie');
+    return NextResponse.redirect(`${baseUrl}/?account=invalid`, 302);
+  }
+
   const res = NextResponse.redirect(`${baseUrl}/account?welcome=1`, 302);
   res.cookies.set({
     name: customerCookieName(tenant.id),
-    value: result.customerId,
+    value: cookieValue,
     maxAge: CUSTOMER_COOKIE_MAX_AGE_SECONDS,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
