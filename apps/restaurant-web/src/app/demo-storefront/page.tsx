@@ -22,7 +22,7 @@ export default async function DemoStorefrontPage() {
       <div className="relative h-40 w-full bg-zinc-200 sm:h-56">
         {coverUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+          <img src={coverUrl} alt="" width={1200} height={400} className="h-full w-full object-cover" />
         )}
       </div>
       <div className="mx-auto max-w-2xl px-4">
@@ -30,7 +30,7 @@ export default async function DemoStorefrontPage() {
           <div className="h-16 w-16 overflow-hidden rounded-2xl border-4 border-white bg-white shadow-sm">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={tenant.name} className="h-full w-full object-cover" />
+              <img src={logoUrl} alt={tenant.name} width={64} height={64} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-[var(--hir-brand)] text-lg font-bold text-white">
                 {tenant.name.slice(0, 1)}
