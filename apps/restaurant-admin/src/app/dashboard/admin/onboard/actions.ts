@@ -329,7 +329,8 @@ export async function uploadWizardLogo(formData: FormData): Promise<UploadLogoRe
   const existing = (row?.settings as Record<string, unknown> | null) ?? {};
   const existingBranding = (existing.branding as Record<string, unknown> | undefined) ?? {};
   const merged = { ...existing, branding: { ...existingBranding, logo_url: logoUrl } };
-  await (admin as any).from('tenants').update({ settings: merged }).eq('id', tenantId);
+  const { error: writeErr } = await (admin as any).from('tenants').update({ settings: merged }).eq('id', tenantId);
+  if (writeErr) return { ok: false, error: `Salvarea logo-ului a eșuat: ${writeErr.message}` };
 
   return { ok: true, logoUrl };
 }
