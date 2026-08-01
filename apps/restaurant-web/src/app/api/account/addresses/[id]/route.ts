@@ -59,7 +59,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const { error } = await admin
     .from('customer_addresses')
     .update({ is_default: true } as never)
-    .eq('id', params.id);
+    .eq('id', params.id)
+    .eq('customer_id', customerId);
 
   if (error) return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
@@ -81,7 +82,11 @@ export async function DELETE(req: NextRequest, props: { params: Promise<{ id: st
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  const { error } = await admin.from('customer_addresses').delete().eq('id', params.id);
+  const { error } = await admin
+    .from('customer_addresses')
+    .delete()
+    .eq('id', params.id)
+    .eq('customer_id', customerId);
   if (error) return NextResponse.json({ error: 'db_error', detail: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
