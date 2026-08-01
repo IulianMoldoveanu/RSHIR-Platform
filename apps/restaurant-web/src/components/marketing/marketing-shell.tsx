@@ -19,12 +19,15 @@ import { t, type Locale, type TKey } from '@/lib/i18n';
 
 type NavItem = { href: string; labelKey: TKey };
 
+// 2026-08-01 — trimmed to five entries per Iulian ("elimina gloria food din
+// meniu, exclude hir connect ... simplu aerisit"). /connect and
+// /migrate-from-gloriafood still resolve at their own URLs and keep their
+// sitemap entries; they're just no longer surfaced in the primary nav, same
+// treatment /status and /press already get in the footer below.
 const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
   { href: '/features', labelKey: 'marketing.shell.nav_features' },
   { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
-  { href: '/connect', labelKey: 'marketing.shell.nav_connect' },
-  { href: '/migrate-from-gloriafood', labelKey: 'marketing.shell.nav_migrate' },
   { href: '/demo-storefront', labelKey: 'marketing.shell.nav_demo' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
@@ -155,9 +158,9 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             links={[
               { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
               { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
-              { href: '/connect', label: t(currentLocale, 'marketing.shell.footer_link_connect') },
-              { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
               { href: '/demo-storefront', label: t(currentLocale, 'marketing.shell.footer_link_demo') },
+              // 2026-08-01 — /connect and /migrate-from-gloriafood dropped
+              // from the footer alongside the nav trim; pages still resolve.
               // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the
               // city directory in the product column so SEO crawlers find
               // /orase from every marketing page.

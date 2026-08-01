@@ -8,17 +8,12 @@
 // so RO ↔ EN cookie flips re-render the page in the chosen language.
 
 import Link from 'next/link';
-import {
-  CheckCircle2,
-  Truck,
-  ChefHat,
-  Zap,
-  ShieldCheck,
-  ArrowRight,
-  Webhook,
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { MarketingHeader, MarketingFooter } from './marketing-shell';
+import { HeroPhoneMockup } from './hero-phone-mockup';
+import { HowItWorks } from './how-it-works';
+import { ClientLogos } from './client-logos';
 
 export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
   return (
@@ -36,90 +31,58 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
               directive — keep link in nav (/migrate-from-gloriafood) only, not as
               a prominent homepage banner. The dictionary key marketing.home.hero_badge
               remains so this can be restored by adding back the div. */}
-          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
-            {t(currentLocale, 'marketing.home.hero_title_pre')}{' '}
-            <span className="text-[#4F46E5]">
-              {t(currentLocale, 'marketing.home.hero_title_price')}
-            </span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-[#475569] md:text-lg">
-            {t(currentLocale, 'marketing.home.hero_body')}
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link
-              href="/contact"
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-            >
-              {t(currentLocale, 'marketing.home.cta_signup')}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              href="/migrate-from-gloriafood"
-              className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] transition-colors hover:border-[#CBD5E1] hover:bg-[#F8FAFC] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-            >
-              {t(currentLocale, 'marketing.home.cta_partner')}
-            </Link>
+          <div className="grid items-center gap-12 md:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl">
+                {t(currentLocale, 'marketing.home.hero_title_pre')}{' '}
+                <span className="text-[#4F46E5]">
+                  {t(currentLocale, 'marketing.home.hero_title_price')}
+                </span>
+              </h1>
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-[#475569] md:text-lg">
+                {t(currentLocale, 'marketing.home.hero_body')}
+              </p>
+              {/* 2026-08-01 — single hero CTA pointing at the interactive demo.
+                  The old secondary "Încep singur — fără card" button was removed
+                  per Iulian; /migrate-from-gloriafood keeps its own page and
+                  sitemap entry, it's just no longer promoted here. */}
+              <div className="mt-9">
+                <Link
+                  href="/demo-storefront"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-6 py-3.5 text-base font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+                >
+                  {t(currentLocale, 'marketing.home.cta_signup')}
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </div>
+
+              {/* Trust strip */}
+              <dl className="mt-14 grid gap-6 border-t border-[#F1F5F9] pt-8 sm:grid-cols-2">
+                <Stat
+                  label={t(currentLocale, 'marketing.home.stat_pricing_label')}
+                  value={t(currentLocale, 'marketing.home.stat_pricing_value')}
+                  sub={t(currentLocale, 'marketing.home.stat_pricing_sub')}
+                />
+                <Stat
+                  label={t(currentLocale, 'marketing.home.stat_importer_label')}
+                  value={t(currentLocale, 'marketing.home.stat_importer_value')}
+                  sub={t(currentLocale, 'marketing.home.stat_importer_sub')}
+                />
+              </dl>
+            </div>
+
+            <HeroPhoneMockup currentLocale={currentLocale} />
           </div>
-
-          {/* Trust strip */}
-          <dl className="mt-14 grid gap-6 border-t border-[#F1F5F9] pt-8 sm:grid-cols-2">
-            <Stat
-              label={t(currentLocale, 'marketing.home.stat_pricing_label')}
-              value={t(currentLocale, 'marketing.home.stat_pricing_value')}
-              sub={t(currentLocale, 'marketing.home.stat_pricing_sub')}
-            />
-            <Stat
-              label={t(currentLocale, 'marketing.home.stat_importer_label')}
-              value={t(currentLocale, 'marketing.home.stat_importer_value')}
-              sub={t(currentLocale, 'marketing.home.stat_importer_sub')}
-            />
-          </dl>
         </div>
       </section>
 
-      {/* ── Value props ────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <h2 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-3xl">
-          {t(currentLocale, 'marketing.home.value_section_title')}
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm text-[#475569]">
-          {t(currentLocale, 'marketing.home.value_section_intro')}
-        </p>
-        <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-          <Feature
-            icon={<ChefHat className="h-5 w-5" />}
-            title={t(currentLocale, 'marketing.home.value_storefront_title')}
-            body={t(currentLocale, 'marketing.home.value_storefront_body')}
-          />
-          <Feature
-            icon={<Truck className="h-5 w-5" />}
-            title={t(currentLocale, 'marketing.home.value_courier_title')}
-            body={t(currentLocale, 'marketing.home.value_courier_body')}
-          />
-          <Feature
-            icon={<Zap className="h-5 w-5" />}
-            title={t(currentLocale, 'marketing.home.value_importer_title')}
-            body={t(currentLocale, 'marketing.home.value_importer_body')}
-          />
-          <Feature
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title={t(currentLocale, 'marketing.home.value_data_title')}
-            body={t(currentLocale, 'marketing.home.value_data_body')}
-          />
-        </div>
-        <div className="mt-8">
-          <Link
-            href="/features"
-            className="group inline-flex items-center gap-1 rounded-md text-sm font-medium text-[#4F46E5] transition-colors hover:text-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-          >
-            {t(currentLocale, 'marketing.home.value_more_link')}
-            <ArrowRight
-              className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
-              aria-hidden
-            />
-          </Link>
-        </div>
-      </section>
+      <ClientLogos currentLocale={currentLocale} />
+
+      {/* ── How it works ───────────────────────────────────────────────── */}
+      {/* 2026-08-01 — replaces the four-column value-props grid. Keys
+          value_storefront_* / value_courier_* / value_importer_* / value_data_*
+          are now inert but kept, same convention as hero_badge. */}
+      <HowItWorks currentLocale={currentLocale} />
 
       {/* Aggregator-transparency visual section removed 2026-06-10 per Iulian directive
           ("glovo wolt toate intr-un singur ecran — elimina, nu imi place"). The
@@ -178,85 +141,12 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
         </div>
       </section>
 
-      {/* ── HIR Connect teaser ─────────────────────────────────────────── */}
-      <section className="border-b border-[#E2E8F0] bg-gradient-to-b from-[#EEF2FF] to-white">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="grid items-start gap-10 md:grid-cols-[1.1fr_1fr]">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-md bg-white px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE]">
-                <Webhook className="h-3.5 w-3.5" aria-hidden />
-                <span>{t(currentLocale, 'marketing.home.connect_eyebrow')}</span>
-              </div>
-              <h2 className="max-w-xl text-2xl font-semibold tracking-tight md:text-3xl">
-                {t(currentLocale, 'marketing.home.connect_title')}
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#475569] md:text-base">
-                {t(currentLocale, 'marketing.home.connect_body')}
-              </p>
-              <ul className="mt-6 space-y-2 text-sm text-[#0F172A]">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
-                  <span>{t(currentLocale, 'marketing.home.connect_point_1')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
-                  <span>{t(currentLocale, 'marketing.home.connect_point_2')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
-                  <span>{t(currentLocale, 'marketing.home.connect_point_3')}</span>
-                </li>
-              </ul>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link
-                  href="/connect"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-5 py-3 text-sm font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-                >
-                  {t(currentLocale, 'marketing.home.connect_cta_primary')}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-                <Link
-                  href="/contact"
-                  className="inline-flex items-center justify-center rounded-md border border-[#E2E8F0] bg-white px-5 py-3 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC]"
-                >
-                  {t(currentLocale, 'marketing.home.connect_cta_secondary')}
-                </Link>
-              </div>
-            </div>
-            <div className="rounded-lg border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <div className="text-[10px] font-medium uppercase tracking-wider text-[#94A3B8]">
-                {t(currentLocale, 'marketing.home.connect_compare_title')}
-              </div>
-              <dl className="mt-4 space-y-4 text-sm">
-                <div>
-                  <dt className="font-medium text-[#0F172A]">
-                    {t(currentLocale, 'marketing.home.connect_row1_label')}
-                  </dt>
-                  <dd className="mt-0.5 text-[#475569]">
-                    {t(currentLocale, 'marketing.home.connect_row1_value')}
-                  </dd>
-                </div>
-                <div className="border-t border-[#F1F5F9] pt-4">
-                  <dt className="font-medium text-[#0F172A]">
-                    {t(currentLocale, 'marketing.home.connect_row2_label')}
-                  </dt>
-                  <dd className="mt-0.5 text-[#475569]">
-                    {t(currentLocale, 'marketing.home.connect_row2_value')}
-                  </dd>
-                </div>
-                <div className="border-t border-[#F1F5F9] pt-4">
-                  <dt className="font-medium text-[#0F172A]">
-                    {t(currentLocale, 'marketing.home.connect_row3_label')}
-                  </dt>
-                  <dd className="mt-0.5 text-[#475569]">
-                    {t(currentLocale, 'marketing.home.connect_row3_value')}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* HIR Connect teaser removed 2026-08-01 per Iulian ("exclude hir
+          connect ... simplu aerisit"). It was the densest block on the page —
+          two columns, a checklist and a comparison table — and pulled directly
+          against the "extremely simple" goal. /connect still resolves at its
+          own URL with its own sitemap entry; the connect_* dictionary keys are
+          kept inert so the section can be restored wholesale if needed. */}
 
       {/* ── Final CTA ──────────────────────────────────────────────────── */}
       <section className="border-t border-[#E2E8F0] bg-[#0F172A] text-white">
@@ -275,11 +165,14 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
               {t(currentLocale, 'marketing.home.final_cta_signup')}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
+            {/* 2026-08-01 — was /migrate-from-gloriafood; retargeted to the
+                demo so both homepage CTAs point somewhere a prospect can act
+                on immediately. final_cta_consultant is now inert. */}
             <Link
-              href="/migrate-from-gloriafood"
+              href="/demo-storefront"
               className="inline-flex items-center justify-center rounded-md border border-white/20 bg-transparent px-5 py-3 text-sm font-medium text-white hover:bg-white/5"
             >
-              {t(currentLocale, 'marketing.home.final_cta_consultant')}
+              {t(currentLocale, 'marketing.home.cta_signup')}
             </Link>
           </div>
         </div>
@@ -301,26 +194,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
         {value}
       </dd>
       {sub && <dd className="mt-1 text-xs text-[#475569]">{sub}</dd>}
-    </div>
-  );
-}
-
-function Feature({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="rounded-lg border border-[#E2E8F0] bg-white p-5">
-      <div className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[#EEF2FF] text-[#4F46E5]">
-        {icon}
-      </div>
-      <h3 className="mt-4 text-sm font-semibold text-[#0F172A]">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-[#475569]">{body}</p>
     </div>
   );
 }
