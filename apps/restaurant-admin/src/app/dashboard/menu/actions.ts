@@ -110,7 +110,7 @@ function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
     if (!isFtyp) return false;
     const brand = String.fromCharCode(head[8], head[9], head[10], head[11]);
     if (mime === 'image/avif') return ['avif', 'avis'].includes(brand);
-    return ['heic', 'heix', 'hevc', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'].includes(brand);
+    return ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'].includes(brand);
   }
   return false;
 }
