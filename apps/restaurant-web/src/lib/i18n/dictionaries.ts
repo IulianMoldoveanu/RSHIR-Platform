@@ -720,7 +720,7 @@ export const dictionaries = {
       clients: {
         page_title: 'Clienți — HIRforYOU',
         page_description:
-          'Afaceri din Brașov care lucrează cu HIR pentru comenzile lor online.',
+          'Afaceri din Brașov care au ales HIR pentru comenzile lor online.',
         hero_eyebrow: 'Clienți',
         hero_title: 'Afaceri care lucrează cu HIR',
         hero_intro:
@@ -756,7 +756,7 @@ export const dictionaries = {
         hero_mockup_caption: 'Așa arată pentru clienții tăi',
         hero_mockup_fallback_name: 'Restaurantul tău',
         hero_mockup_added: 'Adăugat în coș ✓',
-        logos_title: 'Afaceri care folosesc HIR',
+        logos_title: 'Afaceri care lucrează cu HIR',
         how_it_works_title: 'Cum funcționează',
         how_it_works_intro: 'Patru pași. Fără contracte lungi, fără instalări complicate.',
         how_it_works_step1_title: 'Îți configurăm meniul',
@@ -1716,7 +1716,7 @@ export const dictionaries = {
       // 2026-08-01 — `/clienti` page EN copy.
       clients: {
         page_title: 'Clients — HIRforYOU',
-        page_description: 'Brașov businesses running their online orders with HIR.',
+        page_description: 'Brașov businesses that have chosen HIR for their online orders.',
         hero_eyebrow: 'Clients',
         hero_title: 'Businesses working with HIR',
         hero_intro:
@@ -1745,7 +1745,7 @@ export const dictionaries = {
         hero_mockup_caption: 'This is what your customers see',
         hero_mockup_fallback_name: 'Your restaurant',
         hero_mockup_added: 'Added to cart ✓',
-        logos_title: 'Businesses using HIR',
+        logos_title: 'Businesses working with HIR',
         how_it_works_title: 'How it works',
         how_it_works_intro: 'Four steps. No long contracts, no complicated setup.',
         how_it_works_step1_title: 'We set up your menu',
