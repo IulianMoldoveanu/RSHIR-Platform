@@ -104,7 +104,7 @@ const POPULAR_MIN_QTY = 5; // an item needs ≥5 sold to qualify — avoids rank
  * JSONB. Excludes CANCELLED orders. Map is empty if nothing qualifies.
  */
 async function loadPopularRanks(tenantId: string): Promise<Map<string, 1 | 2 | 3>> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const sinceIso = new Date(
     Date.now() - POPULAR_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -140,7 +140,7 @@ async function loadPopularRanks(tenantId: string): Promise<Map<string, 1 | 2 | 3
 }
 
 export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
 
   const [catsRes, itemsRes, popularRanks] = await Promise.all([
     supabase
@@ -319,7 +319,7 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
  * several customer-facing restaurant brands sharing one cart/checkout).
  */
 export async function getMenuBrands(tenantId: string): Promise<MenuBrand[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const { data } = await supabase
     .from('restaurant_menu_brands')
     .select('id, slug, name, tagline, logo_url, cover_url, sort_order')
@@ -330,7 +330,7 @@ export async function getMenuBrands(tenantId: string): Promise<MenuBrand[]> {
 }
 
 export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const nowIso = new Date().toISOString();
   const res = await supabase
     .from('restaurant_menu_items')
@@ -359,7 +359,7 @@ export async function getTopPopularItems(
   tenantId: string,
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const ranks = await loadPopularRanks(tenantId);
 
   if (ranks.size === 0) {
@@ -427,7 +427,7 @@ export async function getMenuItemsByIds(
   ids: string[],
 ): Promise<MenuItemWithModifiers[]> {
   if (ids.length === 0) return [];
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const [itemsRes, modsRes] = await Promise.all([
     supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),
     supabase.from('restaurant_menu_modifiers').select('id, item_id, name, price_delta_ron').in('item_id', ids),
@@ -471,7 +471,7 @@ export async function getRecentlyOrderedItems(
   menu: MenuCategory[],
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const { data: orders } = await supabase
     .from('restaurant_orders')
     .select('items, created_at')
@@ -513,7 +513,7 @@ export async function getItemByShortId(
   tenantId: string,
   shortId: string,
 ): Promise<MenuItemWithModifiers | null> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const res = await supabase
     .from('restaurant_menu_items')
     .select(ITEM_COLS)

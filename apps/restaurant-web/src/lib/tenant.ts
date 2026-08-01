@@ -290,7 +290,7 @@ export async function resolveTenantFromHost(): Promise<{
   const subSlug = subdomainSlug(host);
   const slug = subSlug ?? h.get('x-hir-tenant-slug')?.toLowerCase() ?? host.split('.')[0];
 
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const SELECT = 'id, slug, name, custom_domain, status, settings, template_slug';
 
   let row: TenantRow | null = null;

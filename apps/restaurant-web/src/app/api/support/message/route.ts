@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   // identity over what the client typed.
   let authUserId: string | null = null;
   try {
-    const sb = getSupabase();
+    const sb = await getSupabase();
     const { data } = await sb.auth.getUser();
     if (data.user?.email) {
       email = data.user.email.toLowerCase();

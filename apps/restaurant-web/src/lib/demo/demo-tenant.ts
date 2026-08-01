@@ -22,7 +22,7 @@ type TenantRow = {
 };
 
 export async function getDemoTenant(): Promise<ResolvedTenant | null> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('v_tenants_storefront')
     .select('id, slug, name, custom_domain, status, settings, template_slug')
