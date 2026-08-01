@@ -22,12 +22,13 @@
 //   - The orchestrator's trust gate runs on top of this: write intents
 //     still hit PROPOSED unless the tenant pre-approved AUTO_*.
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { dispatchViaEdge } from '@/lib/ai/master-orchestrator-edge-bridge';
 import type { AgentName } from '@/lib/ai/master-orchestrator-types';
 import { checkAndIncrementUsage } from '@/lib/usage-caps';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,7 +69,12 @@ function parseAgent(intent: string): AgentName | null {
   return null;
 }
 
-export async function POST(req: Request): Promise<NextResponse> {
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   // 1. AuthN — read Supabase session cookie. 401 if absent.
   let tenantId: string;
   let userId: string;

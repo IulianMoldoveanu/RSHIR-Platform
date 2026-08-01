@@ -43,17 +43,21 @@ vi.mock('@/lib/usage-caps', () => ({
 
 // ── Import SUT after mocks ─────────────────────────────────────────
 
+import type { NextRequest } from 'next/server';
 import { POST } from './route';
 
-function makeReq(body: unknown): Request {
+function makeReq(body: unknown): NextRequest {
   return new Request('http://localhost/api/ai/dispatch', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', origin: 'https://admin.hir.ro' },
     body: JSON.stringify(body),
-  });
+  }) as unknown as NextRequest;
 }
 
+const ORIGINAL_ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS;
+
 beforeEach(() => {
+  process.env.ALLOWED_ORIGINS = 'https://admin.hir.ro';
   getActiveTenantMock.mockReset();
   getTenantRoleMock.mockReset();
   isPlatformAdminEmailMock.mockReset();
@@ -73,6 +77,11 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  if (ORIGINAL_ALLOWED_ORIGINS === undefined) {
+    delete process.env.ALLOWED_ORIGINS;
+  } else {
+    process.env.ALLOWED_ORIGINS = ORIGINAL_ALLOWED_ORIGINS;
+  }
 });
 
 describe('POST /api/ai/dispatch', () => {
