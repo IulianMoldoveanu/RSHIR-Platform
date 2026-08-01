@@ -14,6 +14,7 @@
 // (weather_cron_token, events_cron_token).
 
 import { NextResponse } from 'next/server';
+import { timingSafeEqual } from 'node:crypto';
 import * as Sentry from '@sentry/nextjs';
 import { netopiaAdapter } from '@hir/integration-core';
 import type { PspContext } from '@hir/integration-core';
@@ -58,7 +59,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'reconcile_secret_not_configured' }, { status: 503 });
   }
   const got = req.headers.get('x-cron-secret') ?? '';
-  if (got !== expected) {
+  const gotBuf = Buffer.from(got);
+  const expectedBuf = Buffer.from(expected);
+  const authorized =
+    gotBuf.length === expectedBuf.length && timingSafeEqual(gotBuf, expectedBuf);
+  if (!authorized) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
