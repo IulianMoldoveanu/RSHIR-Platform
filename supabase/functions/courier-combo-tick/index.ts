@@ -70,6 +70,7 @@ Deno.serve(async (req: Request) => {
       .select('id, assigned_courier_user_id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng')
       .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
       .not('assigned_courier_user_id', 'is', null)
+      .order('created_at', { ascending: false })
       .limit(500);
 
     if (activeErr) {
@@ -93,6 +94,7 @@ Deno.serve(async (req: Request) => {
       .select('id, status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, source_tenant_id')
       .in('status', ['CREATED', 'OFFERED'])
       .is('assigned_courier_user_id', null)
+      .order('created_at', { ascending: false })
       .limit(500);
 
     if (candErr) {
