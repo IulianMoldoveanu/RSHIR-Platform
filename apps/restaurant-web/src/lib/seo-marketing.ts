@@ -185,7 +185,9 @@ export function localBusinessJsonLd(baseUrl: string) {
     url: baseUrl,
     telephone: '+40743700916',
     email: 'office@hirforyou.ro',
-    priceRange: 'Abonament lunar, fără comision pe comandă',
+    // priceRange removed 2026-08-01 — the site no longer publishes a
+    // subscription figure anywhere (see /pricing retirement); leaving a
+    // pricing description here would keep it alive in Google's index.
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'RO',
