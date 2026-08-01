@@ -26,7 +26,11 @@ export default async function DemoStorefrontPage() {
         )}
       </div>
       <div className="mx-auto max-w-2xl px-4">
-        <div className="-mt-8 flex items-end gap-3">
+        {/* relative z-10: the cover above has `relative` positioning, which
+            (even with z-index:auto) paints above static in-flow siblings —
+            without this, the cover clipped the top of the avatar wherever
+            the -mt-8 pull-up made them overlap. */}
+        <div className="relative z-10 -mt-8 flex items-end gap-3">
           <div className="h-16 w-16 overflow-hidden rounded-2xl border-4 border-white bg-white shadow-sm">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
