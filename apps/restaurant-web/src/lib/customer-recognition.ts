@@ -55,6 +55,15 @@ export function customerCookieValue(tenantId: string, customerId: string): strin
   return `${customerId}.${signCustomerId(tenantId, customerId)}`;
 }
 
+/**
+ * Whether a recognition cookie can be minted at all. Lets a caller bail out
+ * BEFORE doing something irreversible (burning a single-use magic-link token)
+ * that it would otherwise be unable to hand a cookie back for.
+ */
+export function canIssueCustomerCookie(): boolean {
+  return Boolean(cookieSecret());
+}
+
 export function cartBootstrapCookieName(tenantId: string): string {
   return `${CART_BOOTSTRAP_COOKIE_PREFIX}${tenantId}`;
 }
