@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
 import { getTenantRole } from '@/lib/tenant';
 import { createServerClient } from '@/lib/supabase/server';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +39,11 @@ const BodySchema = z.object({
  *   - Tenant OWNER (authenticated via Supabase session + tenant_members.role = 'OWNER')
  */
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const { id: tenantId } = await params;
 
   let parsed: z.infer<typeof BodySchema>;
