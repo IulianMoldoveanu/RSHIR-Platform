@@ -3,6 +3,7 @@ import { getDemoTenant } from '@/lib/demo/demo-tenant';
 import { getMenuByTenant } from '@/lib/menu';
 import { brandingFor } from '@/lib/tenant';
 import { t, type Locale } from '@/lib/i18n';
+import { HeroPhoneMockupScreen } from './hero-phone-mockup-screen';
 
 // Hero illustration: a phone frame showing the *actual* demo storefront —
 // same tenant, same cover photo, same dishes a visitor sees after clicking
@@ -62,56 +63,33 @@ export async function HeroPhoneMockup({ currentLocale }: { currentLocale: Locale
               <p className="truncate text-[11px] font-bold text-[#0F172A]">{name}</p>
             </div>
 
-            {/* Items */}
-            <div className="flex flex-col gap-1.5 px-3 pb-3">
-              {items.length > 0
-                ? items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 rounded-lg border border-[#F1F5F9] p-1.5"
-                    >
-                      {item.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.image_url}
-                          alt=""
-                          className="h-8 w-8 shrink-0 rounded-md bg-[#F1F5F9] object-cover"
-                        />
-                      ) : (
-                        <span className="h-8 w-8 shrink-0 rounded-md bg-[#F1F5F9]" aria-hidden />
-                      )}
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[10px] font-semibold text-[#0F172A]">
-                          {item.name}
-                        </span>
-                        <span className="block text-[10px] font-bold text-[#4F46E5]">
-                          {item.price_ron.toFixed(2)} lei
-                        </span>
-                      </span>
-                      <span
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4F46E5] text-[11px] font-bold leading-none text-white"
-                        aria-hidden
-                      >
-                        +
-                      </span>
-                    </div>
-                  ))
-                : // Skeleton rows keep the frame from looking broken if the
-                  // menu read came back empty.
-                  Array.from({ length: MAX_ITEMS }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 rounded-lg border border-[#F1F5F9] p-1.5"
-                      aria-hidden
-                    >
-                      <span className="h-8 w-8 shrink-0 rounded-md bg-[#F1F5F9]" />
-                      <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="h-2 w-2/3 rounded bg-[#F1F5F9]" />
-                        <span className="h-2 w-1/3 rounded bg-[#F1F5F9]" />
-                      </span>
-                    </div>
-                  ))}
-            </div>
+            {/* Items — cycles the "active" one with a brief add-to-cart
+                toast (client component); server only ever passes down the
+                already-fetched list. */}
+            {items.length > 0 ? (
+              <HeroPhoneMockupScreen
+                items={items}
+                addedLabel={t(currentLocale, 'marketing.home.hero_mockup_added')}
+              />
+            ) : (
+              // Skeleton rows keep the frame from looking broken if the
+              // menu read came back empty.
+              <div className="flex flex-col gap-1.5 px-3 pb-3">
+                {Array.from({ length: MAX_ITEMS }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 rounded-lg border border-[#F1F5F9] p-1.5"
+                    aria-hidden
+                  >
+                    <span className="h-8 w-8 shrink-0 rounded-md bg-[#F1F5F9]" />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="h-2 w-2/3 rounded bg-[#F1F5F9]" />
+                      <span className="h-2 w-1/3 rounded bg-[#F1F5F9]" />
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

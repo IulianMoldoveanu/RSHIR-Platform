@@ -59,7 +59,10 @@ export default function DemoConfirmationPage() {
         Încearcă din nou demo-ul
       </Link>
       <div className="mt-3">
-        <Link href="/pricing" className="text-xs font-semibold text-[var(--hir-brand)] underline">
+        {/* 2026-08-01 — was /pricing (retired, 301s to `/`). This is someone
+            who just finished the demo and said "I want this" — the right
+            next step is a real conversation, not a pitch page. */}
+        <Link href="/contact" className="text-xs font-semibold text-[var(--hir-brand)] underline">
           Vreau asta pentru restaurantul meu →
         </Link>
       </div>

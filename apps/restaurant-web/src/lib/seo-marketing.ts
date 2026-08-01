@@ -18,7 +18,10 @@ export const MARKETING_ROUTES: ReadonlyArray<{
 }> = [
   { path: '/', priority: 1.0 },
   { path: '/features', priority: 0.8 },
-  { path: '/pricing', priority: 0.8 },
+  // /pricing retired 2026-08-01 (301 to `/`, see next.config.mjs) — the
+  // site no longer pitches a subscription, so it's not a sitemap entry
+  // either; listing a redirect target here would be a stale SEO signal.
+  { path: '/clienti', priority: 0.7 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   // /alternativa-gloriafood-romania → 301 redirect to /migrate-from-gloriafood (2026-06-02)
   // per Iulian directive: only ONE dedicated GloriaFood page on the marketing site.
@@ -222,8 +225,9 @@ export function softwareApplicationJsonLd(baseUrl: string) {
 
 // JSON-LD: FAQPage. Caller passes [{ q, a }] pairs; we wrap them in the
 // Schema.org Question/Answer shape. Per ChatGPT SEO audit 2026-05-10 —
-// surface FAQ rich results on `/`, `/pricing`, `/migrate-from-gloriafood`.
-// (/alternativa-gloriafood-romania removed 2026-06-02 — 301 to canonical page.)
+// surface FAQ rich results on `/`, `/migrate-from-gloriafood`. (/pricing
+// retired 2026-08-01; /alternativa-gloriafood-romania removed 2026-06-02 —
+// both 301 to their canonical replacement.)
 export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: string }>) {
   return {
     '@context': 'https://schema.org',

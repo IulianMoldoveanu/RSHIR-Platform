@@ -36,11 +36,23 @@ const nextConfig = {
   // the marketing site (/migrate-from-gloriafood). The /alternativa-gloriafood-romania
   // SEO landing is redirected 301 to consolidate signal + traffic into the
   // single canonical destination.
+  //
+  // Per Iulian directive 2026-08-01: the marketing site is repositioned as a
+  // pure "here's how it works" showcase, not a sales/conversion funnel —
+  // /pricing (subscription pitch, ROI calculator, phone-number lead capture)
+  // no longer fits that job and is retired outright, 301'd to the homepage
+  // so any bookmark/indexed link/shared URL still resolves to something
+  // real instead of a dead 404.
   async redirects() {
     return [
       {
         source: '/alternativa-gloriafood-romania',
         destination: '/migrate-from-gloriafood',
+        permanent: true,
+      },
+      {
+        source: '/pricing',
+        destination: '/',
         permanent: true,
       },
     ];

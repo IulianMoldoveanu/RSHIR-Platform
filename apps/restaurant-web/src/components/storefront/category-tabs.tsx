@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { t, type Locale } from '@/lib/i18n';
 import { motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
-import { iconForCategory, tileColorForCategory } from './category-icon';
+import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from './category-icon';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -84,11 +84,11 @@ export function CategoryTabs({
         {categories.map((c) => {
           const active = c.id === activeId;
           const Icon = iconForCategory(c.name);
-          // Pastel per-category background (inactive state only) so tiles
-          // read as visually distinct from each other, not identical gray
-          // buttons with different labels — e.g. Pizza is amber, Salată is
-          // green, Supe is rose. Active tile always overrides to brand color.
-          const tileBg = tileColorForCategory(c.name);
+          // Duotone gradient per category (inactive state only) so tiles
+          // read as individually designed rather than templated — e.g.
+          // Pizza is amber, Salată is emerald, Supe is rose. Active tile
+          // always overrides to the tenant's brand color.
+          const tileStyle = tileStyleForCategory(c.name);
           return (
             <motion.button
               key={c.id}
@@ -104,12 +104,12 @@ export function CategoryTabs({
                   same DOM node is reused across tiles and framer morphs
                   position+size smoothly. Square-rounded like MaPizza's
                   category tiles rather than the previous pill treatment. */}
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl">
+              <span className="relative flex h-14 w-14 items-center justify-center rounded-[20px]">
                 {active ? (
                   <motion.span
                     layoutId="category-tab-active"
-                    className="absolute inset-0 rounded-2xl"
-                    style={{ backgroundColor: 'var(--hir-brand, #7c3aed)' }}
+                    className="absolute inset-0 rounded-[20px]"
+                    style={ACTIVE_TILE_STYLE}
                     transition={{
                       type: 'spring',
                       stiffness: 500,
@@ -118,12 +118,9 @@ export function CategoryTabs({
                     }}
                   />
                 ) : (
-                  <span aria-hidden className={`absolute inset-0 rounded-2xl ${tileBg.split(' ')[0]}`} />
+                  <span aria-hidden className="absolute inset-0 rounded-[20px]" style={tileStyle} />
                 )}
-                <Icon
-                  className={`relative h-6 w-6 transition-colors ${active ? 'text-white' : tileBg.split(' ')[1]}`}
-                  aria-hidden
-                />
+                <Icon className="relative h-6 w-6 text-white drop-shadow-sm" aria-hidden />
               </span>
               <span
                 className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${
