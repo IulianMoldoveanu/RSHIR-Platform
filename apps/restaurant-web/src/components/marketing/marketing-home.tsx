@@ -46,13 +46,23 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
                   The old secondary "Încep singur — fără card" button was removed
                   per Iulian; /migrate-from-gloriafood keeps its own page and
                   sitemap entry, it's just no longer promoted here. */}
-              <div className="mt-9">
+              {/* 2026-08-01 (later) — a second, quiet CTA to the illustrated
+                  walkthrough at /cum-functioneaza. That page is now the site's
+                  main answer to "what is this?", so the hero should point at
+                  it as well as at the live demo. */}
+              <div className="mt-9 flex flex-wrap items-center gap-3">
                 <Link
                   href="/demo-storefront"
                   className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-6 py-3.5 text-base font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
                 >
                   {t(currentLocale, 'marketing.home.cta_signup')}
                   <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+                <Link
+                  href="/cum-functioneaza"
+                  className="inline-flex items-center justify-center rounded-md border border-[#CBD5E1] bg-white px-6 py-3.5 text-base font-medium text-[#0F172A] transition-colors hover:bg-[#F8FAFC] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+                >
+                  {t(currentLocale, 'marketing.shell.nav_how')}
                 </Link>
               </div>
 

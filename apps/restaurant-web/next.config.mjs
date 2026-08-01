@@ -55,6 +55,16 @@ const nextConfig = {
         destination: '/',
         permanent: true,
       },
+      // Per Iulian directive 2026-08-01 (same day, later): /features — a wall
+      // of feature cards — is replaced by /cum-functioneaza, a walkthrough
+      // built from real app screenshots ("putin scris ... multe poze
+      // relevante"). 301 rather than delete so the page's existing search
+      // signal and any inbound links land on its replacement.
+      {
+        source: '/features',
+        destination: '/cum-functioneaza',
+        permanent: true,
+      },
     ];
   },
   async headers() {

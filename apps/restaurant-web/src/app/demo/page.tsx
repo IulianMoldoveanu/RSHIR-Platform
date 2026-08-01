@@ -164,7 +164,7 @@ export default function DemoPage() {
           </div>
           <div className="flex items-center gap-2">
             <span>Vrei să vezi toate funcționalitățile?</span>
-            <Link href="/features" className="inline-flex items-center gap-1 text-violet-700 hover:underline">
+            <Link href="/cum-functioneaza" className="inline-flex items-center gap-1 text-violet-700 hover:underline">
               Funcționalități
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
