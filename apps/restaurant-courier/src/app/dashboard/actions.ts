@@ -194,11 +194,21 @@ export async function startShiftAction() {
         .eq('courier_user_id', userId)
         .eq('status', 'ONLINE');
 
-      await admin.from('courier_shifts').insert({
+      const { error: insertError } = await admin.from('courier_shifts').insert({
         courier_user_id: userId,
         started_at: new Date().toISOString(),
         status: 'ONLINE',
       });
+      // 23505 = unique_violation on uq_courier_shifts_one_online: a concurrent
+      // startShiftAction call already inserted the ONLINE row for this courier
+      // (e.g. a double-tap retry). That row exists, so this is a benign no-op,
+      // not a failure. Any other error is a real write failure and must not be
+      // swallowed — it would otherwise flip the profile to ACTIVE below with
+      // no shift row backing it.
+      if (insertError && insertError.code !== '23505') {
+        console.error('[startShiftAction] shift insert failed', { userId, error: insertError });
+        throw new Error(`shift-start-failed: ${insertError.message}`);
+      }
 
       await admin
         .from('courier_profiles')
