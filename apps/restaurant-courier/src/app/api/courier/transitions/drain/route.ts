@@ -5,6 +5,7 @@ import {
   markPickedUpAction,
   markDeliveredAction,
 } from '@/app/dashboard/actions';
+import { checkOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,24 +18,6 @@ export const dynamic = 'force-dynamic';
 // The server actions filter on `.in('status', [from])` + courier ownership,
 // so replaying a transition that already succeeded silently no-ops — no
 // separate dedupe token needed.
-
-// Allowed origins: comma-separated NEXT_PUBLIC_SITE_URL list.
-// Fail-closed in production when the env var is missing.
-function getAllowedOrigins(): Set<string> | null {
-  const raw = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!raw) return null; // signals "deny all" in production, "allow all" in dev
-  return new Set(raw.split(',').map((s) => s.trim()).filter(Boolean));
-}
-
-function checkOrigin(req: NextRequest): boolean {
-  const allowed = getAllowedOrigins();
-  if (!allowed) {
-    // Env var absent: permit in dev, deny in production.
-    return process.env.NODE_ENV !== 'production';
-  }
-  const origin = req.headers.get('origin') ?? '';
-  return allowed.has(origin);
-}
 
 type DrainBody = {
   id: number;

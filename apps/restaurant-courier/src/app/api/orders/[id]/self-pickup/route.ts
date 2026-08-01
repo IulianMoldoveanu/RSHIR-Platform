@@ -10,6 +10,9 @@
  * cycle (the Realtime subscription handles the live update on all peers).
  *
  * Security:
+ *   - Origin check: SameSite=Lax alone is insufficient for state-mutating
+ *     POSTs, so the request's Origin header is compared against an allowlist
+ *     (see checkOrigin()) before anything else runs.
  *   - Auth via Supabase session cookie (same as all server actions).
  *   - Fleet ownership check: the order's fleet_id must match the courier's
  *     fleet_id. Admin client bypasses RLS, so the check is explicit here.
@@ -23,11 +26,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkOrigin } from '@/lib/origin-check';
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Origin check — SameSite=Lax on its own is insufficient for state-mutating
+  // POSTs; an explicit Origin header comparison closes the gap.
+  if (!checkOrigin(req)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   // Resolve auth
   const supabase = await createServerClient();
   const {
