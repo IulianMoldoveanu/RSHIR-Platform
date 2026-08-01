@@ -21,9 +21,11 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         // `/` covers all marketing pages on the canonical host AND the
         // storefront homepage on tenant hosts. `/m/`, `/bio` are
-        // tenant-only; `/features`, `/pricing`, `/migrate-from-gloriafood`,
+        // tenant-only; `/features`, `/migrate-from-gloriafood`,
         // `/case-studies/`, `/parteneriat/inscriere`, `/contact` are
-        // marketing-only.
+        // marketing-only. `/pricing` retired 2026-08-01 — 301s to `/`
+        // (next.config.mjs), not listed here since it has no content of
+        // its own to crawl anymore.
         allow: [
           '/',
           '/m/',
@@ -31,7 +33,7 @@ export default function robots(): MetadataRoute.Robots {
           '/privacy',
           '/terms',
           '/features',
-          '/pricing',
+          '/clienti',
           '/migrate-from-gloriafood',
           // /alternativa-gloriafood-romania → 301 to /migrate-from-gloriafood (2026-06-02).
           '/case-studies/',

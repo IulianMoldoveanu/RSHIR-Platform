@@ -19,16 +19,20 @@ import { t, type Locale, type TKey } from '@/lib/i18n';
 
 type NavItem = { href: string; labelKey: TKey };
 
-// 2026-08-01 — trimmed to five entries per Iulian ("elimina gloria food din
-// meniu, exclude hir connect ... simplu aerisit"). /connect and
+// 2026-08-01 — the site is repositioned as a "here's how it works" showcase
+// rather than a sales funnel (Iulian: "nu incerc sa convertesc din site ...
+// doar sa vada cum functioneaza"). /pricing is retired outright (301 to `/`,
+// see next.config.mjs) — a subscription pitch doesn't fit that job, and
+// real deals close through direct contact, not a self-serve calculator.
+// "Clienți" replaces the nav's demo slot; the demo itself stays reachable
+// from the hero, the final CTA and the mobile sticky bar. /connect and
 // /migrate-from-gloriafood still resolve at their own URLs and keep their
-// sitemap entries; they're just no longer surfaced in the primary nav, same
+// sitemap entries; they're just not surfaced in the primary nav, same
 // treatment /status and /press already get in the footer below.
 const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
   { href: '/features', labelKey: 'marketing.shell.nav_features' },
-  { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
-  { href: '/demo-storefront', labelKey: 'marketing.shell.nav_demo' },
+  { href: '/clienti', labelKey: 'marketing.shell.nav_clients' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
 
@@ -87,26 +91,17 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          {/* 2026-06-15 — restored direct Log in link per Iulian directive.
-              Previously this CTA pointed to /intra-in-cont (a hub asking
-              "login or signup?"), which forced an extra click on returning
-              users. Now: Log in is the primary CTA (direct to admin /login),
-              Create account is the secondary CTA. /intra-in-cont still exists
-              as a fallback hub but is no longer reached from the header. */}
-          <a
-            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/signup`}
-            className="hidden rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] sm:inline-flex"
-            rel="noopener"
-          >
-            {t(currentLocale, 'marketing.shell.cta_signup_restaurant')}
-          </a>
-          <a
-            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/login`}
+          {/* 2026-08-01 — collapsed the separate Log in / Create account
+              buttons into one, per Iulian ("un singur buton, nu doua"). Both
+              destinations already converge on /intra-in-cont (a "log in or
+              create account?" hub) — that page is the natural single target
+              instead of guessing which of the two a visitor wants. */}
+          <Link
+            href="/intra-in-cont"
             className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
-            rel="noopener"
           >
-            {t(currentLocale, 'marketing.shell.cta_login')}
-          </a>
+            {t(currentLocale, 'marketing.shell.cta_account')}
+          </Link>
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
@@ -157,10 +152,13 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             title={t(currentLocale, 'marketing.shell.footer_col_product')}
             links={[
               { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
-              { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
+              { href: '/clienti', label: t(currentLocale, 'marketing.shell.nav_clients') },
               { href: '/demo-storefront', label: t(currentLocale, 'marketing.shell.footer_link_demo') },
-              // 2026-08-01 — /connect and /migrate-from-gloriafood dropped
-              // from the footer alongside the nav trim; pages still resolve.
+              // 2026-08-01 — /pricing retired outright (301 to `/`, see
+              // next.config.mjs) — the site no longer pitches a subscription,
+              // it just shows how the product works. /connect and
+              // /migrate-from-gloriafood dropped from the footer alongside
+              // the nav trim; those two pages still resolve at their URLs.
               // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the
               // city directory in the product column so SEO crawlers find
               // /orase from every marketing page.

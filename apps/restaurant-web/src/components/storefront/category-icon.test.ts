@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { Drumstick, Egg, Pizza, Popcorn, Salad, Sandwich, Soup, UtensilsCrossed, CupSoda } from 'lucide-react';
-import { iconForCategory, tileColorForCategory } from './category-icon';
+import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from './category-icon';
 
 describe('iconForCategory', () => {
   test('matches known RO category names', () => {
@@ -42,23 +42,46 @@ describe('iconForCategory', () => {
   });
 });
 
-describe('tileColorForCategory', () => {
-  test('gives different categories visually distinct pastel colors', () => {
-    const pizza = tileColorForCategory('Pizza');
-    const salad = tileColorForCategory('Salată');
-    const soup = tileColorForCategory('Supe');
-    expect(pizza).not.toBe(salad);
-    expect(salad).not.toBe(soup);
-    expect(pizza).not.toBe(soup);
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
+describe('tileStyleForCategory', () => {
+  test('gives different categories visually distinct gradients', () => {
+    const pizza = tileStyleForCategory('Pizza');
+    const salad = tileStyleForCategory('Salată');
+    const soup = tileStyleForCategory('Supe');
+    expect(pizza.background).not.toBe(salad.background);
+    expect(salad.background).not.toBe(soup.background);
+    expect(pizza.background).not.toBe(soup.background);
   });
 
-  test('returns both a bg-* and a text-* class', () => {
-    const cls = tileColorForCategory('Pizza');
-    expect(cls).toMatch(/\bbg-\S+/);
-    expect(cls).toMatch(/\btext-\S+/);
+  test('returns a gradient background and a tinted ambient shadow', () => {
+    const style = tileStyleForCategory('Pizza');
+    expect(style.background).toContain('linear-gradient(135deg,');
+    expect(style.background).toContain('radial-gradient(');
+    expect(style.boxShadow).toMatch(/^0 \S+ \S+ -\S+ #[0-9a-f]{6}[0-9a-f]{2}$/i);
   });
 
-  test('falls back to a neutral color for unknown categories', () => {
-    expect(tileColorForCategory('xyz complet necunoscut')).toContain('zinc');
+  test('gradient stops are well-formed hex colors', () => {
+    const style = tileStyleForCategory('Pizza');
+    const stops = style.background.match(/linear-gradient\(135deg, (#[0-9a-f]{6}), (#[0-9a-f]{6})\)/i);
+    expect(stops).not.toBeNull();
+    expect(stops![1]).toMatch(HEX_RE);
+    expect(stops![2]).toMatch(HEX_RE);
+  });
+
+  test('falls back to a neutral gradient for unknown categories', () => {
+    const style = tileStyleForCategory('xyz complet necunoscut');
+    expect(style.background).toContain('#A1A1AA');
+    expect(style.background).toContain('#52525B');
+  });
+
+  test('is deterministic — same name always resolves to the same gradient', () => {
+    expect(tileStyleForCategory('Pizza')).toEqual(tileStyleForCategory('pizza'));
+  });
+});
+
+describe('ACTIVE_TILE_STYLE', () => {
+  test('uses the tenant brand CSS variable with a purple fallback', () => {
+    expect(ACTIVE_TILE_STYLE.background).toContain('var(--hir-brand, #7c3aed)');
   });
 });

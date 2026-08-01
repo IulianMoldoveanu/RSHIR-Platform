@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { t, type Locale, type TKey } from '@/lib/i18n';
+import { StepIllustration } from './step-illustration';
 
 // Four numbered steps, replacing the old four-column value-props grid.
 // 2026-08-01, Iulian: the site read as "sec ... prea sofisticat" next to a
@@ -10,26 +11,35 @@ import { t, type Locale, type TKey } from '@/lib/i18n';
 
 // Keys listed explicitly rather than built by string interpolation so a typo
 // or a missing dictionary entry is a compile error, not a runtime blank.
-const STEPS: Array<{ n: number; titleKey: TKey; bodyKey: TKey }> = [
+const STEPS: Array<{
+  n: number;
+  titleKey: TKey;
+  bodyKey: TKey;
+  illustration: 'menu' | 'order' | 'delivery' | 'dashboard';
+}> = [
   {
     n: 1,
     titleKey: 'marketing.home.how_it_works_step1_title',
     bodyKey: 'marketing.home.how_it_works_step1_body',
+    illustration: 'menu',
   },
   {
     n: 2,
     titleKey: 'marketing.home.how_it_works_step2_title',
     bodyKey: 'marketing.home.how_it_works_step2_body',
+    illustration: 'order',
   },
   {
     n: 3,
     titleKey: 'marketing.home.how_it_works_step3_title',
     bodyKey: 'marketing.home.how_it_works_step3_body',
+    illustration: 'delivery',
   },
   {
     n: 4,
     titleKey: 'marketing.home.how_it_works_step4_title',
     bodyKey: 'marketing.home.how_it_works_step4_body',
+    illustration: 'dashboard',
   },
 ];
 
@@ -46,13 +56,14 @@ export function HowItWorks({ currentLocale }: { currentLocale: Locale }) {
       <ol className="mt-12 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((step) => (
           <li key={step.n}>
+            <StepIllustration variant={step.illustration} />
             <span
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF2FF] text-xl font-bold text-[#4F46E5]"
+              className="mt-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF2FF] text-base font-bold text-[#4F46E5]"
               aria-hidden
             >
               {step.n}
             </span>
-            <h3 className="mt-4 text-base font-semibold tracking-tight text-[#0F172A]">
+            <h3 className="mt-3 text-base font-semibold tracking-tight text-[#0F172A]">
               {t(currentLocale, step.titleKey)}
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-[#475569]">

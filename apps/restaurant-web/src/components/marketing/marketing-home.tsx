@@ -8,7 +8,7 @@
 // so RO ↔ EN cookie flips re-render the page in the chosen language.
 
 import Link from 'next/link';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { MarketingHeader, MarketingFooter } from './marketing-shell';
 import { HeroPhoneMockup } from './hero-phone-mockup';
@@ -59,9 +59,9 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
               {/* Trust strip */}
               <dl className="mt-14 grid gap-6 border-t border-[#F1F5F9] pt-8 sm:grid-cols-2">
                 <Stat
-                  label={t(currentLocale, 'marketing.home.stat_pricing_label')}
-                  value={t(currentLocale, 'marketing.home.stat_pricing_value')}
-                  sub={t(currentLocale, 'marketing.home.stat_pricing_sub')}
+                  label={t(currentLocale, 'marketing.home.stat_storefront_label')}
+                  value={t(currentLocale, 'marketing.home.stat_storefront_value')}
+                  sub={t(currentLocale, 'marketing.home.stat_storefront_sub')}
                 />
                 <Stat
                   label={t(currentLocale, 'marketing.home.stat_importer_label')}
@@ -91,55 +91,14 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
           comparison + value props. Dictionary keys aggregator_title/body/sub
           remain (used elsewhere or kept for future polish). */}
 
-      {/* ── Pricing teaser ─────────────────────────────────────────────── */}
-      <section className="border-y border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight md:text-3xl">
-            {t(currentLocale, 'marketing.home.pricing_title')}
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm text-[#475569]">
-            {t(currentLocale, 'marketing.home.pricing_intro')}
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <PriceCard
-              tag={t(currentLocale, 'marketing.home.pricing_card1_tag')}
-              title={t(currentLocale, 'marketing.home.pricing_card1_title')}
-              price={t(currentLocale, 'marketing.home.pricing_card1_price')}
-              priceSub={t(currentLocale, 'marketing.home.pricing_card1_price_sub')}
-              points={[
-                t(currentLocale, 'marketing.home.pricing_card1_p1'),
-                t(currentLocale, 'marketing.home.pricing_card1_p2'),
-                t(currentLocale, 'marketing.home.pricing_card1_p3'),
-                t(currentLocale, 'marketing.home.pricing_card1_p4'),
-                t(currentLocale, 'marketing.home.pricing_card1_p5'),
-              ]}
-              cta={{
-                href: '/contact',
-                label: t(currentLocale, 'marketing.home.pricing_card1_cta'),
-              }}
-              accent
-            />
-            <div className="flex flex-col justify-center rounded-lg border border-[#E2E8F0] bg-[#FAFAFA] p-6">
-              <Link
-                href="/pricing"
-                className="text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
-              >
-                {currentLocale === 'ro'
-                  ? 'Vezi oferta de abonament →'
-                  : 'See the subscription offer →'}
-              </Link>
-              <p className="mt-3 text-sm leading-relaxed text-[#475569]">
-                {currentLocale === 'ro'
-                  ? 'Cu volum mare de comenzi, un abonament fix devine semnificativ mai avantajos decât comisionul procentual reținut de Glovo/Wolt/Bolt.'
-                  : 'With high order volume, a fixed subscription becomes significantly more advantageous than the percentage commission taken by Glovo/Wolt/Bolt.'}
-              </p>
-            </div>
-          </div>
-          <p className="mt-6 text-xs text-[#94A3B8]">
-            {t(currentLocale, 'marketing.home.pricing_disclaimer')}
-          </p>
-        </div>
-      </section>
+      {/* Pricing teaser removed 2026-08-01 per Iulian ("prima pagina are mult
+          prea mult scris ... asta cu abonament lunar ... nu incerc sa
+          convertesc din site. in site trebuie doar sa vada cum functioneaza").
+          /pricing itself is retired (301 to `/`, see next.config.mjs) — the
+          site no longer pitches a subscription anywhere, homepage included.
+          The pricing_* dictionary keys this section used were deleted
+          alongside it, not kept inert — the whole pricing framing contradicts
+          the site's new job, so there's nothing here to ever restore. */}
 
       {/* HIR Connect teaser removed 2026-08-01 per Iulian ("exclude hir
           connect ... simplu aerisit"). It was the densest block on the page —
@@ -197,62 +156,3 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
     </div>
   );
 }
-
-function PriceCard({
-  tag,
-  title,
-  price,
-  priceSub,
-  points,
-  cta,
-  accent,
-}: {
-  tag: string;
-  title: string;
-  price: string;
-  priceSub: string;
-  points: string[];
-  cta: { href: string; label: string };
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={`flex flex-col rounded-lg border bg-white p-6 ${
-        accent ? 'border-[#C7D2FE] ring-1 ring-[#C7D2FE]' : 'border-[#E2E8F0]'
-      }`}
-    >
-      <div className="text-[10px] font-medium uppercase tracking-wider text-[#4F46E5]">{tag}</div>
-      <h3 className="mt-1 text-lg font-semibold text-[#0F172A]">{title}</h3>
-      <div
-        className={`mt-4 text-4xl font-semibold leading-none tracking-tight ${
-          accent ? 'text-[#4F46E5]' : 'text-[#0F172A]'
-        }`}
-        style={{ fontFeatureSettings: '"tnum"' }}
-      >
-        {price}
-      </div>
-      <div className="mt-1 text-xs text-[#94A3B8]">{priceSub}</div>
-      <ul className="mt-6 space-y-2.5 text-sm text-[#475569]">
-        {points.map((p) => (
-          <li key={p} className="flex gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-[#4F46E5]" aria-hidden />
-            <span>{p}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-7">
-        <Link
-          href={cta.href}
-          className={`inline-flex w-full items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium ${
-            accent
-              ? 'bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]'
-              : 'border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC]'
-          }`}
-        >
-          {cta.label}
-        </Link>
-      </div>
-    </div>
-  );
-}
-

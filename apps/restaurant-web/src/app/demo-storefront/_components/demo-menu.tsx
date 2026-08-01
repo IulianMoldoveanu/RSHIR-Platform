@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
 import { useDemoCartStore } from '@/lib/demo/demo-cart-store';
-import { iconForCategory, tileColorForCategory } from '@/components/storefront/category-icon';
+import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from '@/components/storefront/category-icon';
 
 // Category strip + item cards for the marketing-site demo storefront.
 //
@@ -79,7 +79,7 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
             {categories.map((cat) => {
               const active = cat.id === activeId;
               const Icon = iconForCategory(cat.name);
-              const [tileBg, tileFg] = tileColorForCategory(cat.name).split(' ');
+              const tileStyle = active ? ACTIVE_TILE_STYLE : tileStyleForCategory(cat.name);
               return (
                 <button
                   key={cat.id}
@@ -90,15 +90,10 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                   className="flex w-16 shrink-0 flex-col items-center gap-1 active:scale-95 transition-transform"
                 >
                   <span
-                    className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${
-                      active ? '' : tileBg
-                    }`}
-                    style={active ? { backgroundColor: 'var(--hir-brand, #7c3aed)' } : undefined}
+                    className="flex h-14 w-14 items-center justify-center rounded-[20px] transition-[background,box-shadow] duration-200"
+                    style={tileStyle}
                   >
-                    <Icon
-                      className={`h-6 w-6 transition-colors ${active ? 'text-white' : tileFg}`}
-                      aria-hidden
-                    />
+                    <Icon className="h-6 w-6 text-white drop-shadow-sm" aria-hidden />
                   </span>
                   <span
                     className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${
@@ -121,7 +116,7 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
             <div className="flex flex-col gap-2.5">
               {cat.items.map((item) => {
                 const Icon = iconForCategory(cat.name);
-                const [tileBg, tileFg] = tileColorForCategory(cat.name).split(' ');
+                const tileStyle = tileStyleForCategory(cat.name);
                 return (
                   <div
                     key={item.id}
@@ -139,10 +134,11 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                       // No photo on this item — fall back to the category glyph
                       // rather than a broken/empty box.
                       <span
-                        className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-xl ${tileBg}`}
+                        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl"
+                        style={tileStyle}
                         aria-hidden
                       >
-                        <Icon className={`h-7 w-7 ${tileFg}`} />
+                        <Icon className="h-7 w-7 text-white drop-shadow-sm" />
                       </span>
                     )}
 
