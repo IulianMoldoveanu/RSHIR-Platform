@@ -4808,6 +4808,7 @@ export type Database = {
       }
       delivery_pricing_tiers: {
         Row: {
+          created_at: string
           id: string
           max_km: number
           min_km: number
@@ -4816,6 +4817,7 @@ export type Database = {
           tenant_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
           max_km: number
           min_km: number
@@ -4824,6 +4826,7 @@ export type Database = {
           tenant_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           max_km?: number
           min_km?: number
