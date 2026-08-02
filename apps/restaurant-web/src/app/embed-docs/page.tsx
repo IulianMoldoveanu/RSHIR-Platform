@@ -69,6 +69,20 @@ export default async function EmbedDocsPage() {
           <div className="mt-4">
             <EmbedSnippetCopy />
           </div>
+
+          {/* 2026-08-02 — the widget is framed by an allow-list now
+              (Content-Security-Policy: frame-ancestors, resolved per tenant in
+              middleware). Without this note the first install just silently
+              shows an empty box, which is the worst possible failure mode for
+              a copy-paste snippet. */}
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong className="font-semibold">Înainte de a lipi codul:</strong>{' '}
+            adăugați domeniul site-ului dumneavoastră în{' '}
+            <em>Admin → Setări → Widget site extern</em>. Din motive de
+            securitate, widget-ul se încarcă doar pe domeniile pe care le-ați
+            înregistrat acolo; pe un domeniu neînregistrat fereastra rămâne
+            goală. Domeniul propriu deja verificat în HIR este permis automat.
+          </div>
         </section>
 
         <section className="mt-12">

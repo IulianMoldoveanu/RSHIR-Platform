@@ -12,6 +12,7 @@ import { ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { EmbedPageClient } from './embed-page-client';
+import { EmbedOriginsForm } from './embed-origins-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,12 +27,22 @@ export default async function EmbedSettingsPage() {
   const admin = createAdminClient();
   const { data } = await admin
     .from('tenants')
-    .select('settings')
+    .select('settings, custom_domain, domain_status')
     .eq('id', tenant.id)
     .maybeSingle();
 
   const settings = (data?.settings as Record<string, unknown> | null) ?? {};
   const branding = (settings.branding as Record<string, unknown> | undefined) ?? {};
+  const embed = (settings.embed as Record<string, unknown> | undefined) ?? {};
+  const allowedOrigins = Array.isArray(embed.allowed_origins)
+    ? (embed.allowed_origins as unknown[]).filter((o): o is string => typeof o === 'string')
+    : [];
+  // Surfaced read-only in the form: a verified custom domain is allowed
+  // automatically by the storefront, so listing it again would just confuse.
+  const verifiedDomain =
+    typeof data?.custom_domain === 'string' && data.domain_status === 'VERIFIED'
+      ? data.custom_domain
+      : null;
   const brandColor =
     typeof branding.brand_color === 'string' &&
     /^#[0-9a-fA-F]{6}$/.test(branding.brand_color)
@@ -71,6 +82,13 @@ export default async function EmbedSettingsPage() {
           codul de integrare.
         </div>
       )}
+
+      <EmbedOriginsForm
+        tenantId={tenant.id}
+        initialOrigins={allowedOrigins}
+        canEdit={role === 'OWNER'}
+        verifiedDomain={verifiedDomain}
+      />
 
       <EmbedPageClient
         tenantSlug={tenant.slug}
