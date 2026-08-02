@@ -124,8 +124,15 @@ export async function middleware(request: NextRequest) {
   // never sees it. script-src/style-src are deliberately NOT set yet: Next's
   // hydration bootstrap is inline, so those need nonce plumbing and a
   // report-only bake first.
+  // The `?tenant=` override only picks the rendered tenant on preview hosts
+  // (isPreviewHost in lib/tenant.ts). Honouring it here on the canonical host
+  // too would let one tenant's registered partner frame a page that tenant
+  // doesn't own — /account on the apex, say. Same gate, so the framing rules
+  // always follow the tenant that actually renders.
+  const previewHost =
+    host.endsWith('.vercel.app') || host === 'localhost' || host.endsWith('.lvh.me');
   const frameAncestors = isEmbed
-    ? ["'self'", ...(await allowedEmbedOrigins(host, effectiveTenant))].join(' ')
+    ? ["'self'", ...(await allowedEmbedOrigins(host, previewHost ? effectiveTenant : null))].join(' ')
     : "'self'";
   const csp = [
     "base-uri 'self'",

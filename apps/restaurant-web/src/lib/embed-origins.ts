@@ -81,6 +81,15 @@ export async function allowedEmbedOrigins(host: string, tenantOverride?: string 
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!base || !anonKey) return [];
 
+  // The canonical marketing host has no tenant, so there is nothing to look
+  // up — and without this guard the slug falls out as the apex label
+  // ("hirforyou"), which is a meaningless query at best and, if a tenant ever
+  // took that slug, would hand it framing rights over the apex.
+  const primaryDomain = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'hirforyou.ro';
+  const isCanonical =
+    host === primaryDomain || host === 'hir-restaurant-web.vercel.app' || host === 'localhost';
+  if (!tenantOverride && isCanonical) return [];
+
   const slug = tenantOverride || host.split('.')[0];
   const params = new URLSearchParams({
     select: 'custom_domain,domain_status,settings',
