@@ -139,7 +139,13 @@ export async function middleware(request: NextRequest) {
     "object-src 'none'",
     "form-action 'self'",
     `frame-ancestors ${frameAncestors}`,
-    'upgrade-insecure-requests',
+    // Production only. On a local tenant host (http://<slug>.lvh.me:3000) this
+    // directive upgrades every asset request to https, which the dev server
+    // doesn't speak — the storefront rendered with no CSS at all, and the only
+    // clue was ERR_SSL_PROTOCOL_ERROR in the console. Gated on NODE_ENV rather
+    // than the request protocol so nothing an upstream proxy reports can weaken
+    // the header in production.
+    ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
   if (frameAncestors === "'self'") {

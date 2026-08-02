@@ -97,7 +97,12 @@ describe('middleware framing headers', () => {
     });
     const csp = (await middleware(req('https://restaurant-demo.hirforyou.ro/?embed=1')))
       .headers.get('content-security-policy') ?? '';
-    expect(csp).toContain("frame-ancestors 'self';");
+    // Assert the directive is *exactly* 'self' rather than merely starting with
+    // it: the previous version matched "frame-ancestors 'self';" and so leaned
+    // on a trailing separator that only existed while another directive
+    // happened to follow.
+    const frameAncestors = csp.split('; ').find((d) => d.startsWith('frame-ancestors'));
+    expect(frameAncestors).toBe("frame-ancestors 'self'");
     expect(csp).not.toContain('script-src *');
     expect(csp).not.toContain('javascript:');
   });
@@ -138,6 +143,23 @@ describe('middleware framing headers', () => {
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("form-action 'self'");
-    expect(csp).toContain('upgrade-insecure-requests');
+  });
+
+  it('upgrades insecure requests in production, and only there', async () => {
+    // In dev the storefront is served over http on tenant hosts like
+    // restaurant-demo.lvh.me:3000, where this directive upgrades every asset
+    // request to https and the page renders with no CSS at all.
+    vi.stubEnv('NODE_ENV', 'production');
+    expect(
+      (await middleware(req('https://hirforyou.ro/'))).headers.get('content-security-policy'),
+    ).toContain('upgrade-insecure-requests');
+
+    vi.stubEnv('NODE_ENV', 'development');
+    resetEmbedOriginCache();
+    expect(
+      (await middleware(req('http://restaurant-demo.lvh.me:3000/'))).headers.get(
+        'content-security-policy',
+      ),
+    ).not.toContain('upgrade-insecure-requests');
   });
 });

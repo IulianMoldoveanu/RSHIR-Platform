@@ -11,6 +11,7 @@ import {
   iconForCategory,
   tileStyleForCategory,
 } from '@/components/storefront/category-icon';
+import { FoodIcon } from '@/components/storefront/food-icons';
 
 // Category strip + item cards for the marketing-site demo storefront.
 //
@@ -84,7 +85,7 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
           >
             {categories.map((cat) => {
               const active = cat.id === activeId;
-              const Icon = iconForCategory(cat.name);
+              const iconName = iconForCategory(cat.name);
               const tileStyle = active ? ACTIVE_TILE_STYLE : tileStyleForCategory(cat.name);
               return (
                 <button
@@ -96,16 +97,17 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                   className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 transition-transform active:scale-95"
                 >
                   <span
-                    className={`flex h-16 w-16 items-center justify-center rounded-[22px] transition-[background,box-shadow,border-color] duration-200 ${
-                      active ? '' : 'border group-hover:shadow-md'
+                    className={`flex h-16 w-16 items-center justify-center rounded-[22px] transition-all duration-200 ease-out ${
+                      active
+                        ? ''
+                        : 'border shadow-[0_1px_2px_rgba(15,23,42,0.04)] group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)] group-active:translate-y-0'
                     }`}
                     style={tileStyle}
                   >
-                    <Icon
+                    <FoodIcon
+                      name={iconName}
                       className="h-7 w-7"
-                      strokeWidth={1.5}
                       style={{ color: active ? '#FFFFFF' : accentForCategory(cat.name) }}
-                      aria-hidden
                     />
                   </span>
                   <span
@@ -128,7 +130,7 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
             <h2 className="mb-3 text-base font-bold tracking-tight text-zinc-900">{cat.name}</h2>
             <div className="flex flex-col gap-2.5">
               {cat.items.map((item) => {
-                const Icon = iconForCategory(cat.name);
+                const iconName = iconForCategory(cat.name);
                 const tileStyle = tileStyleForCategory(cat.name);
                 return (
                   <div
@@ -151,9 +153,9 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                         style={tileStyle}
                         aria-hidden
                       >
-                        <Icon
+                        <FoodIcon
+                          name={iconName}
                           className="h-8 w-8"
-                          strokeWidth={1.5}
                           style={{ color: accentForCategory(cat.name) }}
                         />
                       </span>
