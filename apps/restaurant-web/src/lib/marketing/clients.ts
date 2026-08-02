@@ -15,6 +15,8 @@
 //   Roata Norocului   — roata-norocului.ro header lockup. Theirs is
 //                       white-on-transparent (invisible on a white card), so
 //                       it sits on a chip in their own brand burgundy
+//   All Time Events   — alltimeevents.ro header lockup (the event centre
+//                       behind Foișorul A, our `foisorul-a` tenant)
 //
 // `locations` + `city` are verified against each client's own website, not
 // estimated — this is public copy about someone else's business.
@@ -57,5 +59,12 @@ export const MARKETING_CLIENTS: readonly MarketingClient[] = [
     city: 'Brașov',
     locations: 1,
     logo: '/clients/roata-norocului.webp',
+  },
+  {
+    slug: 'all-time-events',
+    name: 'All Time Events',
+    city: 'Brașov',
+    locations: 1,
+    logo: '/clients/all-time-events.webp',
   },
 ] as const;

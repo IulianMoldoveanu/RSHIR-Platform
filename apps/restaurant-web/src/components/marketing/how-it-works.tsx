@@ -4,22 +4,21 @@ import { t, type Locale } from '@/lib/i18n';
 import { GuideShot } from './guide-shot';
 import { GUIDE_STEPS } from '@/lib/marketing/guide-steps';
 
-// Homepage teaser for the full walkthrough at /cum-functioneaza. Pulls from
-// the same GUIDE_STEPS data so the two pages can never drift, but shows the
-// four steps that tell the *order's* story (menu → customer orders → it lands
-// on your screen → courier delivers) rather than the account-setup ones, and
-// renumbers them 1-4 for display. The marketing.home.how_it_works_step*
-// dictionary keys this section used are now inert, same convention as
-// hero_badge — the guide's copy is the single source.
+// Homepage teaser for the full walkthrough at /cum-functioneaza: the first
+// four of the same six steps, same numbers, same copy, same screenshots.
+//
+// 2026-08-02 — this used to show steps 2/4/5/6 renumbered 1-4, which meant
+// homepage step "3" and guide step "3" were different things (Iulian: "cum
+// functioneaza de pe homepage nu este la fel ca cel din cum functioneaza
+// pagina"). It's now a straight prefix of the guide, so the two can only ever
+// agree. The marketing.home.how_it_works_step* keys are inert — the guide's
+// copy is the single source.
 //
 // 2026-08-01 — the illustrations here used to be grey CSS mockups, which read
 // as loading skeletons ("arata total neprofesional" — Iulian). They're now the
 // real app screenshots, shared with the guide page.
 
-const TEASER_STEP_NUMBERS = [2, 4, 5, 6];
-const TEASER_STEPS = TEASER_STEP_NUMBERS.map(
-  (n) => GUIDE_STEPS.find((s) => s.n === n)!,
-);
+const TEASER_STEPS = GUIDE_STEPS.slice(0, 4);
 
 export function HowItWorks({ currentLocale }: { currentLocale: Locale }) {
   return (
@@ -29,7 +28,7 @@ export function HowItWorks({ currentLocale }: { currentLocale: Locale }) {
       </h2>
 
       <ol className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-        {TEASER_STEPS.map((step, i) => (
+        {TEASER_STEPS.map((step) => (
           <li key={step.n}>
             {/* Fixed-height, centred image slot: the four shots have very
                 different aspect ratios (wide dashboard vs. tall phone) and
@@ -48,7 +47,7 @@ export function HowItWorks({ currentLocale }: { currentLocale: Locale }) {
               className="mt-5 flex h-9 w-9 items-center justify-center rounded-full bg-[#EEF2FF] text-base font-bold text-[#4F46E5]"
               aria-hidden
             >
-              {i + 1}
+              {step.n}
             </span>
             <h3 className="mt-3 text-base font-semibold tracking-tight text-[#0F172A]">
               {t(currentLocale, step.titleKey)}
