@@ -152,11 +152,20 @@ export async function POST(req: NextRequest) {
   const lines =
     lead.kind === 'restaurant'
       ? [
-          '📨 <b>Mesaj nou de pe site</b>',
+          // Three different pages post here — /contact, /demo and
+          // /migrate-from-gloriafood — and Telegram is now the only place any
+          // of them is read. A generic title plus a dropped gloriaFoodUrl left
+          // a migration request indistinguishable from a contact message, and
+          // its menu URL only recoverable by querying a table nobody opens.
+          lead.gloriaFoodUrl
+            ? '🔁 <b>Cerere migrare GloriaFood</b>'
+            : '📨 <b>Mesaj nou de pe site</b>',
           `🏪 ${escapeHtml(lead.restaurantName)}`,
           `📧 ${escapeHtml(lead.email)}`,
           ...(lead.phone ? [`📞 ${escapeHtml(lead.phone)}`] : []),
           ...(lead.city ? [`📍 ${escapeHtml(lead.city)}`] : []),
+          ...(lead.gloriaFoodUrl ? [`🔗 ${escapeHtml(lead.gloriaFoodUrl)}`] : []),
+          ...(lead.ref ? [`🏷 ${escapeHtml(lead.ref)}`] : []),
           ...(lead.message
             ? [
                 '',
@@ -174,6 +183,7 @@ export async function POST(req: NextRequest) {
           `📧 ${escapeHtml(lead.email)}`,
           `🌍 ${escapeHtml(lead.country)}`,
           `📦 ${lead.portfolioSize} în portofoliu`,
+          ...(lead.ref ? [`🏷 ${escapeHtml(lead.ref)}`] : []),
         ];
   await forwardToTelegram(lines);
 

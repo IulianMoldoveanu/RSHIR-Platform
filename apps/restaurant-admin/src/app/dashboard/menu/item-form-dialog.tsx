@@ -86,7 +86,13 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl">
+      {/* max-h + scroll: DialogContent is fixed and vertically centred with no
+          height cap of its own, so adding the 14-option allergen fieldset
+          pushed the image field, the availability toggle and Save off-screen on
+          a laptop — the owner could no longer save an item at all. Caught in
+          review of #1041. Scoped to this dialog because this is the one the
+          change made tall; the other menu dialogs are still short. */}
+      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? 'Produs nou' : 'Editează produs'}</DialogTitle>
         </DialogHeader>
