@@ -11,7 +11,27 @@
 //
 // Server component — no client state, no interactivity required.
 
+import Link from 'next/link';
 import type { LegalSection, LegalParagraph } from '@/content/legal/terms';
+
+// 2026-08-02 — the marketing footer now lists only Termeni și condiții and
+// Confidențialitate (Iulian: "la rubrica legal va exista doar confidentialitate
+// si termeni si conditii, acolo vom avea toate celelalte incluse"). So every
+// legal page ends with the full set: whichever of the two a visitor lands on,
+// the remaining documents are one click away. Same URLs as the /legal hub —
+// that page keeps the richer categorised layout, this is just the trail back.
+const RELATED_DOCS: ReadonlyArray<{ href: string; ro: string; en: string }> = [
+  { href: '/terms', ro: 'Termeni și condiții', en: 'Terms & Conditions' },
+  { href: '/privacy', ro: 'Confidențialitate', en: 'Privacy' },
+  { href: '/politica-cookies', ro: 'Politica de cookies', en: 'Cookies Policy' },
+  { href: '/politica-livrare', ro: 'Politica de livrare', en: 'Delivery Policy' },
+  { href: '/politica-anulare-retragere', ro: 'Anulare și retragere', en: 'Cancellation & Withdrawal' },
+  { href: '/legal/rambursare', ro: 'Rambursare', en: 'Refunds' },
+  { href: '/legal/dpa', ro: 'DPA (GDPR art. 28)', en: 'DPA (GDPR Art. 28)' },
+  { href: '/legal/subprocesori', ro: 'Sub-procesatori', en: 'Sub-processors' },
+  { href: '/legal/utilizare-acceptabila', ro: 'Utilizare acceptabilă', en: 'Acceptable Use' },
+  { href: '/legal/companie', ro: 'Date companie', en: 'Company details' },
+];
 
 export type LegalShellProps = {
   /** Titlul principal al documentului (h1). */
@@ -85,6 +105,24 @@ export function LegalShell(props: LegalShellProps) {
           </section>
         ))}
       </div>
+
+      <nav
+        aria-label={locale === 'en' ? 'Other legal documents' : 'Celelalte documente legale'}
+        className="mt-12 border-t border-zinc-200 pt-6"
+      >
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+          {locale === 'en' ? 'Other legal documents' : 'Celelalte documente legale'}
+        </p>
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-zinc-600">
+          {RELATED_DOCS.map((doc) => (
+            <li key={doc.href}>
+              <Link href={doc.href} className="underline-offset-2 hover:text-zinc-900 hover:underline">
+                {locale === 'en' ? doc.en : doc.ro}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </main>
   );
 }

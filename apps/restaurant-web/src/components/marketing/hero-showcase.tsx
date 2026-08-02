@@ -84,6 +84,8 @@ export async function HeroShowcase({ currentLocale }: { currentLocale: Locale })
                 <HeroPhoneMockupScreen
                   items={items}
                   addedLabel={t(currentLocale, 'marketing.home.hero_mockup_added')}
+                  cartLabel={t(currentLocale, 'marketing.home.hero_mockup_cart')}
+                  cartEmptyLabel={t(currentLocale, 'marketing.home.hero_mockup_cart_empty')}
                 />
               ) : (
                 <div className="flex flex-col gap-1.5 px-3 pb-3">
