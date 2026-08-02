@@ -5,7 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { headers } from 'next/headers';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
-import { isCanonicalHost } from '@/lib/seo-marketing';
+import { isCanonicalHost, isMarketingSurface } from '@/lib/seo-marketing';
 import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import { SupportPanel } from '@/components/support/support-panel';
@@ -118,9 +118,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (track my order, my payment, my account). On the brand presentation site
   // it answers questions nobody visiting it has. Iulian: "nu vad rostul
   // butonului de suport in pagina de prezentare ... doar dupa onboarding isi
-  // are cu adevarat rostul." The canonical host is exactly the marketing
-  // surface — tenants always render on a subdomain or a custom domain.
-  const marketingHost = isCanonicalHost(await currentHost());
+  // are cu adevarat rostul."
+  //
+  // Not `isCanonicalHost` alone: on a Vercel preview URL the marketing pages
+  // render too, and that host isn't canonical, so the panel would come back
+  // on exactly the deployments used for QA (caught in review of #1040).
+  // `x-hir-tenant-override` is what the middleware forwards for `?tenant=` and
+  // the `selected_tenant` cookie, which is the only way a preview host names a
+  // tenant.
+  const h = await headers();
+  const marketingSurface = isMarketingSurface(
+    await currentHost(),
+    !!h.get('x-hir-tenant-override'),
+  );
   const fontVars = [
     inter.variable,
     playfair.variable,
@@ -137,7 +147,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased">
         {children}
         {!embed && <PwaInstallPrompt />}
-        {!embed && !marketingHost && <SupportPanel />}
+        {!embed && !marketingSurface && <SupportPanel />}
         <Analytics />
         <SpeedInsights />
       </body>

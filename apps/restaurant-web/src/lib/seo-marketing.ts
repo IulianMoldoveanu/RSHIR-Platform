@@ -88,6 +88,30 @@ export function isCanonicalHost(host: string): boolean {
   return false;
 }
 
+/**
+ * True when this request renders the brand presentation site rather than a
+ * tenant storefront. Not the same question as `isCanonicalHost`: on a Vercel
+ * auto-generated preview URL the marketing pages render too, but the host is
+ * not canonical, and a `?tenant=` override (or the `selected_tenant` cookie
+ * the middleware forwards as `x-hir-tenant-override`) flips that same host to
+ * a storefront. That is the only way a preview host resolves a tenant —
+ * `vercel.app` is not in SUBDOMAIN_BASES, so the host itself never names one.
+ *
+ * Used to keep the storefront support panel off the presentation site. It has
+ * to be cheap: the root layout runs on every request, so this stays pure
+ * header arithmetic with no tenant lookup.
+ */
+export function isMarketingSurface(host: string, hasTenantOverride: boolean): boolean {
+  const h = host.toLowerCase();
+  // Preview + local dev: the host can't name a tenant, so the override is the
+  // only thing that decides. `.lvh.me` is deliberately excluded — there the
+  // subdomain *does* name a tenant (`restaurant-demo.lvh.me`).
+  if (h.endsWith('.vercel.app') || h === 'localhost') return !hasTenantOverride;
+  // Production: the apex is the presentation site; every tenant lives on a
+  // subdomain or its own custom domain.
+  return isCanonicalHost(h);
+}
+
 // Build absolute URL for a marketing path on the canonical host. Used by
 // sitemap entries + JSON-LD `url` fields. Falls back to the configured
 // primary domain when the request host isn't itself canonical (rare —
