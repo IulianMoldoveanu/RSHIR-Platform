@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
+import { allergensFor } from '@hir/ui';
 import { useDemoCartStore } from '@/lib/demo/demo-cart-store';
-import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from '@/components/storefront/category-icon';
+import {
+  ACTIVE_TILE_STYLE,
+  accentForCategory,
+  iconForCategory,
+  tileStyleForCategory,
+} from '@/components/storefront/category-icon';
 
 // Category strip + item cards for the marketing-site demo storefront.
 //
@@ -87,13 +93,20 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                   data-tile={cat.id}
                   onClick={() => jumpTo(cat.id)}
                   aria-current={active ? 'true' : undefined}
-                  className="flex w-16 shrink-0 flex-col items-center gap-1 active:scale-95 transition-transform"
+                  className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 transition-transform active:scale-95"
                 >
                   <span
-                    className="flex h-14 w-14 items-center justify-center rounded-[20px] transition-[background,box-shadow] duration-200"
+                    className={`flex h-16 w-16 items-center justify-center rounded-[22px] transition-[background,box-shadow,border-color] duration-200 ${
+                      active ? '' : 'border group-hover:shadow-md'
+                    }`}
                     style={tileStyle}
                   >
-                    <Icon className="h-6 w-6 text-white drop-shadow-sm" aria-hidden />
+                    <Icon
+                      className="h-7 w-7"
+                      strokeWidth={1.5}
+                      style={{ color: active ? '#FFFFFF' : accentForCategory(cat.name) }}
+                      aria-hidden
+                    />
                   </span>
                   <span
                     className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${
@@ -134,11 +147,15 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                       // No photo on this item — fall back to the category glyph
                       // rather than a broken/empty box.
                       <span
-                        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl"
+                        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border"
                         style={tileStyle}
                         aria-hidden
                       >
-                        <Icon className="h-7 w-7 text-white drop-shadow-sm" />
+                        <Icon
+                          className="h-8 w-8"
+                          strokeWidth={1.5}
+                          style={{ color: accentForCategory(cat.name) }}
+                        />
                       </span>
                     )}
 
@@ -148,6 +165,23 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                         <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-500">
                           {item.description}
                         </p>
+                      )}
+                      {/* Same allergen chips as the real storefront — the demo
+                          is the product's shop window, so it has to show what a
+                          properly declared menu looks like. */}
+                      {item.allergens.length > 0 && (
+                        <ul className="mt-1.5 flex flex-wrap items-center gap-1" aria-label="Alergeni">
+                          {allergensFor(item.allergens).map((a) => (
+                            <li
+                              key={a.code}
+                              title={a.ro}
+                              className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] leading-none ring-1 ring-inset ring-amber-200"
+                            >
+                              <span aria-hidden>{a.emoji}</span>
+                              <span className="sr-only">{a.ro}</span>
+                            </li>
+                          ))}
+                        </ul>
                       )}
                       <p className="mt-1.5 text-sm font-bold text-[var(--hir-brand)]">
                         {item.price_ron.toFixed(2)} lei

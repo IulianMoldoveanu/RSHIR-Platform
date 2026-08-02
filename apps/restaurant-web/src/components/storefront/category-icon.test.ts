@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { Drumstick, Egg, Pizza, Popcorn, Salad, Sandwich, Soup, UtensilsCrossed, CupSoda } from 'lucide-react';
-import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from './category-icon';
+import {
+  ACTIVE_TILE_STYLE,
+  accentForCategory,
+  iconForCategory,
+  tileStyleForCategory,
+} from './category-icon';
 
 describe('iconForCategory', () => {
   test('matches known RO category names', () => {
@@ -44,38 +49,51 @@ describe('iconForCategory', () => {
 
 const HEX_RE = /^#[0-9a-f]{6}$/i;
 
+describe('accentForCategory', () => {
+  test('gives different categories visually distinct ink colours', () => {
+    const pizza = accentForCategory('Pizza');
+    const salad = accentForCategory('Salată');
+    const soup = accentForCategory('Supe');
+    expect(pizza).not.toBe(salad);
+    expect(salad).not.toBe(soup);
+    expect(pizza).not.toBe(soup);
+  });
+
+  test('every accent is a well-formed 6-digit hex', () => {
+    for (const name of ['Pizza', 'Supe', 'Băuturi', 'Salate', 'xyz necunoscut']) {
+      expect(accentForCategory(name)).toMatch(HEX_RE);
+    }
+  });
+
+  test('falls back to neutral zinc for unknown categories', () => {
+    expect(accentForCategory('xyz complet necunoscut')).toBe('#52525B');
+  });
+
+  test('is deterministic — same name always resolves to the same accent', () => {
+    expect(accentForCategory('Pizza')).toBe(accentForCategory('pizza'));
+  });
+});
+
 describe('tileStyleForCategory', () => {
-  test('gives different categories visually distinct gradients', () => {
-    const pizza = tileStyleForCategory('Pizza');
-    const salad = tileStyleForCategory('Salată');
-    const soup = tileStyleForCategory('Supe');
-    expect(pizza.background).not.toBe(salad.background);
-    expect(salad.background).not.toBe(soup.background);
-    expect(pizza.background).not.toBe(soup.background);
-  });
-
-  test('returns a gradient background and a tinted ambient shadow', () => {
+  // The unselected tile is a white card, not a filled colour block: a wash and
+  // an outline derived from the category's own hue. Iulian rejected the old
+  // full-gradient tiles as unprofessional, so a regression back to a saturated
+  // fill is worth catching here.
+  test('is a translucent wash of the accent, not an opaque fill', () => {
     const style = tileStyleForCategory('Pizza');
-    expect(style.background).toContain('linear-gradient(135deg,');
-    expect(style.background).toContain('radial-gradient(');
-    expect(style.boxShadow).toMatch(/^0 \S+ \S+ -\S+ #[0-9a-f]{6}[0-9a-f]{2}$/i);
+    const accent = accentForCategory('Pizza');
+    expect(style.background).toBe(`${accent}0A`);
+    expect(style.borderColor).toBe(`${accent}47`);
+    expect(style.background).not.toContain('gradient');
   });
 
-  test('gradient stops are well-formed hex colors', () => {
-    const style = tileStyleForCategory('Pizza');
-    const stops = style.background.match(/linear-gradient\(135deg, (#[0-9a-f]{6}), (#[0-9a-f]{6})\)/i);
-    expect(stops).not.toBeNull();
-    expect(stops![1]).toMatch(HEX_RE);
-    expect(stops![2]).toMatch(HEX_RE);
+  test('different categories get different washes', () => {
+    expect(tileStyleForCategory('Pizza').background).not.toBe(
+      tileStyleForCategory('Supe').background,
+    );
   });
 
-  test('falls back to a neutral gradient for unknown categories', () => {
-    const style = tileStyleForCategory('xyz complet necunoscut');
-    expect(style.background).toContain('#A1A1AA');
-    expect(style.background).toContain('#52525B');
-  });
-
-  test('is deterministic — same name always resolves to the same gradient', () => {
+  test('is deterministic — same name always resolves to the same style', () => {
     expect(tileStyleForCategory('Pizza')).toEqual(tileStyleForCategory('pizza'));
   });
 });

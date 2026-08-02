@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Plus, Timer, UtensilsCrossed } from 'lucide-react';
+import { allergensFor } from '@hir/ui';
 import { ItemSheet } from './item-sheet';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
@@ -120,6 +121,26 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
             <p className="line-clamp-2 text-xs leading-snug text-zinc-500 sm:text-sm">
               {item.description}
             </p>
+          ) : null}
+          {/* Allergen glyphs on the card, not just inside the sheet: the "+"
+              button adds straight to the cart, so a customer can complete a
+              purchase without ever opening the detail view. EU 1169/2011 art.
+              14 wants the information available before that point. The full
+              labels are in the sheet; here the emoji carries a text label for
+              screen readers. */}
+          {item.allergens.length > 0 ? (
+            <ul className="flex flex-wrap items-center gap-1" aria-label={t(locale, 'item.allergens_title')}>
+              {allergensFor(item.allergens).map((a) => (
+                <li
+                  key={a.code}
+                  title={locale === 'en' ? a.en : a.ro}
+                  className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] leading-none ring-1 ring-inset ring-amber-200"
+                >
+                  <span aria-hidden>{a.emoji}</span>
+                  <span className="sr-only">{locale === 'en' ? a.en : a.ro}</span>
+                </li>
+              ))}
+            </ul>
           ) : null}
           <div className="mt-auto flex flex-col gap-0.5 pt-2">
             <div className="flex items-center justify-between gap-2">

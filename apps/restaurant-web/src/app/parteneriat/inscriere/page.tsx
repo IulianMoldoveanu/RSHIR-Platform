@@ -160,7 +160,11 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
       <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-md bg-[#EEF2FF] text-xs font-semibold text-[#4F46E5]">
         {n}
       </div>
-      <h3 className="text-sm font-semibold text-[#0F172A]">{title}</h3>
+      {/* h2, not h3: these cards sit directly under the page <h1>, and the
+          first h2 on the page comes after them — so h3 here skipped a level
+          for screen readers. Same class of fix as the footer headings.
+          Visual size is set by the class, not the tag, so nothing moves. */}
+      <h2 className="text-sm font-semibold text-[#0F172A]">{title}</h2>
       <p className="mt-1.5 text-sm leading-relaxed text-[#475569]">{body}</p>
     </div>
   );

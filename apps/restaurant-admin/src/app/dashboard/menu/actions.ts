@@ -267,6 +267,7 @@ export async function createItemAction(formData: FormData) {
     prep_minutes: formData.get('prep_minutes') ?? '',
     serving_size_grams: formData.get('serving_size_grams') ?? '',
     serving_size_label: formData.get('serving_size_label') ?? '',
+    allergens: formData.get('allergens') ?? '',
   });
 
   const admin = createAdminClient();
@@ -315,6 +316,7 @@ export async function createItemAction(formData: FormData) {
     prep_minutes: parsed.prep_minutes,
     serving_size_grams: parsed.serving_size_grams,
     serving_size_label: parsed.serving_size_label,
+    allergens: parsed.allergens ?? [],
   });
   if (error) throw friendlyDbError(error, 'adăugarea produsului');
   revalidatePath('/dashboard/menu');
@@ -333,6 +335,7 @@ export async function updateItemAction(formData: FormData) {
     prep_minutes: formData.get('prep_minutes') ?? '',
     serving_size_grams: formData.get('serving_size_grams') ?? '',
     serving_size_label: formData.get('serving_size_label') ?? '',
+    allergens: formData.get('allergens') ?? '',
   });
 
   const admin = createAdminClient();
@@ -362,6 +365,7 @@ export async function updateItemAction(formData: FormData) {
     prep_minutes: parsed.prep_minutes,
     serving_size_grams: parsed.serving_size_grams,
     serving_size_label: parsed.serving_size_label,
+    allergens: parsed.allergens ?? [],
   };
   if (imageUrl !== undefined) update.image_url = imageUrl;
 

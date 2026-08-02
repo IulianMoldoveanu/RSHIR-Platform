@@ -100,24 +100,27 @@ begin
   select id into cat_drinks from public.restaurant_menu_categories where tenant_id = t_id and name = 'Băuturi' limit 1;
 
   -- Pizza
-  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url)
+  -- allergens: Reg. (UE) 1169/2011 Anexa II. Codurile sunt cele din
+  -- packages/ui/lib/allergens.ts. Demo-ul e vitrina produsului, deci trebuie
+  -- sa arate cum arata un meniu declarat corect, nu unul gol.
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
   values
-    (t_id, cat_pizza, 'Margherita',       'Sos roșii, mozzarella fior di latte, busuioc proaspăt', 32.00, 0, true, 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400&h=400&fit=crop&q=80'),
-    (t_id, cat_pizza, 'Quattro Formaggi', 'Mozzarella, gorgonzola, parmezan, brie',                42.00, 1, true, 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=400&fit=crop&q=80'),
-    (t_id, cat_pizza, 'Diavola',          'Salam picant Calabria, mozzarella, ardei iute',         38.00, 2, true, 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&h=400&fit=crop&q=80');
+    (t_id, cat_pizza, 'Margherita',       'Sos roșii, mozzarella fior di latte, busuioc proaspăt', 32.00, 0, true, 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?w=400&h=400&fit=crop&q=80', array['gluten','lapte']),
+    (t_id, cat_pizza, 'Quattro Formaggi', 'Mozzarella, gorgonzola, parmezan, brie',                42.00, 1, true, 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=400&fit=crop&q=80', array['gluten','lapte']),
+    (t_id, cat_pizza, 'Diavola',          'Salam picant Calabria, mozzarella, ardei iute',         38.00, 2, true, 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&h=400&fit=crop&q=80', array['gluten','lapte']);
 
   -- Paste
-  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url)
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
   values
-    (t_id, cat_paste, 'Carbonara',      'Pancetta, gălbenuș, parmezan, piper negru',         36.00, 0, true, 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400&h=400&fit=crop&q=80'),
-    (t_id, cat_paste, 'Pesto Genovese', 'Busuioc proaspăt, pin, parmezan, ulei extravirgin', 34.00, 1, true, 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&h=400&fit=crop&q=80'),
-    (t_id, cat_paste, 'Arrabbiata',     'Sos roșii picant, usturoi, ardei iute',             30.00, 2, true, 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400&h=400&fit=crop&q=80');
+    (t_id, cat_paste, 'Carbonara',      'Pancetta, gălbenuș, parmezan, piper negru',         36.00, 0, true, 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte']),
+    (t_id, cat_paste, 'Pesto Genovese', 'Busuioc proaspăt, pin, parmezan, ulei extravirgin', 34.00, 1, true, 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&h=400&fit=crop&q=80', array['gluten','lapte','nuci']),
+    (t_id, cat_paste, 'Arrabbiata',     'Sos roșii picant, usturoi, ardei iute',             30.00, 2, true, 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400&h=400&fit=crop&q=80', array['gluten']);
 
   -- Băuturi
-  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url)
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
   values
-    (t_id, cat_drinks, 'Limonadă casei',  'Lămâie, mentă, miere', 14.00, 0, true, 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=400&fit=crop&q=80'),
-    (t_id, cat_drinks, 'Apă plată 500ml', null,                    6.00, 1, true, 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&h=400&fit=crop&q=80');
+    (t_id, cat_drinks, 'Limonadă casei',  'Lămâie, mentă, miere', 14.00, 0, true, 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=400&fit=crop&q=80', '{}'),
+    (t_id, cat_drinks, 'Apă plată 500ml', null,                    6.00, 1, true, 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&h=400&fit=crop&q=80', '{}');
 end;
 $$;
 

@@ -83,6 +83,11 @@ export const dictionaries = {
       added: 'Adăugat ✓',
       add_short: 'Adaugă',
       prep_template: 'Gata în {minutes} min',
+      // Reg. (UE) 1169/2011 art. 14 — allergen info has to be available before
+      // the purchase is concluded, so it renders on the item itself.
+      allergens_title: 'Alergeni',
+      allergens_note:
+        'Preparat în bucătărie unde se folosesc și alți alergeni. Pentru intoleranțe severe, întrebați restaurantul înainte de comandă.',
       popular_top: 'Cel mai comandat',
       popular_rank_template: 'Top {rank}',
       required_label: 'Obligatoriu',
@@ -1132,6 +1137,9 @@ export const dictionaries = {
       added: 'Added ✓',
       add_short: 'Add',
       prep_template: 'Ready in {minutes} min',
+      allergens_title: 'Allergens',
+      allergens_note:
+        'Prepared in a kitchen that also handles other allergens. For severe intolerances, please ask the restaurant before ordering.',
       popular_top: 'Most ordered',
       popular_rank_template: 'Top {rank}',
       required_label: 'Required',
