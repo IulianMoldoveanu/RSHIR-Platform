@@ -22,13 +22,13 @@ const CONTACT_URL = PRIMARY_DOMAIN
 
 const OG_IMAGE = marketingOgImageUrl({
   title: 'Contact HIR',
-  subtitle: 'Răspuns în 24 de ore lucrătoare. Pentru restaurante, flote și parteneri.',
+  subtitle: 'Telefon, email sau formular. Răspuns în 24 de ore lucrătoare.',
 });
 
 export const metadata: Metadata = {
   title: 'Contact — HIRforYOU',
   description:
-    'Vorbește cu echipa HIR. Pentru restaurante, flote și parteneri. Email, telefon, formular direct.',
+    'Contactează echipa HIR: telefon, email sau formular. Răspundem în 24 de ore lucrătoare.',
   alternates: {
     canonical: CONTACT_URL,
     languages: { 'ro-RO': CONTACT_URL, en: CONTACT_URL, 'x-default': CONTACT_URL },
@@ -60,13 +60,10 @@ export default async function ContactPage() {
 
       <section className="border-b border-[#E2E8F0] bg-white">
         <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 md:py-20">
-          <div className="mb-3 inline-flex items-center rounded-md bg-[#EEF2FF] px-2.5 py-1 text-xs font-medium text-[#4F46E5] ring-1 ring-inset ring-[#C7D2FE]">
-            {t(locale, 'contact.eyebrow')}
-          </div>
           <h1 className="max-w-3xl text-3xl font-semibold tracking-tight md:text-5xl">
             {t(locale, 'contact.hero_title')}
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#475569]">
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#475569]">
             {t(locale, 'contact.hero_body')}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -92,12 +89,9 @@ export default async function ContactPage() {
         <div className="grid gap-10 md:grid-cols-3">
           <div className="md:col-span-1">
             <h2 className="text-base font-semibold text-[#0F172A]">
-              {t(locale, 'contact.team_title')}
+              {t(locale, 'contact.details_title')}
             </h2>
-            <p className="mt-2 text-sm text-[#475569]">
-              {t(locale, 'contact.team_body')}
-            </p>
-            <ul className="mt-7 space-y-5 text-sm">
+            <ul className="mt-5 space-y-5 text-sm">
               <ContactRow
                 icon={<Phone className="h-4 w-4" />}
                 label={t(locale, 'contact.label_phone')}
@@ -116,20 +110,9 @@ export default async function ContactPage() {
                 value={t(locale, 'contact.address_value')}
               />
             </ul>
-            <div className="mt-10 rounded-md border border-[#E2E8F0] bg-white p-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#475569]">
-                {t(locale, 'contact.partners_title')}
-              </h3>
-              <p className="mt-2 text-sm text-[#475569]">
-                {t(locale, 'contact.partners_body')}
-              </p>
-              <a
-                href="/parteneriat/inscriere"
-                className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#4F46E5] hover:text-[#4338CA]"
-              >
-                {t(locale, 'contact.partners_link')}
-              </a>
-            </div>
+            {/* 2026-08-02 — the reseller-programme card was removed here per
+                Iulian ("eliminam orice tine [de] reseleri"). /parteneriat/inscriere
+                still resolves at its own URL for anyone sent there directly. */}
           </div>
 
           <div className="md:col-span-2">

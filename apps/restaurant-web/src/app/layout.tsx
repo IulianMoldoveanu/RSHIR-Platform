@@ -87,12 +87,13 @@ const TWITTER_SITE = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
 // MarketingHome content (which already pins to RO per #398). Tenant
 // hosts (`*.hirforyou.ro` or custom domains) continue to honor cookie
 // + Accept-Language so EN customers see the EN storefront chrome.
+async function currentHost(): Promise<string> {
+  const h = await headers();
+  return h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
+}
+
 async function rootLocale(): Promise<Locale> {
-  const host =
-    (await headers()).get('x-hir-host') ??
-    (await headers()).get('host')?.split(':')[0] ??
-    '';
-  if (isCanonicalHost(host)) return 'ro';
+  if (isCanonicalHost(await currentHost())) return 'ro';
   return await getLocale();
 }
 
@@ -113,6 +114,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // an embed iframe; merchants don't want HIR install prompts on their
   // own site.
   const embed = isEmbedMode();
+  // 2026-08-02 — the support panel is customer support for a *storefront*
+  // (track my order, my payment, my account). On the brand presentation site
+  // it answers questions nobody visiting it has. Iulian: "nu vad rostul
+  // butonului de suport in pagina de prezentare ... doar dupa onboarding isi
+  // are cu adevarat rostul." The canonical host is exactly the marketing
+  // surface — tenants always render on a subdomain or a custom domain.
+  const marketingHost = isCanonicalHost(await currentHost());
   const fontVars = [
     inter.variable,
     playfair.variable,
@@ -129,7 +137,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased">
         {children}
         {!embed && <PwaInstallPrompt />}
-        {!embed && <SupportPanel />}
+        {!embed && !marketingHost && <SupportPanel />}
         <Analytics />
         <SpeedInsights />
       </body>

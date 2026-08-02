@@ -677,9 +677,12 @@ export const dictionaries = {
         footer_link_contact: 'Contact comercial',
         footer_link_press: 'Press kit',
         footer_link_privacy: 'Confidențialitate',
-        footer_link_terms: 'Termeni',
+        footer_link_terms: 'Termeni și condiții',
         footer_link_cookies: 'Cookies',
-        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+        // 2026-08-02 — CUI dropped from the marketing footer per Iulian. The
+        // Legea 365/2002 art. 5 disclosure lives on the storefront footer (the
+        // surface where a purchase actually happens) and on /legal/companie.
+        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L.',
       },
       // Lane STOREFRONT-CITY-LANDING (2026-05-06) — copy for the per-city
       // landing pages at `/orase/[slug]` and the `/orase` index. SEO win:
@@ -788,6 +791,8 @@ export const dictionaries = {
         hero_mockup_caption: 'Așa arată pentru clienții tăi',
         hero_mockup_fallback_name: 'Restaurantul tău',
         hero_mockup_added: 'Adăugat în coș ✓',
+        hero_mockup_cart: 'Vezi coșul',
+        hero_mockup_cart_empty: 'Coșul tău',
         logos_title: 'Afaceri care folosesc HIR',
         how_it_works_title: 'Cum funcționează',
         how_it_works_intro: 'Patru pași. Fără contracte lungi, fără instalări complicate.',
@@ -975,11 +980,18 @@ export const dictionaries = {
       description: 'Adăugați produsele în coș de pe pagina principală, apoi alegeți data și ora la care doriți comanda. Restaurantul vă va contacta pentru confirmare și plată.',
     },
     // Lane WEB-I18N-EN-PARITY (2026-05-15) — contact page RO.
+    // 2026-08-02 — page cut back to the contact itself. Iulian: "la sectiunea
+    // contact reformuleaza, mai profesionist simplu, fara blabla uri /
+    // eliminam orice tine [de] reseleri / eliminam «suntem o echipa mica» /
+    // doar contactul efectiv: numar de telefon, mail sau formular de contact."
+    // eyebrow, team_*, partners_*, form_topic_* and the reseller/restaurant
+    // field variants are now inert, same convention as marketing.home.hero_badge.
     contact: {
       eyebrow: 'Contact',
-      hero_title: 'Hai să vorbim despre afacerea ta.',
-      hero_body: 'Răspundem în 24 de ore lucrătoare. Pentru demo live, programăm un apel de 20 de minute în care îți arătăm platforma pe contul tău real. Răspundem la cereri din partea restaurantelor, florăriilor, magazinelor de cadouri și a oricărui vendor cu catalog.',
-      cta_call: 'Sună acum: +40 743 700 916',
+      hero_title: 'Contact',
+      hero_body: 'Telefon, email sau formular. Răspundem în 24 de ore lucrătoare.',
+      cta_call: 'Sună: +40 743 700 916',
+      details_title: 'Date de contact',
       team_title: 'Echipa HIR',
       team_body: 'Suntem o echipă mică, construim în România, răspundem direct.',
       label_phone: 'Telefon',
@@ -990,7 +1002,9 @@ export const dictionaries = {
       partners_body: 'Ești manager de flotă, agenție sau consultant? Aplică pentru programul de reselleri (25% comision în primul an):',
       partners_link: 'Aplică pentru programul de reselleri →',
       form_title: 'Trimite-ne un mesaj',
-      form_body: 'Completează formularul. Te contactăm pe email în 24 de ore.',
+      form_body: 'Îți răspundem pe email.',
+      form_name: 'Nume / afacere',
+      form_placeholder: 'Cu ce te putem ajuta?',
       form_topic_label: 'Eu sunt…',
       form_topic_restaurant: 'Sunt patron / manager (restaurant, florărie, magazin de cadouri sau alt vendor)',
       form_topic_reseller: 'Sunt manager flotă / partener / reseller',
@@ -1704,9 +1718,9 @@ export const dictionaries = {
         footer_link_contact: 'Sales contact',
         footer_link_press: 'Press kit',
         footer_link_privacy: 'Privacy',
-        footer_link_terms: 'Terms',
+        footer_link_terms: 'Terms & Conditions',
         footer_link_cookies: 'Cookies',
-        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L. · CUI RO46864293',
+        footer_copyright_template: '© {year} HIR & BUILD YOUR DREAMS S.R.L.',
       },
       // Lane STOREFRONT-CITY-LANDING (2026-05-06) — EN copy for /orase index
       // and /orase/[slug]. The URL stays Romanian (`/orase/brasov`) since
@@ -1800,6 +1814,8 @@ export const dictionaries = {
         hero_mockup_caption: 'This is what your customers see',
         hero_mockup_fallback_name: 'Your restaurant',
         hero_mockup_added: 'Added to cart ✓',
+        hero_mockup_cart: 'View cart',
+        hero_mockup_cart_empty: 'Your cart',
         logos_title: 'Businesses using HIR',
         how_it_works_title: 'How it works',
         how_it_works_intro: 'Four steps. No long contracts, no complicated setup.',
@@ -1984,9 +2000,10 @@ export const dictionaries = {
     // Lane WEB-I18N-EN-PARITY (2026-05-15) — contact page EN.
     contact: {
       eyebrow: 'Contact',
-      hero_title: "Let's talk about your restaurant.",
-      hero_body: 'We respond within 24 business hours. For a live demo, we schedule a 20-minute call to walk you through the platform on your real account.',
-      cta_call: 'Call now: +40 743 700 916',
+      hero_title: 'Contact',
+      hero_body: 'Phone, email or the form. We reply within 24 business hours.',
+      cta_call: 'Call: +40 743 700 916',
+      details_title: 'Contact details',
       team_title: 'HIR Team',
       team_body: 'We are a small team, building in Romania, responding directly.',
       label_phone: 'Phone',
@@ -1997,7 +2014,9 @@ export const dictionaries = {
       partners_body: 'Are you a fleet manager, agency or consultant? Apply for the reseller programme (25% commission in year one):',
       partners_link: 'Apply for the reseller programme →',
       form_title: 'Send us a message',
-      form_body: 'Fill in the form. We will get back to you by email within 24 hours.',
+      form_body: 'We reply by email.',
+      form_name: 'Name / business',
+      form_placeholder: 'How can we help?',
       form_topic_label: 'I am…',
       form_topic_restaurant: 'A restaurant owner / manager',
       form_topic_reseller: 'A fleet manager / partner / reseller',
