@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Don't advertise the framework + version in every response. Free removal
+  // of a fingerprinting signal an attacker would otherwise get for nothing.
+  poweredByHeader: false,
   // BUILD_TIME is captured at compile time and exposed to /api/version so
   // smoke + uptime monitors can assert "the deploy I expected actually
   // went out". Vercel does not expose a system env var with the deploy
@@ -25,13 +28,15 @@ const nextConfig = {
     // the library — measurable LCP/TBT improvement on slow connections.
     optimizePackageImports: ['lucide-react', 'framer-motion', 'date-fns', '@hir/ui'],
   },
-  // Security headers — added 2026-05-10 per overnight audit P1. CSP deferred
-  // until we inventory all 3rd-party origins (Stripe/Vercel/Sentry/Supabase/
-  // Resend); these 4 close clickjacking + MIME sniff + referer leak +
-  // permission policy gaps without that inventory.
-  // SAMEORIGIN (not DENY) on storefront because the embed widget renders
-  // under ?embed=1 in iframes on merchant sites — DENY would break the
-  // widget product.
+  // Security headers — added 2026-05-10 per overnight audit P1.
+  //
+  // 2026-08-02: X-Frame-Options moved OUT of here and into middleware.ts.
+  // The value has to depend on whether the request is in embed mode, which
+  // survives navigation via the `hir_embed` cookie — something a static
+  // config rule can't see. See the long note in middleware.ts: the
+  // SAMEORIGIN that used to live here was breaking the embed widget on every
+  // merchant site, which the old comment here explicitly (and wrongly)
+  // believed it avoided. Middleware also emits the CSP.
   // Per Iulian directive 2026-06-02: only ONE dedicated GloriaFood page on
   // the marketing site (/migrate-from-gloriafood). The /alternativa-gloriafood-romania
   // SEO landing is redirected 301 to consolidate signal + traffic into the
@@ -72,7 +77,6 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=()' },

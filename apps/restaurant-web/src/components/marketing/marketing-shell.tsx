@@ -240,9 +240,9 @@ function FooterCol({
 }) {
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
         {title}
-      </h4>
+      </h2>
       <ul className="mt-3 space-y-2">
         {links.map((l) => (
           <li key={l.href}>
@@ -286,9 +286,9 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
       aria-label={title}
       className="mt-10 border-t border-[#F1F5F9] pt-6 text-xs leading-relaxed text-[#64748B]"
     >
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
         {title}
-      </h4>
+      </h2>
       <p className="mt-2 max-w-3xl">
         {intro}{' '}
         <a
@@ -308,9 +308,9 @@ function NetopiaTrustSignal({ locale }: { locale: Locale }) {
         </div>
         {/* Consumer protection badges (ANPC + SAL + Legislație + SOL UE) */}
         <div className="flex-1">
-          <h5 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
+          <h3 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
             {protectionTitle}
-          </h5>
+          </h3>
           <ConsumerBadges variant="badges" />
         </div>
       </div>
