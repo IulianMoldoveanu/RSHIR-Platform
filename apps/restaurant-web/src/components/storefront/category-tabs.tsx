@@ -10,6 +10,7 @@ import {
   iconForCategory,
   tileStyleForCategory,
 } from './category-icon';
+import { FoodIcon } from './food-icons';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -88,7 +89,7 @@ export function CategoryTabs({
       >
         {categories.map((c) => {
           const active = c.id === activeId;
-          const Icon = iconForCategory(c.name);
+          const iconName = iconForCategory(c.name);
           // Unselected: white card, category-coloured monoline glyph.
           // Selected: filled with the tenant's brand colour, white glyph.
           const tileStyle = tileStyleForCategory(c.name);
@@ -122,17 +123,14 @@ export function CategoryTabs({
                 ) : (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-[22px] border transition-shadow group-hover:shadow-md"
+                    className="absolute inset-0 rounded-[22px] border shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)] group-active:translate-y-0"
                     style={tileStyle}
                   />
                 )}
-                {/* strokeWidth 1.5 is what turns a Lucide UI glyph into
-                    something that reads as a drawing at this size. */}
-                <Icon
+                <FoodIcon
+                  name={iconName}
                   className="relative h-7 w-7"
-                  strokeWidth={1.5}
                   style={{ color: active ? '#FFFFFF' : accentForCategory(c.name) }}
-                  aria-hidden
                 />
               </span>
               <span
