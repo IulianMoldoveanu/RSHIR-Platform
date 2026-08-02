@@ -29,8 +29,12 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** Accepts one origin per line; returns the valid ones and the rejects. */
-export function parseOrigins(raw: string): { origins: string[]; invalid: string[] } {
+/**
+ * Accepts one origin per line; returns the valid ones and the rejects.
+ * Not exported: in a `'use server'` module every export must be an async
+ * function, and Next fails the build otherwise.
+ */
+function parseOrigins(raw: string): { origins: string[]; invalid: string[] } {
   const origins: string[] = [];
   const invalid: string[] = [];
   for (const line of raw.split(/[\n,]/)) {
