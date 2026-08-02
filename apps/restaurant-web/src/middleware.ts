@@ -92,6 +92,45 @@ export function middleware(request: NextRequest) {
     });
   }
 
+  // Framing + CSP. Owned here rather than in next.config.mjs because the
+  // decision depends on `isEmbed`, which comes from the query param on the
+  // first load and from the `hir_embed` cookie on every navigation after it —
+  // a static config rule can only see the query string.
+  //
+  // 2026-08-02, confirmed empirically: the previous blanket
+  // `X-Frame-Options: SAMEORIGIN` in next.config.mjs broke the embed widget
+  // outright. Loading the widget's iframe from any merchant domain produced
+  // "Refused to display 'https://hirforyou.ro/' in a frame because it set
+  // 'X-Frame-Options' to 'sameorigin'". SAMEORIGIN is just as fatal as DENY
+  // for third-party framing — the config comment claiming otherwise was wrong.
+  //
+  // Only the embed surface is framable, and only while embed mode is active;
+  // everything else (marketing pages, checkout, /account, /track) stays
+  // same-origin-only, which is stricter than what shipped before.
+  //
+  // The rest of the policy is the subset that is safe to enforce without
+  // nonces: it blocks <base> hijacking, plugin content and form posts to
+  // foreign origins. Verified safe for payments — the PSP hand-off is a
+  // `window.location.href` navigation, not a form POST, so `form-action`
+  // never sees it. script-src/style-src are deliberately NOT set yet: Next's
+  // hydration bootstrap is inline, so those need nonce plumbing and a
+  // report-only bake first.
+  const csp = [
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    isEmbed ? 'frame-ancestors *' : "frame-ancestors 'self'",
+    'upgrade-insecure-requests',
+  ].join('; ');
+  response.headers.set('Content-Security-Policy', csp);
+  if (!isEmbed) {
+    // Kept alongside frame-ancestors for browsers that honour only the older
+    // header. Deliberately absent in embed mode: X-Frame-Options has no
+    // "allow this specific third party" value, so any value at all would
+    // re-break the widget.
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  }
+
   return response;
 }
 

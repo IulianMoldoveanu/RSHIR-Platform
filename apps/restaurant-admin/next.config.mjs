@@ -29,6 +29,22 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'geolocation=(), camera=(), microphone=()' },
+          // 2026-08-02 audit: Vercel auto-adds a bare `max-age` on custom
+          // domains, without includeSubDomains/preload. Set explicitly so
+          // app.hirforyou.ro matches the apex's posture.
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          // The subset of CSP that is safe to enforce without nonce plumbing:
+          // blocks <base> hijacking, plugin content, framing, and form posts
+          // to foreign origins. script-src/style-src need a nonce (Next's
+          // hydration bootstrap is inline) and are deliberately left out.
+          {
+            key: 'Content-Security-Policy',
+            value:
+              "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+          },
         ],
       },
     ];
