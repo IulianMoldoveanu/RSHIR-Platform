@@ -71,7 +71,9 @@ export const FOOD_ICON_SHAPES: Record<FoodIconName, Shape[]> = {
   // Sesame bun, wavy lettuce, patty, base bun.
   burger: [
     { d: 'M3.7 10.5a8.3 6.2 0 0 1 16.6 0Z' },
-    { d: 'M9.1 7.3h.01M12.4 6.4h.01M15.4 7.7h.01', solid: true },
+    { cx: 9.1, cy: 7.3, r: 0.55, solid: true },
+    { cx: 12.4, cy: 6.5, r: 0.55, solid: true },
+    { cx: 15.4, cy: 7.6, r: 0.55, solid: true },
     { d: 'M3.4 12.8c1.4-1 2.8-1 4.2 0s2.8 1 4.2 0 2.8-1 4.2 0 2.5 1 3.6.2' },
     { d: 'M4.3 17.5h15.4v.5a2.9 2.9 0 0 1-2.9 2.9H7.2a2.9 2.9 0 0 1-2.9-2.9Z' },
   ],

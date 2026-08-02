@@ -107,7 +107,7 @@ export function CategoryTabs({
               {/* Sliding active background — Wolt-style. layoutId means the
                   same DOM node is reused across tiles and framer morphs
                   position+size smoothly. */}
-              <span className="relative flex h-16 w-16 items-center justify-center rounded-[22px]">
+              <span className="relative flex h-16 w-16 items-center justify-center rounded-[22px] transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-active:translate-y-0">
                 {active ? (
                   <motion.span
                     layoutId="category-tab-active"
@@ -123,7 +123,7 @@ export function CategoryTabs({
                 ) : (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-[22px] border shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)] group-active:translate-y-0"
+                    className="absolute inset-0 rounded-[22px] border shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200 ease-out group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)]"
                     style={tileStyle}
                   />
                 )}
