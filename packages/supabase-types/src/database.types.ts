@@ -8355,7 +8355,9 @@ export type Database = {
           id: string
           ip: string | null
           kind: string
+          message: string | null
           name: string | null
+          phone: string | null
           ref_partner_code: string | null
           restaurants_count: number | null
         }
@@ -8368,7 +8370,9 @@ export type Database = {
           id?: string
           ip?: string | null
           kind: string
+          message?: string | null
           name?: string | null
+          phone?: string | null
           ref_partner_code?: string | null
           restaurants_count?: number | null
         }
@@ -8381,7 +8385,9 @@ export type Database = {
           id?: string
           ip?: string | null
           kind?: string
+          message?: string | null
           name?: string | null
+          phone?: string | null
           ref_partner_code?: string | null
           restaurants_count?: number | null
         }
@@ -10580,6 +10586,7 @@ export type Database = {
       }
       restaurant_menu_items: {
         Row: {
+          allergens: string[]
           category_id: string
           created_at: string
           description: string | null
@@ -10600,6 +10607,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allergens?: string[]
           category_id: string
           created_at?: string
           description?: string | null
@@ -10620,6 +10628,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allergens?: string[]
           category_id?: string
           created_at?: string
           description?: string | null

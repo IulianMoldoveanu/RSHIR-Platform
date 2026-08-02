@@ -58,48 +58,40 @@ const RESTAURANT_KEYWORD_ICONS: Array<{ icon: LucideIcon; keywords: string[] }> 
   { icon: Leaf, keywords: ['fresh', 'healthy', 'sanatos'] },
 ];
 
-// Duotone gradient stops per RESTAURANT_KEYWORD_ICONS entry (same index) —
-// each category gets its own identity instead of a shared flat pastel, so
-// the tile strip reads as designed rather than templated. Picked from
-// Tailwind's 500-900 range (reliable ≥3:1 contrast for a white icon glyph
-// at any point in the gradient, not just the darker stop) and spread across
-// the hue wheel so neighbouring tiles stay visually distinct even when two
-// categories land in the same broad family (e.g. Croissant's coffee-brown
-// amber-700→900 vs Pizza's brighter amber-500→700).
-const TILE_GRADIENTS: ReadonlyArray<readonly [from: string, to: string]> = [
-  ['#F59E0B', '#B45309'], // Pizza — amber
-  ['#F97316', '#C2410C'], // Drumstick (pui) — orange
-  ['#EAB308', '#A16207'], // Egg — yellow
-  ['#84CC16', '#4D7C0F'], // Sandwich/burger — lime
-  ['#EF4444', '#B91C1C'], // Popcorn (cartofi/gustări) — red
-  ['#F43F5E', '#BE123C'], // Soup — rose
-  ['#10B981', '#047857'], // Salad — emerald
-  ['#DC2626', '#7F1D1D'], // Beef — brick red
-  ['#0EA5E9', '#0369A1'], // Fish — sky
-  ['#B45309', '#78350F'], // Croissant — coffee brown
-  ['#CA8A04', '#713F12'], // Wheat — toasted wheat
-  ['#3B82F6', '#1D4ED8'], // Milk — blue
-  ['#06B6D4', '#0E7490'], // CupSoda — cyan
-  ['#EC4899', '#BE185D'], // IceCreamCone — pink
-  ['#D946EF', '#A21CAF'], // Cake — fuchsia
-  ['#EA580C', '#9A3412'], // Flame — ember orange
-  ['#A855F7', '#7E22CE'], // Sparkles — purple
-  ['#22C55E', '#15803D'], // Leaf — green
+// One ink colour per RESTAURANT_KEYWORD_ICONS entry (same index).
+//
+// 2026-08-02 — these used to be full duotone gradients filling the whole tile
+// with a white glyph on top. Iulian rejected that look outright ("butoanele
+// inca nu arata la un nivel profesional ... sa aiba un design artistic si
+// placut la vedere") against Boost Eat's category row, which is white cards
+// with a drawn line-art glyph. Saturated gradient blobs read as templated UI
+// chrome; a monoline glyph on white reads as illustration.
+//
+// So the colour is now carried by the *glyph*, not by a filled background:
+// each category keeps its own identity, but the strip stays calm and the
+// icons stay legible at 28px. Values are Tailwind's 600 range, dark enough
+// for ≥4.5:1 on white.
+const CATEGORY_ACCENTS: ReadonlyArray<string> = [
+  '#D97706', // Pizza — amber
+  '#EA580C', // Drumstick (pui) — orange
+  '#CA8A04', // Egg — yellow
+  '#65A30D', // Sandwich/burger — lime
+  '#DC2626', // Popcorn (cartofi/gustări) — red
+  '#E11D48', // Soup — rose
+  '#059669', // Salad — emerald
+  '#B91C1C', // Beef — brick red
+  '#0284C7', // Fish — sky
+  '#92400E', // Croissant — coffee brown
+  '#A16207', // Wheat — toasted wheat
+  '#2563EB', // Milk — blue
+  '#0891B2', // CupSoda — cyan
+  '#DB2777', // IceCreamCone — pink
+  '#C026D3', // Cake — fuchsia
+  '#C2410C', // Flame — ember orange
+  '#9333EA', // Sparkles — purple
+  '#16A34A', // Leaf — green
 ];
-const FALLBACK_GRADIENT: readonly [string, string] = ['#A1A1AA', '#52525B']; // zinc
-
-/** A diagonal duotone with a soft top-left highlight baked into the same
- *  `background` value — one element gets both a color identity and a hint
- *  of dimensionality, no extra DOM node for the highlight layer. */
-function gradientBackground([from, to]: readonly [string, string]): string {
-  return `radial-gradient(circle at 30% 22%, rgba(255,255,255,0.45), transparent 45%), linear-gradient(135deg, ${from}, ${to})`;
-}
-
-/** Soft ambient shadow in the gradient's own hue, so the tile reads as
- *  lifted rather than flat-printed on the page. */
-function gradientShadow([, to]: readonly [string, string]): string {
-  return `0 8px 20px -8px ${to}80`;
-}
+const FALLBACK_ACCENT = '#52525B'; // zinc-600
 
 function normalize(s: string): string {
   return s
@@ -120,31 +112,32 @@ export function iconForCategory(name: string): LucideIcon {
   return idx === -1 ? UtensilsCrossed : RESTAURANT_KEYWORD_ICONS[idx]!.icon;
 }
 
-export type CategoryTileStyle = {
-  /** CSS `background` value — a duotone gradient with a baked-in highlight. */
-  background: string;
-  /** CSS `boxShadow` value — a soft shadow tinted to the tile's own hue. */
-  boxShadow: string;
-};
-
-/** Resolves the inactive-state tile style (gradient + ambient shadow) for a
- *  category, matched to the same keyword as its icon so each category tile
- *  reads as individually designed rather than templated. */
-export function tileStyleForCategory(name: string): CategoryTileStyle {
+/** The category's ink colour: the glyph stroke on an unselected tile, and the
+ *  hue its card is faintly washed and outlined with. Matched by the same
+ *  keyword as the icon, so a category's colour and its glyph always agree. */
+export function accentForCategory(name: string): string {
   const idx = matchIndex(name);
-  const pair = idx === -1 ? FALLBACK_GRADIENT : TILE_GRADIENTS[idx] ?? FALLBACK_GRADIENT;
-  return { background: gradientBackground(pair), boxShadow: gradientShadow(pair) };
+  return idx === -1 ? FALLBACK_ACCENT : CATEGORY_ACCENTS[idx] ?? FALLBACK_ACCENT;
 }
 
-// Active-state tile style — same glossy-highlight treatment as the inactive
-// gradients, over the tenant's own brand color (falling back to HIR's
-// default purple) so the selected tile still feels designed, not just
-// "brand color, flat." Fixed to the fallback purple's own glow rather than
-// computed from the CSS var: mixing a CSS custom property into an rgba()
-// string needs color-mix(), which is newer than this codebase wants to
-// depend on for a decorative shadow.
-export const ACTIVE_TILE_STYLE: CategoryTileStyle = {
-  background:
-    'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.35), transparent 45%), var(--hir-brand, #7c3aed)',
-  boxShadow: '0 8px 20px -6px rgba(124, 58, 237, 0.45)',
-};
+/** Inactive tile: a white card washed with ~4% of the category's own hue and
+ *  outlined in ~28% of it. Enough for the strip to look composed rather than
+ *  monochrome, far short of a filled colour block. */
+export function tileStyleForCategory(name: string): {
+  background: string;
+  borderColor: string;
+} {
+  const accent = accentForCategory(name);
+  return { background: `${accent}0A`, borderColor: `${accent}47` };
+}
+
+// Selected tile — filled with the tenant's own brand colour (HIR purple as the
+// fallback) with a white glyph on top, the same figure/ground flip Boost Eat
+// uses for the active category. Shadow is pinned to the fallback purple rather
+// than computed from the CSS var: mixing a custom property into rgba() needs
+// color-mix(), newer than this codebase wants to depend on for decoration.
+export const ACTIVE_TILE_STYLE = {
+  background: 'var(--hir-brand, #7c3aed)',
+  borderColor: 'transparent',
+  boxShadow: '0 10px 22px -10px rgba(124, 58, 237, 0.55)',
+} as const;

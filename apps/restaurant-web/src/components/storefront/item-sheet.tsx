@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus, Timer, UtensilsCrossed } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, allergensFor } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
@@ -178,6 +178,34 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
 
           {item.description ? (
             <p className="text-sm leading-relaxed text-zinc-600">{item.description}</p>
+          ) : null}
+
+          {/* Allergens — EU 1169/2011 art. 14 requires this to reach the
+              customer before the purchase is concluded, so it sits above the
+              modifiers and the add-to-cart button, not in a footnote. Renders
+              nothing when the tenant declared none: an empty list means "not
+              declared", and printing "no allergens" for it would be a claim we
+              have no basis to make. */}
+          {item.allergens.length > 0 ? (
+            <section aria-label={t(locale, 'item.allergens_title')} className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                {t(locale, 'item.allergens_title')}
+              </h3>
+              <ul className="flex flex-wrap gap-1.5">
+                {allergensFor(item.allergens).map((a) => (
+                  <li
+                    key={a.code}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200"
+                  >
+                    <span aria-hidden>{a.emoji}</span>
+                    {locale === 'en' ? a.en : a.ro}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] leading-snug text-zinc-500">
+                {t(locale, 'item.allergens_note')}
+              </p>
+            </section>
           ) : null}
 
           {/* Required-first groups */}

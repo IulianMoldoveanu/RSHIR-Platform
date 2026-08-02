@@ -12,6 +12,7 @@
 // chrome and writes the cookie via /api/locale on click.
 
 import Link from 'next/link';
+import { User } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { ConsumerBadges } from '@/components/legal/consumer-badges';
 import { NetopiaLogo } from '@/components/marketing/netopia-logo';
@@ -99,12 +100,19 @@ export function MarketingHeader({
               buttons into one, per Iulian ("un singur buton, nu doua"). Both
               destinations already converge on /intra-in-cont (a "log in or
               create account?" hub) — that page is the natural single target
-              instead of guessing which of the two a visitor wants. */}
+              instead of guessing which of the two a visitor wants.
+              2026-08-02 — now a person glyph rather than a word ("in loc de
+              butonul de conecteaza te vreau sa apara un buton cu forma
+              omuletului, arata mai bine"). The label survives as the accessible
+              name, so screen readers and the tooltip still say "Conectează-te"
+              — an unlabelled icon button would be the classic regression. */}
           <Link
             href="/intra-in-cont"
-            className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
+            title={t(currentLocale, 'marketing.shell.cta_account')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] transition-colors hover:bg-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
           >
-            {t(currentLocale, 'marketing.shell.cta_account')}
+            <User className="h-[18px] w-[18px]" aria-hidden />
+            <span className="sr-only">{t(currentLocale, 'marketing.shell.cta_account')}</span>
           </Link>
         </div>
       </div>

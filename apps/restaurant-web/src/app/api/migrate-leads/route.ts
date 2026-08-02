@@ -14,6 +14,14 @@ const restaurantSchema = z.object({
   city: z.string().trim().min(1).max(100),
   // Accept empty string so the optional URL field doesn't fail zod url() check
   gloriaFoodUrl: z.union([z.string().trim().url().max(500), z.literal('')]).optional(),
+  // 2026-08-02 — phone and message are their own fields now. /contact used to
+  // pack both into `ref`, which is capped at 100 chars because it maps to
+  // `ref_partner_code` (a partner code, not free text). Any real message blew
+  // past the cap and the whole submission came back `invalid_body`, so the
+  // contact form only ever accepted one-liners. See migration
+  // 20260802_001_contact_lead_phone_message.sql.
+  phone: z.string().trim().max(40).optional(),
+  message: z.string().trim().max(2000).optional(),
   ref: z.string().trim().max(100).optional(),
 });
 
@@ -27,6 +35,48 @@ const resellerSchema = z.object({
 });
 
 const bodySchema = z.discriminatedUnion('kind', [restaurantSchema, resellerSchema]);
+
+const TG_PREVIEW_CHARS = 600;
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Push the lead to Telegram. Nothing in this repo reads `migrate_leads` — no
+ * admin queue, no cron, no digest — so before this the /contact form wrote to
+ * a table nobody opens. A contact form whose messages are never seen is still
+ * a broken contact form, even once it stops returning 400.
+ *
+ * Best-effort by design: the lead is already committed when this runs, so a
+ * Telegram outage must never turn a saved message into an error for the
+ * visitor. Mirrors /api/connect/lead and /api/support/message.
+ */
+async function forwardToTelegram(lines: string[]): Promise<void> {
+  const bot = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_IULIAN_CHAT_ID;
+  if (!bot || !chatId) {
+    console.warn('[migrate-leads] telegram env missing');
+    return;
+  }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${bot}/sendMessage`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: lines.join('\n'),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+    });
+    if (!res.ok) {
+      console.error('[migrate-leads] telegram failed', res.status, await res.text());
+    }
+  } catch (e) {
+    console.error('[migrate-leads] telegram threw', (e as Error).message);
+  }
+}
 
 export async function POST(req: NextRequest) {
   const origin = assertSameOrigin(req);
@@ -70,6 +120,8 @@ export async function POST(req: NextRequest) {
           name: lead.restaurantName,
           city: lead.city,
           gloriafood_url: lead.gloriaFoodUrl || null,
+          phone: lead.phone || null,
+          message: lead.message || null,
           ref_partner_code: lead.ref || null,
           ip: storedIp,
         }
@@ -96,6 +148,34 @@ export async function POST(req: NextRequest) {
     console.error('[migrate-leads] insert failed', dbError.message);
     return NextResponse.json({ error: 'internal_error' }, { status: 500 });
   }
+
+  const lines =
+    lead.kind === 'restaurant'
+      ? [
+          '📨 <b>Mesaj nou de pe site</b>',
+          `🏪 ${escapeHtml(lead.restaurantName)}`,
+          `📧 ${escapeHtml(lead.email)}`,
+          ...(lead.phone ? [`📞 ${escapeHtml(lead.phone)}`] : []),
+          ...(lead.city ? [`📍 ${escapeHtml(lead.city)}`] : []),
+          ...(lead.message
+            ? [
+                '',
+                escapeHtml(
+                  lead.message.length > TG_PREVIEW_CHARS
+                    ? `${lead.message.slice(0, TG_PREVIEW_CHARS)}…`
+                    : lead.message,
+                ),
+              ]
+            : []),
+        ]
+      : [
+          '🤝 <b>Lead revânzător nou</b>',
+          `👤 ${escapeHtml(lead.name)}`,
+          `📧 ${escapeHtml(lead.email)}`,
+          `🌍 ${escapeHtml(lead.country)}`,
+          `📦 ${lead.portfolioSize} în portofoliu`,
+        ];
+  await forwardToTelegram(lines);
 
   return NextResponse.json({ ok: true });
 }

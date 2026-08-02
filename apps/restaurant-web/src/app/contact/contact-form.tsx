@@ -43,12 +43,18 @@ export function ContactForm({ locale }: { locale: Locale }) {
     const city = String(fd.get('city') ?? '').trim() || 'Necunoscut';
     const phone = String(fd.get('phone') ?? '').trim();
 
+    // The phone and the message go in their own fields. Packing them into
+    // `ref` (capped at 100 chars server-side, because it maps to a partner-code
+    // column) is what made this form return `invalid_body` for every message
+    // longer than a single line.
     const body = {
       kind: 'restaurant' as const,
       email,
       restaurantName: name,
       city: city || 'Necunoscut',
-      ref: `contact-form|${phone}|${message.slice(0, 500)}`,
+      phone,
+      message,
+      ref: 'contact-form',
     };
 
     try {

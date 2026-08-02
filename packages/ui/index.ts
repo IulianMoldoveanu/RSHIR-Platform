@@ -3,6 +3,7 @@ export * from './lib/geo';
 export * from './lib/courier-status';
 export * from './lib/order-status';
 export * from './lib/format';
+export * from './lib/allergens';
 
 export * from './components/ui/button';
 export * from './components/ui/card';

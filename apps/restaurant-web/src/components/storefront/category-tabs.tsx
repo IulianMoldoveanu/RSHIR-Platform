@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { t, type Locale } from '@/lib/i18n';
 import { motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
-import { ACTIVE_TILE_STYLE, iconForCategory, tileStyleForCategory } from './category-icon';
+import {
+  ACTIVE_TILE_STYLE,
+  accentForCategory,
+  iconForCategory,
+  tileStyleForCategory,
+} from './category-icon';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
 // matching <section id="cat-{id}">. As the user scrolls, an IntersectionObserver
@@ -84,10 +89,8 @@ export function CategoryTabs({
         {categories.map((c) => {
           const active = c.id === activeId;
           const Icon = iconForCategory(c.name);
-          // Duotone gradient per category (inactive state only) so tiles
-          // read as individually designed rather than templated — e.g.
-          // Pizza is amber, Salată is emerald, Supe is rose. Active tile
-          // always overrides to the tenant's brand color.
+          // Unselected: white card, category-coloured monoline glyph.
+          // Selected: filled with the tenant's brand colour, white glyph.
           const tileStyle = tileStyleForCategory(c.name);
           return (
             <motion.button
@@ -98,17 +101,16 @@ export function CategoryTabs({
               whileTap={reduceMotion ? undefined : tapPress}
               transition={{ duration: motionDurations.tap }}
               aria-current={active ? 'true' : undefined}
-              className="flex w-16 shrink-0 flex-col items-center gap-1"
+              className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5"
             >
               {/* Sliding active background — Wolt-style. layoutId means the
                   same DOM node is reused across tiles and framer morphs
-                  position+size smoothly. Square-rounded like MaPizza's
-                  category tiles rather than the previous pill treatment. */}
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-[20px]">
+                  position+size smoothly. */}
+              <span className="relative flex h-16 w-16 items-center justify-center rounded-[22px]">
                 {active ? (
                   <motion.span
                     layoutId="category-tab-active"
-                    className="absolute inset-0 rounded-[20px]"
+                    className="absolute inset-0 rounded-[22px]"
                     style={ACTIVE_TILE_STYLE}
                     transition={{
                       type: 'spring',
@@ -118,9 +120,20 @@ export function CategoryTabs({
                     }}
                   />
                 ) : (
-                  <span aria-hidden className="absolute inset-0 rounded-[20px]" style={tileStyle} />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-[22px] border transition-shadow group-hover:shadow-md"
+                    style={tileStyle}
+                  />
                 )}
-                <Icon className="relative h-6 w-6 text-white drop-shadow-sm" aria-hidden />
+                {/* strokeWidth 1.5 is what turns a Lucide UI glyph into
+                    something that reads as a drawing at this size. */}
+                <Icon
+                  className="relative h-7 w-7"
+                  strokeWidth={1.5}
+                  style={{ color: active ? '#FFFFFF' : accentForCategory(c.name) }}
+                  aria-hidden
+                />
               </span>
               <span
                 className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${

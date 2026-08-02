@@ -88,10 +88,13 @@ export default async function ContactPage() {
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <div className="grid gap-10 md:grid-cols-3">
           <div className="md:col-span-1">
-            <h2 className="text-base font-semibold text-[#0F172A]">
-              {t(locale, 'contact.details_title')}
-            </h2>
-            <ul className="mt-5 space-y-5 text-sm">
+            {/* 2026-08-02 — "Date de contact" under an <h1> that already says
+                "Contact" read as the same heading twice (Iulian: "contact si
+                contact detail sunt dublate"). Kept as sr-only so the section
+                still has an accessible name and the heading outline is intact;
+                the phone/email/address rows label themselves visually. */}
+            <h2 className="sr-only">{t(locale, 'contact.details_title')}</h2>
+            <ul className="space-y-5 text-sm">
               <ContactRow
                 icon={<Phone className="h-4 w-4" />}
                 label={t(locale, 'contact.label_phone')}

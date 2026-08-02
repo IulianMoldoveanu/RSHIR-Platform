@@ -156,5 +156,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // `_vercel` excluded 2026-08-02: those are platform routes (Web Analytics
+  // and Speed Insights scripts + their beacons), not app routes. Running
+  // middleware on them burns an edge invocation on every page view for a
+  // request that never needed tenant resolution, and any redirect or header
+  // we add there can only get in the platform's way.
+  matcher: ['/((?!_next/static|_next/image|_vercel|favicon.ico).*)'],
 };

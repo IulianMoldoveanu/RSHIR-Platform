@@ -1,3 +1,4 @@
+import { parseAllergens, type AllergenCode } from '@hir/ui';
 import { getSupabase } from './supabase';
 
 export type MenuItem = {
@@ -23,6 +24,11 @@ export type MenuItem = {
   // = not in the top-3. Renders as a "Cel mai comandat" / "Top vânzări"
   // badge on the menu card. Computed in getMenuByTenant from order history.
   popular_rank: 1 | 2 | 3 | null;
+  // EU 1169/2011 Annex II codes the tenant declared for this dish. Empty
+  // means "not declared" — never rendered as "allergen-free". Validated
+  // against the catalogue on read, so an unknown code from a bad import
+  // can't reach the customer.
+  allergens: AllergenCode[];
 };
 
 export type MenuModifier = {
@@ -78,7 +84,7 @@ export type MenuBrand = {
 };
 
 const ITEM_COLS =
-  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label';
+  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label, allergens';
 
 /**
  * Effective availability: persistent toggle AND not currently sold-out today.
@@ -170,6 +176,7 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
     popular_rank: popularRanks.get(rest.id) ?? null,
+    allergens: parseAllergens(rest.allergens),
   }));
 
   if (cats.length === 0) return [];
@@ -343,7 +350,11 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
   const rows = (res.data ?? []) as Array<
     Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
   >;
-  return rows.map(({ sold_out_until: _so, ...rest }) => ({ ...rest, popular_rank: null }));
+  return rows.map(({ sold_out_until: _so, ...rest }) => ({
+    ...rest,
+    popular_rank: null,
+    allergens: parseAllergens(rest.allergens),
+  }));
 }
 
 /**
@@ -404,6 +415,7 @@ export async function getTopPopularItems(
       ...rest,
       is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
       popular_rank: ranks.get(rest.id) ?? null,
+      allergens: parseAllergens(rest.allergens),
       modifiers: modsByItem.get(rest.id) ?? [],
       // The cart-upsell rail opens the standard ItemSheet which knows how
       // to fetch group state on its own. For now we ship empty groups; if
@@ -449,6 +461,7 @@ export async function getMenuItemsByIds(
         ...rest,
         is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
         popular_rank: null as 1 | 2 | 3 | null,
+        allergens: parseAllergens(rest.allergens),
         modifiers: modsByItem.get(rest.id) ?? [],
         modifierGroups: [] as MenuModifierGroup[],
       }))
@@ -531,6 +544,7 @@ export async function getItemByShortId(
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
     popular_rank: null,
+    allergens: parseAllergens(rest.allergens),
   };
 
   const modsRes = await supabase
