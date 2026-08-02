@@ -72,8 +72,8 @@ export const GUIDE_STEPS: readonly GuideStep[] = [
     titleKey: 'marketing.guide.step6_title',
     bodyKey: 'marketing.guide.step6_body',
     src: '/guide/courier-map.webp',
-    width: 460,
-    height: 986,
+    width: 520,
+    height: 978,
     frame: 'phone',
   },
 ] as const;

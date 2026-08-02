@@ -59,7 +59,7 @@ export default async function ClientsPage() {
           {t(currentLocale, 'marketing.clients.hero_title')}
         </h1>
 
-        <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="mt-12 grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {MARKETING_CLIENTS.map((client) => (
             <li
               key={client.slug}

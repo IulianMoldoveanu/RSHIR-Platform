@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { MarketingHeader, MarketingFooter } from './marketing-shell';
-import { HeroPhoneMockup } from './hero-phone-mockup';
+import { HeroShowcase } from './hero-showcase';
 import { HowItWorks } from './how-it-works';
 import { ClientLogos } from './client-logos';
 
@@ -25,63 +25,34 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
       <MarketingHeader active="/" currentLocale={currentLocale} />
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
+      {/* 2026-08-02 — no headline, no body copy, no stat strip. Iulian:
+          "exclude si scrisul cu afacerea ta. clientii tai etc. prima pagina sa
+          fie direct cu poza cu animatie pe telefon si in spate cum arata pe
+          desktop." The <h1> stays in the DOM but screen-reader-only: a page
+          with no h1 is an accessibility and SEO regression, and the title is
+          what Google reads even when nothing is drawn on screen. The
+          hero_title_*, hero_body and stat_* dictionary keys are now inert,
+          same convention as hero_badge. */}
       <section className="border-b border-[#E2E8F0] bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28">
-          {/* Hero badge "GloriaFood se închide..." hidden 2026-06-02 per Iulian
-              directive — keep link in nav (/migrate-from-gloriafood) only, not as
-              a prominent homepage banner. The dictionary key marketing.home.hero_badge
-              remains so this can be restored by adding back the div. */}
-          <div className="grid items-center gap-12 md:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <h1 className="text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl">
-                {t(currentLocale, 'marketing.home.hero_title_pre')}{' '}
-                <span className="text-[#4F46E5]">
-                  {t(currentLocale, 'marketing.home.hero_title_price')}
-                </span>
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-relaxed text-[#475569] md:text-lg">
-                {t(currentLocale, 'marketing.home.hero_body')}
-              </p>
-              {/* 2026-08-01 — single hero CTA pointing at the interactive demo.
-                  The old secondary "Încep singur — fără card" button was removed
-                  per Iulian; /migrate-from-gloriafood keeps its own page and
-                  sitemap entry, it's just no longer promoted here. */}
-              {/* 2026-08-01 (later) — a second, quiet CTA to the illustrated
-                  walkthrough at /cum-functioneaza. That page is now the site's
-                  main answer to "what is this?", so the hero should point at
-                  it as well as at the live demo. */}
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/demo-storefront"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-6 py-3.5 text-base font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-                >
-                  {t(currentLocale, 'marketing.home.cta_signup')}
-                  <ArrowRight className="h-4 w-4" aria-hidden />
-                </Link>
-                <Link
-                  href="/cum-functioneaza"
-                  className="inline-flex items-center justify-center rounded-md border border-[#CBD5E1] bg-white px-6 py-3.5 text-base font-medium text-[#0F172A] transition-colors hover:bg-[#F8FAFC] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-                >
-                  {t(currentLocale, 'marketing.shell.nav_how')}
-                </Link>
-              </div>
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20">
+          <h1 className="sr-only">{t(currentLocale, 'marketing.home.page_title')}</h1>
 
-              {/* Trust strip */}
-              <dl className="mt-14 grid gap-6 border-t border-[#F1F5F9] pt-8 sm:grid-cols-2">
-                <Stat
-                  label={t(currentLocale, 'marketing.home.stat_storefront_label')}
-                  value={t(currentLocale, 'marketing.home.stat_storefront_value')}
-                  sub={t(currentLocale, 'marketing.home.stat_storefront_sub')}
-                />
-                <Stat
-                  label={t(currentLocale, 'marketing.home.stat_importer_label')}
-                  value={t(currentLocale, 'marketing.home.stat_importer_value')}
-                  sub={t(currentLocale, 'marketing.home.stat_importer_sub')}
-                />
-              </dl>
-            </div>
+          <HeroShowcase currentLocale={currentLocale} />
 
-            <HeroPhoneMockup currentLocale={currentLocale} />
+          <div className="mt-12 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
+            <Link
+              href="/demo-storefront"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-[#4F46E5] px-6 py-3.5 text-base font-medium text-white shadow-md shadow-[#4F46E5]/25 ring-1 ring-inset ring-[#4338CA] transition-all hover:bg-[#4338CA] hover:shadow-lg hover:shadow-[#4F46E5]/30 active:translate-y-px focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+            >
+              {t(currentLocale, 'marketing.home.cta_signup')}
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+            <Link
+              href="/cum-functioneaza"
+              className="inline-flex items-center justify-center rounded-md border border-[#CBD5E1] bg-white px-6 py-3.5 text-base font-medium text-[#0F172A] transition-colors hover:bg-[#F8FAFC] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+            >
+              {t(currentLocale, 'marketing.shell.nav_how')}
+            </Link>
           </div>
         </div>
       </section>
@@ -149,20 +120,5 @@ export function MarketingHome({ currentLocale }: { currentLocale: Locale }) {
 
       <MarketingFooter currentLocale={currentLocale} />
     </main>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wider text-[#94A3B8]">{label}</dt>
-      <dd
-        className="mt-2 text-3xl font-semibold tracking-tight text-[#0F172A]"
-        style={{ fontFeatureSettings: '"tnum"' }}
-      >
-        {value}
-      </dd>
-      {sub && <dd className="mt-1 text-xs text-[#475569]">{sub}</dd>}
-    </div>
   );
 }
