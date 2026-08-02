@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { allowedEmbedOrigins } from '@/lib/embed-origins';
 
 /**
  * Host-based tenant routing.
@@ -17,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 // for 7 days and trap the visitor in repeated 404s.
 const TENANT_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const rawHost = request.headers.get('host') ?? '';
   const host = rawHost.split(':')[0];
   const slug = host.split('.')[0];
@@ -108,6 +109,14 @@ export function middleware(request: NextRequest) {
   // everything else (marketing pages, checkout, /account, /track) stays
   // same-origin-only, which is stricter than what shipped before.
   //
+  // 2026-08-02 (follow-up): embed mode used to widen this to
+  // `frame-ancestors *` — any site on the internet could frame a checkout
+  // surface. It now resolves the tenant's actual allow-list (verified
+  // custom_domain + `settings.embed.allowed_origins`); a tenant that has
+  // registered nothing gets no third-party framing at all. The lookup is
+  // cached and only runs on embed requests, so ordinary traffic pays nothing
+  // for it, and it fails closed on any error.
+  //
   // The rest of the policy is the subset that is safe to enforce without
   // nonces: it blocks <base> hijacking, plugin content and form posts to
   // foreign origins. Verified safe for payments — the PSP hand-off is a
@@ -115,19 +124,24 @@ export function middleware(request: NextRequest) {
   // never sees it. script-src/style-src are deliberately NOT set yet: Next's
   // hydration bootstrap is inline, so those need nonce plumbing and a
   // report-only bake first.
+  const frameAncestors = isEmbed
+    ? ["'self'", ...(await allowedEmbedOrigins(host, effectiveTenant))].join(' ')
+    : "'self'";
   const csp = [
     "base-uri 'self'",
     "object-src 'none'",
     "form-action 'self'",
-    isEmbed ? 'frame-ancestors *' : "frame-ancestors 'self'",
+    `frame-ancestors ${frameAncestors}`,
     'upgrade-insecure-requests',
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
-  if (!isEmbed) {
+  if (frameAncestors === "'self'") {
     // Kept alongside frame-ancestors for browsers that honour only the older
-    // header. Deliberately absent in embed mode: X-Frame-Options has no
-    // "allow this specific third party" value, so any value at all would
-    // re-break the widget.
+    // header — including when the request IS in embed mode but the tenant has
+    // registered no third-party origins, where the two agree anyway.
+    // Omitted the moment a third party is allowed: X-Frame-Options has no
+    // "allow this specific origin" value, so any value at all would re-break
+    // the widget.
     response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   }
 

@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { middleware } from './middleware';
+import { resetEmbedOriginCache } from '@/lib/embed-origins';
 
 // Regression cover for the framing headers. This shipped broken once: a
 // blanket `X-Frame-Options: SAMEORIGIN` in next.config.mjs meant the embed
 // widget's iframe was refused on every merchant domain, silently killing the
-// product. The rules below are the contract that keeps that from recurring.
+// product. It then shipped too permissive: `frame-ancestors *` let any site
+// on the internet frame a checkout surface. The rules below are the contract
+// that keeps both from recurring.
 
 function req(url: string, cookie?: string) {
   return new NextRequest(new URL(url), {
@@ -13,29 +16,99 @@ function req(url: string, cookie?: string) {
   });
 }
 
+/** Stand in for the v_tenants_storefront lookup the middleware makes. */
+function mockTenant(row: Record<string, unknown> | null) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(JSON.stringify(row ? [row] : []), { status: 200 })),
+  );
+}
+
+beforeEach(() => {
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://example.supabase.co');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon-test-key');
+  resetEmbedOriginCache();
+  mockTenant(null);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
+
 describe('middleware framing headers', () => {
-  it('locks framing to same-origin on a normal request', () => {
-    const res = middleware(req('https://hirforyou.ro/cum-functioneaza'));
+  it('locks framing to same-origin on a normal request', async () => {
+    const res = await middleware(req('https://hirforyou.ro/cum-functioneaza'));
     expect(res.headers.get('x-frame-options')).toBe('SAMEORIGIN');
     expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'self'");
   });
 
-  it('allows third-party framing when ?embed=1 is present', () => {
-    const res = middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1'));
-    // X-Frame-Options has no "allow this third party" value, so any value at
-    // all would re-break the widget.
-    expect(res.headers.get('x-frame-options')).toBeNull();
-    expect(res.headers.get('content-security-policy')).toContain('frame-ancestors *');
+  it('does NOT open framing to the world in embed mode', async () => {
+    const res = await middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1'));
+    expect(res.headers.get('content-security-policy')).not.toContain('frame-ancestors *');
   });
 
-  it('keeps allowing framing on later navigation, where only the cookie remains', () => {
-    const res = middleware(req('https://hirforyou.ro/checkout', 'hir_embed=1'));
-    expect(res.headers.get('x-frame-options')).toBeNull();
-    expect(res.headers.get('content-security-policy')).toContain('frame-ancestors *');
+  it('denies third-party framing when the tenant registered no origins', async () => {
+    mockTenant({ custom_domain: null, domain_status: 'NONE', settings: {} });
+    const res = await middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1'));
+    expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'self'");
+    // Same meaning, so the legacy header can stay for old browsers.
+    expect(res.headers.get('x-frame-options')).toBe('SAMEORIGIN');
   });
 
-  it('ships the nonce-free CSP directives on every response', () => {
-    const csp = middleware(req('https://hirforyou.ro/')).headers.get('content-security-policy') ?? '';
+  it('allows the origins the tenant registered, and drops X-Frame-Options', async () => {
+    mockTenant({
+      custom_domain: null,
+      domain_status: 'NONE',
+      settings: { embed: { allowed_origins: ['https://restaurantulmeu.ro'] } },
+    });
+    const res = await middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1'));
+    expect(res.headers.get('content-security-policy')).toContain(
+      "frame-ancestors 'self' https://restaurantulmeu.ro",
+    );
+    // X-Frame-Options has no "allow this specific origin" value, so any value
+    // at all would re-break the widget.
+    expect(res.headers.get('x-frame-options')).toBeNull();
+  });
+
+  it('allows a verified custom domain with no configuration at all', async () => {
+    mockTenant({ custom_domain: 'deliveryhouse.ro', domain_status: 'VERIFIED', settings: {} });
+    const csp = (await middleware(req('https://hirforyou.ro/?tenant=deliveryhouse&embed=1')))
+      .headers.get('content-security-policy') ?? '';
+    expect(csp).toContain('https://deliveryhouse.ro');
+    expect(csp).toContain('https://www.deliveryhouse.ro');
+  });
+
+  it('ignores an unverified custom domain', async () => {
+    mockTenant({ custom_domain: 'attacker.example', domain_status: 'PENDING', settings: {} });
+    const csp = (await middleware(req('https://hirforyou.ro/?tenant=deliveryhouse&embed=1')))
+      .headers.get('content-security-policy') ?? '';
+    expect(csp).not.toContain('attacker.example');
+  });
+
+  it('refuses a configured origin that would inject extra CSP directives', async () => {
+    mockTenant({
+      custom_domain: null,
+      domain_status: 'NONE',
+      settings: {
+        embed: { allowed_origins: ["https://ok.ro; script-src *", 'https://*', 'javascript:alert(1)'] },
+      },
+    });
+    const csp = (await middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1')))
+      .headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("frame-ancestors 'self';");
+    expect(csp).not.toContain('script-src *');
+    expect(csp).not.toContain('javascript:');
+  });
+
+  it('fails closed when the tenant lookup errors', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('network down'); }));
+    const res = await middleware(req('https://hirforyou.ro/?tenant=restaurant-demo&embed=1'));
+    expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'self'");
+  });
+
+  it('ships the nonce-free CSP directives on every response', async () => {
+    const csp = (await middleware(req('https://hirforyou.ro/'))).headers.get('content-security-policy') ?? '';
     expect(csp).toContain("base-uri 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("form-action 'self'");
