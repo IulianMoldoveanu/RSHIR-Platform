@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ComponentType, type SVGProps } from 'react';
+import { useCart } from '@/lib/cart/provider';
 import { motion } from 'framer-motion';
 import { Plus, RotateCcw, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
@@ -33,6 +34,8 @@ export function ReorderRail({
   /** Override outer wrapper padding when embedded in a denser container. */
   className?: string;
 }) {
+  const useCartStore = useCart();
+  const addItem = useCartStore((s) => s.addItem);
   const [openId, setOpenId] = useState<string | null>(null);
   const reduceMotion = useShouldReduceMotion();
   if (items.length === 0) return null;
@@ -108,6 +111,7 @@ export function ReorderRail({
             if (!v) setOpenId(null);
           }}
           locale={locale}
+          addItem={addItem}
         />
       )}
     </section>

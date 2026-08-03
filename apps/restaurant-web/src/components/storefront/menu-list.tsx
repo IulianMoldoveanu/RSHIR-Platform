@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useCart } from '@/lib/cart/provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SearchX, X } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
@@ -30,6 +31,8 @@ export function MenuList({
   categories: MenuCategory[];
   locale: Locale;
 }) {
+  const useCartStore = useCart();
+  const addItem = useCartStore((s) => s.addItem);
   const [query, setQuery] = useState('');
   const reduceMotion = useShouldReduceMotion();
 
@@ -145,7 +148,9 @@ export function MenuList({
                         <MenuItemCard
                           item={it}
                           modifiers={it.modifiers}
+                          modifierGroups={it.modifierGroups}
                           locale={locale}
+                          addItem={addItem}
                         />
                       </motion.div>
                     ))}

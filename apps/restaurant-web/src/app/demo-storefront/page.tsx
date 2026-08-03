@@ -90,7 +90,7 @@ export default async function DemoStorefrontPage() {
 
         <DemoFulfillmentSwitch />
 
-        <DemoMenu categories={categories} />
+        <DemoMenu categories={categories} locale={locale} />
       </div>
 
       <DemoCartBar tenantName={tenant.name} />

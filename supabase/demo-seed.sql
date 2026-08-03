@@ -226,6 +226,167 @@ $$;
 
 commit;
 
+-- ============================================================
+-- 2026-08-03 — richness pass.
+--
+-- The parity audit found the demo showing strictly less product than a real
+-- tenant: no prep times, no serving sizes, no sold-out state and — the
+-- expensive one — no per-item options at all. Modifiers are a thing
+-- restaurants buy this for, and a prospect clicking through the demo had no
+-- way to know they exist.
+--
+-- Idempotent: prep/serving are plain updates, and the modifier groups are
+-- dropped and rebuilt for this tenant only (cascade takes their options with
+-- them), so re-running never duplicates.
+-- ============================================================
+do $$
+declare
+  t_id uuid;
+  it_margherita uuid;
+  it_smash      uuid;
+  it_caesar     uuid;
+  it_espresso   uuid;
+  g_id          uuid;
+begin
+  select id into t_id from public.tenants where slug = 'restaurant-demo';
+  if t_id is null then
+    raise notice 'demo tenant missing — run the main seed first';
+    return;
+  end if;
+
+  -- Prep times, by category. Honest ranges for the dish, not marketing.
+  update public.restaurant_menu_items i
+     set prep_minutes = case c.name
+                          when 'Mic dejun'  then 12
+                          when 'Pizza'      then 18
+                          when 'Paste'      then 15
+                          when 'Burgeri'    then 14
+                          when 'Grătar'     then 22
+                          when 'Salate'     then 8
+                          when 'Supe'       then 10
+                          when 'Deserturi'  then 5
+                          when 'Băuturi'    then 3
+                          else 15
+                        end
+    from public.restaurant_menu_categories c
+   where c.id = i.category_id and i.tenant_id = t_id;
+
+  -- Serving sizes. Grams where a weight is meaningful, a label where it is not
+  -- (a drink is "500 ml", not 500 g).
+  update public.restaurant_menu_items i
+     set serving_size_grams = case c.name
+                                when 'Pizza'     then 480
+                                when 'Paste'     then 380
+                                when 'Burgeri'   then 320
+                                when 'Grătar'    then 350
+                                when 'Salate'    then 300
+                                when 'Mic dejun' then 280
+                                when 'Deserturi' then 160
+                                else null
+                              end
+    from public.restaurant_menu_categories c
+   where c.id = i.category_id and i.tenant_id = t_id and c.name <> 'Băuturi';
+
+  update public.restaurant_menu_items i
+     set serving_size_label = case i.name
+                                when 'Apă plată 500ml'     then '500 ml'
+                                when 'Limonadă casei'      then '400 ml'
+                                when 'Cafea espresso'      then '30 ml'
+                                when 'Supă de pui'         then '400 ml'
+                                when 'Ciorbă de burtă'     then '400 ml'
+                                when 'Supă cremă de linte' then '350 ml'
+                                else i.serving_size_label
+                              end
+   where i.tenant_id = t_id;
+
+  -- One item deliberately sold out, so a prospect sees that the product
+  -- handles "we ran out" without the operator deleting the dish.
+  --
+  -- Via sold_out_until, NOT is_available. The anon RLS policy on
+  -- restaurant_menu_items is "using (is_available = true)", so flipping that
+  -- flag removes the row from the storefront entirely and the sold-out card is
+  -- never rendered — verified 2026-08-03, the item simply vanished. Keeping
+  -- is_available true and dating sold_out_until forward is what an operator
+  -- actually does, and it is what isEffectivelyAvailable() reads.
+  --
+  -- Far-future date because this is a permanent demo fixture, not a real
+  -- shortage; a real one is dated to the end of service.
+  update public.restaurant_menu_items
+     set is_available = true,
+         sold_out_until = now() + interval '10 years'
+   where tenant_id = t_id and name = 'Papanași';
+
+  select id into it_margherita from public.restaurant_menu_items where tenant_id = t_id and name = 'Margherita'     limit 1;
+  select id into it_smash      from public.restaurant_menu_items where tenant_id = t_id and name = 'Smash Burger'   limit 1;
+  select id into it_caesar     from public.restaurant_menu_items where tenant_id = t_id and name = 'Caesar cu pui'  limit 1;
+  select id into it_espresso   from public.restaurant_menu_items where tenant_id = t_id and name = 'Cafea espresso' limit 1;
+
+  -- Rebuild rather than upsert: groups have no natural key, and cascade
+  -- removes their options for us.
+  delete from public.restaurant_menu_modifier_groups
+   where item_id in (select id from public.restaurant_menu_items where tenant_id = t_id);
+  delete from public.restaurant_menu_modifiers
+   where item_id in (select id from public.restaurant_menu_items where tenant_id = t_id);
+
+  -- Margherita: one required size, plus optional extras (max 3).
+  if it_margherita is not null then
+    insert into public.restaurant_menu_modifier_groups (item_id, name, is_required, select_min, select_max, sort_order)
+    values (it_margherita, 'Mărime', true, 1, 1, 0) returning id into g_id;
+    insert into public.restaurant_menu_modifiers (item_id, group_id, name, price_delta_ron, sort_order) values
+      (it_margherita, g_id, 'Normală 32cm', 0,     0),
+      (it_margherita, g_id, 'Mare 42cm',    14.00, 1);
+
+    insert into public.restaurant_menu_modifier_groups (item_id, name, is_required, select_min, select_max, sort_order)
+    values (it_margherita, 'Extra', false, 0, 3, 1) returning id into g_id;
+    insert into public.restaurant_menu_modifiers (item_id, group_id, name, price_delta_ron, sort_order) values
+      (it_margherita, g_id, 'Mozzarella în plus',       6.00, 0),
+      (it_margherita, g_id, 'Busuioc proaspăt',         3.00, 1),
+      (it_margherita, g_id, 'Ardei iute',               2.00, 2),
+      (it_margherita, g_id, 'Blat cu margine umplută',  8.00, 3);
+  end if;
+
+  -- Smash Burger: required doneness, optional add-ons (unlimited).
+  if it_smash is not null then
+    insert into public.restaurant_menu_modifier_groups (item_id, name, is_required, select_min, select_max, sort_order)
+    values (it_smash, 'Cum îl vrei', true, 1, 1, 0) returning id into g_id;
+    insert into public.restaurant_menu_modifiers (item_id, group_id, name, price_delta_ron, sort_order) values
+      (it_smash, g_id, 'Un burger', 0,     0),
+      (it_smash, g_id, 'Dublu',     12.00, 1);
+
+    insert into public.restaurant_menu_modifier_groups (item_id, name, is_required, select_min, select_max, sort_order)
+    values (it_smash, 'Adaugă', false, 0, null, 1) returning id into g_id;
+    insert into public.restaurant_menu_modifiers (item_id, group_id, name, price_delta_ron, sort_order) values
+      (it_smash, g_id, 'Bacon',             5.00, 0),
+      (it_smash, g_id, 'Cheddar în plus',   4.00, 1),
+      (it_smash, g_id, 'Castraveți murați', 2.00, 2),
+      (it_smash, g_id, 'Cartofi prăjiți',   9.00, 3);
+  end if;
+
+  -- Caesar: dressing on the side is the classic required choice.
+  if it_caesar is not null then
+    insert into public.restaurant_menu_modifier_groups (item_id, name, is_required, select_min, select_max, sort_order)
+    values (it_caesar, 'Dressing', true, 1, 1, 0) returning id into g_id;
+    insert into public.restaurant_menu_modifiers (item_id, group_id, name, price_delta_ron, sort_order) values
+      (it_caesar, g_id, 'Clasic',   0, 0),
+      (it_caesar, g_id, 'Separat',  0, 1),
+      (it_caesar, g_id, 'Fără',     0, 2);
+  end if;
+
+  -- Espresso: ungrouped optional modifiers — the legacy shape (group_id NULL),
+  -- kept on purpose so the demo exercises both patterns the product supports.
+  if it_espresso is not null then
+    insert into public.restaurant_menu_modifiers (item_id, name, price_delta_ron, sort_order) values
+      (it_espresso, 'Lapte',         2.00, 0),
+      (it_espresso, 'Shot dublu',    4.00, 1),
+      (it_espresso, 'Lapte vegetal', 3.00, 2);
+  end if;
+
+  raise notice 'demo richness applied';
+end;
+$$;
+
+commit;
+
 -- Verify (run as a separate query):
 --   select t.slug, t.name, tm.role, u.email
 --   from public.tenants t

@@ -1,22 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
-import { AllergenChips } from '@/components/storefront/allergen-chips';
+import { MenuItemCard } from '@/components/storefront/menu-item-card';
 import { useDemoCartStore } from '@/lib/demo/demo-cart-store';
-import {
-  accentForCategory,
-  iconForCategory,
-  tileStyleForCategory,
-} from '@/components/storefront/category-icon';
 import {
   CATEGORY_TILE_BOX,
   CATEGORY_TILE_BUTTON,
   CategoryTileLabel,
   CategoryTileVisual,
 } from '@/components/storefront/category-tile';
-import { FoodIcon } from '@/components/storefront/food-icons';
+import type { Locale } from '@/lib/i18n';
 
 // Category strip + item cards for the marketing-site demo storefront.
 //
@@ -27,7 +21,13 @@ import { FoodIcon } from '@/components/storefront/food-icons';
 // and can never touch a real order. Plain CSS transitions instead of the real
 // storefront's framer-motion treatment; a demo doesn't need the extra weight.
 
-export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
+export function DemoMenu({
+  categories,
+  locale,
+}: {
+  categories: MenuCategory[];
+  locale: Locale;
+}) {
   const addItem = useDemoCartStore((s) => s.addItem);
   const [activeId, setActiveId] = useState<string>(categories[0]?.id ?? '');
   const stripRef = useRef<HTMLDivElement>(null);
@@ -115,76 +115,24 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
           <section key={cat.id} id={`demo-cat-${cat.id}`} className="scroll-mt-32">
             <h2 className="mb-3 text-base font-bold tracking-tight text-zinc-900">{cat.name}</h2>
             <div className="flex flex-col gap-2.5">
-              {cat.items.map((item) => {
-                const iconName = iconForCategory(cat.name);
-                const tileStyle = tileStyleForCategory(cat.name);
-                return (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-2.5 transition-shadow hover:shadow-md"
-                  >
-                    {item.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.image_url}
-                        alt=""
-                        loading="lazy"
-                        className="h-20 w-20 shrink-0 rounded-xl bg-zinc-100 object-cover"
-                      />
-                    ) : (
-                      // No photo on this item — fall back to the category glyph
-                      // rather than a broken/empty box.
-                      <span
-                        className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border"
-                        style={tileStyle}
-                        aria-hidden
-                      >
-                        <FoodIcon
-                          name={iconName}
-                          className="h-8 w-8"
-                          style={{ color: accentForCategory(cat.name) }}
-                        />
-                      </span>
-                    )}
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold leading-tight text-zinc-900">{item.name}</p>
-                      {item.description && (
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-500">
-                          {item.description}
-                        </p>
-                      )}
-                      {/* Same component as the real storefront — the demo is the
-                          product's shop window, so it has to show what a
-                          properly declared menu looks like, and it must not be
-                          able to drift from the real thing. */}
-                      <div className="mt-1.5">
-                        <AllergenChips codes={item.allergens} locale="ro" label="Alergeni" />
-                      </div>
-                      <p className="mt-1.5 text-sm font-bold text-[var(--hir-brand)]">
-                        {item.price_ron.toFixed(2)} lei
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        addItem({
-                          itemId: item.id,
-                          name: item.name,
-                          unitPriceRon: item.price_ron,
-                          imageUrl: item.image_url,
-                          modifiers: [],
-                        })
-                      }
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--hir-brand)] text-white shadow-sm transition-transform active:scale-90"
-                      aria-label={`Adaugă ${item.name} în coș`}
-                    >
-                      <Plus className="h-5 w-5" aria-hidden />
-                    </button>
-                  </div>
-                );
-              })}
+              {/* The real storefront's card, not a copy of it (2026-08-03).
+                  The demo used to render its own simplified card, which meant a
+                  prospect never saw the popular badge, the prep time, the
+                  serving size, the sold-out state — or, most expensively, the
+                  options sheet: nothing in the demo suggested the product
+                  supports per-item choices at all. MenuItemCard takes the cart
+                  action as a prop now, so this passes the isolated demo store
+                  and the two carts still cannot touch each other. */}
+              {cat.items.map((item) => (
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  modifiers={item.modifiers}
+                  modifierGroups={item.modifierGroups}
+                  locale={locale}
+                  addItem={addItem}
+                />
+              ))}
             </div>
           </section>
         ))}

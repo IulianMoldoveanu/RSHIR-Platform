@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus, Timer, UtensilsCrossed } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, allergensFor } from '@hir/ui';
-import { useCart } from '@/lib/cart/provider';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import {
@@ -15,16 +14,35 @@ import {
 import type { MenuItemWithModifiers, MenuModifier, MenuModifierGroup } from '@/lib/menu';
 import { servingInfoLine } from '@/lib/serving';
 
+/**
+ * Adding a configured line to *a* cart.
+ *
+ * Structural on purpose. This used to be `useCart()` read inside the sheet,
+ * which bound the whole options UI to a real tenant's cart and meant the
+ * marketing demo could not show it at all — a prospect never saw that the
+ * product supports per-item options, which is a thing people buy this for.
+ * Taking the action as a prop lets the isolated demo cart pass its own, and
+ * the two carts still cannot touch each other (2026-08-03).
+ */
+export type AddToCart = (input: {
+  itemId: string;
+  name: string;
+  unitPriceRon: number;
+  imageUrl: string | null;
+  modifiers: Array<{ id: string; name: string; price_delta_ron: number }>;
+  qty?: number;
+  notes?: string;
+}) => void;
+
 type Props = {
   item: MenuItemWithModifiers;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locale: Locale;
+  addItem: AddToCart;
 };
 
-export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
-  const useCartStore = useCart();
-  const addItem = useCartStore((s) => s.addItem);
+export function ItemSheet({ item, open, onOpenChange, locale, addItem }: Props) {
   const reduceMotion = useShouldReduceMotion();
   const [qty, setQty] = useState(1);
   // selectedByGroup: groupId → Set<modifierId>. Required groups need the

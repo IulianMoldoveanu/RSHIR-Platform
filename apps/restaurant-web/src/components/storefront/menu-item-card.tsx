@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Plus, Timer, UtensilsCrossed } from 'lucide-react';
 import { AllergenChips } from './allergen-chips';
-import { ItemSheet } from './item-sheet';
-import { useCart } from '@/lib/cart/provider';
+import { ItemSheet, type AddToCart } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import {
@@ -21,6 +20,12 @@ type Props = {
   item: MenuItem;
   modifiers?: MenuItemWithModifiers['modifiers'];
   locale: Locale;
+  /** Which cart this card adds to. See AddToCart in ./item-sheet — the
+   *  marketing demo passes its own isolated store's action. */
+  addItem: AddToCart;
+  /** Groups with required/optional choices. Without these the card cannot know
+   *  an item needs configuring and quick-adds it instead. */
+  modifierGroups?: MenuItemWithModifiers['modifierGroups'];
 };
 
 // Row layout (Glovo / Wolt / UberEats style): text on the left, square image
@@ -29,14 +34,20 @@ type Props = {
 // (saves a tap; on the QA conversion-friction list). Tapping Add on an
 // item that does have modifiers still opens the sheet so required-or-
 // optional choices land properly.
-export function MenuItemCard({ item, modifiers = [], locale }: Props) {
+export function MenuItemCard({
+  item,
+  modifiers = [],
+  modifierGroups = [],
+  locale,
+  addItem,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  const useCartStore = useCart();
-  const addItem = useCartStore((s) => s.addItem);
-  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups: [] };
+  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups };
   const available = item.is_available;
-  const hasModifiers = modifiers.length > 0;
+  // Groups count too: an item whose only options live in a required group was
+  // being quick-added straight past its own choices.
+  const hasModifiers = modifiers.length > 0 || modifierGroups.length > 0;
   const reduceMotion = useShouldReduceMotion();
 
   useEffect(() => {
@@ -234,7 +245,13 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
       </motion.div>
 
       {available && (
-        <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} locale={locale} />
+        <ItemSheet
+          item={itemWithMods}
+          open={open}
+          onOpenChange={setOpen}
+          locale={locale}
+          addItem={addItem}
+        />
       )}
     </>
   );
