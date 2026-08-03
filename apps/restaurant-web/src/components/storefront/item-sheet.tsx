@@ -147,6 +147,12 @@ export function ItemSheet({ item, open, onOpenChange, locale, addItem }: Props) 
       unitPriceRon: item.price_ron,
       imageUrl: item.image_url,
       modifiers: selectedModifiers,
+      // The stepper above drives `lineTotal`, which is the number printed on
+      // this button — but `qty` was never sent, and both cart stores default it
+      // to 1. Choosing 3 showed "96,00 RON" and added one pizza at 32,00.
+      // Live on every tenant since the sheet shipped; found by Codex on #1051
+      // while it was being exposed in the demo.
+      qty,
     });
     onOpenChange(false);
   }
