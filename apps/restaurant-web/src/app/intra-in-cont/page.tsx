@@ -15,8 +15,12 @@ const ADMIN_URL =
 
 export const metadata: Metadata = {
   title: 'Conectează-te sau creează cont — HIR',
+  // Kept in step with the copy below: the old description ended "...creează un
+  // cont nou în mai puțin de 5 minute", which is the self-service promise this
+  // page no longer makes. Metadata is what a shared link shows, so it has to
+  // say the same thing the page does.
   description:
-    'Intră în contul HIR pentru a-ți gestiona comenzile, livrările și restaurantul. Sau creează un cont nou în mai puțin de 5 minute.',
+    'Intră în contul HIR pentru a-ți gestiona comenzile, livrările și restaurantul. Nu ai cont? Ți-l deschidem noi, împreună cu tine.',
   robots: { index: false, follow: true },
 };
 

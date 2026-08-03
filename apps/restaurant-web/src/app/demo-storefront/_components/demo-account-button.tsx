@@ -32,9 +32,12 @@ export function DemoAccountButton() {
         type="button"
         onClick={() => setOpen(true)}
         title="Contul meu"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-zinc-700 shadow-sm ring-1 ring-black/5 backdrop-blur transition-colors hover:bg-white focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        // Deliberately the same shape as the real storefront's account link and
+        // the LocaleSwitcher next to it (h-9 w-9, white, zinc border, shadow) —
+        // the pair has to read as one cluster.
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
-        <User className="h-[18px] w-[18px]" aria-hidden />
+        <User className="h-4 w-4" aria-hidden />
         <span className="sr-only">Contul meu</span>
       </button>
 

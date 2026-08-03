@@ -12,6 +12,7 @@
 // chrome and writes the cookie via /api/locale on click.
 
 import Link from 'next/link';
+import { User } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { ConsumerBadges } from '@/components/legal/consumer-badges';
 import { NetopiaLogo } from '@/components/marketing/netopia-logo';
@@ -96,16 +97,27 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          {/* 2026-08-03 — the account glyph moved OFF the presentation site and
-              into the demo storefront's header, per Iulian ("omuletul ... as
-              vrea sa apara in contul restaurantului demo, acolo ma
-              intereseaza"). It belongs there: in a storefront it means the
-              diner's own account, which is a real thing to show a prospect.
-              Here it only ever meant "sign yourself up", and onboarding is
-              handled personally ("toate onboardingurile vor fi facute personal
-              de mine"), so the button was inviting a journey nobody takes.
-              /intra-in-cont is untouched and still reachable from
-              /incepe-cu-hir for tenants who already have an account. */}
+          {/* 2026-08-01 — one button instead of separate Log in / Create
+              account, per Iulian ("un singur buton, nu doua"); both already
+              converged on /intra-in-cont.
+              2026-08-02 — a person glyph rather than a word. The label survives
+              as the accessible name, so screen readers and the tooltip still
+              say "Conectează-te"; an unlabelled icon button would be the
+              classic regression.
+              2026-08-03 — briefly removed from here while the same glyph was
+              added to the demo storefront, and put straight back: an existing
+              restaurant owner landing on any marketing page had no discoverable
+              way to sign in. The two are not alternatives. This one is the
+              tenant signing in to their dashboard; the one in the demo is the
+              diner's own account inside a storefront. */}
+          <Link
+            href="/intra-in-cont"
+            title={t(currentLocale, 'marketing.shell.cta_account')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] transition-colors hover:bg-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
+          >
+            <User className="h-[18px] w-[18px]" aria-hidden />
+            <span className="sr-only">{t(currentLocale, 'marketing.shell.cta_account')}</span>
+          </Link>
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
