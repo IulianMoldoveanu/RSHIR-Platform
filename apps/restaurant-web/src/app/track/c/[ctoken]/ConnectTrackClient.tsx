@@ -5,6 +5,7 @@ import { Bike, Check, ChefHat, CookingPot, PartyPopper, TriangleAlert, XCircle }
 import { motion } from 'framer-motion';
 import { Skeleton } from '@hir/ui';
 import { CourierTrackPanel } from '../../[token]/CourierTrackPanel';
+import type { Locale } from '@/lib/i18n';
 import { ClientCourierChat } from '../../[token]/ClientCourierChat';
 
 type CourierTrack = {
@@ -19,7 +20,7 @@ type CourierTrack = {
   courier: { first_name: string; last_lat: number | null; last_lng: number | null; last_seen_at: string | null } | null;
 };
 
-export function ConnectTrackClient({ ctoken }: { ctoken: string }) {
+export function ConnectTrackClient({ ctoken, locale }: { ctoken: string; locale: Locale }) {
   const [data, setData] = useState<CourierTrack | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -74,7 +75,7 @@ export function ConnectTrackClient({ ctoken }: { ctoken: string }) {
     <div className="space-y-5">
       <ConnectHero status={data.status} />
 
-      <CourierTrackPanel ctoken={ctoken} />
+      <CourierTrackPanel ctoken={ctoken} locale={locale} />
 
       {data.status !== 'CANCELLED' && (
         <ClientCourierChat

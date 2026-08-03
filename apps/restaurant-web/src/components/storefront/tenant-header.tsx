@@ -3,6 +3,7 @@ import { CalendarCheck, Clock, Flame, Gift, Phone, Star, Truck, UserRound } from
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
+import { CartHeaderButton } from './cart-header-button';
 
 type TenantHeaderProps = {
   name: string;
@@ -127,6 +128,7 @@ export function TenantHeader({
             scrolled to the identity row below. */}
         <div className="absolute right-3 top-3 flex items-center gap-2">
           <LocaleSwitcher current={locale} ariaLabel={t(locale, 'header.switch_locale')} />
+          <CartHeaderButton locale={locale} />
           <Link
             href="/account"
             aria-label={t(locale, isRecognizedCustomer ? 'account.header_link' : 'account.header_link_guest')}

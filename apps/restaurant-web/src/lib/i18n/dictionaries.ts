@@ -391,6 +391,31 @@ export const dictionaries = {
       your_order: 'Comanda ta',
       estimate_label: 'Estimat',
       estimate_pending: 'Va fi disponibil când curierul preia comanda.',
+      // Live courier panel (CourierTrackView). These were hard-coded Romanian
+      // inside the component until 2026-08-03; on an EN order the map sat
+      // under a Romanian caption.
+      courier_on_the_way_template: '{name} este pe drum',
+      courier_last_seen_template: 'ultima poziție {when}',
+      // `when` is built separately because Romanian puts "acum" in front of the
+      // duration and English puts "ago" behind it.
+      courier_seen_ago_template: 'acum {duration}',
+      courier_seen_moments_ago: 'acum câteva secunde',
+      courier_position_updating: 'actualizăm poziția curierului…',
+      courier_distance_near: 'Curierul este la mai puțin de 1 km de tine.',
+      courier_distance_to_you_template: 'Curierul este la ~{km} km de tine.',
+      courier_distance_to_restaurant_template: 'Curierul este la ~{km} km de restaurant.',
+      // Marketing demo (/demo-storefront/confirmare). Here because the demo
+      // renders the real timeline and the real courier panel, both of which
+      // follow the locale — leaving the page's own copy Romanian-only would
+      // give an English visitor a half-translated page.
+      demo_placed_title: 'Comandă demo plasată!',
+      demo_placed_body: 'Așa arată urmărirea comenzii în timp real pentru clienții tăi.',
+      demo_simulated_note:
+        'Curier și poziții simulate. Într-o comandă reală poziția vine din GPS-ul aplicației de curier și se actualizează la 15 secunde.',
+      demo_pickup_no_courier:
+        'Comanda e gata de ridicat. La ridicare nu există curier, deci nici hartă — exact ca în aplicația reală.',
+      demo_retry: 'Încearcă din nou demo-ul',
+      demo_want_this: 'Vreau asta pentru restaurantul meu →',
       products: 'Produse',
       delivered_to: 'Livrare la',
       pickup_at_template: 'Ridicare la {address}',
@@ -1450,6 +1475,22 @@ export const dictionaries = {
       your_order: 'Your order',
       estimate_label: 'Estimate',
       estimate_pending: 'Available when the courier picks up your order.',
+      courier_on_the_way_template: '{name} is on the way',
+      courier_last_seen_template: 'last position {when}',
+      courier_seen_ago_template: '{duration} ago',
+      courier_seen_moments_ago: 'moments ago',
+      courier_position_updating: 'updating the courier position…',
+      courier_distance_near: 'The courier is less than 1 km from you.',
+      courier_distance_to_you_template: 'The courier is ~{km} km from you.',
+      courier_distance_to_restaurant_template: 'The courier is ~{km} km from the restaurant.',
+      demo_placed_title: 'Demo order placed!',
+      demo_placed_body: 'This is what live order tracking looks like for your customers.',
+      demo_simulated_note:
+        'Simulated courier and positions. On a real order the position comes from the courier app’s GPS and refreshes every 15 seconds.',
+      demo_pickup_no_courier:
+        'The order is ready for collection. Pickup has no courier, so no map — exactly as in the real app.',
+      demo_retry: 'Try the demo again',
+      demo_want_this: 'I want this for my restaurant →',
       products: 'Items',
       delivered_to: 'Delivery to',
       pickup_at_template: 'Pickup at {address}',
