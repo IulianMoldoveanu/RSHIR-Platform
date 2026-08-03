@@ -71,33 +71,77 @@ on conflict (slug) do update set
 do $$
 declare
   t_id uuid;
+  cat_breakfast uuid;
   cat_pizza uuid;
   cat_paste uuid;
+  cat_burger uuid;
+  cat_grill uuid;
+  cat_salate uuid;
+  cat_supe uuid;
+  cat_desert uuid;
   cat_drinks uuid;
   order_refs int;
 begin
   select id into t_id from public.tenants where slug = 'restaurant-demo';
 
-  -- Guard: if this tenant ever did accumulate real orders, bail out rather
-  -- than delete menu rows those orders might reference.
+  -- 2026-08-03 — this used to bail out entirely when the tenant had any orders,
+  -- on the assumption that orders reference menu rows. They don't:
+  -- `restaurant_orders` snapshots its line items into a jsonb column, and
+  -- information_schema shows no foreign key from orders to
+  -- restaurant_menu_items (only modifiers, menu_events and recipes point
+  -- there, and those are deleted with the items). So a menu reset here cannot
+  -- orphan an order.
+  --
+  -- The guard mattered: two fictional orders were seeded on 2026-08-01 to make
+  -- the admin dashboard screenshots non-empty, and they silently blocked every
+  -- re-seed after that — the menu simply stopped changing, with no error. Kept
+  -- as a notice so the situation is still visible in the log.
+  --
+  -- Note this whole block is hardcoded to slug = 'restaurant-demo', a throwaway
+  -- fixture behind the public /demo-storefront page. It can never touch a real
+  -- tenant's menu.
   select count(*) into order_refs from public.restaurant_orders where tenant_id = t_id;
   if order_refs > 0 then
-    raise notice 'restaurant-demo has % order(s) — skipping menu reset to avoid touching referenced rows', order_refs;
-    return;
+    raise notice 'restaurant-demo has % order(s); menu reset proceeds (orders snapshot their line items)', order_refs;
   end if;
 
   delete from public.restaurant_menu_items where tenant_id = t_id;
   delete from public.restaurant_menu_categories where tenant_id = t_id;
 
+  -- 2026-08-03 — grown from 3 categories to 9. Three tiles left most of the
+  -- strip empty, which made the demo look like a test fixture rather than a
+  -- restaurant (Iulian: "ar fi bine sa apara mai multe butoane si categorii, sa
+  -- arate mai profi"). Nine also gives the strip something to scroll, which is
+  -- the interaction a prospect is meant to notice, and it exercises nine
+  -- different glyphs instead of three.
   insert into public.restaurant_menu_categories (tenant_id, name, sort_order)
   values
-    (t_id, 'Pizza',     0),
-    (t_id, 'Paste',     1),
-    (t_id, 'Băuturi',   2);
+    (t_id, 'Mic dejun', 0),
+    (t_id, 'Pizza',     1),
+    (t_id, 'Paste',     2),
+    (t_id, 'Burgeri',   3),
+    (t_id, 'Grătar',    4),
+    (t_id, 'Salate',    5),
+    (t_id, 'Supe',      6),
+    (t_id, 'Deserturi', 7),
+    (t_id, 'Băuturi',   8);
 
-  select id into cat_pizza  from public.restaurant_menu_categories where tenant_id = t_id and name = 'Pizza'   limit 1;
-  select id into cat_paste  from public.restaurant_menu_categories where tenant_id = t_id and name = 'Paste'   limit 1;
-  select id into cat_drinks from public.restaurant_menu_categories where tenant_id = t_id and name = 'Băuturi' limit 1;
+  select id into cat_breakfast from public.restaurant_menu_categories where tenant_id = t_id and name = 'Mic dejun' limit 1;
+  select id into cat_pizza     from public.restaurant_menu_categories where tenant_id = t_id and name = 'Pizza'     limit 1;
+  select id into cat_paste     from public.restaurant_menu_categories where tenant_id = t_id and name = 'Paste'     limit 1;
+  select id into cat_burger    from public.restaurant_menu_categories where tenant_id = t_id and name = 'Burgeri'   limit 1;
+  select id into cat_grill     from public.restaurant_menu_categories where tenant_id = t_id and name = 'Grătar'    limit 1;
+  select id into cat_salate    from public.restaurant_menu_categories where tenant_id = t_id and name = 'Salate'    limit 1;
+  select id into cat_supe      from public.restaurant_menu_categories where tenant_id = t_id and name = 'Supe'      limit 1;
+  select id into cat_desert    from public.restaurant_menu_categories where tenant_id = t_id and name = 'Deserturi' limit 1;
+  select id into cat_drinks    from public.restaurant_menu_categories where tenant_id = t_id and name = 'Băuturi'   limit 1;
+
+  -- Mic dejun
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_breakfast, 'Ouă Benedict',   'Ou poșat, șuncă de Praga, sos olandez, muffin englezesc', 28.00, 0, true, 'https://images.unsplash.com/photo-1608039829572-78524f79c4c7?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte']),
+    (t_id, cat_breakfast, 'Pancakes cu fructe', 'Clătite pufoase, fructe de pădure, sirop de arțar',   24.00, 1, true, 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte']),
+    (t_id, cat_breakfast, 'Avocado toast',  'Pâine cu maia, avocado, ou ochi, semințe',                26.00, 2, true, 'https://images.unsplash.com/photo-1541519227354-08fa5d50c44d?w=400&h=400&fit=crop&q=80', array['gluten','oua','susan']);
 
   -- Pizza
   -- allergens: Reg. (UE) 1169/2011 Anexa II. Codurile sunt cele din
@@ -116,11 +160,47 @@ begin
     (t_id, cat_paste, 'Pesto Genovese', 'Busuioc proaspăt, pin, parmezan, ulei extravirgin', 34.00, 1, true, 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=400&h=400&fit=crop&q=80', array['gluten','lapte','nuci']),
     (t_id, cat_paste, 'Arrabbiata',     'Sos roșii picant, usturoi, ardei iute',             30.00, 2, true, 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400&h=400&fit=crop&q=80', array['gluten']);
 
+  -- Burgeri
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_burger, 'Smash Burger',    'Două chiftele de vită, cheddar, castraveți murați, sos casei', 39.00, 0, true, 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=400&fit=crop&q=80', array['gluten','lapte','oua','mustar','susan']),
+    (t_id, cat_burger, 'Crispy Chicken',  'Piept de pui pané, salată iceberg, maioneză cu usturoi',       36.00, 1, true, 'https://images.unsplash.com/photo-1606755962773-d324e0a13086?w=400&h=400&fit=crop&q=80', array['gluten','oua','mustar']),
+    (t_id, cat_burger, 'Veggie Burger',   'Chiftea de năut, hummus, roșii, rucola',                       33.00, 2, true, 'https://images.unsplash.com/photo-1520072959219-c595dc870360?w=400&h=400&fit=crop&q=80', array['gluten','susan']);
+
+  -- Grătar
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_grill, 'Ceafă de porc',    'Marinată în ierburi, cartofi noi, mujdei',        46.00, 0, true, 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&h=400&fit=crop&q=80', '{}'),
+    (t_id, cat_grill, 'Frigărui de pui',  'Pui marinat, ardei, ceapă roșie, sos tzatziki',   42.00, 1, true, 'https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?w=400&h=400&fit=crop&q=80', array['lapte']),
+    (t_id, cat_grill, 'Somon la grătar',  'File de somon, unt cu lămâie, legume la abur',    58.00, 2, true, 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400&h=400&fit=crop&q=80', array['peste','lapte']);
+
+  -- Salate
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_salate, 'Caesar cu pui',   'Salată romană, crutoane, parmezan, dressing Caesar', 34.00, 0, true, 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte','peste']),
+    (t_id, cat_salate, 'Grecească',       'Roșii, castraveți, măsline Kalamata, feta, oregano',  28.00, 1, true, 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=400&fit=crop&q=80', array['lapte']),
+    (t_id, cat_salate, 'Quinoa & avocado','Quinoa, avocado, edamame, semințe de dovleac',        32.00, 2, true, 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=400&fit=crop&q=80', array['soia']);
+
+  -- Supe
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_supe, 'Ciorbă de burtă',   'Servită cu smântână și ardei iute', 24.00, 0, true, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=400&fit=crop&q=80', array['lapte','telina','oua']),
+    (t_id, cat_supe, 'Supă cremă de linte','Linte roșie, morcov, chimion, ulei de măsline', 22.00, 1, true, 'https://images.unsplash.com/photo-1476718406336-bb5a9690ee2a?w=400&h=400&fit=crop&q=80', array['telina']),
+    (t_id, cat_supe, 'Supă de pui',       'Tăiței de casă, legume rădăcinoase',  22.00, 2, true, 'https://images.unsplash.com/photo-1603105037880-880cd4edfb0d?w=400&h=400&fit=crop&q=80', array['gluten','oua','telina']);
+
+  -- Deserturi
+  insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
+  values
+    (t_id, cat_desert, 'Tiramisu',        'Mascarpone, cafea espresso, cacao',        22.00, 0, true, 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte']),
+    (t_id, cat_desert, 'Papanași',        'Smântână și dulceață de afine',            26.00, 1, true, 'https://images.unsplash.com/photo-1519676867240-f03562e64548?w=400&h=400&fit=crop&q=80', array['gluten','oua','lapte']),
+    (t_id, cat_desert, 'Înghețată artizanală', 'Trei cupe la alegere',                18.00, 2, true, 'https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400&h=400&fit=crop&q=80', array['lapte']);
+
   -- Băuturi
   insert into public.restaurant_menu_items (tenant_id, category_id, name, description, price_ron, sort_order, is_available, image_url, allergens)
   values
     (t_id, cat_drinks, 'Limonadă casei',  'Lămâie, mentă, miere', 14.00, 0, true, 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=400&h=400&fit=crop&q=80', '{}'),
-    (t_id, cat_drinks, 'Apă plată 500ml', null,                    6.00, 1, true, 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&h=400&fit=crop&q=80', '{}');
+    (t_id, cat_drinks, 'Apă plată 500ml', null,                    6.00, 1, true, 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=400&h=400&fit=crop&q=80', '{}'),
+    (t_id, cat_drinks, 'Cafea espresso',  'Boabe 100% arabica',    9.00, 2, true, 'https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400&h=400&fit=crop&q=80', '{}');
 end;
 $$;
 

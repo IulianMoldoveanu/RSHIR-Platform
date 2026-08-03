@@ -31,13 +31,9 @@ type Copy = {
   loginTitle: string;
   loginBody: string;
   loginCta: string;
-  loginHint: string;
   signupTitle: string;
   signupBody: string;
   signupCta: string;
-  signupHint: string;
-  helpPrefix: string;
-  helpLink: string;
 };
 
 // 2026-08-03 — the sign-up side no longer promises self-service. Iulian sets up
@@ -47,6 +43,11 @@ type Copy = {
 // happens: we talk, then we set the account up together. The "De ce să ai cont
 // HIR" block that sat under these two cards is gone at his request — it was
 // selling an account to someone who has already come here to get one.
+//
+// 2026-08-03 (later) — the small print under each button ("Acces sigur prin
+// admin.hirforyou.ro", "Fără card · fără abonament") and the "Ai nevoie de
+// ajutor? Scrie-ne" line under the cards are gone too, same instruction. Two
+// cards, two buttons, nothing else. Contact is in the nav and in the footer.
 const RO: Copy = {
   eyebrow: 'Cont HIR',
   title: 'Bine ai venit. Cum vrei să continui?',
@@ -55,14 +56,10 @@ const RO: Copy = {
   loginBody:
     'Conectează-te cu emailul și parola pentru a vedea comenzile, livrările și setările restaurantului tău.',
   loginCta: 'Conectează-te',
-  loginHint: 'Acces sigur prin admin.hirforyou.ro',
   signupTitle: 'Vreau cont',
   signupBody:
     'Nu completezi nimic singur. Ne spui câteva lucruri despre restaurant, iar noi îți configurăm contul și meniul împreună cu tine.',
   signupCta: 'Hai să vorbim',
-  signupHint: 'Fără card · fără abonament',
-  helpPrefix: 'Ai nevoie de ajutor?',
-  helpLink: 'Scrie-ne pe contact',
 };
 
 const EN: Copy = {
@@ -73,14 +70,10 @@ const EN: Copy = {
   loginBody:
     'Sign in with your email and password to see your orders, deliveries and restaurant settings.',
   loginCta: 'Log in',
-  loginHint: 'Secure access via admin.hirforyou.ro',
   signupTitle: 'I want an account',
   signupBody:
     'Nothing to fill in on your own. Tell us a few things about your restaurant and we set the account and the menu up together with you.',
   signupCta: "Let's talk",
-  signupHint: 'No card · no subscription',
-  helpPrefix: 'Need help?',
-  helpLink: 'Contact us',
 };
 
 export default async function IntraInContPage() {
@@ -111,7 +104,6 @@ export default async function IntraInContPage() {
               title={c.loginTitle}
               body={c.loginBody}
               cta={c.loginCta}
-              hint={c.loginHint}
               href={`${ADMIN_URL}/login`}
               external
             />
@@ -121,20 +113,11 @@ export default async function IntraInContPage() {
               title={c.signupTitle}
               body={c.signupBody}
               cta={c.signupCta}
-              hint={c.signupHint}
               // Straight to /contact now, not through the "do it yourself or
               // let us help?" fork — there is only one path, and it's us.
               href="/contact"
             />
           </div>
-
-          <p className="mt-10 text-center text-sm text-[#64748B]">
-            {c.helpPrefix}{' '}
-            <Link href="/contact" className="font-medium text-[#4338CA] hover:underline">
-              {c.helpLink}
-            </Link>
-            .
-          </p>
         </section>
       </main>
       <MarketingFooter currentLocale={currentLocale} />
@@ -148,7 +131,6 @@ function AuthCard({
   title,
   body,
   cta,
-  hint,
   href,
   external,
 }: {
@@ -157,7 +139,6 @@ function AuthCard({
   title: string;
   body: string;
   cta: string;
-  hint: string;
   href: string;
   external?: boolean;
 }) {
@@ -192,7 +173,6 @@ function AuthCard({
       ) : (
         <Link href={href}>{ctaEl}</Link>
       )}
-      <p className="mt-3 text-center text-xs text-[#94A3B8]">{hint}</p>
     </div>
   );
 }

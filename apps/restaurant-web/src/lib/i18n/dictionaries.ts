@@ -998,7 +998,10 @@ export const dictionaries = {
     contact: {
       eyebrow: 'Contact',
       hero_title: 'Contact',
-      hero_body: 'Telefon, email sau formular. Răspundem în 24 de ore lucrătoare.',
+      // 2026-08-03 — the "răspundem în 24 de ore lucrătoare" promise dropped at
+      // Iulian's request. It was a commitment made on his behalf on the page
+      // where people actually write in.
+      hero_body: 'Telefon, email sau formular.',
       cta_call: 'Sună: +40 743 700 916',
       details_title: 'Date de contact',
       team_title: 'Echipa HIR',
@@ -1035,7 +1038,7 @@ export const dictionaries = {
       form_err_rate_limit: 'Prea multe încercări de pe această conexiune. Încearcă peste un minut.',
       form_err_network: 'Eroare de rețea. Încearcă din nou.',
       form_success_title: 'Mesaj trimis. Mulțumim!',
-      form_success_body: 'Echipa HIR revine pe email în 24 de ore lucrătoare. Pentru urgențe ne poți scrie la office@hirforyou.ro.',
+      form_success_body: 'Echipa HIR îți revine pe email. Pentru urgențe ne poți scrie la office@hirforyou.ro.',
     },
     // Lane WEB-I18N-EN-PARITY (2026-05-15) — public help / ajutor page RO.
     help: {
@@ -2013,7 +2016,7 @@ export const dictionaries = {
     contact: {
       eyebrow: 'Contact',
       hero_title: 'Contact',
-      hero_body: 'Phone, email or the form. We reply within 24 business hours.',
+      hero_body: 'Phone, email or the form.',
       cta_call: 'Call: +40 743 700 916',
       details_title: 'Contact details',
       team_title: 'HIR Team',
@@ -2050,7 +2053,7 @@ export const dictionaries = {
       form_err_rate_limit: 'Too many attempts from this connection. Try again in a minute.',
       form_err_network: 'Network error. Please try again.',
       form_success_title: 'Message sent. Thank you!',
-      form_success_body: 'The HIR team will reply by email within 24 business hours. For urgent matters you can write to office@hirforyou.ro.',
+      form_success_body: 'The HIR team will reply by email. For urgent matters you can write to office@hirforyou.ro.',
     },
     // Lane WEB-I18N-EN-PARITY (2026-05-15) — public help / ajutor page EN.
     help: {
