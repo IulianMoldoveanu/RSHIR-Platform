@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, LocateFixed, ShoppingBag, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
@@ -172,6 +172,29 @@ export function CheckoutClient(props: {
     if (cartLoading || !cart) return;
     if (cart.fulfillment === 'PICKUP' && pickupEnabled) setFulfillment('PICKUP');
   }, [cartLoading, cart, pickupEnabled]);
+
+  // ...and write the choice back when it is changed here, so the storefront
+  // switch agrees with what was actually ordered. Without this the copy is
+  // one-way: pick pickup on the menu, change to delivery here, go back, and
+  // the switch still says pickup — and `clear()` deliberately preserves
+  // fulfillment past the order, so the stale value outlives the basket.
+  // (Codex P2 on #1050.)
+  //
+  // `getCartStore` needs no provider — checkout sits outside the storefront
+  // route group and has none — and it rehydrates from the same
+  // `hir-cart-{tenantId}` key, so the items are untouched.
+  const applyFulfillment = useCallback(
+    (next: Fulfillment) => {
+      setFulfillment(next);
+      try {
+        getCartStore(props.tenantId).getState().setFulfillment(next);
+      } catch {
+        // localStorage disabled (private mode). The order still carries the
+        // right mode; only the storefront's memory of it is lost.
+      }
+    },
+    [props.tenantId],
+  );
   // Scheduled pickup time — 'ASAP' (default) or a specific 15-min slot ISO
   // string. Pickup-only; delivery orders always dispatch immediately.
   const [pickupTime, setPickupTime] = useState<string>('ASAP');
@@ -905,7 +928,7 @@ export function CheckoutClient(props: {
         {pickupEnabled && (
           <FulfillmentToggle
             value={fulfillment}
-            onChange={setFulfillment}
+            onChange={applyFulfillment}
             locale={locale}
           />
         )}

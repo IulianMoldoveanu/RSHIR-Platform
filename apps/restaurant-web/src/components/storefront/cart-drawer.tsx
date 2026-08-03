@@ -304,7 +304,11 @@ export function CartPill({
               {(() => {
                 const belowMin = minOrderRon > 0 && subtotal < minOrderRon;
                 const remainingToFree = Math.max(0, freeDeliveryThresholdRon - subtotal);
-                const showFreeBar = freeDeliveryThresholdRon > 0;
+                // Not on a pickup order: it has no delivery fee to earn, so
+                // the bar would be pushing the customer to spend more for
+                // something they already have. Same reason FreeDeliveryProgress
+                // hides itself (Codex P2 on #1050).
+                const showFreeBar = freeDeliveryThresholdRon > 0 && fulfillment !== 'PICKUP';
                 const reachedFree = showFreeBar && remainingToFree === 0;
                 const pct = showFreeBar
                   ? Math.min(100, Math.round((subtotal / freeDeliveryThresholdRon) * 100))
