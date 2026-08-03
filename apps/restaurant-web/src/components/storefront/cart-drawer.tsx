@@ -42,6 +42,7 @@ export function CartPill({
   const getSubtotal = useCartStore((s) => s.getSubtotal);
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
+  const fulfillment = useCartStore((s) => s.fulfillment);
 
   // Cart-aware upsell (co-occurrence — "goes well with what's in your cart",
   // not just tenant-wide best-sellers). Starts from the static server-
@@ -303,7 +304,11 @@ export function CartPill({
               {(() => {
                 const belowMin = minOrderRon > 0 && subtotal < minOrderRon;
                 const remainingToFree = Math.max(0, freeDeliveryThresholdRon - subtotal);
-                const showFreeBar = freeDeliveryThresholdRon > 0;
+                // Not on a pickup order: it has no delivery fee to earn, so
+                // the bar would be pushing the customer to spend more for
+                // something they already have. Same reason FreeDeliveryProgress
+                // hides itself (Codex P2 on #1050).
+                const showFreeBar = freeDeliveryThresholdRon > 0 && fulfillment !== 'PICKUP';
                 const reachedFree = showFreeBar && remainingToFree === 0;
                 const pct = showFreeBar
                   ? Math.min(100, Math.round((subtotal / freeDeliveryThresholdRon) * 100))
@@ -446,6 +451,11 @@ export function CartPill({
                               })),
                               notes: it.notes,
                             })),
+                            // Carries the storefront switch's choice into
+                            // checkout, so the picker there opens on what the
+                            // diner already said rather than resetting to
+                            // delivery. See fulfillment-switch.tsx.
+                            fulfillment,
                           };
                           window.sessionStorage.setItem('hir.cart', JSON.stringify(snapshot));
                         } catch {

@@ -13,6 +13,10 @@ import { t, type Locale } from '@/lib/i18n';
  * progress without opening the cart. Hides itself when:
  *   - tenant has no free_delivery_threshold configured (threshold = 0)
  *   - cart is empty (no point distracting before they add anything)
+ *   - the customer is collecting in person — a pickup order has no delivery
+ *     fee at all, so "spend X more for free delivery" pushes them to add
+ *     items for a benefit they already have (2026-08-03, Codex P2 on #1050,
+ *     reachable since the storefront started asking this above the menu)
  *
  * Source of truth is the same Zustand cart store the cart drawer reads
  * — values stay in lockstep automatically.
@@ -28,6 +32,7 @@ export function FreeDeliveryProgress({
   const [hydrated, setHydrated] = useState(false);
   const subtotal = useCartStore((s) => (hydrated ? s.getSubtotal() : 0));
   const count = useCartStore((s) => (hydrated ? s.getCount() : 0));
+  const isPickup = useCartStore((s) => hydrated && s.fulfillment === 'PICKUP');
 
   useEffect(() => {
     setHydrated(true);
@@ -35,6 +40,7 @@ export function FreeDeliveryProgress({
 
   if (thresholdRon <= 0) return null;
   if (!hydrated || count === 0) return null;
+  if (isPickup) return null;
 
   const remaining = Math.max(0, thresholdRon - subtotal);
   const reached = remaining === 0;
