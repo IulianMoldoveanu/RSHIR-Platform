@@ -27,19 +27,22 @@ import type { FoodIconName } from './food-icons';
 const RESTAURANT_KEYWORD_ICONS: Array<{ icon: FoodIconName; keywords: string[] }> = [
   { icon: 'pizza', keywords: ['pizza'] },
   { icon: 'chicken', keywords: ['pui', 'chicken', 'aripioare', 'wings'] },
-  { icon: 'egg', keywords: ['ou', 'oua', 'egg', 'omleta', 'omlet'] },
+  // NOT 'ou': a two-letter stem matches inside unrelated words, and it did —
+  // "Noutăți" normalises to "noutati", which contains "ou", so it took the egg
+  // instead of the sparkle. Stems have to be long enough to be words.
+  { icon: 'egg', keywords: ['oua', 'egg', 'omlet', 'ochiuri'] },
   { icon: 'burger', keywords: ['burger', 'sandwich', 'sandvis', 'smash', 'wrap'] },
   { icon: 'fries', keywords: ['cartof', 'fries', 'chips', 'snack', 'gustar'] },
   { icon: 'soup', keywords: ['sup', 'ciorb', 'soup'] },
   { icon: 'salad', keywords: ['salat', 'salad', 'vegetar', 'vegan'] },
   { icon: 'grill', keywords: ['carne', 'grill', 'gratar', 'meat', 'friptur', 'vita', 'porc'] },
   { icon: 'fish', keywords: ['peste', 'fish', 'sushi', 'fructe de mare', 'seafood'] },
-  { icon: 'croissant', keywords: ['mic dejun', 'breakfast', 'brunch', 'patiserie'] },
+  { icon: 'coffee', keywords: ['mic dejun', 'breakfast', 'brunch', 'patiserie', 'cafea', 'coffee'] },
   { icon: 'pasta', keywords: ['paste', 'pasta', 'ciabatta', 'focaccia', 'paine', 'bread'] },
   { icon: 'cheese', keywords: ['branz', 'cheese', 'lactate', 'iaurt'] },
   { icon: 'drink', keywords: ['baut', 'drink', 'suc', 'racoritoare', 'beverage'] },
   { icon: 'icecream', keywords: ['inghet', 'ice cream', 'desert'] },
-  { icon: 'cake', keywords: ['tort', 'prajitur', 'cake', 'dulce', 'sweet'] },
+  { icon: 'cake', keywords: ['tort', 'prajitur', 'cake', 'dulc', 'sweet'] },
   { icon: 'flame', keywords: ['picant', 'spicy', 'sos', 'sauce'] },
   { icon: 'sparkle', keywords: ['nou', 'new', 'special', 'recomandat'] },
   { icon: 'leaf', keywords: ['fresh', 'healthy', 'sanatos'] },
@@ -68,7 +71,7 @@ const CATEGORY_ACCENTS: ReadonlyArray<string> = [
   '#059669', // Salad — emerald
   '#B91C1C', // Grill / skewer — brick red
   '#0284C7', // Fish — sky
-  '#92400E', // Croissant — coffee brown
+  '#92400E', // Coffee / breakfast — coffee brown
   '#A16207', // Pasta — toasted wheat
   '#2563EB', // Cheese — blue
   '#0891B2', // Drink — cyan
@@ -108,15 +111,32 @@ export function accentForCategory(name: string): string {
   return idx === -1 ? FALLBACK_ACCENT : CATEGORY_ACCENTS[idx] ?? FALLBACK_ACCENT;
 }
 
-/** Inactive tile: a white card washed with ~4% of the category's own hue and
- *  outlined in ~28% of it. Enough for the strip to look composed rather than
- *  monochrome, far short of a filled colour block. */
-export function tileStyleForCategory(name: string): {
-  background: string;
-  borderColor: string;
-} {
-  const accent = accentForCategory(name);
-  return { background: `${accent}0A`, borderColor: `${accent}47` };
+/**
+ * Inactive tile: a plain white card. Identical for every category — all of the
+ * colour is carried by the glyph.
+ *
+ * 2026-08-03. This used to be a 4% wash of the category's hue behind a hairline
+ * at 28% of it. Rendered as a strip, that produced a row of *mismatched pastel
+ * boxes* — cream next to mint next to pink — and the eye read the containers
+ * instead of the icons. Five treatments were rendered side by side (coloured
+ * border / 10% wash / white card / white with a tinted hairline / flat grey);
+ * the white card was cleanest by a distance, and it's the only one that stays
+ * calm no matter how many categories a tenant has or which hues they land on.
+ *
+ * The border is an `inset` shadow rather than a real border so the card keeps
+ * its exact 64px box — a 1px border would otherwise have to be subtracted from
+ * the content area, and the glyph would sit half a pixel off centre.
+ */
+export const INACTIVE_TILE_STYLE = {
+  background: '#FFFFFF',
+  boxShadow:
+    'inset 0 0 0 1px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.06), 0 2px 6px -2px rgba(15, 23, 42, 0.05)',
+} as const;
+
+/** Kept as a function because the call sites read as a per-category lookup, and
+ *  a per-category tile background is exactly what a tenant might want back. */
+export function tileStyleForCategory(_name: string): typeof INACTIVE_TILE_STYLE {
+  return INACTIVE_TILE_STYLE;
 }
 
 // Selected tile — filled with the tenant's own brand colour (HIR purple as the

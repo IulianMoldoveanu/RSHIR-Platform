@@ -15,6 +15,18 @@
 //
 // Shapes live as data rather than JSX so the same source can be rendered into a
 // contact sheet for critique; that's how these were iterated, not by guessing.
+//
+// 2026-08-03 — second design pass, all of it driven by rendered evidence:
+//
+//   * Optical sizing. Measuring every glyph's real bounding box showed a set
+//     that only *looked* hand-made: soup and pasta inked 20.8 units wide while
+//     ice cream managed 12.2. Uneven glyph size across a row is the clearest
+//     tell of an amateur icon set. Every glyph is now scaled to a shared live
+//     area — see FOOD_ICON_BOX below.
+//   * Three glyphs were redrawn because rendering them proved they read as
+//     something else: the croissant was a bridge (twice), the layer cake a
+//     briefcase, the ice cream a map pin. Each was rebuilt on a *different*
+//     construction rather than nudged — coffee cup, cupcake, twin scoops.
 
 import type { CSSProperties } from 'react';
 
@@ -28,7 +40,7 @@ export type FoodIconName =
   | 'salad'
   | 'grill'
   | 'fish'
-  | 'croissant'
+  | 'coffee'
   | 'pasta'
   | 'cheese'
   | 'drink'
@@ -109,14 +121,27 @@ export const FOOD_ICON_SHAPES: Record<FoodIconName, Shape[]> = {
     { d: 'M7.5 8.6c-.7 2.2-.7 4.6 0 6.8' },
     { cx: 5.6, cy: 11.3, r: 0.85, solid: true },
   ],
-  // Crescent with tapered tips and three score lines.
-  croissant: [
-    {
-      d: 'M3.6 16c0-5 3.8-8.8 8.4-8.8s8.4 3.8 8.4 8.8c-2 1-3.6-.2-3.8-2-.2-2.3-2.1-3.8-4.6-3.8s-4.4 1.5-4.6 3.8c-.2 1.8-1.8 3-3.8 2Z',
-    },
-    { d: 'M8.7 12.6 7.8 10.4M12 11.3V9M15.3 12.6l.9-2.2' },
+  // Breakfast. This slot was a croissant for two design passes and read as a
+  // bridge both times — a symmetric tapered arch simply is a bridge, no matter
+  // where the points go. A cup on a saucer is unambiguous, and it still covers
+  // the keywords ("mic dejun", "brunch", "patiserie"). The squat body, handle
+  // and saucer line keep it clearly distinct from `drink`, which is a tall
+  // lidded cup with a straw.
+  coffee: [
+    { d: 'M4.3 6.6h12.4v5.5a6.2 6.2 0 0 1-12.4 0Z' },
+    { d: 'M16.9 7.9h1.9a2.6 2.6 0 0 1 0 5.2h-2' },
+    { d: 'M2.4 19.4h17.4' },
+    { d: 'M8.2 3.9c-.8-.9.4-1.5-.4-2.4M12.4 3.9c-.8-.9.4-1.5-.4-2.4' },
   ],
   // Bowl of noodles: rim, bowl, and a twirl of pasta above it.
+  //
+  // Known soft spot, left alone deliberately. This shares a bowl with `soup`
+  // and `salad`, so at 30px the three are closer than I'd like. Six alternative
+  // constructions were drawn and rendered — fork with a twirl, fork with draped
+  // strands, penne, a noodle nest, farfalle, bare strands — and every one read
+  // as something worse (a balloon on a stick, a palm tree, binoculars, a
+  // croissant, a bow tie, heat waves). A decent bowl beats a confident mistake,
+  // and the category label sits directly underneath in every place this renders.
   pasta: [
     { d: 'M4 13.3a8 8 0 0 0 16 0Z' },
     { d: 'M2.4 13.3h19.2' },
@@ -139,21 +164,26 @@ export const FOOD_ICON_SHAPES: Record<FoodIconName, Shape[]> = {
     { d: 'M13.6 6.5 15.2 2.8' },
     { d: 'M7.4 12.4h9.2' },
   ],
-  // Scoop on a waffle cone.
+  // Twin scoops on a waffle cone. A single scoop gave the glyph one round top
+  // over a taper — which is exactly a map pin, and that's what it read as. Two
+  // bumps break that silhouette outright.
   icecream: [
-    { d: 'M7.2 10.5a4.8 4.8 0 0 1 9.6 0Z' },
-    { d: 'M6.7 10.5h10.6L12 21.3Z' },
-    { d: 'M8.7 13.5 13.2 15.7M10.1 16.5l2.7 1.3' },
+    { cx: 9.1, cy: 6.6, r: 3.2 },
+    { cx: 14.9, cy: 6.6, r: 3.2 },
+    { d: 'M5.4 10.2h13.2L12 21.6Z' },
+    { d: 'M7.6 13.1 14.2 16M9.2 16.2l3.9 1.7' },
   ],
-  // Layer cake: frosted top, one seam, a candle with a flame.
+  // Cupcake: fluted case, domed frosting, a cherry. The layer cake that used to
+  // live here read as a briefcase with an antenna. A wedge was the obvious
+  // alternative and was rejected on rendering too — a triangle is already the
+  // pizza slice. The fluted case is a silhouette nothing else in the set owns.
   cake: [
-    { d: 'M4.3 13.1h15.4v5.3a2.1 2.1 0 0 1-2.1 2.1H6.4a2.1 2.1 0 0 1-2.1-2.1Z' },
+    { d: 'M5.2 10.7h13.6l-1.6 8.8a1.9 1.9 0 0 1-1.9 1.6H8.7a1.9 1.9 0 0 1-1.9-1.6Z' },
+    { d: 'M9.1 10.9l.8 10.1M14.9 10.9l-.8 10.1' },
     {
-      d: 'M4.3 13.1c1.3 0 1.3-1.7 2.6-1.7s1.3 1.7 2.6 1.7 1.3-1.7 2.5-1.7 1.3 1.7 2.6 1.7 1.3-1.7 2.6-1.7 1.3 1.7 2.5 1.7',
+      d: 'M5.4 10.7c-.6-2.2 1-3.9 2.9-3.6C8.6 5 10.2 3.7 12 3.7s3.4 1.3 3.7 3.4c1.9-.3 3.5 1.4 2.9 3.6Z',
     },
-    { d: 'M4.7 16.8h14.6' },
-    { d: 'M12 11.3V7.7' },
-    { d: 'M12 7.7c1.2-.7 1.2-2.3 0-3-1.2.7-1.2 2.3 0 3Z' },
+    { cx: 12, cy: 2.3, r: 1.15, solid: true },
   ],
   // Outer flame with an inner core.
   flame: [
@@ -178,6 +208,61 @@ export const FOOD_ICON_SHAPES: Record<FoodIconName, Shape[]> = {
   ],
 };
 
+/**
+ * Each glyph's raw geometry bounding box, `[x, y, width, height]` in viewBox
+ * units, EXCLUDING the stroke.
+ *
+ * These are measurements, not design decisions — produced by rendering the
+ * shapes above and reading `getBBox()` off each group. Re-measure whenever a
+ * path changes; a stale box only shifts the glyph slightly off-centre, so it
+ * fails quietly, which is why `everyIconHasABox` exists in the test file.
+ *
+ * They're here because uniform stroke weight is not the same thing as uniform
+ * optical size, and only the second one is what the eye reads across a row.
+ * Drawn by hand the set ranged from 12.2 units wide (ice cream) to 20.8
+ * (soup) — the icons looked like they belonged to different families.
+ */
+export const FOOD_ICON_BOX: Record<FoodIconName, [number, number, number, number]> = {
+  pizza: [4.7, 2.9, 14.6, 16.55],
+  chicken: [3.1, 2.72, 17.63, 17.58],
+  egg: [4.05, 3.92, 15.89, 14.75],
+  burger: [3.4, 4.3, 16.9, 16.6],
+  fries: [6.3, 4.1, 11.6, 16.9],
+  soup: [2.4, 5.5, 19.2, 14.8],
+  salad: [3.6, 6.7, 16.8, 14.8],
+  grill: [3.8, 3.8, 16.4, 16.4],
+  fish: [2.9, 6.5, 18.7, 11],
+  coffee: [2.4, 1.5, 19, 17.9],
+  pasta: [2.4, 8.4, 19.2, 12.9],
+  cheese: [3.3, 4.92, 17.5, 13.38],
+  drink: [3.58, 2.8, 16.84, 18.4],
+  icecream: [5.4, 3.4, 13.2, 18.2],
+  cake: [5.2, 1.15, 13.6, 19.95],
+  flame: [5.6, 2.5, 12.8, 19],
+  sparkle: [4.1, 3.4, 17.3, 17.4],
+  leaf: [3.96, 4.66, 16.15, 15.95],
+  cutlery: [6.6, 3, 12.87, 18],
+};
+
+/** Side of the square every glyph is fitted into, inside the 24-unit box. */
+const LIVE_AREA = 20;
+
+/**
+ * Scale + offset that drops a glyph's inked box into the live area, centred.
+ * Exported so the tests can assert the result without a browser.
+ */
+export function opticalFit(name: FoodIconName, strokeWidth: number) {
+  const [x, y, w, h] = FOOD_ICON_BOX[name];
+  // The stroke straddles the path, so it adds half its width on each side —
+  // one full stroke width across each axis.
+  const scale = Math.min(LIVE_AREA / (w + strokeWidth), LIVE_AREA / (h + strokeWidth));
+  return {
+    scale,
+    dx: 12 - (x + w / 2) * scale,
+    dy: 12 - (y + h / 2) * scale,
+  };
+}
+
 export function FoodIcon({
   name,
   className,
@@ -189,35 +274,42 @@ export function FoodIcon({
   style?: CSSProperties;
   strokeWidth?: number;
 }) {
+  const { scale, dx, dy } = opticalFit(name, strokeWidth);
   return (
     <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={strokeWidth}
+      // Divided by the scale so the *rendered* stroke stays exactly
+      // `strokeWidth` for every glyph. Without this, fitting the glyphs to a
+      // common size would make the small ones bolder than the large ones —
+      // trading one kind of inconsistency for a worse-looking one.
+      strokeWidth={strokeWidth / scale}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       style={style}
       aria-hidden
     >
-      {FOOD_ICON_SHAPES[name].map((s, i) =>
-        'd' in s ? (
-          <path
-            key={i}
-            d={s.d}
-            {...(s.solid ? { fill: 'currentColor', stroke: 'none' } : {})}
-          />
-        ) : (
-          <circle
-            key={i}
-            cx={s.cx}
-            cy={s.cy}
-            r={s.r}
-            {...(s.solid ? { fill: 'currentColor', stroke: 'none' } : {})}
-          />
-        ),
-      )}
+      <g transform={`translate(${dx.toFixed(3)} ${dy.toFixed(3)}) scale(${scale.toFixed(4)})`}>
+        {FOOD_ICON_SHAPES[name].map((s, i) =>
+          'd' in s ? (
+            <path
+              key={i}
+              d={s.d}
+              {...(s.solid ? { fill: 'currentColor', stroke: 'none' } : {})}
+            />
+          ) : (
+            <circle
+              key={i}
+              cx={s.cx}
+              cy={s.cy}
+              r={s.r}
+              {...(s.solid ? { fill: 'currentColor', stroke: 'none' } : {})}
+            />
+          ),
+        )}
+      </g>
     </svg>
   );
 }
