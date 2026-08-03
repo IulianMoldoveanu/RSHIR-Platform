@@ -29,7 +29,7 @@ const LABEL_BLOCK = 'min-h-[26px]';
 export function CategoryTileVisual({
   name,
   active,
-  glyphClassName = 'h-[30px] w-[30px]',
+  glyphClassName = 'h-[34px] w-[34px]',
 }: {
   name: string;
   active: boolean;
