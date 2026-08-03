@@ -129,7 +129,7 @@ export function CategoryTabs({
                 )}
                 <FoodIcon
                   name={iconName}
-                  className="relative h-[30px] w-[30px] transition-colors duration-200"
+                  className="relative h-[34px] w-[34px] transition-colors duration-200"
                   style={{ color: active ? '#FFFFFF' : accentForCategory(c.name) }}
                 />
               </span>
