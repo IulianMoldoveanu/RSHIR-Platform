@@ -146,6 +146,12 @@ export const dictionaries = {
       section_fulfillment: 'Cum primești comanda',
       fulfillment_delivery: 'Livrare',
       fulfillment_pickup: 'Ridicare personală',
+      // Hints under the storefront switch (components/storefront/
+      // fulfillment-switch.tsx). No delivery fee is ever stated there — it is
+      // zone-based and unknown until an address is entered. Pickup having no
+      // fee is a fact, not an estimate.
+      fulfillment_eta_template: '~{minutes} min',
+      fulfillment_pickup_no_fee: 'fără taxă',
       pickup_time_label: 'Când ridici comanda?',
       pickup_time_asap: 'Cât mai repede',
       section_your_data: '1. Datele tale',
@@ -1230,6 +1236,8 @@ export const dictionaries = {
       section_fulfillment: 'How you receive your order',
       fulfillment_delivery: 'Delivery',
       fulfillment_pickup: 'Pickup',
+      fulfillment_eta_template: '~{minutes} min',
+      fulfillment_pickup_no_fee: 'no delivery fee',
       pickup_time_label: 'When will you pick up?',
       pickup_time_asap: 'As soon as possible',
       section_your_data: '1. Your details',

@@ -161,6 +161,17 @@ export function CheckoutClient(props: {
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
+  // Open on what the diner already chose on the storefront (2026-08-03), which
+  // is where the question is now asked first. Runs once — `cart` is set a
+  // single time by useCart — so it never fights the picker below.
+  //
+  // Only ever upgrades to PICKUP, and only when the tenant accepts it: a stale
+  // or hand-edited snapshot must not preselect a mode this restaurant refuses,
+  // and DELIVERY is already the initial value.
+  useEffect(() => {
+    if (cartLoading || !cart) return;
+    if (cart.fulfillment === 'PICKUP' && pickupEnabled) setFulfillment('PICKUP');
+  }, [cartLoading, cart, pickupEnabled]);
   // Scheduled pickup time — 'ASAP' (default) or a specific 15-min slot ISO
   // string. Pickup-only; delivery orders always dispatch immediately.
   const [pickupTime, setPickupTime] = useState<string>('ASAP');

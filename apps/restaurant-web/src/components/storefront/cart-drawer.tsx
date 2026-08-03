@@ -42,6 +42,7 @@ export function CartPill({
   const getSubtotal = useCartStore((s) => s.getSubtotal);
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
+  const fulfillment = useCartStore((s) => s.fulfillment);
 
   // Cart-aware upsell (co-occurrence — "goes well with what's in your cart",
   // not just tenant-wide best-sellers). Starts from the static server-
@@ -446,6 +447,11 @@ export function CartPill({
                               })),
                               notes: it.notes,
                             })),
+                            // Carries the storefront switch's choice into
+                            // checkout, so the picker there opens on what the
+                            // diner already said rather than resetting to
+                            // delivery. See fulfillment-switch.tsx.
+                            fulfillment,
                           };
                           window.sessionStorage.setItem('hir.cart', JSON.stringify(snapshot));
                         } catch {

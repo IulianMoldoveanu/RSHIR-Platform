@@ -21,6 +21,7 @@ import { BrandAwareMenu } from '@/components/storefront/brand-aware-menu';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
 import { LastOrderBanner } from '@/components/storefront/last-order-banner';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
+import { FulfillmentSwitch } from '@/components/storefront/fulfillment-switch';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
 import { isReservationsEnabled } from '@/lib/reservations';
 import { getLoyaltyBalance } from '@/lib/loyalty';
@@ -241,6 +242,20 @@ export default async function StorefrontHomePage() {
       ? Number(tenant.settings.free_delivery_threshold_ron)
       : 0;
 
+  // Same default as `readPickup` in app/checkout/page.tsx: pickup is on unless
+  // a tenant has explicitly turned it off. Keeping the two in step matters —
+  // offering the choice here and refusing it at checkout would be worse than
+  // never offering it.
+  const pickupEnabled =
+    typeof (tenant.settings as { pickup_enabled?: unknown }).pickup_enabled === 'boolean'
+      ? (tenant.settings as { pickup_enabled: boolean }).pickup_enabled
+      : true;
+  const pickupEtaMinutes =
+    typeof (tenant.settings as { pickup_eta_minutes?: unknown }).pickup_eta_minutes === 'number' &&
+    (tenant.settings as { pickup_eta_minutes: number }).pickup_eta_minutes > 0
+      ? Number((tenant.settings as { pickup_eta_minutes: number }).pickup_eta_minutes)
+      : 0;
+
   const restaurantJsonLd = buildRestaurantJsonLd({
     name: tenant.name,
     url: `${baseUrl}/`,
@@ -334,6 +349,14 @@ export default async function StorefrontHomePage() {
             : 0
         }
       />
+      {/* Delivery / pickup, asked before the menu rather than at checkout.
+          2026-08-03 — moved up out of the checkout form on Iulian's call after
+          the demo/product parity audit; the marketing demo had been offering
+          the choice here since Friday while the product only offered it three
+          screens later. Hidden entirely for tenants that don't do pickup. */}
+      {pickupEnabled && (
+        <FulfillmentSwitch locale={locale} pickupEtaMinutes={pickupEtaMinutes} />
+      )}
       <FreeDeliveryProgress thresholdRon={freeDeliveryThresholdRon} locale={locale} />
       {closed && banner && (
         <div className="mx-auto mt-3 max-w-2xl px-4">
