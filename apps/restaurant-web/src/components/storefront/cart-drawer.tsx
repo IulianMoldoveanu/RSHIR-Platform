@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { EmptyState } from './empty-state';
+import { OPEN_CART_EVENT } from './cart-header-button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
@@ -92,11 +93,18 @@ export function CartPill({
     setHydrated(true);
     setAppliedPromo(readStoredPromo());
     const refresh = () => setAppliedPromo(readStoredPromo());
+    // The header cart button (cart-header-button.tsx) opens this same sheet —
+    // there is one cart UI, reachable from the pill at the bottom and from the
+    // top-right cluster. Window event because the two live in different
+    // subtrees (layout vs page), same idiom as the promo refresh above.
+    const openCart = () => setOpen(true);
     window.addEventListener('hir:applied-promo-changed', refresh);
     window.addEventListener('storage', refresh);
+    window.addEventListener(OPEN_CART_EVENT, openCart);
     return () => {
       window.removeEventListener('hir:applied-promo-changed', refresh);
       window.removeEventListener('storage', refresh);
+      window.removeEventListener(OPEN_CART_EVENT, openCart);
     };
   }, []);
 

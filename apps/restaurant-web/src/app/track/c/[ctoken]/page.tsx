@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { z } from 'zod';
 import { ConnectTrackClient } from './ConnectTrackClient';
+import { getLocale } from '@/lib/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,9 +15,11 @@ export default async function ConnectTrackPage(
   const parsed = z.string().min(8).max(128).safeParse(params.ctoken);
   if (!parsed.success) notFound();
 
+  const locale = await getLocale();
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-6">
-      <ConnectTrackClient ctoken={parsed.data} />
+      <ConnectTrackClient ctoken={parsed.data} locale={locale} />
     </main>
   );
 }

@@ -1,15 +1,10 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
-import { Bike, MapPin, Clock } from 'lucide-react';
 import { Skeleton, haversineKm, etaMinutesFromKm } from '@hir/ui';
 import { getBrowserSupabase } from '@/lib/realtime/supabase-browser';
-
-const CourierMap = dynamic(() => import('./CourierMap').then((m) => m.CourierMap), {
-  ssr: false,
-  loading: () => <div className="h-56 w-full animate-pulse rounded-md bg-zinc-100" />,
-});
+import { CourierTrackView } from '@/components/storefront/courier-track-view';
+import { t, type Locale } from '@/lib/i18n';
 
 type CourierTrack = {
   courier_order_id: string;
@@ -40,7 +35,7 @@ const ACTIVE_STATUSES = new Set(['CREATED', 'OFFERED', 'ACCEPTED', 'PICKED_UP', 
 const STALE_MS = 3 * 60_000; // 3 min — stop trusting the ETA
 const LOST_MS = 10 * 60_000; // 10 min — hide the pin, keep only the route
 
-export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
+export function CourierTrackPanel({ ctoken, locale }: { ctoken: string; locale: Locale }) {
   const [data, setData] = useState<CourierTrack | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -146,62 +141,28 @@ export function CourierTrackPanel({ ctoken }: { ctoken: string }) {
   const courierStale = courierAgeMs >= STALE_MS;
   const courierLost = courierAgeMs >= LOST_MS;
 
+  // All of the presentation lives in CourierTrackView, which the marketing
+  // demo renders too — see the note at the top of that file.
   return (
-    <section className="overflow-hidden rounded-xl border border-purple-200 bg-purple-50/40">
-      <header className="flex items-baseline justify-between gap-3 border-b border-purple-200/60 px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          {data.courier.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={data.courier.avatar_url}
-              alt=""
-              className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-purple-200"
-            />
-          ) : (
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white">
-              <Bike className="h-5 w-5" aria-hidden />
-            </span>
-          )}
-          <div>
-            <p className="text-sm font-semibold text-zinc-900">
-              {courierFirst} este pe drum
-            </p>
-            {courierStale ? (
-              <p className="text-[11px] text-amber-600">
-                actualizăm poziția curierului…
-              </p>
-            ) : (
-              data.courier.last_seen_at && (
-                <p className="text-[11px] text-zinc-500">
-                  ultima poziție acum {timeAgo(data.courier.last_seen_at)}
-                </p>
-              )
-            )}
-          </div>
-        </div>
-        {eta && (
-          <div className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-purple-800 shadow-sm">
-            <Clock className="h-3.5 w-3.5" aria-hidden />
-            <span>~{eta.minutes} min</span>
-          </div>
-        )}
-      </header>
-      <CourierMap
-        pickup={data.pickup}
-        dropoff={data.dropoff}
-        courier={courierLost ? null : courierGps}
-        status={data.status}
-        vehicleType={data.courier.vehicle_type}
-      />
-      {eta && (
-        <p className="px-4 py-2 text-xs text-purple-900/80">
-          <MapPin className="mr-1 inline h-3.5 w-3.5 align-text-bottom" aria-hidden />
-          {eta.km < 1
-            ? `Curierul este la mai puțin de 1 km de tine.`
-            : `Curierul este la ~${eta.km.toFixed(1)} km de ${data.status === 'PICKED_UP' || data.status === 'IN_TRANSIT' ? 'tine' : 'restaurant'}.`}
-        </p>
-      )}
-    </section>
+    <CourierTrackView
+      locale={locale}
+      courierName={courierFirst}
+      avatarUrl={data.courier.avatar_url}
+      vehicleType={data.courier.vehicle_type}
+      lastSeenLabel={
+        data.courier.last_seen_at
+          ? t(locale, 'track.courier_seen_ago_template', {
+              duration: timeAgo(data.courier.last_seen_at),
+            })
+          : null
+      }
+      stale={courierStale}
+      eta={eta}
+      pickup={data.pickup}
+      dropoff={data.dropoff}
+      courier={courierLost ? null : courierGps}
+      status={data.status}
+    />
   );
 }
 

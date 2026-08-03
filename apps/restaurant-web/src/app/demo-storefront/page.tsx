@@ -8,6 +8,7 @@ import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { DemoMenu } from './_components/demo-menu';
 import { DemoCartBar } from './_components/demo-cart-bar';
 import { DemoAccountButton } from './_components/demo-account-button';
+import { DemoCartButton } from './_components/demo-cart-button';
 import { DemoFulfillmentSwitch } from './_components/demo-fulfillment-switch';
 
 export const metadata = {
@@ -44,6 +45,7 @@ export default async function DemoStorefrontPage() {
             from the product. */}
         <div className="absolute right-3 top-3 flex items-center gap-2">
           <LocaleSwitcher current={locale} ariaLabel={t(locale, 'header.switch_locale')} />
+          <DemoCartButton />
           <DemoAccountButton />
         </div>
       </div>
