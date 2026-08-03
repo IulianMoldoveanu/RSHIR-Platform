@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { t, type Locale } from '@/lib/i18n';
 import { motionDurations, tapPress, useShouldReduceMotion } from '@/lib/motion';
+import { ACTIVE_TILE_STYLE, accentForCategory, iconForCategory, tileStyleForCategory } from './category-icon';
 import {
-  ACTIVE_TILE_STYLE,
-  accentForCategory,
-  iconForCategory,
-  tileStyleForCategory,
-} from './category-icon';
+  CATEGORY_TILE_BOX,
+  CATEGORY_TILE_BUTTON,
+  CategoryTileLabel,
+} from './category-tile';
 import { FoodIcon } from './food-icons';
 
 // Sticky horizontal tab bar. Tapping a chip smooth-scrolls the page to the
@@ -102,12 +102,12 @@ export function CategoryTabs({
               whileTap={reduceMotion ? undefined : tapPress}
               transition={{ duration: motionDurations.tap }}
               aria-current={active ? 'true' : undefined}
-              className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5"
+              className={CATEGORY_TILE_BUTTON}
             >
               {/* Sliding active background — Wolt-style. layoutId means the
                   same DOM node is reused across tiles and framer morphs
                   position+size smoothly. */}
-              <span className="relative flex h-16 w-16 items-center justify-center rounded-[22px] transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-active:translate-y-0">
+              <span className={CATEGORY_TILE_BOX}>
                 {active ? (
                   <motion.span
                     layoutId="category-tab-active"
@@ -123,23 +123,17 @@ export function CategoryTabs({
                 ) : (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-[22px] border shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200 ease-out group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)]"
+                    className="absolute inset-0 rounded-[22px] transition-shadow duration-200 ease-out group-hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.09),0_4px_10px_-3px_rgba(15,23,42,0.14)]"
                     style={tileStyle}
                   />
                 )}
                 <FoodIcon
                   name={iconName}
-                  className="relative h-7 w-7"
+                  className="relative h-[30px] w-[30px] transition-colors duration-200"
                   style={{ color: active ? '#FFFFFF' : accentForCategory(c.name) }}
                 />
               </span>
-              <span
-                className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${
-                  active ? 'text-zinc-900' : 'text-zinc-600'
-                }`}
-              >
-                {c.name}
-              </span>
+              <CategoryTileLabel name={c.name} active={active} />
             </motion.button>
           );
         })}

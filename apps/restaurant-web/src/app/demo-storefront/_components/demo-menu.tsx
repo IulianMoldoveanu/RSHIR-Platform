@@ -6,11 +6,16 @@ import type { MenuCategory } from '@/lib/menu';
 import { allergensFor } from '@hir/ui';
 import { useDemoCartStore } from '@/lib/demo/demo-cart-store';
 import {
-  ACTIVE_TILE_STYLE,
   accentForCategory,
   iconForCategory,
   tileStyleForCategory,
 } from '@/components/storefront/category-icon';
+import {
+  CATEGORY_TILE_BOX,
+  CATEGORY_TILE_BUTTON,
+  CategoryTileLabel,
+  CategoryTileVisual,
+} from '@/components/storefront/category-tile';
 import { FoodIcon } from '@/components/storefront/food-icons';
 
 // Category strip + item cards for the marketing-site demo storefront.
@@ -85,8 +90,6 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
           >
             {categories.map((cat) => {
               const active = cat.id === activeId;
-              const iconName = iconForCategory(cat.name);
-              const tileStyle = active ? ACTIVE_TILE_STYLE : tileStyleForCategory(cat.name);
               return (
                 <button
                   key={cat.id}
@@ -94,29 +97,12 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                   data-tile={cat.id}
                   onClick={() => jumpTo(cat.id)}
                   aria-current={active ? 'true' : undefined}
-                  className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5 transition-transform active:scale-95"
+                  className={`${CATEGORY_TILE_BUTTON} active:scale-95`}
                 >
-                  <span
-                    className={`flex h-16 w-16 items-center justify-center rounded-[22px] transition-all duration-200 ease-out ${
-                      active
-                        ? ''
-                        : 'border shadow-[0_1px_2px_rgba(15,23,42,0.04)] group-hover:-translate-y-0.5 group-hover:shadow-[0_6px_14px_-6px_rgba(15,23,42,0.18)] group-active:translate-y-0'
-                    }`}
-                    style={tileStyle}
-                  >
-                    <FoodIcon
-                      name={iconName}
-                      className="h-7 w-7"
-                      style={{ color: active ? '#FFFFFF' : accentForCategory(cat.name) }}
-                    />
+                  <span className={CATEGORY_TILE_BOX}>
+                    <CategoryTileVisual name={cat.name} active={active} />
                   </span>
-                  <span
-                    className={`line-clamp-2 text-center text-[11px] font-medium leading-tight transition-colors ${
-                      active ? 'text-zinc-900' : 'text-zinc-600'
-                    }`}
-                  >
-                    {cat.name}
-                  </span>
+                  <CategoryTileLabel name={cat.name} active={active} />
                 </button>
               );
             })}

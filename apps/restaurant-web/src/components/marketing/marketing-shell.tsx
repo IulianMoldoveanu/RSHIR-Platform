@@ -50,15 +50,16 @@ export function MarketingHeader({
 }) {
   return (
     <>
-      {/* Lane MARKETING-POLISH-V4B (2026-05-16) — visible-on-focus skip link
-          for keyboard + screen-reader users. Targets `#main-content` on the
-          parent <main> of every marketing page. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-[#4F46E5] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-[#4338CA] focus:ring-offset-2"
-      >
-        {t(currentLocale, 'marketing.shell.skip_to_content')}
-      </a>
+      {/* 2026-08-03 — the "Sari la conținut" skip link is gone, per Iulian
+          ("vreau sa dispara"). It was behaving correctly (sr-only until
+          focused), but App Router moves focus to the top of the document after
+          every client-side navigation, so it flashed into the top-left corner
+          on each page change and read as a bug.
+
+          WCAG 2.4.1 (Bypass Blocks) still holds without it: these pages are
+          landmarked — <header>, a labelled <nav>, and <main id="main-content">
+          — which is technique ARIA11, and the primary nav is four links, so
+          there is very little to bypass in the first place. */}
       <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
@@ -96,16 +97,19 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          {/* 2026-08-01 — collapsed the separate Log in / Create account
-              buttons into one, per Iulian ("un singur buton, nu doua"). Both
-              destinations already converge on /intra-in-cont (a "log in or
-              create account?" hub) — that page is the natural single target
-              instead of guessing which of the two a visitor wants.
-              2026-08-02 — now a person glyph rather than a word ("in loc de
-              butonul de conecteaza te vreau sa apara un buton cu forma
-              omuletului, arata mai bine"). The label survives as the accessible
-              name, so screen readers and the tooltip still say "Conectează-te"
-              — an unlabelled icon button would be the classic regression. */}
+          {/* 2026-08-01 — one button instead of separate Log in / Create
+              account, per Iulian ("un singur buton, nu doua"); both already
+              converged on /intra-in-cont.
+              2026-08-02 — a person glyph rather than a word. The label survives
+              as the accessible name, so screen readers and the tooltip still
+              say "Conectează-te"; an unlabelled icon button would be the
+              classic regression.
+              2026-08-03 — briefly removed from here while the same glyph was
+              added to the demo storefront, and put straight back: an existing
+              restaurant owner landing on any marketing page had no discoverable
+              way to sign in. The two are not alternatives. This one is the
+              tenant signing in to their dashboard; the one in the demo is the
+              diner's own account inside a storefront. */}
           <Link
             href="/intra-in-cont"
             title={t(currentLocale, 'marketing.shell.cta_account')}

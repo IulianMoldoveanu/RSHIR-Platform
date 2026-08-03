@@ -860,8 +860,12 @@ export const dictionaries = {
         connect_row3_value:
           'Niciun widget, niciun redirect, niciun cobranding. Clientul vede doar site-ul tău.',
         final_cta_title: 'Gata să luați controlul comenzilor?',
+        // 2026-08-03 — was "Înscrieți afacerea în 5 minute ... sunteți live
+        // azi", which promised self-service. Onboarding is done personally, so
+        // the page now says what actually happens. Same reason as the rewrite
+        // of /intra-in-cont and /incepe-cu-hir.
         final_cta_body:
-          'Înscrieți afacerea în 5 minute. Publicăm meniul (sau catalogul) automat și sunteți live azi.',
+          'Vorbim 15 minute, vă configurăm contul și meniul, iar magazinul pornește doar când sunteți mulțumit de el.',
         final_cta_signup: 'Sunați echipa HIR',
         final_cta_consultant: 'Încep singur — fără card',
         aggregator_title: 'Glovo, Wolt, Bolt? Cu HIR ai propriul canal.',
@@ -1887,7 +1891,7 @@ export const dictionaries = {
           'No widget, no redirect, no co-branding. Customers only see your site.',
         final_cta_title: 'Ready to take control of your orders?',
         final_cta_body:
-          'Sign up your business in 5 minutes. We publish your menu (or catalogue) automatically and you go live today.',
+          'We talk for 15 minutes, set up your account and menu, and the shop goes live only once you are happy with it.',
         final_cta_signup: 'Call HIR Team',
         final_cta_consultant: 'Start on my own — no card needed',
         aggregator_title: 'Glovo, Wolt, Bolt? With HIR you have your own channel.',

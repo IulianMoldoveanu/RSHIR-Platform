@@ -9,7 +9,7 @@
 // scaffolded). The PSP-mode resolution in the intent route is the single
 // piece this test pins.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // ───── Mocks ──────────────────────────────────────────────────────────
@@ -148,6 +148,30 @@ function makeAdminMock() {
 // ───── Tests ──────────────────────────────────────────────────────────
 
 describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
+  // Loaded once, in a hook with a generous timeout, rather than with
+  // `await import('./route')` inside each test.
+  //
+  // This route pulls in by far the largest dependency graph in the suite, and
+  // vite transforms all of it on first import — 4s idle, and well past 10s when
+  // a full parallel `vitest run` has the machine busy. It is one-off transform
+  // cost, not a hang, so the only sane budget is one big enough to never be the
+  // thing that fails.
+  //
+  // It used to sit inside the first test, on the 5s default. Under load that
+  // test timed out, and its in-flight call to the provider router then resolved
+  // during the *next* test — which asserts the router is never called for COD.
+  // So one slow import failed two tests and looked exactly like a mock leaking
+  // between files. Worth remembering: a timed-out async test doesn't stop, it
+  // keeps running into whatever comes next.
+  //
+  // `vi.mock` is hoisted above this either way, and the module registry caches
+  // the import, so the later tests that re-point mocks before calling POST
+  // behave exactly as they did.
+  let POST: typeof import('./route').POST;
+  beforeAll(async () => {
+    ({ POST } = await import('./route'));
+  }, 120_000);
+
   beforeEach(async () => {
     mockedCreateCheckoutSession.mockReset();
     process.env.ALLOWED_ORIGINS = ALLOWED;
@@ -197,7 +221,6 @@ describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
   });
 
   it('calls the provider router with order data and returns the hosted URL', async () => {
-    const { POST } = await import('./route');
     const res = await POST(makeReq(VALID_BODY));
     expect(res.status).toBe(200);
 
@@ -232,7 +255,6 @@ describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
   });
 
   it('does NOT call the provider router for COD orders', async () => {
-    const { POST } = await import('./route');
     const codBody = { ...VALID_BODY, paymentMethod: 'COD' };
     const res = await POST(makeReq(codBody));
     expect(res.status).toBe(200);
@@ -256,7 +278,6 @@ describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
       host: 'demo.hir.ro',
       slug: 'demo',
     });
-    const { POST } = await import('./route');
     const res = await POST(makeReq(VALID_BODY));
     delete process.env.PSP_TENANT_TOGGLE_ENABLED;
     expect(res.status).toBe(200);
@@ -287,7 +308,6 @@ describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
       host: 'demo.hir.ro',
       slug: 'demo',
     });
-    const { POST } = await import('./route');
     const res = await POST(makeReq(VALID_BODY));
     delete process.env.PSP_TENANT_TOGGLE_ENABLED;
     expect(res.status).toBe(200);
@@ -307,7 +327,6 @@ describe('POST /api/checkout/intent — Netopia/Viva provider router', () => {
       provider: 'netopia',
       error: 'netopia_live_not_implemented',
     });
-    const { POST } = await import('./route');
     const res = await POST(makeReq(VALID_BODY));
     expect(res.status).toBe(502);
     const json = (await res.json()) as { error: string; provider: string };

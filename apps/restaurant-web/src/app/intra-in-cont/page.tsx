@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import { ArrowRight, LogIn, UserPlus } from 'lucide-react';
 import {
   MarketingHeader,
   MarketingFooter,
@@ -15,8 +15,12 @@ const ADMIN_URL =
 
 export const metadata: Metadata = {
   title: 'Conectează-te sau creează cont — HIR',
+  // Kept in step with the copy below: the old description ended "...creează un
+  // cont nou în mai puțin de 5 minute", which is the self-service promise this
+  // page no longer makes. Metadata is what a shared link shows, so it has to
+  // say the same thing the page does.
   description:
-    'Intră în contul HIR pentru a-ți gestiona comenzile, livrările și restaurantul. Sau creează un cont nou în mai puțin de 5 minute.',
+    'Intră în contul HIR pentru a-ți gestiona comenzile, livrările și restaurantul. Nu ai cont? Ți-l deschidem noi, împreună cu tine.',
   robots: { index: false, follow: true },
 };
 
@@ -32,30 +36,31 @@ type Copy = {
   signupBody: string;
   signupCta: string;
   signupHint: string;
-  trustTitle: string;
-  trustBody: string;
   helpPrefix: string;
   helpLink: string;
 };
 
+// 2026-08-03 — the sign-up side no longer promises self-service. Iulian sets up
+// every restaurant himself ("toate onboardingurile vor fi facute personal de
+// mine"), so "creează cont demo gratuit / te înscrii rapid de unul singur / 5
+// minute" was describing a path that doesn't exist. It now says what actually
+// happens: we talk, then we set the account up together. The "De ce să ai cont
+// HIR" block that sat under these two cards is gone at his request — it was
+// selling an account to someone who has already come here to get one.
 const RO: Copy = {
   eyebrow: 'Cont HIR',
   title: 'Bine ai venit. Cum vrei să continui?',
-  subtitle:
-    'Intră în cont dacă ai deja unul, sau creează unul nou în câțiva pași. Fără card, fără obligații.',
+  subtitle: 'Intră în cont dacă ai deja unul. Dacă nu, ți-l deschidem noi.',
   loginTitle: 'Am deja cont',
   loginBody:
     'Conectează-te cu emailul și parola pentru a vedea comenzile, livrările și setările restaurantului tău.',
   loginCta: 'Conectează-te',
   loginHint: 'Acces sigur prin admin.hirforyou.ro',
-  signupTitle: 'Creează cont nou',
+  signupTitle: 'Vreau cont',
   signupBody:
-    'Începe gratuit. Îți alegi singur cum: te înscrii rapid de unul singur sau te ajutăm noi pas cu pas.',
-  signupCta: 'Creează cont',
-  signupHint: '5 minute · fără card · 30 zile demo',
-  trustTitle: 'De ce să ai cont HIR',
-  trustBody:
-    'Toate comenzile, curierii și plățile într-un singur loc. Suport în limba română de la o echipă reală din București și Brașov.',
+    'Nu completezi nimic singur. Ne spui câteva lucruri despre restaurant, iar noi îți configurăm contul și meniul împreună cu tine.',
+  signupCta: 'Hai să vorbim',
+  signupHint: 'Fără card · fără abonament',
   helpPrefix: 'Ai nevoie de ajutor?',
   helpLink: 'Scrie-ne pe contact',
 };
@@ -63,21 +68,17 @@ const RO: Copy = {
 const EN: Copy = {
   eyebrow: 'HIR account',
   title: 'Welcome back. How would you like to continue?',
-  subtitle:
-    'Sign in if you already have an account, or create one in a few steps. No card, no commitment.',
+  subtitle: "Sign in if you already have an account. If you don't, we'll open one for you.",
   loginTitle: 'I already have an account',
   loginBody:
     'Sign in with your email and password to see your orders, deliveries and restaurant settings.',
   loginCta: 'Log in',
   loginHint: 'Secure access via admin.hirforyou.ro',
-  signupTitle: 'Create a new account',
+  signupTitle: 'I want an account',
   signupBody:
-    "Start for free. Choose how: sign up yourself in minutes or let us guide you step by step.",
-  signupCta: 'Create account',
-  signupHint: '5 minutes · no card · 30-day demo',
-  trustTitle: 'Why a HIR account',
-  trustBody:
-    'All orders, couriers and payouts in one place. Romanian-language support from a real team in Bucharest and Brașov.',
+    'Nothing to fill in on your own. Tell us a few things about your restaurant and we set the account and the menu up together with you.',
+  signupCta: "Let's talk",
+  signupHint: 'No card · no subscription',
   helpPrefix: 'Need help?',
   helpLink: 'Contact us',
 };
@@ -121,21 +122,13 @@ export default async function IntraInContPage() {
               body={c.signupBody}
               cta={c.signupCta}
               hint={c.signupHint}
-              href="/incepe-cu-hir"
+              // Straight to /contact now, not through the "do it yourself or
+              // let us help?" fork — there is only one path, and it's us.
+              href="/contact"
             />
           </div>
 
-          <div className="mx-auto mt-12 flex max-w-2xl items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-5">
-            <div className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#ECFDF5] text-[#047857]">
-              <ShieldCheck className="h-5 w-5" aria-hidden />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-[#0F172A]">{c.trustTitle}</h2>
-              <p className="mt-1 text-sm text-[#475569]">{c.trustBody}</p>
-            </div>
-          </div>
-
-          <p className="mt-8 text-center text-sm text-[#64748B]">
+          <p className="mt-10 text-center text-sm text-[#64748B]">
             {c.helpPrefix}{' '}
             <Link href="/contact" className="font-medium text-[#4338CA] hover:underline">
               {c.helpLink}
