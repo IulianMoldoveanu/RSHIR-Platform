@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
-import { allergensFor } from '@hir/ui';
+import { AllergenChips } from '@/components/storefront/allergen-chips';
 import { useDemoCartStore } from '@/lib/demo/demo-cart-store';
 import {
   accentForCategory,
@@ -154,23 +154,13 @@ export function DemoMenu({ categories }: { categories: MenuCategory[] }) {
                           {item.description}
                         </p>
                       )}
-                      {/* Same allergen chips as the real storefront — the demo
-                          is the product's shop window, so it has to show what a
-                          properly declared menu looks like. */}
-                      {item.allergens.length > 0 && (
-                        <ul className="mt-1.5 flex flex-wrap items-center gap-1" aria-label="Alergeni">
-                          {allergensFor(item.allergens).map((a) => (
-                            <li
-                              key={a.code}
-                              title={a.ro}
-                              className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] leading-none ring-1 ring-inset ring-amber-200"
-                            >
-                              <span aria-hidden>{a.emoji}</span>
-                              <span className="sr-only">{a.ro}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      {/* Same component as the real storefront — the demo is the
+                          product's shop window, so it has to show what a
+                          properly declared menu looks like, and it must not be
+                          able to drift from the real thing. */}
+                      <div className="mt-1.5">
+                        <AllergenChips codes={item.allergens} locale="ro" label="Alergeni" />
+                      </div>
                       <p className="mt-1.5 text-sm font-bold text-[var(--hir-brand)]">
                         {item.price_ron.toFixed(2)} lei
                       </p>
