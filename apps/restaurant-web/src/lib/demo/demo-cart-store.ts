@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
@@ -25,16 +26,29 @@ export type DemoCartItem = {
   modifiers: DemoCartModifier[];
 };
 
+/** Same two values the real checkout uses (`app/api/checkout/pricing.ts`), so
+ *  the demo tells the same story the product does. */
+export type DemoFulfillment = 'DELIVERY' | 'PICKUP';
+
+/** What the demo charges to deliver. A flat stand-in: the real quote comes from
+ *  the tenant's zones and tiers, which this fake cart deliberately never calls.
+ *  Pickup is free, exactly as in `pricing.ts` (`deliveryFeeRon: 0`). */
+export const DEMO_DELIVERY_FEE_RON = 12;
+
 type DemoCartState = {
   items: DemoCartItem[];
+  fulfillment: DemoFulfillment;
 };
 
 type DemoCartActions = {
   addItem: (input: Omit<DemoCartItem, 'lineId' | 'qty'> & { qty?: number }) => void;
   updateQty: (lineId: string, qty: number) => void;
   removeItem: (lineId: string) => void;
+  setFulfillment: (fulfillment: DemoFulfillment) => void;
   clear: () => void;
   getSubtotal: () => number;
+  getDeliveryFee: () => number;
+  getTotal: () => number;
   getCount: () => number;
 };
 
@@ -54,6 +68,7 @@ export const useDemoCartStore = create<DemoCartState & DemoCartActions>()(
   persist(
     (set, get) => ({
       items: [],
+      fulfillment: 'DELIVERY',
 
       addItem: (input) => {
         const incoming: DemoCartItem = {
@@ -90,9 +105,19 @@ export const useDemoCartStore = create<DemoCartState & DemoCartActions>()(
         set({ items: get().items.filter((i) => i.lineId !== lineId) });
       },
 
+      setFulfillment: (fulfillment) => set({ fulfillment }),
+
+      // Keeps the chosen fulfilment across a completed demo order — someone
+      // clicking through a second time shouldn't silently be put back on
+      // delivery after they picked pickup.
       clear: () => set({ items: [] }),
 
       getSubtotal: () => get().items.reduce((s, i) => s + lineUnitPrice(i) * i.qty, 0),
+
+      getDeliveryFee: () =>
+        get().fulfillment === 'PICKUP' || get().items.length === 0 ? 0 : DEMO_DELIVERY_FEE_RON,
+
+      getTotal: () => get().getSubtotal() + get().getDeliveryFee(),
 
       getCount: () => get().items.reduce((s, i) => s + i.qty, 0),
     }),
@@ -104,11 +129,36 @@ export const useDemoCartStore = create<DemoCartState & DemoCartActions>()(
         }
         return localStorage;
       }),
-      partialize: (state) => ({ items: state.items }),
+      partialize: (state) => ({ items: state.items, fulfillment: state.fulfillment }),
     },
   ),
 );
 
 export function demoLineTotalRon(item: DemoCartItem): number {
   return lineUnitPrice(item) * item.qty;
+}
+
+/**
+ * True once the persisted cart has been read back out of localStorage.
+ *
+ * `createJSONStorage(localStorage)` is a *synchronous* storage, so zustand
+ * rehydrates while the store module is first evaluated — before React renders.
+ * The server has no localStorage and renders an empty cart, so any component
+ * that reads cart state renders something different on the client's very first
+ * pass, and React throws "Hydration failed ... this tree will be regenerated on
+ * the client". Confirmed in the browser: two of these per visit to the demo
+ * checkout.
+ *
+ * Gating on this hook makes the first client render match the server (it always
+ * starts `false`), and the real cart appears on the pass right after.
+ */
+export function useDemoCartHydrated(): boolean {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    // Synchronous storage may well have finished before this effect runs, in
+    // which case onFinishHydration never fires — so check the flag too.
+    if (useDemoCartStore.persist.hasHydrated()) setHydrated(true);
+    return useDemoCartStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
+  return hydrated;
 }

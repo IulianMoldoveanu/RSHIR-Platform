@@ -4,6 +4,8 @@ import { getMenuByTenant } from '@/lib/menu';
 import { brandingFor } from '@/lib/tenant';
 import { DemoMenu } from './_components/demo-menu';
 import { DemoCartBar } from './_components/demo-cart-bar';
+import { DemoAccountButton } from './_components/demo-account-button';
+import { DemoFulfillmentSwitch } from './_components/demo-fulfillment-switch';
 
 export const metadata = {
   title: 'Demo interactiv — HIR for You',
@@ -24,6 +26,10 @@ export default async function DemoStorefrontPage() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverUrl} alt="" className="h-full w-full object-cover" />
         )}
+        {/* Over the cover, where a storefront's account button lives. */}
+        <div className="absolute right-4 top-4">
+          <DemoAccountButton />
+        </div>
       </div>
       <div className="mx-auto max-w-2xl px-4">
         {/* relative z-10: the cover above has `relative` positioning, which
@@ -50,6 +56,8 @@ export default async function DemoStorefrontPage() {
             <p className="text-xs text-zinc-500">Restaurant demo — click-through interactiv</p>
           </div>
         </div>
+
+        <DemoFulfillmentSwitch />
 
         <DemoMenu categories={categories} />
       </div>

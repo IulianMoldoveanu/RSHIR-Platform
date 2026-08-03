@@ -12,7 +12,6 @@
 // chrome and writes the cookie via /api/locale on click.
 
 import Link from 'next/link';
-import { User } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { ConsumerBadges } from '@/components/legal/consumer-badges';
 import { NetopiaLogo } from '@/components/marketing/netopia-logo';
@@ -50,15 +49,16 @@ export function MarketingHeader({
 }) {
   return (
     <>
-      {/* Lane MARKETING-POLISH-V4B (2026-05-16) — visible-on-focus skip link
-          for keyboard + screen-reader users. Targets `#main-content` on the
-          parent <main> of every marketing page. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-[#4F46E5] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-[#4338CA] focus:ring-offset-2"
-      >
-        {t(currentLocale, 'marketing.shell.skip_to_content')}
-      </a>
+      {/* 2026-08-03 — the "Sari la conținut" skip link is gone, per Iulian
+          ("vreau sa dispara"). It was behaving correctly (sr-only until
+          focused), but App Router moves focus to the top of the document after
+          every client-side navigation, so it flashed into the top-left corner
+          on each page change and read as a bug.
+
+          WCAG 2.4.1 (Bypass Blocks) still holds without it: these pages are
+          landmarked — <header>, a labelled <nav>, and <main id="main-content">
+          — which is technique ARIA11, and the primary nav is four links, so
+          there is very little to bypass in the first place. */}
       <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
@@ -96,24 +96,16 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          {/* 2026-08-01 — collapsed the separate Log in / Create account
-              buttons into one, per Iulian ("un singur buton, nu doua"). Both
-              destinations already converge on /intra-in-cont (a "log in or
-              create account?" hub) — that page is the natural single target
-              instead of guessing which of the two a visitor wants.
-              2026-08-02 — now a person glyph rather than a word ("in loc de
-              butonul de conecteaza te vreau sa apara un buton cu forma
-              omuletului, arata mai bine"). The label survives as the accessible
-              name, so screen readers and the tooltip still say "Conectează-te"
-              — an unlabelled icon button would be the classic regression. */}
-          <Link
-            href="/intra-in-cont"
-            title={t(currentLocale, 'marketing.shell.cta_account')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] transition-colors hover:bg-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
-          >
-            <User className="h-[18px] w-[18px]" aria-hidden />
-            <span className="sr-only">{t(currentLocale, 'marketing.shell.cta_account')}</span>
-          </Link>
+          {/* 2026-08-03 — the account glyph moved OFF the presentation site and
+              into the demo storefront's header, per Iulian ("omuletul ... as
+              vrea sa apara in contul restaurantului demo, acolo ma
+              intereseaza"). It belongs there: in a storefront it means the
+              diner's own account, which is a real thing to show a prospect.
+              Here it only ever meant "sign yourself up", and onboarding is
+              handled personally ("toate onboardingurile vor fi facute personal
+              de mine"), so the button was inviting a journey nobody takes.
+              /intra-in-cont is untouched and still reachable from
+              /incepe-cu-hir for tenants who already have an account. */}
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
