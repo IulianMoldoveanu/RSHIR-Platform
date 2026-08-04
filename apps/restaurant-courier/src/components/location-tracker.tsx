@@ -160,6 +160,9 @@ export function LocationTracker({
 }: Props) {
   const lastSentAtRef = useRef<number>(0);
   const lastPosRef = useRef<{ lat: number; lng: number; accuracy?: number } | null>(null);
+  // What was last actually forwarded, so the keepalive can tell a genuinely
+  // new position from a repeat of one the server already has.
+  const lastSentPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const battery = useBatterySnapshot();
   // On native Android the background watcher must not start (and thus must not
@@ -194,6 +197,7 @@ export function LocationTracker({
         if (!pos) return;
         lastSentAtRef.current = Date.now();
         lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
+        lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
         return onFix(pos.lat, pos.lng, pos.accuracy);
       })
       .catch(() => {
@@ -208,12 +212,18 @@ export function LocationTracker({
     const stop = bridgeWatchPosition(
       (pos) => {
         const now = Date.now();
+        // Remember the freshest position BEFORE deciding whether to forward
+        // it. A fix that arrives inside the throttle window is still the
+        // truth about where the courier is — if we only recorded the ones we
+        // send, the heartbeat below would keep re-reporting a position the
+        // courier has already left.
+        lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
         // Read the live interval — adaptive on battery state — instead of
         // a stale closure capture, so the watch doesn't need to be torn
         // down and re-created every time the battery level changes.
         if (now - lastSentAtRef.current < effectiveIntervalRef.current) return;
         lastSentAtRef.current = now;
-        lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
+        lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
         // Best-effort; never throw inside the callback (would kill the watch).
         Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
           console.error('[location-tracker] onFix failed', err);
@@ -251,13 +261,20 @@ export function LocationTracker({
     // keeps streaming uninterrupted.
   }, [enabled, disclosureReady, onFix]);
 
-  // Heartbeat: re-report the last known position when the watcher has gone
-  // quiet because the courier has not moved. Without this, standing still for
-  // five minutes drops them out of auto-dispatch (see HEARTBEAT_MS).
+  // Backstop for the two ways the watch path alone leaves the server with a
+  // wrong or stale picture:
   //
-  // This deliberately re-sends a position we already have rather than asking
-  // for a new fix: it costs no GPS power, and the server's displacement filter
-  // keeps the repeat out of the distance trail while still refreshing
+  //   * The courier stopped moving, so the watcher emits nothing at all and
+  //     presence goes stale — which drops them out of auto-dispatch after five
+  //     minutes (see HEARTBEAT_MS). Re-report the position we already hold.
+  //   * The courier moved, but the fix landed inside the throttle window and
+  //     was not forwarded. Flush it the moment the window opens instead of
+  //     waiting for the next watcher event, which may never come if they have
+  //     now parked.
+  //
+  // Either way this re-sends a position already in hand rather than requesting
+  // a new fix, so it costs no GPS power. The server's displacement filter keeps
+  // an unchanged repeat out of the distance trail while still refreshing
   // presence.
   useEffect(() => {
     if (!enabled || !disclosureReady) return;
@@ -266,13 +283,24 @@ export function LocationTracker({
     const timer = window.setInterval(() => {
       const pos = lastPosRef.current;
       if (!pos) return;
-      // A real fix already reported recently — nothing to keep alive.
-      if (Date.now() - lastSentAtRef.current < heartbeatMs) return;
+
+      const sinceSent = Date.now() - lastSentAtRef.current;
+      const sent = lastSentPosRef.current;
+      const isNew = !sent || sent.lat !== pos.lat || sent.lng !== pos.lng;
+
+      // Something new waits only on the ordinary throttle; an unchanged
+      // position waits for the much longer heartbeat.
+      const due = isNew
+        ? sinceSent >= effectiveIntervalRef.current
+        : sinceSent >= heartbeatMs;
+      if (!due) return;
+
       lastSentAtRef.current = Date.now();
+      lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
       Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
-        console.error('[location-tracker] heartbeat onFix failed', err);
+        console.error('[location-tracker] keepalive onFix failed', err);
       });
-    }, Math.max(15_000, Math.floor(heartbeatMs / 4)));
+    }, 15_000);
 
     return () => window.clearInterval(timer);
   }, [enabled, disclosureReady, onFix, heartbeatMs]);
