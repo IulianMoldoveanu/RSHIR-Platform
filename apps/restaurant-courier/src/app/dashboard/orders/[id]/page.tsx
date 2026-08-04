@@ -64,6 +64,7 @@ type OrderDetail = {
   accepted_at: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;
+  cancelled_at: string | null;
   route_distance_m: number | null;
   route_pickup_distance_m: number | null;
   route_attributed_distance_m: number | null;
@@ -90,7 +91,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     admin
       .from('courier_orders')
       .select(
-        `id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id, accepted_at, picked_up_at, delivered_at, ${ORDER_ROUTE_COLUMNS}`,
+        `id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id, accepted_at, picked_up_at, delivered_at, cancelled_at, ${ORDER_ROUTE_COLUMNS}`,
       )
       .eq('id', params.id)
       .maybeSingle(),
@@ -302,7 +303,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
           route={route}
           acceptedAt={order.accepted_at}
           pickedUpAt={order.picked_up_at}
-          deliveredAt={order.delivered_at}
+          closedAt={order.delivered_at ?? order.cancelled_at}
         />
       ) : null}
 

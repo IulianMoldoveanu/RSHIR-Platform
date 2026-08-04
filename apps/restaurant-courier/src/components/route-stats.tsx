@@ -7,7 +7,13 @@ type Props = {
   route: OrderRouteMetrics;
   acceptedAt: string | null;
   pickedUpAt: string | null;
-  deliveredAt: string | null;
+  /**
+   * delivered_at ?? cancelled_at — when the clock stopped. Null only while the
+   * order is genuinely still running: a cancelled order has no delivered_at,
+   * and falling back to render time there would show a "total" that grew every
+   * time someone opened the page.
+   */
+  closedAt: string | null;
   /**
    * Fleet + platform views get the batching split; the courier's own card
    * does not, because "you drove 5 km but only 2.5 count" is a payout
@@ -33,11 +39,12 @@ export function RouteStats({
   route,
   acceptedAt,
   pickedUpAt,
-  deliveredAt,
+  closedAt,
   showAttributed = false,
 }: Props) {
-  const closedAt = deliveredAt ?? null;
-  const totalMs = elapsedMs(acceptedAt, closedAt ?? new Date().toISOString());
+  // Only a running order may be measured against the wall clock.
+  const stopAt = closedAt ?? (route.live ? new Date().toISOString() : null);
+  const totalMs = elapsedMs(acceptedAt, stopAt);
   const toPickupMs = elapsedMs(acceptedAt, pickedUpAt);
 
   // Fewer than two usable fixes is not a short trip — it is no measurement at
