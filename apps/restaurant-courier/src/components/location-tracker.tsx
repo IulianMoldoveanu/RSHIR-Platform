@@ -127,17 +127,39 @@ export function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): nu
  *
  * This component renders nothing — it's a side-effect-only sentinel.
  */
+// How often to re-report the last known position when nothing has moved.
+//
+// Position watchers are change-driven: the browser emits nothing while a
+// courier stands still, and the native Android watcher is explicitly set to
+// distanceFilter: 25, so it stays silent until they travel 25 metres. But
+// fn_auto_dispatch_sweep (20260804_007) refuses any courier whose
+// courier_shifts.last_seen_at is older than five minutes — so a courier
+// waiting at a restaurant would drop out of dispatch while looking online,
+// and simply stop being offered work until they happened to move.
+//
+// 2 minutes leaves a 2.5x margin against that five-minute rule while costing
+// one small request per interval. Verified against a live deployment: 70
+// seconds stationary produced no position event at all.
+export const HEARTBEAT_MS = 120_000;
+
 type Props = {
   enabled: boolean;
   intervalMs?: number;
+  heartbeatMs?: number;
   // `accuracyM` is the device's reported horizontal accuracy radius. The
   // server uses it to decide whether a fix is precise enough to enter the
   // distance trail; it is undefined on platforms that don't report one.
   onFix: (lat: number, lng: number, accuracyM?: number) => Promise<void> | void;
 };
 
-export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) {
+export function LocationTracker({
+  enabled,
+  intervalMs = 30_000,
+  heartbeatMs = HEARTBEAT_MS,
+  onFix,
+}: Props) {
   const lastSentAtRef = useRef<number>(0);
+  const lastPosRef = useRef<{ lat: number; lng: number; accuracy?: number } | null>(null);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const battery = useBatterySnapshot();
   // On native Android the background watcher must not start (and thus must not
@@ -171,6 +193,7 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
       .then((pos) => {
         if (!pos) return;
         lastSentAtRef.current = Date.now();
+        lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
         return onFix(pos.lat, pos.lng, pos.accuracy);
       })
       .catch(() => {
@@ -190,6 +213,7 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         // down and re-created every time the battery level changes.
         if (now - lastSentAtRef.current < effectiveIntervalRef.current) return;
         lastSentAtRef.current = now;
+        lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
         // Best-effort; never throw inside the callback (would kill the watch).
         Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
           console.error('[location-tracker] onFix failed', err);
@@ -226,6 +250,32 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
     // rotates. Battery changes are absorbed via the ref above so the watch
     // keeps streaming uninterrupted.
   }, [enabled, disclosureReady, onFix]);
+
+  // Heartbeat: re-report the last known position when the watcher has gone
+  // quiet because the courier has not moved. Without this, standing still for
+  // five minutes drops them out of auto-dispatch (see HEARTBEAT_MS).
+  //
+  // This deliberately re-sends a position we already have rather than asking
+  // for a new fix: it costs no GPS power, and the server's displacement filter
+  // keeps the repeat out of the distance trail while still refreshing
+  // presence.
+  useEffect(() => {
+    if (!enabled || !disclosureReady) return;
+    if (typeof window === 'undefined') return;
+
+    const timer = window.setInterval(() => {
+      const pos = lastPosRef.current;
+      if (!pos) return;
+      // A real fix already reported recently — nothing to keep alive.
+      if (Date.now() - lastSentAtRef.current < heartbeatMs) return;
+      lastSentAtRef.current = Date.now();
+      Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
+        console.error('[location-tracker] heartbeat onFix failed', err);
+      });
+    }, Math.max(15_000, Math.floor(heartbeatMs / 4)));
+
+    return () => window.clearInterval(timer);
+  }, [enabled, disclosureReady, onFix, heartbeatMs]);
 
   return null;
 }
