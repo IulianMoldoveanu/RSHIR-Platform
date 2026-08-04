@@ -19,11 +19,17 @@ import { ImagePlus, X } from 'lucide-react';
 // Setări → Branding (upload to Supabase storage → settings.branding.logo_url),
 // which then renders in exactly this slot via tenant-header.tsx.
 //
-// Same 4 MB cap and accepted types as that admin form, so what works here works
-// there.
+// The cap and the allowlist below mirror ALLOWED_MIME/MAX_BYTES in that
+// action (restaurant-admin .../settings/branding/actions.ts) so a preview that
+// works here is a file that will actually upload there. SVG is absent on
+// purpose and must stay absent: the action dropped it under RSHIR-31 H-3
+// because an SVG can carry <script>/<foreignObject> that runs when the storage
+// URL is opened directly. Accepting it here would show a happy preview for a
+// file the real product refuses.
 
 const MAX_BYTES = 4 * 1024 * 1024;
-const ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml';
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const ACCEPT = 'image/png,image/jpeg,image/webp';
 
 export function DemoLogoSlot({ logoUrl, name }: { logoUrl: string | null; name: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,8 +47,8 @@ export function DemoLogoSlot({ logoUrl, name }: { logoUrl: string | null; name: 
 
   function pick(file: File | null | undefined) {
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('Alege un fișier imagine.');
+    if (!ALLOWED_MIME.has(file.type)) {
+      setError('Acceptăm PNG, JPG sau WebP.');
       return;
     }
     if (file.size > MAX_BYTES) {

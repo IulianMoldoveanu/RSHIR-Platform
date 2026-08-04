@@ -89,29 +89,6 @@ export function isCanonicalHost(host: string): boolean {
 }
 
 /**
- * True when the HIR brand mark should be this request's favicon.
- *
- * Deliberately *not* `isCanonicalHost`. That function answers an SEO question
- * — "is this the one URL Google should index?" — and so it excludes `www`,
- * which must never be canonical or the site competes with itself. But `www`
- * is not a redirect: verified 2026-08-04, `https://www.hirforyou.ro/` returns
- * 200 and serves the same marketing homepage as the apex. Gating the icon on
- * canonicity alone left anyone who types the `www` out of habit with a blank
- * tab.
- *
- * Tenant hosts are excluded on purpose: a storefront is the restaurant's own
- * brand, and their icon comes from `branding.logo_url` via manifest.ts.
- *
- * Header arithmetic only — this runs in the root layout on every request, so
- * it must never touch the database.
- */
-export function isBrandIconHost(host: string): boolean {
-  const h = host.toLowerCase();
-  if (isCanonicalHost(h)) return true;
-  return !!PRIMARY_DOMAIN && h === `www.${PRIMARY_DOMAIN}`;
-}
-
-/**
  * True when this request renders the brand presentation site rather than a
  * tenant storefront. Not the same question as `isCanonicalHost`: on a Vercel
  * auto-generated preview URL the marketing pages render too, but the host is
@@ -133,6 +110,33 @@ export function isMarketingSurface(host: string, hasTenantOverride: boolean): bo
   // Production: the apex is the presentation site; every tenant lives on a
   // subdomain or its own custom domain.
   return isCanonicalHost(h);
+}
+
+/**
+ * True when the HIR brand mark should be this request's favicon.
+ *
+ * `isMarketingSurface` answers almost the same question and does the hard part
+ * — in particular, a `?tenant=` override (or the `selected_tenant` cookie the
+ * middleware forwards as `x-hir-tenant-override`) turns a preview or localhost
+ * host into a real storefront, and a storefront must never wear our mark.
+ *
+ * The one host it deliberately says no to and we say yes to is `www`. It must
+ * never be canonical or the site competes with itself in search, but it is not
+ * a redirect either: verified 2026-08-04, `https://www.hirforyou.ro/` returns
+ * 200 and serves the same marketing homepage as the apex. Deciding on
+ * canonicity alone left anyone who types the `www` out of habit with a blank
+ * tab.
+ *
+ * Header arithmetic only — this runs in the root layout on every request, so
+ * it must never touch the database.
+ */
+export function isBrandIconHost(host: string, hasTenantOverride: boolean): boolean {
+  // An override names a tenant on every host it is honoured on, so it settles
+  // the question before any host matching happens — `www` included.
+  if (hasTenantOverride) return false;
+  const h = host.toLowerCase();
+  if (isMarketingSurface(h, false)) return true;
+  return !!PRIMARY_DOMAIN && h === `www.${PRIMARY_DOMAIN}`;
 }
 
 // Build absolute URL for a marketing path on the canonical host. Used by

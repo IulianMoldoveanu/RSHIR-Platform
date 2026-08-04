@@ -112,10 +112,19 @@ export async function generateMetadata(): Promise<Metadata> {
   // not memoised, so calling it here would add one query per page view sitewide
   // just to decide a tab icon.
   //
+  // The override has to be part of that decision, not just the host: `?tenant=`
+  // on a preview URL or localhost renders a real storefront, and it is a
+  // supported flow (the admin fallback URL and embeds both use it). Deciding on
+  // the host alone put the HIR mark on those storefronts. Same header the
+  // SupportPanel gate below already reads.
+  //
   // PNG first, SVG second: browsers take the last format they understand, so
   // this gives Chrome/Firefox/Edge the crisp vector and leaves older Safari on
   // the raster fallback.
-  const brandIcon = isBrandIconHost(await currentHost());
+  const brandIcon = isBrandIconHost(
+    await currentHost(),
+    !!(await headers()).get('x-hir-tenant-override'),
+  );
   return {
     title: t(locale, 'meta.default_title'),
     description: t(locale, 'meta.default_description'),
