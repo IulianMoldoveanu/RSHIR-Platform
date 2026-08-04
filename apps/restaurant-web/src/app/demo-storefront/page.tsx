@@ -10,6 +10,7 @@ import { DemoCartBar } from './_components/demo-cart-bar';
 import { DemoAccountButton } from './_components/demo-account-button';
 import { DemoCartButton } from './_components/demo-cart-button';
 import { DemoFulfillmentSwitch } from './_components/demo-fulfillment-switch';
+import { DemoLogoSlot } from './_components/demo-logo-slot';
 
 export const metadata = {
   title: 'Demo interactiv — HIR for You',
@@ -50,43 +51,14 @@ export default async function DemoStorefrontPage() {
         </div>
       </div>
       <div className="mx-auto max-w-2xl px-4">
-        {/* relative z-10: the cover above has `relative` positioning, which
-            (even with z-index:auto) paints above static in-flow siblings —
-            without this, the cover clipped the top of the avatar wherever
-            the pull-up made them overlap.
-            2026-08-02: the pull-up used to sit on this row, which dragged the
-            tenant name up over the cover photo too — dark text on a dark
-            photo, unreadable. It belongs on the avatar alone, which is how
-            the real storefront header (tenant-header.tsx) already did it. */}
-        <div className="relative z-10 flex items-end gap-3 sm:gap-4">
-          {/* Logo slot at the real header's size (80/112px, 4px white ring,
-              pulled up over the cover) instead of the 64px it was. This is the
-              single most brand-carrying element on a storefront — a prospect
-              looking at the demo has to see where their own logo goes. */}
-          <div className="-mt-12 flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-md sm:-mt-14 sm:h-28 sm:w-28">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={tenant.name}
-                className="h-full w-full object-cover"
-                loading="eager"
-              />
-            ) : (
-              <span className="text-2xl font-bold tracking-tight text-zinc-900">
-                {tenant.name.slice(0, 2).toUpperCase()}
-              </span>
-            )}
-          </div>
-          <div className="min-w-0 flex-1 pb-1">
-            <h1 className="truncate text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
-              {tenant.name}
-            </h1>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Restaurant demo — click-through interactiv
-            </p>
-          </div>
-        </div>
+        {/* Logo + name. The "Restaurant demo — click-through interactiv"
+            caption that used to sit under the name is gone (Iulian,
+            2026-08-04: "sa vreau sa dispara"). It was also the one line on
+            this page with no counterpart in the real header —
+            tenant-header.tsx puts rating + /bio links under the name, never
+            free-form copy — so a prospect was reading demo scaffolding as if
+            it were product. */}
+        <DemoLogoSlot logoUrl={logoUrl} name={tenant.name} />
 
         <DemoFulfillmentSwitch />
 

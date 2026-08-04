@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="HIRforYOU">
+  <title>HIRforYOU</title>
+  <!--
+    HIR brand mark. Squircle badge with one corner (bottom-left) left square,
+    and a geometric H.
+
+    Drawn to survive a 16px favicon, which is what dictated every proportion:
+      * bar 3.4 against 4.8 stems — an equal-weight crossbar turned the mark
+        into a barbell at large sizes;
+      * counter 6.4, wider than the stem, so the two legs stay separate at
+        16px instead of merging into one white block;
+      * H is 16 of 32 units wide — the earlier 18 read as a goalpost, not a
+        letter;
+      * corner radius 9 (28%) everywhere except bottom-left. The single square
+        corner is the whole point: a plain rounded square with a letter in it
+        is what every generated placeholder looks like.
+
+    Rejected on the way here, all for the same reason — two shapes combine into
+    a third object: a shopping-bag badge with an arc handle reads as a padlock
+    at 16-20px; a diagonal slice through the H reads as a "no entry" slash; a
+    chamfered right stem reads as a rendering glitch.
+  -->
+  <path d="M9 0h14a9 9 0 0 1 9 9v14a9 9 0 0 1-9 9H0V9a9 9 0 0 1 9-9Z" fill="#4F46E5"/>
+  <rect x="8" y="7" width="4.8" height="18" rx="1" fill="#fff"/>
+  <rect x="12.8" y="14.1" width="6.4" height="3.4" fill="#fff"/>
+  <rect x="19.2" y="7" width="4.8" height="18" rx="1" fill="#fff"/>
+</svg>

@@ -5,7 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { headers } from 'next/headers';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
-import { isCanonicalHost, isMarketingSurface } from '@/lib/seo-marketing';
+import { isBrandIconHost, isCanonicalHost, isMarketingSurface } from '@/lib/seo-marketing';
 import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import { SupportPanel } from '@/components/support/support-panel';
@@ -99,9 +99,35 @@ async function rootLocale(): Promise<Locale> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await rootLocale();
+  // 2026-08-04 — the site had no favicon at all: browsers asked for
+  // /favicon.ico, got a 404, and drew the blank default page glyph in the tab.
+  // Iulian: "genereaza tu un logo. simplu de pus sus in bara de site-uri."
+  //
+  // Presentation-site hosts only, and deliberately so. A tenant storefront is
+  // the restaurant's own brand — stamping the HIR mark on their browser tab
+  // would contradict the entire product ("pagina ta, cu brandul tău"), and they
+  // already get their own icon on the home screen through manifest.ts, which
+  // reads branding.logo_url. Gating here also keeps the root layout free of a
+  // Supabase round-trip on every single request: resolveTenantFromHost() is
+  // not memoised, so calling it here would add one query per page view sitewide
+  // just to decide a tab icon.
+  //
+  // PNG first, SVG second: browsers take the last format they understand, so
+  // this gives Chrome/Firefox/Edge the crisp vector and leaves older Safari on
+  // the raster fallback.
+  const brandIcon = isBrandIconHost(await currentHost());
   return {
     title: t(locale, 'meta.default_title'),
     description: t(locale, 'meta.default_description'),
+    icons: brandIcon
+      ? {
+          icon: [
+            { url: '/favicon-32.png', type: 'image/png', sizes: '32x32' },
+            { url: '/hir-logo.svg', type: 'image/svg+xml' },
+          ],
+          apple: '/icon-192.png',
+        }
+      : undefined,
     verification: GSC_VERIFICATION ? { google: GSC_VERIFICATION } : undefined,
     twitter: TWITTER_SITE ? { site: TWITTER_SITE, card: 'summary_large_image' } : undefined,
   };

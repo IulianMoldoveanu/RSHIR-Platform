@@ -89,6 +89,29 @@ export function isCanonicalHost(host: string): boolean {
 }
 
 /**
+ * True when the HIR brand mark should be this request's favicon.
+ *
+ * Deliberately *not* `isCanonicalHost`. That function answers an SEO question
+ * — "is this the one URL Google should index?" — and so it excludes `www`,
+ * which must never be canonical or the site competes with itself. But `www`
+ * is not a redirect: verified 2026-08-04, `https://www.hirforyou.ro/` returns
+ * 200 and serves the same marketing homepage as the apex. Gating the icon on
+ * canonicity alone left anyone who types the `www` out of habit with a blank
+ * tab.
+ *
+ * Tenant hosts are excluded on purpose: a storefront is the restaurant's own
+ * brand, and their icon comes from `branding.logo_url` via manifest.ts.
+ *
+ * Header arithmetic only — this runs in the root layout on every request, so
+ * it must never touch the database.
+ */
+export function isBrandIconHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (isCanonicalHost(h)) return true;
+  return !!PRIMARY_DOMAIN && h === `www.${PRIMARY_DOMAIN}`;
+}
+
+/**
  * True when this request renders the brand presentation site rather than a
  * tenant storefront. Not the same question as `isCanonicalHost`: on a Vercel
  * auto-generated preview URL the marketing pages render too, but the host is
