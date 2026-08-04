@@ -809,7 +809,13 @@ export const dictionaries = {
         // Iulian ("nu incerc sa convertesc din site ... doar sa vada cum
         // functioneaza"). This is literally what Google shows in the search
         // snippet, so it's the most visible place the old sales framing lived.
-        page_title: 'HIRforYOU — Comenzi online pentru restaurantul tău, fără agregator',
+        // 2026-08-04 — "fără agregator" dropped from the title per Iulian
+        // ("titlul siteului sa nu mai fie comenzi online, fara agregator ... as
+        // vrea sa scrie sistem complet personalizat de comenzi online cu
+        // livrare"). It defined us by what we are not; the new one says what
+        // the product is. This key is both the <title> Google indexes and the
+        // sr-only <h1> on the homepage, so one edit covers both.
+        page_title: 'HIRforYOU — Sistem complet personalizat de comenzi online cu livrare',
         page_description:
           'Storefront propriu cu brandul tău, comenzi directe de la clienți, livrare prin curier. Pentru restaurante, florării, magazine de cadouri și alți vendori. Vezi cum funcționează într-un demo interactiv. Construit în România.',
         hero_badge: '',
@@ -1862,7 +1868,7 @@ export const dictionaries = {
       },
       // Homepage body — full bilingual coverage.
       home: {
-        page_title: 'HIRforYOU — Online orders for your restaurant, no aggregator',
+        page_title: 'HIRforYOU — A complete online ordering and delivery system, fully your own',
         page_description:
           'Your own storefront with your brand, direct orders from customers, courier delivery. For restaurants, florists, gift shops and other vendors. See how it works in an interactive demo. Built in Romania.',
         hero_badge: '',

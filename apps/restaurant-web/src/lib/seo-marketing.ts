@@ -112,6 +112,33 @@ export function isMarketingSurface(host: string, hasTenantOverride: boolean): bo
   return isCanonicalHost(h);
 }
 
+/**
+ * True when the HIR brand mark should be this request's favicon.
+ *
+ * `isMarketingSurface` answers almost the same question and does the hard part
+ * — in particular, a `?tenant=` override (or the `selected_tenant` cookie the
+ * middleware forwards as `x-hir-tenant-override`) turns a preview or localhost
+ * host into a real storefront, and a storefront must never wear our mark.
+ *
+ * The one host it deliberately says no to and we say yes to is `www`. It must
+ * never be canonical or the site competes with itself in search, but it is not
+ * a redirect either: verified 2026-08-04, `https://www.hirforyou.ro/` returns
+ * 200 and serves the same marketing homepage as the apex. Deciding on
+ * canonicity alone left anyone who types the `www` out of habit with a blank
+ * tab.
+ *
+ * Header arithmetic only — this runs in the root layout on every request, so
+ * it must never touch the database.
+ */
+export function isBrandIconHost(host: string, hasTenantOverride: boolean): boolean {
+  // An override names a tenant on every host it is honoured on, so it settles
+  // the question before any host matching happens — `www` included.
+  if (hasTenantOverride) return false;
+  const h = host.toLowerCase();
+  if (isMarketingSurface(h, false)) return true;
+  return !!PRIMARY_DOMAIN && h === `www.${PRIMARY_DOMAIN}`;
+}
+
 // Build absolute URL for a marketing path on the canonical host. Used by
 // sitemap entries + JSON-LD `url` fields. Falls back to the configured
 // primary domain when the request host isn't itself canonical (rare —

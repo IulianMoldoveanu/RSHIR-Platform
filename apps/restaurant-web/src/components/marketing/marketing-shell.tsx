@@ -66,9 +66,14 @@ export function MarketingHeader({
           href="/"
           className="flex items-center gap-2 text-base font-semibold tracking-tight text-[#0F172A]"
         >
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
-            H
-          </span>
+          {/* 2026-08-04 — an actual mark instead of the letter "H" set in a
+              rounded square, which is what every auto-generated placeholder
+              looks like. `alt=""` on purpose: the wordmark right next to it
+              already names the brand, so a description here would make screen
+              readers say it twice. See public/hir-logo.svg for why it is
+              drawn the way it is. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/hir-logo.svg" alt="" width={28} height={28} className="h-7 w-7" />
           {t(currentLocale, 'marketing.shell.brand_name')}
         </Link>
         <nav
@@ -169,9 +174,8 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
         <div className="grid gap-8 sm:grid-cols-[minmax(0,1fr)_auto]">
           <div className="max-w-md">
             <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-[#0F172A]">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
-                H
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/hir-logo.svg" alt="" width={24} height={24} className="h-6 w-6" />
               {t(currentLocale, 'marketing.shell.brand_name')}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-[#64748B]">
