@@ -27,6 +27,8 @@ import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
 import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
+import { RouteStats } from '@/components/route-stats';
+import { ORDER_ROUTE_COLUMNS, resolveOrderRoute } from '@/lib/order-route';
 import { OrderChat } from './order-chat';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +61,14 @@ type OrderDetail = {
   updated_at: string | null;
   source_tenant_id: string | null;
   fleet_id: string | null;
+  accepted_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  route_distance_m: number | null;
+  route_pickup_distance_m: number | null;
+  route_attributed_distance_m: number | null;
+  route_points: number | null;
+  route_computed_at: string | null;
 };
 
 export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -80,7 +90,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     admin
       .from('courier_orders')
       .select(
-        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id',
+        `id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id, accepted_at, picked_up_at, delivered_at, ${ORDER_ROUTE_COLUMNS}`,
       )
       .eq('id', params.id)
       .maybeSingle(),
@@ -164,6 +174,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     fleetContactPhone = fleet?.contact_phone ?? null;
     fleetName = fleet?.name ?? null;
   }
+
+  // Travelled distance + elapsed times for this delivery. Null until the
+  // courier has actually accepted — an offer has no route yet.
+  const route = await resolveOrderRoute(admin, order);
 
   const acceptBound = acceptOrderAction.bind(null, order.id);
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
@@ -280,6 +294,15 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         <QuickCallButtons
           fleetContactPhone={fleetContactPhone}
           fleetName={fleetName}
+        />
+      ) : null}
+
+      {route ? (
+        <RouteStats
+          route={route}
+          acceptedAt={order.accepted_at}
+          pickedUpAt={order.picked_up_at}
+          deliveredAt={order.delivered_at}
         />
       ) : null}
 

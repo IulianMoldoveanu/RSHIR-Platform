@@ -10,6 +10,8 @@ import { AuditTimeline } from './audit-timeline';
 import { MedicalAccessTimeline } from './medical-access-timeline';
 import { logMedicalAccess } from '@/lib/medical-access';
 import { WhyAssigned, type ScoreBreakdown } from './_why-assigned';
+import { RouteStats } from '@/components/route-stats';
+import { ORDER_ROUTE_COLUMNS, resolveOrderRoute } from '@/lib/order-route';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +24,14 @@ type OrderDetail = DispatchOrder & {
   dropoff_lng: number | null;
   source_type: string | null;
   delivered_proof_url: string | null;
+  accepted_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  route_distance_m: number | null;
+  route_pickup_distance_m: number | null;
+  route_attributed_distance_m: number | null;
+  route_points: number | null;
+  route_computed_at: string | null;
 };
 
 const TIMELINE_STEPS = ['CREATED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED'] as const;
@@ -45,7 +55,7 @@ export default async function FleetOrderDetailPage(
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_type, delivered_proof_url, created_at, updated_at',
+          `id, status, vertical, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_type, delivered_proof_url, created_at, updated_at, accepted_at, picked_up_at, delivered_at, ${ORDER_ROUTE_COLUMNS}`,
         )
         .eq('id', params.id)
         .eq('fleet_id', fleet.fleetId)
@@ -112,6 +122,10 @@ export default async function FleetOrderDetailPage(
     admin,
     order.delivered_proof_url,
   );
+
+  // Dispatch cares about the batching split too: what the courier drove vs.
+  // what this particular order is accountable for.
+  const route = await resolveOrderRoute(admin, order);
 
   const couriers = (couriersData ?? []) as DispatchCourier[];
   const onlineSet = new Set(
@@ -225,6 +239,16 @@ export default async function FleetOrderDetailPage(
           })}
         </ul>
       </section>
+
+      {route ? (
+        <RouteStats
+          route={route}
+          acceptedAt={order.accepted_at}
+          pickedUpAt={order.picked_up_at}
+          deliveredAt={order.delivered_at}
+          showAttributed
+        />
+      ) : null}
 
       {/* Pickup */}
       <section className="rounded-2xl border border-violet-500/20 bg-hir-surface p-5">

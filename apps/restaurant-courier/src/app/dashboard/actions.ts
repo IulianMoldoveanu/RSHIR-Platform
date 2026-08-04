@@ -557,15 +557,29 @@ export async function refreshOrdersAction() {
 }
 
 /**
- * Persists the courier's last-known geolocation onto their currently-ONLINE
- * shift row (`courier_shifts.last_lat / last_lng / last_seen_at`). No-op if
- * the courier has no ONLINE shift — we never write a fix without an active
- * shift, both for privacy and for the obvious "they're not working" reason.
+ * Persists the courier's last-known geolocation. Two things happen, and they
+ * deliberately have different standards:
+ *
+ *   - Presence: `courier_shifts.last_lat / last_lng / last_seen_at` is
+ *     refreshed on EVERY fix. Dispatch drops couriers whose last_seen_at is
+ *     older than 5 minutes, so being fussy here would cost them offers.
+ *   - Trail: `courier_location_pings` only gets the fix if it is accurate and
+ *     the courier has actually moved. That trail is what per-order distance
+ *     is measured from, and a phone drifting on a counter must not invent
+ *     kilometres.
+ *
+ * Both live inside `record_courier_ping` so they cannot drift apart. No-op if
+ * the courier has no ONLINE shift — we never write a position for someone who
+ * isn't working.
  *
  * Best-effort: silently ignores DB errors. The client-side watcher continues
  * to stream fixes, so a single-failed write is recovered on the next interval.
  */
-export async function updateCourierLocationAction(lat: number, lng: number): Promise<void> {
+export async function updateCourierLocationAction(
+  lat: number,
+  lng: number,
+  accuracyM?: number,
+): Promise<void> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
   // Reject Null Island. (0,0) passes the finite + bounds checks but is
@@ -576,15 +590,19 @@ export async function updateCourierLocationAction(lat: number, lng: number): Pro
   const userId = await requireUserId();
   const admin = createAdminClient();
 
-  await admin
-    .from('courier_shifts')
-    .update({
-      last_lat: lat,
-      last_lng: lng,
-      last_seen_at: new Date().toISOString(),
-    })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  await sb.rpc('record_courier_ping', {
+    p_courier_user_id: userId,
+    p_lat: lat,
+    p_lng: lng,
+    // A negative or non-finite accuracy is a broken platform reading — send
+    // null so the trail treats it as "unknown" rather than "perfect".
+    p_accuracy_m:
+      typeof accuracyM === 'number' && Number.isFinite(accuracyM) && accuracyM >= 0
+        ? accuracyM
+        : null,
+  });
 }
 
 // Allowed vehicle types for the rider. Mirrors the CHECK constraint in

@@ -130,7 +130,10 @@ export function adaptiveIntervalMs(baseMs: number, battery: BatterySnapshot): nu
 type Props = {
   enabled: boolean;
   intervalMs?: number;
-  onFix: (lat: number, lng: number) => Promise<void> | void;
+  // `accuracyM` is the device's reported horizontal accuracy radius. The
+  // server uses it to decide whether a fix is precise enough to enter the
+  // distance trail; it is undefined on platforms that don't report one.
+  onFix: (lat: number, lng: number, accuracyM?: number) => Promise<void> | void;
 };
 
 export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) {
@@ -168,7 +171,7 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
       .then((pos) => {
         if (!pos) return;
         lastSentAtRef.current = Date.now();
-        return onFix(pos.lat, pos.lng);
+        return onFix(pos.lat, pos.lng, pos.accuracy);
       })
       .catch(() => {
         // No initial fix (permission/timeout) — the watcher will catch up.
@@ -188,7 +191,7 @@ export function LocationTracker({ enabled, intervalMs = 30_000, onFix }: Props) 
         if (now - lastSentAtRef.current < effectiveIntervalRef.current) return;
         lastSentAtRef.current = now;
         // Best-effort; never throw inside the callback (would kill the watch).
-        Promise.resolve(onFix(pos.lat, pos.lng)).catch((err) => {
+        Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
           console.error('[location-tracker] onFix failed', err);
         });
       },

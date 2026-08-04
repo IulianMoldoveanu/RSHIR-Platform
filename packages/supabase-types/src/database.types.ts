@@ -3707,6 +3707,11 @@ export type Database = {
           public_track_token: string
           restaurant_order_id: string | null
           restaurant_ready_at: string | null
+          route_attributed_distance_m: number | null
+          route_computed_at: string | null
+          route_distance_m: number | null
+          route_pickup_distance_m: number | null
+          route_points: number | null
           source_order_id: string | null
           source_tenant_id: string | null
           source_type: string
@@ -3764,6 +3769,11 @@ export type Database = {
           public_track_token: string
           restaurant_order_id?: string | null
           restaurant_ready_at?: string | null
+          route_attributed_distance_m?: number | null
+          route_computed_at?: string | null
+          route_distance_m?: number | null
+          route_pickup_distance_m?: number | null
+          route_points?: number | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type: string
@@ -3821,6 +3831,11 @@ export type Database = {
           public_track_token?: string
           restaurant_order_id?: string | null
           restaurant_ready_at?: string | null
+          route_attributed_distance_m?: number | null
+          route_computed_at?: string | null
+          route_distance_m?: number | null
+          route_pickup_distance_m?: number | null
+          route_points?: number | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type?: string
