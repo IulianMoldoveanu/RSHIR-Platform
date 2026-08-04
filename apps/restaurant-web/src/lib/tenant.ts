@@ -6,6 +6,11 @@ import { getSupabase } from './supabase';
 export type TenantBranding = {
   logo_url?: string | null;
   cover_url?: string | null;
+  /** Brand mark drawn over the top-left of the cover photo. Distinct from
+   *  `logo_url`, which is the round profile picture beside the name — a
+   *  restaurant's profile picture is very often a dish, so there was nowhere
+   *  for an actual logo to live. Set in admin at Setări → Branding. */
+  cover_logo_url?: string | null;
   brand_color?: string | null;
 };
 
@@ -165,12 +170,16 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 export function brandingFor(settings: TenantSettings): {
   logoUrl: string | null;
   coverUrl: string | null;
+  coverLogoUrl: string | null;
   brandColor: string;
 } {
   const b = settings.branding ?? {};
   return {
     logoUrl: b.logo_url ?? settings.logo_url ?? null,
     coverUrl: b.cover_url ?? settings.cover_url ?? null,
+    // No flat fallback: this key has only ever lived under `branding`, so
+    // there is no legacy seed shape to rescue the way there is above.
+    coverLogoUrl: b.cover_logo_url ?? null,
     brandColor:
       typeof b.brand_color === 'string' && HEX_RE.test(b.brand_color)
         ? b.brand_color

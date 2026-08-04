@@ -9,6 +9,12 @@ type TenantHeaderProps = {
   name: string;
   logoUrl: string | null;
   coverUrl: string | null;
+  /** Brand mark drawn over the top-left of the cover. Separate asset from
+   *  `logoUrl` (the round profile picture): restaurants routinely use a photo
+   *  of a dish there, which left a real logo with nowhere to go. Null for
+   *  every tenant who has not configured one, and then nothing renders —
+   *  a storefront must never show a placeholder to a diner. */
+  coverLogoUrl?: string | null;
   whatsappPhone: string | null;
   locale: Locale;
   /** True once the visitor has a customer-recognition cookie (has ordered
@@ -55,6 +61,7 @@ export function TenantHeader({
   name,
   logoUrl,
   coverUrl,
+  coverLogoUrl = null,
   whatsappPhone,
   locale,
   isRecognizedCustomer = false,
@@ -121,6 +128,30 @@ export function TenantHeader({
                 'linear-gradient(to bottom, color-mix(in srgb, var(--hir-brand,#7c3aed) 8%, transparent) 0%, transparent 30%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.45) 100%)',
             }}
           />
+        )}
+        {/* Brand mark, top-left over the cover. Renders only when the tenant
+            has configured one — nothing, never a placeholder, otherwise.
+            The scrim comes with it rather than always: it is what keeps a
+            transparent-PNG logo legible on a bright cover photo, and adding
+            it unconditionally would darken the top of every existing
+            storefront for no reason.
+            alt="" on purpose — the <h1> two rows down already names the
+            business, so a description here reads it out twice. */}
+        {coverLogoUrl && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/30 to-transparent"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverLogoUrl}
+              alt=""
+              className="absolute left-3 top-3 h-10 w-auto max-w-[140px] object-contain drop-shadow-md sm:left-4 sm:top-4"
+              loading="eager"
+              decoding="async"
+            />
+          </>
         )}
         {/* Top-right corner cluster: language flag + account, mirroring the
             flag-icon / person-icon pairing used by larger delivery sites

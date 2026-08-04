@@ -15,6 +15,7 @@ export type AuditAction =
   | 'order.fiscal_receipt_reprint_requested'
   | 'branding.logo_uploaded'
   | 'branding.cover_uploaded'
+  | 'branding.cover_logo_uploaded'
   | 'branding.color_changed'
   | 'notifications.email_toggled'
   | 'notifications.daily_digest_toggled'

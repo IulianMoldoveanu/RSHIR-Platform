@@ -48,6 +48,8 @@ export default async function BrandingSettingsPage() {
   const initial: BrandingState = {
     logo_url: typeof branding.logo_url === 'string' ? branding.logo_url : null,
     cover_url: typeof branding.cover_url === 'string' ? branding.cover_url : null,
+    cover_logo_url:
+      typeof branding.cover_logo_url === 'string' ? branding.cover_logo_url : null,
     brand_color:
       typeof branding.brand_color === 'string' && HEX_RE.test(branding.brand_color)
         ? branding.brand_color

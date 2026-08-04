@@ -197,7 +197,7 @@ export default async function StorefrontHomePage() {
   }
 
   const locale = await getLocale();
-  const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
+  const { logoUrl, coverUrl, coverLogoUrl, brandColor } = brandingFor(tenant.settings);
   // Lane PERF (2026-05-05) — preload the LCP cover image so the browser
   // starts the fetch before parsing <body>. ReactDOM.preload emits a
   // <link rel="preload" as="image"> hoisted into <head> and is deduped by
@@ -322,6 +322,7 @@ export default async function StorefrontHomePage() {
         name={tenant.name}
         logoUrl={logoUrl}
         coverUrl={coverUrl}
+        coverLogoUrl={coverLogoUrl}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
         isRecognizedCustomer={hasCustomerCookie}
