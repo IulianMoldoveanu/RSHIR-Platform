@@ -896,7 +896,7 @@ export async function acceptOrderAction(orderId: string) {
       // the UPDATE on `fleet_id` matching.
       const { data: profile } = await admin
         .from('courier_profiles')
-        .select('fleet_id, status')
+        .select('fleet_id, status, max_parallel_orders')
         .eq('user_id', userId)
         .maybeSingle();
       if (!profile) return false; // not a courier — silent no-op preserves prior contract
@@ -912,7 +912,11 @@ export async function acceptOrderAction(orderId: string) {
         return false;
       }
       if (canTakeKyc !== true) return false;
-      const prof = profile as { fleet_id: string; status: string | null };
+      const prof = profile as {
+        fleet_id: string;
+        status: string | null;
+        max_parallel_orders: number | null;
+      };
       const fleetId = prof.fleet_id;
 
       // Suspended couriers + couriers in a deactivated fleet cannot CLAIM new
@@ -931,6 +935,21 @@ export async function acceptOrderAction(orderId: string) {
           .eq('id', fleetId)
           .maybeSingle();
         if (!(fleetRow as { is_active: boolean } | null)?.is_active) return false;
+      }
+
+      // Codex review (PR #1054, P1): the self-pickup route checked
+      // max_parallel_orders before claiming; acceptOrderAction never did.
+      // That was masked while self-pickup was the primary claim path — now
+      // that AUTOMAT (fn_auto_dispatch_sweep) and directed offers route
+      // through this action, accepting must respect the cap here too, or a
+      // courier already at their limit can silently exceed it. NULL = unlimited.
+      if (prof.max_parallel_orders != null) {
+        const { count: activeCount } = await admin
+          .from('courier_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_courier_user_id', userId)
+          .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+        if ((activeCount ?? 0) >= prof.max_parallel_orders) return false;
       }
 
       // Directed-offer accept ONLY (decision_pull_dispatch_eliminated_2026-08-04):
