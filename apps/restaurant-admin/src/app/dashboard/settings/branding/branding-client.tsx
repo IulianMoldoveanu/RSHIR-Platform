@@ -16,6 +16,11 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 // and get back "Date invalide. (mime_not_allowed:image/svg+xml)" with no hint
 // that the format was never going to work. Fixed 2026-08-04.
 const ACCEPT = 'image/png,image/jpeg,image/webp';
+// Same set again as a runtime guard, because `accept` is only a filter on the
+// file *picker*. A drag-and-drop hands the file straight to handleFile, so
+// without this an owner could still drop a logo.svg, wait for the upload and
+// get back the raw `mime_not_allowed:image/svg+xml` from the server.
+const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const MAX_BYTES = 4 * 1024 * 1024;
 
 type Feedback = { kind: 'success' | 'error'; message: string } | null;
@@ -54,6 +59,13 @@ export function BrandingClient({
 
   function handleFile(kind: BrandingKind, file: File | null | undefined) {
     if (!file) return;
+    if (!ALLOWED_MIME.has(file.type)) {
+      setFeedback({
+        kind: 'error',
+        message: 'Format neacceptat. Folosește PNG, JPG sau WebP.',
+      });
+      return;
+    }
     if (file.size > MAX_BYTES) {
       setFeedback({ kind: 'error', message: 'Fișierul depășește 4 MB.' });
       return;
@@ -106,7 +118,9 @@ export function BrandingClient({
       <section className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900">Logo</h2>
         <p className="mt-1 text-xs text-zinc-600">
-          Apare în antetul storefront-ului. Recomandat: pătrat, min. 256×256, PNG/SVG cu fundal transparent. Max 4 MB.
+          Poza rotundă de lângă numele restaurantului, în antetul storefront-ului. Recomandat:
+          pătrat, min. 256×256, PNG cu fundal transparent. Max 4 MB. Pentru sigla propriu-zisă
+          folosește „Logo peste copertă” mai jos.
         </p>
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
