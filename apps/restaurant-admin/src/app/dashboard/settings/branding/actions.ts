@@ -94,6 +94,10 @@ async function readBranding(tenantId: string): Promise<{
         : typeof rawSettings.cover_url === 'string'
         ? (rawSettings.cover_url as string)
         : null,
+    // No flat fallback: this key only ever existed under settings.branding,
+    // so there is no legacy seed shape to rescue.
+    cover_logo_url:
+      typeof branding.cover_logo_url === 'string' ? branding.cover_logo_url : null,
     brand_color:
       typeof branding.brand_color === 'string' && HEX_RE.test(branding.brand_color)
         ? branding.brand_color
@@ -111,7 +115,7 @@ export async function uploadBrandingAsset(
   const file = formData.get('file');
   const expectedTenantId = formData.get('tenantId');
   if (
-    (kind !== 'logo' && kind !== 'cover') ||
+    (kind !== 'logo' && kind !== 'cover' && kind !== 'cover_logo') ||
     !(file instanceof File) ||
     typeof expectedTenantId !== 'string' ||
     !expectedTenantId
@@ -154,17 +158,25 @@ export async function uploadBrandingAsset(
   if (uploadErr) return { ok: false, error: 'storage_error', detail: uploadErr.message };
 
   const { state, rawSettings } = await readBranding(expectedTenantId);
+  const publicUrl = publicUrlFor(path);
   const next: BrandingState = {
     ...state,
-    [kind === 'logo' ? 'logo_url' : 'cover_url']: publicUrlFor(path),
+    ...(kind === 'logo'
+      ? { logo_url: publicUrl }
+      : kind === 'cover'
+      ? { cover_url: publicUrl }
+      : { cover_logo_url: publicUrl }),
   };
   // RSHIR-32 M-3: write branding from a strict allowlist. Any unknown keys
   // a previous bad write may have set under `branding` are dropped here.
+  // Which means every field has to be listed in BOTH merges in this file, or
+  // the next save of any other branding field silently deletes it.
   const merged = {
     ...rawSettings,
     branding: {
       logo_url: next.logo_url,
       cover_url: next.cover_url,
+      cover_logo_url: next.cover_logo_url,
       brand_color: next.brand_color,
     },
   };
@@ -178,7 +190,12 @@ export async function uploadBrandingAsset(
   await logAudit({
     tenantId: expectedTenantId,
     actorUserId: user.id,
-    action: kind === 'logo' ? 'branding.logo_uploaded' : 'branding.cover_uploaded',
+    action:
+      kind === 'logo'
+        ? 'branding.logo_uploaded'
+        : kind === 'cover'
+        ? 'branding.cover_uploaded'
+        : 'branding.cover_logo_uploaded',
     entityType: 'tenant',
     entityId: expectedTenantId,
     metadata: { mime: file.type, size: file.size },
@@ -216,6 +233,7 @@ export async function setBrandColor(
     branding: {
       logo_url: next.logo_url,
       cover_url: next.cover_url,
+      cover_logo_url: next.cover_logo_url,
       brand_color: next.brand_color,
     },
   };
