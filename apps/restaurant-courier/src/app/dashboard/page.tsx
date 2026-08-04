@@ -314,8 +314,6 @@ export default async function DashboardHome() {
           state were stale until the courier navigated away and back. */}
       <OrdersRealtime
         courierUserId={user.id}
-        fleetId={null}
-        watchFleetOpenOrders={false}
         activeOrderIds={activeOrders.map((o) => o.id)}
       />
 

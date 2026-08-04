@@ -4,11 +4,11 @@
 //   body: { prompt: string, history?: Array<{role:'user'|'assistant', content:string}> }
 //   response: { ok: true, response: string, run_id: string, tools_used: string[] }
 //
-// Authenticated couriers only. Calls Anthropic Messages API with three tools
-// scoped to the caller's own data:
-//   - get_my_active_orders
-//   - get_my_earnings_summary
-//   - get_available_orders_nearby
+// Authenticated couriers only. Calls Anthropic Messages API with tools
+// scoped to the caller's own data. decision_pull_dispatch_eliminated_2026-08-04
+// removed get_available_orders_nearby + find_combo_candidates (they browsed
+// the unassigned open pool — that's the pull surface) and restricted
+// accept_order to a directed offer already assigned to the caller.
 //
 // All tool calls are issued server-side with the courier's user.id as the
 // only authority — Claude cannot reach into another courier's data even
@@ -43,23 +43,25 @@ const SYSTEM_PROMPT = `You are Hepi Curier, the friendly AI co-pilot for HIR del
 
 Romanian by default. Concise. Warm. Practical.
 
-You have access to six tools — five read-only + one write.
+You have access to four tools — three read-only + one write.
+
+Orders are assigned automatically (by the allocation engine) or by a
+dispatcher — couriers no longer browse or self-pick an open pool. If a
+courier asks what's available to pick up, tell them orders arrive as a
+direct offer (alarm + swipe card) when the fleet assigns one; there's
+nothing to browse.
 
 READ tools (use freely):
 - get_my_active_orders        → list of currently assigned orders
 - get_my_earnings_summary     → today + this-week earnings totals
-- get_available_orders_nearby → CREATED/OFFERED orders in their fleet
 - suggest_pickup_order        → greedy nearest-neighbor sequence of active stops, starting from the courier's last GPS
-- find_combo_candidates       → unassigned orders within ~1.2 km of an active pickup/dropoff (good combo grouping)
 
 WRITE tool (use ONLY with explicit consent):
-- accept_order(short_id_8)    → assigns an unassigned order to this courier and moves it to ACCEPTED. ONLY call when the courier's current message clearly says they want to ACCEPT a specific order (e.g. "accept #a3f2b1", "iau comanda a3f2b1", "ok ia-o pe a3f2b1"). NEVER call this preemptively just because they asked what's available — wait for an explicit accept verb + short id. If unsure, just describe the order and ask "Vrei să o accept?"; the courier will reply with confirmation.
+- accept_order(short_id_8)    → accepts a directed offer already assigned to this courier (status OFFERED) and moves it to ACCEPTED. ONLY call when the courier's current message clearly says they want to ACCEPT a specific order (e.g. "accept #a3f2b1", "iau comanda a3f2b1", "ok ia-o pe a3f2b1"). NEVER call this preemptively just because they mentioned an order. If unsure, ask "Vrei să o accept?"; the courier will reply with confirmation.
 
 Tool routing:
 - Status / counts / money → get_my_active_orders, get_my_earnings_summary
-- "What can I pick up?" / "Is it worth staying online?" → get_available_orders_nearby
 - "Which way first?" / "What's the order?" → suggest_pickup_order
-- "Can I take another one?" / "What's on the way?" → find_combo_candidates
 - Explicit accept request → accept_order
 
 For general advice (handling a complaint, route theory, motivational nudges)
@@ -95,27 +97,15 @@ const TOOLS: Tool[] = [
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: 'get_available_orders_nearby',
-    description:
-      'Returns up to 5 currently-unassigned orders (status CREATED or OFFERED) in the courier’s fleet. Use when the courier asks what is available to pick up or whether it is worth staying online.',
-    input_schema: { type: 'object', properties: {}, required: [] },
-  },
-  {
     name: 'suggest_pickup_order',
     description:
       "Suggests the optimal order in which to handle the courier's active pickups/dropoffs using a greedy nearest-neighbor heuristic starting from the courier's last known GPS position. Use when the courier has 2+ active orders and asks how to sequence them or which one to go to first.",
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: 'find_combo_candidates',
-    description:
-      "Finds up to 5 unassigned orders in the courier's fleet whose pickup OR dropoff is within ~1.2 km of one of the courier's currently active orders. Use when the courier asks if there is anything worth grouping / 'pot lua și altă comandă?' / 'ce e pe drum?'.",
-    input_schema: { type: 'object', properties: {}, required: [] },
-  },
-  {
     name: 'accept_order',
     description:
-      "WRITE: assigns an unassigned (CREATED/OFFERED) order to this courier and moves it to ACCEPTED. ONLY call when the courier's current message explicitly asks to accept a specific order BY short id. If the order is already taken, in a wrong state, or violates the courier's max_parallel_orders, the tool returns an error and you should report it back.",
+      "WRITE: accepts a directed offer (status OFFERED, already assigned to this courier) and moves it to ACCEPTED. ONLY call when the courier's current message explicitly asks to accept a specific order BY short id. If the order isn't an open offer for this courier, is in a wrong state, or violates the courier's max_parallel_orders, the tool returns an error and you should report it back.",
     input_schema: {
       type: 'object',
       properties: {
@@ -225,57 +215,6 @@ async function execGetMyEarningsSummary(
       todayCount && todayCount > 0
         ? Number((todayRon / todayCount).toFixed(2))
         : null,
-  });
-}
-
-async function execGetAvailableOrdersNearby(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any,
-  userId: string,
-): Promise<string> {
-  // Resolve courier fleet_id.
-  const { data: profile } = await admin
-    .from('courier_profiles')
-    .select('fleet_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  const fleetId = (profile as { fleet_id: string | null } | null)?.fleet_id ?? null;
-
-  let query = admin
-    .from('courier_orders')
-    .select('id, status, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron')
-    .is('assigned_courier_user_id', null)
-    .in('status', ['CREATED', 'OFFERED'])
-    .order('created_at', { ascending: true })
-    .limit(5);
-
-  if (fleetId) {
-    query = query.eq('fleet_id', fleetId);
-  }
-
-  const { data } = await query;
-  const rows = (data ?? []) as Array<{
-    id: string;
-    status: string;
-    pickup_line1: string | null;
-    dropoff_line1: string | null;
-    total_ron: number | null;
-    delivery_fee_ron: number | null;
-  }>;
-
-  if (rows.length === 0) {
-    return JSON.stringify({ count: 0, available: [], fleet_id: fleetId });
-  }
-  return JSON.stringify({
-    count: rows.length,
-    fleet_id: fleetId,
-    available: rows.map((r) => ({
-      short_id: r.id.slice(0, 8),
-      pickup: r.pickup_line1 ?? '—',
-      dropoff: r.dropoff_line1 ?? '—',
-      total_ron: Number(r.total_ron ?? 0),
-      delivery_fee_ron: Number(r.delivery_fee_ron ?? 0),
-    })),
   });
 }
 
@@ -412,139 +351,6 @@ async function execSuggestPickupOrder(
   });
 }
 
-async function execFindComboCandidates(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  admin: any,
-  userId: string,
-): Promise<string> {
-  // Pull active orders to anchor on their pickup + dropoff coords.
-  const { data: mine } = await admin
-    .from('courier_orders')
-    .select('id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng')
-    .eq('assigned_courier_user_id', userId)
-    .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
-    .limit(20);
-
-  const anchors: Array<{ lat: number; lng: number; kind: string; short_id: string }> = [];
-  for (const o of (mine ?? []) as Array<{
-    id: string;
-    pickup_lat: number | null;
-    pickup_lng: number | null;
-    dropoff_lat: number | null;
-    dropoff_lng: number | null;
-  }>) {
-    if (o.pickup_lat != null && o.pickup_lng != null) {
-      anchors.push({
-        lat: Number(o.pickup_lat),
-        lng: Number(o.pickup_lng),
-        kind: 'pickup',
-        short_id: o.id.slice(0, 8),
-      });
-    }
-    if (o.dropoff_lat != null && o.dropoff_lng != null) {
-      anchors.push({
-        lat: Number(o.dropoff_lat),
-        lng: Number(o.dropoff_lng),
-        kind: 'dropoff',
-        short_id: o.id.slice(0, 8),
-      });
-    }
-  }
-
-  if (anchors.length === 0) {
-    return JSON.stringify({
-      count: 0,
-      reason: 'no_active_orders_with_coords',
-      candidates: [],
-    });
-  }
-
-  // Resolve fleet for the candidate filter.
-  const { data: profile } = await admin
-    .from('courier_profiles')
-    .select('fleet_id')
-    .eq('user_id', userId)
-    .maybeSingle();
-  const fleetId = (profile as { fleet_id: string | null } | null)?.fleet_id ?? null;
-
-  let q = admin
-    .from('courier_orders')
-    .select(
-      'id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron',
-    )
-    .is('assigned_courier_user_id', null)
-    .in('status', ['CREATED', 'OFFERED'])
-    .limit(40);
-  if (fleetId) q = q.eq('fleet_id', fleetId);
-
-  const { data: available } = await q;
-  const RADIUS_KM = 1.2;
-  type Candidate = {
-    short_id: string;
-    pickup: string;
-    dropoff: string;
-    total_ron: number;
-    delivery_fee_ron: number;
-    nearest_anchor_km: number;
-    nearest_anchor: string;
-  };
-  const candidates: Candidate[] = [];
-
-  for (const c of (available ?? []) as Array<{
-    id: string;
-    pickup_lat: number | null;
-    pickup_lng: number | null;
-    dropoff_lat: number | null;
-    dropoff_lng: number | null;
-    pickup_line1: string | null;
-    dropoff_line1: string | null;
-    total_ron: number | null;
-    delivery_fee_ron: number | null;
-  }>) {
-    let bestDist = Infinity;
-    let bestAnchor = '';
-    const points = [
-      c.pickup_lat != null && c.pickup_lng != null
-        ? { lat: Number(c.pickup_lat), lng: Number(c.pickup_lng), kind: 'pickup' }
-        : null,
-      c.dropoff_lat != null && c.dropoff_lng != null
-        ? { lat: Number(c.dropoff_lat), lng: Number(c.dropoff_lng), kind: 'dropoff' }
-        : null,
-    ].filter((p): p is { lat: number; lng: number; kind: string } => p !== null);
-    if (points.length === 0) continue;
-
-    for (const p of points) {
-      for (const a of anchors) {
-        const d = haversineKm(a, p);
-        if (d < bestDist) {
-          bestDist = d;
-          bestAnchor = `${p.kind}↔${a.kind} of #${a.short_id}`;
-        }
-      }
-    }
-
-    if (bestDist <= RADIUS_KM) {
-      candidates.push({
-        short_id: c.id.slice(0, 8),
-        pickup: c.pickup_line1 ?? '—',
-        dropoff: c.dropoff_line1 ?? '—',
-        total_ron: Number(c.total_ron ?? 0),
-        delivery_fee_ron: Number(c.delivery_fee_ron ?? 0),
-        nearest_anchor_km: Number(bestDist.toFixed(2)),
-        nearest_anchor: bestAnchor,
-      });
-    }
-  }
-
-  candidates.sort((a, b) => a.nearest_anchor_km - b.nearest_anchor_km);
-  return JSON.stringify({
-    count: Math.min(5, candidates.length),
-    radius_km: RADIUS_KM,
-    anchor_count: anchors.length,
-    candidates: candidates.slice(0, 5),
-  });
-}
-
 async function execAcceptOrder(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
@@ -583,9 +389,9 @@ async function execAcceptOrder(
     status: string | null;
   };
 
-  // Same claim gates as acceptOrderAction + the self-pickup routes — this AI
-  // assistant path must NOT be a bypass. KYC (per-fleet, fail-closed),
-  // suspension, and fleet activity all block claiming new orders here too.
+  // Same claim gates as acceptOrderAction — this AI assistant path must NOT
+  // be a bypass. KYC (per-fleet, fail-closed), suspension, and fleet
+  // activity all block accepting here too.
   const { data: canTakeKyc, error: kycErr } = await admin.rpc('courier_can_take_orders', {
     p_user_id: userId,
   });
@@ -617,15 +423,18 @@ async function execAcceptOrder(
     }
   }
 
-  // Find unique unassigned order whose id startsWith shortId.
+  // Find the unique directed offer (OFFERED, already assigned to THIS
+  // courier) whose id startsWith shortId. decision_pull_dispatch_eliminated_
+  // 2026-08-04: no more open-pool lookup — a courier can only accept an
+  // offer already directed to them, same rule as acceptOrderAction.
   // Postgres LIKE on uuid::text since uuid does not natively support startsWith.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let candQuery: any = admin
     .from('courier_orders')
     .select('id, fleet_id, status')
     .ilike('id', shortId + '%')
-    .in('status', ['CREATED', 'OFFERED'])
-    .is('assigned_courier_user_id', null)
+    .eq('status', 'OFFERED')
+    .eq('assigned_courier_user_id', userId)
     .limit(2);
   if (profileRow.fleet_id) candQuery = candQuery.eq('fleet_id', profileRow.fleet_id);
 
@@ -646,8 +455,8 @@ async function execAcceptOrder(
       updated_at: new Date().toISOString(),
     })
     .eq('id', target.id)
-    .in('status', ['CREATED', 'OFFERED'])
-    .is('assigned_courier_user_id', null);
+    .eq('status', 'OFFERED')
+    .eq('assigned_courier_user_id', userId);
   if (profileRow.fleet_id) claimQuery = claimQuery.eq('fleet_id', profileRow.fleet_id);
 
   const { data: claimed } = await claimQuery.select('id').maybeSingle();
@@ -682,10 +491,7 @@ async function execTool(
   if (name === 'get_my_active_orders') return execGetMyActiveOrders(admin, userId);
   if (name === 'get_my_earnings_summary')
     return execGetMyEarningsSummary(admin, userId);
-  if (name === 'get_available_orders_nearby')
-    return execGetAvailableOrdersNearby(admin, userId);
   if (name === 'suggest_pickup_order') return execSuggestPickupOrder(admin, userId);
-  if (name === 'find_combo_candidates') return execFindComboCandidates(admin, userId);
   if (name === 'accept_order') return execAcceptOrder(admin, userId, input, userPromptText);
   return JSON.stringify({ error: `unknown_tool: ${name}` });
 }
