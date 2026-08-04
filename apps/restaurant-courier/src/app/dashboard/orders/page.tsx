@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Inbox, MapPinned, Navigation, RefreshCw } from 'lucide-react';
+import { Inbox, Navigation, RefreshCw } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VerticalBadge } from '@/components/vertical-badge';
@@ -59,6 +59,10 @@ function formatAge(createdAt: string): string {
   return `acum ${diffH}h`;
 }
 
+// decision_pull_dispatch_eliminated_2026-08-04: this page used to show a
+// "Comenzi disponibile" open-pool section (any unassigned CREATED/OFFERED
+// order in the rider's fleet, self-claimable). That was the pull mechanism —
+// removed. A rider now only ever sees orders directly assigned to them.
 export default async function OrdersPage() {
   const supabase = await createServerClient();
   const {
@@ -68,39 +72,13 @@ export default async function OrdersPage() {
 
   const admin = createAdminClient();
 
-  // Resolve the rider's fleet FIRST so the open-pool list can be scoped to it.
-  // A partner fleet's couriers must see only THEIR fleet's open orders — the
-  // pool list previously had NO fleet filter (only `accept` enforced it), so a
-  // rider saw orders from other fleets they could never claim. Realtime also
-  // needs this fleet_id (always backfilled, even Mode A/B on the platform fleet).
-  const { data: profileData } = await admin
-    .from('courier_profiles')
-    .select('fleet_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  const fleetId = (profileData as { fleet_id: string | null } | null)?.fleet_id ?? null;
-
-  // Open-pool query scoped to the rider's fleet (or platform/null-fleet orders
-  // for a fleetless platform courier — mirrors acceptOrderAction's fleet gate).
-  const openPool = admin
-    .from('courier_orders')
-    .select(ORDER_COLUMNS)
-    .is('assigned_courier_user_id', null)
-    .in('status', ['CREATED', 'OFFERED'])
-    .order('created_at', { ascending: true })
-    .limit(20);
-  const scopedOpenPool = fleetId ? openPool.eq('fleet_id', fleetId) : openPool.is('fleet_id', null);
-
-  const [{ data: assignedData }, { data: openData }, riderMode] = await Promise.all([
+  const [{ data: assignedData }, riderMode] = await Promise.all([
     admin
       .from('courier_orders')
       .select(ORDER_COLUMNS)
       .eq('assigned_courier_user_id', user.id)
       .in('status', ACTIVE_STATUSES)
       .order('created_at', { ascending: false }),
-    // Available orders sorted OLDEST first so couriers naturally pick the
-    // order closest to its SLA breach.
-    scopedOpenPool,
     resolveRiderMode(user.id),
   ]);
 
@@ -120,25 +98,15 @@ export default async function OrdersPage() {
     const pb = STATUS_SORT_PRIORITY[b.status] ?? 99;
     return pa - pb;
   });
-  const open = (openData ?? []) as OrderRow[];
-
-  // Mode C riders are dispatched by their fleet manager — they don't
-  // browse open orders; surfacing the section is a useless affordance.
-  const showOpenOrders = riderMode.mode !== 'C';
 
   // Mode B riders see orders from multiple tenants — surface the
   // restaurant/pharmacy name on each card so they can distinguish
-  // "Foișorul A" from "Pizza Diavola" before tapping. One lookup, batched
-  // across both lists. Resolved tenant names only — Mode A/C riders get
+  // "Foișorul A" from "Pizza Diavola" before tapping. Mode A/C riders get
   // an empty map and the badge component renders nothing.
   const tenantNameById = new Map<string, string>();
   if (riderMode.mode === 'B') {
     const tenantIds = Array.from(
-      new Set(
-        [...assigned, ...open]
-          .map((o) => o.source_tenant_id)
-          .filter((id): id is string => !!id),
-      ),
+      new Set(assigned.map((o) => o.source_tenant_id).filter((id): id is string => !!id)),
     );
     if (tenantIds.length > 0) {
       const { data: tenantRows } = await admin
@@ -154,12 +122,7 @@ export default async function OrdersPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <OrdersRealtime
-        courierUserId={user.id}
-        fleetId={fleetId}
-        watchFleetOpenOrders={showOpenOrders}
-        activeOrderIds={assigned.map((o) => o.id)}
-      />
+      <OrdersRealtime courierUserId={user.id} activeOrderIds={assigned.map((o) => o.id)} />
       <InsuranceStatusPill />
       <TodaySummaryPill />
       <div className="flex items-center justify-between gap-3">
@@ -183,13 +146,6 @@ export default async function OrdersPage() {
             icon={<Inbox className="h-5 w-5" aria-hidden />}
             title="Nicio comandă activă"
             hint="Te anunțăm imediat ce apare o comandă pentru tine."
-            // CTA nudges the rider to the live-map view where they can
-            // see pickups + dropoffs spatially while waiting. Skipped for
-            // Mode-C riders (dispatched externally — map view is read-only
-            // for them and the section above them is enough).
-            {...(showOpenOrders
-              ? { ctaHref: '/dashboard', ctaLabel: 'Vezi harta' }
-              : {})}
           />
         ) : (
           <StaggerList className="flex flex-col gap-3" ariaLabel="Comenzile mele">
@@ -204,30 +160,6 @@ export default async function OrdersPage() {
           </StaggerList>
         )}
       </Section>
-
-      {showOpenOrders ? (
-        <Section title="Comenzi disponibile" count={open.length}>
-          {open.length === 0 ? (
-            <EmptyState
-              icon={<MapPinned className="h-5 w-5" aria-hidden />}
-              title="Nicio comandă liberă în zonă"
-              hint="Verifică din nou peste câteva minute sau privește harta din pagina principală."
-              ctaHref="/dashboard"
-              ctaLabel="Deschide harta"
-            />
-          ) : (
-            <StaggerList className="flex flex-col gap-3" ariaLabel="Comenzi disponibile">
-              {open.map((o) => (
-                <OrderListItem
-                  key={o.id}
-                  order={o}
-                  tenantName={isModeB ? tenantNameById.get(o.source_tenant_id ?? '') ?? null : null}
-                />
-              ))}
-            </StaggerList>
-          )}
-        </Section>
-      ) : null}
     </div>
   );
 }

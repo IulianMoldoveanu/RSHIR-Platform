@@ -311,12 +311,19 @@ export default async function DashboardHome() {
           offer arriving, the pharmacist stamping pharma_ready_at, or an
           out-of-band cancel now re-render the map overlays without a manual
           refresh. The home tab previously had no realtime, so offers/ready
-          state were stale until the courier navigated away and back. */}
+          state were stale until the courier navigated away and back.
+          Codex review (PR #1054, P2): activeOrders deliberately excludes the
+          OFFERED order (it's surfaced only by the swipe-to-accept overlay,
+          see incomingOffer above) — but OrdersRealtime's id-scoped watch
+          needs that id too, or an expiring offer never refreshes this page.
+          Include it here without adding it to activeOrders/activePins. */}
       <OrdersRealtime
         courierUserId={user.id}
-        fleetId={null}
-        watchFleetOpenOrders={false}
-        activeOrderIds={activeOrders.map((o) => o.id)}
+        activeOrderIds={
+          incomingOffer
+            ? [...activeOrders.map((o) => o.id), incomingOffer.id]
+            : activeOrders.map((o) => o.id)
+        }
       />
 
       {/* Identity-verification banner — full-width strip at the top of the map.

@@ -896,7 +896,7 @@ export async function acceptOrderAction(orderId: string) {
       // the UPDATE on `fleet_id` matching.
       const { data: profile } = await admin
         .from('courier_profiles')
-        .select('fleet_id, status')
+        .select('fleet_id, status, max_parallel_orders')
         .eq('user_id', userId)
         .maybeSingle();
       if (!profile) return false; // not a courier — silent no-op preserves prior contract
@@ -912,7 +912,11 @@ export async function acceptOrderAction(orderId: string) {
         return false;
       }
       if (canTakeKyc !== true) return false;
-      const prof = profile as { fleet_id: string; status: string | null };
+      const prof = profile as {
+        fleet_id: string;
+        status: string | null;
+        max_parallel_orders: number | null;
+      };
       const fleetId = prof.fleet_id;
 
       // Suspended couriers + couriers in a deactivated fleet cannot CLAIM new
@@ -933,12 +937,27 @@ export async function acceptOrderAction(orderId: string) {
         if (!(fleetRow as { is_active: boolean } | null)?.is_active) return false;
       }
 
-      // Only accept if currently CREATED or OFFERED AND the order belongs to
-      // the courier's fleet, and it is EITHER an open-pool order (unassigned)
-      // OR a directed offer the dispatcher assigned to this exact courier.
-      // `offer_courier_order` sets assigned_courier_user_id, so without the
-      // second branch directed offers could never be accepted from the app.
-      // The fleet gate above still prevents cross-fleet hijack.
+      // Codex review (PR #1054, P1): the self-pickup route checked
+      // max_parallel_orders before claiming; acceptOrderAction never did.
+      // That was masked while self-pickup was the primary claim path — now
+      // that AUTOMAT (fn_auto_dispatch_sweep) and directed offers route
+      // through this action, accepting must respect the cap here too, or a
+      // courier already at their limit can silently exceed it. NULL = unlimited.
+      if (prof.max_parallel_orders != null) {
+        const { count: activeCount } = await admin
+          .from('courier_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_courier_user_id', userId)
+          .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+        if ((activeCount ?? 0) >= prof.max_parallel_orders) return false;
+      }
+
+      // Directed-offer accept ONLY (decision_pull_dispatch_eliminated_2026-08-04):
+      // a courier may accept an order only if it is OFFERED and already
+      // assigned to them by the allocation engine (offer_courier_order /
+      // fn_auto_dispatch_sweep) or a dispatcher. Open-pool self-claim
+      // (assigned_courier_user_id IS NULL) is removed — that was the pull
+      // path. The fleet gate above still prevents cross-fleet hijack.
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -948,8 +967,8 @@ export async function acceptOrderAction(orderId: string) {
         })
         .eq('id', orderId)
         .eq('fleet_id', fleetId)
-        .in('status', ['CREATED', 'OFFERED'])
-        .or(`assigned_courier_user_id.is.null,assigned_courier_user_id.eq.${userId}`)
+        .eq('status', 'OFFERED')
+        .eq('assigned_courier_user_id', userId)
         .select('id')
         .maybeSingle();
       if (data) {

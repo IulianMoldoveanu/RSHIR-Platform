@@ -1,131 +1,24 @@
 import { MapPinned } from 'lucide-react';
-import { createServerClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { EmptyState } from '@/components/empty-state';
-import { resolveRiderMode } from '@/lib/rider-mode';
-import { OrdersRealtime } from '../orders-realtime';
-import { PoolList } from './_components/pool-list';
 
 export const dynamic = 'force-dynamic';
 
-type OrderRow = {
-  id: string;
-  status: string;
-  vertical: 'restaurant' | 'pharma';
-  customer_first_name: string | null;
-  pickup_line1: string | null;
-  pickup_lat: number | null;
-  pickup_lng: number | null;
-  dropoff_line1: string | null;
-  dropoff_lat: number | null;
-  dropoff_lng: number | null;
-  total_ron: number | null;
-  delivery_fee_ron: number | null;
-  created_at: string;
-  source_tenant_id: string | null;
-  fleet_id: string | null;
-};
-
-const ORDER_COLUMNS =
-  'id, status, vertical, customer_first_name, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, total_ron, delivery_fee_ron, created_at, source_tenant_id, fleet_id';
-
-export default async function AvailablePoolPage() {
-  const supabase = await createServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = createAdminClient();
-
-  // Resolve rider mode + profile first — the open-pool query below must be
-  // scoped to the courier's fleet, so we need fleet_id up front.
-  const [riderMode, { data: profileData }] = await Promise.all([
-    resolveRiderMode(user.id),
-    admin
-      .from('courier_profiles')
-      .select('fleet_id, max_parallel_orders')
-      .eq('user_id', user.id)
-      .maybeSingle(),
-  ]);
-
-  // Mode C riders are dispatched by their fleet manager — they don't
-  // browse open orders; surfacing the pool is a useless affordance.
-  if (riderMode.mode === 'C') {
-    return (
-      <div className="mx-auto max-w-xl">
-        <EmptyState
-          icon={<MapPinned className="h-5 w-5" aria-hidden />}
-          title="Pool indisponibil"
-          hint="Comenzile îți sunt asignate de managerul de flotă."
-          ctaHref="/dashboard/orders"
-          ctaLabel="Vezi comenzile mele"
-        />
-      </div>
-    );
-  }
-
-  const profile = (profileData as {
-    fleet_id: string | null;
-    max_parallel_orders: number | null;
-  } | null) ?? { fleet_id: null, max_parallel_orders: null };
-
-  const [
-    { data: openData },
-    { data: activeCountData },
-    { data: canTakeData },
-  ] = await Promise.all([
-      // Fleet-scoped pool. This page uses the service-role admin client (RLS
-      // bypassed), so we MUST filter by fleet_id explicitly — otherwise every
-      // courier sees every fleet's open orders, including customer names +
-      // pickup/dropoff addresses (issue #878). No fleet → impossible filter →
-      // empty pool (a courier without a fleet has nothing to self-pick).
-      admin
-        .from('courier_orders')
-        .select(ORDER_COLUMNS)
-        .is('assigned_courier_user_id', null)
-        .eq('fleet_id', profile.fleet_id ?? '00000000-0000-0000-0000-000000000000')
-        .in('status', ['CREATED', 'OFFERED'])
-        .order('created_at', { ascending: true })
-        .limit(40),
-      admin
-        .from('courier_orders')
-        .select('id', { count: 'exact', head: true })
-        .eq('assigned_courier_user_id', user.id)
-        .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']),
-      // Same gate the self-pickup route enforces (returns false when the
-      // courier's fleet requires KYC and they aren't VERIFIED). Surfaced
-      // upfront so the rider isn't surprised at tap time.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (admin.rpc as any)('courier_can_take_orders', { p_user_id: user.id }),
-    ]);
-
-  const open = (openData ?? []) as OrderRow[];
-  const activeCount = (activeCountData as unknown as { count?: number } | null)?.count ?? 0;
-  // RPC returns false only when KYC blocks the courier; null/true → allowed.
-  const kycBlocked = canTakeData === false;
-
+// decision_pull_dispatch_eliminated_2026-08-04: this page used to browse the
+// open pool (unassigned CREATED/OFFERED orders in the rider's fleet) with
+// self-pickup — that was the pull mechanism, now removed for every rider
+// mode (previously only Mode C was gated out here). Orders are assigned via
+// AUTOMAT (offer_courier_order / fn_auto_dispatch_sweep) or MANUAL
+// (dispatcher assigns); riders see them under "Comenzile mele" on
+// /dashboard/orders once directed.
+export default function AvailablePoolPage() {
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-5">
-      <OrdersRealtime
-        courierUserId={user.id}
-        fleetId={profile.fleet_id}
-        watchFleetOpenOrders={true}
-        activeOrderIds={[]}
-      />
-
-      <header className="flex flex-col gap-1">
-        <h1 className="text-lg font-semibold tracking-tight text-hir-fg">Comenzi disponibile</h1>
-        <p className="text-xs text-hir-muted-fg">
-          Self-pickup live. Ia comanda direct, fără să aștepți dispecer.
-        </p>
-      </header>
-
-      <PoolList
-        orders={open}
-        currentActiveCount={activeCount}
-        maxParallel={profile.max_parallel_orders}
-        kycBlocked={kycBlocked}
+    <div className="mx-auto max-w-xl">
+      <EmptyState
+        icon={<MapPinned className="h-5 w-5" aria-hidden />}
+        title="Pool indisponibil"
+        hint="Comenzile îți sunt asignate automat sau de dispecer."
+        ctaHref="/dashboard/orders"
+        ctaLabel="Vezi comenzile mele"
       />
     </div>
   );

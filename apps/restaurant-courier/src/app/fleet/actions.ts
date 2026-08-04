@@ -1181,7 +1181,20 @@ export async function verifyOwnCourierKycAction(
   return { ok: true };
 }
 
-/** Unassign — order falls back to OFFERED so another rider can pick it up. */
+/**
+ * Unassign — order falls back to CREATED so it's immediately eligible for
+ * automatic redispatch again.
+ *
+ * Codex review (PR #1054, P2, round 5): this used to set status='OFFERED',
+ * which made sense when OFFERED-and-unassigned was still open-pool
+ * self-claimable. Now acceptOrderAction only accepts an OFFERED row already
+ * assigned to the caller (no assignee can ever match NULL), and
+ * fn_auto_dispatch_sweep only looks at CREATED rows — an unassigned OFFERED
+ * order was invisible to both, and offer_expires_at is never set here, so
+ * revoke_expired_courier_offers() never rescues it either. It could only be
+ * fixed by the same manager manually reassigning. CREATED restores it to
+ * the sweep's normal candidate pool.
+ */
 export async function unassignOrderAction(orderId: string): Promise<FleetActionResult> {
   const ctx = await getFleetManagerContext();
   if (!ctx) return { ok: false, error: 'Acces interzis.' };
@@ -1211,7 +1224,7 @@ export async function unassignOrderAction(orderId: string): Promise<FleetActionR
     .from('courier_orders')
     .update({
       assigned_courier_user_id: null,
-      status: 'OFFERED',
+      status: 'CREATED',
       updated_at: new Date().toISOString(),
     })
     .eq('id', orderId)
