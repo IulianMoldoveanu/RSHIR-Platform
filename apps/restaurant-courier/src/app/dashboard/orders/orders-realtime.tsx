@@ -91,6 +91,24 @@ export function OrdersRealtime({
         triggerOnAssignedActivity,
       );
 
+    // Codex review (PR #1054, P2): when a directed offer times out,
+    // revoke_expired_courier_offers() clears assigned_courier_user_id as
+    // part of the same UPDATE that reverts status to CREATED. Postgres
+    // Realtime filters test the NEW row, so that update no longer matches
+    // assignedFilter above and the courier never hears about their own
+    // offer expiring — the swipe-to-accept overlay would stay stale until
+    // navigation or a failed accept attempt. Watch the specific order ids
+    // already known to be relevant to this rider (by id, not by assignee)
+    // so a clearing update still reaches them.
+    if (activeOrderIds.length > 0 && activeOrderIds.length <= 50) {
+      const idFilter = `id=in.(${activeOrderIds.join(',')})`;
+      channel.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter: idFilter },
+        () => triggerRefresh(),
+      );
+    }
+
     // Client chat messages on this rider's active orders. The chat UI only
     // exists on /dashboard/orders/[id] — without this, a message from the
     // client is silent until the rider happens to open that page. Chimes +
