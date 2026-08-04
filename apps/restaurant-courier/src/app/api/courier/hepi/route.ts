@@ -52,7 +52,7 @@ direct offer (alarm + swipe card) when the fleet assigns one; there's
 nothing to browse.
 
 READ tools (use freely):
-- get_my_active_orders        → list of currently assigned orders
+- get_my_active_orders        → list of currently assigned orders, INCLUDING a pending directed offer (status OFFERED) awaiting the courier's accept/decline decision — call this out explicitly with its short_id when present, don't lump it in silently with accepted work
 - get_my_earnings_summary     → today + this-week earnings totals
 - suggest_pickup_order        → greedy nearest-neighbor sequence of active stops, starting from the courier's last GPS
 
@@ -87,7 +87,7 @@ const TOOLS: Tool[] = [
   {
     name: 'get_my_active_orders',
     description:
-      "Returns the courier's currently assigned active orders (status ACCEPTED, PICKED_UP, IN_TRANSIT). Use this when the courier asks about their current load, what to do next, or wants to see their queue.",
+      "Returns the courier's currently assigned orders — status OFFERED (a pending directed offer awaiting accept/decline, includes short_id), ACCEPTED, PICKED_UP, or IN_TRANSIT. Use this when the courier asks about their current load, what to do next, wants to see their queue, or might have a pending offer to act on.",
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -138,19 +138,25 @@ async function execGetMyActiveOrders(
   admin: any,
   userId: string,
 ): Promise<string> {
+  // Codex review (PR #1054, P2): accept_order requires a short_id, but no
+  // read tool ever surfaced a pending OFFERED order's id — accept_order was
+  // unreachable through normal conversation. Including OFFERED here (a
+  // directed offer awaiting this courier's decision, not yet accepted)
+  // closes that gap.
   const { data } = await admin
     .from('courier_orders')
     .select(
-      'id, status, dropoff_line1, total_ron, delivery_fee_ron, source_tenant_id, updated_at',
+      'id, status, pickup_line1, dropoff_line1, total_ron, delivery_fee_ron, source_tenant_id, updated_at',
     )
     .eq('assigned_courier_user_id', userId)
-    .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
+    .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
     .order('updated_at', { ascending: true })
     .limit(20);
 
   const rows = (data ?? []) as Array<{
     id: string;
     status: string;
+    pickup_line1: string | null;
     dropoff_line1: string | null;
     total_ron: number | null;
     delivery_fee_ron: number | null;
@@ -164,6 +170,7 @@ async function execGetMyActiveOrders(
     orders: rows.map((r) => ({
       short_id: r.id.slice(0, 8),
       status: r.status,
+      pickup: r.pickup_line1 ?? 'adresă necunoscută',
       dropoff: r.dropoff_line1 ?? 'adresă necunoscută',
       total_ron: Number(r.total_ron ?? 0),
       delivery_fee_ron: Number(r.delivery_fee_ron ?? 0),
