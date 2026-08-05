@@ -24,6 +24,10 @@ const bodySchema = z.object({
   category: z.enum(CATEGORIES),
   message: z.string().trim().min(5).max(4000),
   tenantSlug: z.string().trim().min(1).max(100).optional(),
+  // The public track token of the order being asked about. Holding it is what
+  // proves the order is the sender's, so the order reference is resolved from
+  // it server-side and never taken from the body.
+  trackToken: z.string().uuid().optional(),
 });
 
 const TG_PREVIEW_CHARS = 280;
@@ -39,6 +43,8 @@ async function forwardToTelegram(args: {
   message: string;
   tenantSlug: string | null;
   authedUser: boolean;
+  restaurantOrderId?: string | null;
+  courierOrderId?: string | null;
 }): Promise<void> {
   if (process.env.TELEGRAM_HEPI_FORWARD_SUPPORT !== 'true') return;
   const bot = process.env.TELEGRAM_BOT_TOKEN;
@@ -58,6 +64,15 @@ async function forwardToTelegram(args: {
     `📧 ${escapeHtml(args.email)}${args.authedUser ? ' ✅' : ''}`,
   ];
   if (args.tenantSlug) lines.push(`🏪 ${escapeHtml(args.tenantSlug)}`);
+  // Which order, so whoever reads this can act without asking the customer to
+  // describe it. The delivery leg is called out separately because that is the
+  // one a fleet manager owns.
+  if (args.restaurantOrderId) {
+    lines.push(`🧾 comanda <code>${escapeHtml(args.restaurantOrderId.slice(0, 8))}</code>`);
+  }
+  if (args.courierOrderId) {
+    lines.push(`🛵 livrare <code>${escapeHtml(args.courierOrderId.slice(0, 8))}</code>`);
+  }
   lines.push(`📝 ${escapeHtml(preview)}`);
   lines.push(`#${args.id.slice(0, 8)}`);
 
@@ -112,7 +127,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
 
-  const { category, message, tenantSlug } = parsed.data;
+  const { category, message, tenantSlug, trackToken } = parsed.data;
   let { email } = parsed.data;
 
   // Defence-in-depth: if a session cookie is present, prefer the verified
@@ -145,6 +160,33 @@ export async function POST(req: NextRequest) {
     if (tenantRow?.id) tenantId = tenantRow.id;
   }
 
+  // Attach the order the customer is actually looking at. The token is the
+  // proof of ownership, so the tenant comes from the order rather than from
+  // the slug the client sent — a mismatched slug cannot misfile the report.
+  let restaurantOrderId: string | null = null;
+  let courierOrderId: string | null = null;
+  if (trackToken) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: orderRow } = await (admin as any)
+      .from('restaurant_orders')
+      .select('id, tenant_id')
+      .eq('public_track_token', trackToken)
+      .maybeSingle();
+    if (orderRow?.id) {
+      restaurantOrderId = orderRow.id;
+      tenantId = orderRow.tenant_id ?? tenantId;
+      // The delivery leg, when there is one. This is the handle a fleet
+      // manager or dispatcher filters on.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: courierRow } = await (admin as any)
+        .from('courier_orders')
+        .select('id')
+        .eq('source_order_id', String(orderRow.id))
+        .maybeSingle();
+      courierOrderId = courierRow?.id ?? null;
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: inserted, error: dbError } = await (admin as any)
     .from('support_messages')
@@ -156,6 +198,8 @@ export async function POST(req: NextRequest) {
       message,
       ip: storedIp,
       user_agent: userAgent,
+      restaurant_order_id: restaurantOrderId,
+      courier_order_id: courierOrderId,
     })
     .select('id')
     .single();
@@ -172,6 +216,8 @@ export async function POST(req: NextRequest) {
     message,
     tenantSlug: tenantSlug ?? null,
     authedUser: authUserId !== null,
+    restaurantOrderId,
+    courierOrderId,
   });
 
   return NextResponse.json({ ok: true, id: inserted.id });

@@ -349,6 +349,11 @@ function TrackInner({
         <ShareCard tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
 
+      {/* One line of text until it is needed. A customer with a problem should
+          not have to hunt for the floating support bubble and then describe
+          which order they mean — this carries the order with it. */}
+      <OrderProblemReport token={token} tenantSlug={order.tenant?.slug ?? null} locale={locale} />
+
       {showAccountNudge && order.paymentStatus === 'PAID' && (
         <Link
           href="/account"
@@ -383,6 +388,138 @@ function TrackInner({
  *
  * Fleet confidentiality: copy says "curier HIR" — never "fleet" / "subcontractor".
  */
+const PROBLEM_REASONS: { value: string; key: TKey }[] = [
+  { value: 'missing', key: 'track.problem_reason_missing' },
+  { value: 'wrong', key: 'track.problem_reason_wrong' },
+  { value: 'late', key: 'track.problem_reason_late' },
+  { value: 'quality', key: 'track.problem_reason_quality' },
+  { value: 'courier', key: 'track.problem_reason_courier' },
+  { value: 'other', key: 'track.problem_reason_other' },
+];
+
+/**
+ * Report a problem with this order.
+ *
+ * Collapsed to a single line until opened, because it is the one thing on the
+ * page that must be findable without ever being in the way. It posts to the
+ * existing support intake with the order's track token attached, so the report
+ * arrives already knowing which order — and which delivery — it is about,
+ * rather than asking the customer to describe an order we already have.
+ */
+function OrderProblemReport({
+  token,
+  tenantSlug,
+  locale,
+}: {
+  token: string;
+  tenantSlug: string | null;
+  locale: Locale;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<string>('missing');
+  const [details, setDetails] = useState('');
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (state === 'sending') return;
+    setState('sending');
+    try {
+      const reasonLabel = t(locale, PROBLEM_REASONS.find((r) => r.value === reason)!.key);
+      const res = await fetch('/api/support/message', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          category: 'ORDER',
+          message: `[${reasonLabel}] ${details.trim()}`,
+          trackToken: token,
+          ...(tenantSlug ? { tenantSlug } : {}),
+        }),
+      });
+      setState(res.ok ? 'sent' : 'error');
+    } catch {
+      setState('error');
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <p className="rounded-lg bg-emerald-50 px-3 py-2 text-center text-xs text-emerald-800">
+        {t(locale, 'track.problem_thanks')}
+      </p>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="block w-full text-center text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-800"
+      >
+        {t(locale, 'track.problem_link')}
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="rounded-xl border border-zinc-200 bg-white p-4">
+      <p className="text-sm font-semibold text-zinc-900">{t(locale, 'track.problem_title')}</p>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {PROBLEM_REASONS.map((r) => (
+          <button
+            key={r.value}
+            type="button"
+            onClick={() => setReason(r.value)}
+            className={`rounded-full border px-3 py-1 text-xs ${
+              reason === r.value
+                ? 'border-purple-600 bg-purple-50 text-purple-800'
+                : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
+            }`}
+          >
+            {t(locale, r.key)}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        rows={3}
+        required
+        minLength={5}
+        maxLength={4000}
+        placeholder={t(locale, 'track.problem_details_placeholder')}
+        className="mt-3 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+      />
+
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        placeholder={t(locale, 'track.problem_email_placeholder')}
+        className="mt-2 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+      />
+
+      {state === 'error' && (
+        <p className="mt-2 text-xs text-red-600">{t(locale, 'track.problem_error')}</p>
+      )}
+
+      <button
+        type="submit"
+        disabled={state === 'sending'}
+        className="mt-3 w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {t(locale, state === 'sending' ? 'track.problem_submitting' : 'track.problem_submit')}
+      </button>
+    </form>
+  );
+}
+
 function Hero({
   order,
   locale,
