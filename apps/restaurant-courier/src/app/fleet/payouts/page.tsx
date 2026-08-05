@@ -123,6 +123,14 @@ export default async function FleetPayoutsPage({
             perioad{periods.length === 1 ? 'ă' : 'e'} afișat{periods.length === 1 ? 'ă' : 'e'}.
           </p>
         </div>
+        {/* The opposite direction of the same delivery: what HIR owes the fleet.
+            Two pages, because they are two contracts. */}
+        <Link
+          href="/fleet/billing"
+          className="text-sm text-hir-muted-fg underline hover:text-hir-fg"
+        >
+          Facturare HIR →
+        </Link>
       </div>
 
       <FleetTariffCard

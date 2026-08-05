@@ -103,6 +103,12 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
+    label: 'Facturare flote',
+    href: '/dashboard/admin/fleet-billing',
+    description: 'Ce plătește HIR fiecărei flote: tarif fix pe livrare + facturi săptămânale.',
+    tone: 'emerald',
+  },
+  {
     label: 'Alocare flote',
     href: '/dashboard/admin/fleet-allocation',
     description: 'Mapare tenant ↔ flotă (primară + fallback).',
