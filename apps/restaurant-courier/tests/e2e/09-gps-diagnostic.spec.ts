@@ -26,7 +26,7 @@ test.describe('GPS reporting cadence (diagnostic)', () => {
   });
 
   test('observe cadence while stationary and while moving', async ({ page, context }) => {
-    test.setTimeout(300_000);
+    test.setTimeout(480_000);
 
     const logs: string[] = [];
     page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
@@ -56,19 +56,23 @@ test.describe('GPS reporting cadence (diagnostic)', () => {
     await page.waitForTimeout(8_000);
     await snap('t+8s  (after go-online one-shot)');
 
-    // Stand perfectly still for two throttle windows.
-    await page.waitForTimeout(70_000);
-    await snap('t+78s STATIONARY, position never changed');
+    // Stand perfectly still for longer than one full heartbeat period.
+    // HEARTBEAT_MS is 120s and the keepalive checks every 15s, so the latest a
+    // stationary re-report can land is ~135s after the previous send. Waiting
+    // only 70s here previously "passed" on a stray watcher event rather than on
+    // the heartbeat, which is worse than failing.
+    await page.waitForTimeout(150_000);
+    await snap('t+158s STATIONARY, position never changed');
 
     // Nudge 5 m — below the server trail threshold, but a real position event.
     await context.setGeolocation({ latitude: 45.642745, longitude: 25.5887, accuracy: 10 });
     await page.waitForTimeout(40_000);
-    await snap('t+118s after 5m nudge');
+    await snap('after 5m nudge');
 
     // Move 450 m — unambiguous movement.
     await context.setGeolocation({ latitude: 45.6467, longitude: 25.5887, accuracy: 10 });
     await page.waitForTimeout(40_000);
-    await snap('t+158s after 450m move');
+    await snap('after 450m move');
 
     const geoLogs = logs.filter((l) => /location|geo|denied|watch/i.test(l));
     console.log('PAGE LOGS (geo-related):', geoLogs.length ? geoLogs.join('\n') : '(none)');
