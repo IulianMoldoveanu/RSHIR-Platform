@@ -19,7 +19,23 @@ export type OrderAnnounceRow = {
   status?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
+  source?: string | null;
 };
+
+/**
+ * Only the storefront's own checkout writes a row before the money exists.
+ *
+ * `order_source` has ten values — INTERNAL_STOREFRONT, EXTERNAL_API, POS_PUSH,
+ * MANUAL_ADMIN, GLOVO, WOLT, TAZZ, FOODPANDA, BOLT_FOOD, VOICE — and for the
+ * other nine payment is settled somewhere else entirely, so no PSP webhook
+ * will ever flip them to PAID. They also inherit `payment_method` from the
+ * column DEFAULT of 'CARD' (they don't set it), which is exactly the shape the
+ * suppression below looks for. Left unguarded, this rule would have silenced
+ * every aggregator, POS and partner order permanently (Codex P1, #1062).
+ */
+function isStorefrontCheckout(row: OrderAnnounceRow): boolean {
+  return row.source === 'INTERNAL_STOREFRONT';
+}
 
 /** A card order whose payment has not landed yet. */
 export function isAwaitingCardPayment(row: OrderAnnounceRow): boolean {
@@ -35,6 +51,7 @@ export function isAwaitingCardPayment(row: OrderAnnounceRow): boolean {
  * is a nuisance, a missed order is a lost customer.
  */
 export function announceOnInsert(row: OrderAnnounceRow): boolean {
+  if (!isStorefrontCheckout(row)) return true;
   return !isAwaitingCardPayment(row);
 }
 
@@ -60,6 +77,8 @@ export function announceOnUpdate(
   next: OrderAnnounceRow,
   previous?: OrderAnnounceRow,
 ): boolean {
+  // Anything not from the storefront already rang on INSERT.
+  if (!isStorefrontCheckout(next)) return false;
   if (next.payment_method !== 'CARD') return false;
   if (next.payment_status !== 'PAID' || next.status !== 'CONFIRMED') return false;
   return previous?.payment_status !== 'PAID';
