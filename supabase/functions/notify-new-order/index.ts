@@ -26,6 +26,7 @@
 // Auto-injected by Supabase Edge runtime:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { trackUrl } from '../_shared/storefront-url.ts';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
 import { withRunLog } from '../_shared/log.ts';
 
@@ -124,7 +125,7 @@ Deno.serve(async (req: Request) => {
   // when Resend is not yet configured.
   const { data: tenant, error: tenantErr } = await supabase
     .from('tenants')
-    .select('id, name, settings')
+    .select('id, name, settings, slug, custom_domain, domain_status')
     .eq('id', body.tenant_id)
     .maybeSingle();
   if (tenantErr || !tenant) {
@@ -195,9 +196,10 @@ Deno.serve(async (req: Request) => {
   const adminLink = ADMIN_BASE
     ? `${ADMIN_BASE}/dashboard/orders/${order.id}`
     : `(setează ADMIN_BASE_URL — ID comandă: ${order.id})`;
-  const trackLink = WEB_BASE
-    ? `${WEB_BASE}/track/${order.public_track_token}`
-    : '(link tracking indisponibil)';
+  // Tenant's own storefront host, so the customer lands on the restaurant
+  // they ordered from (branded, and where the support panel renders) rather
+  // than on the marketing site. WEB_BASE is the last-resort fallback.
+  const trackLink = trackUrl(tenant, order.public_track_token, WEB_BASE);
 
   const subject = isCodIntake
     ? `Comandă nouă (numerar) — ${tenant.name}`
@@ -216,7 +218,7 @@ Deno.serve(async (req: Request) => {
     renderItems(order.items),
     '',
     `Detalii (admin): ${adminLink}`,
-    `Tracking client: ${trackLink}`,
+    trackLink ? `Tracking client: ${trackLink}` : '(link tracking indisponibil)',
     '',
     '— HIR Restaurant Suite',
   ].join('\n');
@@ -229,7 +231,7 @@ Deno.serve(async (req: Request) => {
     items: order.items,
     paymentLabel: isCodIntake ? 'Numerar la livrare' : 'Card (achitat)',
     adminLink: ADMIN_BASE ? adminLink : undefined,
-    trackLink: WEB_BASE ? trackLink : undefined,
+    trackLink: trackLink ?? undefined,
   });
 
   const resend = new Resend(RESEND_API_KEY);

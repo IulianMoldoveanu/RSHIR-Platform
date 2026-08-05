@@ -140,7 +140,7 @@ export function CheckoutClient(props: {
   otpEnabled: boolean;
 }) {
   const router = useRouter();
-  const { cart, loading: cartLoading } = useCart();
+  const { cart, loading: cartLoading } = useCart(props.tenantId);
   const {
     locale,
     tenantCity,
