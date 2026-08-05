@@ -3662,6 +3662,33 @@ export type Database = {
           },
         ]
       }
+      courier_location_pings: {
+        Row: {
+          accuracy_m: number | null
+          courier_user_id: string
+          id: number
+          lat: number
+          lng: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          courier_user_id: string
+          id?: never
+          lat: number
+          lng: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          courier_user_id?: string
+          id?: never
+          lat?: number
+          lng?: number
+          recorded_at?: string
+        }
+        Relationships: []
+      }
       courier_orders: {
         Row: {
           accepted_at: string | null
@@ -3670,6 +3697,7 @@ export type Database = {
           cancelled_at: string | null
           city_id: string | null
           cod_amount_ron: number | null
+          courier_assigned_at: string | null
           courier_push_dispatched_at: string | null
           created_at: string
           customer_first_name: string | null
@@ -3732,6 +3760,7 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
@@ -3794,6 +3823,7 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
