@@ -176,6 +176,17 @@ export function LocationTracker({
   const effectiveIntervalRef = useRef<number>(intervalMs);
   effectiveIntervalRef.current = adaptiveIntervalMs(intervalMs, battery);
 
+  // `onFix` is a server action handed down from the (server-rendered) dashboard
+  // layout, so it arrives as a fresh function on every soft refresh — and the
+  // courier's dashboard soft-refreshes on every realtime order event. Kept in
+  // the dependency array it would tear down and re-create the high-accuracy
+  // watch, and re-fire the one-shot below, each time an offer landed: measured
+  // on production at +15s into a 30s throttle window. Held in a ref instead, so
+  // the watch survives refreshes and the one-shot means what it says — tracking
+  // just started.
+  const onFixRef = useRef(onFix);
+  onFixRef.current = onFix;
+
   useEffect(() => {
     if (!enabled || !disclosureReady) {
       // Stop any in-flight watch when the shift goes offline, OR hold off
@@ -203,7 +214,7 @@ export function LocationTracker({
         lastSentAtRef.current = Date.now();
         lastPosRef.current = { lat: pos.lat, lng: pos.lng, accuracy: pos.accuracy };
         lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
-        return onFix(pos.lat, pos.lng, pos.accuracy);
+        return onFixRef.current(pos.lat, pos.lng, pos.accuracy);
       })
       .catch(() => {
         // No initial fix (permission/timeout) — the watcher will catch up.
@@ -230,7 +241,7 @@ export function LocationTracker({
         lastSentAtRef.current = now;
         lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
         // Best-effort; never throw inside the callback (would kill the watch).
-        Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
+        Promise.resolve(onFixRef.current(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
           console.error('[location-tracker] onFix failed', err);
         });
       },
@@ -278,10 +289,10 @@ export function LocationTracker({
       stopWatchRef.current?.();
       stopWatchRef.current = null;
     };
-    // Re-create the watch when `enabled` / `disclosureReady` flip or `onFix`
-    // rotates. Battery changes are absorbed via the ref above so the watch
+    // Re-create the watch only when tracking genuinely starts or stops.
+    // Battery changes and a rotating `onFix` are absorbed via refs so the watch
     // keeps streaming uninterrupted.
-  }, [enabled, disclosureReady, onFix]);
+  }, [enabled, disclosureReady]);
 
   // Backstop for the two ways the watch path alone leaves the server with a
   // wrong or stale picture:
@@ -319,13 +330,16 @@ export function LocationTracker({
 
       lastSentAtRef.current = Date.now();
       lastSentPosRef.current = { lat: pos.lat, lng: pos.lng };
-      Promise.resolve(onFix(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
+      Promise.resolve(onFixRef.current(pos.lat, pos.lng, pos.accuracy)).catch((err) => {
         console.error('[location-tracker] keepalive onFix failed', err);
       });
     }, 15_000);
 
     return () => window.clearInterval(timer);
-  }, [enabled, disclosureReady, onFix, heartbeatMs]);
+    // `onFix` is deliberately absent — see the ref above. Restarting this
+    // interval on every soft refresh would keep resetting its 15s tick, so a
+    // courier receiving offers steadily could have the heartbeat never fire.
+  }, [enabled, disclosureReady, heartbeatMs]);
 
   return null;
 }
