@@ -97,9 +97,23 @@ test.describe('GPS trail (live)', () => {
 
     // 2. A fix 5 m away is the phone drifting on a counter, not a delivery.
     //    It must refresh presence without lengthening the trail.
+    //
+    //    Asserted as distance rather than row count on purpose: a standstill
+    //    long enough to trip the 3-minute trail keepalive legitimately adds a
+    //    zero-distance marker carrying the previous coordinates. Counting rows
+    //    would call that a regression; what the jitter filter actually promises
+    //    is that drift cannot lengthen the route.
     await context.setGeolocation({ ...JITTER, accuracy: 10 });
     await page.waitForTimeout(45_000);
-    expect(await trail(userId)).toHaveLength(1);
+    const afterJitterPoints = await trail(userId);
+    const jitterDistance = afterJitterPoints
+      .slice(1)
+      .reduce(
+        (sum, p, i) =>
+          sum + haversineM(afterJitterPoints[i].lat, afterJitterPoints[i].lng, p.lat, p.lng),
+        0,
+      );
+    expect(jitterDistance).toBeLessThan(1);
 
     const { data: afterJitter } = await adminSupabase
       .from('courier_shifts')
