@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
@@ -298,6 +299,12 @@ export function LiveOrdersClient({
           >
             Exporta comenzile
           </button>
+          <Link
+            href="/dashboard/analytics"
+            className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Vezi Analytics →
+          </Link>
         </div>
       </header>
 

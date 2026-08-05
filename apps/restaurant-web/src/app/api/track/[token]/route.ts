@@ -55,6 +55,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
     updated_at: string;
     public_track_token: string;
     fulfillment: 'PICKUP' | 'DELIVERY';
+    scheduled_pickup_at: string | null;
     has_review: boolean;
     tenant: {
       name: string;
@@ -104,6 +105,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ token: string 
       updatedAt: row.updated_at,
       publicTrackToken: row.public_track_token,
       fulfillment: row.fulfillment,
+      scheduledPickupAt: row.scheduled_pickup_at,
       hasReview: row.has_review,
       tenant: row.tenant
         ? {

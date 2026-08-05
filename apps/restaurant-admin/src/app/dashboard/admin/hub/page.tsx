@@ -67,6 +67,12 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
+    label: 'Metrici livrare',
+    href: '/dashboard/admin/delivery-metrics',
+    description: 'Distanțe reale parcurse (din traseul GPS) și timpi pe ciclul comenzii, per flotă — cu cât din livrări am putut măsura.',
+    tone: 'emerald',
+  },
+  {
     label: 'Verificări (KYC + KYF)',
     href: '/dashboard/admin/verifications',
     description: 'Aprobă/respinge identitate curieri + legitimitate flote — documente + decizie.',

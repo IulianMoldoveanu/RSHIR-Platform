@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   const ids = Array.from(new Set(entries.map((e) => e.menu_item_id)));
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('restaurant_menu_items')
     .select('id, name, price_ron, image_url, is_available, sold_out_until')

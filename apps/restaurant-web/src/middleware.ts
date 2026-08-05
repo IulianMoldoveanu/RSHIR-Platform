@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { allowedEmbedOrigins } from '@/lib/embed-origins';
 
 /**
  * Host-based tenant routing.
@@ -17,7 +18,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 // for 7 days and trap the visitor in repeated 404s.
 const TENANT_SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const rawHost = request.headers.get('host') ?? '';
   const host = rawHost.split(':')[0];
   const slug = host.split('.')[0];
@@ -92,9 +93,79 @@ export function middleware(request: NextRequest) {
     });
   }
 
+  // Framing + CSP. Owned here rather than in next.config.mjs because the
+  // decision depends on `isEmbed`, which comes from the query param on the
+  // first load and from the `hir_embed` cookie on every navigation after it —
+  // a static config rule can only see the query string.
+  //
+  // 2026-08-02, confirmed empirically: the previous blanket
+  // `X-Frame-Options: SAMEORIGIN` in next.config.mjs broke the embed widget
+  // outright. Loading the widget's iframe from any merchant domain produced
+  // "Refused to display 'https://hirforyou.ro/' in a frame because it set
+  // 'X-Frame-Options' to 'sameorigin'". SAMEORIGIN is just as fatal as DENY
+  // for third-party framing — the config comment claiming otherwise was wrong.
+  //
+  // Only the embed surface is framable, and only while embed mode is active;
+  // everything else (marketing pages, checkout, /account, /track) stays
+  // same-origin-only, which is stricter than what shipped before.
+  //
+  // 2026-08-02 (follow-up): embed mode used to widen this to
+  // `frame-ancestors *` — any site on the internet could frame a checkout
+  // surface. It now resolves the tenant's actual allow-list (verified
+  // custom_domain + `settings.embed.allowed_origins`); a tenant that has
+  // registered nothing gets no third-party framing at all. The lookup is
+  // cached and only runs on embed requests, so ordinary traffic pays nothing
+  // for it, and it fails closed on any error.
+  //
+  // The rest of the policy is the subset that is safe to enforce without
+  // nonces: it blocks <base> hijacking, plugin content and form posts to
+  // foreign origins. Verified safe for payments — the PSP hand-off is a
+  // `window.location.href` navigation, not a form POST, so `form-action`
+  // never sees it. script-src/style-src are deliberately NOT set yet: Next's
+  // hydration bootstrap is inline, so those need nonce plumbing and a
+  // report-only bake first.
+  // The `?tenant=` override only picks the rendered tenant on preview hosts
+  // (isPreviewHost in lib/tenant.ts). Honouring it here on the canonical host
+  // too would let one tenant's registered partner frame a page that tenant
+  // doesn't own — /account on the apex, say. Same gate, so the framing rules
+  // always follow the tenant that actually renders.
+  const previewHost =
+    host.endsWith('.vercel.app') || host === 'localhost' || host.endsWith('.lvh.me');
+  const frameAncestors = isEmbed
+    ? ["'self'", ...(await allowedEmbedOrigins(host, previewHost ? effectiveTenant : null))].join(' ')
+    : "'self'";
+  const csp = [
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    `frame-ancestors ${frameAncestors}`,
+    // Production only. On a local tenant host (http://<slug>.lvh.me:3000) this
+    // directive upgrades every asset request to https, which the dev server
+    // doesn't speak — the storefront rendered with no CSS at all, and the only
+    // clue was ERR_SSL_PROTOCOL_ERROR in the console. Gated on NODE_ENV rather
+    // than the request protocol so nothing an upstream proxy reports can weaken
+    // the header in production.
+    ...(process.env.NODE_ENV === 'production' ? ['upgrade-insecure-requests'] : []),
+  ].join('; ');
+  response.headers.set('Content-Security-Policy', csp);
+  if (frameAncestors === "'self'") {
+    // Kept alongside frame-ancestors for browsers that honour only the older
+    // header — including when the request IS in embed mode but the tenant has
+    // registered no third-party origins, where the two agree anyway.
+    // Omitted the moment a third party is allowed: X-Frame-Options has no
+    // "allow this specific origin" value, so any value at all would re-break
+    // the widget.
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // `_vercel` excluded 2026-08-02: those are platform routes (Web Analytics
+  // and Speed Insights scripts + their beacons), not app routes. Running
+  // middleware on them burns an edge invocation on every page view for a
+  // request that never needed tenant resolution, and any redirect or header
+  // we add there can only get in the platform's way.
+  matcher: ['/((?!_next/static|_next/image|_vercel|favicon.ico).*)'],
 };

@@ -3,9 +3,20 @@ import path from 'node:path';
 import { config as loadEnv } from 'dotenv';
 
 // Load .env.test first (committed, with test-only public values), then
-// .env.local (gitignored, secrets). Last load wins on conflict.
+// .env.local (gitignored, secrets). Last file wins on conflict.
+//
+// But a variable the caller actually typed outranks both. `override: true`
+// used to beat the real environment too, so `E2E_BASE_URL=... playwright test`
+// silently ran against whatever host .env.local happened to pin — a stale
+// preview, in the case that cost a full round of "verified on production"
+// results that were nothing of the sort. The failure is invisible: the suite
+// passes, against the wrong build.
+const explicit = { ...process.env };
 loadEnv({ path: path.resolve(__dirname, '.env.test') });
 loadEnv({ path: path.resolve(__dirname, '.env.local'), override: true });
+for (const [key, value] of Object.entries(explicit)) {
+  if (value !== undefined) process.env[key] = value;
+}
 
 const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:3002';
 const RUN_LOCAL_DEV = !process.env.E2E_BASE_URL;

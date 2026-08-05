@@ -234,6 +234,38 @@ describe('analytics.summary via dispatcher', () => {
     expect(tables.inserted?.length).toBe(1);
     expect(tables.inserted?.[0]?.state).toBe('EXECUTED');
   });
+
+  test("dispatches identically over the new 'whatsapp' channel", async () => {
+    // The WhatsApp webhook (supabase/functions/whatsapp-webhook) calls
+    // dispatchIntent with channel:'whatsapp' — this pins that the new channel
+    // flows through the orchestrator exactly like web/telegram.
+    registerAnalyticsIntents();
+    const tables: Tables = {
+      restaurant_orders: [
+        {
+          total_ron: 42,
+          status: 'DELIVERED',
+          items: [{ name: 'Burger', quantity: 1, priceRon: 42 }],
+          created_at: new Date().toISOString(),
+        },
+      ],
+    };
+    const sb = makeMockSupabase(tables);
+    const r = await dispatchIntent(sb, {
+      tenantId: 't1',
+      channel: 'whatsapp',
+      intent: 'analytics.summary',
+      payload: { period: 'today' },
+    });
+    expect(r.ok).toBe(true);
+    if (!(r.ok && r.state === 'EXECUTED')) {
+      throw new Error('expected EXECUTED, got ' + (r.ok ? r.state : r.error));
+    }
+    const d = r.data as { orders: number; top_products: Array<{ name: string }> };
+    expect(d.orders).toBeGreaterThan(0);
+    expect(d.top_products[0]?.name).toBe('Burger');
+    expect(tables.inserted?.[0]?.state).toBe('EXECUTED');
+  });
 });
 
 describe('analytics.explain_anomaly cap', () => {

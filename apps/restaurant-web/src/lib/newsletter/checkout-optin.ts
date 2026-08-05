@@ -177,7 +177,7 @@ export async function recordCheckoutSignup(
 export async function sendCheckoutWelcomeEmail(args: {
   email: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tenant: { name: string; settings: any };
+  tenant: { name: string; settings: any; custom_domain?: string | null };
   promoCode: string;
 }): Promise<void> {
   const { logoUrl, brandColor } = brandingFor(args.tenant.settings);
@@ -191,6 +191,7 @@ export async function sendCheckoutWelcomeEmail(args: {
     brand: { name: args.tenant.name, logoUrl, brandColor },
     promoCode: args.promoCode,
     unsubscribeUrl,
+    whiteLabel: (args.tenant.custom_domain ?? null) !== null,
   });
   const sent = await sendEmail({
     to: args.email,

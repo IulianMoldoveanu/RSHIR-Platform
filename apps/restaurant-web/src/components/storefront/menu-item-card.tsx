@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Plus, Timer, UtensilsCrossed } from 'lucide-react';
-import { ItemSheet } from './item-sheet';
-import { useCart } from '@/lib/cart/provider';
+import { AllergenChips } from './allergen-chips';
+import { ItemSheet, type AddToCart } from './item-sheet';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import {
@@ -20,6 +20,12 @@ type Props = {
   item: MenuItem;
   modifiers?: MenuItemWithModifiers['modifiers'];
   locale: Locale;
+  /** Which cart this card adds to. See AddToCart in ./item-sheet — the
+   *  marketing demo passes its own isolated store's action. */
+  addItem: AddToCart;
+  /** Groups with required/optional choices. Without these the card cannot know
+   *  an item needs configuring and quick-adds it instead. */
+  modifierGroups?: MenuItemWithModifiers['modifierGroups'];
 };
 
 // Row layout (Glovo / Wolt / UberEats style): text on the left, square image
@@ -28,14 +34,20 @@ type Props = {
 // (saves a tap; on the QA conversion-friction list). Tapping Add on an
 // item that does have modifiers still opens the sheet so required-or-
 // optional choices land properly.
-export function MenuItemCard({ item, modifiers = [], locale }: Props) {
+export function MenuItemCard({
+  item,
+  modifiers = [],
+  modifierGroups = [],
+  locale,
+  addItem,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
-  const useCartStore = useCart();
-  const addItem = useCartStore((s) => s.addItem);
-  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups: [] };
+  const itemWithMods: MenuItemWithModifiers = { ...item, modifiers, modifierGroups };
   const available = item.is_available;
-  const hasModifiers = modifiers.length > 0;
+  // Groups count too: an item whose only options live in a required group was
+  // being quick-added straight past its own choices.
+  const hasModifiers = modifiers.length > 0 || modifierGroups.length > 0;
   const reduceMotion = useShouldReduceMotion();
 
   useEffect(() => {
@@ -85,7 +97,7 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
         aria-disabled={!available}
         whileHover={available && !reduceMotion ? { y: -2 } : undefined}
         transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
-        className={`group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:border-zinc-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${
+        className={`group flex w-full items-stretch gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm transition-shadow hover:border-zinc-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hir-brand,#7c3aed)] focus-visible:ring-offset-2 ${
           available ? 'cursor-pointer' : 'opacity-70'
         }`}
       >
@@ -93,7 +105,13 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
           {item.popular_rank !== null && available && (
             <motion.span
               animate={reduceMotion ? undefined : subtlePulse}
-              className="inline-flex w-fit items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-800 ring-1 ring-inset ring-purple-200"
+              className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset"
+              style={{
+                backgroundColor: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 12%, white)',
+                color: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 75%, black)',
+                // @ts-expect-error CSS custom prop for ring color
+                '--tw-ring-color': 'color-mix(in srgb, var(--hir-brand, #7c3aed) 30%, white)',
+              }}
             >
               <Flame className="h-3 w-3" aria-hidden />
               {item.popular_rank === 1
@@ -115,6 +133,16 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
               {item.description}
             </p>
           ) : null}
+          {/* Allergens on the card, not just inside the sheet: the "+" button
+              adds straight to the cart, so a customer can complete a purchase
+              without ever opening the detail view. EU 1169/2011 art. 14 wants
+              the information available before that point — see AllergenChips
+              for why the names are visible rather than emoji-only. */}
+          <AllergenChips
+            codes={item.allergens}
+            locale={locale}
+            label={t(locale, 'item.allergens_title')}
+          />
           <div className="mt-auto flex flex-col gap-0.5 pt-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-base font-semibold tabular-nums text-zinc-900">
@@ -136,10 +164,10 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
                     ? t(locale, 'item.add_short')
                     : t(locale, 'item.add_to_cart')
                 }
-                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                className={`inline-flex h-11 min-w-[44px] items-center gap-1 rounded-full pl-3 pr-3.5 text-sm font-medium text-white shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hir-brand,#7c3aed)] ${
                   justAdded
                     ? 'bg-emerald-600 shadow-md shadow-emerald-600/30 focus-visible:outline-emerald-500'
-                    : 'bg-purple-700 group-hover:bg-purple-800 hover:bg-purple-800 hover:shadow-md hover:shadow-purple-700/30 focus-visible:outline-purple-500'
+                    : 'bg-[var(--hir-brand,#7c3aed)] hover:shadow-md hover:brightness-110'
                 }`}
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -217,7 +245,13 @@ export function MenuItemCard({ item, modifiers = [], locale }: Props) {
       </motion.div>
 
       {available && (
-        <ItemSheet item={itemWithMods} open={open} onOpenChange={setOpen} locale={locale} />
+        <ItemSheet
+          item={itemWithMods}
+          open={open}
+          onOpenChange={setOpen}
+          locale={locale}
+          addItem={addItem}
+        />
       )}
     </>
   );

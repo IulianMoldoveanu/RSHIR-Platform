@@ -18,6 +18,8 @@ import { MessageSquare, ShieldCheck, Sparkles, Wallet } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
 import { WhatsAppConnectClient } from './client';
+import { HepiPersonaClient } from './persona-client';
+import { loadHepiPersona } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +79,7 @@ export default async function WhatsAppSettingsPage() {
 
   const binding = await loadActiveBinding(tenant.id, user.id);
   const bizConfigured = bizPhoneConfigured();
+  const persona = await loadHepiPersona();
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,7 +110,7 @@ export default async function WhatsAppSettingsPage() {
           <Sparkles className="mb-2 h-4 w-4 text-emerald-600" aria-hidden />
           <h2 className="text-sm font-semibold text-zinc-900">Mesaje în limbaj natural</h2>
           <p className="mt-1 text-xs text-zinc-600">
-            <i>„câte comenzi am acum”</i>, <i>„vânzări azi”</i>, <i>„ajutor”</i>.
+            Scrieți firesc, ca unui asistent. Fără butoane, fără cunoștințe tehnice.
           </p>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -119,11 +122,46 @@ export default async function WhatsAppSettingsPage() {
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
           <ShieldCheck className="mb-2 h-4 w-4 text-emerald-600" aria-hidden />
-          <h2 className="text-sm font-semibold text-zinc-900">Doar citire</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Sigur & privat</h2>
           <p className="mt-1 text-xs text-zinc-600">
-            Hepy WhatsApp nu modifică nimic momentan. Comenzile rapide răspund în secunde.
+            Bucătăria rămâne în bucătărie (POS). WhatsApp e pentru raportare și
+            asistentul Hepi — nu atinge fluxul de comenzi din local.
           </p>
         </div>
+      </section>
+
+      {/* Honest capability map — what works today vs. what Hepi adds next.
+          Owner directive 2026-07-27: WhatsApp is the non-technical owner's
+          remote to Hepi (offers, growth suggestions, "what did the tech guy
+          change"), NOT a kitchen tool. Don't over-promise write actions. */}
+      <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-zinc-900">Ce puteți face din WhatsApp</h2>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+              Activ acum
+            </span>
+            <ul className="mt-2 space-y-1.5 text-xs text-zinc-600">
+              <li>· <i>„câte comenzi am acum”</i> — comenzile active</li>
+              <li>· <i>„vânzări azi”</i> — totalul de astăzi</li>
+              <li>· <i>„ajutor”</i> — lista de comenzi disponibile</li>
+            </ul>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+              În curând, prin Hepi
+            </span>
+            <ul className="mt-2 space-y-1.5 text-xs text-zinc-500">
+              <li>· Cereți o ofertă/reducere — o setează Hepi</li>
+              <li>· Sugestii de creștere a vânzărilor</li>
+              <li>· „ce s-a modificat la tehnic” — pe scurt</li>
+            </ul>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] text-zinc-400">
+          Marcarea comenzilor „gata” și lucrul din bucătărie se fac din local
+          (POS), nu din WhatsApp.
+        </p>
       </section>
 
       <WhatsAppConnectClient
@@ -141,6 +179,12 @@ export default async function WhatsAppSettingsPage() {
               }
             : null
         }
+      />
+
+      <HepiPersonaClient
+        tenantId={tenant.id}
+        initialName={persona.assistant_name}
+        initialTone={persona.persona_tone}
       />
 
       <section className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">

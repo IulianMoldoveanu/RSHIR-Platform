@@ -1,5 +1,5 @@
 // SEO audit 2026-05-10 #5 — bottom-fixed CTA bar for mobile viewports.
-// Three actions: Sună (tel:), WhatsApp, Programează demo (→/contact).
+// Three actions: Sună (tel:), WhatsApp, Vezi demo (→/demo-storefront).
 // Hidden on md+ where the inline page CTAs are visible above the fold;
 // shown on < md where the visitor scrolls a long copy-heavy landing.
 //
@@ -8,7 +8,7 @@
 // remains tappable.
 
 import Link from 'next/link';
-import { Phone, MessageCircle, Calendar } from 'lucide-react';
+import { Phone, MessageCircle, PlayCircle } from 'lucide-react';
 
 const PHONE_DIGITS = '40743700916';
 const PHONE_DISPLAY = '0743 700 916';
@@ -39,13 +39,16 @@ export function MobileStickyCta() {
           <MessageCircle className="h-4 w-4" aria-hidden />
           <span>WhatsApp</span>
         </a>
+        {/* 2026-08-01 — was /contact, which made the one button labelled
+            "Demo" the only CTA on the site that didn't show a demo. Now
+            points at the live interactive storefront, matching the hero. */}
         <Link
-          href="/contact"
+          href="/demo-storefront"
           className="flex flex-1 flex-col items-center justify-center gap-0.5 rounded-md bg-[#4F46E5] px-2 py-2 text-[11px] font-semibold text-white shadow-sm transition-colors active:bg-[#4338CA]"
-          aria-label="Programați un demo HIR"
+          aria-label="Vedeți demo-ul interactiv HIR"
         >
-          <Calendar className="h-4 w-4" aria-hidden />
-          <span>Demo</span>
+          <PlayCircle className="h-4 w-4" aria-hidden />
+          <span>Vezi demo</span>
         </Link>
       </div>
     </div>

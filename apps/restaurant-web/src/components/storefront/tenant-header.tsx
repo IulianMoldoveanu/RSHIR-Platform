@@ -1,18 +1,34 @@
 import Link from 'next/link';
-import { Banknote, CalendarCheck, Clock, Flame, Gift, MessageCircle, Star, Truck, UserRound } from 'lucide-react';
+import { CalendarCheck, Clock, Flame, Gift, Phone, Star, Truck, UserRound } from 'lucide-react';
 import { t, type Locale } from '@/lib/i18n';
 import { formatRon } from '@/lib/format';
 import { LocaleSwitcher } from './locale-switcher';
+import { CartHeaderButton } from './cart-header-button';
 
 type TenantHeaderProps = {
   name: string;
   logoUrl: string | null;
   coverUrl: string | null;
+  /** Brand mark drawn over the top-left of the cover. Separate asset from
+   *  `logoUrl` (the round profile picture): restaurants routinely use a photo
+   *  of a dish there, which left a real logo with nowhere to go. Null for
+   *  every tenant who has not configured one, and then nothing renders —
+   *  a storefront must never show a placeholder to a diner. */
+  coverLogoUrl?: string | null;
   whatsappPhone: string | null;
   locale: Locale;
-  showAccountLink?: boolean;
+  /** True once the visitor has a customer-recognition cookie (has ordered
+   *  before). Purely cosmetic — controls whether the header account link
+   *  reads "Comenzile mele" or "Intră în cont". The link itself always
+   *  renders: a first-time visitor needs a way to find login/signup too,
+   *  not just returning customers. */
+  isRecognizedCustomer?: boolean;
   rating?: { average: number; count: number } | null;
-  minOrderRon?: number;
+  /** True when the tenant has a minimum order but no free-delivery
+   *  threshold — i.e. delivery is free everywhere, unconditionally.
+   *  Minimum order itself is intentionally not surfaced in the header;
+   *  it only shows up in the cart once the customer is actually ordering. */
+  freeDeliveryEverywhere?: boolean;
   freeDeliveryThresholdRon?: number;
   deliveryEtaMinMinutes?: number;
   deliveryEtaMaxMinutes?: number;
@@ -22,6 +38,11 @@ type TenantHeaderProps = {
   /** When true, surface a /rezervari link next to /bio. Driven by
    *  reservation_settings.is_enabled in the storefront page. */
   reservationsEnabled?: boolean;
+  /** When true, surface a "Despre noi" link to /poveste next to /bio.
+   *  Driven by presentation_enabled in tenant.settings — the presentation
+   *  page itself already exists and renders fully once a tenant opts in
+   *  via admin, it just had no discoverable entry point on the storefront. */
+  presentationEnabled?: boolean;
   /** Loyalty points pill for cookie-recognized customers. Null when
    *  loyalty disabled or balance is 0. */
   loyaltyPoints?: number | null;
@@ -31,26 +52,27 @@ type TenantHeaderProps = {
 // the flame pill becomes a useful social-proof signal.
 const TODAY_ORDERS_PILL_FLOOR = 5;
 
-function whatsappOrderUrl(phone: string, name: string, locale: Locale): string {
-  const text = t(locale, 'header.whatsapp_text_template', { name });
-  const cleaned = phone.replace(/[^0-9]/g, '');
-  return `https://wa.me/${cleaned}?text=${encodeURIComponent(text)}`;
+function callNowUrl(phone: string): string {
+  const cleaned = phone.replace(/[^0-9+]/g, '');
+  return `tel:${cleaned}`;
 }
 
 export function TenantHeader({
   name,
   logoUrl,
   coverUrl,
+  coverLogoUrl = null,
   whatsappPhone,
   locale,
-  showAccountLink = false,
+  isRecognizedCustomer = false,
   rating = null,
-  minOrderRon = 0,
+  freeDeliveryEverywhere = false,
   freeDeliveryThresholdRon = 0,
   deliveryEtaMinMinutes = 0,
   deliveryEtaMaxMinutes = 0,
   todayOrderCount = 0,
   reservationsEnabled = false,
+  presentationEnabled = false,
   loyaltyPoints = null,
 }: TenantHeaderProps) {
   const showTodayPill = todayOrderCount >= TODAY_ORDERS_PILL_FLOOR;
@@ -107,8 +129,44 @@ export function TenantHeader({
             }}
           />
         )}
-        <div className="absolute right-3 top-3">
+        {/* Brand mark, top-left over the cover. Renders only when the tenant
+            has configured one — nothing, never a placeholder, otherwise.
+            The scrim comes with it rather than always: it is what keeps a
+            transparent-PNG logo legible on a bright cover photo, and adding
+            it unconditionally would darken the top of every existing
+            storefront for no reason.
+            alt="" on purpose — the <h1> two rows down already names the
+            business, so a description here reads it out twice. */}
+        {coverLogoUrl && (
+          <>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/30 to-transparent"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={coverLogoUrl}
+              alt=""
+              className="absolute left-3 top-3 h-10 w-auto max-w-[140px] object-contain drop-shadow-md sm:left-4 sm:top-4"
+              loading="eager"
+              decoding="async"
+            />
+          </>
+        )}
+        {/* Top-right corner cluster: language flag + account, mirroring the
+            flag-icon / person-icon pairing used by larger delivery sites
+            (MaPizza etc.) — visible immediately on page load, not just once
+            scrolled to the identity row below. */}
+        <div className="absolute right-3 top-3 flex items-center gap-2">
           <LocaleSwitcher current={locale} ariaLabel={t(locale, 'header.switch_locale')} />
+          <CartHeaderButton locale={locale} />
+          <Link
+            href="/account"
+            aria-label={t(locale, isRecognizedCustomer ? 'account.header_link' : 'account.header_link_guest')}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+            <UserRound className="h-4 w-4" aria-hidden />
+          </Link>
         </div>
       </div>
 
@@ -155,19 +213,35 @@ export function TenantHeader({
             >
               {t(locale, 'header.bio_link')}
             </Link>
-            {showAccountLink ? (
+            {presentationEnabled ? (
               <Link
-                href="/account"
-                className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-purple-700 transition-colors hover:text-purple-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
+                href="/poveste"
+                className="rounded-md text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
               >
-                <UserRound className="h-3.5 w-3.5" aria-hidden />
-                {t(locale, 'account.header_link')}
+                {t(locale, 'header.about_link')}
               </Link>
             ) : null}
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {whatsappPhone ? (
+            <a
+              href={callNowUrl(whatsappPhone)}
+              className="group relative inline-flex h-11 items-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] px-4 text-sm font-semibold tracking-tight text-white shadow-[0_2px_8px_-2px_rgba(22,163,74,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_-4px_rgba(22,163,74,0.65),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-0 active:shadow-[0_2px_6px_-2px_rgba(22,163,74,0.5)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/12 to-transparent"
+              />
+              <Phone
+                className="relative h-4 w-4 transition-transform duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100"
+                aria-hidden
+              />
+              <span className="relative hidden sm:inline">{t(locale, 'header.call_now_long')}</span>
+              <span className="relative sm:hidden">{t(locale, 'header.call_now_short')}</span>
+            </a>
+          ) : null}
           {reservationsEnabled ? (
             <Link
               href="/rezervari"
@@ -181,33 +255,17 @@ export function TenantHeader({
               <span className="hidden sm:inline">{t(locale, 'header.reservations_link')}</span>
             </Link>
           ) : null}
-          {whatsappPhone ? (
-            <a
-              href={whatsappOrderUrl(whatsappPhone, name, locale)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative inline-flex h-11 items-center gap-1.5 overflow-hidden rounded-full bg-gradient-to-br from-[#22c55e] to-[#16a34a] px-4 text-sm font-semibold tracking-tight text-white shadow-[0_2px_8px_-2px_rgba(22,163,74,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_18px_-4px_rgba(22,163,74,0.65),inset_0_1px_0_rgba(255,255,255,0.25)] active:translate-y-0 active:shadow-[0_2px_6px_-2px_rgba(22,163,74,0.5)] motion-reduce:transition-none motion-reduce:hover:translate-y-0"
-            >
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 top-0 h-1/2 rounded-t-full bg-gradient-to-b from-white/12 to-transparent"
-              />
-              <MessageCircle
-                className="relative h-4 w-4 transition-transform duration-200 group-hover:scale-110 motion-reduce:group-hover:scale-100"
-                aria-hidden
-              />
-              <span className="relative hidden sm:inline">{t(locale, 'header.whatsapp_long')}</span>
-              <span className="relative sm:hidden">{t(locale, 'header.whatsapp_short')}</span>
-            </a>
-          ) : null}
         </div>
       </div>
 
-      {/* Chip strip — ETA · min order · free delivery threshold. Renders
-          only when at least one chip is configured. Each chip has its
-          own icon + tinted bg for visual separation. */}
+      {/* Chip strip — ETA · free delivery. Renders only when at least one
+          chip is configured. Each chip has its own icon + tinted bg for
+          visual separation. Minimum order is intentionally NOT shown here —
+          it only surfaces in the cart/checkout, once the customer is
+          actually building an order (2026-07-27, Iulian: "sa nu apara minim
+          order in storefront. doar cand vrea sa dea checkout"). */}
       {(etaText ||
-        minOrderRon > 0 ||
+        freeDeliveryEverywhere ||
         freeDeliveryThresholdRon > 0 ||
         showTodayPill ||
         (loyaltyPoints !== null && loyaltyPoints > 0)) && (
@@ -235,10 +293,10 @@ export function TenantHeader({
                 {etaText}
               </span>
             )}
-            {minOrderRon > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium tabular-nums text-zinc-700 ring-1 ring-inset ring-zinc-200">
-                <Banknote className="h-3 w-3" aria-hidden />
-                {t(locale, 'header.min_order_template', { amount: formatRon(minOrderRon, locale) })}
+            {freeDeliveryEverywhere && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                <Truck className="h-3 w-3" aria-hidden />
+                {t(locale, 'header.free_delivery_everywhere')}
               </span>
             )}
             {freeDeliveryThresholdRon > 0 && (

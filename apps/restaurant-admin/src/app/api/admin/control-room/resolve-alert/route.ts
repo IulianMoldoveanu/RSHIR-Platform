@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { assertSameOrigin } from '@/lib/origin-check';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,6 +13,11 @@ export const dynamic = 'force-dynamic';
 const bodySchema = z.object({ id: z.string().uuid() });
 
 export async function POST(req: NextRequest) {
+  const origin = assertSameOrigin(req);
+  if (!origin.ok) {
+    return NextResponse.json({ error: 'forbidden_origin', reason: origin.reason }, { status: 403 });
+  }
+
   const supa = await createServerClient();
   const {
     data: { user },

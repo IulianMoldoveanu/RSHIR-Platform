@@ -4,6 +4,7 @@ import { getLocale } from '@/lib/i18n/server';
 import type { Locale } from '@/lib/i18n';
 import { HELP_CATEGORIES, getAllTopics, pickLocale, type L10n } from './content';
 import { HelpSearch, type SearchTopic } from './help-search';
+import { LocaleSwitcher } from './locale-switcher';
 
 // QW6 (UIUX audit 2026-05-08) — Hepy bot deep-link.
 //
@@ -97,20 +98,24 @@ export default function HelpIndexPage() {
     ? 'No results. Try other keywords or browse the categories below.'
     : 'Niciun rezultat. Încercați alte cuvinte sau parcurgeți categoriile de mai jos.';
   const searchAriaLabel = locale === 'en' ? 'Search the guides' : 'Caută în ghiduri';
+  const localeAriaLabel = locale === 'en' ? 'Switch language' : 'Schimbă limba';
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
-          <HelpCircle className="h-3.5 w-3.5" aria-hidden />
-          <span>{copy.eyebrow}</span>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+            <span>{copy.eyebrow}</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            {copy.h1}
+          </h1>
+          <p className="max-w-2xl text-sm text-zinc-600">
+            {copy.lead}
+          </p>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-          {copy.h1}
-        </h1>
-        <p className="max-w-2xl text-sm text-zinc-600">
-          {copy.lead}
-        </p>
+        <LocaleSwitcher current={locale} ariaLabel={localeAriaLabel} />
       </header>
 
       {/* QW6 — bot CTA above the search box. Mobile users can DM Hepy

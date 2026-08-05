@@ -106,7 +106,7 @@ export default function PartnerSignupPage() {
             <li><strong className="text-[#0F172A]">Comision:</strong> 25% din MRR în primele 12 luni, 20% recurring după (termenii finali confirmați la semnarea contractului).</li>
             <li><strong className="text-[#0F172A]">Plată:</strong> trimestrial, pe factură PFA / SRL (necesar CIF).</li>
             <li><strong className="text-[#0F172A]">Aprobare:</strong> review manual în 24h de la submit, apoi activăm codul tău de referral.</li>
-            <li><strong className="text-[#0F172A]">Materiale:</strong> deck PDF de prezentare, link <a href="/migrate-from-gloriafood" className="text-[#4F46E5] hover:underline">/migrate-from-gloriafood</a> ca leadgen tool, studii de caz live (<a href="/case-studies/foisorul-a" className="text-[#4F46E5] hover:underline">Foișorul A</a>).</li>
+            <li><strong className="text-[#0F172A]">Materiale:</strong> deck PDF de prezentare, link <a href="/migrate-from-gloriafood" className="text-[#4F46E5] hover:underline">/migrate-from-gloriafood</a> ca leadgen tool.</li>
             <li><strong className="text-[#0F172A]">Suport:</strong> răspundem direct, nu printr-un call center.</li>
           </ul>
           <p className="mt-4 text-xs leading-relaxed text-[#94A3B8]">
@@ -160,7 +160,11 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
       <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-md bg-[#EEF2FF] text-xs font-semibold text-[#4F46E5]">
         {n}
       </div>
-      <h3 className="text-sm font-semibold text-[#0F172A]">{title}</h3>
+      {/* h2, not h3: these cards sit directly under the page <h1>, and the
+          first h2 on the page comes after them — so h3 here skipped a level
+          for screen readers. Same class of fix as the footer headings.
+          Visual size is set by the class, not the tag, so nothing moves. */}
+      <h2 className="text-sm font-semibold text-[#0F172A]">{title}</h2>
       <p className="mt-1.5 text-sm leading-relaxed text-[#475569]">{body}</p>
     </div>
   );

@@ -34,6 +34,13 @@ function makeSupabaseMock() {
     from: (table: string) => {
       if (table === 'customers') {
         return {
+          // Lookup-by-phone (upsert-by-phone path) — no existing customer,
+          // route falls through to insert.
+          select: () => ({
+            eq: () => ({
+              eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }),
+            }),
+          }),
           insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: { id: CUSTOMER_ID }, error: null }) }) }),
         };
       }

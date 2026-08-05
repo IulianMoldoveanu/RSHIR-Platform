@@ -150,6 +150,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Tenant-scoped nav (Comenzi / Meniu / Marketing / etc). Hidden in
   // platform-admin-only mode so Iulian doesn't see a fake "Foișorul A"
   // shell when he hasn't been onboarded as a member of any restaurant.
+  //
+  // 2026-07-27 (Iulian directive): non-technical restaurant managers were
+  // overwhelmed — the flat list had ~12 top-level entries + a 4-group
+  // Configurare accordion. Restructured into TWO tiers: everything a
+  // manager touches daily stays open at the top ("Esențial"); everything
+  // else (marketing, AI, accounting, integrations, SEO, reservations…)
+  // collapses under a single "Avansat" group. Nothing is removed and no
+  // roles are introduced — the same URLs remain reachable, they're just
+  // one collapse away. Hepi/WhatsApp handles most advanced tasks anyway.
   const tenantNavEntries: SidebarEntry[] = isPlatformAdminMode ? [] : connectMode ? connectNavEntries : [
     ...(onboarding.went_live
       ? []
@@ -161,6 +170,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             icon: 'rocket' as const,
           },
         ]),
+    // ── ESENȚIAL (always open, daily-use) ──────────────────────
     { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
     ...(isBrandMultiLocation
       ? [
@@ -173,66 +183,63 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       : []),
     { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
     { href: '/dashboard/orders/manual-entry', label: 'Comandă manuală' },
-    { href: '/dashboard/orders/aggregator-inbox', label: 'Inbox preluare email' },
     { href: '/dashboard/menu', label: 'Meniu', icon: 'bookOpen' as const },
-    {
-      label: 'Marketing',
-      icon: 'megaphone' as const,
-      items: [
-        { href: '/dashboard/promos', label: 'Coduri reducere' },
-        { href: '/dashboard/marketing/newsletter', label: 'Newsletter' },
-        { href: '/dashboard/reviews', label: 'Recenzii' },
-        { href: '/dashboard/customer-insights', label: 'Insights clienți' },
-        { href: '/dashboard/customers/reactivation', label: 'Reactivare clienți' },
-        { href: '/dashboard/analytics', label: 'Analytics' },
-        { href: '/dashboard/champion', label: 'Recomandă & câștigă' },
-      ],
-    },
-    { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
-    { href: '/dashboard/ai-activity', label: 'Jurnal AI' },
-    {
-      label: 'Operațiuni',
-      icon: 'sliders' as const,
-      items: [
-        { href: '/dashboard/operations/live-orders', label: 'Livrări live' },
-        { href: '/dashboard/zones', label: 'Zone livrare' },
-        { href: '/dashboard/settings/operations', label: 'Program & pickup' },
-        { href: '/dashboard/settings/notifications', label: 'Notificări' },
-        { href: '/dashboard/reservations', label: 'Rezervări' },
-        { href: '/dashboard/pre-orders', label: 'Pre-comenzi' },
-        { href: '/dashboard/voice', label: 'Apeluri vocale' },
-        { href: '/dashboard/inventory', label: 'Stocuri' },
-        { href: '/kds', label: 'Ecran bucătărie (KDS)' },
-      ],
-    },
-    // QW3 (UIUX audit 2026-05-08): split Configurare into 4 themed
-    // sub-groups so the 14-leaf flat accordion stops failing the "30-second
-    // test". Audit log moves out to its own top-level entry — it's an
-    // observability surface, not really a setting. Order inside each
+    { href: '/kds', label: 'Ecran bucătărie (KDS)', icon: 'sliders' as const },
+    { href: '/dashboard/operations/live-orders', label: 'Livrări live', icon: 'sliders' as const },
+    { href: '/dashboard/settings/operations', label: 'Program & pickup', icon: 'settings' as const },
+    { href: '/dashboard/promos', label: 'Coduri reducere', icon: 'megaphone' as const },
+    { href: '/dashboard/zones', label: 'Zone livrare', icon: 'sliders' as const },
+    // ── AVANSAT (single collapsed group; themed sub-groups) ────
+    // Everything below is one collapse away. A non-technical manager
+    // rarely opens it; power users and Hepi cover it. Order inside each
     // sub-group preserves the original sidebar order so muscle memory holds.
     {
-      label: 'Configurare',
-      icon: 'settings' as const,
+      label: 'Avansat',
+      icon: 'sliders' as const,
       items: [
         {
-          label: 'Identitate',
+          label: 'Comenzi (extra)',
+          items: [
+            { href: '/dashboard/reservations', label: 'Rezervări' },
+            { href: '/dashboard/pre-orders', label: 'Pre-comenzi' },
+            { href: '/dashboard/voice', label: 'Apeluri vocale' },
+            { href: '/dashboard/inventory', label: 'Stocuri' },
+            { href: '/dashboard/settings/notifications', label: 'Notificări' },
+          ],
+        },
+        {
+          label: 'Marketing & clienți',
+          items: [
+            { href: '/dashboard/marketing/newsletter', label: 'Newsletter' },
+            { href: '/dashboard/reviews', label: 'Recenzii' },
+            { href: '/dashboard/customer-insights', label: 'Insights clienți' },
+            { href: '/dashboard/customers/reactivation', label: 'Reactivare clienți' },
+            { href: '/dashboard/analytics', label: 'Analytics' },
+          ],
+        },
+        {
+          label: 'Asistent AI (Hepi)',
+          items: [
+            { href: '/dashboard/ai-ceo', label: 'AI CEO' },
+            { href: '/dashboard/ai-activity', label: 'Jurnal AI' },
+            { href: '/dashboard/settings/ai-trust', label: 'Încredere AI' },
+          ],
+        },
+        {
+          label: 'Identitate & site',
           items: [
             { href: '/dashboard/settings/branding', label: 'Identitate vizuală' },
+            { href: '/dashboard/settings/menu-brands', label: 'Branduri meniu' },
             { href: '/dashboard/settings/presentation', label: 'Pagină de prezentare' },
             { href: '/dashboard/settings/domain', label: 'Domeniu' },
             { href: '/dashboard/settings/seo', label: 'SEO' },
           ],
         },
         {
-          label: 'Operațiuni',
+          label: 'Plăți & contabilitate',
           items: [
             { href: '/dashboard/settings/payments', label: 'Plăți & facturare' },
             { href: '/dashboard/settings/loyalty', label: 'Fidelizare' },
-          ],
-        },
-        {
-          label: 'Contabilitate',
-          items: [
             { href: '/dashboard/settings/exports', label: 'Export contabilitate' },
             { href: '/dashboard/settings/smartbill', label: 'SmartBill (facturare)' },
             { href: '/dashboard/settings/efactura', label: 'ANAF e-Factura' },
@@ -242,6 +249,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           label: 'Integrări',
           items: [
             { href: '/dashboard/settings/integrations', label: 'Integrări' },
+            { href: '/dashboard/settings/whatsapp', label: 'WhatsApp (Hepi)' },
             { href: '/dashboard/settings/voice', label: 'Canal vocal (Twilio)' },
             { href: '/dashboard/settings/integrations#embed', label: 'Widget pentru site' },
             {
@@ -249,15 +257,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               label: 'Preluare comenzi (Glovo/Wolt/Bolt)',
             },
             { href: '/dashboard/settings/inventory', label: 'Stocuri (Premium)' },
-            // Integration with main from #341 (Master Orchestrator) — AI
-            // controls fit cleanly under Integrări since the Orchestrator
-            // ledger + per-tenant trust flag is what surfaces here.
-            { href: '/dashboard/settings/ai-trust', label: 'Încredere AI' },
+          ],
+        },
+        {
+          label: 'Sistem',
+          items: [
+            { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni' },
           ],
         },
       ],
     },
-    { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni', icon: 'sliders' as const },
     { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
   ];
 

@@ -1,0 +1,23 @@
+-- Codex review (PR #1054, P2, round 5): trg_courier_orders_push_dispatch
+-- (20260629_001) fires on every courier_orders INSERT for HIR_TENANT/
+-- EXTERNAL_API orders and sends an UNTARGETED "new order available" push
+-- to the whole fleet — unless the tenant has external_dispatch_enabled,
+-- in which case it silently backs off (that back-off assumed
+-- api/external/orders/route.ts would push instead; that in-process call
+-- was removed in this same rollout, 20260804_005's PR).
+--
+-- Both branches are now obsolete: the untargeted broadcast is exactly the
+-- pull-era "come claim it" notification couriers can no longer act on
+-- (self-pickup is gone), and the back-off branch already did nothing.
+-- There is no remaining scenario where this trigger should fire.
+--
+-- The notification that still matters — a targeted push the instant a
+-- courier receives a directed offer — is unaffected: it's a SEPARATE
+-- trigger (dispatch_courier_push_on_offer, 20260630_030) firing on the
+-- OFFERED transition with assigned_courier_user_id set, not on INSERT.
+--
+-- Drop the trigger, not the function (matches this rollout's existing
+-- pattern of unscheduling rather than deleting — 20260804_001 — cheap to
+-- reverse if ever needed). Idempotent.
+
+drop trigger if exists trg_courier_orders_push_dispatch on public.courier_orders;

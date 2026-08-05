@@ -29,6 +29,7 @@ import { createHash } from 'node:crypto';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { checkLimit, clientIp } from '@/lib/rate-limit';
 import { geocodeAddressRoVerbose } from '@/lib/zones/nominatim';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -85,6 +86,53 @@ function cacheSet(key: string, entry: CacheEntry): void {
     if (oldest) cache.delete(oldest);
   }
   cache.set(key, entry);
+}
+
+// L2 cache — shared across Vercel serverless instances. The in-memory Map
+// above (L1) only helps within one warm instance; at real checkout volume,
+// concurrent instances would each burn Nominatim's shared 1 req/sec budget
+// re-geocoding the SAME address. Reading/writing this table is a single
+// indexed lookup — orders of magnitude cheaper than a fresh OSM round trip,
+// and it's what actually lets the cache hit ratio scale with traffic instead
+// of resetting on every cold start.
+async function persistentCacheGet(key: string): Promise<CacheEntry | null> {
+  try {
+    const admin = getSupabaseAdmin();
+    // geocode_cache isn't in the generated Supabase types yet — same cast
+    // pattern used elsewhere in this codebase for freshly-migrated tables.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from('geocode_cache')
+      .select('lat, lng, display_name, created_at')
+      .eq('cache_key', key)
+      .maybeSingle();
+    if (!data) return null;
+    const row = data as { lat: number; lng: number; display_name: string; created_at: string };
+    const expiresAt = new Date(row.created_at).getTime() + CACHE_TTL_MS;
+    if (expiresAt <= Date.now()) return null;
+    return { lat: row.lat, lng: row.lng, displayName: row.display_name, expiresAt };
+  } catch {
+    // Cache is an optimization, never a hard dependency — a DB hiccup falls
+    // straight through to a live Nominatim call.
+    return null;
+  }
+}
+
+async function persistentCacheSet(key: string, entry: CacheEntry): Promise<void> {
+  try {
+    const admin = getSupabaseAdmin();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from('geocode_cache').upsert({
+      cache_key: key,
+      lat: entry.lat,
+      lng: entry.lng,
+      display_name: entry.displayName,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // Best-effort — the L1 in-memory cache still has the value for this
+    // instance's remaining lifetime even if the persistent write fails.
+  }
 }
 
 // Global queue — guarantees we never burst above OSM's 1 req/sec hard
@@ -153,18 +201,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // L2: another instance may have already geocoded this exact address.
+  const persistentHit = await persistentCacheGet(key);
+  if (persistentHit) {
+    cacheSet(key, persistentHit);
+    return NextResponse.json(
+      { lat: persistentHit.lat, lng: persistentHit.lng, displayName: persistentHit.displayName, cached: true },
+      { headers: { 'Cache-Control': 'private, max-age=3600' } },
+    );
+  }
+
   const q = [line1, city, postalCode, country].filter((s) => s.trim().length > 0).join(', ');
   const hit = await serializeOsm(() => geocodeAddressRoVerbose(q));
   if (!hit) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  cacheSet(key, {
+  const entry: CacheEntry = {
     lat: hit.lat,
     lng: hit.lng,
     displayName: hit.displayName,
     expiresAt: Date.now() + CACHE_TTL_MS,
-  });
+  };
+  cacheSet(key, entry);
+  await persistentCacheSet(key, entry);
 
   return NextResponse.json({
     lat: hit.lat,

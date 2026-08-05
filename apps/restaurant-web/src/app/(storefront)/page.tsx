@@ -5,15 +5,23 @@ import { ChefHat } from 'lucide-react';
 import { MarketingHome } from '@/components/marketing/marketing-home';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { NotifyWhenLiveForm } from '@/components/storefront/notify-when-live-form';
-import { brandingFor, resolveTenantFromHost, tenantBaseUrl, type TenantSettings } from '@/lib/tenant';
+import {
+  brandingFor,
+  getPresentationConfig,
+  resolveTenantFromHost,
+  tenantBaseUrl,
+  type TenantSettings,
+} from '@/lib/tenant';
 import { readCustomerCookie } from '@/lib/customer-recognition';
-import { getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
+import { getMenuBrands, getMenuByTenant, getRecentlyOrderedItems } from '@/lib/menu';
 import { getReviewSummary } from '@/lib/reviews';
 import { TenantHeader } from '@/components/storefront/tenant-header';
 import { safeJsonLd } from '@/lib/jsonld';
-import { MenuList } from '@/components/storefront/menu-list';
+import { BrandAwareMenu } from '@/components/storefront/brand-aware-menu';
 import { ReorderRail } from '@/components/storefront/reorder-rail';
+import { LastOrderBanner } from '@/components/storefront/last-order-banner';
 import { FreeDeliveryProgress } from '@/components/storefront/free-delivery-progress';
+import { FulfillmentSwitch } from '@/components/storefront/fulfillment-switch';
 import { getTodayOrderCount } from '@/lib/orders/today-count';
 import { isReservationsEnabled } from '@/lib/reservations';
 import { getLoyaltyBalance } from '@/lib/loyalty';
@@ -134,11 +142,15 @@ export default async function StorefrontHomePage() {
     const host =
       (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
     const baseUrl = canonicalBaseUrl(host);
+    // 2026-08-01 — the "Cât costă?" and Glovo/Wolt commission-comparison
+    // entries were rewritten off pricing language (see /pricing retirement):
+    // this FAQPage JSON-LD is exactly what Google can surface as a rich
+    // result in the SERP, so it's as Google-facing as the page title/meta.
     const homepageFaq = [
       {
-        question: 'Cât costă HIRforYOU?',
+        question: 'Cum funcționează HIRforYOU?',
         answer:
-          '2 lei per comandă procesată online prin site. Fără abonament, fără comision procentual din valoarea coșului. Livrarea este separată — îți facem o ofertă personalizată de curierat sau folosești curierul tău.',
+          'Aveți propriul storefront, cu brandul și numele dumneavoastră. Clienții comandă direct de pe telefon, comanda ajunge instant la dumneavoastră, iar un curier o livrează. Fără agregator între dumneavoastră și clientul dumneavoastră.',
       },
       {
         question: 'Cum mă mut de pe GloriaFood pe HIRforYOU?',
@@ -148,7 +160,7 @@ export default async function StorefrontHomePage() {
       {
         question: 'Ce diferență față de Glovo / Wolt / Bolt?',
         answer:
-          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul. Plătiți 2 lei pe comandă procesată online (livrare contractată separat, prin ofertă personalizată), nu un comision tipic 25-30% (variază în funcție de contractul cu agregatorul).',
+          'HIRforYOU este SOFTWARE-ul restaurantului, nu un agregator. Restaurantul își păstrează clienții, datele, brandul — comanda vine direct pe pagina dumneavoastră, nu pe un marketplace alături de concurenți.',
       },
       {
         question: 'Asistentul vorbește română?',
@@ -185,7 +197,7 @@ export default async function StorefrontHomePage() {
   }
 
   const locale = await getLocale();
-  const { logoUrl, coverUrl, brandColor } = brandingFor(tenant.settings);
+  const { logoUrl, coverUrl, coverLogoUrl, brandColor } = brandingFor(tenant.settings);
   // Lane PERF (2026-05-05) — preload the LCP cover image so the browser
   // starts the fetch before parsing <body>. ReactDOM.preload emits a
   // <link rel="preload" as="image"> hoisted into <head> and is deduped by
@@ -195,12 +207,14 @@ export default async function StorefrontHomePage() {
   if (coverUrl) {
     ReactDOM.preload(coverUrl, { as: 'image', fetchPriority: 'high' });
   }
-  const [menu, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
+  const [menu, brands, rating, todayOrderCount, reservationsEnabled] = await Promise.all([
     getMenuByTenant(tenant.id),
+    getMenuBrands(tenant.id),
     getReviewSummary(tenant.id),
     getTodayOrderCount(tenant.id),
     isReservationsEnabled(tenant.id),
   ]);
+  const presentationEnabled = getPresentationConfig(tenant.settings as TenantSettings).enabled;
   const accepting = isAcceptingOrders(tenant.settings);
   const openStatus = isOpenNow(tenant.settings);
   const closed = !accepting || !openStatus.open;
@@ -226,6 +240,20 @@ export default async function StorefrontHomePage() {
     typeof tenant.settings.free_delivery_threshold_ron === 'number' &&
     tenant.settings.free_delivery_threshold_ron > 0
       ? Number(tenant.settings.free_delivery_threshold_ron)
+      : 0;
+
+  // Same default as `readPickup` in app/checkout/page.tsx: pickup is on unless
+  // a tenant has explicitly turned it off. Keeping the two in step matters —
+  // offering the choice here and refusing it at checkout would be worse than
+  // never offering it.
+  const pickupEnabled =
+    typeof (tenant.settings as { pickup_enabled?: unknown }).pickup_enabled === 'boolean'
+      ? (tenant.settings as { pickup_enabled: boolean }).pickup_enabled
+      : true;
+  const pickupEtaMinutes =
+    typeof (tenant.settings as { pickup_eta_minutes?: unknown }).pickup_eta_minutes === 'number' &&
+    (tenant.settings as { pickup_eta_minutes: number }).pickup_eta_minutes > 0
+      ? Number((tenant.settings as { pickup_eta_minutes: number }).pickup_eta_minutes)
       : 0;
 
   const restaurantJsonLd = buildRestaurantJsonLd({
@@ -289,20 +317,23 @@ export default async function StorefrontHomePage() {
         ga4MeasurementId={hasAnalyticsConsent() ? socialSettings.ga4_measurement_id ?? null : null}
       />
       <NewsletterBanner />
+      <LastOrderBanner tenantId={tenant.id} locale={locale} />
       <TenantHeader
         name={tenant.name}
         logoUrl={logoUrl}
         coverUrl={coverUrl}
+        coverLogoUrl={coverLogoUrl}
         whatsappPhone={tenant.settings.whatsapp_phone ?? null}
         locale={locale}
-        showAccountLink={hasCustomerCookie}
+        isRecognizedCustomer={hasCustomerCookie}
         reservationsEnabled={reservationsEnabled}
+        presentationEnabled={presentationEnabled}
         loyaltyPoints={loyalty?.points ?? null}
         rating={rating}
-        minOrderRon={
-          typeof tenant.settings.min_order_ron === 'number' && tenant.settings.min_order_ron > 0
-            ? Number(tenant.settings.min_order_ron)
-            : 0
+        freeDeliveryEverywhere={
+          typeof tenant.settings.min_order_ron === 'number' &&
+          tenant.settings.min_order_ron > 0 &&
+          freeDeliveryThresholdRon === 0
         }
         freeDeliveryThresholdRon={freeDeliveryThresholdRon}
         todayOrderCount={todayOrderCount}
@@ -319,6 +350,14 @@ export default async function StorefrontHomePage() {
             : 0
         }
       />
+      {/* Delivery / pickup, asked before the menu rather than at checkout.
+          2026-08-03 — moved up out of the checkout form on Iulian's call after
+          the demo/product parity audit; the marketing demo had been offering
+          the choice here since Friday while the product only offered it three
+          screens later. Hidden entirely for tenants that don't do pickup. */}
+      {pickupEnabled && (
+        <FulfillmentSwitch locale={locale} pickupEtaMinutes={pickupEtaMinutes} />
+      )}
       <FreeDeliveryProgress thresholdRon={freeDeliveryThresholdRon} locale={locale} />
       {closed && banner && (
         <div className="mx-auto mt-3 max-w-2xl px-4">
@@ -374,7 +413,7 @@ export default async function StorefrontHomePage() {
           </EmptyState>
         </div>
       ) : (
-        <MenuList categories={menu} locale={locale} />
+        <BrandAwareMenu categories={menu} brands={brands} locale={locale} />
       )}
       {menu.length > 0 && (
         <section className="mx-auto mt-8 max-w-2xl px-4">

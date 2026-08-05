@@ -64,6 +64,9 @@ export const intentRequestSchema = z
     // a checkout signup + issues a one-time WELCOME-<8 char> 10% code via
     // email. UI default is true; explicit opt-out clears the box.
     newsletterOptin: z.boolean().optional(),
+    // Same-day pickup time slot, PICKUP-only. ISO datetime string, or
+    // omitted/undefined for ASAP (the default and only option for DELIVERY).
+    scheduledPickupAt: z.string().datetime().optional(),
   })
   .refine((v) => v.fulfillment === 'PICKUP' || v.address !== undefined, {
     message: 'address required for delivery',

@@ -3,55 +3,29 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm } from '@/lib/offer-sound';
+import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm, playMessageChime } from '@/lib/offer-sound';
 import * as haptics from '@/lib/haptics';
 
 const REFRESH_THROTTLE_MS = 1500;
 
-// Fleet-wide status transitions that affect the rider's "Comenzi
-// disponibile" list semantics. We refresh on:
-//   - CREATED/OFFERED       : a new claimable order entered the fleet
-//   - ACCEPTED              : someone (possibly another rider) just claimed
-//                              an order — it must disappear from my list
-//   - CANCELLED             : an unassigned order was withdrawn before any
-//                              rider took it — also removes it
-//
-// Excluded from refresh (pure in-flight noise once an order is owned by
-// another courier): PICKED_UP, IN_TRANSIT, DELIVERED, FAILED. None of
-// these change what THIS rider can act on from the open list.
-const OPEN_LIST_RELEVANT_STATUSES = new Set([
-  'CREATED',
-  'OFFERED',
-  'ACCEPTED',
-  'CANCELLED',
-]);
-
 type Props = {
   courierUserId: string;
-  // Fleet the courier belongs to (platform-default for Mode A/B riders).
-  // Required to surface newly-offered orders live without a manual refresh.
-  // Null when the page can't resolve it — falls back to the previous
-  // assigned-only behaviour so we never regress.
-  fleetId: string | null;
-  // Mode C riders are dispatched by a fleet manager and never see the
-  // "available orders" section. Skip the fleet-wide subscription for them
-  // so we don't wake their device on every fleet event they can't act on.
-  watchFleetOpenOrders: boolean;
+  // courier_orders.id of this rider's currently active orders (OFFERED/
+  // ACCEPTED/PICKED_UP/IN_TRANSIT). Used to watch order_messages for an
+  // incoming client chat message — the chat only lives on the per-order
+  // detail page, so without this the rider has no cue a client wrote
+  // anything unless they happen to open that page.
+  activeOrderIds: string[];
 };
 
-// Subscribes to changes on courier_orders rows assigned to this courier
-// AND, when applicable, to open-list-relevant transitions on the same fleet.
-//
-// Two subscriptions:
-//   1. Assigned filter (always): refresh on any change to MY orders.
-//   2. Fleet filter (gated by watchFleetOpenOrders): refresh on
-//      CREATED/OFFERED/ACCEPTED/CANCELLED transitions, regardless of
-//      assignee. ACCEPTED is included so when peer claims an order MY
-//      list drops it immediately — that's the race-condition guard.
-//      In-flight noise (PICKED_UP/IN_TRANSIT/DELIVERED/FAILED on peer
-//      orders) is filtered out in the handler so we don't churn the
-//      page on every map-tick worth of status updates.
-export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }: Props) {
+// Subscribes to changes on courier_orders rows assigned to this courier.
+// (decision_pull_dispatch_eliminated_2026-08-04 removed the fleet-wide
+// open-pool subscription that used to live here — riders no longer browse
+// an unassigned pool, so there is nothing fleet-wide left to watch.)
+export function OrdersRealtime({
+  courierUserId,
+  activeOrderIds,
+}: Props) {
   const router = useRouter();
   const lastRefreshRef = useRef(0);
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,45 +59,10 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       assigned_courier_user_id?: string | null;
     };
 
-    // Refresh only on fleet events that change the open-list semantics
-    // (see OPEN_LIST_RELEVANT_STATUSES above). The previous version skipped
-    // ACCEPTED — meaning when another rider claimed an order, MY list would
-    // still show it as "Available" until I manually tapped Actualizează.
-    // That was the worst race-condition UX: two riders could both tap to
-    // accept the same order, then the loser would silently get "already
-    // taken" with no in-app cue. Now every claim transition fans out as a
-    // refresh to peers on the fleet.
-    const triggerOnFleetActivity = (payload: {
-      eventType?: string;
-      new: OrderRowPayload;
-    }) => {
-      const row = payload.new ?? {};
-      if (!row.status || !OPEN_LIST_RELEVANT_STATUSES.has(row.status)) return;
-      // Sound the alarm on transitions that surface a new claimable order
-      // (INSERT or UPDATE landing on CREATED/OFFERED). ACCEPTED and CANCELLED
-      // still trigger a refresh but no alarm — the courier either lost the
-      // race or saw a peer claim, no new opportunity. Vibration fires too so
-      // a new order is felt even with the phone on silent.
-      const isNewOpenOrder =
-        (row.status === 'CREATED' || row.status === 'OFFERED') &&
-        (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE');
-      if (isNewOpenOrder) {
-        if (isOfferSoundEnabled()) playOfferAlarm();
-        try {
-          haptics.custom([0, 140, 70, 140]);
-        } catch {
-          // haptics unavailable — non-fatal.
-        }
-      }
-      triggerRefresh();
-    };
-
     // A directed offer landed for THIS courier (CREATED→OFFERED, assigned to
-    // me) via the assigned-filter subscription. The big swipe-to-accept overlay
-    // lives on the home/map tab where the open-pool chirp never fires
-    // (watchFleetOpenOrders=false), so a personally-assigned job was previously
-    // SILENT — easy to miss on a bike mount. Announce it with sound + a
-    // vibration (at least one channel always fires, independent of the toggle).
+    // me). The big swipe-to-accept overlay lives on the home/map tab, so a
+    // personally-assigned job could otherwise go unnoticed — easy to miss on
+    // a bike mount. Announce it with sound + a vibration.
     const triggerOnAssignedActivity = (payload: { new: OrderRowPayload }) => {
       const row = payload.new ?? {};
       if (row.status === 'OFFERED') {
@@ -152,22 +91,48 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
         triggerOnAssignedActivity,
       );
 
-    // Second subscription: fleet-wide unassigned orders. Postgres realtime
-    // filters don't support `AND IS NULL`, so we filter by fleet_id only
-    // and reject non-claimable payloads in the handler above.
-    if (watchFleetOpenOrders && fleetId) {
-      const fleetFilter = `fleet_id=eq.${fleetId}`;
-      channel
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'courier_orders', filter: fleetFilter },
-          triggerOnFleetActivity,
-        )
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter: fleetFilter },
-          triggerOnFleetActivity,
-        );
+    // Codex review (PR #1054, P2): when a directed offer times out,
+    // revoke_expired_courier_offers() clears assigned_courier_user_id as
+    // part of the same UPDATE that reverts status to CREATED. Postgres
+    // Realtime filters test the NEW row, so that update no longer matches
+    // assignedFilter above and the courier never hears about their own
+    // offer expiring — the swipe-to-accept overlay would stay stale until
+    // navigation or a failed accept attempt. Watch the specific order ids
+    // already known to be relevant to this rider (by id, not by assignee)
+    // so a clearing update still reaches them.
+    if (activeOrderIds.length > 0 && activeOrderIds.length <= 50) {
+      const idFilter = `id=in.(${activeOrderIds.join(',')})`;
+      channel.on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'courier_orders', filter: idFilter },
+        () => triggerRefresh(),
+      );
+    }
+
+    // Client chat messages on this rider's active orders. The chat UI only
+    // exists on /dashboard/orders/[id] — without this, a message from the
+    // client is silent until the rider happens to open that page. Chimes +
+    // vibrates + refreshes so the home-screen badge (isClientMessageUnread)
+    // picks it up. Skipped when there are no active orders (nothing to
+    // filter on) or too many for a realtime `in.(...)` filter to stay sane.
+    type MessageRowPayload = { from_role?: string; channel?: string };
+    if (activeOrderIds.length > 0 && activeOrderIds.length <= 50) {
+      const messagesFilter = `courier_order_id=in.(${activeOrderIds.join(',')})`;
+      channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'order_messages', filter: messagesFilter },
+        (payload: { new: MessageRowPayload }) => {
+          const row = payload.new ?? {};
+          if (row.from_role !== 'CLIENT' || row.channel !== 'CLIENT_COURIER') return;
+          if (isOfferSoundEnabled()) playMessageChime();
+          try {
+            haptics.attention();
+          } catch {
+            // haptics unavailable — non-fatal.
+          }
+          triggerRefresh();
+        },
+      );
     }
 
     channel.subscribe();
@@ -183,7 +148,7 @@ export function OrdersRealtime({ courierUserId, fleetId, watchFleetOpenOrders }:
       // per-client channel cap. `removeChannel` does both.
       void supabase.removeChannel(channel);
     };
-  }, [router, courierUserId, fleetId, watchFleetOpenOrders]);
+  }, [router, courierUserId, activeOrderIds]);
 
   return null;
 }

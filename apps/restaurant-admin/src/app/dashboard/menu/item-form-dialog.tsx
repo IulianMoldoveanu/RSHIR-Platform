@@ -16,6 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
   toast,
+  ALLERGENS,
+  parseAllergens,
+  type AllergenCode,
 } from '@hir/ui';
 import { createItemAction, updateItemAction } from './actions';
 import type { MenuCategory, MenuItem } from './page';
@@ -45,6 +48,9 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
       : '',
   );
   const [servingLabel, setServingLabel] = useState(item?.serving_size_label ?? '');
+  const [allergens, setAllergens] = useState<AllergenCode[]>(
+    parseAllergens(item?.allergens ?? []),
+  );
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -62,6 +68,7 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
     fd.set('prep_minutes', prepMinutes);
     fd.set('serving_size_grams', servingGrams);
     fd.set('serving_size_label', servingLabel);
+    fd.set('allergens', allergens.join(','));
     if (imageFile) fd.set('image', imageFile);
     if (mode === 'edit' && item) fd.set('id', item.id);
 
@@ -79,7 +86,13 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-xl">
+      {/* max-h + scroll: DialogContent is fixed and vertically centred with no
+          height cap of its own, so adding the 14-option allergen fieldset
+          pushed the image field, the availability toggle and Save off-screen on
+          a laptop — the owner could no longer save an item at all. Caught in
+          review of #1041. Scoped to this dialog because this is the one the
+          change made tall; the other menu dialogs are still short. */}
+      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{mode === 'create' ? 'Produs nou' : 'Editează produs'}</DialogTitle>
         </DialogHeader>
@@ -192,12 +205,55 @@ export function ItemFormDialog({ mode, item, categories, onClose }: Props) {
             </p>
           </div>
 
+          {/* Alergeni — Reg. (UE) 1169/2011, Anexa II. Obligatoriu de declarat
+              pentru mancarea vanduta la distanta, deci apare in formular langa
+              restul datelor produsului, nu ascuns intr-un tab separat.
+              Catalogul e fix in packages/ui/lib/allergens.ts: patronul bifeaza,
+              nu inventeaza. */}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-medium text-zinc-900">Alergeni</legend>
+            <p className="text-xs text-zinc-500">
+              Bifeaza ce contine preparatul. Nimic bifat = nu se afiseaza nimic pe
+              storefront (nu inseamna &bdquo;fara alergeni&rdquo;).
+            </p>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+              {ALLERGENS.map((a) => {
+                const checked = allergens.includes(a.code);
+                return (
+                  <label
+                    key={a.code}
+                    className={`flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm transition-colors ${
+                      checked
+                        ? 'border-amber-300 bg-amber-50 text-amber-900'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-amber-600"
+                      checked={checked}
+                      onChange={(e) =>
+                        setAllergens((prev) =>
+                          e.target.checked
+                            ? [...prev, a.code]
+                            : prev.filter((c) => c !== a.code),
+                        )
+                      }
+                    />
+                    <span aria-hidden>{a.emoji}</span>
+                    {a.ro}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="image">Imagine (max 5MB)</Label>
             <input
               id="image"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
+              accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/heic,image/heif,.jfif,.jpe,.heic,.heif"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
               className="text-sm"
             />

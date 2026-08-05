@@ -12,6 +12,43 @@ export type Zone = {
   created_at: string;
 };
 
+function isLngLatTuple(v: unknown): v is [number, number] {
+  return Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number';
+}
+
+/**
+ * Normalizes a `delivery_zones.polygon` Json value into the canonical
+ * `{type:'Polygon', coordinates:[[[lng,lat],...]]}` shape this page and
+ * zone-map.tsx expect. Mirrors coercePolygon in
+ * apps/restaurant-web/src/lib/zones/geo.ts — checkout already tolerates a
+ * bare-array shape and a flat `{coordinates:[[lng,lat],...]}` shape
+ * (zones seeded outside the draw tool, e.g. sales-led onboarding via
+ * service-role script, aren't guaranteed to match the tool's own nested
+ * GeoJSON output). Without this, a zone in one of those shapes renders
+ * fine at checkout but silently vanishes from this admin page — exactly
+ * what happened for Delivery House's ~20km radius zone.
+ */
+export function normalizePolygon(raw: unknown): Polygon | null {
+  if (Array.isArray(raw) && raw.every(isLngLatTuple)) {
+    return { type: 'Polygon', coordinates: [raw as [number, number][]] };
+  }
+  if (raw && typeof raw === 'object' && 'coordinates' in raw) {
+    const c = (raw as { coordinates: unknown }).coordinates;
+    if (Array.isArray(c) && c.every(isLngLatTuple)) {
+      return { type: 'Polygon', coordinates: [c as [number, number][]] };
+    }
+    if (
+      Array.isArray(c) &&
+      c.length > 0 &&
+      Array.isArray(c[0]) &&
+      (c[0] as unknown[]).every(isLngLatTuple)
+    ) {
+      return { type: 'Polygon', coordinates: c as [number, number][][] };
+    }
+  }
+  return null;
+}
+
 export type Tier = {
   id: string;
   min_km: number;

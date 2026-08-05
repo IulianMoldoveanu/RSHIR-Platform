@@ -19,6 +19,7 @@ import {
 } from '@/lib/newsletter/checkout-optin';
 import { validateRedemption } from '@/lib/loyalty';
 import { LOCALE_COOKIE, isLocale, DEFAULT_LOCALE } from '@/lib/i18n';
+import { normalizeRoPhoneE164 } from '@/lib/checkout/otp';
 import {
   checkIdempotency,
   hashRequestBody,
@@ -80,7 +81,12 @@ export async function POST(req: NextRequest) {
     const adminEarly = getSupabaseAdmin();
     const requestHash = hashRequestBody(rawBody);
     const idem = await checkIdempotency(adminEarly, tenant.id, idempotencyKey, requestHash);
-    if (idem.kind === 'CACHED' || idem.kind === 'MISMATCH' || idem.kind === 'INVALID') {
+    if (
+      idem.kind === 'CACHED' ||
+      idem.kind === 'MISMATCH' ||
+      idem.kind === 'INVALID' ||
+      idem.kind === 'LOCKED'
+    ) {
       return idem.response;
     }
     if (idem.kind === 'NEW') {
@@ -187,27 +193,77 @@ export async function POST(req: NextRequest) {
     (Number(q.discountRon) + loyaltyDiscountRon).toFixed(2),
   );
 
-  // Customer (one row per checkout — no auth/dedupe in MVP).
+  // Customer — upsert-by-phone so a returning phone number maps to the
+  // SAME customer row (needed for phone+OTP login and accurate loyalty/
+  // order history) instead of accumulating a duplicate row per checkout.
+  // Guest checkout is unaffected either way — no account is required to
+  // order; this only makes "the same phone" resolve to "the same account"
+  // behind the scenes. Falls back to a plain insert when the phone doesn't
+  // normalize (non-RO / malformed) so checkout never fails because of this.
   // Persist the storefront locale so notify-customer-status emails ship in
   // the customer's chosen language. Default to RO when the cookie is unset.
   const localeCookie = req.cookies.get(LOCALE_COOKIE)?.value;
   const customerLocale = isLocale(localeCookie) ? localeCookie : DEFAULT_LOCALE;
-  const { data: customer, error: custErr } = await admin
-    .from('customers')
-    .insert({
-      tenant_id: tenant.id,
-      first_name: parsed.data.customer.firstName,
-      last_name: parsed.data.customer.lastName,
-      phone: parsed.data.customer.phone,
-      email: parsed.data.customer.email || null,
-      locale: customerLocale,
-    } as never)
-    .select('id')
-    .single();
+  const normalizedPhone = normalizeRoPhoneE164(parsed.data.customer.phone);
+  let customer: { id: string } | null = null;
+  let custErr: { message: string } | null = null;
+  if (normalizedPhone) {
+    const { data: existing } = await admin
+      .from('customers')
+      .select('id')
+      .eq('tenant_id', tenant.id)
+      .eq('phone', normalizedPhone)
+      .maybeSingle();
+    if (existing) {
+      const { data: updated, error: updErr } = await admin
+        .from('customers')
+        .update({
+          first_name: parsed.data.customer.firstName,
+          last_name: parsed.data.customer.lastName,
+          email: parsed.data.customer.email || null,
+          locale: customerLocale,
+        } as never)
+        .eq('id', existing.id)
+        .select('id')
+        .single();
+      customer = updated;
+      custErr = updErr;
+    } else {
+      const { data: inserted, error: insErr } = await admin
+        .from('customers')
+        .insert({
+          tenant_id: tenant.id,
+          first_name: parsed.data.customer.firstName,
+          last_name: parsed.data.customer.lastName,
+          phone: normalizedPhone,
+          email: parsed.data.customer.email || null,
+          locale: customerLocale,
+        } as never)
+        .select('id')
+        .single();
+      customer = inserted;
+      custErr = insErr;
+    }
+  } else {
+    const { data: inserted, error: insErr } = await admin
+      .from('customers')
+      .insert({
+        tenant_id: tenant.id,
+        first_name: parsed.data.customer.firstName,
+        last_name: parsed.data.customer.lastName,
+        phone: parsed.data.customer.phone,
+        email: parsed.data.customer.email || null,
+        locale: customerLocale,
+      } as never)
+      .select('id')
+      .single();
+    customer = inserted;
+    custErr = insErr;
+  }
   if (custErr || !customer) {
     // SECURITY: don't echo DB error.message to public callers — leaks
     // constraint names, columns, and bound values. Log server-side.
-    console.error('[checkout/intent] customer insert failed', custErr?.message);
+    console.error('[checkout/intent] customer upsert failed', custErr?.message);
     return NextResponse.json({ error: 'customer_insert_failed' }, { status: 500 });
   }
 
@@ -252,6 +308,16 @@ export async function POST(req: NextRequest) {
     notes: parsed.data.notes || null,
     status: 'PENDING',
     payment_status: 'UNPAID',
+    // Same-day pickup slot — PICKUP only, ignored for delivery orders even
+    // if a stale client somehow sent one. A slot in the past (clock drift,
+    // slow submit) silently falls back to ASAP rather than rejecting the
+    // whole order over a few seconds of skew.
+    scheduled_pickup_at:
+      isPickup &&
+      parsed.data.scheduledPickupAt &&
+      new Date(parsed.data.scheduledPickupAt).getTime() > Date.now()
+        ? parsed.data.scheduledPickupAt
+        : null,
     promo_code_id: q.promo?.id ?? null,
     discount_ron: finalDiscountRon,
   };
@@ -340,7 +406,7 @@ export async function POST(req: NextRequest) {
         // (source='checkout', created_at) joined to orders by email.
         await sendCheckoutWelcomeEmail({
           email: customerEmail,
-          tenant: { name: tenant.name, settings: tenant.settings },
+          tenant: { name: tenant.name, settings: tenant.settings, custom_domain: tenant.custom_domain },
           promoCode: ensured.code,
         });
       }
@@ -435,6 +501,7 @@ export async function POST(req: NextRequest) {
       currency: 'RON',
       successUrl: `${baseUrl}/checkout/success?order_id=${order.id}&token=${order.public_track_token}`,
       cancelUrl: `${baseUrl}/checkout/cancel?order_id=${order.id}`,
+      notifyUrl: `${baseUrl}/api/webhooks/${paymentSurface.provider}`,
       customer: {
         email: parsed.data.customer.email ?? '',
         firstName: parsed.data.customer.firstName,

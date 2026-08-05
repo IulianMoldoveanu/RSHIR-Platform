@@ -19,14 +19,32 @@ export type CartItem = {
   notes?: string;
 };
 
+/** Same two values the checkout quote and the order row use. */
+export type Fulfillment = 'DELIVERY' | 'PICKUP';
+
 type CartState = {
   items: CartItem[];
+  /**
+   * How the customer wants the order handed over.
+   *
+   * Lives on the cart (2026-08-03) rather than only in checkout state, because
+   * the storefront now asks the question above the menu — the point at which a
+   * diner actually decides, and where every large delivery site asks it. The
+   * checkout picker still exists and still wins; this is the value it opens on.
+   *
+   * Not authoritative: `/api/checkout/quote` and `/api/checkout/intent` both
+   * reject PICKUP when the tenant has `pickup_enabled: false`, so a stale or
+   * hand-edited localStorage value cannot produce an order the tenant does not
+   * accept.
+   */
+  fulfillment: Fulfillment;
 };
 
 type CartActions = {
   addItem: (input: Omit<CartItem, 'lineId' | 'qty'> & { qty?: number }) => void;
   updateQty: (lineId: string, qty: number) => void;
   removeItem: (lineId: string) => void;
+  setFulfillment: (fulfillment: Fulfillment) => void;
   clear: () => void;
   getSubtotal: () => number;
   getCount: () => number;
@@ -58,6 +76,7 @@ export function getCartStore(tenantId: string): CartStore {
     persist(
       (set, get) => ({
         items: [],
+        fulfillment: 'DELIVERY',
 
         addItem: (input) => {
           const incoming: CartItem = {
@@ -95,6 +114,11 @@ export function getCartStore(tenantId: string): CartStore {
           set({ items: get().items.filter((i) => i.lineId !== lineId) });
         },
 
+        setFulfillment: (fulfillment) => set({ fulfillment }),
+
+        // Deliberately keeps `fulfillment`: someone who picked up their last
+        // order and comes back to order again should not be silently put back
+        // on delivery.
         clear: () => set({ items: [] }),
 
         getSubtotal: () => get().items.reduce((s, i) => s + lineUnitPrice(i) * i.qty, 0),
@@ -113,7 +137,7 @@ export function getCartStore(tenantId: string): CartStore {
           }
           return localStorage;
         }),
-        partialize: (state) => ({ items: state.items }),
+        partialize: (state) => ({ items: state.items, fulfillment: state.fulfillment }),
       },
     ),
   );

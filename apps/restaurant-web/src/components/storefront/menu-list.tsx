@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useCart } from '@/lib/cart/provider';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SearchX, X } from 'lucide-react';
 import type { MenuCategory } from '@/lib/menu';
@@ -30,6 +31,8 @@ export function MenuList({
   categories: MenuCategory[];
   locale: Locale;
 }) {
+  const useCartStore = useCart();
+  const addItem = useCartStore((s) => s.addItem);
   const [query, setQuery] = useState('');
   const reduceMotion = useShouldReduceMotion();
 
@@ -60,7 +63,10 @@ export function MenuList({
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(locale, 'menu.search_placeholder')}
           aria-label={t(locale, 'menu.search_placeholder')}
-          className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm transition-all focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-500/15"
+          // type="search" inputs render a native browser clear-x (WebKit/
+          // Blink desktop especially) on top of our own animated X button
+          // below — suppress the native one so there's only ever one.
+          className="h-11 w-full rounded-full border border-zinc-200 bg-white pl-10 pr-10 text-sm shadow-sm transition-all [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none focus:border-[var(--hir-brand,#7c3aed)] focus:outline-none focus:ring-4 focus:ring-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_15%,transparent)]"
         />
         <AnimatePresence>
           {query.length > 0 && (
@@ -72,7 +78,7 @@ export function MenuList({
               animate={{ opacity: 1, scale: 1 }}
               exit={reduceMotion ? undefined : { opacity: 0, scale: 0.6 }}
               transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
-              className="absolute right-7 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
+              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-[var(--hir-brand,#7c3aed)] focus-visible:outline-offset-2"
             >
               <X className="h-3.5 w-3.5" />
             </motion.button>
@@ -83,7 +89,7 @@ export function MenuList({
       {filtered.length === 0 ? (
         <div className="mt-6 px-4">
           <EmptyState
-            icon={<SearchX className="h-8 w-8 text-purple-400" />}
+            icon={<SearchX className="h-8 w-8" style={{ color: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 55%, white)' }} />}
             title={t(locale, 'storefront.empty_search_title')}
             description={t(locale, 'storefront.empty_search_desc')}
             action={{
@@ -142,7 +148,9 @@ export function MenuList({
                         <MenuItemCard
                           item={it}
                           modifiers={it.modifiers}
+                          modifierGroups={it.modifierGroups}
                           locale={locale}
+                          addItem={addItem}
                         />
                       </motion.div>
                     ))}

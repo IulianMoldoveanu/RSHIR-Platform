@@ -62,13 +62,26 @@ export async function updateOrderStatus(
     );
   }
 
+  // Optimistic-concurrency guard: only the caller that still sees the
+  // status we validated against wins the transition. Prevents a
+  // double-click / racing request from re-running the DELIVERED/PICKED_UP
+  // side effects below (loyalty points, POS dispatch) twice for one order.
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: updated, error } = await admin
     .from('restaurant_orders')
     .update({ status: newStatus })
     .eq('id', orderId)
-    .eq('tenant_id', tenantId);
+    .eq('tenant_id', tenantId)
+    .eq('status', order.status)
+    .select('id');
   if (error) throw friendlyDbError(error, 'actualizarea stării comenzii');
+  if (!updated || updated.length === 0) {
+    throw new OrderTransitionError(
+      `Comanda a fost deja actualizată de altcineva (nu mai e în starea ${order.status}).`,
+      order.status,
+      newStatus,
+    );
+  }
 
   await logAudit({
     tenantId,
@@ -107,8 +120,11 @@ export async function updateOrderStatus(
     });
   }
 
-  // Award loyalty points on DELIVERED. Best-effort — never throws.
-  if (newStatus === 'DELIVERED') {
+  // Award loyalty points on the order's completion state — DELIVERED for
+  // courier orders, PICKED_UP for customer-pickup orders. NO_SHOW never
+  // earns points (the customer didn't actually receive the order).
+  // Best-effort — never throws.
+  if (newStatus === 'DELIVERED' || newStatus === 'PICKED_UP') {
     await awardLoyaltyForDeliveredOrder({ tenantId, orderId });
   }
 
@@ -351,6 +367,77 @@ export async function markCodOrderPaid(
     entityType: 'order',
     entityId: orderId,
     metadata: { from: row.payment_status, to: 'PAID' },
+  });
+
+  revalidatePath('/dashboard/orders');
+  revalidatePath(`/dashboard/orders/${orderId}`);
+}
+
+/**
+ * Manual reconciliation for a CARD order whose PSP webhook never arrived —
+ * the operator has independently confirmed the charge succeeded (e.g. the
+ * PSP's own confirmation email) and payment_status is stuck UNPAID/PENDING.
+ *
+ * Deliberately separate from markCodOrderPaid: this path is for the "the
+ * gateway confirmed but our webhook didn't fire" case, not a substitute for
+ * webhook verification. Every use is audit-logged with a distinct action so
+ * it's easy to see how often this manual path is needed (a high count would
+ * mean the underlying webhook delivery problem needs fixing, not this
+ * escape hatch removing).
+ */
+export async function reconcileCardOrderPaid(
+  orderId: string,
+  expectedTenantId: string,
+): Promise<void> {
+  const { tenantId, userId } = await requireTenant(expectedTenantId);
+
+  const admin = createAdminClient();
+  const { data: existing, error: readErr } = await admin
+    .from('restaurant_orders')
+    .select('id, payment_method, payment_status')
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (readErr) throw friendlyDbError(readErr, 'încărcarea comenzii pentru reconciliere');
+  if (!existing) throw new Error('Comanda nu exista in acest restaurant.');
+
+  const row = existing as unknown as {
+    id: string;
+    payment_method: 'CARD' | 'COD' | null;
+    payment_status: string;
+  };
+  if (row.payment_method !== 'CARD') {
+    throw new Error('Reconcilierea manuală e doar pentru comenzi plătite cu cardul.');
+  }
+  if (row.payment_status === 'PAID') {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const guarded = (admin
+    .from('restaurant_orders')
+    .update({ payment_status: 'PAID' })
+    .eq('id', orderId)
+    .eq('tenant_id', tenantId) as any)
+    .eq('payment_method', 'CARD')
+    .neq('payment_status', 'PAID')
+    .select('id');
+  const { data: claimed, error } = (await guarded) as {
+    data: Array<{ id: string }> | null;
+    error: { code?: string | null; message: string; details?: string | null } | null;
+  };
+  if (error) throw friendlyDbError(error, 'reconcilierea manuală a plății');
+  if (!claimed || claimed.length === 0) {
+    throw new Error('Comanda nu mai e eligibilă (a fost modificată între timp).');
+  }
+
+  await logAudit({
+    tenantId,
+    actorUserId: userId,
+    action: 'order.card_manually_reconciled_paid',
+    entityType: 'order',
+    entityId: orderId,
+    metadata: { from: row.payment_status, to: 'PAID', reason: 'psp_webhook_missing' },
   });
 
   revalidatePath('/dashboard/orders');

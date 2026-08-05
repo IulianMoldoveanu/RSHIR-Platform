@@ -34,8 +34,86 @@ import {
 } from './schemas';
 
 const MENU_BUCKET = 'menu-images';
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/gif',
+  'image/bmp',
+  'image/heic',
+  'image/heif',
+]);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Browsers don't reliably report a MIME type for every extension a menu
+// photo actually arrives in — .jfif/.jpe are plain JPEG under a different
+// extension convention (.jfif is what Windows "Save image as" produces from
+// many sites), and Chrome on Windows often leaves `file.type` empty or
+// reports `image/pjpeg` for them. iPhone photos (.heic/.heif) are similarly
+// inconsistent. Resolve those by extension instead of trusting the
+// browser-supplied type when it's missing or a known-unreliable alias.
+const EXT_TO_MIME: Record<string, string> = {
+  jfif: 'image/jpeg',
+  jpe: 'image/jpeg',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  heic: 'image/heic',
+  heif: 'image/heif',
+};
+const UNRELIABLE_TYPES = new Set(['', 'image/pjpeg', 'application/octet-stream']);
+
+/** Resolves the real MIME type to store, falling back to filename extension
+ *  when the browser didn't supply (or mis-supplied) one for a known format. */
+function resolveImageMime(file: File): string | null {
+  if (ALLOWED_MIME.has(file.type)) return file.type;
+  if (!UNRELIABLE_TYPES.has(file.type)) return null;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  return (ext && EXT_TO_MIME[ext]) || null;
+}
+
+// RSHIR-31 H-4 pattern (see settings/branding/actions.ts,
+// settings/menu-brands/actions.ts): file.type / filename extension are both
+// attacker-controlled; verify the actual leading bytes before upload.
+function matchesDeclaredMime(mime: string, bytes: ArrayBuffer): boolean {
+  const head = new Uint8Array(bytes.slice(0, 12));
+  if (head.length < 4) return false;
+  if (mime === 'image/png') {
+    return (
+      head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47 &&
+      head[4] === 0x0d && head[5] === 0x0a && head[6] === 0x1a && head[7] === 0x0a
+    );
+  }
+  if (mime === 'image/jpeg') {
+    return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+  }
+  if (mime === 'image/webp') {
+    // RIFF....WEBP
+    return (
+      head[0] === 0x52 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x46 &&
+      head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50
+    );
+  }
+  if (mime === 'image/gif') {
+    // GIF87a / GIF89a
+    return (
+      head[0] === 0x47 && head[1] === 0x49 && head[2] === 0x46 && head[3] === 0x38 &&
+      (head[4] === 0x37 || head[4] === 0x39) && head[5] === 0x61
+    );
+  }
+  if (mime === 'image/bmp') {
+    return head[0] === 0x42 && head[1] === 0x4d;
+  }
+  if (mime === 'image/heic' || mime === 'image/heif' || mime === 'image/avif') {
+    // ISO base media file format: 4-byte box size, 'ftyp', then a brand.
+    if (head.length < 12) return false;
+    const isFtyp = head[4] === 0x66 && head[5] === 0x74 && head[6] === 0x79 && head[7] === 0x70;
+    if (!isFtyp) return false;
+    const brand = String.fromCharCode(head[8], head[9], head[10], head[11]);
+    if (mime === 'image/avif') return ['avif', 'avis'].includes(brand);
+    return ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'].includes(brand);
+  }
+  return false;
+}
 
 async function requireTenant(): Promise<{ userId: string; tenantId: string }> {
   const supabase = await createServerClient();
@@ -58,19 +136,24 @@ async function uploadImage(
   itemId: string,
   file: File,
 ): Promise<string> {
-  if (!ALLOWED_MIME.has(file.type)) {
-    throw new Error(`Tip imagine neacceptat: ${file.type}`);
+  const mime = resolveImageMime(file);
+  if (!mime) {
+    throw new Error(`Tip imagine neacceptat: ${file.type || file.name}`);
   }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new Error('Imaginea depaseste 5 MB.');
   }
-  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+  const bytes = await file.arrayBuffer();
+  if (!matchesDeclaredMime(mime, bytes)) {
+    throw new Error(`Tip imagine neacceptat: ${file.type || file.name}`);
+  }
+  const ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : mime.split('/')[1];
   const path = `${tenantId}/${itemId}.${ext}`;
   const admin = createAdminClient();
   const { error } = await admin.storage
     .from(MENU_BUCKET)
-    .upload(path, await file.arrayBuffer(), {
-      contentType: file.type,
+    .upload(path, bytes, {
+      contentType: mime,
       upsert: true,
     });
   if (error) {
@@ -184,6 +267,7 @@ export async function createItemAction(formData: FormData) {
     prep_minutes: formData.get('prep_minutes') ?? '',
     serving_size_grams: formData.get('serving_size_grams') ?? '',
     serving_size_label: formData.get('serving_size_label') ?? '',
+    allergens: formData.get('allergens') ?? '',
   });
 
   const admin = createAdminClient();
@@ -232,6 +316,7 @@ export async function createItemAction(formData: FormData) {
     prep_minutes: parsed.prep_minutes,
     serving_size_grams: parsed.serving_size_grams,
     serving_size_label: parsed.serving_size_label,
+    allergens: parsed.allergens ?? [],
   });
   if (error) throw friendlyDbError(error, 'adăugarea produsului');
   revalidatePath('/dashboard/menu');
@@ -250,6 +335,7 @@ export async function updateItemAction(formData: FormData) {
     prep_minutes: formData.get('prep_minutes') ?? '',
     serving_size_grams: formData.get('serving_size_grams') ?? '',
     serving_size_label: formData.get('serving_size_label') ?? '',
+    allergens: formData.get('allergens') ?? '',
   });
 
   const admin = createAdminClient();
@@ -279,6 +365,7 @@ export async function updateItemAction(formData: FormData) {
     prep_minutes: parsed.prep_minutes,
     serving_size_grams: parsed.serving_size_grams,
     serving_size_label: parsed.serving_size_label,
+    allergens: parsed.allergens ?? [],
   };
   if (imageUrl !== undefined) update.image_url = imageUrl;
 

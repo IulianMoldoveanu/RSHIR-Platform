@@ -39,34 +39,51 @@ async function loadPrefill(tenantId: string, customerId: string): Promise<Prefil
     .maybeSingle();
   if (!cust) return null;
 
-  // Walk this customer's most recent orders and pick the first one that
-  // had a delivery address; that's the address they're most likely to
-  // re-use. Pickup-only customers fall through with empty address fields.
-  const { data: lastOrder } = await admin
-    .from('restaurant_orders')
-    .select('delivery_address_id')
-    .eq('tenant_id', tenantId)
-    .eq('customer_id', customerId)
-    .not('delivery_address_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
+  // Prefer the customer's explicitly-marked default saved address (set via
+  // /account) over guessing from order history — it's a deliberate choice,
+  // not an inference. Falls back to the most recent order's delivery
+  // address for customers who never set one (the pre-existing behavior).
+  // Pickup-only customers with neither fall through with empty fields.
   let line1 = '';
   let line2 = '';
   let city = '';
   let postalCode = '';
-  if (lastOrder?.delivery_address_id) {
-    const { data: addr } = await admin
-      .from('customer_addresses')
-      .select('line1, line2, city, postal_code')
-      .eq('id', lastOrder.delivery_address_id)
+
+  const { data: defaultAddr } = await admin
+    .from('customer_addresses')
+    .select('line1, line2, city, postal_code')
+    .eq('customer_id', customerId)
+    .eq('is_default', true)
+    .maybeSingle();
+
+  if (defaultAddr) {
+    line1 = defaultAddr.line1 ?? '';
+    line2 = defaultAddr.line2 ?? '';
+    city = defaultAddr.city ?? '';
+    postalCode = defaultAddr.postal_code ?? '';
+  } else {
+    const { data: lastOrder } = await admin
+      .from('restaurant_orders')
+      .select('delivery_address_id')
+      .eq('tenant_id', tenantId)
+      .eq('customer_id', customerId)
+      .not('delivery_address_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
-    if (addr) {
-      line1 = addr.line1 ?? '';
-      line2 = addr.line2 ?? '';
-      city = addr.city ?? '';
-      postalCode = addr.postal_code ?? '';
+
+    if (lastOrder?.delivery_address_id) {
+      const { data: addr } = await admin
+        .from('customer_addresses')
+        .select('line1, line2, city, postal_code')
+        .eq('id', lastOrder.delivery_address_id)
+        .maybeSingle();
+      if (addr) {
+        line1 = addr.line1 ?? '';
+        line2 = addr.line2 ?? '';
+        city = addr.city ?? '';
+        postalCode = addr.postal_code ?? '';
+      }
     }
   }
 

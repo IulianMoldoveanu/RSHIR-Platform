@@ -2,8 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus, Timer, UtensilsCrossed } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
-import { useCart } from '@/lib/cart/provider';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, allergensFor } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import {
@@ -15,16 +14,35 @@ import {
 import type { MenuItemWithModifiers, MenuModifier, MenuModifierGroup } from '@/lib/menu';
 import { servingInfoLine } from '@/lib/serving';
 
+/**
+ * Adding a configured line to *a* cart.
+ *
+ * Structural on purpose. This used to be `useCart()` read inside the sheet,
+ * which bound the whole options UI to a real tenant's cart and meant the
+ * marketing demo could not show it at all — a prospect never saw that the
+ * product supports per-item options, which is a thing people buy this for.
+ * Taking the action as a prop lets the isolated demo cart pass its own, and
+ * the two carts still cannot touch each other (2026-08-03).
+ */
+export type AddToCart = (input: {
+  itemId: string;
+  name: string;
+  unitPriceRon: number;
+  imageUrl: string | null;
+  modifiers: Array<{ id: string; name: string; price_delta_ron: number }>;
+  qty?: number;
+  notes?: string;
+}) => void;
+
 type Props = {
   item: MenuItemWithModifiers;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   locale: Locale;
+  addItem: AddToCart;
 };
 
-export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
-  const useCartStore = useCart();
-  const addItem = useCartStore((s) => s.addItem);
+export function ItemSheet({ item, open, onOpenChange, locale, addItem }: Props) {
   const reduceMotion = useShouldReduceMotion();
   const [qty, setQty] = useState(1);
   // selectedByGroup: groupId → Set<modifierId>. Required groups need the
@@ -129,6 +147,12 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
       unitPriceRon: item.price_ron,
       imageUrl: item.image_url,
       modifiers: selectedModifiers,
+      // The stepper above drives `lineTotal`, which is the number printed on
+      // this button — but `qty` was never sent, and both cart stores default it
+      // to 1. Choosing 3 showed "96,00 RON" and added one pizza at 32,00.
+      // Live on every tenant since the sheet shipped; found by Codex on #1051
+      // while it was being exposed in the demo.
+      qty,
     });
     onOpenChange(false);
   }
@@ -178,6 +202,34 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
 
           {item.description ? (
             <p className="text-sm leading-relaxed text-zinc-600">{item.description}</p>
+          ) : null}
+
+          {/* Allergens — EU 1169/2011 art. 14 requires this to reach the
+              customer before the purchase is concluded, so it sits above the
+              modifiers and the add-to-cart button, not in a footnote. Renders
+              nothing when the tenant declared none: an empty list means "not
+              declared", and printing "no allergens" for it would be a claim we
+              have no basis to make. */}
+          {item.allergens.length > 0 ? (
+            <section aria-label={t(locale, 'item.allergens_title')} className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                {t(locale, 'item.allergens_title')}
+              </h3>
+              <ul className="flex flex-wrap gap-1.5">
+                {allergensFor(item.allergens).map((a) => (
+                  <li
+                    key={a.code}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-inset ring-amber-200"
+                  >
+                    <span aria-hidden>{a.emoji}</span>
+                    {locale === 'en' ? a.en : a.ro}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] leading-snug text-zinc-500">
+                {t(locale, 'item.allergens_note')}
+              </p>
+            </section>
           ) : null}
 
           {/* Required-first groups */}
@@ -261,8 +313,14 @@ export function ItemSheet({ item, open, onOpenChange, locale }: Props) {
                 ? undefined
                 : tapPress
             }
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}
-            className="flex h-12 w-full items-center justify-between rounded-full bg-purple-700 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-purple-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            style={{
+              paddingBottom: 'env(safe-area-inset-bottom, 0)',
+              backgroundColor:
+                !item.is_available || !groupValidation.allSatisfied
+                  ? undefined
+                  : 'var(--hir-brand, #7c3aed)',
+            }}
+            className="flex h-12 w-full items-center justify-between rounded-full px-5 text-base font-semibold text-white shadow-sm transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:bg-zinc-300"
           >
             <span>
               {!item.is_available
@@ -343,9 +401,17 @@ function GroupSection({
               <motion.label
                 whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                 transition={{ duration: motionDurations.tap, ease: easeOutSoft }}
+                style={
+                  isSelected
+                    ? {
+                        borderColor: 'var(--hir-brand, #7c3aed)',
+                        backgroundColor: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 8%, white)',
+                      }
+                    : undefined
+                }
                 className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5 transition-colors ${
                   isSelected
-                    ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-200'
+                    ? 'ring-1 ring-[color-mix(in_srgb,var(--hir-brand,#7c3aed)_25%,white)]'
                     : 'border-zinc-200 bg-white hover:bg-zinc-50'
                 }`}
               >
@@ -355,7 +421,7 @@ function GroupSection({
                     name={`group-${group.id}`}
                     checked={isSelected}
                     onChange={() => onToggle(opt.id)}
-                    className="h-4 w-4 rounded border-zinc-300 text-purple-600 focus:ring-purple-500"
+                    className="h-4 w-4 rounded border-zinc-300 accent-[var(--hir-brand,#7c3aed)]"
                   />
                   {opt.name}
                 </span>

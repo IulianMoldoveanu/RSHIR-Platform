@@ -1,3 +1,4 @@
+import { parseAllergens, type AllergenCode } from '@hir/ui';
 import { getSupabase } from './supabase';
 
 export type MenuItem = {
@@ -23,6 +24,11 @@ export type MenuItem = {
   // = not in the top-3. Renders as a "Cel mai comandat" / "Top vânzări"
   // badge on the menu card. Computed in getMenuByTenant from order history.
   popular_rank: 1 | 2 | 3 | null;
+  // EU 1169/2011 Annex II codes the tenant declared for this dish. Empty
+  // means "not declared" — never rendered as "allergen-free". Validated
+  // against the catalogue on read, so an unknown code from a bad import
+  // can't reach the customer.
+  allergens: AllergenCode[];
 };
 
 export type MenuModifier = {
@@ -60,10 +66,25 @@ export type MenuCategory = {
   name: string;
   sort_order: number;
   items: MenuItemWithModifiers[];
+  /** Null for tenants that don't use the multi-brand menu feature (the vast
+   *  majority — one tenant, one brand, no selector rendered). Set when the
+   *  category belongs to one of the tenant's restaurant_menu_brands rows
+   *  (e.g. Delivery House: one kitchen, several customer-facing brands). */
+  menu_brand_id: string | null;
+};
+
+export type MenuBrand = {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  logo_url: string | null;
+  cover_url: string | null;
+  sort_order: number;
 };
 
 const ITEM_COLS =
-  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label';
+  'id, category_id, name, description, price_ron, image_url, is_available, sold_out_until, sort_order, tags, prep_minutes, serving_size_grams, serving_size_label, allergens';
 
 /**
  * Effective availability: persistent toggle AND not currently sold-out today.
@@ -89,7 +110,7 @@ const POPULAR_MIN_QTY = 5; // an item needs ≥5 sold to qualify — avoids rank
  * JSONB. Excludes CANCELLED orders. Map is empty if nothing qualifies.
  */
 async function loadPopularRanks(tenantId: string): Promise<Map<string, 1 | 2 | 3>> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const sinceIso = new Date(
     Date.now() - POPULAR_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
@@ -125,12 +146,12 @@ async function loadPopularRanks(tenantId: string): Promise<Map<string, 1 | 2 | 3
 }
 
 export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
 
   const [catsRes, itemsRes, popularRanks] = await Promise.all([
     supabase
       .from('restaurant_menu_categories')
-      .select('id, name, sort_order')
+      .select('id, name, sort_order, menu_brand_id')
       .eq('tenant_id', tenantId)
       .eq('is_active', true)
       .order('sort_order'),
@@ -142,7 +163,12 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     loadPopularRanks(tenantId),
   ]);
 
-  const cats = (catsRes.data ?? []) as Array<{ id: string; name: string; sort_order: number }>;
+  const cats = (catsRes.data ?? []) as Array<{
+    id: string;
+    name: string;
+    sort_order: number;
+    menu_brand_id: string | null;
+  }>;
   const rawItems = (itemsRes.data ?? []) as Array<
     Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
   >;
@@ -150,6 +176,7 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
     popular_rank: popularRanks.get(rest.id) ?? null,
+    allergens: parseAllergens(rest.allergens),
   }));
 
   if (cats.length === 0) return [];
@@ -288,11 +315,29 @@ export async function getMenuByTenant(tenantId: string): Promise<MenuCategory[]>
     name: c.name,
     sort_order: c.sort_order,
     items: itemsByCat.get(c.id) ?? [],
+    menu_brand_id: c.menu_brand_id,
   }));
 }
 
+/**
+ * Returns the tenant's active menu brands (sorted). Empty for the vast
+ * majority of tenants — one physical location, one brand, no selector UI.
+ * Non-empty only for multi-brand tenants like Delivery House (one kitchen,
+ * several customer-facing restaurant brands sharing one cart/checkout).
+ */
+export async function getMenuBrands(tenantId: string): Promise<MenuBrand[]> {
+  const supabase = await getSupabase();
+  const { data } = await supabase
+    .from('restaurant_menu_brands')
+    .select('id, slug, name, tagline, logo_url, cover_url, sort_order')
+    .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+    .order('sort_order');
+  return (data ?? []) as MenuBrand[];
+}
+
 export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const nowIso = new Date().toISOString();
   const res = await supabase
     .from('restaurant_menu_items')
@@ -305,7 +350,11 @@ export async function getTopItems(tenantId: string, limit = 8): Promise<MenuItem
   const rows = (res.data ?? []) as Array<
     Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
   >;
-  return rows.map(({ sold_out_until: _so, ...rest }) => ({ ...rest, popular_rank: null }));
+  return rows.map(({ sold_out_until: _so, ...rest }) => ({
+    ...rest,
+    popular_rank: null,
+    allergens: parseAllergens(rest.allergens),
+  }));
 }
 
 /**
@@ -321,7 +370,7 @@ export async function getTopPopularItems(
   tenantId: string,
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const ranks = await loadPopularRanks(tenantId);
 
   if (ranks.size === 0) {
@@ -366,6 +415,7 @@ export async function getTopPopularItems(
       ...rest,
       is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
       popular_rank: ranks.get(rest.id) ?? null,
+      allergens: parseAllergens(rest.allergens),
       modifiers: modsByItem.get(rest.id) ?? [],
       // The cart-upsell rail opens the standard ItemSheet which knows how
       // to fetch group state on its own. For now we ship empty groups; if
@@ -376,6 +426,50 @@ export async function getTopPopularItems(
     .filter((it) => it.is_available)
     .sort((a, b) => (a.popular_rank ?? 99) - (b.popular_rank ?? 99))
     .slice(0, limit);
+}
+
+/**
+ * Loads full menu items (with modifiers) for a specific, pre-ranked list of
+ * IDs — used by the cart-aware upsell rail, whose ranking comes from
+ * lib/upsell.ts (co-occurrence scoring), not from popularity. Preserves the
+ * input order and drops any ID that's no longer available or on the menu.
+ */
+export async function getMenuItemsByIds(
+  tenantId: string,
+  ids: string[],
+): Promise<MenuItemWithModifiers[]> {
+  if (ids.length === 0) return [];
+  const supabase = await getSupabase();
+  const [itemsRes, modsRes] = await Promise.all([
+    supabase.from('restaurant_menu_items').select(ITEM_COLS).eq('tenant_id', tenantId).in('id', ids),
+    supabase.from('restaurant_menu_modifiers').select('id, item_id, name, price_delta_ron').in('item_id', ids),
+  ]);
+
+  const rawItems = (itemsRes.data ?? []) as Array<
+    Omit<MenuItem, 'popular_rank'> & { sold_out_until: string | null }
+  >;
+  const modsByItem = new Map<string, MenuModifier[]>();
+  for (const m of (modsRes.data ?? []) as Array<MenuModifier & { item_id: string }>) {
+    const arr = modsByItem.get(m.item_id) ?? [];
+    arr.push({ id: m.id, name: m.name, price_delta_ron: m.price_delta_ron });
+    modsByItem.set(m.item_id, arr);
+  }
+
+  const byId = new Map(
+    rawItems
+      .map(({ sold_out_until, ...rest }) => ({
+        ...rest,
+        is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
+        popular_rank: null as 1 | 2 | 3 | null,
+        allergens: parseAllergens(rest.allergens),
+        modifiers: modsByItem.get(rest.id) ?? [],
+        modifierGroups: [] as MenuModifierGroup[],
+      }))
+      .filter((it) => it.is_available)
+      .map((it) => [it.id, it] as const),
+  );
+
+  return ids.map((id) => byId.get(id)).filter((it): it is MenuItemWithModifiers => it !== undefined);
 }
 
 /**
@@ -390,7 +484,7 @@ export async function getRecentlyOrderedItems(
   menu: MenuCategory[],
   limit = 5,
 ): Promise<MenuItemWithModifiers[]> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const { data: orders } = await supabase
     .from('restaurant_orders')
     .select('items, created_at')
@@ -432,7 +526,7 @@ export async function getItemByShortId(
   tenantId: string,
   shortId: string,
 ): Promise<MenuItemWithModifiers | null> {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const res = await supabase
     .from('restaurant_menu_items')
     .select(ITEM_COLS)
@@ -450,6 +544,7 @@ export async function getItemByShortId(
     ...rest,
     is_available: isEffectivelyAvailable({ is_available: rest.is_available, sold_out_until }),
     popular_rank: null,
+    allergens: parseAllergens(rest.allergens),
   };
 
   const modsRes = await supabase

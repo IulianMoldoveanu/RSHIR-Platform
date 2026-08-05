@@ -187,18 +187,61 @@ export async function startShiftAction() {
         return;
       }
 
-      // End any other ONLINE shift first (defensive — should be unique by index).
-      await admin
+      // Starting a shift is idempotent: if one is already open, that IS the
+      // shift. This used to end whatever was ONLINE and insert a replacement,
+      // which made a second call destructive rather than a no-op — and a second
+      // call happens, observed on production as a shift opened and closed 0.64s
+      // later with a fresh row behind it.
+      //
+      // The replacement row is born with last_lat/last_seen_at NULL, and
+      // dispatch skips couriers it cannot place. Presence only returns on the
+      // next forwarded fix, which for a courier standing still where they
+      // signed on is the 120s heartbeat — so going online could leave them
+      // invisible to auto-dispatch for two minutes, looking perfectly online
+      // the whole time.
+      // Reuse is bounded to a shift that is demonstrably alive: fresh presence
+      // (the same 5-minute window dispatch trusts) or opened seconds ago and not
+      // yet reported. Nothing ends stale ONLINE shifts automatically — the
+      // health monitor only counts them — so a leftover from yesterday must
+      // still be replaced, or tapping "start" would silently resume it and show
+      // the courier a shift that began sixteen hours ago.
+      const freshCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+      const { data: openShift } = await admin
         .from('courier_shifts')
-        .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+        .select('id')
         .eq('courier_user_id', userId)
-        .eq('status', 'ONLINE');
+        .eq('status', 'ONLINE')
+        .or(`last_seen_at.gte.${freshCutoff},started_at.gte.${freshCutoff}`)
+        .maybeSingle();
 
-      await admin.from('courier_shifts').insert({
-        courier_user_id: userId,
-        started_at: new Date().toISOString(),
-        status: 'ONLINE',
-      });
+      if (!openShift) {
+        // Whatever is open is a leftover, not this shift.
+        await admin
+          .from('courier_shifts')
+          .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+          .eq('courier_user_id', userId)
+          .eq('status', 'ONLINE');
+      }
+
+      const insertError = openShift
+        ? null
+        : (
+            await admin.from('courier_shifts').insert({
+              courier_user_id: userId,
+              started_at: new Date().toISOString(),
+              status: 'ONLINE',
+            })
+          ).error;
+      // 23505 = unique_violation on uq_courier_shifts_one_online: a concurrent
+      // startShiftAction call already inserted the ONLINE row for this courier
+      // (e.g. a double-tap retry). That row exists, so this is a benign no-op,
+      // not a failure. Any other error is a real write failure and must not be
+      // swallowed — it would otherwise flip the profile to ACTIVE below with
+      // no shift row backing it.
+      if (insertError && insertError.code !== '23505') {
+        console.error('[startShiftAction] shift insert failed', { userId, error: insertError });
+        throw new Error(`shift-start-failed: ${insertError.message}`);
+      }
 
       await admin
         .from('courier_profiles')
@@ -369,11 +412,16 @@ export async function markPickedUpAction(orderId: string) {
       // PICKED_UP and re-fire the webhook to subscribers. The atomic UPDATE
       // filters the row out cleanly when the status doesn't match —
       // `maybeSingle()` returns null and the notify call is skipped.
-      // Pharmacist-ready gate (Model Y): a pharma order may be allocated to and
-      // accepted by the courier BEFORE the pharmacist finishes preparing it, so
-      // the courier can already be heading over. Pickup is allowed only once the
-      // pharmacist has marked it ready — the mirror stamps `pharma_ready_at`
-      // when it receives READY_FOR_PICKUP. Non-pharma orders are unaffected.
+      // Kitchen/pharmacist-ready gate (Model Y): an order may be allocated to
+      // and accepted by the courier BEFORE the restaurant/pharmacist finishes
+      // preparing it, so the courier can already be heading over. Pickup is
+      // allowed only once the source has marked it ready — the RSHIR trigger
+      // stamps `restaurant_ready_at` on entry into READY, the pharma mirror
+      // stamps `pharma_ready_at` when it receives READY_FOR_PICKUP. Gated
+      // ONLY for orders actually backed by a source system: HIR_TENANT
+      // (RSHIR restaurant) or EXTERNAL_API (pharma mirror). MANUAL orders —
+      // created directly by a dispatcher, no kitchen/pharmacist upstream to
+      // wait on — are unaffected, same as before this gate existed.
       // Defense-in-depth: the home swipe is also hidden until ready. A blocked
       // pickup matches no row → silent no-op (same contract as the status guard).
       const { data } = await admin
@@ -384,6 +432,7 @@ export async function markPickedUpAction(orderId: string) {
         .eq('assigned_courier_user_id', userId)
         .in('status', ['ACCEPTED'])
         .or('vertical.neq.pharma,pharma_ready_at.not.is.null')
+        .or('source_type.neq.HIR_TENANT,restaurant_ready_at.not.is.null')
         .select('id')
         .maybeSingle();
       if (data) {
@@ -541,15 +590,29 @@ export async function refreshOrdersAction() {
 }
 
 /**
- * Persists the courier's last-known geolocation onto their currently-ONLINE
- * shift row (`courier_shifts.last_lat / last_lng / last_seen_at`). No-op if
- * the courier has no ONLINE shift — we never write a fix without an active
- * shift, both for privacy and for the obvious "they're not working" reason.
+ * Persists the courier's last-known geolocation. Two things happen, and they
+ * deliberately have different standards:
+ *
+ *   - Presence: `courier_shifts.last_lat / last_lng / last_seen_at` is
+ *     refreshed on EVERY fix. Dispatch drops couriers whose last_seen_at is
+ *     older than 5 minutes, so being fussy here would cost them offers.
+ *   - Trail: `courier_location_pings` only gets the fix if it is accurate and
+ *     the courier has actually moved. That trail is what per-order distance
+ *     is measured from, and a phone drifting on a counter must not invent
+ *     kilometres.
+ *
+ * Both live inside `record_courier_ping` so they cannot drift apart. No-op if
+ * the courier has no ONLINE shift — we never write a position for someone who
+ * isn't working.
  *
  * Best-effort: silently ignores DB errors. The client-side watcher continues
  * to stream fixes, so a single-failed write is recovered on the next interval.
  */
-export async function updateCourierLocationAction(lat: number, lng: number): Promise<void> {
+export async function updateCourierLocationAction(
+  lat: number,
+  lng: number,
+  accuracyM?: number,
+): Promise<void> {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
   // Reject Null Island. (0,0) passes the finite + bounds checks but is
@@ -560,15 +623,19 @@ export async function updateCourierLocationAction(lat: number, lng: number): Pro
   const userId = await requireUserId();
   const admin = createAdminClient();
 
-  await admin
-    .from('courier_shifts')
-    .update({
-      last_lat: lat,
-      last_lng: lng,
-      last_seen_at: new Date().toISOString(),
-    })
-    .eq('courier_user_id', userId)
-    .eq('status', 'ONLINE');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = admin as any;
+  await sb.rpc('record_courier_ping', {
+    p_courier_user_id: userId,
+    p_lat: lat,
+    p_lng: lng,
+    // A negative or non-finite accuracy is a broken platform reading — send
+    // null so the trail treats it as "unknown" rather than "perfect".
+    p_accuracy_m:
+      typeof accuracyM === 'number' && Number.isFinite(accuracyM) && accuracyM >= 0
+        ? accuracyM
+        : null,
+  });
 }
 
 // Allowed vehicle types for the rider. Mirrors the CHECK constraint in
@@ -645,13 +712,24 @@ export async function updateAvatarUrlAction(url: string | null): Promise<void> {
     throw new Error('avatar-url-rejected');
   }
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data, error } = await admin
     .from('courier_profiles')
     .update({ avatar_url: url })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .select('user_id');
   if (error) {
     console.error('[updateAvatarUrlAction] DB update failed', { userId, error });
     throw new Error(`avatar-save-failed: ${error.message}`);
+  }
+  // UPDATE with no matching row is NOT an error in Postgres — it succeeds
+  // silently with 0 rows affected. Without this check, a courier whose
+  // auth user has no courier_profiles row (e.g. never finished onboarding)
+  // sees the upload "succeed" client-side, then watches it vanish on the
+  // next page load — exactly what was reported live. Surface it as a real
+  // error instead of pretending the save worked.
+  if (!data || data.length === 0) {
+    console.error('[updateAvatarUrlAction] no courier_profiles row for user', { userId });
+    throw new Error('avatar-save-failed: no courier profile found for this account');
   }
   revalidatePath('/dashboard/settings');
   revalidatePath('/dashboard');
@@ -869,7 +947,7 @@ export async function acceptOrderAction(orderId: string) {
       // the UPDATE on `fleet_id` matching.
       const { data: profile } = await admin
         .from('courier_profiles')
-        .select('fleet_id, status')
+        .select('fleet_id, status, max_parallel_orders')
         .eq('user_id', userId)
         .maybeSingle();
       if (!profile) return false; // not a courier — silent no-op preserves prior contract
@@ -885,7 +963,11 @@ export async function acceptOrderAction(orderId: string) {
         return false;
       }
       if (canTakeKyc !== true) return false;
-      const prof = profile as { fleet_id: string; status: string | null };
+      const prof = profile as {
+        fleet_id: string;
+        status: string | null;
+        max_parallel_orders: number | null;
+      };
       const fleetId = prof.fleet_id;
 
       // Suspended couriers + couriers in a deactivated fleet cannot CLAIM new
@@ -906,12 +988,27 @@ export async function acceptOrderAction(orderId: string) {
         if (!(fleetRow as { is_active: boolean } | null)?.is_active) return false;
       }
 
-      // Only accept if currently CREATED or OFFERED AND the order belongs to
-      // the courier's fleet, and it is EITHER an open-pool order (unassigned)
-      // OR a directed offer the dispatcher assigned to this exact courier.
-      // `offer_courier_order` sets assigned_courier_user_id, so without the
-      // second branch directed offers could never be accepted from the app.
-      // The fleet gate above still prevents cross-fleet hijack.
+      // Codex review (PR #1054, P1): the self-pickup route checked
+      // max_parallel_orders before claiming; acceptOrderAction never did.
+      // That was masked while self-pickup was the primary claim path — now
+      // that AUTOMAT (fn_auto_dispatch_sweep) and directed offers route
+      // through this action, accepting must respect the cap here too, or a
+      // courier already at their limit can silently exceed it. NULL = unlimited.
+      if (prof.max_parallel_orders != null) {
+        const { count: activeCount } = await admin
+          .from('courier_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_courier_user_id', userId)
+          .in('status', ['ACCEPTED', 'PICKED_UP', 'IN_TRANSIT']);
+        if ((activeCount ?? 0) >= prof.max_parallel_orders) return false;
+      }
+
+      // Directed-offer accept ONLY (decision_pull_dispatch_eliminated_2026-08-04):
+      // a courier may accept an order only if it is OFFERED and already
+      // assigned to them by the allocation engine (offer_courier_order /
+      // fn_auto_dispatch_sweep) or a dispatcher. Open-pool self-claim
+      // (assigned_courier_user_id IS NULL) is removed — that was the pull
+      // path. The fleet gate above still prevents cross-fleet hijack.
       const { data } = await admin
         .from('courier_orders')
         .update({
@@ -921,8 +1018,8 @@ export async function acceptOrderAction(orderId: string) {
         })
         .eq('id', orderId)
         .eq('fleet_id', fleetId)
-        .in('status', ['CREATED', 'OFFERED'])
-        .or(`assigned_courier_user_id.is.null,assigned_courier_user_id.eq.${userId}`)
+        .eq('status', 'OFFERED')
+        .eq('assigned_courier_user_id', userId)
         .select('id')
         .maybeSingle();
       if (data) {

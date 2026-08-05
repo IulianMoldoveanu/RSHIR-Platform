@@ -18,6 +18,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import {
   markOrderPaidAndDispatch,
   markOrderPaymentFailed,
+  PaymentAmountMismatchError,
 } from '@/app/api/checkout/order-finalize';
 
 export const runtime = 'nodejs';
@@ -41,7 +42,9 @@ export async function POST(req: Request) {
       mode: 'STANDARD',
       signature: '',
       apiKey: '',
-      webhookSecret: process.env.NETOPIA_WEBHOOK_SECRET,
+      webhookPublicKeyPem: process.env.NETOPIA_LIVE_MODE === 'true'
+        ? process.env.NETOPIA_LIVE_WEBHOOK_PUBLIC_KEY
+        : process.env.NETOPIA_SANDBOX_WEBHOOK_PUBLIC_KEY,
       live: process.env.NETOPIA_LIVE_MODE === 'true',
     },
     fetch: globalThis.fetch.bind(globalThis),
@@ -107,6 +110,16 @@ export async function POST(req: Request) {
         if (pspRow.status === 'CAPTURED') {
           return NextResponse.json({ received: true, duplicate: true });
         }
+        // REFUNDED/FAILED/CANCELLED are terminal — a stale/reordered captured
+        // or authorized webhook must not flip the ledger row back to CAPTURED
+        // (e.g. a redelivered "captured" IPN arriving after a refund).
+        if (
+          pspRow.status === 'REFUNDED' ||
+          pspRow.status === 'FAILED' ||
+          pspRow.status === 'CANCELLED'
+        ) {
+          return NextResponse.json({ received: true, duplicate: true });
+        }
         const claim = await sb
           .from('psp_payments')
           .update({ status: 'CAPTURED', updated_at: new Date().toISOString() })
@@ -119,7 +132,41 @@ export async function POST(req: Request) {
           return NextResponse.json({ received: true, duplicate: true });
         }
         Sentry.addBreadcrumb({ category: 'webhook.netopia', message: 'order.marked_paid', level: 'info', data: { orderId: pspRow.orderId } });
-        await markOrderPaidAndDispatch(pspRow.orderId);
+        try {
+          // Pass the captured amount so order-finalize can reject a short/
+          // partial capture BEFORE marking the order PAID (security B1).
+          await markOrderPaidAndDispatch(pspRow.orderId, event.amountBani);
+        } catch (finalizeErr) {
+          if (finalizeErr instanceof PaymentAmountMismatchError) {
+            // Captured amount ≠ order amount. Move the psp row to FAILED (the
+            // only terminal non-paid status the CHECK constraint allows) so the
+            // order is NOT treated as paid, and alert loudly — this is either a
+            // partial capture or a tampered gateway response. The Sentry event
+            // + log below carry the real "amount_mismatch" reason.
+            await sb
+              .from('psp_payments')
+              .update({ status: 'FAILED', updated_at: new Date().toISOString() })
+              .eq('provider', 'netopia')
+              .eq('provider_ref', event.providerRef);
+            console.error('[webhooks/netopia] payment amount mismatch — order NOT marked paid', {
+              orderId: finalizeErr.orderId,
+              expectedBani: finalizeErr.expectedBani,
+              capturedBani: finalizeErr.capturedBani,
+            });
+            Sentry.captureException(finalizeErr, {
+              tags: { subsystem: 'webhook.netopia', side_effect: 'amount_mismatch' },
+              extra: {
+                orderId: finalizeErr.orderId,
+                expectedBani: finalizeErr.expectedBani,
+                capturedBani: finalizeErr.capturedBani,
+                providerRef: event.providerRef,
+              },
+              fingerprint: ['webhook.netopia.amount_mismatch'],
+            });
+            return NextResponse.json({ received: true, amount_mismatch: true });
+          }
+          throw finalizeErr;
+        }
         Sentry.addBreadcrumb({ category: 'webhook.netopia', message: 'dispatch.triggered', level: 'info', data: { orderId: pspRow.orderId } });
       } else if (event.kind === 'payment.failed') {
         await markOrderPaymentFailed(pspRow.orderId);

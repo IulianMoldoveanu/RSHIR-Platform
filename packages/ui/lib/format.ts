@@ -54,3 +54,55 @@ export function formatRelativeAge(iso: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)} min`;
   return `${Math.floor(diff / 3600)}h`;
 }
+
+/**
+ * Format a travelled distance held in metres. Below a kilometre couriers
+ * think in metres ("640 m"); above it, one decimal is all the precision a
+ * sampled GPS trail honestly carries ("4,2 km").
+ *
+ * null renders as an em dash on purpose: "we did not measure this" and
+ * "the courier travelled zero metres" are different claims, and only one
+ * of them is ever true.
+ */
+export function formatDistanceM(
+  meters: number | null | undefined,
+  locale = 'ro-RO',
+): string {
+  if (meters == null || !Number.isFinite(meters) || meters < 0) return '—';
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  const km = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(meters / 1000);
+  return `${km} km`;
+}
+
+/**
+ * Format an elapsed duration in milliseconds as "42 min" / "1 h 12 min".
+ * Anything under a minute rounds up rather than showing "0 min", which
+ * reads as broken data instead of a fast delivery.
+ */
+export function formatDurationMs(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return '—';
+  const totalMin = Math.max(1, Math.round(ms / 60_000));
+  if (totalMin < 60) return `${totalMin} min`;
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
+}
+
+/**
+ * Milliseconds between two ISO timestamps. Returns null when either end is
+ * missing or the pair is inverted — callers render that as "—" rather than
+ * a negative duration.
+ */
+export function elapsedMs(
+  fromIso: string | null | undefined,
+  toIso: string | null | undefined,
+): number | null {
+  if (!fromIso || !toIso) return null;
+  const from = new Date(fromIso).getTime();
+  const to = new Date(toIso).getTime();
+  if (!Number.isFinite(from) || !Number.isFinite(to) || to < from) return null;
+  return to - from;
+}

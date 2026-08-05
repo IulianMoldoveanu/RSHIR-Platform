@@ -27,6 +27,8 @@ import { GeofenceWatcher } from '@/components/geofence-watcher';
 import { VoiceStatusAnnouncer } from '@/components/voice-status-announcer';
 import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
+import { RouteStats } from '@/components/route-stats';
+import { ORDER_ROUTE_COLUMNS, resolveOrderRoute } from '@/lib/order-route';
 import { OrderChat } from './order-chat';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +61,16 @@ type OrderDetail = {
   updated_at: string | null;
   source_tenant_id: string | null;
   fleet_id: string | null;
+  accepted_at: string | null;
+  courier_accepted_at: string | null;
+  picked_up_at: string | null;
+  delivered_at: string | null;
+  cancelled_at: string | null;
+  route_distance_m: number | null;
+  route_pickup_distance_m: number | null;
+  route_attributed_distance_m: number | null;
+  route_points: number | null;
+  route_computed_at: string | null;
 };
 
 export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
@@ -80,39 +92,30 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     admin
       .from('courier_orders')
       .select(
-        'id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id',
+        `id, status, source_type, vertical, pharma_metadata, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, dropoff_notes, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, updated_at, source_tenant_id, fleet_id, accepted_at, courier_accepted_at, picked_up_at, delivered_at, cancelled_at, ${ORDER_ROUTE_COLUMNS}`,
       )
       .eq('id', params.id)
       .maybeSingle(),
     resolveRiderMode(user.id),
     admin
       .from('courier_profiles')
-      .select('vehicle_type, fleet_id')
+      .select('vehicle_type')
       .eq('user_id', user.id)
       .maybeSingle(),
   ]);
   const vehicleType = (profileRow as { vehicle_type?: string } | null)?.vehicle_type ?? 'BIKE';
-  // Resolve the courier's fleet from the PROFILE (like the open-pool list and
-  // acceptOrderAction do). riderMode.fleetId is null for Mode A/B couriers, so
-  // gating the open-pool visibility on it 404'd an order the list had just
-  // shown them — this aligns the detail gate with how the list/accept resolve
-  // "my fleet".
-  const courierFleetId = (profileRow as { fleet_id?: string | null } | null)?.fleet_id ?? null;
 
   const order = data as OrderDetail | null;
   if (!order) notFound();
 
   const isMine = order.assigned_courier_user_id === user.id;
-  // "Available to accept" = still in the offer window (CREATED/OFFERED) in my
-  // fleet, AND either open-pool (unassigned) OR a directed offer the dispatcher
-  // assigned to me. The status gate ensures that once I accept (→ ACCEPTED),
-  // this flips false and the delivery stepper takes over instead.
-  const isOpenInMyFleet =
-    (order.assigned_courier_user_id === null || isMine) &&
-    (order.status === 'CREATED' || order.status === 'OFFERED') &&
-    order.fleet_id !== null &&
-    order.fleet_id === courierFleetId;
-  if (!isMine && !isOpenInMyFleet) notFound();
+  // Codex review (PR #1054, P2): with pull removed, a courier may only ever
+  // view an order assigned to them — there's no more open-pool browsing, so
+  // the old "unassigned order in my fleet" branch is gone. Without this fix,
+  // a stale link (old combo notification, bookmark) to an unassigned order
+  // rendered a page whose accept control could never succeed against the
+  // new directed-only acceptOrderAction predicate.
+  if (!isMine) notFound();
 
   // Pharma orders show patient name + delivery address + (downstream)
   // prescription metadata. Per Legea 95 / GDPR Art.30, every such read
@@ -147,15 +150,16 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     tenantName = (tenant as { name: string | null } | null)?.name ?? null;
   }
 
-  const isAvailable = isOpenInMyFleet;
+  // "Available to accept" = a directed offer to ME, not yet accepted.
+  const isAvailable = isMine && order.status === 'OFFERED';
   const showQuickCall = isMine && (order.status === 'PICKED_UP' || order.status === 'IN_TRANSIT' || order.status === 'ACCEPTED');
   // Customer PII (name, exact dropoff address, phone) is revealed ONLY after
-  // this courier has actually taken the order. Before that — an open-pool /
-  // directed-offer order any fleet rider can open — we show a coarse placeholder
-  // so a rider can't harvest a customer's name + home address + phone without
-  // accepting the job. (Security: the detail page uses the service-role admin
-  // client, which bypasses the row-level PII narrowing in RLS, so the gate
-  // must be enforced here in the view.)
+  // this courier has actually taken the order. Before that — a directed
+  // offer sitting in OFFERED, not yet accepted — we show a coarse placeholder
+  // so a rider can't see a customer's name + home address + phone before
+  // committing to the job. (Security: the detail page uses the service-role
+  // admin client, which bypasses the row-level PII narrowing in RLS, so the
+  // gate must be enforced here in the view.)
   const showCustomerContact = showQuickCall;
 
   // Quick-call: fetch the fleet's dispatcher phone only for active own
@@ -172,6 +176,10 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     fleetContactPhone = fleet?.contact_phone ?? null;
     fleetName = fleet?.name ?? null;
   }
+
+  // Travelled distance + elapsed times for this delivery. Null until the
+  // courier has actually accepted — an offer has no route yet.
+  const route = await resolveOrderRoute(admin, order);
 
   const acceptBound = acceptOrderAction.bind(null, order.id);
   const pickedUpBound = markPickedUpAction.bind(null, order.id);
@@ -288,6 +296,15 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         <QuickCallButtons
           fleetContactPhone={fleetContactPhone}
           fleetName={fleetName}
+        />
+      ) : null}
+
+      {route ? (
+        <RouteStats
+          route={route}
+          startedAt={order.courier_accepted_at}
+          pickedUpAt={order.picked_up_at}
+          closedAt={order.delivered_at ?? order.cancelled_at}
         />
       ) : null}
 

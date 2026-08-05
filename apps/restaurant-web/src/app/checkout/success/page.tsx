@@ -38,7 +38,7 @@ export default async function CheckoutSuccessPage(
 
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-4 py-10 text-center">
-      <CartCleanupOnMount />
+      <CartCleanupOnMount tenantId={tenant.id} trackToken={token || undefined} />
       {embed && <EmbedOrderPlaced orderId={orderId || null} total={null} />}
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-200">
         <CheckCircle2 className="h-10 w-10" aria-hidden strokeWidth={2.25} />

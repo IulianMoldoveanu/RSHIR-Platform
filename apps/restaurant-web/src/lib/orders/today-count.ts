@@ -11,7 +11,7 @@ import { getSupabase } from '@/lib/supabase';
  * multiple components ask. Cache scope is per-request.
  */
 export const getTodayOrderCount = cache(async (tenantId: string): Promise<number> => {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   // Start-of-day in UTC. Acceptable for our RO tenants — created_at is
   // stored UTC; a 3-hour offset just means the counter rolls at 3am local
   // instead of midnight, which is fine for a "today" social-proof pill.

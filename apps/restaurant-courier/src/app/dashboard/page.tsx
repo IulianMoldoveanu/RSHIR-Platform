@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { ArrowRight, Clock, Phone, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { ArrowRight, Clock, MessageCircle, Phone, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { startShiftAction, endShiftAction, acceptOrderAction, markPickedUpAction } from './actions';
@@ -31,6 +32,7 @@ type ActiveOrderRow = {
   id: string;
   status: string;
   vertical: 'restaurant' | 'pharma' | null;
+  source_type: string | null;
   pickup_lat: number | null;
   pickup_lng: number | null;
   dropoff_lat: number | null;
@@ -42,6 +44,9 @@ type ActiveOrderRow = {
   // Pharma readiness: set by the mirror when the pharmacist marks the order
   // "ready for pickup". null for pharma orders not yet prepared → pickup gated.
   pharma_ready_at: string | null;
+  // Restaurant readiness: set by the RSHIR trigger when the kitchen marks
+  // the order READY. null for restaurant orders still cooking → pickup gated.
+  restaurant_ready_at: string | null;
   // Optional vendor (pharmacy/restaurant) name + phone for the pickup card.
   pickup_phone: string | null;
   pickup_name: string | null;
@@ -87,6 +92,25 @@ export default async function DashboardHome() {
 
   const admin = createAdminClient();
 
+  // Fleet managers/owners (courier_fleets.owner_user_id) don't ride — send
+  // them straight to the dispatch board instead of an empty rider home.
+  // Only checked when the account has no rider profile, so an owner who is
+  // ALSO a rider on their own fleet still lands on the rider home by default.
+  const { data: profileCheck } = await admin
+    .from('courier_profiles')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (!profileCheck) {
+    const { data: ownedFleet } = await admin
+      .from('courier_fleets')
+      .select('id')
+      .eq('owner_user_id', user.id)
+      .limit(1)
+      .maybeSingle();
+    if (ownedFleet) redirect('/fleet/orders');
+  }
+
   const [{ data: profileData }, { data: shiftData }, { data: activeOrdersData }, { data: kycData }] =
     await Promise.all([
       admin
@@ -104,7 +128,7 @@ export default async function DashboardHome() {
       admin
         .from('courier_orders')
         .select(
-          'id, status, vertical, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
+          'id, status, vertical, source_type, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, pickup_line1, dropoff_line1, customer_first_name, customer_phone, updated_at, pharma_ready_at, restaurant_ready_at, pickup_phone, pickup_name, external_ref, dropoff_notes, delivery_fee_ron, total_ron, payment_method',
         )
         .eq('assigned_courier_user_id', user.id)
         .in('status', ['OFFERED', 'ACCEPTED', 'PICKED_UP', 'IN_TRANSIT'])
@@ -172,6 +196,27 @@ export default async function DashboardHome() {
     dropoffLng: o.dropoff_lng,
   }));
 
+  // Unread client messages across this rider's active orders — drives the
+  // "Mesaj nou de la client" badge on the home card. The chat UI itself only
+  // lives on /dashboard/orders/[id], so without this a client message is
+  // silent until the rider happens to open that page.
+  const unreadOrderIds = new Set<string>();
+  if (activeOrders.length > 0) {
+    const { data: unreadRows } = await admin
+      .from('order_messages')
+      .select('courier_order_id')
+      .in(
+        'courier_order_id',
+        activeOrders.map((o) => o.id),
+      )
+      .eq('from_role', 'CLIENT')
+      .eq('channel', 'CLIENT_COURIER')
+      .is('courier_read_at', null);
+    for (const row of (unreadRows ?? []) as Array<{ courier_order_id: string }>) {
+      unreadOrderIds.add(row.courier_order_id);
+    }
+  }
+
   // The courier's #1 priority order — its next action is surfaced by the
   // bottom-half active-order card (see below), not echoed in the greeting.
   const topOrder = activeOrders[0] ?? null;
@@ -207,7 +252,8 @@ export default async function DashboardHome() {
     ? false
     : !topIsPickup
       ? true
-      : topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null;
+      : (topOrder.vertical !== 'pharma' || topOrder.pharma_ready_at != null) &&
+        (topOrder.source_type !== 'HIR_TENANT' || topOrder.restaurant_ready_at != null);
   const topAddress = !topOrder
     ? null
     : topIsPickup
@@ -244,6 +290,7 @@ export default async function DashboardHome() {
     : topIsPickup
       ? topOrder.pickup_phone
       : topOrder.customer_phone;
+  const topHasUnreadMessage = !!topOrder && unreadOrderIds.has(topOrder.id);
 
   // Bleed under header padding (main has pt-6 px-4 pb-24). Negative margins
   // pull the map flush to header bottom + bottom-nav top edges. Height fills
@@ -264,8 +311,20 @@ export default async function DashboardHome() {
           offer arriving, the pharmacist stamping pharma_ready_at, or an
           out-of-band cancel now re-render the map overlays without a manual
           refresh. The home tab previously had no realtime, so offers/ready
-          state were stale until the courier navigated away and back. */}
-      <OrdersRealtime courierUserId={user.id} fleetId={null} watchFleetOpenOrders={false} />
+          state were stale until the courier navigated away and back.
+          Codex review (PR #1054, P2): activeOrders deliberately excludes the
+          OFFERED order (it's surfaced only by the swipe-to-accept overlay,
+          see incomingOffer above) — but OrdersRealtime's id-scoped watch
+          needs that id too, or an expiring offer never refreshes this page.
+          Include it here without adding it to activeOrders/activePins. */}
+      <OrdersRealtime
+        courierUserId={user.id}
+        activeOrderIds={
+          incomingOffer
+            ? [...activeOrders.map((o) => o.id), incomingOffer.id]
+            : activeOrders.map((o) => o.id)
+        }
+      />
 
       {/* Identity-verification banner — full-width strip at the top of the map.
           Only for the actionable/reassuring states so it doesn't nag a verified
@@ -422,6 +481,17 @@ export default async function DashboardHome() {
                 <span className="font-semibold">Indicații: </span>
                 {topOrder.dropoff_notes}
               </p>
+            ) : null}
+
+            {topHasUnreadMessage ? (
+              <Link
+                href={`/dashboard/orders/${topOrder!.id}`}
+                className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 transition-colors hover:bg-emerald-500/25"
+              >
+                <MessageCircle className="h-3.5 w-3.5 flex-none" aria-hidden strokeWidth={2.25} />
+                Mesaj nou de la client
+                <ArrowRight className="ml-auto h-3 w-3" aria-hidden strokeWidth={2.5} />
+              </Link>
             ) : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">

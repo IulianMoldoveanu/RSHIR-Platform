@@ -1,6 +1,6 @@
 // Marketing chrome (header + footer) for the HIR brand presentation site.
-// Used on root marketing landing + /features, /pricing, /contact,
-// /case-studies/* and shown when no tenant is resolved from host.
+// Used on the root marketing landing + /cum-functioneaza, /clienti, /contact,
+// and shown when no tenant is resolved from host.
 //
 // Design tokens match /affiliate + /reseller (Inter, indigo-600 primary,
 // greyscale background, no shadows on chrome).
@@ -12,6 +12,7 @@
 // chrome and writes the cookie via /api/locale on click.
 
 import Link from 'next/link';
+import { User } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/storefront/locale-switcher';
 import { ConsumerBadges } from '@/components/legal/consumer-badges';
 import { NetopiaLogo } from '@/components/marketing/netopia-logo';
@@ -19,15 +20,24 @@ import { t, type Locale, type TKey } from '@/lib/i18n';
 
 type NavItem = { href: string; labelKey: TKey };
 
+// 2026-08-01 — the site is repositioned as a "here's how it works" showcase
+// rather than a sales funnel (Iulian: "nu incerc sa convertesc din site ...
+// doar sa vada cum functioneaza"). /pricing is retired outright (301 to `/`,
+// see next.config.mjs) — a subscription pitch doesn't fit that job, and
+// real deals close through direct contact, not a self-serve calculator.
+// "Clienți" replaces the nav's demo slot; the demo itself stays reachable
+// from the hero, the final CTA and the mobile sticky bar. /connect and
+// /migrate-from-gloriafood still resolve at their own URLs and keep their
+// sitemap entries; they're just not surfaced in the primary nav, same
+// treatment /status and /press already get in the footer below.
+//
+// 2026-08-01 (later same day) — "Funcționalități" (/features, a wall of
+// feature cards) became "Cum funcționează?" (/cum-functioneaza, a
+// screenshot-led walkthrough) per Iulian; /features 301s there.
 const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
-  { href: '/features', labelKey: 'marketing.shell.nav_features' },
-  { href: '/pricing', labelKey: 'marketing.shell.nav_pricing' },
-  { href: '/connect', labelKey: 'marketing.shell.nav_connect' },
-  { href: '/migrate-from-gloriafood', labelKey: 'marketing.shell.nav_migrate' },
-  // Case study link hidden 2026-06-02 per Iulian directive (temporar — sa nu fie vizibil).
-  // Page itself still resolves at /case-studies/foisorul-a; re-add this NAV entry to restore.
-  // { href: '/case-studies/foisorul-a', labelKey: 'marketing.shell.nav_case_studies' },
+  { href: '/cum-functioneaza', labelKey: 'marketing.shell.nav_how' },
+  { href: '/clienti', labelKey: 'marketing.shell.nav_clients' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
 
@@ -40,24 +50,30 @@ export function MarketingHeader({
 }) {
   return (
     <>
-      {/* Lane MARKETING-POLISH-V4B (2026-05-16) — visible-on-focus skip link
-          for keyboard + screen-reader users. Targets `#main-content` on the
-          parent <main> of every marketing page. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-[#4F46E5] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-[#4338CA] focus:ring-offset-2"
-      >
-        {t(currentLocale, 'marketing.shell.skip_to_content')}
-      </a>
+      {/* 2026-08-03 — the "Sari la conținut" skip link is gone, per Iulian
+          ("vreau sa dispara"). It was behaving correctly (sr-only until
+          focused), but App Router moves focus to the top of the document after
+          every client-side navigation, so it flashed into the top-left corner
+          on each page change and read as a bug.
+
+          WCAG 2.4.1 (Bypass Blocks) still holds without it: these pages are
+          landmarked — <header>, a labelled <nav>, and <main id="main-content">
+          — which is technique ARIA11, and the primary nav is four links, so
+          there is very little to bypass in the first place. */}
       <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
           href="/"
           className="flex items-center gap-2 text-base font-semibold tracking-tight text-[#0F172A]"
         >
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
-            H
-          </span>
+          {/* 2026-08-04 — an actual mark instead of the letter "H" set in a
+              rounded square, which is what every auto-generated placeholder
+              looks like. `alt=""` on purpose: the wordmark right next to it
+              already names the brand, so a description here would make screen
+              readers say it twice. See public/hir-logo.svg for why it is
+              drawn the way it is. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/hir-logo.svg" alt="" width={28} height={28} className="h-7 w-7" />
           {t(currentLocale, 'marketing.shell.brand_name')}
         </Link>
         <nav
@@ -86,26 +102,27 @@ export function MarketingHeader({
             current={currentLocale}
             ariaLabel={t(currentLocale, 'marketing.shell.locale_switcher_label')}
           />
-          {/* 2026-06-15 — restored direct Log in link per Iulian directive.
-              Previously this CTA pointed to /intra-in-cont (a hub asking
-              "login or signup?"), which forced an extra click on returning
-              users. Now: Log in is the primary CTA (direct to admin /login),
-              Create account is the secondary CTA. /intra-in-cont still exists
-              as a fallback hub but is no longer reached from the header. */}
-          <a
-            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/signup`}
-            className="hidden rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-sm font-medium text-[#0F172A] hover:bg-[#F8FAFC] sm:inline-flex"
-            rel="noopener"
+          {/* 2026-08-01 — one button instead of separate Log in / Create
+              account, per Iulian ("un singur buton, nu doua"); both already
+              converged on /intra-in-cont.
+              2026-08-02 — a person glyph rather than a word. The label survives
+              as the accessible name, so screen readers and the tooltip still
+              say "Conectează-te"; an unlabelled icon button would be the
+              classic regression.
+              2026-08-03 — briefly removed from here while the same glyph was
+              added to the demo storefront, and put straight back: an existing
+              restaurant owner landing on any marketing page had no discoverable
+              way to sign in. The two are not alternatives. This one is the
+              tenant signing in to their dashboard; the one in the demo is the
+              diner's own account inside a storefront. */}
+          <Link
+            href="/intra-in-cont"
+            title={t(currentLocale, 'marketing.shell.cta_account')}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4F46E5] text-white ring-1 ring-inset ring-[#4338CA] transition-colors hover:bg-[#4338CA] focus-visible:outline-2 focus-visible:outline-[#4F46E5] focus-visible:outline-offset-2"
           >
-            {t(currentLocale, 'marketing.shell.cta_signup_restaurant')}
-          </a>
-          <a
-            href={`${process.env.NEXT_PUBLIC_RESTAURANT_ADMIN_URL ?? 'https://app.hirforyou.ro'}/login`}
-            className="rounded-md bg-[#4F46E5] px-3 py-1.5 text-sm font-medium text-white ring-1 ring-inset ring-[#4338CA] hover:bg-[#4338CA]"
-            rel="noopener"
-          >
-            {t(currentLocale, 'marketing.shell.cta_login')}
-          </a>
+            <User className="h-[18px] w-[18px]" aria-hidden />
+            <span className="sr-only">{t(currentLocale, 'marketing.shell.cta_account')}</span>
+          </Link>
         </div>
       </div>
       {/* Mobile nav: simple horizontal scroll */}
@@ -135,17 +152,30 @@ export function MarketingHeader({
   );
 }
 
+// 2026-08-02 — footer cut down to the two things a visitor actually needs
+// here: who we are, and the two legal documents. Iulian: "footerul este prea
+// incarcat. scoate program reselleri si contact comercial, practic tot ce tine
+// de parteneri. tot ce tine de produs. iar la rubrica legal va exista doar
+// confidentialitate si termeni si conditii."
+//
+// Nothing was deleted, only unlinked from here: /cum-functioneaza, /clienti and
+// /demo-storefront are all in the primary nav or the homepage CTAs; /orase and
+// /parteneriat/inscriere keep their URLs and their sitemap entries; the
+// remaining legal documents (cookies, delivery, refund, DPA, sub-processors,
+// company details) are reachable from the bottom of /terms and /privacy — see
+// LegalShell — which is what "acolo vom avea toate celelalte incluse" asks for.
+// The cookie policy is also linked from the consent banner itself, so it stays
+// one click away on every page.
 export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
   const year = new Date().getFullYear();
   return (
     <footer className="border-t border-[#E2E8F0] bg-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-8 md:grid-cols-4">
-          <div>
+        <div className="grid gap-8 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="max-w-md">
             <div className="flex items-center gap-2 text-sm font-semibold tracking-tight text-[#0F172A]">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-[#4F46E5] text-xs font-bold text-white">
-                H
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/hir-logo.svg" alt="" width={24} height={24} className="h-6 w-6" />
               {t(currentLocale, 'marketing.shell.brand_name')}
             </div>
             <p className="mt-3 text-xs leading-relaxed text-[#64748B]">
@@ -153,58 +183,25 @@ export function MarketingFooter({ currentLocale }: { currentLocale: Locale }) {
             </p>
           </div>
           <FooterCol
-            title={t(currentLocale, 'marketing.shell.footer_col_product')}
-            links={[
-              { href: '/features', label: t(currentLocale, 'marketing.shell.footer_link_features') },
-              { href: '/pricing', label: t(currentLocale, 'marketing.shell.footer_link_pricing') },
-              { href: '/connect', label: t(currentLocale, 'marketing.shell.footer_link_connect') },
-              { href: '/migrate-from-gloriafood', label: t(currentLocale, 'marketing.shell.footer_link_migrate') },
-              // Case study link hidden 2026-06-02 per Iulian directive (temporar). Re-add to restore.
-              // { href: '/case-studies/foisorul-a', label: t(currentLocale, 'marketing.shell.footer_link_case_studies') },
-              // Lane STOREFRONT-CITY-LANDING (2026-05-06) — surface the
-              // city directory in the product column so SEO crawlers find
-              // /orase from every marketing page.
-              { href: '/orase', label: t(currentLocale, 'marketing.shell.footer_link_cities') },
-              // Lane SITE-COPY-V2 (2026-05-10) — /status hidden from public
-              // footer + sitemap until Iulian decides on credibility play.
-              // Page still resolves at the URL for admin direct access.
-            ]}
-          />
-          <FooterCol
-            title={t(currentLocale, 'marketing.shell.footer_col_partners')}
-            links={[
-              { href: '/parteneriat/inscriere', label: t(currentLocale, 'marketing.shell.footer_link_reseller') },
-              { href: '/contact', label: t(currentLocale, 'marketing.shell.footer_link_contact') },
-              // Lane SITE-COPY-V2 (2026-05-10) — /press hidden from public
-              // footer + sitemap until brand assets ship. Page still
-              // resolves at the URL for direct access.
-            ]}
-          />
-          <FooterCol
-            // 2026-06-10 — Legal column simplified per Iulian directive
-            // ("la legal sunt mult prea multe linkuri. fa doar cateva pagini
-            // cu subpagini, este extrem de alambicat și fără rost, arată urat").
-            // Reduced from 11 links to 3 essentials + hub link to /legal where
-            // all subpages are organized by category (Essentials / Orders &
-            // delivery / For partners & operators). All sub-pages still live
-            // at their existing URLs — only footer surface was the problem.
             title={t(currentLocale, 'marketing.shell.footer_col_legal')}
             links={[
               { href: '/terms', label: t(currentLocale, 'marketing.shell.footer_link_terms') },
               { href: '/privacy', label: t(currentLocale, 'marketing.shell.footer_link_privacy') },
-              { href: '/politica-cookies', label: t(currentLocale, 'marketing.shell.footer_link_cookies') },
-              { href: '/legal', label: currentLocale === 'en' ? 'All legal documents →' : 'Toate documentele legale →' },
             ]}
           />
         </div>
-        {/* 2026-06-10 — Combined trust block: NETOPIA logo (PSP requirement) +
-            ANPC/SAL/SOL badges (consumer protection — RO/UE). Iulian explicit
-            request după Netopia rejection round 1: ANPC vizibil LÂNGĂ Netopia
-            în footer. Inline text version of ConsumerBadges removed to avoid
-            duplication — single badges row now serves both legal compliance
-            (Ordin ANPC 449/2003 + Reg. UE 524/2013) AND visibility. */}
+        {/* NETOPIA logo (required for merchant approval — see NetopiaLogo) +
+            ANPC/SAL/SOL links (Ordin ANPC 449/2003 + Reg. UE 524/2013). Both
+            stay; 2026-08-02 they were only made smaller and folded into one
+            row, per "netopia vreau sa fie vizibil dar mai mic, la fel si
+            site-urile anpc". */}
         <NetopiaTrustSignal locale={currentLocale} />
         <div className="mt-6 flex flex-col gap-2 border-t border-[#F1F5F9] pt-6 text-xs text-[#94A3B8] md:flex-row md:items-center md:justify-between">
+          {/* Company registration number dropped here 2026-08-02 at Iulian's
+              request. It is a Legea 365/2002 art. 5 disclosure, so it still
+              appears where it legally has to: on the storefront footer that
+              accompanies an actual purchase (components/storefront/hir-footer),
+              and on /legal/companie. */}
           <p>
             {t(currentLocale, 'marketing.shell.footer_copyright_template', { year })}
           </p>
@@ -238,9 +235,9 @@ function FooterCol({
 }) {
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
         {title}
-      </h4>
+      </h2>
       <ul className="mt-3 space-y-2">
         {links.map((l) => (
           <li key={l.href}>
@@ -264,54 +261,49 @@ function FooterCol({
 // secret=165813) e renderată via NetopiaLogo client component — Netopia a
 // respins prima cerere cu motivul "sigla este element obligatoriu" (2026-06-10),
 // deci NU înlocui acel <NetopiaLogo /> cu text până la confirmare aprobare.
+// 2026-08-02 — same elements, a third of the height. The logo is capped at
+// 96px (NTPLogo is `width: 100%` up to a 150px max, so a narrower wrapper
+// scales it down cleanly), the four consumer-protection links go back to the
+// discreet text row (`variant="light"`) instead of the icon pills, and the
+// payment disclosure is one line instead of three.
+//
+// What must NOT be trimmed further: the NETOPIA logo itself (merchant approval
+// was rejected once for its absence) and the "Legislație SAL" link to
+// legislatie.just.ro (rejected once for that too).
 function NetopiaTrustSignal({ locale }: { locale: Locale }) {
-  const title =
-    locale === 'en' ? 'Secure payments' : 'Plăți securizate';
+  const title = locale === 'en' ? 'Secure payments' : 'Plăți securizate';
   const intro =
-    locale === 'en'
-      ? 'Secure online payments via'
-      : 'Plăți online securizate prin';
+    locale === 'en' ? 'Secure online payments via' : 'Plăți online securizate prin';
   const protection =
     locale === 'en'
-      ? 'Transactions protected by 3-D Secure. Card data is not stored by HIR — it is processed exclusively by the authorized payment processor, in compliance with PCI DSS.'
-      : 'Tranzacții protejate prin protocolul 3-D Secure. Datele cardului nu sunt stocate de HIR — sunt procesate exclusiv de procesatorul de plăți autorizat, conform standardului PCI DSS.';
-
-  const protectionTitle =
-    locale === 'en' ? 'Consumer protection' : 'Protecția consumatorilor';
+      ? '3-D Secure transactions. Card data is never stored by HIR — it is processed exclusively by the authorized PCI DSS payment processor.'
+      : 'Tranzacții 3-D Secure. Datele cardului nu sunt stocate de HIR — sunt procesate exclusiv de procesatorul de plăți autorizat, conform PCI DSS.';
 
   return (
     <section
       aria-label={title}
-      className="mt-10 border-t border-[#F1F5F9] pt-6 text-xs leading-relaxed text-[#64748B]"
+      className="mt-10 flex flex-col gap-4 border-t border-[#F1F5F9] pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-8"
     >
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-[#0F172A]">
-        {title}
-      </h4>
-      <p className="mt-2 max-w-3xl">
-        {intro}{' '}
-        <a
-          href="https://netopia-payments.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium text-[#0F172A] hover:underline"
-        >
-          NETOPIA Payments
-        </a>
-        . {protection}
-      </p>
-      <div className="mt-4 flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
+      <div className="flex items-center gap-3">
         {/* NETOPIA merchant logo (NTPLogo bound to POS secret=165813) */}
-        <div className="flex-none">
+        <div className="w-24 flex-none">
           <NetopiaLogo />
         </div>
-        {/* Consumer protection badges (ANPC + SAL + Legislație + SOL UE) */}
-        <div className="flex-1">
-          <h5 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#64748B]">
-            {protectionTitle}
-          </h5>
-          <ConsumerBadges variant="badges" />
-        </div>
+        <p className="max-w-sm text-[11px] leading-snug text-[#94A3B8]">
+          {intro}{' '}
+          <a
+            href="https://netopia-payments.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-[#64748B] hover:text-[#0F172A] hover:underline"
+          >
+            NETOPIA Payments
+          </a>
+          . {protection}
+        </p>
       </div>
+      {/* Consumer protection links (ANPC + SAL + Legislație SAL + SOL UE) */}
+      <ConsumerBadges variant="light" className="flex-none" />
     </section>
   );
 }

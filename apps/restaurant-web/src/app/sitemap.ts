@@ -21,7 +21,7 @@ type ActiveTenantRow = {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { tenant } = await resolveTenantFromHost();
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const now = new Date();
 
   // CASE 1 — request hit a tenant host. Emit the existing tenant sitemap

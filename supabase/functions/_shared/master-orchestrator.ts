@@ -43,7 +43,7 @@ export type { SimilarRun };
 // Types
 // ---------------------------------------------------------------------------
 
-export type Channel = 'telegram' | 'web' | 'voice';
+export type Channel = 'telegram' | 'web' | 'voice' | 'whatsapp';
 
 export type AgentName =
   | 'master'

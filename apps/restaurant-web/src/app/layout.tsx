@@ -5,7 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { headers } from 'next/headers';
 import { t, type Locale } from '@/lib/i18n';
 import { getLocale } from '@/lib/i18n/server';
-import { isCanonicalHost } from '@/lib/seo-marketing';
+import { isBrandIconHost, isCanonicalHost, isMarketingSurface } from '@/lib/seo-marketing';
 import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
 import { SupportPanel } from '@/components/support/support-panel';
@@ -87,20 +87,56 @@ const TWITTER_SITE = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
 // MarketingHome content (which already pins to RO per #398). Tenant
 // hosts (`*.hirforyou.ro` or custom domains) continue to honor cookie
 // + Accept-Language so EN customers see the EN storefront chrome.
+async function currentHost(): Promise<string> {
+  const h = await headers();
+  return h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
+}
+
 async function rootLocale(): Promise<Locale> {
-  const host =
-    (await headers()).get('x-hir-host') ??
-    (await headers()).get('host')?.split(':')[0] ??
-    '';
-  if (isCanonicalHost(host)) return 'ro';
+  if (isCanonicalHost(await currentHost())) return 'ro';
   return await getLocale();
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await rootLocale();
+  // 2026-08-04 — the site had no favicon at all: browsers asked for
+  // /favicon.ico, got a 404, and drew the blank default page glyph in the tab.
+  // Iulian: "genereaza tu un logo. simplu de pus sus in bara de site-uri."
+  //
+  // Presentation-site hosts only, and deliberately so. A tenant storefront is
+  // the restaurant's own brand — stamping the HIR mark on their browser tab
+  // would contradict the entire product ("pagina ta, cu brandul tău"), and they
+  // already get their own icon on the home screen through manifest.ts, which
+  // reads branding.logo_url. Gating here also keeps the root layout free of a
+  // Supabase round-trip on every single request: resolveTenantFromHost() is
+  // not memoised, so calling it here would add one query per page view sitewide
+  // just to decide a tab icon.
+  //
+  // The override has to be part of that decision, not just the host: `?tenant=`
+  // on a preview URL or localhost renders a real storefront, and it is a
+  // supported flow (the admin fallback URL and embeds both use it). Deciding on
+  // the host alone put the HIR mark on those storefronts. Same header the
+  // SupportPanel gate below already reads.
+  //
+  // PNG first, SVG second: browsers take the last format they understand, so
+  // this gives Chrome/Firefox/Edge the crisp vector and leaves older Safari on
+  // the raster fallback.
+  const brandIcon = isBrandIconHost(
+    await currentHost(),
+    !!(await headers()).get('x-hir-tenant-override'),
+  );
   return {
     title: t(locale, 'meta.default_title'),
     description: t(locale, 'meta.default_description'),
+    icons: brandIcon
+      ? {
+          icon: [
+            { url: '/favicon-32.png', type: 'image/png', sizes: '32x32' },
+            { url: '/hir-logo.svg', type: 'image/svg+xml' },
+          ],
+          apple: '/icon-192.png',
+        }
+      : undefined,
     verification: GSC_VERIFICATION ? { google: GSC_VERIFICATION } : undefined,
     twitter: TWITTER_SITE ? { site: TWITTER_SITE, card: 'summary_large_image' } : undefined,
   };
@@ -113,6 +149,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // an embed iframe; merchants don't want HIR install prompts on their
   // own site.
   const embed = isEmbedMode();
+  // 2026-08-02 — the support panel is customer support for a *storefront*
+  // (track my order, my payment, my account). On the brand presentation site
+  // it answers questions nobody visiting it has. Iulian: "nu vad rostul
+  // butonului de suport in pagina de prezentare ... doar dupa onboarding isi
+  // are cu adevarat rostul."
+  //
+  // Not `isCanonicalHost` alone: on a Vercel preview URL the marketing pages
+  // render too, and that host isn't canonical, so the panel would come back
+  // on exactly the deployments used for QA (caught in review of #1040).
+  // `x-hir-tenant-override` is what the middleware forwards for `?tenant=` and
+  // the `selected_tenant` cookie, which is the only way a preview host names a
+  // tenant.
+  const h = await headers();
+  const marketingSurface = isMarketingSurface(
+    await currentHost(),
+    !!h.get('x-hir-tenant-override'),
+  );
   const fontVars = [
     inter.variable,
     playfair.variable,
@@ -129,7 +182,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-sans antialiased">
         {children}
         {!embed && <PwaInstallPrompt />}
-        {!embed && <SupportPanel />}
+        {!embed && !marketingSurface && <SupportPanel />}
         <Analytics />
         <SpeedInsights />
       </body>

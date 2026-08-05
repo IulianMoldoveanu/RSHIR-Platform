@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ShoppingBag, TriangleAlert } from 'lucide-react';
+import { ChevronDown, LocateFixed, ShoppingBag, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
 import { t, type Locale } from '@/lib/i18n';
 import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
+import { getCartStore } from '@/lib/cart/store';
+import { writeLastOrder } from '@/lib/cart/last-order';
 import {
   clearSavedAddress,
   readSavedAddress,
@@ -159,6 +161,43 @@ export function CheckoutClient(props: {
 
   const [step, setStep] = useState<Step>('form');
   const [fulfillment, setFulfillment] = useState<Fulfillment>('DELIVERY');
+  // Open on what the diner already chose on the storefront (2026-08-03), which
+  // is where the question is now asked first. Runs once — `cart` is set a
+  // single time by useCart — so it never fights the picker below.
+  //
+  // Only ever upgrades to PICKUP, and only when the tenant accepts it: a stale
+  // or hand-edited snapshot must not preselect a mode this restaurant refuses,
+  // and DELIVERY is already the initial value.
+  useEffect(() => {
+    if (cartLoading || !cart) return;
+    if (cart.fulfillment === 'PICKUP' && pickupEnabled) setFulfillment('PICKUP');
+  }, [cartLoading, cart, pickupEnabled]);
+
+  // ...and write the choice back when it is changed here, so the storefront
+  // switch agrees with what was actually ordered. Without this the copy is
+  // one-way: pick pickup on the menu, change to delivery here, go back, and
+  // the switch still says pickup — and `clear()` deliberately preserves
+  // fulfillment past the order, so the stale value outlives the basket.
+  // (Codex P2 on #1050.)
+  //
+  // `getCartStore` needs no provider — checkout sits outside the storefront
+  // route group and has none — and it rehydrates from the same
+  // `hir-cart-{tenantId}` key, so the items are untouched.
+  const applyFulfillment = useCallback(
+    (next: Fulfillment) => {
+      setFulfillment(next);
+      try {
+        getCartStore(props.tenantId).getState().setFulfillment(next);
+      } catch {
+        // localStorage disabled (private mode). The order still carries the
+        // right mode; only the storefront's memory of it is lost.
+      }
+    },
+    [props.tenantId],
+  );
+  // Scheduled pickup time — 'ASAP' (default) or a specific 15-min slot ISO
+  // string. Pickup-only; delivery orders always dispatch immediately.
+  const [pickupTime, setPickupTime] = useState<string>('ASAP');
   // Default to whichever method is enabled. Legacy + card_live + card_test
   // tenants get CARD; cod_only tenants get COD (CARD radio is hidden and the
   // intent route refuses CARD bodies).
@@ -203,12 +242,22 @@ export function CheckoutClient(props: {
   // we invalidate to force a fresh geocode on the next quote attempt.
   const [coordsForText, setCoordsForText] = useState<string>('');
   const [geocoding, setGeocoding] = useState(false);
+  const [locating, setLocating] = useState(false);
+  // Browser geolocation → reverse-geocode is an approximation (Wi-Fi/cell
+  // positioning indoors can be off by 100-300m, and Nominatim's nearest-road
+  // match isn't always the actual street — reported live: device on Strada
+  // Lungă, auto-filled Strada Mureșenilor). This flag drives a "verify this"
+  // banner right after auto-fill so the customer double-checks instead of
+  // trusting it blindly; clears the same way `coords` invalidates below —
+  // any manual edit means they're already looking at the field.
+  const [locatedAddress, setLocatedAddress] = useState(false);
 
   const currentAddressKey = `${line1.trim()}|${line2.trim()}|${city.trim()}|${postalCode.trim()}`;
   useEffect(() => {
     if (coords && coordsForText && coordsForText !== currentAddressKey) {
       setCoords(null);
       setCoordsForText('');
+      setLocatedAddress(false);
     }
   }, [coords, coordsForText, currentAddressKey]);
 
@@ -388,6 +437,58 @@ export function CheckoutClient(props: {
     }
   }
 
+  // Browser geolocation → reverse-geocode → prefill address fields. Fully
+  // optional convenience on top of manual entry; any failure just leaves
+  // the form as-is with an inline error, same UX contract as handleGeocode.
+  function handleUseMyLocation() {
+    setError(null);
+    if (!('geolocation' in navigator)) {
+      setError(t(locale, 'checkout.err_geolocation_unsupported'));
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch('/api/checkout/reverse-geocode', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+            }),
+          });
+          if (!res.ok) {
+            setError(t(locale, 'checkout.err_geolocation_not_found'));
+            return;
+          }
+          const data = (await res.json()) as {
+            line1: string;
+            city: string;
+            postalCode: string;
+          };
+          if (data.line1) setLine1(data.line1);
+          if (data.city) setCity(data.city);
+          if (data.postalCode) setPostalCode(data.postalCode);
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setCoordsForText(
+            `${data.line1 ?? line1}|${line2}|${data.city ?? city}|${data.postalCode ?? postalCode}`,
+          );
+          setLocatedAddress(true);
+        } catch {
+          setError(t(locale, 'checkout.err_geolocation_not_found'));
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setError(t(locale, 'checkout.err_geolocation_denied'));
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  }
+
   async function handleRequestOtp() {
     if (otpWorking) return;
     setOtpError(null);
@@ -565,6 +666,9 @@ export function CheckoutClient(props: {
         ...(newsletterOptin && email.trim().length > 0
           ? { newsletterOptin: true }
           : {}),
+        ...(fulfillment === 'PICKUP' && pickupTime !== 'ASAP'
+          ? { scheduledPickupAt: pickupTime }
+          : {}),
       };
       if (fulfillment === 'DELIVERY') {
         // Defensive: the user may have reached the review step with coords
@@ -663,9 +767,15 @@ export function CheckoutClient(props: {
       if (response.paymentMethod === 'COD') {
         // COD path: order is final the moment the intent returns OK. Cart
         // cleanup is safe here because the user is leaving for /track and
-        // can't re-submit the same cart.
+        // can't re-submit the same cart. Clears both the sessionStorage
+        // checkout snapshot AND the real Zustand+localStorage storefront
+        // cart (lib/cart/store.ts) — the latter was missed originally,
+        // which left the storefront cart pill showing the just-ordered
+        // items after a successful COD order.
         sessionStorage.removeItem(CART_STORAGE_KEY);
         writeStoredPromo(null);
+        getCartStore(props.tenantId).getState().clear();
+        writeLastOrder(props.tenantId, response.publicTrackToken);
         // COD orders skip the PSP entirely. Order is already PENDING in the
         // DB; the customer goes straight to /track and the restaurant
         // confirms via the admin UI.
@@ -818,9 +928,12 @@ export function CheckoutClient(props: {
         {pickupEnabled && (
           <FulfillmentToggle
             value={fulfillment}
-            onChange={setFulfillment}
+            onChange={applyFulfillment}
             locale={locale}
           />
+        )}
+        {pickupEnabled && fulfillment === 'PICKUP' && (
+          <PickupTimeSelect value={pickupTime} onChange={setPickupTime} locale={locale} />
         )}
 
         <Section title={t(locale, 'checkout.section_your_data')}>
@@ -899,7 +1012,28 @@ export function CheckoutClient(props: {
               </div>
             ) : null}
             <Field label={t(locale, 'checkout.field_street')}>
-              <input className={inputCls} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
+              <div className="flex items-center gap-2">
+                <input className={`${inputCls} flex-1`} value={line1} onChange={(e) => setLine1(e.target.value)} onBlur={handleGeocode} required />
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  disabled={locating}
+                  aria-label={t(locale, 'checkout.use_my_location')}
+                  title={t(locale, 'checkout.use_my_location')}
+                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-60"
+                >
+                  <LocateFixed className={`h-4 w-4 ${locating ? 'animate-pulse' : ''}`} aria-hidden />
+                  <span className="hidden sm:inline">
+                    {locating ? t(locale, 'checkout.locating') : t(locale, 'checkout.use_my_location')}
+                  </span>
+                </button>
+              </div>
+              {locatedAddress && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-700">
+                  <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {t(locale, 'checkout.located_address_warning')}
+                </p>
+              )}
             </Field>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="text-xs font-medium text-zinc-700">
@@ -1654,6 +1788,56 @@ function FulfillmentToggle({
           label={t(locale, 'checkout.fulfillment_pickup')}
         />
       </div>
+    </section>
+  );
+}
+
+// 15-min slots covering the next 4 hours. Delivery House is 24/7 fast-food
+// with no closing time, so there's no restaurant-hours bound to check —
+// just "ASAP" plus a same-day time picker, kept deliberately simple.
+function pickupSlots(now: Date): { value: string; label: string }[] {
+  const slots: { value: string; label: string }[] = [];
+  const start = new Date(now);
+  start.setSeconds(0, 0);
+  const remainder = start.getMinutes() % 15;
+  start.setMinutes(start.getMinutes() + (remainder === 0 ? 15 : 15 - remainder));
+  for (let i = 0; i < 16; i++) {
+    const slot = new Date(start.getTime() + i * 15 * 60_000);
+    slots.push({
+      value: slot.toISOString(),
+      label: slot.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+  return slots;
+}
+
+function PickupTimeSelect({
+  value,
+  onChange,
+  locale,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  locale: Locale;
+}) {
+  const slots = useMemo(() => pickupSlots(new Date()), []);
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-4">
+      <label className="mb-2 block text-sm font-semibold text-zinc-900">
+        {t(locale, 'checkout.pickup_time_label')}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+      >
+        <option value="ASAP">{t(locale, 'checkout.pickup_time_asap')}</option>
+        {slots.map((s) => (
+          <option key={s.value} value={s.value}>
+            {s.label}
+          </option>
+        ))}
+      </select>
     </section>
   );
 }

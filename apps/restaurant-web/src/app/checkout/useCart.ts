@@ -28,6 +28,27 @@ export const cartSnapshotSchema = z.object({
       notes: z.string().optional(),
     }),
   ),
+  /**
+   * Delivery or pickup, as chosen on the storefront (2026-08-03).
+   *
+   * `.catch()`, not `.default()`, and the difference is a lost basket.
+   *
+   * The whole snapshot is parsed with `safeParse` and a failure throws the
+   * cart away — checkout renders its empty state and the customer starts over.
+   * `.default()` covers a *missing* field (every snapshot written before this
+   * shipped), but any unrecognised value would still fail the object parse and
+   * take the items down with it. Verified: a snapshot carrying
+   * `fulfillment: "HELICOPTER"` emptied the cart at checkout.
+   *
+   * `.catch()` covers both — missing and unrecognised fall back to DELIVERY,
+   * and the items survive either way. A wrong handover mode is a radio button
+   * the customer can fix in one tap; a lost basket is an abandoned order.
+   *
+   * Advisory regardless. The checkout picker can still change it, and
+   * `/api/checkout/quote` + `/intent` both refuse PICKUP when the tenant has
+   * it disabled.
+   */
+  fulfillment: z.enum(['DELIVERY', 'PICKUP']).catch('DELIVERY'),
 });
 
 export type CartSnapshot = z.infer<typeof cartSnapshotSchema>;

@@ -1,5 +1,5 @@
 // Lane Q (2026-05-04) — shared SEO helpers for the canonical/marketing host.
-// Lane H ships the actual marketing pages (/, /features, /pricing, etc.);
+// Lane H ships the actual marketing pages (/, /cum-functioneaza, etc.);
 // Lane I ships per-tenant social-commerce OG. This module is the contract
 // the three lanes share so the sitemap stays in sync with the routes that
 // actually exist.
@@ -17,12 +17,16 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   priority: number;
 }> = [
   { path: '/', priority: 1.0 },
-  { path: '/features', priority: 0.8 },
-  { path: '/pricing', priority: 0.8 },
+  // /features retired 2026-08-01 (301 to /cum-functioneaza, see
+  // next.config.mjs) — the walkthrough replaced the feature-card wall.
+  { path: '/cum-functioneaza', priority: 0.8 },
+  // /pricing retired 2026-08-01 (301 to `/`, see next.config.mjs) — the
+  // site no longer pitches a subscription, so it's not a sitemap entry
+  // either; listing a redirect target here would be a stale SEO signal.
+  { path: '/clienti', priority: 0.7 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   // /alternativa-gloriafood-romania → 301 redirect to /migrate-from-gloriafood (2026-06-02)
   // per Iulian directive: only ONE dedicated GloriaFood page on the marketing site.
-  { path: '/case-studies/foisorul-a', priority: 0.6 },
   // Lane DEMO-LANDING-V1 (2026-05-12) — paid-ads + reseller-link landing
   // optimized for 60-second decision. Indexable so direct organic
   // discoveries also land here.
@@ -82,6 +86,57 @@ export function isCanonicalHost(host: string): boolean {
   // Localhost root (no subdomain) for `pnpm dev` of the marketing site.
   if (h === 'localhost') return true;
   return false;
+}
+
+/**
+ * True when this request renders the brand presentation site rather than a
+ * tenant storefront. Not the same question as `isCanonicalHost`: on a Vercel
+ * auto-generated preview URL the marketing pages render too, but the host is
+ * not canonical, and a `?tenant=` override (or the `selected_tenant` cookie
+ * the middleware forwards as `x-hir-tenant-override`) flips that same host to
+ * a storefront. That is the only way a preview host resolves a tenant —
+ * `vercel.app` is not in SUBDOMAIN_BASES, so the host itself never names one.
+ *
+ * Used to keep the storefront support panel off the presentation site. It has
+ * to be cheap: the root layout runs on every request, so this stays pure
+ * header arithmetic with no tenant lookup.
+ */
+export function isMarketingSurface(host: string, hasTenantOverride: boolean): boolean {
+  const h = host.toLowerCase();
+  // Preview + local dev: the host can't name a tenant, so the override is the
+  // only thing that decides. `.lvh.me` is deliberately excluded — there the
+  // subdomain *does* name a tenant (`restaurant-demo.lvh.me`).
+  if (h.endsWith('.vercel.app') || h === 'localhost') return !hasTenantOverride;
+  // Production: the apex is the presentation site; every tenant lives on a
+  // subdomain or its own custom domain.
+  return isCanonicalHost(h);
+}
+
+/**
+ * True when the HIR brand mark should be this request's favicon.
+ *
+ * `isMarketingSurface` answers almost the same question and does the hard part
+ * — in particular, a `?tenant=` override (or the `selected_tenant` cookie the
+ * middleware forwards as `x-hir-tenant-override`) turns a preview or localhost
+ * host into a real storefront, and a storefront must never wear our mark.
+ *
+ * The one host it deliberately says no to and we say yes to is `www`. It must
+ * never be canonical or the site competes with itself in search, but it is not
+ * a redirect either: verified 2026-08-04, `https://www.hirforyou.ro/` returns
+ * 200 and serves the same marketing homepage as the apex. Deciding on
+ * canonicity alone left anyone who types the `www` out of habit with a blank
+ * tab.
+ *
+ * Header arithmetic only — this runs in the root layout on every request, so
+ * it must never touch the database.
+ */
+export function isBrandIconHost(host: string, hasTenantOverride: boolean): boolean {
+  // An override names a tenant on every host it is honoured on, so it settles
+  // the question before any host matching happens — `www` included.
+  if (hasTenantOverride) return false;
+  const h = host.toLowerCase();
+  if (isMarketingSurface(h, false)) return true;
+  return !!PRIMARY_DOMAIN && h === `www.${PRIMARY_DOMAIN}`;
 }
 
 // Build absolute URL for a marketing path on the canonical host. Used by
@@ -183,7 +238,9 @@ export function localBusinessJsonLd(baseUrl: string) {
     url: baseUrl,
     telephone: '+40743700916',
     email: 'office@hirforyou.ro',
-    priceRange: '2 RON / comandă procesată online',
+    // priceRange removed 2026-08-01 — the site no longer publishes a
+    // subscription figure anywhere (see /pricing retirement); leaving a
+    // pricing description here would keep it alive in Google's index.
     address: {
       '@type': 'PostalAddress',
       addressCountry: 'RO',
@@ -212,13 +269,7 @@ export function softwareApplicationJsonLd(baseUrl: string) {
     operatingSystem: 'Web, iOS, Android',
     url: baseUrl,
     description:
-      'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI, fără comision procentual.',
-    offers: {
-      '@type': 'Offer',
-      price: '2',
-      priceCurrency: 'RON',
-      description: '2 RON per comandă livrată — fără comision procentual',
-    },
+      'Platformă românească de comenzi online pentru restaurante, florării, magazine de cadouri și alți vendori: site propriu, KDS, livrare, AI.',
     publisher: {
       '@type': 'Organization',
       name: 'HIRforYOU',
@@ -229,8 +280,9 @@ export function softwareApplicationJsonLd(baseUrl: string) {
 
 // JSON-LD: FAQPage. Caller passes [{ q, a }] pairs; we wrap them in the
 // Schema.org Question/Answer shape. Per ChatGPT SEO audit 2026-05-10 —
-// surface FAQ rich results on `/`, `/pricing`, `/migrate-from-gloriafood`.
-// (/alternativa-gloriafood-romania removed 2026-06-02 — 301 to canonical page.)
+// surface FAQ rich results on `/`, `/migrate-from-gloriafood`. (/pricing
+// retired 2026-08-01; /alternativa-gloriafood-romania removed 2026-06-02 —
+// both 301 to their canonical replacement.)
 export function faqPageJsonLd(items: ReadonlyArray<{ question: string; answer: string }>) {
   return {
     '@context': 'https://schema.org',

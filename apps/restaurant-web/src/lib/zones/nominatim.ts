@@ -56,3 +56,52 @@ export async function geocodeAddressRo(address: string): Promise<LatLng | null> 
   if (!hit) return null;
   return { lat: hit.lat, lng: hit.lng };
 }
+
+export type ReverseGeocodeHit = {
+  line1: string;
+  city: string;
+  postalCode: string;
+  displayName: string;
+};
+
+/**
+ * Reverse-geocode browser coordinates into an address the checkout form can
+ * prefill (street + city + postal code). SERVER-ONLY — same rationale as
+ * `geocodeAddressRoVerbose` above; routed through `/api/checkout/reverse-geocode`.
+ */
+export async function reverseGeocodeRo(lat: number, lng: number): Promise<ReverseGeocodeHit | null> {
+  const url = new URL('https://nominatim.openstreetmap.org/reverse');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lng));
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('zoom', '18');
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': HIR_USER_AGENT,
+      Accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) return null;
+
+  const json = (await res.json()) as {
+    display_name?: string;
+    address?: Record<string, string>;
+  };
+  const a = json.address ?? {};
+  const road = a.road ?? a.pedestrian ?? a.footway ?? '';
+  const houseNumber = a.house_number ?? '';
+  const line1 = [road, houseNumber].filter(Boolean).join(' ').trim();
+  const city = a.city ?? a.town ?? a.village ?? a.municipality ?? '';
+  const postalCode = a.postcode ?? '';
+  if (!line1 && !city) return null;
+
+  return {
+    line1,
+    city,
+    postalCode,
+    displayName: json.display_name ?? '',
+  };
+}

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { authenticateApiKey } from '@/lib/api-key';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { dispatchCourierPushForNewOrder } from '@/lib/push/dispatch';
 import { validateWebhookUrl } from '@/lib/url-safety';
 
 export const dynamic = 'force-dynamic';
@@ -173,14 +172,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fire-and-forget Web Push to all active couriers in the fleet. The
-  // helper swallows errors so a misconfigured push pipeline can't block
-  // order creation. Couriers without a subscription just don't get the
-  // notification — the realtime feed picks the order up either way.
-  void dispatchCourierPushForNewOrder({
-    fleetId: auth.ctx.fleetId,
-    orderId: data.id,
-  });
+  // Codex review (PR #1054, P2): this used to fire an unconditional
+  // fleet-wide "new order available, come claim it" push to every ACTIVE
+  // courier — unlike the INSERT trigger's version, it didn't even back off
+  // for externally-dispatched tenants. With self-pickup removed, nobody can
+  // act on that broadcast: the eventual directed courier gets a second,
+  // real push once the allocation engine or a dispatcher actually assigns
+  // it (dispatch_courier_push_on_offer / offer_courier_order), which is the
+  // only notification a courier can act on now. Removed.
 
   return NextResponse.json(shapeOrder(data as never), { status: 201 });
 }

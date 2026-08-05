@@ -2,9 +2,15 @@
 
 // Contact form for the marketing /contact page. Posts to the existing
 // /api/migrate-leads endpoint (already rate-limited 5/min/IP, same-origin
-// gated). Lead kind = 'restaurant' or 'reseller' per the form selector,
-// matching the discriminated union the API enforces. Iulian sees the
-// lead in the same admin queue as the migrate-from-gloriafood form.
+// gated). Iulian sees the lead in the same admin queue as the
+// migrate-from-gloriafood form.
+//
+// 2026-08-02 — the "I am… restaurant / reseller / something else" selector is
+// gone along with everything reseller-facing on this page, and with it the
+// per-topic field labels and placeholders. Every lead now posts as
+// `kind: 'restaurant'`, which is the shape the queue already stored for both
+// "restaurant" and "other" before. The topic is still carried in `ref` so
+// nothing about the admin view changes.
 //
 // Lane WEB-I18N-EN-PARITY (2026-05-15): accepts locale prop + uses t()
 // for all visible strings so RO/EN cookie flips re-render the form copy.
@@ -16,13 +22,6 @@ export function ContactForm({ locale }: { locale: Locale }) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [topic, setTopic] = useState<string>('restaurant');
-
-  const topics = [
-    { v: 'restaurant', l: t(locale, 'contact.form_topic_restaurant') },
-    { v: 'reseller', l: t(locale, 'contact.form_topic_reseller') },
-    { v: 'other', l: t(locale, 'contact.form_topic_other') },
-  ];
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,29 +43,19 @@ export function ContactForm({ locale }: { locale: Locale }) {
     const city = String(fd.get('city') ?? '').trim() || 'Necunoscut';
     const phone = String(fd.get('phone') ?? '').trim();
 
-    // Map our topic onto the API's discriminated union (kind).
-    // 'other' falls back to 'restaurant' kind so the row lands in the
-    // same migrate_leads queue (city/message preserved).
-    const apiKind = topic === 'reseller' ? 'reseller' : 'restaurant';
-
-    const body =
-      apiKind === 'reseller'
-        ? {
-            kind: 'reseller' as const,
-            email,
-            name,
-            country: city || 'România',
-            // Use 0 portfolioSize as a default; we'll learn real size in followup.
-            portfolioSize: 0,
-            ref: `contact-form|${topic}|${phone}|${message.slice(0, 500)}`,
-          }
-        : {
-            kind: 'restaurant' as const,
-            email,
-            restaurantName: name,
-            city: city || 'Necunoscut',
-            ref: `contact-form|${topic}|${phone}|${message.slice(0, 500)}`,
-          };
+    // The phone and the message go in their own fields. Packing them into
+    // `ref` (capped at 100 chars server-side, because it maps to a partner-code
+    // column) is what made this form return `invalid_body` for every message
+    // longer than a single line.
+    const body = {
+      kind: 'restaurant' as const,
+      email,
+      restaurantName: name,
+      city: city || 'Necunoscut',
+      phone,
+      message,
+      ref: 'contact-form',
+    };
 
     try {
       const r = await fetch('/api/migrate-leads', {
@@ -118,30 +107,8 @@ export function ContactForm({ locale }: { locale: Locale }) {
         </label>
       </div>
 
-      <Field label={t(locale, 'contact.form_topic_label')} required>
-        <select
-          name="topic"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
-        >
-          {topics.map((tp) => (
-            <option key={tp.v} value={tp.v}>
-              {tp.l}
-            </option>
-          ))}
-        </select>
-      </Field>
-
       <div className="grid gap-5 md:grid-cols-2">
-        <Field
-          label={
-            topic === 'reseller'
-              ? t(locale, 'contact.form_name_reseller')
-              : t(locale, 'contact.form_name_restaurant')
-          }
-          required
-        >
+        <Field label={t(locale, 'contact.form_name')} required>
           <input
             name="name"
             required
@@ -170,21 +137,11 @@ export function ContactForm({ locale }: { locale: Locale }) {
             className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
           />
         </Field>
-        <Field
-          label={
-            topic === 'reseller'
-              ? t(locale, 'contact.form_city_reseller')
-              : t(locale, 'contact.form_city_restaurant')
-          }
-        >
+        <Field label={t(locale, 'contact.form_city_restaurant')}>
           <input
             name="city"
             maxLength={100}
-            placeholder={
-              topic === 'reseller'
-                ? t(locale, 'contact.form_city_placeholder_reseller')
-                : t(locale, 'contact.form_city_placeholder_restaurant')
-            }
+            placeholder={t(locale, 'contact.form_city_placeholder_restaurant')}
             className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
           />
         </Field>
@@ -197,11 +154,7 @@ export function ContactForm({ locale }: { locale: Locale }) {
           minLength={10}
           maxLength={2000}
           rows={5}
-          placeholder={
-            topic === 'reseller'
-              ? t(locale, 'contact.form_placeholder_reseller')
-              : t(locale, 'contact.form_placeholder_restaurant')
-          }
+          placeholder={t(locale, 'contact.form_placeholder')}
           className="w-full rounded-md border border-[#E2E8F0] bg-white px-3 py-2.5 text-sm text-[#0F172A] focus:border-[#4F46E5] focus:outline-none focus:ring-1 focus:ring-[#4F46E5]"
         />
       </Field>

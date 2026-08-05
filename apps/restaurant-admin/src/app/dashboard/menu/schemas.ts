@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseAllergens } from '@hir/ui';
 
 const uuid = z.string().uuid();
 
@@ -31,6 +32,11 @@ const tagsSchema = z
       .map((t) => t.trim())
       .filter(Boolean),
   );
+
+const allergensSchema = z
+  .string()
+  .max(500)
+  .transform((s) => parseAllergens(s.split(',')));
 
 // Optional integer field that arrives as either an empty string (unset
 // FormData input), a numeric string, or undefined. Empty/undefined → null;
@@ -69,6 +75,10 @@ export const itemCreateSchema = z.object({
     .max(60)
     .optional()
     .transform((s) => (s && s.length > 0 ? s : null)),
+  // EU 1169/2011 Annex II codes, comma-separated from the checkbox group.
+  // parseAllergens drops anything outside the fixed catalogue, so a
+  // hand-crafted POST can't put an invented allergen in front of a customer.
+  allergens: allergensSchema.optional(),
 });
 
 export const itemUpdateSchema = itemCreateSchema.extend({ id: uuid });

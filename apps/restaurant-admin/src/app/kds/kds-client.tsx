@@ -16,6 +16,7 @@ export type KdsOrder = {
   items: unknown;
   notes: string | null;
   delivery_address_id: string | null;
+  scheduled_pickup_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -40,6 +41,8 @@ const STATUS_LABEL_RO: Record<OrderStatus, string> = {
   DISPATCHED: 'Trimisă',
   IN_DELIVERY: 'În livrare',
   DELIVERED: 'Livrată',
+  PICKED_UP: 'Ridicată',
+  NO_SHOW: 'Neridicată',
   CANCELLED: 'Anulată',
 };
 
@@ -91,16 +94,21 @@ function elapsedLabel(iso: string, nowMs: number): string {
   return `${hr}h ${min % 60}m`;
 }
 
-function nextForwardForKds(s: OrderStatus): OrderStatus | null {
+function nextForwardForKds(s: OrderStatus, fulfillment: 'delivery' | 'pickup'): OrderStatus | null {
   switch (s) {
     case 'PENDING':
-      return 'CONFIRMED';
+      return 'PREPARING';
     case 'CONFIRMED':
       return 'PREPARING';
     case 'PREPARING':
       return 'READY';
     case 'READY':
-      return 'DISPATCHED';
+      // Pickup orders have no courier leg -- READY's forward action is
+      // "handed to the customer" (PICKED_UP), never DISPATCHED. Previously
+      // this always returned DISPATCHED regardless of fulfillment, so
+      // tapping "Predată" on a pickup order silently sent it into the
+      // courier-delivery flow instead.
+      return fulfillment === 'pickup' ? 'PICKED_UP' : 'DISPATCHED';
     default:
       return null;
   }
@@ -109,7 +117,7 @@ function nextForwardForKds(s: OrderStatus): OrderStatus | null {
 function forwardLabel(from: OrderStatus, fulfillment: 'delivery' | 'pickup'): string {
   switch (from) {
     case 'PENDING':
-      return 'Confirmă';
+      return 'Confirmă și începe pregătirea';
     case 'CONFIRMED':
       return 'Începe pregătirea';
     case 'PREPARING':
@@ -280,7 +288,7 @@ export function KdsClient({
         },
         (payload) => {
           maybePlayChime();
-          // Edge case: an order can be inserted directly in CONFIRMED state
+          // Edge case: an order can be inserted directly in PREPARING state
           // (e.g. integration imports). Treat that as an auto-print trigger too.
           // No `old` for INSERT — pass null to skip the transition gate.
           maybeAutoPrintFromPayload(payload.new, null);
@@ -314,18 +322,18 @@ export function KdsClient({
     const r = row as { id?: unknown; status?: unknown };
     const id = typeof r.id === 'string' ? r.id : null;
     const status = typeof r.status === 'string' ? r.status : null;
-    if (!id || status !== 'CONFIRMED') return;
+    if (!id || status !== 'PREPARING') return;
 
-    // Transition gate: only fire on actual entry into CONFIRMED. If `oldRow` is
+    // Transition gate: only fire on actual entry into PREPARING. If `oldRow` is
     // present and includes a `status` field (Supabase Realtime ships old fields
     // when REPLICA IDENTITY FULL is set on the table) and that prior status was
-    // already CONFIRMED, this is a non-status update (e.g. payment_status flip
+    // already PREPARING, this is a non-status update (e.g. payment_status flip
     // via markCodOrderPaid) and we must not reprint. When `oldRow` is null (INSERT)
     // or its `status` is missing (default REPLICA IDENTITY), fall through to the
     // dedupe set — that prevents reprints on tab reloads + repeat updates.
     if (oldRow && typeof oldRow === 'object') {
       const o = oldRow as { status?: unknown };
-      if (typeof o.status === 'string' && o.status === 'CONFIRMED') return;
+      if (typeof o.status === 'string' && o.status === 'PREPARING') return;
     }
 
     if (printedIdsRef.current.has(id)) return;
@@ -561,7 +569,7 @@ function OrderCard({
 
   const fulfillment = fulfillmentOf(order);
   const items = itemsOf(order);
-  const next = nextForwardForKds(order.status);
+  const next = nextForwardForKds(order.status, fulfillment);
   const isStale = now - new Date(order.updated_at).getTime() > STALE_MS;
   const needsAck = ALARM_STATUSES_NEEDING_ACK.has(order.status) && !acknowledged;
 
@@ -591,6 +599,15 @@ function OrderCard({
           <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs uppercase tracking-wide text-zinc-300">
             {fulfillment === 'pickup' ? 'Ridicare' : 'Livrare'}
           </span>
+          {fulfillment === 'pickup' && order.scheduled_pickup_at && (
+            <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs font-semibold text-indigo-300 ring-1 ring-inset ring-indigo-500/40">
+              Ora{' '}
+              {new Date(order.scheduled_pickup_at).toLocaleTimeString('ro-RO', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          )}
           {order.source && order.source !== 'INTERNAL_STOREFRONT' && (() => {
             const display = resolveSourceDisplay(order.source, 'dark');
             return (

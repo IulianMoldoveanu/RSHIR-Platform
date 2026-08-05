@@ -29,6 +29,11 @@ import {
 } from '@hir/ui';
 import { formatRon } from '@/lib/format';
 import { t, type Locale, type TKey } from '@/lib/i18n';
+import {
+  DEFAULT_DELIVERY_MINUTES,
+  DEFAULT_PICKUP_MINUTES,
+  OrderTimeline,
+} from '@/components/storefront/order-timeline';
 import { useTrackBroadcast } from '@/lib/realtime/track-subscription';
 import { CourierTrackPanel } from './CourierTrackPanel';
 import { ClientCourierChat } from './ClientCourierChat';
@@ -53,6 +58,7 @@ type TrackOrder = {
   updatedAt: string;
   publicTrackToken: string;
   fulfillment: 'DELIVERY' | 'PICKUP';
+  scheduledPickupAt: string | null;
   hasReview: boolean;
   tenant: {
     name: string;
@@ -205,7 +211,7 @@ function TrackInner({
         <CancelWidget token={token} locale={locale} />
       )}
 
-      <Timeline
+      <OrderTimeline
         status={order.status}
         fulfillment={order.fulfillment}
         createdAt={order.createdAt}
@@ -233,7 +239,11 @@ function TrackInner({
           </motion.div>
         )}
 
-      {order.tenant?.phone && order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+      {order.tenant?.phone &&
+        order.status !== 'DELIVERED' &&
+        order.status !== 'PICKED_UP' &&
+        order.status !== 'NO_SHOW' &&
+        order.status !== 'CANCELLED' && (
         <a
           href={`tel:${order.tenant.phone}`}
           className="flex h-12 w-full items-center justify-center rounded-full bg-purple-700 px-4 text-base font-semibold text-white shadow-md shadow-purple-700/30 transition-all hover:-translate-y-px hover:bg-purple-800 hover:shadow-lg hover:shadow-purple-700/40 active:translate-y-0 focus-visible:outline-2 focus-visible:outline-purple-500 focus-visible:outline-offset-2"
@@ -252,9 +262,19 @@ function TrackInner({
               ? t(locale, 'track.pickup_at_template', { address: order.tenant.pickupAddress })
               : t(locale, 'track.pickup_at_label')}
           </p>
+          {order.scheduledPickupAt && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800 ring-1 ring-inset ring-indigo-200">
+              {t(locale, 'track.scheduled_pickup_time_template', {
+                time: new Date(order.scheduledPickupAt).toLocaleTimeString(
+                  locale === 'en' ? 'en-GB' : 'ro-RO',
+                  { hour: '2-digit', minute: '2-digit' },
+                ),
+              })}
+            </p>
+          )}
         </section>
       ) : courierTrackToken ? (
-        <CourierTrackPanel ctoken={courierTrackToken} />
+        <CourierTrackPanel ctoken={courierTrackToken} locale={locale} />
       ) : (
         <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <TrackMap pickup={pickup} dropoff={null} restaurantName={order.tenant?.name ?? 'Restaurant'} />
@@ -310,11 +330,11 @@ function TrackInner({
 
       <PushOptInTile token={token} orderStatus={order.status} locale={locale} />
 
-      {order.status === 'DELIVERED' && order.tenant && (
+      {(order.status === 'DELIVERED' || order.status === 'PICKED_UP') && order.tenant && (
         <ReorderRail tenantName={order.tenant.name} tenantSlug={order.tenant.slug} locale={locale} />
       )}
 
-      {order.status === 'DELIVERED' && (
+      {(order.status === 'DELIVERED' || order.status === 'PICKED_UP') && (
         <ReviewWidget token={token} initialDone={order.hasReview} locale={locale} />
       )}
 
@@ -390,9 +410,23 @@ function Hero({
     iconClass = 'text-rose-600';
     bg = 'bg-rose-50';
     border = 'border-rose-200';
+  } else if (s === 'NO_SHOW') {
+    titleKey = 'track.hero_noshow_title';
+    bodyKey = 'track.hero_noshow_body';
+    Icon = XCircle;
+    iconClass = 'text-rose-600';
+    bg = 'bg-rose-50';
+    border = 'border-rose-200';
   } else if (s === 'DELIVERED') {
     titleKey = 'track.hero_delivered_title';
     bodyKey = 'track.hero_delivered_body';
+    Icon = PartyPopper;
+    iconClass = 'text-emerald-600';
+    bg = 'bg-emerald-50';
+    border = 'border-emerald-200';
+  } else if (s === 'PICKED_UP') {
+    titleKey = 'track.hero_pickedup_title';
+    bodyKey = 'track.hero_pickedup_body';
     Icon = PartyPopper;
     iconClass = 'text-emerald-600';
     bg = 'bg-emerald-50';
@@ -458,7 +492,7 @@ function Hero({
           aria-hidden
           className={`flex h-14 w-14 flex-none items-center justify-center rounded-2xl bg-white/70 ${iconClass} shadow-sm`}
           animate={
-            s === 'CANCELLED' || s === 'DELIVERED'
+            s === 'CANCELLED' || s === 'DELIVERED' || s === 'PICKED_UP' || s === 'NO_SHOW'
               ? undefined
               : { scale: [1, 1.06, 1] }
           }
@@ -592,148 +626,6 @@ function SaveMyInfoCard({ locale }: { locale: Locale }) {
         <p className="mt-2 text-xs text-rose-700" role="alert">
           {t(locale, 'track.save_info_error')}
         </p>
-      )}
-    </section>
-  );
-}
-
-const STATUS_KEYS: Record<string, TKey> = {
-  PENDING: 'track.status_PENDING',
-  CONFIRMED: 'track.status_CONFIRMED',
-  PREPARING: 'track.status_PREPARING',
-  READY: 'track.status_READY',
-  DISPATCHED: 'track.status_DISPATCHED',
-  IN_DELIVERY: 'track.status_IN_DELIVERY',
-  DELIVERED: 'track.status_DELIVERED',
-  CANCELLED: 'track.status_CANCELLED',
-};
-
-const DELIVERY_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'IN_DELIVERY', 'DELIVERED'] as const;
-const PICKUP_STEPS = ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED'] as const;
-
-// Honest fallbacks when the tenant hasn't configured prep time. Pickup gets
-// a tighter default (no driving) than delivery. Operators set
-// pickup_eta_minutes in admin → Operations & program; we fall through to
-// these constants only when nothing is set.
-const DEFAULT_PICKUP_MINUTES = 20;
-const DEFAULT_DELIVERY_MINUTES = 35;
-
-function Timeline({
-  status,
-  fulfillment,
-  createdAt,
-  updatedAt,
-  paymentStatus,
-  locale,
-  targetMinutes,
-}: {
-  status: string;
-  fulfillment: 'DELIVERY' | 'PICKUP';
-  createdAt: string;
-  updatedAt: string;
-  paymentStatus: string;
-  locale: Locale;
-  targetMinutes: number | null;
-}) {
-  const steps = fulfillment === 'PICKUP' ? PICKUP_STEPS : DELIVERY_STEPS;
-  const cancelled = status === 'CANCELLED';
-  const delivered = status === 'DELIVERED';
-  const currentIdx = (steps as readonly string[]).indexOf(status);
-
-  const totalMinutes =
-    targetMinutes && targetMinutes > 0
-      ? targetMinutes
-      : fulfillment === 'PICKUP'
-        ? DEFAULT_PICKUP_MINUTES
-        : DEFAULT_DELIVERY_MINUTES;
-  const elapsed = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000));
-  const remaining = Math.max(0, totalMinutes - elapsed);
-
-  let etaText: string;
-  if (cancelled) {
-    etaText = t(locale, 'track.eta_cancelled');
-  } else if (delivered) {
-    const when = new Date(updatedAt).toLocaleTimeString(locale === 'ro' ? 'ro-RO' : 'en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    etaText = t(locale, 'track.eta_delivered_template', { when });
-  } else if (fulfillment === 'PICKUP') {
-    etaText = t(locale, 'track.eta_pickup_template', { minutes: String(remaining || 5) });
-  } else {
-    etaText = t(locale, 'track.eta_template', { minutes: String(remaining || 5) });
-  }
-
-  return (
-    <section
-      className={`rounded-xl border p-4 ${
-        cancelled ? 'border-rose-200 bg-rose-50' : 'border-zinc-200 bg-white'
-      }`}
-    >
-      <div className="flex items-baseline justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-          {t(locale, 'track.timeline_title')}
-        </p>
-        {paymentStatus === 'PAID' && !cancelled && (
-          <span className="inline-block rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
-            {t(locale, 'track.paid')}
-          </span>
-        )}
-      </div>
-      <p className={`mt-1 text-base font-semibold ${cancelled ? 'text-rose-800' : 'text-zinc-900'}`}>
-        {etaText}
-      </p>
-
-      {!cancelled && (
-        <ol className="mt-4 space-y-3">
-          {steps.map((s, i) => {
-            const completed = i < currentIdx || delivered;
-            const current = i === currentIdx && !delivered;
-            const isLast = i === steps.length - 1;
-            const labelKey = STATUS_KEYS[s];
-            return (
-              <li key={s} className="relative flex items-start gap-3">
-                {!isLast && (
-                  <span
-                    aria-hidden
-                    className={`absolute left-[11px] top-6 h-full w-0.5 ${
-                      completed ? 'bg-purple-600' : 'bg-zinc-200'
-                    }`}
-                  />
-                )}
-                <span
-                  aria-hidden
-                  className={`relative z-10 flex h-6 w-6 flex-none items-center justify-center rounded-full border-2 ${
-                    completed
-                      ? 'border-purple-600 bg-purple-600 text-white'
-                      : current
-                        ? 'border-purple-600 bg-white'
-                        : 'border-zinc-300 bg-white'
-                  }`}
-                >
-                  {completed ? (
-                    <svg viewBox="0 0 12 12" className="h-3 w-3 fill-current">
-                      <path d="M10.28 3.22a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 1 1 1.06-1.06l1.47 1.47 3.97-3.97a.75.75 0 0 1 1.06 0Z" />
-                    </svg>
-                  ) : current ? (
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.6)]" />
-                  ) : null}
-                </span>
-                <span
-                  className={`pt-0.5 text-sm ${
-                    completed
-                      ? 'text-zinc-500 line-through decoration-zinc-300'
-                      : current
-                        ? 'font-semibold text-zinc-900'
-                        : 'text-zinc-500'
-                  }`}
-                >
-                  {labelKey ? t(locale, labelKey) : s}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
       )}
     </section>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ComponentType, type SVGProps } from 'react';
+import { useCart } from '@/lib/cart/provider';
 import { motion } from 'framer-motion';
 import { Plus, RotateCcw, UtensilsCrossed } from 'lucide-react';
 import { ItemSheet } from './item-sheet';
@@ -33,6 +34,8 @@ export function ReorderRail({
   /** Override outer wrapper padding when embedded in a denser container. */
   className?: string;
 }) {
+  const useCartStore = useCart();
+  const addItem = useCartStore((s) => s.addItem);
   const [openId, setOpenId] = useState<string | null>(null);
   const reduceMotion = useShouldReduceMotion();
   if (items.length === 0) return null;
@@ -64,7 +67,7 @@ export function ReorderRail({
             }}
             whileHover={reduceMotion ? undefined : { y: -2 }}
             whileTap={reduceMotion ? undefined : tapPress}
-            className="group flex w-36 flex-none snap-start flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+            className="group flex w-36 flex-none snap-start flex-col gap-2 rounded-2xl border border-zinc-200 bg-white p-2 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--hir-brand,#7c3aed)] focus-visible:ring-offset-2"
           >
             <div className="relative h-24 w-full overflow-hidden rounded-xl bg-zinc-100">
               {item.image_url ? (
@@ -91,7 +94,7 @@ export function ReorderRail({
               <span className="text-xs font-semibold tabular-nums text-zinc-900">
                 {formatRon(item.price_ron, locale)}
               </span>
-              <span className="inline-flex h-7 items-center gap-1 rounded-full bg-purple-700 px-2 text-[11px] font-medium text-white shadow-sm transition-colors group-hover:bg-purple-800">
+              <span className="inline-flex h-7 items-center gap-1 rounded-full bg-[var(--hir-brand,#7c3aed)] px-2 text-[11px] font-medium text-white shadow-sm transition-all group-hover:brightness-110">
                 <Plus className="h-3 w-3" />
                 {t(locale, 'item.add_short')}
               </span>
@@ -108,6 +111,7 @@ export function ReorderRail({
             if (!v) setOpenId(null);
           }}
           locale={locale}
+          addItem={addItem}
         />
       )}
     </section>

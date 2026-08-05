@@ -18,12 +18,19 @@ const KEY_HEADER = 'Idempotency-Key';
 const MIN_KEY_LEN = 8;
 const MAX_KEY_LEN = 200;
 const TTL_HOURS = 24;
+// A lock row (response IS NULL) older than this is treated as abandoned —
+// the request that created it crashed or errored out on a path that never
+// reached storeIdempotency(). 30s is generous for a checkout request
+// (well beyond any real PSP round-trip) while still letting a genuinely
+// stuck key recover within the same customer session, not the full 24h TTL.
+const LOCK_STALE_MS = 30_000;
 
 export type IdempotencyHit =
   | { kind: 'NEW'; key: string; requestHash: string }
   | { kind: 'CACHED'; response: NextResponse }
   | { kind: 'MISMATCH'; response: NextResponse }
   | { kind: 'INVALID'; response: NextResponse }
+  | { kind: 'LOCKED'; response: NextResponse }
   | { kind: 'NONE' };
 
 export function readIdempotencyKey(req: Request): string | null {
@@ -65,6 +72,7 @@ export async function checkIdempotency(
     .eq('tenant_id', tenantId)
     .eq('idempotency_key', key)
     .eq('request_hash', requestHash)
+    .not('response', 'is', null)
     .gte('created_at', cutoff)
     .maybeSingle();
 
@@ -95,6 +103,56 @@ export async function checkIdempotency(
     };
   }
 
+  // Atomic lock: the unique index on (tenant_id, idempotency_key) — not
+  // request_hash — is what makes this a real lock. Two concurrent requests
+  // with the identical key+hash both pass the SELECTs above (neither has
+  // written yet); only one of them can win this INSERT. response/
+  // status_code start NULL (schema allows it — 20260727_012) and are
+  // filled in by storeIdempotency() once the real response is known.
+  //
+  // security audit finding 2026-07-27: previously the row was only
+  // written at the very end of the request (storeIdempotency), so a
+  // retried/double-tapped request with the same key could create two
+  // separate orders + PSP sessions before either write landed. This lock
+  // closes that window — the loser gets 'LOCKED' before touching any
+  // order/PSP logic.
+  const { error: lockErr } = await admin.from('idempotency_keys').insert({
+    tenant_id: tenantId,
+    idempotency_key: key,
+    request_hash: requestHash,
+  } as never);
+
+  if (lockErr) {
+    // Unique violation = another request already holds this key. If that
+    // row is a stale abandoned lock (response still NULL past
+    // LOCK_STALE_MS — the holder errored out on a path that never called
+    // storeIdempotency, or the process crashed), reclaim it instead of
+    // wedging this key for the rest of the 24h TTL. Scoped to response IS
+    // NULL so a genuinely completed order is never touched.
+    const staleCutoff = new Date(Date.now() - LOCK_STALE_MS).toISOString();
+    const { data: reclaimed } = await admin
+      .from('idempotency_keys')
+      .update({ request_hash: requestHash, created_at: new Date().toISOString() } as never)
+      .eq('tenant_id', tenantId)
+      .eq('idempotency_key', key)
+      .is('response', null)
+      .lt('created_at', staleCutoff)
+      .select('idempotency_key')
+      .maybeSingle();
+
+    if (reclaimed) {
+      return { kind: 'NEW', key, requestHash };
+    }
+
+    return {
+      kind: 'LOCKED',
+      response: NextResponse.json(
+        { error: 'idempotency_in_progress', detail: 'a request with this key is already being processed' },
+        { status: 409, headers: { 'Retry-After': '2' } },
+      ),
+    };
+  }
+
   return { kind: 'NEW', key, requestHash };
 }
 
@@ -106,13 +164,15 @@ export async function storeIdempotency(
   response: unknown,
   statusCode: number,
 ): Promise<void> {
-  await admin.from('idempotency_keys').insert({
-    tenant_id: tenantId,
-    idempotency_key: key,
-    request_hash: requestHash,
-    response: response as never,
-    status_code: statusCode,
-  });
+  // The row already exists — checkIdempotency's lock INSERT created it
+  // (with response/status_code NULL) before any order/PSP work started.
+  // This fills in the real outcome so a later replay hits the CACHED path.
+  await admin
+    .from('idempotency_keys')
+    .update({ response: response as never, status_code: statusCode })
+    .eq('tenant_id', tenantId)
+    .eq('idempotency_key', key)
+    .eq('request_hash', requestHash);
 }
 
 // Helper for callers that want to generate a random key client-side without

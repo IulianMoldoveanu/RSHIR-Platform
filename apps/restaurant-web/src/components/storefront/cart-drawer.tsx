@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Flame, Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { EmptyState } from './empty-state';
+import { OPEN_CART_EVENT } from './cart-header-button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@hir/ui';
 import { useCart } from '@/lib/cart/provider';
 import { lineTotalRon } from '@/lib/cart/store';
@@ -41,6 +42,46 @@ export function CartPill({
   const getSubtotal = useCartStore((s) => s.getSubtotal);
   const updateQty = useCartStore((s) => s.updateQty);
   const removeItem = useCartStore((s) => s.removeItem);
+  const fulfillment = useCartStore((s) => s.fulfillment);
+
+  // Cart-aware upsell (co-occurrence — "goes well with what's in your cart",
+  // not just tenant-wide best-sellers). Starts from the static server-
+  // rendered `upsellItems` prop so the rail isn't empty on first paint, then
+  // replaces it once the cart-aware fetch resolves. Debounced so rapid qty
+  // taps don't fire a request per click.
+  const [cartAwareUpsell, setCartAwareUpsell] = useState<MenuItemWithModifiers[] | null>(null);
+  const cartKey = items.map((i) => `${i.itemId}:${i.qty}`).join(',');
+  useEffect(() => {
+    if (items.length === 0) {
+      setCartAwareUpsell(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch('/api/cart/upsell', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          items: items.map((i) => ({ itemId: i.itemId, quantity: i.qty })),
+        }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data: { items?: MenuItemWithModifiers[] } | null) => {
+          if (data?.items) setCartAwareUpsell(data.items);
+        })
+        .catch(() => {
+          // Network/abort failure — keep whatever was showing (static
+          // fallback or the previous cart-aware result). Never surface a
+          // cart-drawer error over a missing upsell rail.
+        });
+    }, 400);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cartKey is the intentional dep, not `items` (new array identity every render)
+  }, [cartKey]);
 
   const [appliedPromo, setAppliedPromo] = useState<StoredPromo | null>(null);
   const reduceMotion = useShouldReduceMotion();
@@ -53,11 +94,18 @@ export function CartPill({
     setHydrated(true);
     setAppliedPromo(readStoredPromo());
     const refresh = () => setAppliedPromo(readStoredPromo());
+    // The header cart button (cart-header-button.tsx) opens this same sheet —
+    // there is one cart UI, reachable from the pill at the bottom and from the
+    // top-right cluster. Window event because the two live in different
+    // subtrees (layout vs page), same idiom as the promo refresh above.
+    const openCart = () => setOpen(true);
     window.addEventListener('hir:applied-promo-changed', refresh);
     window.addEventListener('storage', refresh);
+    window.addEventListener(OPEN_CART_EVENT, openCart);
     return () => {
       window.removeEventListener('hir:applied-promo-changed', refresh);
       window.removeEventListener('storage', refresh);
+      window.removeEventListener(OPEN_CART_EVENT, openCart);
     };
   }, []);
 
@@ -72,11 +120,13 @@ export function CartPill({
   }, [reachedFreeDeliveryAt]);
 
   // B2: filter upsell candidates to items not already in the cart. The rail
-  // is hidden if every popular item is already there (well-rounded order).
+  // is hidden if every candidate is already there (well-rounded order).
+  // Prefer the cart-aware (co-occurrence) result once it's back; the static
+  // tenant-wide best-sellers prop is only the pre-fetch/fallback source.
   const cartItemIds = useMemo(() => new Set(items.map((i) => i.itemId)), [items]);
   const filteredUpsell = useMemo(
-    () => upsellItems.filter((it) => !cartItemIds.has(it.id)),
-    [upsellItems, cartItemIds],
+    () => (cartAwareUpsell ?? upsellItems).filter((it) => !cartItemIds.has(it.id)),
+    [cartAwareUpsell, upsellItems, cartItemIds],
   );
 
   const count = hydrated ? getCount() : 0;
@@ -101,6 +151,9 @@ export function CartPill({
             exit={reduceMotion ? undefined : { y: 80, opacity: 0 }}
             transition={{ duration: motionDurations.sheet, ease: easeOutSoft }}
             whileTap={reduceMotion ? undefined : tapPress}
+            // marginBottom respects the home-indicator on notched phones so
+            // the pill never sits under it (bottom-4 alone can overlap).
+            style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
             className="fixed inset-x-4 bottom-4 z-40 mx-auto flex h-14 max-w-md items-center justify-between rounded-full bg-[var(--hir-brand,#7c3aed)] px-5 text-white shadow-xl"
           >
             <span className="flex items-center gap-2.5">
@@ -146,7 +199,7 @@ export function CartPill({
                 className="py-8"
               >
                 <EmptyState
-                  icon={<ShoppingBag className="h-8 w-8 text-purple-400" />}
+                  icon={<ShoppingBag className="h-8 w-8" style={{ color: 'color-mix(in srgb, var(--hir-brand, #7c3aed) 55%, white)' }} />}
                   title={t(locale, 'storefront.empty_cart_title')}
                   description={t(locale, 'storefront.empty_cart_desc')}
                   action={{
@@ -251,7 +304,11 @@ export function CartPill({
               {(() => {
                 const belowMin = minOrderRon > 0 && subtotal < minOrderRon;
                 const remainingToFree = Math.max(0, freeDeliveryThresholdRon - subtotal);
-                const showFreeBar = freeDeliveryThresholdRon > 0;
+                // Not on a pickup order: it has no delivery fee to earn, so
+                // the bar would be pushing the customer to spend more for
+                // something they already have. Same reason FreeDeliveryProgress
+                // hides itself (Codex P2 on #1050).
+                const showFreeBar = freeDeliveryThresholdRon > 0 && fulfillment !== 'PICKUP';
                 const reachedFree = showFreeBar && remainingToFree === 0;
                 const pct = showFreeBar
                   ? Math.min(100, Math.round((subtotal / freeDeliveryThresholdRon) * 100))
@@ -394,6 +451,11 @@ export function CartPill({
                               })),
                               notes: it.notes,
                             })),
+                            // Carries the storefront switch's choice into
+                            // checkout, so the picker there opens on what the
+                            // diner already said rather than resetting to
+                            // delivery. See fulfillment-switch.tsx.
+                            fulfillment,
                           };
                           window.sessionStorage.setItem('hir.cart', JSON.stringify(snapshot));
                         } catch {

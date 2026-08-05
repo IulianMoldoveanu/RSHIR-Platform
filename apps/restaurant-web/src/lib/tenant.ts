@@ -6,6 +6,11 @@ import { getSupabase } from './supabase';
 export type TenantBranding = {
   logo_url?: string | null;
   cover_url?: string | null;
+  /** Brand mark drawn over the top-left of the cover photo. Distinct from
+   *  `logo_url`, which is the round profile picture beside the name — a
+   *  restaurant's profile picture is very often a dish, so there was nowhere
+   *  for an actual logo to live. Set in admin at Setări → Branding. */
+  cover_logo_url?: string | null;
   brand_color?: string | null;
 };
 
@@ -165,12 +170,16 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 export function brandingFor(settings: TenantSettings): {
   logoUrl: string | null;
   coverUrl: string | null;
+  coverLogoUrl: string | null;
   brandColor: string;
 } {
   const b = settings.branding ?? {};
   return {
     logoUrl: b.logo_url ?? settings.logo_url ?? null,
     coverUrl: b.cover_url ?? settings.cover_url ?? null,
+    // No flat fallback: this key has only ever lived under `branding`, so
+    // there is no legacy seed shape to rescue the way there is above.
+    coverLogoUrl: b.cover_logo_url ?? null,
     brandColor:
       typeof b.brand_color === 'string' && HEX_RE.test(b.brand_color)
         ? b.brand_color
@@ -290,7 +299,7 @@ export async function resolveTenantFromHost(): Promise<{
   const subSlug = subdomainSlug(host);
   const slug = subSlug ?? h.get('x-hir-tenant-slug')?.toLowerCase() ?? host.split('.')[0];
 
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
   const SELECT = 'id, slug, name, custom_domain, status, settings, template_slug';
 
   let row: TenantRow | null = null;
@@ -305,21 +314,51 @@ export async function resolveTenantFromHost(): Promise<{
   // anon-safe projection that strips fiscal/legal subkeys and excludes
   // external_dispatch_secret. Internal callers use the underlying
   // tenants table via service-role admin client.
-  if (overrideSlug) {
-    row = (await supabase.from('v_tenants_storefront').select(SELECT).eq('slug', overrideSlug).maybeSingle())
-      .data as TenantRow | null;
-  } else if (subSlug) {
-    row = (await supabase.from('v_tenants_storefront').select(SELECT).eq('slug', subSlug).maybeSingle())
-      .data as TenantRow | null;
-  } else if (host) {
-    row = (
-      await supabase
+  //
+  // A transient network/DB error here (cold start, momentary connection
+  // blip) used to be indistinguishable from "no such tenant" — .data was
+  // read without checking .error, so a real query failure silently
+  // rendered the marketing homepage to a customer on a valid tenant
+  // subdomain (2026-07-27, reported as an intermittent "sometimes refresh
+  // sends me to hirforyou.ro" bug). One retry after a real error before
+  // giving up distinguishes "tenant genuinely doesn't exist" (no error,
+  // no row) from "the query itself failed" (error present).
+  async function lookupBySlug(slug: string) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase
         .from('v_tenants_storefront')
         .select(SELECT)
-        .eq('custom_domain', host)
+        .eq('slug', slug)
+        .maybeSingle();
+      if (!error) return data as TenantRow | null;
+      if (attempt === 0) continue;
+      console.error('[resolveTenantFromHost] slug lookup failed after retry', error.message);
+      return null;
+    }
+    return null;
+  }
+  async function lookupByCustomDomain(customDomain: string) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase
+        .from('v_tenants_storefront')
+        .select(SELECT)
+        .eq('custom_domain', customDomain)
         .eq('domain_status', 'ACTIVE')
-        .maybeSingle()
-    ).data as TenantRow | null;
+        .maybeSingle();
+      if (!error) return data as TenantRow | null;
+      if (attempt === 0) continue;
+      console.error('[resolveTenantFromHost] custom_domain lookup failed after retry', error.message);
+      return null;
+    }
+    return null;
+  }
+
+  if (overrideSlug) {
+    row = await lookupBySlug(overrideSlug);
+  } else if (subSlug) {
+    row = await lookupBySlug(subSlug);
+  } else if (host) {
+    row = await lookupByCustomDomain(host);
   }
 
   if (!row) return { tenant: null, host, slug };

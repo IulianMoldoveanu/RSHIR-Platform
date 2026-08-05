@@ -6,7 +6,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getActiveTenant } from '@/lib/tenant';
 import { friendlyDbError } from '@/lib/db-error';
 import { nextStatuses, type OrderStatus } from '../status-machine';
-import { markCodOrderPaid } from '../actions';
+import { markCodOrderPaid, reconcileCardOrderPaid } from '../actions';
 import { StatusActions } from './status-actions';
 import { FiscalReceiptButton } from './fiscal-receipt-button';
 import { OrderChat } from './order-chat';
@@ -62,7 +62,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     id, tenant_id, status, payment_status, payment_method, items,
     subtotal_ron, delivery_fee_ron, total_ron, notes,
     public_track_token, created_at, updated_at,
-    delivery_address_id,
+    delivery_address_id, scheduled_pickup_at,
     customers ( first_name, last_name, phone ),
     customer_addresses ( line1, line2, city, postal_code )
   `;
@@ -70,7 +70,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     id, tenant_id, status, payment_status, items,
     subtotal_ron, delivery_fee_ron, total_ron, notes,
     public_track_token, created_at, updated_at,
-    delivery_address_id,
+    delivery_address_id, scheduled_pickup_at,
     customers ( first_name, last_name, phone ),
     customer_addresses ( line1, line2, city, postal_code )
   `;
@@ -104,6 +104,7 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
     created_at: string;
     updated_at: string;
     delivery_address_id: string | null;
+    scheduled_pickup_at: string | null;
     customers: { first_name: string | null; last_name: string | null; phone: string | null } | null;
     customer_addresses: {
       line1: string | null;
@@ -133,8 +134,18 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
   } = await supabaseServer.auth.getUser();
 
   const items = Array.isArray(order.items) ? (order.items as OrderItemSnapshot[]) : [];
-  const allowedNext = nextStatuses(order.status);
-  const cancellable = order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
+  // READY branches to DISPATCHED (delivery) or PICKED_UP/NO_SHOW (pickup) --
+  // status-machine.ts stays fulfillment-agnostic, so filter here to whichever
+  // branch applies to this order. Elsewhere READY has one path so this is a
+  // no-op filter.
+  const allowedNext = nextStatuses(order.status).filter((s) =>
+    isPickup ? s !== 'DISPATCHED' : s !== 'PICKED_UP' && s !== 'NO_SHOW',
+  );
+  const cancellable =
+    order.status !== 'DELIVERED' &&
+    order.status !== 'PICKED_UP' &&
+    order.status !== 'NO_SHOW' &&
+    order.status !== 'CANCELLED';
   const trackUrl = publicTrackUrl(order.public_track_token);
 
   // Probe for an active Custom-webhook provider (e.g. Datecs companion).
@@ -173,6 +184,16 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </div>
         <p className="text-xs text-zinc-500">
           Creată {new Date(order.created_at).toLocaleString('ro-RO')}
+          {isPickup && order.scheduled_pickup_at && (
+            <>
+              {' '}
+              · Ridicare programată{' '}
+              {new Date(order.scheduled_pickup_at).toLocaleString('ro-RO', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </>
+          )}
         </p>
       </header>
 
@@ -300,6 +321,20 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
                 </button>
                 <p className="mt-1 text-[11px] text-zinc-500">
                   Apasă după ce curierul a încasat numerarul.
+                </p>
+              </form>
+            )}
+            {order.payment_method === 'CARD' && order.payment_status !== 'PAID' && (
+              <form action={reconcileCardOrderPaid.bind(null, order.id, tenant.id)} className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center rounded-md bg-amber-600 px-3 text-xs font-medium text-white shadow-sm hover:bg-amber-700"
+                >
+                  Reconciliază manual — plata a fost confirmată de gateway
+                </button>
+                <p className="mt-1 text-[11px] text-amber-900">
+                  Folosește DOAR dacă ai verificat independent (email de confirmare de la Netopia/Viva) că plata a
+                  reușit, dar comanda a rămas neplătită aici — de obicei webhook-ul gateway-ului nu a ajuns.
                 </p>
               </form>
             )}

@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
         brand: { name: tenant.name, logoUrl, brandColor },
         redeemUrl,
         expiresAtIso: issued.expiresAt.toISOString(),
+        whiteLabel: tenant.custom_domain !== null,
       });
       const sent = await sendEmail({
         to: email,

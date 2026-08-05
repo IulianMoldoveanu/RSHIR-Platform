@@ -258,7 +258,21 @@ export async function computeQuote(
   const tier = await findTierForDistance(admin, tenant.id, distanceKm);
   if (!tier) return { ok: false, reason: { kind: 'NO_TIER', distanceKm } };
 
-  const deliveryFeeRon = round2(tier.price_ron);
+  const tierFeeRon = round2(tier.price_ron);
+
+  // Tenant-configured free-delivery threshold (shown to the customer as an
+  // always-visible progress pill on the storefront — see
+  // FreeDeliveryProgress). That UI only reflected the promise; nothing
+  // actually zeroed the fee here, so a cart past the threshold still got
+  // charged delivery at checkout.
+  const settings = tenant.settings as Record<string, unknown> | null;
+  const freeDeliveryThresholdRon =
+    typeof settings?.free_delivery_threshold_ron === 'number' &&
+    settings.free_delivery_threshold_ron > 0
+      ? Number(settings.free_delivery_threshold_ron)
+      : 0;
+  const deliveryFeeRon =
+    freeDeliveryThresholdRon > 0 && subtotalRon >= freeDeliveryThresholdRon ? 0 : tierFeeRon;
 
   const promoApplied = await applyPromo(admin, tenant.id, promoCode, subtotalRon, deliveryFeeRon);
   if (!promoApplied.ok) return { ok: false, reason: promoApplied.reason };
@@ -329,7 +343,13 @@ async function findEnclosingZoneId(
     .select('id, polygon, sort_order, is_active')
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+    // First match wins, so the order decides the delivery fee. created_at is
+    // transaction-stable, which means zones seeded together share it exactly
+    // and the winner is then whatever the planner returns first. id is the
+    // tie-breaker that makes identical requests cost the same twice.
+    .order('id', { ascending: true });
 
   if (error) throw new Error(`zones lookup failed: ${error.message}`);
   if (!zones) return null;
@@ -383,7 +403,11 @@ async function findTierForDistance(
     .from('delivery_pricing_tiers')
     .select('id, min_km, max_km, price_ron, sort_order')
     .eq('tenant_id', tenantId)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true })
+    // Same reason as the zone lookup above: overlapping tiers are resolved by
+    // order, so the order has to be total.
+    .order('id', { ascending: true });
 
   if (error) throw new Error(`tiers lookup failed: ${error.message}`);
   if (!tiers) return null;

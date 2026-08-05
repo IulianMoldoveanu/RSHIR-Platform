@@ -112,7 +112,7 @@ export default async function OfertaFlotaPage(props: {
           </p>
           <div className="mt-5 rounded-lg border-l-4 border-indigo-600 bg-indigo-50 p-4">
             <p className="text-sm font-medium text-indigo-900">
-              2 lei + TVA 21% per comanda procesata (vendor) si 1 leu + TVA 21%
+              Abonament lunar HIR (vendor, fara comision pe comanda) si 1 leu + TVA 21%
               per comanda livrata (tu). TVA este pass-through, virata la ANAF -
               nu intra in marja HIR.
             </p>
@@ -154,7 +154,7 @@ export default async function OfertaFlotaPage(props: {
                 Restaurantul are propriul site (WooCommerce, custom etc.). Plugin
                 HIR Connect trimite comenzile automat la HIR la moment plata. HIR
                 dispatch catre flota ta. Status update merge inapoi la site.
-                Restaurantul plateste fleet (tariful tau) si HIR <strong>2 lei + TVA</strong>
+                Restaurantul plateste fleet (tariful tau) si un <strong>abonament lunar HIR</strong>
                 pentru data layer. Tu platesti HIR <strong>1 leu + TVA</strong> per comanda.
               </p>
             </div>
@@ -167,7 +167,7 @@ export default async function OfertaFlotaPage(props: {
               <p className="mt-2 text-sm leading-relaxed text-zinc-700">
                 Restaurantul foloseste storefront white-label HIR + KDS + CRM + AI Hepi
                 + dispatch. Site nou cu brand propriu in 5 minute. Restaurantul
-                plateste HIR <strong>2 lei + TVA</strong> per comanda procesata. Tu platesti HIR
+                plateste HIR un <strong>abonament lunar</strong>, fara comision pe comanda. Tu platesti HIR
                 <strong> 1 leu + TVA</strong> per comanda livrata. Recomandat pentru restaurante
                 noi sau cele care vor brand digital fara batai de cap.
               </p>
@@ -274,7 +274,7 @@ export default async function OfertaFlotaPage(props: {
             <tbody>
               <tr className="border-b border-zinc-200">
                 <td className="py-3">SaaS vendor (storefront, KDS, CRM, AI)</td>
-                <td className="py-3 text-right font-mono">2 lei + TVA 21%</td>
+                <td className="py-3 text-right font-mono">Abonament lunar</td>
                 <td className="py-3 text-right text-zinc-600">Restaurant</td>
               </tr>
               <tr className="border-b border-zinc-200">

@@ -9,18 +9,30 @@
 //     onboardingUrl() returns null — admin UI shows the request-queue flow.
 //   - V2 split was "in transition" early 2025. Confirm with Netopia before
 //     going live: implementare@netopia.ro
-//   - Webhook HMAC: SHA-256 of raw body, hex-encoded, in x-netopia-signature.
+//   - IPN verification (corrected 2026-07-25, was previously an incorrect
+//     HMAC/x-netopia-signature guess with no basis in Netopia's actual spec):
+//     Netopia signs IPN notifications as a JWT (RS256) delivered in the
+//     `Verification-token` request header. Verify against the RSA public
+//     key issued per point-of-sale (visible in the dashboard's "Punct de
+//     vânzare" digital-certificates panel), and check `iss ===
+//     "NETOPIA Payments"` + `sub === base64(sha512(rawBody))`. Ported from
+//     the official Netopia Python/Go SDKs (github.com/netopiapayments).
+//     Netopia's documented merchant-response contract for the notify
+//     endpoint is NOT confirmed anywhere in their public docs at time of
+//     writing — HTTP 200 with no body is what their own SDK examples do,
+//     but this is inference, not a cited spec.
 //
 // Credential mapping (PspCredentials fields):
-//   signature      → Netopia posSignature (merchant id)
-//   apiKey         → Netopia API key (Bearer token for requests)
-//   subMerchantId  → SELLER_ACCOUNT_ID assigned by Netopia (MARKETPLACE only)
-//   webhookSecret  → NETOPIA_WEBHOOK_SECRET (HMAC key for webhook verification)
+//   signature           → Netopia posSignature (merchant id)
+//   apiKey              → Netopia API key (Bearer token for requests)
+//   subMerchantId       → SELLER_ACCOUNT_ID assigned by Netopia (MARKETPLACE only)
+//   webhookPublicKeyPem → RSA public key (PEM) for IPN JWT verification, per point-of-sale
 //
-// Env vars read by provider-router.ts (NOT read here — adapters stay env-free):
-//   NETOPIA_SANDBOX_SIGNATURE / NETOPIA_LIVE_SIGNATURE
-//   NETOPIA_SANDBOX_API_KEY   / NETOPIA_LIVE_API_KEY
-//   NETOPIA_WEBHOOK_SECRET
+// Env vars read by provider-router.ts / the webhook route (NOT read here —
+// adapters stay env-free):
+//   NETOPIA_SANDBOX_SIGNATURE          / NETOPIA_LIVE_SIGNATURE
+//   NETOPIA_SANDBOX_API_KEY            / NETOPIA_LIVE_API_KEY
+//   NETOPIA_SANDBOX_WEBHOOK_PUBLIC_KEY / NETOPIA_LIVE_WEBHOOK_PUBLIC_KEY
 //   NETOPIA_ENABLED
 //   NETOPIA_MARKETPLACE_ENABLED
 
@@ -35,7 +47,7 @@ import type {
 
 export const NETOPIA_BASE = {
   sandbox: 'https://secure.sandbox.netopia-payments.com',
-  live: 'https://secure.netopia-payments.com',
+  live: 'https://secure.mobilpay.ro/pay',
 } as const;
 
 // 2 RON in minor units (bani). Retained by HIR in MARKETPLACE mode.
@@ -63,30 +75,6 @@ export type CheckoutSessionResult =
 // Netopia v2 amounts are RON floats (not bani integers). Convert.
 function baniToRon(bani: number): number {
   return Math.round(bani) / 100;
-}
-
-async function hmacSha256Hex(key: string, data: string): Promise<string> {
-  const enc = new TextEncoder();
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(key),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(data));
-  return Array.from(new Uint8Array(sigBuf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
 }
 
 async function netopiaCreateIntent(
@@ -160,7 +148,7 @@ async function netopiaCreateIntent(
   });
 
   try {
-    const res = await ctx.fetch(`${base}/payment/card`, {
+    const res = await ctx.fetch(`${base}/payment/card/start`, {
       method: 'POST',
       headers: {
         // Netopia v2: API key passed directly (no "Bearer" prefix)
@@ -201,21 +189,104 @@ async function netopiaCreateIntent(
   }
 }
 
+// Base64url (no padding) → standard base64 → bytes, per RFC 7515 JWS encoding.
+function base64UrlToBytes(b64url: string): Uint8Array {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function base64UrlToUtf8(b64url: string): string {
+  return new TextDecoder().decode(base64UrlToBytes(b64url));
+}
+
+function pemToDer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PUBLIC KEY-----/, '')
+    .replace(/-----END PUBLIC KEY-----/, '')
+    .replace(/\s+/g, '');
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function sha512Base64(data: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-512', new TextEncoder().encode(data));
+  const bytes = new Uint8Array(digest);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+/**
+ * Verify a Netopia IPN JWT (RS256) against the point-of-sale's RSA public
+ * key. Ports the official Netopia Python/Go SDK verification logic
+ * (github.com/netopiapayments/python-sdk `ipn.py`,
+ * github.com/netopiapayments/go-sdk `ipn.go`) — Netopia does not use a
+ * shared-secret HMAC for IPN verification; it signs a JWT whose payload
+ * carries `iss: "NETOPIA Payments"` and `sub: base64(sha512(raw request
+ * body))`, signed with the private half of the cert pair issued in the
+ * sandbox/live dashboard under each point of sale.
+ */
+async function verifyNetopiaIpnJwt(
+  token: string,
+  rawBody: string,
+  publicKeyPem: string,
+): Promise<boolean> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const [headerB64, payloadB64, sigB64] = parts;
+
+  let header: Record<string, unknown>;
+  let payload: Record<string, unknown>;
+  try {
+    header = JSON.parse(base64UrlToUtf8(headerB64));
+    payload = JSON.parse(base64UrlToUtf8(payloadB64));
+  } catch {
+    return false;
+  }
+  if (header['alg'] !== 'RS256') return false;
+  if (payload['iss'] !== 'NETOPIA Payments') return false;
+
+  const expectedSub = await sha512Base64(rawBody);
+  if (payload['sub'] !== expectedSub) return false;
+
+  try {
+    const keyDer = pemToDer(publicKeyPem);
+    const cryptoKey = await crypto.subtle.importKey(
+      'spki',
+      keyDer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
+    const signature = base64UrlToBytes(sigB64).slice().buffer;
+    const signedInput = new TextEncoder().encode(`${headerB64}.${payloadB64}`).slice().buffer;
+    return await crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signature, signedInput);
+  } catch {
+    return false;
+  }
+}
+
 async function netopiaVerifyWebhook(
   ctx: PspContext,
   rawBody: string,
   headers: Record<string, string>,
 ): Promise<PspWebhookEvent> {
-  // Webhook secret is passed via credentials.webhookSecret (set by provider-router
-  // from NETOPIA_WEBHOOK_SECRET env var). This keeps the adapter env-free.
-  const webhookSecret = ctx.credentials.webhookSecret;
-  if (!webhookSecret) return null;
+  // Netopia IPN verification is RSA/JWT, not shared-secret HMAC — see
+  // verifyNetopiaIpnJwt for the full mechanism and source citations.
+  const publicKeyPem = ctx.credentials.webhookPublicKeyPem;
+  if (!publicKeyPem) return null;
 
-  const sig = headers['x-netopia-signature'] ?? '';
-  if (!sig) return null;
+  const token = headers['verification-token'] ?? '';
+  if (!token) return null;
 
-  const expected = await hmacSha256Hex(webhookSecret, rawBody);
-  if (!safeEqual(expected, sig)) return null;
+  const valid = await verifyNetopiaIpnJwt(token, rawBody, publicKeyPem);
+  if (!valid) return null;
 
   let payload: Record<string, unknown>;
   try {
@@ -253,11 +324,80 @@ async function netopiaVerifyWebhook(
   }
 }
 
+// Reconciliation fallback — Netopia's IPN webhook is not reliably delivered
+// in sandbox (confirmed empirically 2026-07-27: a real sandbox-approved
+// payment, error.code "00" "Approved", never triggered our notifyUrl; 0 rows
+// ever landed in psp_webhook_events). /operation/status is Netopia's actual
+// status-query endpoint — not documented on their public Stoplight site, but
+// present in and confirmed against their own Python SDK
+// (github.com/netopiapayments/python-sdk, PaymentService.get_status): POST
+// {posID, ntpID, orderID}, same Authorization header as /payment/card/start.
+// Status codes match the IPN payload's `payment.status` (3=authorized,
+// 5=captured, 6=failed/declined, 7=refunded) — reuses the same mapping.
+export type NetopiaStatusResult =
+  | { ok: true; kind: 'payment.authorized' | 'payment.captured' | 'payment.failed' | 'payment.refunded' | 'payment.pending'; amountBani: number }
+  | { ok: false; error: string };
+
+export async function netopiaGetStatus(
+  ctx: PspContext,
+  params: { ntpId: string; orderId: string },
+): Promise<NetopiaStatusResult> {
+  const { credentials, log } = ctx;
+  if (!credentials.apiKey) return { ok: false, error: 'netopia_credentials_missing' };
+
+  const base = credentials.live ? NETOPIA_BASE.live : NETOPIA_BASE.sandbox;
+
+  try {
+    const res = await ctx.fetch(`${base}/operation/status`, {
+      method: 'POST',
+      headers: {
+        Authorization: credentials.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        posID: credentials.signature ?? '',
+        ntpID: params.ntpId,
+        orderID: params.orderId,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      log('error', 'netopia.getStatus failed', { status: res.status, body: errText });
+      return { ok: false, error: `netopia_status_failed:${res.status}` };
+    }
+
+    const data = (await res.json()) as {
+      payment?: { status?: number; amount?: number };
+    };
+    const statusCode = Number(data.payment?.status ?? 0);
+    const amountRon = Number(data.payment?.amount ?? 0);
+    const amountBani = Math.round(amountRon * 100);
+
+    switch (statusCode) {
+      case 3:
+        return { ok: true, kind: 'payment.authorized', amountBani };
+      case 5:
+        return { ok: true, kind: 'payment.captured', amountBani };
+      case 6:
+        return { ok: true, kind: 'payment.failed', amountBani };
+      case 7:
+        return { ok: true, kind: 'payment.refunded', amountBani };
+      default:
+        return { ok: true, kind: 'payment.pending', amountBani };
+    }
+  } catch (err) {
+    log('error', 'netopia.getStatus exception', { err: String(err) });
+    return { ok: false, error: 'netopia_status_exception' };
+  }
+}
+
 export const netopiaAdapter: PspAdapter = {
   providerKey: 'netopia',
 
   createIntent: netopiaCreateIntent,
   verifyWebhook: netopiaVerifyWebhook,
+  getStatus: netopiaGetStatus,
 
   async getPayoutStatus(_ctx: PspContext, _tenantId: string): Promise<PspPayoutStatus> {
     // Netopia does not expose a real-time balance API. Return zeros so

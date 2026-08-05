@@ -111,7 +111,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'db_error' }, { status: 500 });
   }
 
-  const sendResult = await sendOtpSms(phoneE164, code);
+  const smsBrandName = tenant.custom_domain ? tenant.name : undefined;
+  const sendResult = await sendOtpSms(phoneE164, code, smsBrandName);
   if (!sendResult.ok) {
     if (sendResult.reason === 'not_configured') {
       // Dev override: surface the code in the response so the storefront
