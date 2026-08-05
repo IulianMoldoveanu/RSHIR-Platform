@@ -176,14 +176,26 @@ export async function POST(req: NextRequest) {
       restaurantOrderId = orderRow.id;
       tenantId = orderRow.tenant_id ?? tenantId;
       // The delivery leg, when there is one. This is the handle a fleet
-      // manager or dispatcher filters on.
+      // manager or dispatcher filters on, so it has to be the *same* leg the
+      // customer is tracking.
+      //
+      // Matched on the same three columns as get_linked_courier_track_token —
+      // source_type, source_tenant_id and source_order_id — not on the order id
+      // alone. source_order_id is a free text column shared with external and
+      // manual courier orders, so an id match by itself can point at another
+      // fleet's delivery, and .maybeSingle() would have returned nothing at all
+      // the moment two rows shared the id. Newest wins, as in the RPC: a
+      // re-dispatched order has more than one leg and the live one is the last.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: courierRow } = await (admin as any)
+      const { data: courierRows } = await (admin as any)
         .from('courier_orders')
         .select('id')
+        .eq('source_type', 'HIR_TENANT')
+        .eq('source_tenant_id', orderRow.tenant_id)
         .eq('source_order_id', String(orderRow.id))
-        .maybeSingle();
-      courierOrderId = courierRow?.id ?? null;
+        .order('created_at', { ascending: false })
+        .limit(1);
+      courierOrderId = courierRows?.[0]?.id ?? null;
     }
   }
 
