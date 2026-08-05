@@ -245,14 +245,23 @@ export function LocationTracker({
         // dispatch and stops getting nearby offers. Surface it so a recovery
         // banner can prompt re-enabling (previously swallowed to console only,
         // leaving the courier to silently lose orders for a whole shift).
-        if (permission === 'denied' || permission === 'unavailable') {
-          // The watcher is no longer a source of truth. Drop the cached fix so
-          // the keepalive stops re-reporting it: a courier whose GPS has died
-          // must age out of dispatch, not keep looking fresh at their last
-          // known corner while jobs are offered to them there.
-          lastPosRef.current = null;
-          lastSentPosRef.current = null;
-        }
+        // ANY error means the watcher could not give us a position just now,
+        // so the cached one stops being evidence of anything. Drop it: a
+        // courier whose GPS has died must age out of dispatch rather than keep
+        // looking fresh at their last known corner while jobs are offered to
+        // them there.
+        //
+        // Deliberately not narrowed to permission errors. The bridge reports
+        // POSITION_UNAVAILABLE — plain signal loss, the common case — as
+        // `granted`, because the permission genuinely is fine; a guard keyed on
+        // permission misses exactly the situation it was written for.
+        //
+        // Transient timeouts clear it too, and that is the right trade: we
+        // would rather stop offering work than route it to a position we
+        // cannot confirm. Recovery is automatic — the next good fix repopulates
+        // the cache and presence resumes.
+        lastPosRef.current = null;
+        lastSentPosRef.current = null;
         if (permission === 'denied') {
           try {
             window.dispatchEvent(new CustomEvent('hir:location-denied', { detail: { message } }));

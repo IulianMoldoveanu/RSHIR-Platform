@@ -26,6 +26,15 @@ test.describe('GPS reporting cadence (diagnostic)', () => {
   });
 
   test('observe cadence while stationary and while moving', async ({ page, context }) => {
+    // Opt-in. This spec waits out two full heartbeat periods and reports what
+    // it saw rather than asserting a pass or fail, so leaving it in the gated
+    // suite would add ~4 minutes of serialized runtime to every courier PR for
+    // no signal. Run it deliberately when the reporting cadence is in question:
+    //   E2E_GPS_DIAGNOSTIC=1 npx playwright test tests/e2e/09-gps-diagnostic.spec.ts
+    test.skip(
+      !process.env.E2E_GPS_DIAGNOSTIC,
+      'diagnostic — set E2E_GPS_DIAGNOSTIC=1 to run',
+    );
     test.setTimeout(480_000);
 
     const logs: string[] = [];
