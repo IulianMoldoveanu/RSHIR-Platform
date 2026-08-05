@@ -3697,6 +3697,7 @@ export type Database = {
           cancelled_at: string | null
           city_id: string | null
           cod_amount_ron: number | null
+          courier_accepted_at: string | null
           courier_assigned_at: string | null
           courier_push_dispatched_at: string | null
           created_at: string
@@ -3760,6 +3761,7 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_accepted_at?: string | null
           courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string
@@ -3823,6 +3825,7 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_accepted_at?: string | null
           courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string

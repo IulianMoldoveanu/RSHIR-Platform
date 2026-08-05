@@ -5,7 +5,14 @@ import type { OrderRouteMetrics } from '@/lib/order-route';
 
 type Props = {
   route: OrderRouteMetrics;
-  acceptedAt: string | null;
+  /**
+   * courier_accepted_at — when the courier CURRENTLY holding the order took
+   * it. Not accepted_at: after a reassignment that one still names the
+   * previous courier, and timing from it would show this courier hours they
+   * did not work. It is also exactly where the distance window opens, so the
+   * two halves of the card describe the same stretch of time.
+   */
+  startedAt: string | null;
   pickedUpAt: string | null;
   /**
    * delivered_at ?? cancelled_at — when the clock stopped. Null only while the
@@ -37,15 +44,15 @@ function Row({ label, value }: { label: string; value: string }) {
  */
 export function RouteStats({
   route,
-  acceptedAt,
+  startedAt,
   pickedUpAt,
   closedAt,
   showAttributed = false,
 }: Props) {
   // Only a running order may be measured against the wall clock.
   const stopAt = closedAt ?? (route.live ? new Date().toISOString() : null);
-  const totalMs = elapsedMs(acceptedAt, stopAt);
-  const toPickupMs = elapsedMs(acceptedAt, pickedUpAt);
+  const totalMs = elapsedMs(startedAt, stopAt);
+  const toPickupMs = elapsedMs(startedAt, pickedUpAt);
 
   // Fewer than two usable fixes is not a short trip — it is no measurement at
   // all. Saying "0 m" would be a lie a fleet manager might act on.

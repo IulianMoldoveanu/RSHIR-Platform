@@ -25,6 +25,7 @@ type OrderDetail = DispatchOrder & {
   source_type: string | null;
   delivered_proof_url: string | null;
   accepted_at: string | null;
+  courier_accepted_at: string | null;
   picked_up_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
@@ -56,7 +57,7 @@ export default async function FleetOrderDetailPage(
       admin
         .from('courier_orders')
         .select(
-          `id, status, vertical, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_type, delivered_proof_url, created_at, updated_at, accepted_at, picked_up_at, delivered_at, cancelled_at, ${ORDER_ROUTE_COLUMNS}`,
+          `id, status, vertical, customer_first_name, customer_phone, pickup_line1, pickup_lat, pickup_lng, dropoff_line1, dropoff_lat, dropoff_lng, items, total_ron, delivery_fee_ron, payment_method, assigned_courier_user_id, source_type, delivered_proof_url, created_at, updated_at, accepted_at, courier_accepted_at, picked_up_at, delivered_at, cancelled_at, ${ORDER_ROUTE_COLUMNS}`,
         )
         .eq('id', params.id)
         .eq('fleet_id', fleet.fleetId)
@@ -244,7 +245,7 @@ export default async function FleetOrderDetailPage(
       {route ? (
         <RouteStats
           route={route}
-          acceptedAt={order.accepted_at}
+          startedAt={order.courier_accepted_at}
           pickedUpAt={order.picked_up_at}
           closedAt={order.delivered_at ?? order.cancelled_at}
           showAttributed
