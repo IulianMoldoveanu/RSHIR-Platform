@@ -182,6 +182,11 @@ export function LocationTracker({
       // starting until the background-location disclosure is acknowledged.
       stopWatchRef.current?.();
       stopWatchRef.current = null;
+      // Forget where they were. A cached fix belongs to the watcher session
+      // that produced it — replaying it into a later shift would report the
+      // courier at a place they may have left hours ago.
+      lastPosRef.current = null;
+      lastSentPosRef.current = null;
       return;
     }
 
@@ -240,6 +245,14 @@ export function LocationTracker({
         // dispatch and stops getting nearby offers. Surface it so a recovery
         // banner can prompt re-enabling (previously swallowed to console only,
         // leaving the courier to silently lose orders for a whole shift).
+        if (permission === 'denied' || permission === 'unavailable') {
+          // The watcher is no longer a source of truth. Drop the cached fix so
+          // the keepalive stops re-reporting it: a courier whose GPS has died
+          // must age out of dispatch, not keep looking fresh at their last
+          // known corner while jobs are offered to them there.
+          lastPosRef.current = null;
+          lastSentPosRef.current = null;
+        }
         if (permission === 'denied') {
           try {
             window.dispatchEvent(new CustomEvent('hir:location-denied', { detail: { message } }));
