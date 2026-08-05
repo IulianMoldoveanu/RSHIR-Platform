@@ -466,8 +466,16 @@ async function sendFcmV1(
       },
       apns: {
         headers: { 'apns-priority': '10' },
-        // Same rule on iOS: an aps dictionary with no `sound` is a silent banner.
-        payload: { aps: { sound: 'default' } },
+        // Same rule on iOS: an aps dictionary with no `sound` is a silent
+        // banner. `apns.payload` OVERRIDES the top-level notification rather
+        // than merging with it, so the alert has to be restated here or the
+        // push would arrive audible but blank (Codex P1, #1062).
+        payload: {
+          aps: {
+            alert: { title: args.title, body: args.body },
+            sound: 'default',
+          },
+        },
       },
     },
   };

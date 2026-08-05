@@ -146,7 +146,7 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           // De-duplicate: an order can receive further updates while it waits
           // in CONFIRMED for the kitchen to accept it, and a reconnect replays
           // nothing but could still see the same state twice.
-          if (announceOnUpdate(row) && !announcedRef.current.has(row.id)) {
+          if (announceOnUpdate(row, payload.old) && !announcedRef.current.has(row.id)) {
             announcedRef.current.add(row.id);
             handleNewOrder(row);
           }

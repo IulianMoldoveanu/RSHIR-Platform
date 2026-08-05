@@ -34,10 +34,44 @@ describe('announceOnInsert', () => {
 });
 
 describe('announceOnUpdate', () => {
+  const unpaidCard = { status: 'PENDING', payment_status: 'UNPAID', payment_method: 'CARD' };
+
   it('rings at the moment the card payment lands', () => {
+    expect(
+      announceOnUpdate(
+        { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' },
+        unpaidCard,
+      ),
+    ).toBe(true);
+  });
+
+  it('stays silent for a later update to an order that was already paid', () => {
+    // Codex P2 (#1062): a tab that subscribed after the payment landed would
+    // otherwise hear any subsequent update as a brand-new order, and its
+    // session-local de-dupe set has never seen the id.
+    expect(
+      announceOnUpdate(
+        { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' },
+        { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' },
+      ),
+    ).toBe(false);
+  });
+
+  it('rings when the previous row is missing, rather than going silent', () => {
     expect(
       announceOnUpdate({ status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' }),
     ).toBe(true);
+  });
+
+  it('stays silent when an operator marks a COD order paid before delivery', () => {
+    // COD reaches PAID twice over its life — reconciled by hand, and by the
+    // reverse-sync trigger at DELIVERED. Neither is a new order.
+    expect(
+      announceOnUpdate(
+        { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'COD' },
+        { status: 'CONFIRMED', payment_status: 'UNPAID', payment_method: 'COD' },
+      ),
+    ).toBe(false);
   });
 
   it('stays silent when a COD order is settled at delivery', () => {
@@ -45,30 +79,40 @@ describe('announceOnUpdate', () => {
     // heard this order hours ago; ringing again would announce a delivery as
     // if it were a new order.
     expect(
-      announceOnUpdate({ status: 'DELIVERED', payment_status: 'PAID', payment_method: 'COD' }),
+      announceOnUpdate(
+        { status: 'DELIVERED', payment_status: 'PAID', payment_method: 'COD' },
+        { status: 'IN_DELIVERY', payment_status: 'UNPAID', payment_method: 'COD' },
+      ),
     ).toBe(false);
   });
 
   it('stays silent for the courier-driven status walk of an already-paid order', () => {
     for (const status of ['PREPARING', 'READY', 'DISPATCHED', 'IN_DELIVERY', 'DELIVERED']) {
-      expect(announceOnUpdate({ status, payment_status: 'PAID', payment_method: 'CARD' })).toBe(
-        false,
-      );
+      expect(
+        announceOnUpdate(
+          { status, payment_status: 'PAID', payment_method: 'CARD' },
+          { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' },
+        ),
+      ).toBe(false);
     }
   });
 
   it('stays silent while the card payment is still pending or has failed', () => {
+    expect(announceOnUpdate(unpaidCard, unpaidCard)).toBe(false);
     expect(
-      announceOnUpdate({ status: 'PENDING', payment_status: 'UNPAID', payment_method: 'CARD' }),
-    ).toBe(false);
-    expect(
-      announceOnUpdate({ status: 'PENDING', payment_status: 'FAILED', payment_method: 'CARD' }),
+      announceOnUpdate(
+        { status: 'PENDING', payment_status: 'FAILED', payment_method: 'CARD' },
+        unpaidCard,
+      ),
     ).toBe(false);
   });
 
   it('stays silent for a cancelled order that was refunded', () => {
     expect(
-      announceOnUpdate({ status: 'CANCELLED', payment_status: 'REFUNDED', payment_method: 'CARD' }),
+      announceOnUpdate(
+        { status: 'CANCELLED', payment_status: 'REFUNDED', payment_method: 'CARD' },
+        { status: 'CONFIRMED', payment_status: 'PAID', payment_method: 'CARD' },
+      ),
     ).toBe(false);
   });
 });

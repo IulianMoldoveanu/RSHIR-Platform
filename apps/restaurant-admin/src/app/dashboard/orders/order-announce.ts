@@ -39,13 +39,28 @@ export function announceOnInsert(row: OrderAnnounceRow): boolean {
 }
 
 /**
- * Ring on UPDATE only at the payment-confirmation moment: PAID *while still*
- * CONFIRMED. The status guard is what keeps COD quiet — a COD order also
- * reaches PAID, but at DELIVERED, hours after the kitchen already saw it.
+ * Ring on UPDATE only for the card payment actually landing: a card order
+ * crossing into PAID while still CONFIRMED — the state
+ * `markOrderPaidAndDispatch` writes, and the moment the order becomes real.
  *
- * Callers must still de-duplicate by order id: an order can receive further
- * updates while it sits in CONFIRMED waiting for the kitchen to accept it.
+ * All three guards earn their place:
+ *  - CARD, because a COD order reaching PAID is a delivery being settled or an
+ *    operator reconciling cash, not a new order; the kitchen saw it at INSERT.
+ *  - the transition, because a tab that subscribed *after* the payment landed
+ *    would otherwise treat any later update to a still-CONFIRMED order as an
+ *    arrival (Codex P2, #1062). `restaurant_orders` is REPLICA IDENTITY FULL
+ *    and in the realtime publication, so the previous row really is available.
+ *  - CONFIRMED, because past that point the kitchen has already accepted it.
+ *
+ * When `previous` is absent we ring: a missing old record should degrade to
+ * the old, noisier behaviour rather than to silence. Callers still
+ * de-duplicate by order id.
  */
-export function announceOnUpdate(row: OrderAnnounceRow): boolean {
-  return row.payment_status === 'PAID' && row.status === 'CONFIRMED';
+export function announceOnUpdate(
+  next: OrderAnnounceRow,
+  previous?: OrderAnnounceRow,
+): boolean {
+  if (next.payment_method !== 'CARD') return false;
+  if (next.payment_status !== 'PAID' || next.status !== 'CONFIRMED') return false;
+  return previous?.payment_status !== 'PAID';
 }
