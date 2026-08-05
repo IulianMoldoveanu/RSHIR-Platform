@@ -18,6 +18,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { trackUrl } from '../_shared/storefront-url.ts';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
 // @ts-expect-error — npm:web-push has no Deno types but works at runtime
 import webpush from 'npm:web-push@3.6.7';
@@ -86,7 +87,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: tenant, error: tenantErr } = await supabase
     .from('tenants')
-    .select('id, name, settings')
+    .select('id, name, settings, slug, custom_domain, domain_status')
     .eq('id', body.tenant_id)
     .maybeSingle();
   if (tenantErr || !tenant) {
@@ -118,9 +119,10 @@ Deno.serve(async (req: Request) => {
 
   if (!RESEND_API_KEY) return json(500, { error: 'resend_not_configured' });
 
-  const trackLink = WEB_BASE
-    ? `${WEB_BASE}/track/${order.public_track_token}`
-    : null;
+  // Built from the tenant's own storefront host, not a global base URL: that
+  // keeps the customer on the restaurant they ordered from, where the support
+  // panel is rendered. WEB_BASE stays as a last-resort fallback.
+  const trackLink = trackUrl(tenant, order.public_track_token, WEB_BASE);
 
   const greeting = customer.first_name
     ? locale === 'en'

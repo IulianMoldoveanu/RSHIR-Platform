@@ -23,6 +23,7 @@
 // Auto-injected:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { trackUrl } from '../_shared/storefront-url.ts';
 import { Resend } from 'https://esm.sh/resend@4.0.1';
 
 const json = (status: number, body: unknown) =>
@@ -37,7 +38,7 @@ type Candidate = {
   public_track_token: string;
   customer_id: string | null;
   customers: { email: string | null; first_name: string | null } | null;
-  tenants: { name: string } | null;
+  tenants: { name: string; slug: string | null; custom_domain: string | null; domain_status: string | null } | null;
 };
 
 async function findCandidates(supabase: SupabaseClient): Promise<Candidate[]> {
@@ -56,7 +57,7 @@ async function findCandidates(supabase: SupabaseClient): Promise<Candidate[]> {
       public_track_token,
       customer_id,
       customers ( email, first_name ),
-      tenants ( name )
+      tenants ( name, slug, custom_domain, domain_status )
     `)
     .eq('status', 'DELIVERED')
     .eq('payment_status', 'PAID')
@@ -130,9 +131,16 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    const trackUrl = WEB_BASE
-      ? `${WEB_BASE.replace(/\/$/, '')}/track/${c.public_track_token}`
-      : `/track/${c.public_track_token}`;
+    // Was a relative `/track/...` when the env var was unset — which in an
+    // email is a dead link, not a missing one. Built from the tenant's own
+    // storefront host now, with the env var only as a fallback.
+    const trackLink = trackUrl(c.tenants, c.public_track_token, WEB_BASE);
+    // The whole email is a button pointing at this link. Without it there is
+    // nothing to send, so skip rather than mail a dead end.
+    if (!trackLink) {
+      skipped += 1;
+      continue;
+    }
     const tenantName = c.tenants?.name ?? 'restaurant';
     const firstName = c.customers.first_name?.trim() || null;
     const greeting = firstName ? `Bună ziua, ${firstName}` : 'Bună ziua';
@@ -143,7 +151,7 @@ Deno.serve(async (req: Request) => {
       '',
       `Sperăm că v-a plăcut ce ați comandat de la ${tenantName}. Lăsați o părere — durează 10 secunde și îi ajută enorm pe ceilalți clienți:`,
       '',
-      trackUrl,
+      trackLink,
       '',
       'Mulțumim,',
       '— HIR · hir.ro',
@@ -152,7 +160,7 @@ Deno.serve(async (req: Request) => {
     const html = renderReviewReminderHtml({
       tenantName,
       greeting,
-      trackUrl,
+      trackUrl: trackLink,
     });
 
     try {
