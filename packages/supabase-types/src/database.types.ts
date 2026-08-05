@@ -3662,6 +3662,33 @@ export type Database = {
           },
         ]
       }
+      courier_location_pings: {
+        Row: {
+          accuracy_m: number | null
+          courier_user_id: string
+          id: number
+          lat: number
+          lng: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          courier_user_id: string
+          id?: never
+          lat: number
+          lng: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          courier_user_id?: string
+          id?: never
+          lat?: number
+          lng?: number
+          recorded_at?: string
+        }
+        Relationships: []
+      }
       courier_orders: {
         Row: {
           accepted_at: string | null
@@ -3670,6 +3697,8 @@ export type Database = {
           cancelled_at: string | null
           city_id: string | null
           cod_amount_ron: number | null
+          courier_accepted_at: string | null
+          courier_assigned_at: string | null
           courier_push_dispatched_at: string | null
           created_at: string
           customer_first_name: string | null
@@ -3707,6 +3736,11 @@ export type Database = {
           public_track_token: string
           restaurant_order_id: string | null
           restaurant_ready_at: string | null
+          route_attributed_distance_m: number | null
+          route_computed_at: string | null
+          route_distance_m: number | null
+          route_pickup_distance_m: number | null
+          route_points: number | null
           source_order_id: string | null
           source_tenant_id: string | null
           source_type: string
@@ -3727,6 +3761,8 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_accepted_at?: string | null
+          courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
@@ -3764,6 +3800,11 @@ export type Database = {
           public_track_token: string
           restaurant_order_id?: string | null
           restaurant_ready_at?: string | null
+          route_attributed_distance_m?: number | null
+          route_computed_at?: string | null
+          route_distance_m?: number | null
+          route_pickup_distance_m?: number | null
+          route_points?: number | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type: string
@@ -3784,6 +3825,8 @@ export type Database = {
           cancelled_at?: string | null
           city_id?: string | null
           cod_amount_ron?: number | null
+          courier_accepted_at?: string | null
+          courier_assigned_at?: string | null
           courier_push_dispatched_at?: string | null
           created_at?: string
           customer_first_name?: string | null
@@ -3821,6 +3864,11 @@ export type Database = {
           public_track_token?: string
           restaurant_order_id?: string | null
           restaurant_ready_at?: string | null
+          route_attributed_distance_m?: number | null
+          route_computed_at?: string | null
+          route_distance_m?: number | null
+          route_pickup_distance_m?: number | null
+          route_points?: number | null
           source_order_id?: string | null
           source_tenant_id?: string | null
           source_type?: string

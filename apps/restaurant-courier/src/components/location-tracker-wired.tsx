@@ -7,7 +7,7 @@ import { useGpsTimestamp } from '@/lib/gps-timestamp-context';
 type Props = {
   enabled: boolean;
   intervalMs?: number;
-  onFix: (lat: number, lng: number) => Promise<void> | void;
+  onFix: (lat: number, lng: number, accuracyM?: number) => Promise<void> | void;
 };
 
 // Thin wrapper around <LocationTracker> that intercepts each GPS fix to
@@ -21,9 +21,9 @@ export function LocationTrackerWired({ enabled, intervalMs, onFix }: Props) {
   const { recordFix } = useGpsTimestamp();
 
   const wiredOnFix = useCallback(
-    async (lat: number, lng: number) => {
+    async (lat: number, lng: number, accuracyM?: number) => {
       recordFix();
-      return onFix(lat, lng);
+      return onFix(lat, lng, accuracyM);
     },
     [recordFix, onFix],
   );
