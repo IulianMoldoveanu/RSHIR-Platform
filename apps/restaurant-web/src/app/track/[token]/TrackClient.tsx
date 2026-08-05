@@ -421,12 +421,17 @@ function OrderProblemReport({
   const [email, setEmail] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
+  // The submitted message is `[reason] ` + details, and the intake rejects
+  // anything over 4000. Budget the prefix here, or a customer who fills the box
+  // to a limit the UI told them was fine gets a generic send failure.
+  const reasonLabel = t(locale, PROBLEM_REASONS.find((r) => r.value === reason)!.key);
+  const detailsMax = 4000 - (reasonLabel.length + 3);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (state === 'sending') return;
     setState('sending');
     try {
-      const reasonLabel = t(locale, PROBLEM_REASONS.find((r) => r.value === reason)!.key);
       const res = await fetch('/api/support/message', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -491,7 +496,7 @@ function OrderProblemReport({
         rows={3}
         required
         minLength={5}
-        maxLength={4000}
+        maxLength={detailsMax}
         placeholder={t(locale, 'track.problem_details_placeholder')}
         className="mt-3 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
       />

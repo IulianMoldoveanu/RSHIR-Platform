@@ -41,7 +41,12 @@ export function storefrontBaseUrl(
 
   const custom = tenant?.custom_domain?.trim();
   if (custom && tenant?.domain_status === 'ACTIVE') {
-    return strip(custom.startsWith('http') ? custom : `https://${custom}`);
+    // Match the scheme, not the letters: domain setup stores custom domains
+    // without one, and a bare `startsWith('http')` would treat a real domain
+    // like `httpizza.ro` as already absolute and emit `httpizza.ro/track/...`
+    // — a scheme-less href, which in an email is a broken link.
+    const hasScheme = /^https?:\/\//i.test(custom);
+    return strip(hasScheme ? custom : `https://${custom}`);
   }
 
   const slug = tenant?.slug?.trim();
