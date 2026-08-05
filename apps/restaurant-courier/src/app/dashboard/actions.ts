@@ -187,18 +187,51 @@ export async function startShiftAction() {
         return;
       }
 
-      // End any other ONLINE shift first (defensive — should be unique by index).
-      await admin
+      // Starting a shift is idempotent: if one is already open, that IS the
+      // shift. This used to end whatever was ONLINE and insert a replacement,
+      // which made a second call destructive rather than a no-op — and a second
+      // call happens, observed on production as a shift opened and closed 0.64s
+      // later with a fresh row behind it.
+      //
+      // The replacement row is born with last_lat/last_seen_at NULL, and
+      // dispatch skips couriers it cannot place. Presence only returns on the
+      // next forwarded fix, which for a courier standing still where they
+      // signed on is the 120s heartbeat — so going online could leave them
+      // invisible to auto-dispatch for two minutes, looking perfectly online
+      // the whole time.
+      // Reuse is bounded to a shift that is demonstrably alive: fresh presence
+      // (the same 5-minute window dispatch trusts) or opened seconds ago and not
+      // yet reported. Nothing ends stale ONLINE shifts automatically — the
+      // health monitor only counts them — so a leftover from yesterday must
+      // still be replaced, or tapping "start" would silently resume it and show
+      // the courier a shift that began sixteen hours ago.
+      const freshCutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+      const { data: openShift } = await admin
         .from('courier_shifts')
-        .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+        .select('id')
         .eq('courier_user_id', userId)
-        .eq('status', 'ONLINE');
+        .eq('status', 'ONLINE')
+        .or(`last_seen_at.gte.${freshCutoff},started_at.gte.${freshCutoff}`)
+        .maybeSingle();
 
-      const { error: insertError } = await admin.from('courier_shifts').insert({
-        courier_user_id: userId,
-        started_at: new Date().toISOString(),
-        status: 'ONLINE',
-      });
+      if (!openShift) {
+        // Whatever is open is a leftover, not this shift.
+        await admin
+          .from('courier_shifts')
+          .update({ status: 'OFFLINE', ended_at: new Date().toISOString() })
+          .eq('courier_user_id', userId)
+          .eq('status', 'ONLINE');
+      }
+
+      const insertError = openShift
+        ? null
+        : (
+            await admin.from('courier_shifts').insert({
+              courier_user_id: userId,
+              started_at: new Date().toISOString(),
+              status: 'ONLINE',
+            })
+          ).error;
       // 23505 = unique_violation on uq_courier_shifts_one_online: a concurrent
       // startShiftAction call already inserted the ONLINE row for this courier
       // (e.g. a double-tap retry). That row exists, so this is a benign no-op,
