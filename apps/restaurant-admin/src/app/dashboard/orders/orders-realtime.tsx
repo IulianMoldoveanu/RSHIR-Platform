@@ -5,13 +5,18 @@ import { useRouter } from 'next/navigation';
 import type {
   RealtimeChannel,
   RealtimePostgresInsertPayload,
+  RealtimePostgresUpdatePayload,
 } from '@supabase/supabase-js';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
+import { announceOnInsert, announceOnUpdate } from './order-announce';
 
-type OrderInsertRow = {
+type OrderRow = {
   id: string;
   tenant_id: string;
   total_ron: number | string | null;
+  status?: string | null;
+  payment_status?: string | null;
+  payment_method?: string | null;
 };
 
 /**
@@ -39,6 +44,9 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
   const flashEndRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdateRefreshRef = useRef(0);
   const pendingUpdateRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Orders already announced this session, so the payment-landed UPDATE can't
+  // ring for an order the INSERT already rang for (COD), or ring twice.
+  const announcedRef = useRef<Set<string>>(new Set());
 
   function stopFlash() {
     if (flashTimerRef.current !== null) {
@@ -107,16 +115,24 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           table: 'restaurant_orders',
           filter: `tenant_id=eq.${tenantId}`,
         },
-        (payload: RealtimePostgresInsertPayload<OrderInsertRow>) => {
+        (payload: RealtimePostgresInsertPayload<OrderRow>) => {
           const row = payload.new;
-          handleNewOrder(row);
+          // A card order is inserted before the customer has paid for it, so
+          // the row landing is not yet news for the kitchen — see
+          // order-announce.ts. It rings from the UPDATE handler below when the
+          // PSP webhook confirms the money.
+          if (announceOnInsert(row)) {
+            announcedRef.current.add(row.id);
+            handleNewOrder(row);
+          }
           router.refresh();
         },
       )
       // Wave 1.1 — also pick up UPDATE events so the list reflects
       // courier-driven status changes (PICKED_UP → IN_DELIVERY → DELIVERED)
-      // without the user having to refresh. No chime / flash here — that's
-      // reserved for INSERT (genuinely new orders).
+      // without the user having to refresh. Only one UPDATE announces itself:
+      // the card payment landing (PAID while still CONFIRMED), which is a new
+      // order as far as the kitchen is concerned.
       .on(
         'postgres_changes',
         {
@@ -125,7 +141,15 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
           table: 'restaurant_orders',
           filter: `tenant_id=eq.${tenantId}`,
         },
-        () => {
+        (payload: RealtimePostgresUpdatePayload<OrderRow>) => {
+          const row = payload.new;
+          // De-duplicate: an order can receive further updates while it waits
+          // in CONFIRMED for the kitchen to accept it, and a reconnect replays
+          // nothing but could still see the same state twice.
+          if (announceOnUpdate(row) && !announcedRef.current.has(row.id)) {
+            announcedRef.current.add(row.id);
+            handleNewOrder(row);
+          }
           // Audit P18 — leading-edge throttle: fire immediately if the
           // window has elapsed since the last refresh, otherwise schedule
           // a single trailing refresh so the final UPDATE in a burst still
@@ -168,7 +192,7 @@ export function OrdersRealtime({ tenantId }: { tenantId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
-  function handleNewOrder(row: OrderInsertRow) {
+  function handleNewOrder(row: OrderRow) {
     const shortId = row.id.slice(0, 8);
     const totalRon = Number(row.total_ron ?? 0).toFixed(2);
     const quiet =
