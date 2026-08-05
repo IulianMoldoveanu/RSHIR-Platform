@@ -14,7 +14,6 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePlatformAdmin } from '@/lib/auth/platform-admin';
-import { priorWeekWindow } from './invoice-window';
 
 export type BillingResult = { ok: true; message?: string } | { ok: false; error: string };
 
@@ -87,22 +86,24 @@ export async function generateFleetInvoiceAction(
     return { ok: false, error: 'Interval invalid.' };
   }
 
-  // Monday-to-Monday, the same window the courier payout cron settles, so the
-  // two sides of a delivery always land in comparable periods.
-  const { start, end } = priorWeekWindow(weeksAgo);
-
+  // The week boundary is computed in the database, by the same expression the
+  // courier payout cron uses. Deriving it here in UTC would put the first hours
+  // of a Bucharest Monday in a different week from the payout report, and the
+  // two sides of a delivery would stop reconciling — a Bucharest Monday is
+  // 21:00 UTC in summer, 22:00 in winter.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any;
-  const { error } = await admin.rpc('fn_generate_fleet_invoice_periods', {
-    p_period_start: start.toISOString(),
-    p_period_end: end.toISOString(),
+  const { error } = await admin.rpc('fn_generate_fleet_invoice_prior_week', {
+    p_weeks_ago: weeksAgo,
     p_fleet_id: fleetId,
   });
   if (error) return { ok: false, error: error.message };
 
   revalidatePath('/dashboard/admin/fleet-billing');
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
-  return { ok: true, message: `Generat pentru ${fmt(start)} → ${fmt(end)}.` };
+  return {
+    ok: true,
+    message: weeksAgo === 1 ? 'Generat pentru săptămâna trecută.' : `Generat pentru acum ${weeksAgo} săptămâni.`,
+  };
 }
 
 /**

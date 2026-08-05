@@ -216,6 +216,16 @@ begin
      limit 1;
 
     -- Resolve the fleet tariff: per-zone override first, then fleet-wide flat.
+    --
+    -- Each is read as it stood WHEN THE DELIVERY HAPPENED. Tariffs are
+    -- versioned through valid_from/valid_until exactly so a rate changed today
+    -- cannot reprice a week that already closed — reading only the live row
+    -- would do precisely that on any re-run or backfill (Codex P1, #1064).
+    --
+    -- The ordering encodes the fallback: the row in force at delivery time
+    -- wins; failing that the currently active row; failing that the newest. A
+    -- delivery that predates every tariff row is a rate agreed late, and
+    -- paying it late beats paying the courier nothing.
     v_fleet_payout := null; v_fleet_cod := 0; v_source := null;
     v_fleet_pickup := null; v_fleet_perkm := null; v_fleet_cap := 1.50;
     v_tariff_found := false; v_km := null;
@@ -224,7 +234,11 @@ begin
         select payout_cents, cod_bonus_cents, pickup_fee_cents, per_km_cents, km_cap_factor
           into v_fleet_payout, v_fleet_cod, v_fleet_pickup, v_fleet_perkm, v_fleet_cap
           from public.fleet_courier_tariffs
-         where fleet_id = v_rec.fleet_id and zone_id = v_dp_zone and valid_until is null
+         where fleet_id = v_rec.fleet_id and zone_id = v_dp_zone
+         order by (valid_from <= v_rec.delivered_at
+                   and (valid_until is null or valid_until > v_rec.delivered_at)) desc,
+                  (valid_until is null) desc,
+                  valid_from desc
          limit 1;
         if found then
           v_tariff_found := true;
@@ -235,7 +249,11 @@ begin
         select payout_cents, cod_bonus_cents, pickup_fee_cents, per_km_cents, km_cap_factor
           into v_fleet_payout, v_fleet_cod, v_fleet_pickup, v_fleet_perkm, v_fleet_cap
           from public.fleet_courier_tariffs
-         where fleet_id = v_rec.fleet_id and zone_id is null and valid_until is null
+         where fleet_id = v_rec.fleet_id and zone_id is null
+         order by (valid_from <= v_rec.delivered_at
+                   and (valid_until is null or valid_until > v_rec.delivered_at)) desc,
+                  (valid_until is null) desc,
+                  valid_from desc
          limit 1;
         if found then
           v_tariff_found := true;

@@ -171,7 +171,10 @@ begin
        )
      order by co.fleet_id, co.delivered_at
   loop
-    -- City rate first, then the fleet-wide one.
+    -- City rate first, then the fleet-wide one — each as it stood WHEN THE
+    -- DELIVERY HAPPENED, not as it stands now. Rates are versioned precisely so
+    -- that renegotiating today cannot reprice a week that already closed: pick
+    -- the row whose validity interval contains delivered_at (Codex P1, #1064).
     v_rate := null; v_source := null; v_scope_city := null;
     if v_rec.city_id is not null then
       select per_delivery_cents, city_id
@@ -179,7 +182,9 @@ begin
         from public.fleet_billing_tariffs
        where fleet_id = v_rec.fleet_id
          and city_id = v_rec.city_id
-         and valid_until is null
+         and valid_from <= v_rec.delivered_at
+         and (valid_until is null or valid_until > v_rec.delivered_at)
+       order by valid_from desc
        limit 1;
       if v_rate is not null then
         v_source := 'fleet_city';
@@ -192,7 +197,9 @@ begin
         from public.fleet_billing_tariffs
        where fleet_id = v_rec.fleet_id
          and city_id is null
-         and valid_until is null
+         and valid_from <= v_rec.delivered_at
+         and (valid_until is null or valid_until > v_rec.delivered_at)
+       order by valid_from desc
        limit 1;
       if v_rate is not null then
         v_source := 'fleet_flat';
@@ -279,6 +286,54 @@ comment on function public.fn_generate_fleet_invoice_periods(timestamptz, timest
 
 revoke execute on function public.fn_generate_fleet_invoice_periods(timestamptz, timestamptz, uuid)
   from public, anon, authenticated;
+-- Supabase's default privileges already name service_role, so the revoke above
+-- does not touch it (checked: the RPC returns 200 through the service key).
+-- Granting explicitly anyway, so the app's only path in is written down rather
+-- than inherited from a platform default that could change.
+grant execute on function public.fn_generate_fleet_invoice_periods(timestamptz, timestamptz, uuid)
+  to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 3b. The weekly window, defined once.
+--
+-- The invoice and the courier payout settle the two sides of the same
+-- delivery, so their week boundaries have to be the same boundary — not two
+-- implementations that agree most of the time. A Bucharest Monday is 21:00 UTC
+-- in summer and 22:00 in winter, so anything computed in UTC puts the first
+-- hours of local Monday in a different week from the payout cron and the two
+-- reports stop reconciling (Codex P2, #1064).
+--
+-- Hence: the same date_trunc expression fn_generate_courier_payouts_prior_week
+-- uses, character for character, rather than a second version of the same idea
+-- in application code.
+-- ---------------------------------------------------------------------------
+create or replace function public.fn_generate_fleet_invoice_prior_week(
+  p_weeks_ago integer default 1,
+  p_fleet_id  uuid default null
+)
+returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  select public.fn_generate_fleet_invoice_periods(
+    ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date
+        - (7 * greatest(p_weeks_ago, 1)))::timestamp) at time zone 'Europe/Bucharest',
+    ((date_trunc('week', (now() at time zone 'Europe/Bucharest'))::date
+        - (7 * (greatest(p_weeks_ago, 1) - 1)))::timestamp) at time zone 'Europe/Bucharest',
+    p_fleet_id
+  );
+$$;
+
+comment on function public.fn_generate_fleet_invoice_prior_week(integer, uuid) is
+  'Invoices a closed Bucharest week: 1 = the week that just ended. Shares its '
+  'boundary expression with fn_generate_courier_payouts_prior_week so an '
+  'invoice and a courier payout can be compared line for line.';
+
+revoke execute on function public.fn_generate_fleet_invoice_prior_week(integer, uuid)
+  from public, anon, authenticated;
+grant execute on function public.fn_generate_fleet_invoice_prior_week(integer, uuid)
+  to service_role;
 
 -- ---------------------------------------------------------------------------
 -- 4. Who may read this.
