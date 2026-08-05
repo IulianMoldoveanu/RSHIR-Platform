@@ -450,8 +450,33 @@ async function sendFcmV1(
       token: args.token,
       notification: { title: args.title, body: args.body },
       data: { orderId: args.orderId },
-      android: { priority: 'HIGH' as const },
-      apns: { headers: { 'apns-priority': '10' } },
+      android: {
+        priority: 'HIGH' as const,
+        // A `notification` message is rendered by FCM itself on Android, and
+        // it is rendered SILENTLY unless the payload names a sound — the field
+        // is not inherited from the channel. Reported live 2026-08-05: offers
+        // arrived as a mute line in the shade, and the two couriers on the
+        // Android build have no web-push subscription at all, so this is the
+        // only channel that reaches them. An offer expires in 90 seconds.
+        notification: {
+          sound: 'default',
+          default_vibrate_timings: true,
+          notification_priority: 'PRIORITY_HIGH' as const,
+        },
+      },
+      apns: {
+        headers: { 'apns-priority': '10' },
+        // Same rule on iOS: an aps dictionary with no `sound` is a silent
+        // banner. `apns.payload` OVERRIDES the top-level notification rather
+        // than merging with it, so the alert has to be restated here or the
+        // push would arrive audible but blank (Codex P1, #1062).
+        payload: {
+          aps: {
+            alert: { title: args.title, body: args.body },
+            sound: 'default',
+          },
+        },
+      },
     },
   };
   try {
@@ -492,7 +517,8 @@ async function sendFcmLegacy(
       body: JSON.stringify({
         to: args.token,
         priority: 'high',
-        notification: { title: args.title, body: args.body },
+        // Legacy HTTP API, same silent-by-default rule as v1 above.
+        notification: { title: args.title, body: args.body, sound: 'default' },
         data: { orderId: args.orderId },
       }),
     });
