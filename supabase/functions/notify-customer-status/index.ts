@@ -123,6 +123,15 @@ Deno.serve(async (req: Request) => {
   // keeps the customer on the restaurant they ordered from, where the support
   // panel is rendered. WEB_BASE stays as a last-resort fallback.
   const trackLink = trackUrl(tenant, order.public_track_token, WEB_BASE);
+  // Record which host the customer is being sent to, without the token itself
+  // (it is a capability — anyone holding it can read the order). This is how
+  // you tell from the outside that a tenant's links resolve to their own
+  // storefront, and how the silent "no link at all" state would have been
+  // visible instead of invisible.
+  setMetadata({
+    track_link_host: trackLink ? new URL(trackLink).host : null,
+    track_link_present: trackLink !== null,
+  });
 
   const greeting = customer.first_name
     ? locale === 'en'
