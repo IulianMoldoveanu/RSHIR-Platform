@@ -56,25 +56,83 @@ export type CartLine = CartSnapshot['items'][number];
 
 export const CART_STORAGE_KEY = 'hir.cart';
 
-export function useCart(): { cart: CartSnapshot | null; loading: boolean } {
+/**
+ * The durable cart, read straight out of the storefront's zustand-persist key.
+ *
+ * The snapshot above is written by the cart drawer at the moment the customer
+ * clicks through to checkout, and it lives in sessionStorage. That covers the
+ * click-through and nothing else: refresh the checkout page, come back to it
+ * with the back button, reopen the tab, or follow the URL again, and there is
+ * no snapshot — while the customer's actual basket is still sitting in
+ * localStorage, intact. Checkout then told them "Coșul e gol" over a cart it
+ * had simply not looked at. Verified on production against a real storefront.
+ *
+ * So when the snapshot is missing, fall back to the real thing.
+ */
+export function readDurableCart(tenantId: string): CartSnapshot | null {
+  try {
+    const raw = localStorage.getItem(`hir-cart-${tenantId}`);
+    if (!raw) return null;
+    const outer = JSON.parse(raw) as {
+      state?: {
+        items?: {
+          itemId?: string;
+          name?: string;
+          unitPriceRon?: number;
+          qty?: number;
+          notes?: string;
+          modifiers?: { id: string; name: string; price_delta_ron: number }[];
+        }[];
+        fulfillment?: string;
+      };
+    };
+    const items = (outer.state?.items ?? []).map((it) => ({
+      itemId: it.itemId,
+      name: it.name,
+      priceRon: it.unitPriceRon,
+      quantity: it.qty,
+      // The store spells this price_delta_ron; the snapshot spells it
+      // priceDeltaRon. Same number, two names — mapped, not assumed.
+      modifiers: (it.modifiers ?? []).map((m) => ({
+        id: m.id,
+        name: m.name,
+        priceDeltaRon: m.price_delta_ron,
+      })),
+      ...(it.notes ? { notes: it.notes } : {}),
+    }));
+    if (items.length === 0) return null;
+
+    // Parsed through the same schema as the snapshot, so a hand-edited
+    // localStorage value cannot reach checkout by the side door.
+    const parsed = cartSnapshotSchema.safeParse({
+      items,
+      fulfillment: outer.state?.fulfillment,
+    });
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function useCart(tenantId?: string): { cart: CartSnapshot | null; loading: boolean } {
   const [cart, setCart] = useState<CartSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(CART_STORAGE_KEY);
-      if (!raw) {
-        setCart(null);
+      const fromSnapshot = raw ? cartSnapshotSchema.safeParse(JSON.parse(raw)) : null;
+      if (fromSnapshot?.success) {
+        setCart(fromSnapshot.data);
       } else {
-        const parsed = cartSnapshotSchema.safeParse(JSON.parse(raw));
-        setCart(parsed.success ? parsed.data : null);
+        setCart(tenantId ? readDurableCart(tenantId) : null);
       }
     } catch {
-      setCart(null);
+      setCart(tenantId ? readDurableCart(tenantId) : null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tenantId]);
 
   return { cart, loading };
 }
