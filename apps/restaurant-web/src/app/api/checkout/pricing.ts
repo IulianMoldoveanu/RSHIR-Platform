@@ -344,7 +344,12 @@ async function findEnclosingZoneId(
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    // First match wins, so the order decides the delivery fee. created_at is
+    // transaction-stable, which means zones seeded together share it exactly
+    // and the winner is then whatever the planner returns first. id is the
+    // tie-breaker that makes identical requests cost the same twice.
+    .order('id', { ascending: true });
 
   if (error) throw new Error(`zones lookup failed: ${error.message}`);
   if (!zones) return null;
@@ -399,7 +404,10 @@ async function findTierForDistance(
     .select('id, min_km, max_km, price_ron, sort_order')
     .eq('tenant_id', tenantId)
     .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: true })
+    // Same reason as the zone lookup above: overlapping tiers are resolved by
+    // order, so the order has to be total.
+    .order('id', { ascending: true });
 
   if (error) throw new Error(`tiers lookup failed: ${error.message}`);
   if (!tiers) return null;
