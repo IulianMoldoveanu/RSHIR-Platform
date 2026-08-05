@@ -223,7 +223,9 @@ export default async function OrdersPage({
   const COLS_LEGACY =
     'id, status, source, total_ron, created_at, ready_at, scheduled_pickup_at, delivery_address_id, items, customers(first_name, last_name)';
 
-  async function loadOrders(cols: string, includeCashFilter: boolean) {
+  // `hasPaymentColumns` gates every filter that reads payment_method — both the
+  // Cash view and the unpaid-card suppression below.
+  async function loadOrders(cols: string, hasPaymentColumns: boolean) {
     let q = admin
       .from('restaurant_orders')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -239,11 +241,26 @@ export default async function OrdersPage({
     // null OR false.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     q = (q as any).or('is_pre_order.is.null,is_pre_order.eq.false');
+    // A card order exists in the table before the customer has paid for it: the
+    // storefront inserts it PENDING/UNPAID and only then redirects to the PSP.
+    // Showing it here put an order the customer may never place in front of the
+    // kitchen — and stale-PENDING highlighting then nagged about it. It appears
+    // the moment the webhook confirms the money, which is also when it chimes.
+    // Only the storefront has this gap: every other source (aggregators, POS,
+    // partner API) settles payment elsewhere and would never arrive.
+    // De Morgan of "hide storefront AND card AND unpaid" — PostgREST ANDs
+    // repeated `or` params together (verified against production).
+    if (hasPaymentColumns) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q = (q as any).or(
+        'source.neq.INTERNAL_STOREFRONT,payment_method.neq.CARD,payment_status.neq.UNPAID',
+      );
+    }
     if (filter === 'active') {
       q = q.in('status', ACTIVE_STATUSES);
     } else if (filter === 'today') {
       q = q.gte('created_at', startOfTodayIso());
-    } else if (filter === 'cash' && includeCashFilter) {
+    } else if (filter === 'cash' && hasPaymentColumns) {
       // Outstanding COD reconciliation. Cast through unknown until
       // supabase-types regenerates with the payment_method column.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
