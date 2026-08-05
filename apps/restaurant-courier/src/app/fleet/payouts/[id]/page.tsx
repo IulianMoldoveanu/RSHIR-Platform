@@ -30,6 +30,16 @@ type ItemRow = {
   // Authoritative link to the order (works even with no pricing row).
   delivery_id: string | null;
   delivery_pricing_id: string | null;
+  // fleet_km | fleet_km_estimated | fleet_zone | fleet_flat | zone_default | unrated
+  source: string | null;
+  // Distance-priced lines carry their own arithmetic; see
+  // 20260806_001_courier_payout_pays_the_per_km_rate.sql.
+  formula_snapshot: {
+    pickup_fee_cents?: number;
+    per_km_cents?: number;
+    cod_bonus_cents?: number;
+    km?: { billable_km?: number; capped?: boolean; estimated?: boolean };
+  } | null;
   // Sourced via the join on delivery_pricings (null in zone-less cities):
   delivery_pricings: {
     delivery_id: string;
@@ -49,6 +59,28 @@ function formatDate(iso: string): string {
     month: 'short',
     year: 'numeric',
   });
+}
+
+/**
+ * How a distance-priced line got to its number, in the shortest honest form:
+ * "7,50 + 3,00 × 4,2 km". A courier who wants to check the maths can.
+ * Returns null for flat and zone lines, which have nothing to explain.
+ */
+function describeLine(it: ItemRow): string | null {
+  const km = it.formula_snapshot?.km?.billable_km;
+  if (typeof km !== 'number') return null;
+  const ron = (c: number | undefined) => ((c ?? 0) / 100).toFixed(2).replace('.', ',');
+  const parts = [
+    `${ron(it.formula_snapshot?.pickup_fee_cents)} + ${ron(it.formula_snapshot?.per_km_cents)} × ${km
+      .toFixed(1)
+      .replace('.', ',')} km`,
+  ];
+  if (it.formula_snapshot?.cod_bonus_cents) {
+    parts.push(`+ ${ron(it.formula_snapshot.cod_bonus_cents)} ramburs`);
+  }
+  if (it.formula_snapshot?.km?.estimated) parts.push('km estimat (fără GPS)');
+  else if (it.formula_snapshot?.km?.capped) parts.push('distanță plafonată');
+  return parts.join(' · ');
 }
 
 function formatDateTime(iso: string | null): string {
@@ -101,7 +133,7 @@ export default async function FleetPayoutDetailPage({
   const { data: itemsData } = await sb
     .from('payout_items')
     .select(
-      'id, amount_cents, delivery_id, delivery_pricing_id, delivery_pricings ( delivery_id, computed_at, restaurant_fee_cents, courier_payout_cents )',
+      'id, amount_cents, delivery_id, delivery_pricing_id, source, formula_snapshot, delivery_pricings ( delivery_id, computed_at, restaurant_fee_cents, courier_payout_cents )',
     )
     .eq('payout_period_id', periodId)
     .order('id', { ascending: true });
@@ -206,6 +238,9 @@ export default async function FleetPayoutDetailPage({
                       ? formatDateTime(it.delivery_pricings.computed_at)
                       : '—'}
                   </p>
+                  {describeLine(it) && (
+                    <p className="mt-0.5 text-[10px] text-hir-muted-fg">{describeLine(it)}</p>
+                  )}
                 </div>
                 <span className="shrink-0 font-semibold text-emerald-300">
                   {formatRon(it.amount_cents)}
