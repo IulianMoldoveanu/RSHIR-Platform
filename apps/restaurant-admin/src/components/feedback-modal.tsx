@@ -280,6 +280,8 @@ export function FeedbackModal({ open, onOpenChange, tenantId }: Props) {
             <img
               src={previewUrl}
               alt="Captură"
+              width={640}
+              height={360}
               className="mt-1 max-h-40 w-full rounded-md border border-zinc-200 object-contain"
             />
           ) : (
