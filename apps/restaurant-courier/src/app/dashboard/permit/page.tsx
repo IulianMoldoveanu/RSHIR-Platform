@@ -22,9 +22,10 @@
 
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, FileCheck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { PageHeader } from '@/app/_marketplace-ui';
 import { PermitForm, type PermitInitial } from './permit-form';
 
 export const dynamic = 'force-dynamic';
@@ -97,25 +98,12 @@ export default async function PermitPage() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6">
-      <header className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-500/30 shadow-md shadow-violet-500/15">
-          <FileCheck
-            className="h-5 w-5 text-violet-300"
-            aria-hidden
-            strokeWidth={2.25}
-          />
-        </span>
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight text-hir-fg">
-            Permis de muncă (non-UE)
-          </h1>
-          <p className="mt-0.5 text-sm leading-relaxed text-hir-muted-fg">
-            Cetățenii non-UE pot livra pe HIR doar cu permis de muncă valid emis de IGI
-            (Inspectoratul General pentru Imigrări). HIR verifică permisul tău existent;
-            nu îl emite în numele tău.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        variant="hero"
+        eyebrow="PERMIS DE MUNCĂ"
+        title="Permis de muncă (non-UE)"
+        description="Cetățenii non-UE pot livra pe HIR doar cu permis de muncă valid emis de IGI (Inspectoratul General pentru Imigrări). HIR verifică permisul tău existent; nu îl emite în numele tău."
+      />
 
       {!isNonEu ? (
         <section className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-100">
@@ -132,7 +120,7 @@ export default async function PermitPage() {
       {isNonEu ? (
         <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-100/90">
           <div className="flex items-start gap-2">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden strokeWidth={1.75} />
             <div>
               <p className="font-semibold">Important — HIR PASIV M0-M24</p>
               <p className="mt-1 text-amber-100/80">
@@ -148,9 +136,9 @@ export default async function PermitPage() {
 
       <Link
         href="/dashboard/settings"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-hir-muted-fg hover:text-hir-fg"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-hir-muted-fg transition-colors hover:text-hir-fg focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
+        <ArrowLeft className="h-4 w-4" aria-hidden strokeWidth={1.75} />
         Înapoi la setări
       </Link>
     </div>

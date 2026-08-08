@@ -9,6 +9,13 @@ import { notFound } from 'next/navigation';
 import { ArrowRight, Banknote, CheckCircle2, FileSearch, Gavel } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import {
+  PageHeader,
+  StatCard,
+  Card,
+  VerticalBadge,
+  EmptyMarketplaceState,
+} from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -139,35 +146,35 @@ export default async function FleetMarketplaceDashboard() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Marketplace</h1>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          Cereri B2B din orașul flotei — ofertează, câștigă livrarea.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="Marketplace flotă"
+        title="Marketplace"
+        description="Cereri B2B din orașul flotei — ofertează, câștigă livrarea."
+      />
 
       {/* KPI grid — open listings, my pending offers, my wins, fees MTD. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi
-          icon={<FileSearch className="h-4 w-4 text-violet-400" aria-hidden />}
+        <StatCard
+          icon={<FileSearch className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Cereri deschise"
           value={String(openListings.length)}
           hint="în orașul flotei"
         />
-        <Kpi
-          icon={<Gavel className="h-4 w-4 text-sky-400" aria-hidden />}
+        <StatCard
+          icon={<Gavel className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Ofertele mele"
           value={String(pendingOffers.length)}
           hint="în așteptare"
         />
-        <Kpi
-          icon={<CheckCircle2 className="h-4 w-4 text-emerald-400" aria-hidden />}
+        <StatCard
+          icon={<CheckCircle2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Câștigate"
           value={String(acceptedCount)}
           hint="ultimele 50"
         />
-        <Kpi
-          icon={<Banknote className="h-4 w-4 text-emerald-400" aria-hidden />}
+        <StatCard
+          icon={<Banknote className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Taxe HIR luna"
           value={formatRon(feesMtdCents)}
           hint="comision platformă"
@@ -175,95 +182,75 @@ export default async function FleetMarketplaceDashboard() {
       </div>
 
       {/* Open listings preview */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-        <div className="mb-3 flex items-center justify-between">
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-hir-fg">
             Cereri deschise{' '}
-            <span className="text-hir-muted-fg">({openListings.length})</span>
+            <span className="tabular-nums text-hir-muted-fg">({openListings.length})</span>
           </h2>
           <Link
             href="/fleet/marketplace/listings"
-            className="inline-flex items-center gap-1 text-xs font-medium text-violet-300 hover:text-violet-200"
+            className="inline-flex items-center gap-1 rounded-md text-xs font-medium text-violet-300 hover:text-violet-200"
           >
             Vezi toate
-            <ArrowRight className="h-3 w-3" aria-hidden />
+            <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden />
           </Link>
         </div>
         {openListings.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-hir-border bg-hir-surface px-4 py-6 text-center text-xs text-hir-muted-fg">
-            Nu sunt cereri deschise în orașul flotei.
-          </div>
+          <EmptyMarketplaceState
+            title="Nicio cerere deschisă"
+            description="Nu sunt cereri deschise în orașul flotei."
+          />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-3">
             {openListings.map((listing) => (
-              <li key={listing.id}>
-                <Link
-                  href={`/fleet/marketplace/listings/${listing.id}`}
-                  className="block rounded-xl border border-hir-border bg-hir-surface p-3 hover:border-violet-500/40 hover:bg-hir-border"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                          {listing.vertical}
-                        </span>
-                        <p className="truncate text-sm font-medium text-hir-fg">
-                          {listing.package_description ?? 'Pachet'}
-                        </p>
-                      </div>
-                      <p className="mt-1 text-xs text-hir-muted-fg">
-                        Fereastră: {formatWindow(listing.delivery_window_start, listing.delivery_window_end)}
+              <Card
+                key={listing.id}
+                as="li"
+                interactive
+                href={`/fleet/marketplace/listings/${listing.id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <VerticalBadge vertical={listing.vertical} />
+                      <p className="truncate text-sm font-semibold text-hir-fg">
+                        {listing.package_description ?? 'Pachet'}
                       </p>
                     </div>
-                    <span className="rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
-                      Ofertează
-                    </span>
+                    <p className="mt-1.5 text-xs text-hir-muted-fg">
+                      Fereastră:{' '}
+                      <span className="tabular-nums">
+                        {formatWindow(listing.delivery_window_start, listing.delivery_window_end)}
+                      </span>
+                    </p>
                   </div>
-                </Link>
-              </li>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
+                    Ofertează
+                    <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                  </span>
+                </div>
+              </Card>
             ))}
           </ul>
         )}
       </section>
 
       {/* Quick links to the deep views. */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <QuickLink
           href="/fleet/marketplace/offers"
-          icon={<Gavel className="h-4 w-4" aria-hidden />}
+          icon={<Gavel className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Ofertele mele"
           hint={`${pendingOffers.length} în așteptare`}
         />
         <QuickLink
           href="/fleet/marketplace/matches"
-          icon={<CheckCircle2 className="h-4 w-4" aria-hidden />}
+          icon={<CheckCircle2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
           label="Livrări câștigate"
           hint={`${acceptedCount} active`}
         />
       </div>
-    </div>
-  );
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-hir-border bg-hir-surface p-3">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-        {icon}
-        {label}
-      </div>
-      <p className="mt-1 text-xl font-semibold text-hir-fg">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-hir-muted-fg">{hint}</p> : null}
     </div>
   );
 }
@@ -280,18 +267,15 @@ function QuickLink({
   hint: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-4 py-3 hover:border-violet-500/40 hover:bg-hir-surface/70"
-    >
-      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10 text-violet-300">
+    <Card interactive href={href} className="flex items-center gap-3">
+      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-300">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-hir-fg">{label}</p>
+        <p className="text-sm font-semibold text-hir-fg">{label}</p>
         <p className="text-xs text-hir-muted-fg">{hint}</p>
       </div>
-      <ArrowRight className="h-4 w-4 text-hir-muted-fg" aria-hidden />
-    </Link>
+      <ArrowRight className="h-4 w-4 flex-shrink-0 text-hir-muted-fg" strokeWidth={1.75} aria-hidden />
+    </Card>
   );
 }

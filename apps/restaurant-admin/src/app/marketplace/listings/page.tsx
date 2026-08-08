@@ -13,6 +13,19 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
+import {
+  PageHeader,
+  Card,
+  StatCard,
+  ButtonLink,
+  Icon,
+  VerticalBadge,
+  RouteSteps,
+  ETAPill,
+  ListingStatusBadge,
+  EmptyMarketplaceState,
+  ErrorState,
+} from '@/app/marketplace/_components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,27 +53,20 @@ type ListingRow = {
   offer_count: number;
 };
 
-const STATUS_BADGE: Record<ListingStatus, { label: string; cls: string }> = {
-  DRAFT: { label: 'Draft', cls: 'bg-zinc-100 text-zinc-700 ring-zinc-200' },
-  OPEN: { label: 'Deschis', cls: 'bg-emerald-100 text-emerald-800 ring-emerald-200' },
-  MATCHED: { label: 'Atribuit', cls: 'bg-indigo-100 text-indigo-800 ring-indigo-200' },
-  IN_PROGRESS: { label: 'În livrare', cls: 'bg-sky-100 text-sky-800 ring-sky-200' },
-  COMPLETED: { label: 'Livrat', cls: 'bg-teal-100 text-teal-800 ring-teal-200' },
-  CANCELLED: { label: 'Anulat', cls: 'bg-zinc-100 text-zinc-500 ring-zinc-200' },
-  EXPIRED: { label: 'Expirat', cls: 'bg-amber-100 text-amber-800 ring-amber-200' },
-  DISPUTED: { label: 'Dispută', cls: 'bg-rose-100 text-rose-800 ring-rose-200' },
-};
+// Presentational status filter tabs (URL state via ?status=). Pure client-side
+// filtering of the already-fetched array — the query/.in() scoping is untouched.
+type StatusFilter = 'all' | 'open' | 'matched' | 'completed';
 
-function fmtDateTime(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return '—';
-  return d.toLocaleString('ro-RO', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+const STATUS_TABS: { key: StatusFilter; label: string; match: (s: ListingStatus) => boolean }[] = [
+  { key: 'all', label: 'Toate', match: () => true },
+  { key: 'open', label: 'Deschise', match: (s) => s === 'OPEN' || s === 'DRAFT' },
+  {
+    key: 'matched',
+    label: 'Atribuite',
+    match: (s) => s === 'MATCHED' || s === 'IN_PROGRESS',
+  },
+  { key: 'completed', label: 'Finalizate', match: (s) => s === 'COMPLETED' },
+];
 
 function summarizeAddress(addr: unknown): string {
   if (!addr || typeof addr !== 'object') return '—';
@@ -73,7 +79,11 @@ function summarizeAddress(addr: unknown): string {
   return joined === '' ? '—' : joined;
 }
 
-export default async function MarketplaceListingsPage(): Promise<JSX.Element> {
+export default async function MarketplaceListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}): Promise<JSX.Element> {
   if (process.env.HIR_FEATURE_MARKETPLACE_ENABLED !== 'true') notFound();
 
   const supabase = await createServerClient();
@@ -93,10 +103,17 @@ export default async function MarketplaceListingsPage(): Promise<JSX.Element> {
 
   if (memberErr) {
     return (
-      <EmptyShell
-        title="Marketplace — Cereri"
-        message={`Eroare la încărcarea restaurantelor: ${memberErr.message}`}
-      />
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+        <PageHeader
+          variant="hero"
+          eyebrow="HIR · MARKETPLACE"
+          title="Cererile mele"
+          description="Publică o cerere de livrare B2B și primește oferte de la flotele HIR."
+        />
+        <div className="mt-6">
+          <ErrorState description="Nu am putut încărca restaurantele. Reîncarcă pagina sau revino mai târziu." />
+        </div>
+      </main>
     );
   }
 
@@ -106,10 +123,20 @@ export default async function MarketplaceListingsPage(): Promise<JSX.Element> {
 
   if (tenantIds.length === 0) {
     return (
-      <EmptyShell
-        title="Marketplace — Cereri"
-        message="Nu ești asociat niciunui restaurant. Contactează administratorul HIR pentru acces."
-      />
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+        <PageHeader
+          variant="hero"
+          eyebrow="HIR · MARKETPLACE"
+          title="Cererile mele"
+          description="Publică o cerere de livrare B2B și primește oferte de la flotele HIR."
+        />
+        <div className="mt-6">
+          <EmptyMarketplaceState
+            title="Niciun restaurant asociat"
+            description="Nu ești asociat niciunui restaurant. Contactează administratorul HIR pentru acces."
+          />
+        </div>
+      </main>
     );
   }
 
@@ -138,10 +165,17 @@ export default async function MarketplaceListingsPage(): Promise<JSX.Element> {
 
   if (listingsErr) {
     return (
-      <EmptyShell
-        title="Marketplace — Cereri"
-        message={`Eroare la încărcarea cererilor: ${listingsErr.message}`}
-      />
+      <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
+        <PageHeader
+          variant="hero"
+          eyebrow="HIR · MARKETPLACE"
+          title="Cererile mele"
+          description="Publică o cerere de livrare B2B și primește oferte de la flotele HIR."
+        />
+        <div className="mt-6">
+          <ErrorState description="Nu am putut încărca cererile. Reîncarcă pagina sau revino mai târziu." />
+        </div>
+      </main>
     );
   }
 
@@ -184,110 +218,144 @@ export default async function MarketplaceListingsPage(): Promise<JSX.Element> {
     },
   );
 
+  // Presentation-only counts derived from the in-memory array (no extra query).
+  const activeCount = listings.filter(
+    (l) => l.status === 'OPEN' || l.status === 'DRAFT',
+  ).length;
+  const totalOffers = listings.reduce((n, l) => n + l.offer_count, 0);
+  const matchedCount = listings.filter(
+    (l) => l.status === 'MATCHED' || l.status === 'IN_PROGRESS' || l.status === 'COMPLETED',
+  ).length;
+
+  const { status: rawStatus } = await searchParams;
+  const activeTab: StatusFilter =
+    STATUS_TABS.find((t) => t.key === rawStatus)?.key ?? 'all';
+  const tabMatch = STATUS_TABS.find((t) => t.key === activeTab)!.match;
+  const visibleListings = listings.filter((l) => tabMatch(l.status));
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
-      <header className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Marketplace — Cererile mele</h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Publică o cerere de livrare B2B și primește oferte de la flotele HIR.
-          </p>
-        </div>
-        <Link
-          href="/marketplace/listings/new"
-          className="inline-flex items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2"
-        >
-          Cerere nouă
-        </Link>
-      </header>
+      <PageHeader
+        variant="hero"
+        eyebrow="HIR · MARKETPLACE"
+        title="Cererile mele"
+        description="Publică o cerere de livrare B2B și primește oferte de la flotele HIR."
+        actions={
+          <ButtonLink href="/marketplace/listings/new" variant="primary">
+            <Icon name="plus" />
+            Cerere nouă
+          </ButtonLink>
+        }
+      />
 
-      {listings.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
-                <th className="px-4 py-3 text-left font-medium">Oraș</th>
-                <th className="px-4 py-3 text-left font-medium">Interval livrare</th>
-                <th className="px-4 py-3 text-left font-medium">Ridicare → Livrare</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Oferte</th>
-                <th className="px-4 py-3 text-right font-medium">Acțiuni</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {listings.map((l) => {
-                const badge = STATUS_BADGE[l.status];
-                return (
-                  <tr key={l.id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3 text-zinc-700">{l.city_name ?? '—'}</td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      <div className="text-xs text-zinc-500">început</div>
-                      <div className="tabular-nums">{fmtDateTime(l.delivery_window_start)}</div>
-                      <div className="mt-1 text-xs text-zinc-500">sfârșit</div>
-                      <div className="tabular-nums">{fmtDateTime(l.delivery_window_end)}</div>
-                    </td>
-                    <td className="max-w-[260px] truncate px-4 py-3 text-zinc-700">
-                      <span className="block truncate" title={l.pickup_summary}>
-                        {l.pickup_summary}
-                      </span>
-                      <span className="block truncate text-xs text-zinc-500" title={l.dropoff_summary}>
-                        → {l.dropoff_summary}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badge.cls}`}
-                      >
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-700">
-                      {l.offer_count}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/marketplace/listings/${l.id}`}
-                        className="text-sm font-medium text-purple-700 hover:text-purple-900"
-                      >
-                        Deschide →
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </main>
-  );
-}
+      <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 md:gap-4">
+        <StatCard label="Cereri active" value={activeCount} icon={<Icon name="package" />} />
+        <StatCard
+          label="Oferte primite"
+          value={totalOffers}
+          icon={<Icon name="banknote" />}
+          hint="Total, toate cererile"
+        />
+        <StatCard label="Atribuite" value={matchedCount} icon={<Icon name="truck" />} />
+        <StatCard label="Total cereri" value={listings.length} icon={<Icon name="file-search" />} />
+      </section>
 
-function EmptyState(): JSX.Element {
-  return (
-    <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-      <p className="text-sm text-zinc-500">
-        Nu există cereri active. Publică prima cerere folosind butonul de mai sus.
-      </p>
-      <Link
-        href="/marketplace/listings/new"
-        className="mt-4 inline-flex items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-purple-700"
+      <nav
+        className="mt-6 flex flex-wrap gap-2"
+        aria-label="Filtrează cererile după status"
       >
-        Publică prima cerere
-      </Link>
-    </div>
-  );
-}
+        {STATUS_TABS.map((t) => {
+          const isActive = t.key === activeTab;
+          return (
+            <Link
+              key={t.key}
+              href={t.key === 'all' ? '/marketplace/listings' : `/marketplace/listings?status=${t.key}`}
+              aria-current={isActive ? 'page' : undefined}
+              className={
+                isActive
+                  ? 'inline-flex items-center rounded-full bg-gradient-to-br from-[#6b1f8a] to-[#8e3bb0] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_2px_8px_rgba(107,31,138,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b1f8a] focus-visible:ring-offset-2'
+                  : 'inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-600 ring-1 ring-inset ring-slate-200 transition hover:bg-[#f7f0fb] hover:text-[#6b1f8a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b1f8a] focus-visible:ring-offset-2'
+              }
+            >
+              {t.label}
+            </Link>
+          );
+        })}
+      </nav>
 
-function EmptyShell({ title, message }: { title: string; message: string }): JSX.Element {
-  return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-10">
-      <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
-      <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800">
-        {message}
-      </div>
+      {visibleListings.length === 0 ? (
+        <div className="mt-6">
+          <EmptyMarketplaceState
+            title={listings.length === 0 ? 'Nicio cerere încă' : 'Nicio cerere în acest filtru'}
+            description={
+              listings.length === 0
+                ? 'Publică prima cerere de livrare și primește oferte de la flotele HIR.'
+                : 'Schimbă filtrul de mai sus pentru a vedea alte cereri.'
+            }
+            action={
+              listings.length === 0 ? (
+                <ButtonLink href="/marketplace/listings/new" variant="primary">
+                  <Icon name="plus" />
+                  Publică prima cerere
+                </ButtonLink>
+              ) : undefined
+            }
+          />
+        </div>
+      ) : (
+        <ul className="mt-6 grid list-none gap-4 md:grid-cols-2">
+          {visibleListings.map((l) => (
+            <Card
+              key={l.id}
+              as="li"
+              accent
+              interactive
+              href={`/marketplace/listings/${l.id}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-bold text-[#23093a]">
+                    {l.package_description?.trim() || `Cerere #${l.id.slice(0, 8)}`}
+                  </h2>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                    <Icon name="map-pin" className="h-3.5 w-3.5" />
+                    <span>{l.city_name ?? 'fără oraș'}</span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <ListingStatusBadge status={l.status} />
+                  <VerticalBadge vertical={l.vertical} />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <RouteSteps pickup={l.pickup_summary} dropoff={l.dropoff_summary} />
+              </div>
+
+              <div className="mt-4">
+                <ETAPill
+                  startIso={l.delivery_window_start}
+                  endIso={l.delivery_window_end}
+                />
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                  <Icon name="package" className="h-3.5 w-3.5" />
+                  Oferte primite (total):{' '}
+                  <span className="font-semibold tabular-nums text-slate-700">
+                    {l.offer_count}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#6b1f8a]">
+                  Deschide
+                  <Icon name="arrow-right" className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Card>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

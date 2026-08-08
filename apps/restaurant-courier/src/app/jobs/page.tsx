@@ -20,6 +20,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { JobStatusBadge } from '@/app/_components';
 import { isJobBoardEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card, EmptyMarketplaceState, buttonClass } from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -131,12 +132,12 @@ export default async function CourierJobBoardPage({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 pb-24 pt-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Joburi curier</h1>
-        <p className="mt-0.5 text-sm text-hir-muted-fg">
-          Flotele caută curieri. HIR găzduiește anunțul — angajatorul tău rămâne flota.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="HIR · JOBURI CURIER"
+        title="Joburi curier"
+        description="Flotele caută curieri. HIR găzduiește anunțul — angajatorul tău rămâne flota."
+      />
 
       {/* Active-applications counter */}
       <div className="flex items-center gap-2 rounded-xl border border-hir-border bg-hir-surface px-3 py-2 text-xs text-hir-muted-fg">
@@ -187,17 +188,11 @@ export default async function CourierJobBoardPage({
           </select>
         </label>
         <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="flex-1 rounded-lg bg-violet-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-600"
-          >
+          <button type="submit" className={buttonClass('primary', 'sm', 'flex-1')}>
             Filtrează
           </button>
           {cityFilter || typeFilter ? (
-            <Link
-              href="/jobs"
-              className="rounded-lg border border-hir-border bg-hir-surface px-3 py-1.5 text-sm text-hir-fg hover:bg-hir-border"
-            >
+            <Link href="/jobs" className={buttonClass('secondary', 'sm')}>
               Reset
             </Link>
           ) : null}
@@ -206,9 +201,10 @@ export default async function CourierJobBoardPage({
 
       {/* Listing rows */}
       {listings.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface px-4 py-8 text-center text-sm text-hir-muted-fg">
-          Nu sunt joburi deschise care să corespundă filtrelor.
-        </div>
+        <EmptyMarketplaceState
+          title="Niciun job deschis."
+          description="Nu sunt joburi deschise care să corespundă filtrelor."
+        />
       ) : (
         <ul className="flex flex-col gap-3">
           {listings.map((l) => {
@@ -217,61 +213,56 @@ export default async function CourierJobBoardPage({
             const myStatus = myAppByListing.get(l.id);
             const salary = formatSalary(l.salary_range_min_ron, l.salary_range_max_ron);
             return (
-              <li key={l.id}>
-                <Link
-                  href={`/jobs/${l.id}`}
-                  className="block rounded-2xl border border-hir-border bg-hir-surface p-4 transition-colors hover:border-violet-500/40 hover:bg-hir-border"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-hir-fg">
-                        {l.position_title}
+              <Card key={l.id} as="li" accent interactive href={`/jobs/${l.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-hir-fg">
+                      {l.position_title}
+                    </p>
+                    {fleet ? (
+                      <p className="mt-0.5 truncate text-xs text-hir-muted-fg">
+                        {fleet.name}
                       </p>
-                      {fleet ? (
-                        <p className="mt-0.5 truncate text-xs text-hir-muted-fg">
-                          {fleet.name}
-                        </p>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-hir-muted-fg">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/10 px-2 py-0.5 font-medium text-violet-300">
-                          <Briefcase className="h-3 w-3" aria-hidden />
-                          {EMPLOYMENT_LABEL[l.employment_type]}
-                        </span>
-                        {city ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-                            <MapPin className="h-3 w-3" aria-hidden />
-                            {city.name}
-                          </span>
-                        ) : null}
-                        {salary ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5">
-                            <Banknote className="h-3 w-3" aria-hidden />
-                            {salary}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    {myStatus ? (
-                      <JobStatusBadge
-                        status={
-                          myStatus as
-                            | 'PENDING'
-                            | 'REVIEWING'
-                            | 'INTERVIEWED'
-                            | 'HIRED'
-                            | 'REJECTED'
-                            | 'WITHDRAWN'
-                        }
-                      />
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-200">
-                        Aplică
-                        <ArrowRight className="h-3 w-3" aria-hidden />
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-hir-muted-fg">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-medium text-violet-300 ring-1 ring-inset ring-violet-500/30">
+                        <Briefcase className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                        {EMPLOYMENT_LABEL[l.employment_type]}
                       </span>
-                    )}
+                      {city ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 ring-1 ring-inset ring-hir-border">
+                          <MapPin className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                          {city.name}
+                        </span>
+                      ) : null}
+                      {salary ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-hir-bg px-2 py-0.5 tabular-nums ring-1 ring-inset ring-hir-border">
+                          <Banknote className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                          {salary}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                </Link>
-              </li>
+                  {myStatus ? (
+                    <JobStatusBadge
+                      status={
+                        myStatus as
+                          | 'PENDING'
+                          | 'REVIEWING'
+                          | 'INTERVIEWED'
+                          | 'HIRED'
+                          | 'REJECTED'
+                          | 'WITHDRAWN'
+                      }
+                    />
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-1 text-[11px] font-semibold text-violet-200 ring-1 ring-inset ring-violet-500/30">
+                      Aplică
+                      <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+                    </span>
+                  )}
+                </div>
+              </Card>
             );
           })}
         </ul>

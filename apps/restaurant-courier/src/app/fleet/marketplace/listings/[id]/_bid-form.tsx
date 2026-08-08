@@ -18,6 +18,10 @@
 import { useEffect, useState, useTransition } from 'react';
 import { Gavel, Loader2, Sparkles } from 'lucide-react';
 import { submitOfferAction, suggestBidPriceAction } from '../../actions';
+import { buttonClass } from '@/app/_marketplace-ui';
+
+const FIELD_CLS =
+  'rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg transition placeholder:text-hir-muted-fg/70';
 
 type PriceSuggestState =
   | { kind: 'idle' }
@@ -125,10 +129,14 @@ export function BidForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex flex-col gap-3 rounded-2xl border border-hir-border bg-hir-surface p-4"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-hir-border bg-hir-surface p-4"
     >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-violet-600 to-violet-400"
+      />
       <div className="flex items-center gap-2">
-        <Gavel className="h-4 w-4 text-violet-300" aria-hidden />
+        <Gavel className="h-4 w-4 text-violet-300" strokeWidth={1.75} aria-hidden />
         <h2 className="text-sm font-semibold text-hir-fg">
           {alreadyBid ? 'Revizuiește oferta' : 'Trimite o ofertă'}
         </h2>
@@ -157,7 +165,7 @@ export function BidForm({
               ? `ex: ${priceSuggest.suggested.mid_ron}`
               : 'ex: 18.50'
           }
-          className="rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg"
+          className={`${FIELD_CLS} tabular-nums`}
         />
       </label>
 
@@ -170,7 +178,7 @@ export function BidForm({
           max="240"
           required
           placeholder="ex: 45"
-          className="rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg"
+          className={`${FIELD_CLS} tabular-nums`}
         />
       </label>
 
@@ -188,7 +196,7 @@ export function BidForm({
           type="datetime-local"
           required
           defaultValue={defaultExpiresAtLocal()}
-          className="rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg"
+          className={FIELD_CLS}
         />
       </label>
 
@@ -199,7 +207,7 @@ export function BidForm({
           rows={2}
           maxLength={1000}
           placeholder="ex: vehicul izoterm, curier dedicat zonei"
-          className="resize-none rounded-md border border-hir-border bg-hir-bg px-3 py-2 text-sm text-hir-fg"
+          className={`${FIELD_CLS} resize-none`}
         />
       </label>
 
@@ -214,11 +222,7 @@ export function BidForm({
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex items-center justify-center gap-2 rounded-md bg-violet-500 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-400 disabled:opacity-60"
-      >
+      <button type="submit" disabled={pending} className={buttonClass('primary', 'md')}>
         {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
         {pending ? 'Se trimite...' : alreadyBid ? 'Suprascrie oferta' : 'Trimite oferta'}
       </button>

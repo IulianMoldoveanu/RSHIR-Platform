@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowLeft,
+  ArrowRight,
   Building2,
   Check,
   FileText,
@@ -13,6 +15,7 @@ import {
 } from 'lucide-react';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import type { AnafCompany } from '@/lib/anaf';
+import { Card, buttonClass } from '@/app/_marketplace-ui';
 import {
   lookupAnafPfaAction,
   submitPfaOnboardingAction,
@@ -195,18 +198,20 @@ export function PfaSignupForm({
   if (step === 'done') {
     return (
       <section className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-200">
-        <div className="flex items-center gap-2 font-semibold">
-          <Check className="h-5 w-5" aria-hidden />
+        <div className="flex items-center gap-2 text-base font-semibold text-emerald-100">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-500/40">
+            <Check className="h-5 w-5" aria-hidden strokeWidth={2.25} />
+          </span>
           PFA înrolat cu succes
         </div>
-        <p className="mt-2 text-emerald-200/90">
+        <p className="mt-3 text-emerald-200/90">
           Ai propria flotă (un singur membru — tu). Poți accepta curse din piață
           imediat ce setezi disponibilitatea.
         </p>
         <button
           type="button"
           onClick={() => router.push('/pfa-dashboard')}
-          className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-violet-500 px-4 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+          className={buttonClass('primary', 'md', 'mt-4 min-h-[44px] w-full')}
         >
           Deschide panoul PFA
         </button>
@@ -219,9 +224,9 @@ export function PfaSignupForm({
       <StepIndicator step={step} />
 
       {step === 1 ? (
-        <section className="flex flex-col gap-4 rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <Card accent className="flex flex-col gap-4 p-5">
           <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-violet-300" aria-hidden />
+            <Building2 className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={1.75} />
             <h2 className="text-sm font-semibold text-hir-fg">Pasul 1 — CUI și nume PFA</h2>
           </div>
           <p className="text-xs text-hir-muted-fg">
@@ -249,7 +254,7 @@ export function PfaSignupForm({
                 type="button"
                 onClick={verifyAnaf}
                 disabled={anafLoading || !cui.trim()}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-violet-500 px-3 text-xs font-semibold text-white hover:bg-violet-400 active:bg-violet-600 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+                className={buttonClass('primary', 'sm', 'min-h-[44px]')}
               >
                 {anafLoading ? (
                   <>
@@ -258,14 +263,14 @@ export function PfaSignupForm({
                   </>
                 ) : (
                   <>
-                    <Search className="h-4 w-4" aria-hidden />
+                    <Search className="h-4 w-4" aria-hidden strokeWidth={1.75} />
                     Verifică ANAF
                   </>
                 )}
               </button>
             </div>
             {anafError ? (
-              <p className="text-xs text-rose-400" role="alert">
+              <p className="text-xs text-rose-400" role="alert" aria-live="polite">
                 {anafError}
               </p>
             ) : null}
@@ -311,18 +316,19 @@ export function PfaSignupForm({
               type="button"
               onClick={() => setStep(2)}
               disabled={!canAdvanceStep1}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-violet-500 px-5 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+              className={buttonClass('primary', 'md', 'min-h-[44px] px-5')}
             >
-              Continuă →
+              Continuă
+              <ArrowRight className="h-4 w-4" aria-hidden strokeWidth={1.75} />
             </button>
           </div>
-        </section>
+        </Card>
       ) : null}
 
       {step === 2 ? (
-        <section className="flex flex-col gap-4 rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <Card accent className="flex flex-col gap-4 p-5">
           <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-violet-300" aria-hidden />
+            <FileText className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={1.75} />
             <h2 className="text-sm font-semibold text-hir-fg">
               Pasul 2 — Act identitate + selfie
             </h2>
@@ -334,14 +340,14 @@ export function PfaSignupForm({
           <UploadSlot
             label="Carte de identitate"
             hint="O poză clară a buletinului (față). JPG / PNG / WEBP, max 6 MB."
-            icon={<FileText className="h-5 w-5 text-violet-400" aria-hidden />}
+            icon={<FileText className="h-5 w-5 text-violet-400" aria-hidden strokeWidth={1.75} />}
             state={idDoc}
             onPick={(f) => upload(f, 'id', setIdDoc)}
           />
           <UploadSlot
             label="Selfie"
             hint="O poză cu fața ta, pentru a confirma identitatea."
-            icon={<UserIcon className="h-5 w-5 text-violet-400" aria-hidden />}
+            icon={<UserIcon className="h-5 w-5 text-violet-400" aria-hidden strokeWidth={1.75} />}
             state={selfie}
             onPick={(f) => upload(f, 'selfie', setSelfie)}
           />
@@ -350,26 +356,28 @@ export function PfaSignupForm({
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-bg px-4 text-sm font-medium text-hir-fg hover:bg-hir-border/40 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+              className={buttonClass('secondary', 'md', 'min-h-[44px]')}
             >
-              ← Înapoi
+              <ArrowLeft className="h-4 w-4" aria-hidden strokeWidth={1.75} />
+              Înapoi
             </button>
             <button
               type="button"
               onClick={() => setStep(3)}
               disabled={!canAdvanceStep2}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-violet-500 px-5 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+              className={buttonClass('primary', 'md', 'min-h-[44px] px-5')}
             >
-              Continuă →
+              Continuă
+              <ArrowRight className="h-4 w-4" aria-hidden strokeWidth={1.75} />
             </button>
           </div>
-        </section>
+        </Card>
       ) : null}
 
       {step === 3 ? (
-        <section className="flex flex-col gap-4 rounded-2xl border border-hir-border bg-hir-surface p-5">
+        <Card accent className="flex flex-col gap-4 p-5">
           <div className="flex items-center gap-2">
-            <Check className="h-5 w-5 text-violet-300" aria-hidden />
+            <Check className="h-5 w-5 text-violet-300" aria-hidden strokeWidth={1.75} />
             <h2 className="text-sm font-semibold text-hir-fg">
               Pasul 3 — Confirmare & acord
             </h2>
@@ -472,7 +480,11 @@ export function PfaSignupForm({
           </label>
 
           {submitError ? (
-            <p className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-300" role="alert">
+            <p
+              className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-300"
+              role="alert"
+              aria-live="polite"
+            >
               {submitError}
             </p>
           ) : null}
@@ -482,15 +494,16 @@ export function PfaSignupForm({
               type="button"
               onClick={() => setStep(2)}
               disabled={submitting}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-hir-border bg-hir-bg px-4 text-sm font-medium text-hir-fg hover:bg-hir-border/40 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+              className={buttonClass('secondary', 'md', 'min-h-[44px]')}
             >
-              ← Înapoi
+              <ArrowLeft className="h-4 w-4" aria-hidden strokeWidth={1.75} />
+              Înapoi
             </button>
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-violet-500 px-5 text-sm font-semibold text-white hover:bg-violet-400 active:bg-violet-600 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-400 focus-visible:outline-offset-2"
+              className={buttonClass('primary', 'md', 'min-h-[44px] px-5')}
             >
               {submitting ? (
                 <>
@@ -502,7 +515,7 @@ export function PfaSignupForm({
               )}
             </button>
           </div>
-        </section>
+        </Card>
       ) : null}
     </div>
   );
@@ -564,7 +577,7 @@ function UploadSlot({
         {icon}
         <p className="text-sm font-medium text-hir-fg">{label}</p>
         {state.path ? (
-          <Check className="ml-auto h-4 w-4 text-emerald-400" aria-hidden />
+          <Check className="ml-auto h-4 w-4 text-emerald-400" aria-hidden strokeWidth={1.75} />
         ) : null}
       </div>
       <p className="mt-1 text-[11px] text-hir-muted-fg">{hint}</p>
@@ -584,7 +597,7 @@ function UploadSlot({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={state.uploading}
-        className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-hir-border bg-hir-bg px-4 text-sm font-medium text-hir-fg hover:bg-hir-border/30 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+        className={buttonClass('secondary', 'md', 'mt-3 min-h-[44px]')}
       >
         {state.uploading ? (
           <>
@@ -592,16 +605,16 @@ function UploadSlot({
           </>
         ) : state.path ? (
           <>
-            <Check className="h-4 w-4 text-emerald-400" aria-hidden /> Încărcat — schimbă
+            <Check className="h-4 w-4 text-emerald-400" aria-hidden strokeWidth={1.75} /> Încărcat — schimbă
           </>
         ) : (
           <>
-            <Upload className="h-4 w-4" aria-hidden /> Încarcă foto
+            <Upload className="h-4 w-4" aria-hidden strokeWidth={1.75} /> Încarcă foto
           </>
         )}
       </button>
       {state.error ? (
-        <p className="mt-2 text-xs text-rose-400" role="alert">
+        <p className="mt-2 text-xs text-rose-400" role="alert" aria-live="polite">
           {state.error}
         </p>
       ) : null}
