@@ -18,6 +18,10 @@
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getActiveTenant, getTenantRole } from '@/lib/tenant';
+import {
+  checkDeliveryCoverage,
+  COVERAGE_MESSAGES_RO,
+} from '@/lib/fleet-allocation/assert-coverage';
 import { logAudit } from '@/lib/audit';
 
 export type WizardDraft = {
@@ -67,7 +71,10 @@ export type WizardActionResult =
         | 'invalid_input'
         | 'db_error'
         | 'city_required'
-        | 'city_not_ready';
+        | 'city_not_ready'
+        // No fleet with active couriers can serve this tenant, so publishing it
+        // would produce orders no courier can ever be offered.
+        | 'no_delivery_coverage';
       detail?: string;
     };
 
@@ -295,7 +302,7 @@ export async function wizardGoLive(args: {
   const admin = createAdminClient();
   const { data: existing, error: readErr } = await admin
     .from('tenants')
-    .select('settings, city_id')
+    .select('settings, city_id, status')
     .eq('id', args.tenantId)
     .single();
   if (readErr || !existing) return { ok: false, error: 'db_error', detail: readErr?.message };
@@ -347,9 +354,30 @@ export async function wizardGoLive(args: {
     },
   });
 
+  // Going live has to flip tenants.status too, not just the settings flags.
+  // v_tenants_storefront only exposes ACTIVE tenants, and since 2026-08-10
+  // onboarding parks a tenant in ONBOARDING when no fleet with couriers can
+  // serve it — so without this the wizard finished "successfully" and left the
+  // storefront invisible. Same coverage gate as every other door into ACTIVE.
+  const statusPatch: Record<string, unknown> = {};
+  if ((existing as { status?: string }).status === 'ONBOARDING') {
+    const coverage = await checkDeliveryCoverage(args.tenantId);
+    if (!coverage.ok) {
+      return {
+        ok: false,
+        error: 'no_delivery_coverage',
+        detail:
+          coverage.reason === 'coverage_check_failed'
+            ? `Nu am putut verifica acoperirea de livrare: ${coverage.detail ?? ''}`
+            : COVERAGE_MESSAGES_RO[coverage.reason],
+      };
+    }
+    statusPatch.status = 'ACTIVE';
+  }
+
   const { error: writeErr } = await admin
     .from('tenants')
-    .update({ settings: merged as never })
+    .update({ settings: merged as never, ...statusPatch })
     .eq('id', args.tenantId);
   if (writeErr) return { ok: false, error: 'db_error', detail: writeErr.message };
 

@@ -17,10 +17,20 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function DemoStorefrontPage() {
+// `?capture=1` strips the demo-only chrome so the marketing hero screenshot
+// (public/guide/store-desktop.webp) shows the storefront a diner actually sees.
+// The "Logo-ul tău" marker is a sales affordance aimed at the restaurant owner;
+// baked into a picture captioned "așa arată pentru clienții tăi" it reads as
+// part of the product. Everything a real storefront has stays.
+export default async function DemoStorefrontPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const tenant = await getDemoTenant();
   if (!tenant) notFound();
 
+  const captureMode = (await searchParams).capture === '1';
   const [categories, locale] = await Promise.all([getMenuByTenant(tenant.id), getLocale()]);
   const { logoUrl, coverUrl } = brandingFor(tenant.settings);
 
@@ -40,8 +50,9 @@ export default async function DemoStorefrontPage() {
         />
         {/* Marks where the restaurant's own logo goes. Demo-only — a real
             storefront draws the tenant's `branding.cover_logo_url` at this
-            exact offset, or nothing at all. */}
-        <DemoCoverLogoMarker />
+            exact offset, or nothing at all. Hidden under ?capture=1 so it does
+            not end up in the marketing screenshot. */}
+        {!captureMode && <DemoCoverLogoMarker />}
         {/* Language + account, top-right — the exact pairing and placement a
             real tenant gets (see tenant-header.tsx). Iulian, 2026-08-03: it has
             to be there "ca la orice tenant si in special pe ala demo", and the

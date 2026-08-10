@@ -57,6 +57,9 @@ export type CreateTenantResult =
       slug: string;
       tempPassword: string;
       storefrontUrl: string;
+      /** false => parked in ONBOARDING because no fleet with couriers can
+       *  serve it yet. The storefront is not live until it is activated. */
+      isLive: boolean;
     }
   | { ok: false; error: string; code?: 'forbidden' | 'invalid' | 'slug_taken' | 'email_taken' | 'auth_failed' | 'tenant_failed' | 'member_failed' };
 
@@ -158,13 +161,36 @@ export async function createTenantWithOwner(
     },
     ...(input.tagline ? { tagline: input.tagline.trim() } : {}),
   };
+  // A new tenant has no fleet assignment yet, so it goes live only if the
+  // owner-tier fallback can actually serve it. Otherwise it is parked in
+  // ONBOARDING until somebody assigns a fleet with couriers and activates it.
+  //
+  // The 2026-08-10 load test showed what publishing an uncovered vendor costs:
+  // the restaurant accepts orders, cooks them, marks them READY, and the
+  // courier leg is created in a fleet with no riders — never offered to anyone,
+  // no error at any point. Parking it also matches how onboarding actually
+  // works here: we configure the account and it starts when the client
+  // approves, not the second the row is inserted.
+  const staffedOwnerFleet = await (async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (admin as any)
+      .from('courier_fleets')
+      .select('id, courier_profiles!inner(user_id)')
+      .eq('tier', 'owner')
+      .eq('is_active', true)
+      .eq('courier_profiles.status', 'ACTIVE')
+      .limit(1);
+    return Array.isArray(data) && data.length > 0;
+  })();
+  const initialStatus = staffedOwnerFleet ? 'ACTIVE' : 'ONBOARDING';
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: tenantRow, error: tenantErr } = await (admin as any)
     .from('tenants')
     .insert({
       name: restaurantName,
       slug,
-      status: 'ACTIVE',
+      status: initialStatus,
       vertical: 'RESTAURANT',
       settings: initialSettings,
       ...(input.cityId ? { city_id: input.cityId } : {}),
@@ -224,6 +250,7 @@ export async function createTenantWithOwner(
       patron_email: email,
       patron_phone: phone,
       created_via: 'platform_admin_in_person',
+      initial_status: initialStatus,
     },
   });
 
@@ -236,6 +263,9 @@ export async function createTenantWithOwner(
     slug,
     tempPassword,
     storefrontUrl,
+    // false => parked in ONBOARDING: the storefront is not live until a fleet
+    // with couriers is assigned and the tenant is activated.
+    isLive: initialStatus === 'ACTIVE',
   };
 }
 
