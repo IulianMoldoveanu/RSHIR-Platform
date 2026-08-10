@@ -18,6 +18,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { Icon } from '@/app/marketplace/_components/ui';
 import { PfaPoolClient, type PfaFleetVM } from './_client';
 
 export const runtime = 'nodejs';
@@ -209,9 +210,10 @@ export default async function PfaPoolPage() {
           </div>
           <Link
             href="/dashboard/admin/hub"
-            className="inline-flex min-h-[44px] items-center rounded-md px-2 text-sm text-slate-400 hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 text-sm text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            ← Command Center
+            <Icon name="arrow-left" className="h-4 w-4" />
+            Command Center
           </Link>
         </div>
       </header>
@@ -249,7 +251,7 @@ function CountTile({
   return (
     <div className={`rounded-2xl border p-3 ${toneClass}`}>
       <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

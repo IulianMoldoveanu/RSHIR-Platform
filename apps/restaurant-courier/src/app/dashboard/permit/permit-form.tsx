@@ -8,7 +8,7 @@
 
 import { useRef, useState } from 'react';
 import { Check, FileCheck, Loader2, Upload } from 'lucide-react';
-import { Button } from '@hir/ui';
+import { Button, buttonClass } from '@/app/_marketplace-ui';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { submitPermitAction } from './actions';
 
@@ -184,7 +184,7 @@ export function PermitForm({
       <section className="flex flex-col gap-4">
         <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-100">
           <div className="flex items-center gap-2 font-semibold">
-            <FileCheck className="h-5 w-5" aria-hidden />
+            <FileCheck className="h-5 w-5" aria-hidden strokeWidth={1.75} />
             Permis verificat
           </div>
           <p className="mt-1 text-emerald-100/80">
@@ -365,12 +365,18 @@ function PermitFormFields({
       />
 
       {error ? (
-        <p className="text-sm text-rose-400" role="alert">
+        <p className="text-sm text-rose-400" role="alert" aria-live="polite">
           {error}
         </p>
       ) : null}
 
-      <Button type="button" onClick={onSubmit} disabled={!canSubmit} className="h-12">
+      <Button
+        type="button"
+        variant="primary"
+        onClick={onSubmit}
+        disabled={!canSubmit}
+        className="h-12 w-full"
+      >
         {submitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> Se trimite…
@@ -398,9 +404,11 @@ function PermitUploadSlot({
   return (
     <div className="rounded-xl border border-hir-border bg-hir-bg/40 p-4">
       <div className="flex items-center gap-2">
-        <FileCheck className="h-5 w-5 text-violet-400" aria-hidden />
+        <FileCheck className="h-5 w-5 text-violet-400" aria-hidden strokeWidth={1.75} />
         <p className="text-sm font-medium text-hir-fg">{label}</p>
-        {state.path && <Check className="ml-auto h-4 w-4 text-emerald-400" aria-hidden />}
+        {state.path && (
+          <Check className="ml-auto h-4 w-4 text-emerald-400" aria-hidden strokeWidth={1.75} />
+        )}
       </div>
       <p className="mt-1 text-[11px] text-hir-muted-fg">{hint}</p>
       <input
@@ -418,7 +426,7 @@ function PermitUploadSlot({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={state.uploading}
-        className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-hir-border bg-hir-bg px-4 text-sm font-medium text-hir-fg hover:bg-hir-border/30 disabled:opacity-50"
+        className={buttonClass('secondary', 'md', 'mt-3 min-h-[44px]')}
       >
         {state.uploading ? (
           <>
@@ -426,16 +434,16 @@ function PermitUploadSlot({
           </>
         ) : state.path ? (
           <>
-            <Check className="h-4 w-4 text-emerald-400" aria-hidden /> Încărcat — schimbă
+            <Check className="h-4 w-4 text-emerald-400" aria-hidden strokeWidth={1.75} /> Încărcat — schimbă
           </>
         ) : (
           <>
-            <Upload className="h-4 w-4" aria-hidden /> Încarcă document
+            <Upload className="h-4 w-4" aria-hidden strokeWidth={1.75} /> Încarcă document
           </>
         )}
       </button>
       {state.error && (
-        <p className="mt-2 text-xs text-rose-400" role="alert">
+        <p className="mt-2 text-xs text-rose-400" role="alert" aria-live="polite">
           {state.error}
         </p>
       )}

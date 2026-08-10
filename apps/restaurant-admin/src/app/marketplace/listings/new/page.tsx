@@ -18,8 +18,24 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { listActiveCities, type CityRow } from '@/lib/cities';
 import { NewListingForm, type TenantOption } from './new-listing-form';
+import {
+  PageHeader,
+  Icon,
+  EmptyMarketplaceState,
+  ErrorState,
+} from '@/app/marketplace/_components/ui';
 
 export const dynamic = 'force-dynamic';
+
+const BACK_LINK = (
+  <Link href="/marketplace/listings" className="inline-flex items-center gap-1 hover:underline">
+    <Icon name="arrow-left" className="h-3.5 w-3.5" />
+    Înapoi la cereri
+  </Link>
+);
+
+const HEADER_DESCRIPTION =
+  'Cererea devine vizibilă pentru flotele HIR. Vei putea accepta oferta câștigătoare.';
 
 export default async function NewListingPage(): Promise<JSX.Element> {
   if (process.env.HIR_FEATURE_MARKETPLACE_ENABLED !== 'true') notFound();
@@ -39,9 +55,15 @@ export default async function NewListingPage(): Promise<JSX.Element> {
   if (memberErr) {
     return (
       <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
-        <h1 className="text-2xl font-semibold text-zinc-900">Cerere nouă</h1>
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800">
-          Eroare la încărcarea restaurantelor: {memberErr.message}
+        <PageHeader
+          variant="hero"
+          eyebrow="HIR · MARKETPLACE"
+          title="Publică o cerere nouă"
+          description={HEADER_DESCRIPTION}
+          breadcrumb={BACK_LINK}
+        />
+        <div className="mt-6">
+          <ErrorState description="Nu am putut încărca restaurantele. Reîncarcă pagina sau revino mai târziu." />
         </div>
       </main>
     );
@@ -58,19 +80,20 @@ export default async function NewListingPage(): Promise<JSX.Element> {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <nav className="mb-4 text-sm text-zinc-500">
-        <Link href="/marketplace/listings" className="hover:text-zinc-900">
-          ← Înapoi la cereri
-        </Link>
-      </nav>
-      <h1 className="text-2xl font-semibold text-zinc-900">Publică o cerere nouă</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Cererea devine vizibilă pentru flotele HIR. Vei putea accepta oferta câștigătoare.
-      </p>
+      <PageHeader
+        variant="hero"
+        eyebrow="HIR · MARKETPLACE"
+        title="Publică o cerere nouă"
+        description={HEADER_DESCRIPTION}
+        breadcrumb={BACK_LINK}
+      />
 
       {tenants.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-6 py-4 text-sm text-amber-800">
-          Nu ești asociat niciunui restaurant. Contactează administratorul HIR pentru acces.
+        <div className="mt-6">
+          <EmptyMarketplaceState
+            title="Niciun restaurant asociat"
+            description="Nu ești asociat niciunui restaurant. Contactează administratorul HIR pentru acces."
+          />
         </div>
       ) : (
         <NewListingForm tenants={tenants} cities={cities} />

@@ -27,6 +27,7 @@ import {
   type CourierJobApplicationStatus,
 } from '@/app/_components';
 import { isJobBoardEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card } from '@/app/_marketplace-ui';
 import { updateApplicationStatusAction } from '../../actions';
 
 export const dynamic = 'force-dynamic';
@@ -160,28 +161,34 @@ export default async function FleetJobApplicationsPage({
     if (arr) arr.push(a);
   }
 
+  const backLink = (
+    <Link
+      href="/fleet/jobs"
+      className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
+    >
+      <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+      Înapoi la joburi
+    </Link>
+  );
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
-      <Link
-        href="/fleet/jobs"
-        className="inline-flex items-center gap-1 self-start text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
-      >
-        <ArrowLeft className="h-3 w-3" aria-hidden />
-        Înapoi la joburi
-      </Link>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
-          {listing.position_title}
-        </h1>
-        <JobStatusBadge status={listing.status} />
-      </div>
-      <p className="text-sm text-hir-muted-fg">
-        Aplicații: {apps.length} ({withdrawnRows.length} retrase)
+      <PageHeader
+        variant="shell"
+        breadcrumb={backLink}
+        title={listing.position_title}
+        actions={<JobStatusBadge status={listing.status} />}
+      />
+      <p className="-mt-2 text-sm text-hir-muted-fg">
+        Aplicații: <span className="tabular-nums">{apps.length}</span> (
+        <span className="tabular-nums">{withdrawnRows.length}</span> retrase)
       </p>
 
       {errorParam ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+        <div
+          role="alert"
+          className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200"
+        >
           {errorParam}
         </div>
       ) : null}
@@ -228,8 +235,8 @@ export default async function FleetJobApplicationsPage({
                             loading="lazy"
                           />
                         ) : (
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-hir-surface text-hir-muted-fg">
-                            <User className="h-3 w-3" aria-hidden />
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-300 ring-1 ring-inset ring-violet-500/20">
+                            <User className="h-3 w-3" strokeWidth={1.75} aria-hidden />
                           </span>
                         )}
                         <p className="min-w-0 truncate text-xs font-medium text-hir-fg">
@@ -299,8 +306,8 @@ export default async function FleetJobApplicationsPage({
 
       {/* Withdrawn footer — courier-side terminal, no actions. */}
       {withdrawnRows.length > 0 ? (
-        <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-          <h2 className="text-sm font-semibold text-hir-fg">Retrase</h2>
+        <Card>
+          <h2 className="text-sm font-bold text-hir-fg">Retrase</h2>
           <p className="mt-0.5 text-xs text-hir-muted-fg">
             Curierii care și-au retras aplicația.
           </p>
@@ -312,13 +319,13 @@ export default async function FleetJobApplicationsPage({
                   key={a.id}
                   className="inline-flex items-center gap-2 rounded-full border border-hir-border bg-hir-bg px-3 py-1 text-[11px] text-hir-muted-fg"
                 >
-                  <User className="h-3 w-3" aria-hidden />
+                  <User className="h-3 w-3" strokeWidth={1.75} aria-hidden />
                   {profile?.full_name ?? 'Curier'}
                 </li>
               );
             })}
           </ul>
-        </section>
+        </Card>
       ) : null}
     </div>
   );
