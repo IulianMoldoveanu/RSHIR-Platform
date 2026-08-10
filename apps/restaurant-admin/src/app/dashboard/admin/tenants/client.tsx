@@ -236,7 +236,9 @@ export function TenantsListClient({
                       FM
                     </Link>
                   </div>
-                  {r.tenantStatus !== 'ONBOARDING' && (
+                  {r.tenantStatus === 'ONBOARDING' ? (
+                    <ActivateButton tenantId={r.id} tenantName={r.name} />
+                  ) : (
                     <SuspendToggleButton
                       tenantId={r.id}
                       tenantName={r.name}
@@ -306,7 +308,9 @@ export function TenantsListClient({
                     <td className="px-3 py-2.5 align-top text-right">
                       <div className="flex flex-col items-end gap-1">
                         <OpenTenantButton tenantId={r.id} />
-                        {r.tenantStatus !== 'ONBOARDING' && (
+                        {r.tenantStatus === 'ONBOARDING' ? (
+                          <ActivateButton tenantId={r.id} tenantName={r.name} />
+                        ) : (
                           <SuspendToggleButton
                             tenantId={r.id}
                             tenantName={r.name}
@@ -424,6 +428,53 @@ function SuspendToggleButton({
         {pending ? '…' : isSuspended ? 'Reactivează' : 'Suspendă'}
       </button>
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
+    </span>
+  );
+}
+
+// Go-live for a tenant parked in ONBOARDING. Since 2026-08-10, onboarding
+// leaves a vendor there whenever no fleet with couriers can serve it, because
+// publishing an uncovered vendor means orders that get accepted, cooked and
+// then never offered to any courier. The server action re-checks coverage —
+// this button cannot talk it into going live.
+function ActivateButton({ tenantId, tenantName }: { tenantId: string; tenantName: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const REASONS: Record<string, string> = {
+    no_fleet_assigned:
+      'Nicio flotă alocată și nicio flotă de rezervă cu curieri. Alocă una din „Alocare flote".',
+    no_couriers_in_assigned_fleet:
+      'Flota alocată nu are niciun curier activ. Alocă altă flotă sau adaugă curieri.',
+  };
+
+  function onClick() {
+    const msg = `Activați „${tenantName}"? Storefront-ul devine accesibil clienților și poate primi comenzi.`;
+    if (typeof window !== 'undefined' && !window.confirm(msg)) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await setTenantStatus({ tenantId, next: 'ACTIVE' });
+      if (!res.ok) {
+        setError(REASONS[res.error] ?? res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="text-xs font-medium text-emerald-700 hover:underline disabled:opacity-50"
+        aria-label="Activează tenant"
+      >
+        {pending ? '…' : 'Activează'}
+      </button>
+      {error && <span className="max-w-[220px] text-right text-[10px] text-rose-600">{error}</span>}
     </span>
   );
 }
