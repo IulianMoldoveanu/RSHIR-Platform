@@ -62,7 +62,26 @@ describe('findCoverageGaps', () => {
     });
   });
 
-  it('accepts a staffed secondary fleet as cover', () => {
+  // The trigger takes `order by assigned_at desc limit 1` and stops. It never
+  // tries the secondary, so a staffed secondary is NOT cover when the newest
+  // assignment points at an empty fleet.
+  it('still flags when the newest assignment is unstaffed, even with a staffed secondary', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'f1', name: 'Nord', active_courier_count: 0 }),
+        fleet({ id: 'f2', name: 'Sud', active_courier_count: 3 }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Pizzeria' })],
+      assignments: [
+        assign('f2', 't1', { role: 'secondary', assigned_at: '2026-07-01T00:00:00Z' }),
+        assign('f1', 't1', { assigned_at: '2026-08-01T00:00:00Z' }), // newer, empty
+      ],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'assigned_fleet_has_no_couriers', fleetName: 'Nord' });
+  });
+
+  it('is quiet when the newest assignment is the staffed one', () => {
     expect(
       findCoverageGaps({
         fleets: [
@@ -70,7 +89,10 @@ describe('findCoverageGaps', () => {
           fleet({ id: 'f2', name: 'Sud', active_courier_count: 3 }),
         ],
         restaurants: [vendor({ id: 't1', name: 'Pizzeria' })],
-        assignments: [assign('f1', 't1'), assign('f2', 't1', { role: 'secondary' })],
+        assignments: [
+          assign('f1', 't1', { assigned_at: '2026-07-01T00:00:00Z' }),
+          assign('f2', 't1', { role: 'secondary', assigned_at: '2026-08-01T00:00:00Z' }),
+        ],
       }),
     ).toEqual([]);
   });

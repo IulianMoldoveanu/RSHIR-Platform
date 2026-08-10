@@ -35,6 +35,7 @@ set search_path = ''
 as $$
 declare
   v_closed integer;
+  v_users  uuid[];
 begin
   if p_silent_hours is null or p_silent_hours < 1 or p_silent_hours > 168 then
     raise exception 'fn_close_abandoned_courier_shifts: p_silent_hours must be between 1 and 168, got %',
@@ -42,19 +43,44 @@ begin
   end if;
 
   with abandoned as (
-    select cs.id, coalesce(cs.last_seen_at, cs.started_at) as last_alive
+    select cs.id, cs.courier_user_id, coalesce(cs.last_seen_at, cs.started_at) as last_alive
       from public.courier_shifts cs
      where cs.status = 'ONLINE'
        and cs.ended_at is null
        and coalesce(cs.last_seen_at, cs.started_at) < now() - make_interval(hours => p_silent_hours)
+  ), closed as (
+    update public.courier_shifts cs
+       set status   = 'OFFLINE',
+           ended_at = a.last_alive
+      from abandoned a
+     where cs.id = a.id
+    returning cs.courier_user_id
   )
-  update public.courier_shifts cs
-     set status   = 'OFFLINE',
-         ended_at = a.last_alive
-    from abandoned a
-   where cs.id = a.id;
+  select count(*)::integer, coalesce(array_agg(distinct courier_user_id), '{}')
+    into v_closed, v_users
+    from closed;
 
-  get diagnostics v_closed = row_count;
+  -- courier_profiles.status tracks SHIFT state in this codebase, not
+  -- employment: endShiftAction flips it to INACTIVE whenever a courier goes
+  -- off shift. Closing the shift without it leaves a ghost-ACTIVE profile,
+  -- which still counts as capacity in the fleet-allocation grid, in the
+  -- owner-fleet fallback and in the orders_unstaffed_fleet alarm — while
+  -- auto-dispatch cannot offer that courier anything, because it requires an
+  -- ONLINE shift. That divergence would hide an unstaffed fleet from the very
+  -- warning added for it.
+  --
+  -- Guarded on having no other ONLINE shift left, so a courier who somehow
+  -- holds two shift rows is not knocked offline by closing the stale one.
+  update public.courier_profiles cp
+     set status = 'INACTIVE'
+   where cp.user_id = any(v_users)
+     and cp.status = 'ACTIVE'
+     and not exists (
+       select 1 from public.courier_shifts cs2
+        where cs2.courier_user_id = cp.user_id
+          and cs2.status = 'ONLINE'
+     );
+
   return v_closed;
 end;
 $$;
@@ -68,6 +94,26 @@ comment on function public.fn_close_abandoned_courier_shifts(integer) is
 revoke all on function public.fn_close_abandoned_courier_shifts(integer) from public;
 revoke all on function public.fn_close_abandoned_courier_shifts(integer) from anon;
 revoke all on function public.fn_close_abandoned_courier_shifts(integer) from authenticated;
+
+-- One-time backfill for profiles already left ACTIVE with no ONLINE shift.
+-- startShiftAction sets ACTIVE immediately after inserting the shift row —
+-- its own comment calls a profile "ACTIVE with no shift row backing it" the
+-- failure case — so ACTIVE without an ONLINE shift is always a ghost. It
+-- inflates active_courier_count in the allocation grid, satisfies the
+-- owner-fleet fallback and silences orders_unstaffed_fleet, while the sweep
+-- can offer that courier nothing.
+--
+-- SUSPENDED is deliberately not touched: that is an admin decision, not a
+-- shift state. Re-running is harmless — the predicate matches nothing once
+-- clean.
+update public.courier_profiles cp
+   set status = 'INACTIVE'
+ where cp.status = 'ACTIVE'
+   and not exists (
+     select 1 from public.courier_shifts cs
+      where cs.courier_user_id = cp.user_id
+        and cs.status = 'ONLINE'
+   );
 
 commit;
 

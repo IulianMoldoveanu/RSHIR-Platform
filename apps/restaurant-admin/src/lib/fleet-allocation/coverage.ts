@@ -55,25 +55,33 @@ export function findCoverageGaps(input: {
     if (t.external_dispatch_enabled) continue;
 
     // Step 1: most recent active assignment to a still-active fleet.
+    // `nulls last`, matching the trigger's ordering.
     const active = assignments
       .filter((a) => a.restaurant_tenant_id === t.id && a.status === 'active')
       .filter((a) => fleetById.get(a.fleet_id)?.is_active === true)
-      .sort((a, b) => (a.assigned_at < b.assigned_at ? 1 : -1));
+      .sort((a, b) => {
+        if (!a.assigned_at && !b.assigned_at) return 0;
+        if (!a.assigned_at) return 1;
+        if (!b.assigned_at) return -1;
+        return a.assigned_at < b.assigned_at ? 1 : a.assigned_at > b.assigned_at ? -1 : 0;
+      });
 
     if (active.length > 0) {
-      // An assigned vendor is fine as long as ANY of its active fleets has
-      // riders — the dispatcher is not limited to the newest assignment once
-      // a human reassigns, and a secondary fleet is a real fallback.
-      const servable = active.some(
-        (a) => (fleetById.get(a.fleet_id)?.active_courier_count ?? 0) > 0,
-      );
-      if (servable) continue;
+      // ONLY the newest assignment matters. The trigger does
+      // `order by fra.assigned_at desc nulls last limit 1` and stops there —
+      // it does not try a secondary fleet when the primary has no riders. An
+      // earlier version of this function accepted any staffed active
+      // assignment as cover, which quietly hid the exact case where a fresh
+      // assignment to an empty fleet strands a vendor that also has an older,
+      // staffed secondary.
+      const chosen = active[0];
+      if ((fleetById.get(chosen.fleet_id)?.active_courier_count ?? 0) > 0) continue;
       gaps.push({
         tenantId: t.id,
         name: t.name,
         cityName: t.city_name,
         reason: 'assigned_fleet_has_no_couriers',
-        fleetName: fleetById.get(active[0].fleet_id)?.name ?? null,
+        fleetName: fleetById.get(chosen.fleet_id)?.name ?? null,
       });
       continue;
     }
