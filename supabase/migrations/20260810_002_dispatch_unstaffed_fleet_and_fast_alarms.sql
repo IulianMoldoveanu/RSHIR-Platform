@@ -200,8 +200,15 @@ begin
           and created_at < now() - interval '180 minutes'
       ),
       -- Open 10+ minutes in a fleet that auto-dispatches but currently has
-      -- nobody reachable: all offline, all heartbeats stale, all KYC-blocked,
-      -- or all at their parallel cap.
+      -- nobody the sweep could actually offer it to: all offline, all
+      -- heartbeats stale, all KYC-blocked, all already holding an offer, or
+      -- all at their parallel cap.
+      --
+      -- This MUST mirror fn_auto_dispatch_sweep's candidate predicate exactly.
+      -- A first cut only checked courier_can_take_orders(), which is KYC/KYF
+      -- only — so in the sustained-capacity case this alarm exists for (every
+      -- courier at max_parallel_orders) it still found couriers, `not exists`
+      -- was false, and the alarm stayed silent until the 180-minute one.
       no_candidates as (
         select count(*) as n
         from public.courier_orders co
@@ -219,6 +226,21 @@ begin
               and cs.last_seen_at is not null
               and cs.last_seen_at >= now() - interval '5 minutes'
               and public.courier_can_take_orders(cp.user_id)
+              -- already holding a pending offer (sweep skips them)
+              and not exists (
+                select 1 from public.courier_orders o2
+                 where o2.assigned_courier_user_id = cp.user_id
+                   and o2.status = 'OFFERED'
+              )
+              -- at their configured parallel cap (sweep skips them)
+              and (
+                cp.max_parallel_orders is null
+                or (
+                  select count(*) from public.courier_orders a2
+                   where a2.assigned_courier_user_id = cp.user_id
+                     and a2.status in ('ACCEPTED', 'PICKED_UP', 'IN_TRANSIT')
+                ) < cp.max_parallel_orders
+              )
           )
       ),
       -- Finding 1 in production: the order's fleet has no riders at all.

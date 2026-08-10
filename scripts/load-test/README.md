@@ -66,8 +66,23 @@ Two things it found, both fixed in `20260810_002`:
 
 **Concurrent orders in flight = couriers × `max_parallel_orders`.**
 
-50 couriers at 3 each held 150; the remaining 170 of a 320-order rush waited for
-deliveries to finish. That is correct behaviour, not a bug — but it means
-courier headcount, not the database, is the ceiling. Size a Bucharest launch
-from peak concurrent orders ÷ 3, and watch `pool_no_candidates` in
-`courier.healthMonitor` for saturation.
+Confirmed exactly: with 50 couriers capped at 3, a 320-order rush parked
+`accepted + picked_up = 150` and left the other **170 waiting**, tick after
+tick, with the sweep offering 0. Courier headcount — not the database — is the
+ceiling. Size a Bucharest launch from peak concurrent orders ÷ 3 and watch
+`pool_no_candidates` in `courier.healthMonitor` for saturation.
+
+### What this run does NOT tell you
+
+**Drain rate.** `lt-wave3.mjs` advances time by backdating timestamps, which is
+enough to reach saturation but not enough to complete a delivery cycle — across
+20 ticks, `delivered` stayed 0, so orders never freed their courier. The
+throughput figure that actually matters for a launch —
+`couriers × cap ÷ average delivery minutes` — has to be measured against real
+delivery times, not inferred from here. Treat the freeze as proof that the
+ceiling exists and is now alarmed, not as a drain-time estimate.
+
+**Sweep duration is not perfectly flat.** Median ~0.9 s, but one tick hit
+**4.8 s**. Still far inside the 60-second cadence, and the pool scan itself is
+0.6 ms — the cost is the per-order candidate subquery — but it is worth
+re-checking if the courier count grows well beyond 50.

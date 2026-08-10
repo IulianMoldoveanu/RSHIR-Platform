@@ -30,19 +30,32 @@ for (let tick = 1; tick <= TICKS; tick++) {
   const swept = await sql(`select public.fn_auto_dispatch_sweep() as offered;`);
   const sweepMs = Date.now() - t0;
 
-  // 3. couriers respond: most accept, the rest let the offer lapse
+  // 3. couriers respond: most accept, the rest let the offer lapse.
+  //
+  //    accepted_at is BACKDATED by one simulated minute per tick. The loop runs
+  //    in seconds of wall time, so without this nothing ever crosses the
+  //    pickup/delivery thresholds and work piles up until every courier hits
+  //    their cap — which makes the pool look frozen for the wrong reason and
+  //    turns any drain-time number into an artefact. Time has to move.
   await sql(`
     update public.courier_orders
-       set status='ACCEPTED', accepted_at=now(), updated_at=now()
+       set status='ACCEPTED', accepted_at = now() - make_interval(mins => ${tick}), updated_at=now()
      where status='OFFERED'
        and md5(id::text || ${tick}) < ${`'${Math.floor(ACCEPT_RATE * 255).toString(16).padStart(2, '0')}'`} || repeat('f', 30);`);
 
-  // 4. work in progress advances: accepted -> picked up -> delivered
+  // 4. work in progress advances on a realistic Bucharest clock: ~4 minutes
+  //    from accept to pickup, ~18 more to the door.
   await sql(`
     update public.courier_orders set status='PICKED_UP', picked_up_at=now(), updated_at=now()
-     where status='ACCEPTED' and accepted_at < now() - interval '30 seconds';
+     where status='ACCEPTED' and accepted_at < now() - interval '4 minutes';
     update public.courier_orders set status='DELIVERED', delivered_at=now(), updated_at=now()
-     where status='PICKED_UP' and picked_up_at < now() - interval '45 seconds';`);
+     where status='PICKED_UP' and picked_up_at < now() - interval '18 minutes';`);
+
+  // Deliveries need their pickup timestamp to age too, or nothing ever
+  // completes and couriers never free up.
+  await sql(`
+    update public.courier_orders set picked_up_at = picked_up_at - interval '1 minute'
+     where status='PICKED_UP';`);
 
   // 5. offers nobody answered go back to the pool (the real 1-minute cron)
   await sql(`select public.revoke_expired_courier_offers();`);
