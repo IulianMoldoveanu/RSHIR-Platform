@@ -23,6 +23,9 @@ export type FleetRow = {
   slug: string;
   delivery_app: 'hir' | 'external';
   is_active: boolean;
+  /** `owner` fleets are what sync_restaurant_to_courier_order falls back to
+   *  when a tenant has no active assignment. Needed to mirror that rule. */
+  tier: string | null;
   active_courier_count: number;
   /** Sum of zones.target_orders_per_hour weighted by zones.capacity_courier_count.
    *  Falls back to a flat 4 when no zones declared (industry midpoint). */
@@ -35,6 +38,12 @@ export type RestaurantRow = {
   slug: string;
   city_id: string | null;
   city_name: string | null;
+  /** Only ACTIVE tenants can take orders, so only they can be left unservable. */
+  status: string;
+  /** External-dispatch tenants hand the delivery to their own integration —
+   *  sync_restaurant_to_courier_order returns early and never creates a
+   *  courier leg, so they legitimately need no HIR fleet. */
+  external_dispatch_enabled: boolean;
 };
 
 export type AssignmentRow = {
@@ -82,12 +91,14 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     await Promise.all([
       sb
         .from('courier_fleets')
-        .select('id, name, slug, delivery_app, is_active')
+        .select('id, name, slug, delivery_app, is_active, tier')
         .eq('is_active', true)
         .order('name', { ascending: true }),
       sb
         .from('tenants')
-        .select('id, name, slug, city_id, cities!tenants_city_id_fkey ( name )')
+        .select(
+          'id, name, slug, city_id, status, external_dispatch_enabled, cities!tenants_city_id_fkey ( name )',
+        )
         .order('name', { ascending: true }),
       sb
         .from('fleet_restaurant_assignments')
@@ -153,6 +164,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     slug: string;
     delivery_app: string | null;
     is_active: boolean;
+    tier: string | null;
   };
   const fleets: FleetRow[] = ((fleetsRes.data ?? []) as FleetRaw[]).map((f) => {
     const agg = zoneAggByFleet.get(f.id);
@@ -164,6 +176,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
       slug: f.slug,
       delivery_app: f.delivery_app === 'external' ? 'external' : 'hir',
       is_active: f.is_active,
+      tier: f.tier ?? null,
       active_courier_count: courierCountByFleet.get(f.id) ?? 0,
       target_orders_per_hour: target,
     };
@@ -174,6 +187,8 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     name: string;
     slug: string;
     city_id: string | null;
+    status: string | null;
+    external_dispatch_enabled: boolean | null;
     cities: { name: string } | { name: string }[] | null;
   };
   const restaurants: RestaurantRow[] = ((tenantsRes.data ?? []) as TenantRaw[]).map((t) => {
@@ -186,6 +201,8 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
       slug: t.slug,
       city_id: t.city_id,
       city_name: city?.name ?? null,
+      status: t.status ?? 'UNKNOWN',
+      external_dispatch_enabled: t.external_dispatch_enabled === true,
     };
   });
 
