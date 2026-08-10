@@ -15,8 +15,7 @@ import { TENANT_COOKIE } from '@/lib/tenant';
 import { logAudit } from '@/lib/audit';
 import { friendlyDbError } from '@/lib/db-error';
 import { isPlatformAdminEmail as isPlatformAdmin } from '@/lib/auth/platform-admin';
-import { loadGridData } from '@/lib/fleet-allocation/queries';
-import { findCoverageGaps } from '@/lib/fleet-allocation/coverage';
+import { checkDeliveryCoverage } from '@/lib/fleet-allocation/assert-coverage';
 
 export async function openTenantAsPlatformAdmin(formData: FormData): Promise<void> {
   const tenantId = String(formData.get('tenantId') ?? '');
@@ -156,47 +155,28 @@ export async function setTenantStatus(args: {
   if (tErr) return { ok: false, error: tErr.message };
   if (!tenant) return { ok: false, error: 'tenant_not_found' };
 
-  // ONBOARDING → ACTIVE is the go-live step, and it is gated on somebody being
-  // able to deliver. A vendor whose fleet has no couriers takes orders that are
-  // accepted, cooked and then never offered to anyone — found by the 2026-08-10
-  // load test, and the reason onboardTenant now parks uncovered vendors in
-  // ONBOARDING instead of publishing them straight to ACTIVE.
-  //
-  // The check reuses findCoverageGaps, the same function the fleet-allocation
-  // grid draws its warning from, so the button and the banner can never
-  // disagree. ONBOARDING → SUSPENDED stays refused: there is nothing live to
-  // suspend.
-  if (tenant.status === 'ONBOARDING') {
-    if (args.next !== 'ACTIVE') return { ok: false, error: 'tenant_in_onboarding' };
-    try {
-      const grid = await loadGridData();
-      // findCoverageGaps only inspects ACTIVE tenants, so an ONBOARDING one is
-      // never in its output. Ask it about this tenant as if it were already
-      // live — that is exactly the question "is it safe to go live?".
-      const gap = findCoverageGaps({
-        ...grid,
-        restaurants: grid.restaurants.map((r) =>
-          r.id === args.tenantId ? { ...r, status: 'ACTIVE' } : r,
-        ),
-      }).find((g) => g.tenantId === args.tenantId);
-      if (gap) {
-        return {
-          ok: false,
-          error:
-            gap.reason === 'assigned_fleet_has_no_couriers'
-              ? 'no_couriers_in_assigned_fleet'
-              : 'no_fleet_assigned',
-        };
-      }
-    } catch (err) {
-      // Fail closed: if we cannot prove coverage, we do not publish a vendor
-      // whose orders might never reach a courier.
-      return { ok: false, error: `coverage_check_failed: ${(err as Error).message}` };
-    }
+  // ONBOARDING → SUSPENDED stays refused: there is nothing live to suspend.
+  if (tenant.status === 'ONBOARDING' && args.next !== 'ACTIVE') {
+    return { ok: false, error: 'tenant_in_onboarding' };
   }
   if (tenant.status === args.next) {
     // Idempotent — re-clicking the same action is a no-op, not an error.
     return { ok: true, status: args.next };
+  }
+
+  // Every transition INTO ACTIVE is gated on somebody being able to deliver,
+  // not just the ONBOARDING one. A suspended tenant whose fleet lost its
+  // couriers while it was offline would otherwise be republished straight into
+  // the failure this exists to prevent: orders accepted, cooked, offered to
+  // nobody.
+  if (args.next === 'ACTIVE') {
+    const coverage = await checkDeliveryCoverage(args.tenantId);
+    if (!coverage.ok) {
+      return {
+        ok: false,
+        error: coverage.detail ? `${coverage.reason}: ${coverage.detail}` : coverage.reason,
+      };
+    }
   }
 
   const { error: wErr } = await sb

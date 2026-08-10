@@ -90,7 +90,9 @@ couriers >= peakOrdersPerHour / 60 × cycleMinutes / cap
 At cap 3 and a 22-minute accept-to-door cycle: **30 orders/h → 4 couriers,
 60/h → 8, 120/h → 15, 240/h → 30.** A per-minute queue simulation checks the
 formula does not lie — at the recommended headcount the queue stays in single
-digits over four hours, and one courier short leaves hundreds waiting.
+digits over four hours; **one courier short** (14 against a required 15 at
+120/h) already leaves **26 waiting**, and a third of the fleet leaves 315.
+The recommendation is the actual edge, not a comfortable guess.
 
 Two honest caveats, both in the script's output:
 

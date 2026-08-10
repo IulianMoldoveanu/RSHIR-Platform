@@ -117,10 +117,20 @@ function check() {
     );
   }
 
-  // One courier short must visibly degrade, or the model is not measuring anything.
-  const short = simulate({ couriers: 5, cap: 3, cycleMinutes: 22, peakOrdersPerHour: 120 });
-  t('understaffing produces an unbounded queue', short.queueAtEnd > 50,
-    `5 couriers vs a required ${requiredCouriers({ peakOrdersPerHour: 120, cycleMinutes: 22, cap: 3 })} left ${short.queueAtEnd} waiting`);
+  // The recommendation has to be the actual edge, or it is not a recommendation.
+  // ONE courier short must already leave a visible backlog — an earlier version
+  // of this test used 5 against a required 15 and called it "one short", which
+  // proved nothing except that a 10-courier deficit hurts.
+  const need = requiredCouriers({ peakOrdersPerHour: 120, cycleMinutes: 22, cap: 3 });
+  const oneShort = simulate({ couriers: need - 1, cap: 3, cycleMinutes: 22, peakOrdersPerHour: 120 });
+  t('one courier short already leaves a backlog', oneShort.queueAtEnd > 10,
+    `${need - 1} vs ${need} left ${oneShort.queueAtEnd} waiting after 4h`);
+
+  // And the shortfall has to compound, not plateau — otherwise the number is
+  // just a comfortable guess.
+  const wayShort = simulate({ couriers: Math.ceil(need / 3), cap: 3, cycleMinutes: 22, peakOrdersPerHour: 120 });
+  t('a third of the fleet leaves an unbounded queue', wayShort.queueAtEnd > oneShort.queueAtEnd * 5,
+    `${Math.ceil(need / 3)} couriers left ${wayShort.queueAtEnd} waiting`);
 
   const ok = results.every((r) => r.pass);
   console.log(ok ? '\nALL GREEN' : '\nFAILED');
