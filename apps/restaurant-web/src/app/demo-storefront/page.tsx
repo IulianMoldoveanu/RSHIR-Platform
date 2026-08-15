@@ -29,7 +29,7 @@ export default async function DemoStorefrontPage() {
       <div className="relative h-40 w-full bg-zinc-200 sm:h-56">
         {coverUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+          <img src={coverUrl} alt="" className="h-full w-full object-cover" width={1200} height={224} />
         )}
         {/* Scrim under the corner cluster: a cover photo can be light, and
             white pills on a bright photo were hard to spot. Same trick the real
@@ -76,6 +76,8 @@ export default async function DemoStorefrontPage() {
                 alt={tenant.name}
                 className="h-full w-full object-cover"
                 loading="eager"
+                width={112}
+                height={112}
               />
             ) : (
               <span className="text-2xl font-bold tracking-tight text-zinc-900">
