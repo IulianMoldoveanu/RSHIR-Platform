@@ -146,6 +146,28 @@ describe('findCoverageGaps', () => {
     expect(gaps[0]).toMatchObject({ reason: 'no_fleet_assigned' });
   });
 
+  // Codex P1 (#1075): an external fleet dispatches through its own system and
+  // never receives the courier_orders row, so the implicit city fallback must
+  // not choose one.
+  it('does not fall back to an external-app fleet in the same city', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({
+          id: 'ext',
+          name: 'Flota externa',
+          delivery_app: 'external',
+          primary_city_id: 'buc',
+          active_courier_count: 6,
+        }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_fleet_assigned' });
+  });
+
   it('does not let a cityless vendor borrow a city fleet', () => {
     const gaps = findCoverageGaps({
       fleets: [

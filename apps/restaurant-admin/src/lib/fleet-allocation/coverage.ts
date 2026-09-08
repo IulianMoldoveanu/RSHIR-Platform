@@ -49,11 +49,22 @@ export function findCoverageGaps(input: {
   // Step 2 of the trigger: a staffed fleet in the tenant's own city. Ordered
   // the way the trigger orders it — owner tier first, then oldest — so the
   // fleet named here is the fleet the database would actually pick.
+  //
+  // `delivery_app === 'hir'` only: an external fleet runs its own dispatcher
+  // and nothing forwards a courier_orders row to it, so the trigger refuses to
+  // choose one implicitly (Codex P1, #1075). An explicit assignment to an
+  // external fleet is an admin decision and is handled by step 1.
   const staffedFleetInCity = (cityId: string | null) =>
     cityId === null
       ? undefined
       : fleets
-          .filter((f) => f.is_active && f.primary_city_id === cityId && f.active_courier_count > 0)
+          .filter(
+            (f) =>
+              f.is_active &&
+              f.delivery_app === 'hir' &&
+              f.primary_city_id === cityId &&
+              f.active_courier_count > 0,
+          )
           .sort((a, b) => Number(b.tier === 'owner') - Number(a.tier === 'owner'))[0];
 
   // Step 3: is there a staffed owner-tier fleet to fall back on?
