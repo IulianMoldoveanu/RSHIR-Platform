@@ -34,6 +34,10 @@ type TelemetryRow = {
   in_courier_flow: number;
   dispatched_unpicked_over_5m: number;
   kitchen_overdue_over_15m: number;
+  courier_unclaimed_over_10m: number;
+  courier_unclaimed_oldest_min: number | null;
+  courier_unclaimed_fleet: string | null;
+  courier_unclaimed_fleet_unstaffed: boolean;
 };
 
 type AlertCandidate = {
@@ -57,6 +61,28 @@ function buildCandidates(rows: TelemetryRow[]): AlertCandidate[] {
         metadata: {
           tenant_slug: r.tenant_slug,
           count: r.dispatched_unpicked_over_5m,
+        },
+      });
+    }
+    // A courier job nobody has taken. This fires at 10 minutes, before the
+    // kitchen alert at 15, because when there is no rider the kitchen is not
+    // the problem and must not be the one paged. An unstaffed fleet is a
+    // routing failure — waiting cannot fix it — so it goes straight to CRIT.
+    if (r.courier_unclaimed_over_10m >= 1) {
+      const unstaffed = r.courier_unclaimed_fleet_unstaffed === true;
+      out.push({
+        tenant_id: r.tenant_id,
+        alert_type: unstaffed ? 'courier_fleet_unstaffed' : 'courier_unclaimed_over_10m',
+        severity: unstaffed || r.courier_unclaimed_over_10m >= 3 ? 'CRIT' : 'WARN',
+        message: unstaffed
+          ? `${r.tenant_name}: ${r.courier_unclaimed_over_10m} comenzi fără curier de ${r.courier_unclaimed_oldest_min ?? 10}+ min — flota „${r.courier_unclaimed_fleet ?? '?'}" nu are niciun curier activ`
+          : `${r.tenant_name}: ${r.courier_unclaimed_over_10m} comenzi neluate de ${r.courier_unclaimed_oldest_min ?? 10}+ min (flota „${r.courier_unclaimed_fleet ?? '?'}")`,
+        metadata: {
+          tenant_slug: r.tenant_slug,
+          count: r.courier_unclaimed_over_10m,
+          oldest_minutes: r.courier_unclaimed_oldest_min,
+          fleet: r.courier_unclaimed_fleet,
+          fleet_unstaffed: unstaffed,
         },
       });
     }
@@ -132,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
   const { data: rows, error } = await supa
     .from('live_ops_telemetry')
     .select(
-      'tenant_id, tenant_name, tenant_slug, kitchen_queue, in_courier_flow, dispatched_unpicked_over_5m, kitchen_overdue_over_15m',
+      'tenant_id, tenant_name, tenant_slug, kitchen_queue, in_courier_flow, dispatched_unpicked_over_5m, kitchen_overdue_over_15m, courier_unclaimed_over_10m, courier_unclaimed_oldest_min, courier_unclaimed_fleet, courier_unclaimed_fleet_unstaffed',
     );
   if (error) {
     return new Response(JSON.stringify({ error: 'telemetry_failed', detail: error.message }), {
