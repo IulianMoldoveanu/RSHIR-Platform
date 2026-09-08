@@ -26,6 +26,12 @@ export type FleetRow = {
   /** `owner` fleets are what sync_restaurant_to_courier_order falls back to
    *  when a tenant has no active assignment. Needed to mirror that rule. */
   tier: string | null;
+  /** The trigger prefers a staffed fleet in the tenant's own city before it
+   *  reaches for the owner-tier fallback (20260909_001). Needed to mirror it. */
+  primary_city_id: string | null;
+  /** Couriers dispatch could actually offer an order to: ACTIVE in the fleet
+   *  AND past the fleet's KYC/KYF gate. `courier_profiles.status='ACTIVE'`
+   *  alone overstates this — see 20260909_003. */
   active_courier_count: number;
   /** Sum of zones.target_orders_per_hour weighted by zones.capacity_courier_count.
    *  Falls back to a flat 4 when no zones declared (industry midpoint). */
@@ -91,7 +97,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     await Promise.all([
       sb
         .from('courier_fleets')
-        .select('id, name, slug, delivery_app, is_active, tier')
+        .select('id, name, slug, delivery_app, is_active, tier, primary_city_id')
         .eq('is_active', true)
         .order('name', { ascending: true }),
       sb
@@ -103,10 +109,12 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
       sb
         .from('fleet_restaurant_assignments')
         .select('id, fleet_id, restaurant_tenant_id, role, status, assigned_at, notes'),
+      // Not courier_profiles directly: dispatch can only offer to a courier who
+      // also passes the fleet's KYC/KYF gate, and this view applies exactly the
+      // predicate fn_auto_dispatch_sweep applies (20260909_003).
       sb
-        .from('courier_profiles')
-        .select('fleet_id, status')
-        .eq('status', 'ACTIVE'),
+        .from('v_fleet_dispatchable_couriers')
+        .select('fleet_id, dispatchable_courier_count'),
       sb
         .from('fleet_zones')
         .select('fleet_id, capacity_courier_count, target_orders_per_hour, is_active')
@@ -122,7 +130,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
   if (assignmentsRes.error)
     throw new Error(`assignments: ${assignmentsRes.error.message}`);
   if (courierCountsRes.error)
-    throw new Error(`courier_profiles: ${courierCountsRes.error.message}`);
+    throw new Error(`v_fleet_dispatchable_couriers: ${courierCountsRes.error.message}`);
   if (zonesRes.error) throw new Error(`fleet_zones: ${zonesRes.error.message}`);
   if (strikesRes.error) throw new Error(`fleet_strikes: ${strikesRes.error.message}`);
 
@@ -136,10 +144,13 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     strikeCountByPair.set(k, (strikeCountByPair.get(k) ?? 0) + 1);
   }
 
-  // Aggregate active courier counts per fleet.
+  // Dispatchable courier counts per fleet, pre-aggregated by the view.
   const courierCountByFleet = new Map<string, number>();
-  for (const row of (courierCountsRes.data ?? []) as { fleet_id: string }[]) {
-    courierCountByFleet.set(row.fleet_id, (courierCountByFleet.get(row.fleet_id) ?? 0) + 1);
+  for (const row of (courierCountsRes.data ?? []) as {
+    fleet_id: string;
+    dispatchable_courier_count: number | null;
+  }[]) {
+    courierCountByFleet.set(row.fleet_id, row.dispatchable_courier_count ?? 0);
   }
 
   // Aggregate target_orders_per_hour per fleet — weighted average by zone
@@ -165,6 +176,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     delivery_app: string | null;
     is_active: boolean;
     tier: string | null;
+    primary_city_id: string | null;
   };
   const fleets: FleetRow[] = ((fleetsRes.data ?? []) as FleetRaw[]).map((f) => {
     const agg = zoneAggByFleet.get(f.id);
@@ -177,6 +189,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
       delivery_app: f.delivery_app === 'external' ? 'external' : 'hir',
       is_active: f.is_active,
       tier: f.tier ?? null,
+      primary_city_id: f.primary_city_id ?? null,
       active_courier_count: courierCountByFleet.get(f.id) ?? 0,
       target_orders_per_hour: target,
     };

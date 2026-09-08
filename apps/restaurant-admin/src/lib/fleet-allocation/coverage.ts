@@ -16,10 +16,16 @@
  * admin about a vendor the database cannot actually serve:
  *
  *   1. the most recent `active` assignment to an active fleet wins;
- *   2. otherwise fall back to an active `tier='owner'` fleet that has at
- *      least one ACTIVE courier (added 20260810_002);
- *   3. otherwise any active `tier='owner'` fleet;
- *   4. otherwise the trigger raises.
+ *   2. otherwise an active fleet in the tenant's own city that has at least
+ *      one dispatchable courier (added 20260909_001);
+ *   3. otherwise fall back to an active `tier='owner'` fleet that has at
+ *      least one dispatchable courier (added 20260810_002);
+ *   4. otherwise any active `tier='owner'` fleet;
+ *   5. otherwise the trigger raises.
+ *
+ * "Dispatchable" throughout means what fn_auto_dispatch_sweep means: ACTIVE in
+ * the fleet AND past the fleet's KYC/KYF gate. active_courier_count carries
+ * that number (20260909_003), not the raw ACTIVE headcount.
  */
 import type { AssignmentRow, FleetRow, RestaurantRow } from './queries';
 
@@ -40,11 +46,21 @@ export function findCoverageGaps(input: {
   const { fleets, restaurants, assignments } = input;
   const fleetById = new Map(fleets.map((f) => [f.id, f]));
 
-  // Step 2 of the trigger: is there a staffed owner-tier fleet to fall back on?
+  // Step 2 of the trigger: a staffed fleet in the tenant's own city. Ordered
+  // the way the trigger orders it — owner tier first, then oldest — so the
+  // fleet named here is the fleet the database would actually pick.
+  const staffedFleetInCity = (cityId: string | null) =>
+    cityId === null
+      ? undefined
+      : fleets
+          .filter((f) => f.is_active && f.primary_city_id === cityId && f.active_courier_count > 0)
+          .sort((a, b) => Number(b.tier === 'owner') - Number(a.tier === 'owner'))[0];
+
+  // Step 3: is there a staffed owner-tier fleet to fall back on?
   const staffedOwnerFleet = fleets.find(
     (f) => f.tier === 'owner' && f.is_active && f.active_courier_count > 0,
   );
-  // Step 3: any active owner fleet, staffed or not.
+  // Step 4: any active owner fleet, staffed or not.
   const anyOwnerFleet = fleets.find((f) => f.tier === 'owner' && f.is_active);
 
   const gaps: CoverageGap[] = [];
@@ -86,7 +102,9 @@ export function findCoverageGaps(input: {
       continue;
     }
 
-    // No assignment: the trigger falls back to an owner fleet.
+    // No assignment: the trigger tries the tenant's own city first, then an
+    // owner fleet.
+    if (staffedFleetInCity(t.city_id)) continue;
     if (staffedOwnerFleet) continue;
     gaps.push({
       tenantId: t.id,

@@ -7,6 +7,7 @@ const fleet = (over: Partial<FleetRow> & { id: string; name: string }): FleetRow
   delivery_app: 'hir',
   is_active: true,
   tier: 'partner',
+  primary_city_id: null,
   active_courier_count: 0,
   target_orders_per_hour: 4,
   ...over,
@@ -113,6 +114,48 @@ describe('findCoverageGaps', () => {
       reason: 'no_fleet_assigned',
       fleetName: 'HIR Default Fleet',
     });
+  });
+
+  // 20260909_001: the trigger now prefers a staffed fleet in the vendor's own
+  // city over the owner-tier fallback. Bucharest is the case that made this
+  // matter — the only owner fleet has no city and no riders, while the only
+  // real Bucharest fleet was never considered.
+  it('is quiet when a staffed fleet in the same city can take it', () => {
+    expect(
+      findCoverageGaps({
+        fleets: [
+          fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+          fleet({ id: 'els', name: 'Els', primary_city_id: 'buc', active_courier_count: 1 }),
+        ],
+        restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+        assignments: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it('still flags the vendor when the staffed fleet is in another city', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({ id: 'bv', name: 'Brasov', primary_city_id: 'bv', active_courier_count: 4 }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_fleet_assigned' });
+  });
+
+  it('does not let a cityless vendor borrow a city fleet', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({ id: 'els', name: 'Els', primary_city_id: 'buc', active_courier_count: 1 }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Fara oras', city_id: null })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
   });
 
   it('is quiet for an unassigned vendor when a staffed owner fleet exists', () => {
