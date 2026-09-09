@@ -19,6 +19,7 @@ const vendor = (over: Partial<RestaurantRow> & { id: string; name: string }): Re
   city_name: 'București',
   status: 'ACTIVE',
   external_dispatch_enabled: false,
+  active_delivery_zone_count: 1,
   ...over,
 });
 
@@ -188,6 +189,48 @@ describe('findCoverageGaps', () => {
         assignments: [],
       }),
     ).toEqual([]);
+  });
+
+  // Measured live 2026-09-09: computeQuote answers OUTSIDE_ZONE (HTTP 422) for
+  // every address when a tenant has no active delivery zone, so the storefront
+  // loads and nobody can order. Three of the four live tenants were in that
+  // state and nothing said so.
+  it('flags a live vendor with no active delivery zone', () => {
+    const gaps = findCoverageGaps({
+      fleets: [fleet({ id: 'f1', name: 'Nord', active_courier_count: 5 })],
+      restaurants: [vendor({ id: 't1', name: 'Pizzeria', active_delivery_zone_count: 0 })],
+      assignments: [assign('f1', 't1')],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ tenantId: 't1', reason: 'no_delivery_zone', fleetName: null });
+  });
+
+  // The price comes from our zones even when someone else carries the order.
+  it('flags an external-dispatch vendor with no delivery zone too', () => {
+    const gaps = findCoverageGaps({
+      fleets: [],
+      restaurants: [
+        vendor({
+          id: 't1',
+          name: 'Glovo-only',
+          external_dispatch_enabled: true,
+          active_delivery_zone_count: 0,
+        }),
+      ],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_delivery_zone' });
+  });
+
+  it('reports the zone first — it blocks the order before any courier is asked', () => {
+    const gaps = findCoverageGaps({
+      fleets: [fleet({ id: 'f1', name: 'Nord', active_courier_count: 0 })],
+      restaurants: [vendor({ id: 't1', name: 'Pizzeria', active_delivery_zone_count: 0 })],
+      assignments: [assign('f1', 't1')],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].reason).toBe('no_delivery_zone');
   });
 
   it('ignores vendors that are not live, and ones dispatching externally', () => {

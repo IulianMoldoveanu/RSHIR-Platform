@@ -33,7 +33,7 @@ export type CoverageGap = {
   tenantId: string;
   name: string;
   cityName: string | null;
-  reason: 'no_fleet_assigned' | 'assigned_fleet_has_no_couriers';
+  reason: 'no_fleet_assigned' | 'assigned_fleet_has_no_couriers' | 'no_delivery_zone';
   /** The fleet the trigger would actually route to, when there is one. */
   fleetName: string | null;
 };
@@ -77,8 +77,30 @@ export function findCoverageGaps(input: {
   const gaps: CoverageGap[] = [];
 
   for (const t of restaurants) {
-    // Only a live vendor that actually needs a HIR courier can be stranded.
+    // Only a live vendor can be stranded.
     if (t.status !== 'ACTIVE') continue;
+
+    // Before any question about who delivers: can the storefront put a price
+    // on a delivery at all? computeQuote looks for an enclosing delivery zone
+    // and returns OUTSIDE_ZONE when it finds none, so a vendor with zero
+    // active zones answers HTTP 422 to every checkout — the storefront is up,
+    // the menu loads, and nobody can order. Measured live on 2026-09-09
+    // against three of the four live tenants.
+    //
+    // This is asked of external-dispatch vendors too: they hand off the
+    // delivery leg, but the price still comes from our zones.
+    if (t.active_delivery_zone_count === 0) {
+      gaps.push({
+        tenantId: t.id,
+        name: t.name,
+        cityName: t.city_name,
+        reason: 'no_delivery_zone',
+        fleetName: null,
+      });
+      continue;
+    }
+
+    // Past here it is only about who carries the order.
     if (t.external_dispatch_enabled) continue;
 
     // Step 1: most recent active assignment to a still-active fleet.

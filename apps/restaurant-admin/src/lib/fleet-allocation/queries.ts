@@ -50,6 +50,10 @@ export type RestaurantRow = {
    *  sync_restaurant_to_courier_order returns early and never creates a
    *  courier leg, so they legitimately need no HIR fleet. */
   external_dispatch_enabled: boolean;
+  /** Active delivery zones. computeQuote refuses every delivery address for a
+   *  tenant with none (`OUTSIDE_ZONE`, HTTP 422), so a vendor without one has
+   *  a storefront that cannot sell — see coverage.ts. */
+  active_delivery_zone_count: number;
 };
 
 export type AssignmentRow = {
@@ -93,8 +97,15 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     Date.now() - STRIKE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const [fleetsRes, tenantsRes, assignmentsRes, courierCountsRes, zonesRes, strikesRes] =
-    await Promise.all([
+  const [
+    fleetsRes,
+    tenantsRes,
+    assignmentsRes,
+    courierCountsRes,
+    zonesRes,
+    strikesRes,
+    deliveryZonesRes,
+  ] = await Promise.all([
       sb
         .from('courier_fleets')
         .select('id, name, slug, delivery_app, is_active, tier, primary_city_id')
@@ -123,6 +134,10 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
         .from('fleet_strikes')
         .select('fleet_id, restaurant_tenant_id')
         .gte('occurred_at', strikeCutoff),
+      sb
+        .from('delivery_zones')
+        .select('tenant_id')
+        .eq('is_active', true),
     ]);
 
   if (fleetsRes.error) throw new Error(`fleets: ${fleetsRes.error.message}`);
@@ -133,6 +148,15 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
     throw new Error(`v_fleet_dispatchable_couriers: ${courierCountsRes.error.message}`);
   if (zonesRes.error) throw new Error(`fleet_zones: ${zonesRes.error.message}`);
   if (strikesRes.error) throw new Error(`fleet_strikes: ${strikesRes.error.message}`);
+  if (deliveryZonesRes.error)
+    throw new Error(`delivery_zones: ${deliveryZonesRes.error.message}`);
+
+  // Active delivery zones per tenant. Zero means computeQuote answers
+  // OUTSIDE_ZONE for every address the storefront asks about.
+  const zoneCountByTenant = new Map<string, number>();
+  for (const z of (deliveryZonesRes.data ?? []) as { tenant_id: string }[]) {
+    zoneCountByTenant.set(z.tenant_id, (zoneCountByTenant.get(z.tenant_id) ?? 0) + 1);
+  }
 
   // Recent strike counts per (fleet, restaurant) pair.
   const strikeCountByPair = new Map<string, number>();
@@ -216,6 +240,7 @@ export async function loadGridData(): Promise<FleetAllocationGridData> {
       city_name: city?.name ?? null,
       status: t.status ?? 'UNKNOWN',
       external_dispatch_enabled: t.external_dispatch_enabled === true,
+      active_delivery_zone_count: zoneCountByTenant.get(t.id) ?? 0,
     };
   });
 

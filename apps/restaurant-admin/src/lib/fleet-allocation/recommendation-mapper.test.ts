@@ -29,6 +29,7 @@ function restaurant(overrides: Partial<RestaurantRow> = {}): RestaurantRow {
     city_name: overrides.city_name ?? 'Brașov',
     status: overrides.status ?? 'ACTIVE',
     external_dispatch_enabled: overrides.external_dispatch_enabled ?? false,
+    active_delivery_zone_count: overrides.active_delivery_zone_count ?? 1,
   };
 }
 

@@ -447,6 +447,8 @@ function ActivateButton({ tenantId, tenantName }: { tenantId: string; tenantName
       'Nicio flotă alocată și nicio flotă de rezervă cu curieri. Alocă una din „Alocare flote".',
     no_couriers_in_assigned_fleet:
       'Flota alocată nu are niciun curier activ. Alocă altă flotă sau adaugă curieri.',
+    no_delivery_zone:
+      'Nicio zonă de livrare activă. Fără ea, storefront-ul nu poate calcula taxa de livrare și refuză orice comandă.',
   };
 
   function onClick() {
