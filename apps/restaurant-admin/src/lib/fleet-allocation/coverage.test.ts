@@ -7,6 +7,7 @@ const fleet = (over: Partial<FleetRow> & { id: string; name: string }): FleetRow
   delivery_app: 'hir',
   is_active: true,
   tier: 'partner',
+  primary_city_id: null,
   active_courier_count: 0,
   target_orders_per_hour: 4,
   ...over,
@@ -18,6 +19,7 @@ const vendor = (over: Partial<RestaurantRow> & { id: string; name: string }): Re
   city_name: 'București',
   status: 'ACTIVE',
   external_dispatch_enabled: false,
+  active_delivery_zone_count: 1,
   ...over,
 });
 
@@ -115,6 +117,70 @@ describe('findCoverageGaps', () => {
     });
   });
 
+  // 20260909_001: the trigger now prefers a staffed fleet in the vendor's own
+  // city over the owner-tier fallback. Bucharest is the case that made this
+  // matter — the only owner fleet has no city and no riders, while the only
+  // real Bucharest fleet was never considered.
+  it('is quiet when a staffed fleet in the same city can take it', () => {
+    expect(
+      findCoverageGaps({
+        fleets: [
+          fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+          fleet({ id: 'els', name: 'Els', primary_city_id: 'buc', active_courier_count: 1 }),
+        ],
+        restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+        assignments: [],
+      }),
+    ).toEqual([]);
+  });
+
+  it('still flags the vendor when the staffed fleet is in another city', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({ id: 'bv', name: 'Brasov', primary_city_id: 'bv', active_courier_count: 4 }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_fleet_assigned' });
+  });
+
+  // Codex P1 (#1075): an external fleet dispatches through its own system and
+  // never receives the courier_orders row, so the implicit city fallback must
+  // not choose one.
+  it('does not fall back to an external-app fleet in the same city', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({
+          id: 'ext',
+          name: 'Flota externa',
+          delivery_app: 'external',
+          primary_city_id: 'buc',
+          active_courier_count: 6,
+        }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Vendor nou', city_id: 'buc' })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_fleet_assigned' });
+  });
+
+  it('does not let a cityless vendor borrow a city fleet', () => {
+    const gaps = findCoverageGaps({
+      fleets: [
+        fleet({ id: 'owner', name: 'HIR Default Fleet', tier: 'owner', active_courier_count: 0 }),
+        fleet({ id: 'els', name: 'Els', primary_city_id: 'buc', active_courier_count: 1 }),
+      ],
+      restaurants: [vendor({ id: 't1', name: 'Fara oras', city_id: null })],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+  });
+
   it('is quiet for an unassigned vendor when a staffed owner fleet exists', () => {
     expect(
       findCoverageGaps({
@@ -123,6 +189,48 @@ describe('findCoverageGaps', () => {
         assignments: [],
       }),
     ).toEqual([]);
+  });
+
+  // Measured live 2026-09-09: computeQuote answers OUTSIDE_ZONE (HTTP 422) for
+  // every address when a tenant has no active delivery zone, so the storefront
+  // loads and nobody can order. Three of the four live tenants were in that
+  // state and nothing said so.
+  it('flags a live vendor with no active delivery zone', () => {
+    const gaps = findCoverageGaps({
+      fleets: [fleet({ id: 'f1', name: 'Nord', active_courier_count: 5 })],
+      restaurants: [vendor({ id: 't1', name: 'Pizzeria', active_delivery_zone_count: 0 })],
+      assignments: [assign('f1', 't1')],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ tenantId: 't1', reason: 'no_delivery_zone', fleetName: null });
+  });
+
+  // The price comes from our zones even when someone else carries the order.
+  it('flags an external-dispatch vendor with no delivery zone too', () => {
+    const gaps = findCoverageGaps({
+      fleets: [],
+      restaurants: [
+        vendor({
+          id: 't1',
+          name: 'Glovo-only',
+          external_dispatch_enabled: true,
+          active_delivery_zone_count: 0,
+        }),
+      ],
+      assignments: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]).toMatchObject({ reason: 'no_delivery_zone' });
+  });
+
+  it('reports the zone first — it blocks the order before any courier is asked', () => {
+    const gaps = findCoverageGaps({
+      fleets: [fleet({ id: 'f1', name: 'Nord', active_courier_count: 0 })],
+      restaurants: [vendor({ id: 't1', name: 'Pizzeria', active_delivery_zone_count: 0 })],
+      assignments: [assign('f1', 't1')],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].reason).toBe('no_delivery_zone');
   });
 
   it('ignores vendors that are not live, and ones dispatching externally', () => {

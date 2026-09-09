@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { EmptyState } from '@/components/storefront/empty-state';
 import { useCart, type CartSnapshot, CART_STORAGE_KEY } from './useCart';
 import { formatRon } from '@/lib/format';
+import { codAllowedForTotal, COD_MAX_TOTAL_RON } from '@/lib/payment-mode';
 import { t, type Locale } from '@/lib/i18n';
 import { readStoredPromo, writeStoredPromo } from '@/lib/cart/promo';
 import { getCartStore } from '@/lib/cart/store';
@@ -886,6 +887,27 @@ export function CheckoutClient(props: {
     );
   }
 
+  // Cash ceiling (2026-09-09). Measured against what the customer would hand
+  // the courier — after delivery fee, promo and loyalty. Before a quote exists
+  // the amount is unknown, so nothing is blocked yet; /api/checkout/intent
+  // refuses it server-side either way.
+  const payableTotalRon = quote
+    ? Math.max(
+        0,
+        Number(quote.totalRon) - (redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0),
+      )
+    : null;
+  const codBlockedByAmount = payableTotalRon !== null && !codAllowedForTotal(payableTotalRon);
+
+  // A customer can pick cash on a small cart and then add to it. Move them to
+  // card the moment the cart crosses the ceiling, rather than let them press
+  // "place order" and collect a 422 from the server.
+  useEffect(() => {
+    if (codBlockedByAmount && paymentMethod === 'COD' && cardEnabled) {
+      setPaymentMethod('CARD');
+    }
+  }, [codBlockedByAmount, paymentMethod, cardEnabled]);
+
   return (
     <div className="space-y-6">
       <ProgressIndicator step={step} locale={locale} />
@@ -1142,7 +1164,14 @@ export function CheckoutClient(props: {
                   active={paymentMethod === 'COD'}
                   onClick={() => setPaymentMethod('COD')}
                   title={t(locale, 'checkout.payment_method_cod')}
-                  hint={t(locale, 'checkout.payment_method_cod_hint')}
+                  hint={
+                    codBlockedByAmount
+                      ? t(locale, 'checkout.payment_method_cod_over_limit', {
+                          max: formatRon(COD_MAX_TOTAL_RON, locale),
+                        })
+                      : t(locale, 'checkout.payment_method_cod_hint')
+                  }
+                  disabled={codBlockedByAmount}
                 />
               </div>
             )}
@@ -1432,21 +1461,26 @@ function PaymentMethodChip({
   onClick,
   title,
   hint,
+  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
   title: string;
   hint: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={`flex flex-col items-start gap-0.5 rounded-lg border px-3 py-3 text-left transition-colors ${
-        active
-          ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-200'
-          : 'border-zinc-200 bg-white hover:bg-zinc-50'
+        disabled
+          ? 'cursor-not-allowed border-zinc-200 bg-zinc-50 opacity-60'
+          : active
+            ? 'border-purple-600 bg-purple-50 ring-1 ring-purple-200'
+            : 'border-zinc-200 bg-white hover:bg-zinc-50'
       }`}
     >
       <span className="text-sm font-semibold text-zinc-900">{title}</span>

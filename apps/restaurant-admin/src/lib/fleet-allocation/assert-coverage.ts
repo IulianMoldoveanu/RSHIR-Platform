@@ -14,7 +14,10 @@
 import { loadGridData } from './queries';
 import { findCoverageGaps } from './coverage';
 
-export type CoverageBlock = 'no_fleet_assigned' | 'no_couriers_in_assigned_fleet';
+export type CoverageBlock =
+  | 'no_fleet_assigned'
+  | 'no_couriers_in_assigned_fleet'
+  | 'no_delivery_zone';
 
 export type CoverageCheck =
   | { ok: true }
@@ -25,6 +28,8 @@ export const COVERAGE_MESSAGES_RO: Record<CoverageBlock, string> = {
     'Nicio flotă alocată și nicio flotă de rezervă cu curieri. Alocă una din „Alocare flote".',
   no_couriers_in_assigned_fleet:
     'Flota alocată nu are niciun curier activ. Alocă altă flotă sau adaugă curieri în ea.',
+  no_delivery_zone:
+    'Nicio zonă de livrare activă. Fără ea, storefront-ul nu poate calcula taxa de livrare și refuză orice comandă. Adaug-o din „Zone de livrare".',
 };
 
 export async function checkDeliveryCoverage(tenantId: string): Promise<CoverageCheck> {
@@ -41,13 +46,13 @@ export async function checkDeliveryCoverage(tenantId: string): Promise<CoverageC
     }).find((g) => g.tenantId === tenantId);
 
     if (!gap) return { ok: true };
-    return {
-      ok: false,
-      reason:
-        gap.reason === 'assigned_fleet_has_no_couriers'
-          ? 'no_couriers_in_assigned_fleet'
-          : 'no_fleet_assigned',
-    };
+    const reason: CoverageBlock =
+      gap.reason === 'assigned_fleet_has_no_couriers'
+        ? 'no_couriers_in_assigned_fleet'
+        : gap.reason === 'no_delivery_zone'
+          ? 'no_delivery_zone'
+          : 'no_fleet_assigned';
+    return { ok: false, reason };
   } catch (err) {
     // Fail closed. If we cannot prove somebody can deliver, we do not publish a
     // storefront that will take orders.

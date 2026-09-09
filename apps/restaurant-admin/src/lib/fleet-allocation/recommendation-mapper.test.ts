@@ -14,6 +14,7 @@ function fleet(overrides: Partial<FleetRow> = {}): FleetRow {
     delivery_app: overrides.delivery_app ?? 'hir',
     is_active: overrides.is_active ?? true,
     tier: overrides.tier ?? 'partner',
+    primary_city_id: overrides.primary_city_id ?? null,
     active_courier_count: overrides.active_courier_count ?? 5,
     target_orders_per_hour: overrides.target_orders_per_hour ?? 4,
   };
@@ -28,6 +29,7 @@ function restaurant(overrides: Partial<RestaurantRow> = {}): RestaurantRow {
     city_name: overrides.city_name ?? 'Brașov',
     status: overrides.status ?? 'ACTIVE',
     external_dispatch_enabled: overrides.external_dispatch_enabled ?? false,
+    active_delivery_zone_count: overrides.active_delivery_zone_count ?? 1,
   };
 }
 

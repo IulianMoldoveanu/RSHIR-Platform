@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { resolveTenantFromHost, tenantBaseUrl } from '@/lib/tenant';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
-import { resolvePaymentSurface } from '@/lib/payment-mode';
+import { resolvePaymentSurface, codAllowedForTotal, COD_MAX_TOTAL_RON } from '@/lib/payment-mode';
 import { createCheckoutSession } from '@/lib/payments/provider-router';
 import { assertSameOrigin } from '@/lib/origin-check';
 import { intentRequestSchema } from '../schemas';
@@ -189,6 +189,18 @@ export async function POST(req: NextRequest) {
   const finalTotalRon = Number(
     Math.max(0, Number(q.totalRon) - loyaltyDiscountRon).toFixed(2),
   );
+
+  // Cash ceiling. Checked here rather than next to the cod_disabled gate above
+  // because only now is the amount the courier would actually collect known —
+  // delivery fee, promo and loyalty all move it. The client is told the cap so
+  // the checkout can say why, and the storefront hides the radio anyway; this
+  // is the gate that a scripted POST cannot walk around.
+  if (parsed.data.paymentMethod === 'COD' && !codAllowedForTotal(finalTotalRon)) {
+    return NextResponse.json(
+      { error: 'cod_over_limit', max_cod_total_ron: COD_MAX_TOTAL_RON, total_ron: finalTotalRon },
+      { status: 422 },
+    );
+  }
   const finalDiscountRon = Number(
     (Number(q.discountRon) + loyaltyDiscountRon).toFixed(2),
   );
