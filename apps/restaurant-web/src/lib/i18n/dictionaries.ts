@@ -168,6 +168,7 @@ export const dictionaries = {
       payment_method_card_hint: 'Plătești online cu Visa / Mastercard.',
       payment_method_cod: 'Cash la livrare',
       payment_method_cod_hint: 'Plătești curierului la primirea comenzii.',
+      payment_method_cod_over_limit: 'Peste {max} plata se face doar cu cardul.',
       test_mode_banner_title: 'Plată în mod sandbox',
       test_mode_banner_body:
         'Plată în mod test — folosiți cardurile de test Netopia sau Viva. Detalii la /dashboard/help/payments/sandbox.',
@@ -1274,6 +1275,7 @@ export const dictionaries = {
       payment_method_card_hint: 'Pay online with Visa / Mastercard.',
       payment_method_cod: 'Cash on delivery',
       payment_method_cod_hint: 'Pay the courier when the order arrives.',
+      payment_method_cod_over_limit: 'Over {max}, card payment only.',
       test_mode_banner_title: 'Sandbox payment mode',
       test_mode_banner_body:
         'Sandbox mode — use the Netopia or Viva test cards. Details at /dashboard/help/payments/sandbox.',
