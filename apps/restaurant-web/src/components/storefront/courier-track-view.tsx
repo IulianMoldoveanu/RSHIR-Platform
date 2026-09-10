@@ -75,6 +75,8 @@ export function CourierTrackView({
               src={avatarUrl}
               alt=""
               className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-purple-200"
+              width={36}
+              height={36}
             />
           ) : (
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-white">
