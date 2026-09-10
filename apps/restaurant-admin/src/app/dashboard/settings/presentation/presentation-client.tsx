@@ -374,6 +374,8 @@ export function PresentationClient({
                     <img
                       src={member.photo_url}
                       alt=""
+                      width={48}
+                      height={48}
                       className="h-12 w-12 flex-none rounded-full object-cover"
                     />
                   ) : (
