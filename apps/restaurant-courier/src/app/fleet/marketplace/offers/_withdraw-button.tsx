@@ -7,6 +7,7 @@
 import { useState, useTransition } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { withdrawOfferAction } from '../actions';
+import { buttonClass } from '@/app/_marketplace-ui';
 
 export function WithdrawButton({ offerId }: { offerId: string }) {
   const [pending, startTransition] = useTransition();
@@ -32,12 +33,12 @@ export function WithdrawButton({ offerId }: { offerId: string }) {
         type="button"
         onClick={onClick}
         disabled={pending}
-        className="inline-flex items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/10 px-2 py-1 text-[11px] font-semibold text-rose-200 hover:bg-rose-500/20 disabled:opacity-60"
+        className={buttonClass('danger', 'sm')}
       >
         {pending ? (
           <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
         ) : (
-          <X className="h-3 w-3" aria-hidden />
+          <X className="h-3 w-3" strokeWidth={1.75} aria-hidden />
         )}
         Retrage
       </button>

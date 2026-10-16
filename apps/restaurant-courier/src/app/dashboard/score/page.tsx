@@ -25,6 +25,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { DriverScoreCard, type DriverScoreBreakdown } from '@/app/_components';
 import { isRatingSystemEnabled } from '@/lib/feature-flags';
+import { PageHeader, StatCard, ErrorState, EmptyMarketplaceState } from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,11 +56,17 @@ export default async function DriverScorePage() {
 
   if (error) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Scor șofer</h1>
-        <p className="text-sm text-rose-400">
-          Eroare la încărcarea scorului: {error.message}
-        </p>
+      <div className="mx-auto flex max-w-2xl flex-col gap-5">
+        <PageHeader
+          variant="hero"
+          eyebrow="HIR · SCOR ȘOFER"
+          title="Scor șofer"
+          description="Performanța ta pe ultimele 100 de livrări."
+        />
+        <ErrorState
+          title="Nu am putut încărca scorul."
+          description="Reîncarcă pagina sau revino mai târziu."
+        />
       </div>
     );
   }
@@ -96,19 +103,19 @@ export default async function DriverScorePage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Scor șofer</h1>
-        <p className="mt-0.5 text-sm text-hir-muted-fg">
-          Performanța ta pe ultimele 100 de livrări.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="HIR · SCOR ȘOFER"
+        title="Scor șofer"
+        description="Performanța ta pe ultimele 100 de livrări."
+      />
 
       {/* Empty state — no deliveries in window yet */}
       {totalWindow === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface p-5 text-sm text-hir-muted-fg">
-          Încă nu ai livrări înregistrate în fereastra de scor. După prima livrare
-          finalizată, scorul tău va fi calculat automat.
-        </div>
+        <EmptyMarketplaceState
+          title="Încă fără livrări în fereastra de scor."
+          description="După prima livrare finalizată, scorul tău va fi calculat automat."
+        />
       ) : null}
 
       <DriverScoreCard
@@ -118,19 +125,27 @@ export default async function DriverScorePage() {
         rollingWindowCount={effective.rolling_window_count ?? 100}
       />
 
-      {/* Last-window counts table — gives the courier the raw numbers behind
-          each bar. Tabular-nums for column alignment. */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-4">
-        <h2 className="text-sm font-semibold text-hir-fg">Detaliu ultima sută</h2>
-        <p className="mt-0.5 text-xs text-hir-muted-fg">
-          Numărul exact de livrări care contribuie la scor.
-        </p>
-        <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <Stat label="Total" value={counts.total} />
-          <Stat label="Acceptate" value={counts.accepted} />
-          <Stat label="Livrate" value={counts.completed} />
-          <Stat label="La timp" value={counts.on_time} />
-          <Stat label="Anulate" value={counts.cancelled} tone={counts.cancelled > 0 ? 'warn' : 'ok'} />
+      {/* Last-window counts — the raw numbers behind each bar. */}
+      <section>
+        <div className="mb-3">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-hir-fg">
+            <span aria-hidden className="h-4 w-1 rounded-full bg-gradient-to-b from-violet-500 to-violet-400" />
+            Detaliu ultima sută
+          </h2>
+          <p className="mt-0.5 text-xs text-hir-muted-fg">
+            Numărul exact de livrări care contribuie la scor.
+          </p>
+        </div>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <StatCard label="Total" value={counts.total.toLocaleString('ro-RO')} />
+          <StatCard label="Acceptate" value={counts.accepted.toLocaleString('ro-RO')} />
+          <StatCard label="Livrate" value={counts.completed.toLocaleString('ro-RO')} />
+          <StatCard label="La timp" value={counts.on_time.toLocaleString('ro-RO')} />
+          <StatCard
+            label="Anulate"
+            value={counts.cancelled.toLocaleString('ro-RO')}
+            className={counts.cancelled > 0 ? '[&_p]:text-amber-300' : undefined}
+          />
         </dl>
       </section>
 
@@ -139,29 +154,6 @@ export default async function DriverScorePage() {
         (Gold / Silver / Bronze), nu cifra ta individuală. Marketplace-ul B2B
         folosește media flotei pentru a recomanda flota la clienții vendori.
       </p>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = 'ok',
-}: {
-  label: string;
-  value: number;
-  tone?: 'ok' | 'warn';
-}) {
-  return (
-    <div className="rounded-xl border border-hir-border bg-hir-surface p-3">
-      <dt className="text-[10px] uppercase tracking-wide text-hir-muted-fg">{label}</dt>
-      <dd
-        className={`mt-1 text-lg font-semibold tabular-nums ${
-          tone === 'warn' ? 'text-amber-300' : 'text-hir-fg'
-        }`}
-      >
-        {value.toLocaleString('ro-RO')}
-      </dd>
     </div>
   );
 }

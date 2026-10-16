@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
+import { Icon } from '@/app/marketplace/_components/ui';
 import { PermitsClient, type PermitVM } from './_client';
 
 export const runtime = 'nodejs';
@@ -168,9 +169,10 @@ export default async function PermitsAdminPage() {
           </div>
           <Link
             href="/dashboard/admin/hub"
-            className="text-sm text-slate-400 hover:text-slate-200"
+            className="inline-flex min-h-[44px] items-center gap-1.5 rounded-md px-2 text-sm text-slate-400 transition-colors hover:text-slate-200 focus-visible:outline-2 focus-visible:outline-violet-500 focus-visible:outline-offset-2"
           >
-            ← Command Center
+            <Icon name="arrow-left" className="h-4 w-4" />
+            Command Center
           </Link>
         </div>
       </header>

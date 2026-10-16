@@ -73,7 +73,7 @@ export function CasualVendorAction({
         onClick={onClick}
         disabled={pending}
         className={
-          'rounded-md border border-transparent px-2 py-1 text-xs font-medium transition disabled:opacity-50 ' +
+          'rounded-md border border-transparent px-2 py-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b1f8a] focus-visible:ring-offset-2 disabled:opacity-50 ' +
           STYLE[verb]
         }
       >

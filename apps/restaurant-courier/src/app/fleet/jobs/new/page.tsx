@@ -12,6 +12,7 @@ import { ArrowLeft } from 'lucide-react';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { isJobBoardEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card, buttonClass } from '@/app/_marketplace-ui';
 import { createJobListingAction } from '../actions';
 
 export const dynamic = 'force-dynamic';
@@ -53,25 +54,28 @@ export default async function NewJobListingPage({
         href="/fleet/jobs"
         className="inline-flex items-center gap-1 self-start text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
       >
-        <ArrowLeft className="h-3 w-3" aria-hidden />
+        <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
         Înapoi la joburi
       </Link>
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">
-          Postare nouă
-        </h1>
-        <p className="mt-0.5 text-sm text-hir-muted-fg">
-          Anunțul va apărea pe board-ul curierilor după ce îl publici.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="MARKETPLACE FLOTĂ"
+        title="Postare nouă"
+        description="Anunțul va apărea pe board-ul curierilor după ce îl publici."
+      />
 
       {errorParam ? (
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm text-rose-200"
+        >
           {errorParam}
         </div>
       ) : null}
 
+      <Card>
       <form action={createFormAction} className="flex flex-col gap-4">
         <Field
           label="Titlu post"
@@ -175,20 +179,15 @@ export default async function NewJobListingPage({
         />
 
         <div className="flex items-center gap-2 pt-2">
-          <button
-            type="submit"
-            className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white hover:bg-violet-600"
-          >
+          <button type="submit" className={buttonClass('primary', 'md')}>
             Publică
           </button>
-          <Link
-            href="/fleet/jobs"
-            className="rounded-lg border border-hir-border bg-hir-surface px-3 py-2 text-sm text-hir-fg hover:bg-hir-border"
-          >
+          <Link href="/fleet/jobs" className={buttonClass('secondary', 'md')}>
             Anulează
           </Link>
         </div>
       </form>
+      </Card>
     </div>
   );
 }
@@ -222,7 +221,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-wide text-hir-muted-fg">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
         {label}
         {required ? <span className="ml-0.5 text-rose-300">*</span> : null}
       </span>
@@ -233,14 +232,14 @@ function Field({
           rows={rows ?? 4}
           maxLength={maxLength}
           placeholder={placeholder}
-          className="rounded-lg border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
+          className="rounded-md border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
         />
       ) : type === 'select' && options ? (
         <select
           name={name}
           required={required}
           defaultValue=""
-          className="rounded-lg border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg"
+          className="rounded-md border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg"
         >
           {options.map((o) => (
             <option key={o.value} value={o.value}>
@@ -257,7 +256,7 @@ function Field({
           min={min}
           max={max}
           placeholder={placeholder}
-          className="rounded-lg border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
+          className="rounded-md border border-hir-border bg-hir-bg p-2 text-sm text-hir-fg placeholder:text-hir-muted-fg/60"
         />
       )}
       {hint ? <span className="text-[10px] text-hir-muted-fg">{hint}</span> : null}

@@ -6,6 +6,14 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireFleetManager } from '@/lib/fleet-manager';
+import {
+  PageHeader,
+  Card,
+  VerticalBadge,
+  OfferStatusBadge,
+  EmptyMarketplaceState,
+  buttonClass,
+} from '@/app/_marketplace-ui';
 import { WithdrawButton } from './_withdraw-button';
 
 export const dynamic = 'force-dynamic';
@@ -41,22 +49,6 @@ function formatTs(iso: string): string {
   }).format(d);
 }
 
-const STATUS_STYLES: Record<OfferWithListing['status'], string> = {
-  PENDING: 'bg-sky-500/15 text-sky-300',
-  ACCEPTED: 'bg-emerald-500/15 text-emerald-300',
-  REJECTED: 'bg-rose-500/15 text-rose-300',
-  EXPIRED: 'bg-zinc-500/15 text-zinc-300',
-  WITHDRAWN: 'bg-zinc-500/15 text-zinc-300',
-};
-
-const STATUS_LABELS: Record<OfferWithListing['status'], string> = {
-  PENDING: 'În așteptare',
-  ACCEPTED: 'Câștigat',
-  REJECTED: 'Respinsă',
-  EXPIRED: 'Expirată',
-  WITHDRAWN: 'Retrasă',
-};
-
 export default async function FleetMarketplaceOffersPage() {
   if (process.env.HIR_FEATURE_MARKETPLACE_ENABLED !== 'true') notFound();
 
@@ -81,77 +73,69 @@ export default async function FleetMarketplaceOffersPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-5">
-      <div className="flex items-center gap-2">
-        <Link
-          href="/fleet/marketplace"
-          className="inline-flex items-center gap-1 text-xs font-medium text-hir-muted-fg hover:text-hir-fg"
-        >
-          <ArrowLeft className="h-3 w-3" aria-hidden />
-          Marketplace
-        </Link>
-      </div>
-
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Ofertele mele</h1>
-        <p className="mt-1 text-sm text-hir-muted-fg">
-          {pendingCount} în așteptare · {acceptedCount} câștigate · {offers.length} total
-        </p>
-      </div>
+      <PageHeader
+        variant="shell"
+        title="Ofertele mele"
+        description={`${pendingCount} în așteptare · ${acceptedCount} câștigate · ${offers.length} total`}
+        breadcrumb={
+          <Link
+            href="/fleet/marketplace"
+            className="inline-flex items-center gap-1 rounded-md font-medium text-hir-muted-fg hover:text-hir-fg"
+          >
+            <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden />
+            Marketplace
+          </Link>
+        }
+      />
 
       {offers.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-hir-border bg-hir-surface p-6 text-center">
-          <p className="text-sm text-hir-fg">Nu ai trimis încă nicio ofertă.</p>
-          <p className="mt-1 text-xs text-hir-muted-fg">
-            Vezi cererile deschise și trimite prima ofertă.
-          </p>
-          <Link
-            href="/fleet/marketplace/listings"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-400"
-          >
-            Vezi cereri deschise
-          </Link>
-        </div>
+        <EmptyMarketplaceState
+          title="Nu ai trimis încă nicio ofertă."
+          description="Vezi cererile deschise și trimite prima ofertă."
+          action={
+            <Link href="/fleet/marketplace/listings" className={buttonClass('primary', 'sm')}>
+              Vezi cereri deschise
+            </Link>
+          }
+        />
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {offers.map((offer) => (
-            <li
-              key={offer.id}
-              className="rounded-2xl border border-hir-border bg-hir-surface p-3"
-            >
+            <Card key={offer.id} as="li">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_STYLES[offer.status]}`}
-                    >
-                      {STATUS_LABELS[offer.status]}
-                    </span>
+                    <OfferStatusBadge status={offer.status} />
                     {offer.marketplace_listings?.vertical ? (
-                      <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-300">
-                        {offer.marketplace_listings.vertical}
-                      </span>
+                      <VerticalBadge vertical={offer.marketplace_listings.vertical} />
                     ) : null}
                     <Link
                       href={`/fleet/marketplace/listings/${offer.listing_id}`}
-                      className="truncate text-sm font-medium text-hir-fg hover:text-violet-300"
+                      className="truncate rounded text-sm font-semibold text-hir-fg hover:text-violet-300"
                     >
                       {offer.marketplace_listings?.package_description ?? 'Cerere'}
                     </Link>
                   </div>
-                  <p className="mt-1 text-xs text-hir-muted-fg">
-                    Preț: <span className="text-hir-fg">{formatRon(offer.offered_price_cents)}</span>
+                  <p className="mt-2 text-xs text-hir-muted-fg">
+                    Preț:{' '}
+                    <span className="tabular-nums text-hir-fg">
+                      {formatRon(offer.offered_price_cents)}
+                    </span>
                     {' · '}
-                    ETA: <span className="text-hir-fg">{offer.eta_minutes} min</span>
+                    ETA:{' '}
+                    <span className="tabular-nums text-hir-fg">{offer.eta_minutes} min</span>
                   </p>
-                  <p className="mt-0.5 text-[11px] text-hir-muted-fg">
-                    Trimisă: {formatTs(offer.created_at)} · valabilă până la {formatTs(offer.expires_at)}
+                  <p className="mt-1 text-[11px] text-hir-muted-fg">
+                    Trimisă:{' '}
+                    <span className="tabular-nums">{formatTs(offer.created_at)}</span> · valabilă
+                    până la <span className="tabular-nums">{formatTs(offer.expires_at)}</span>
                   </p>
                 </div>
                 {offer.status === 'PENDING' ? (
                   <WithdrawButton offerId={offer.id} />
                 ) : null}
               </div>
-            </li>
+            </Card>
           ))}
         </ul>
       )}

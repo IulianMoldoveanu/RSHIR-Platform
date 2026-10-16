@@ -33,6 +33,7 @@ import {
   type ListingStatus,
   type MatchStatus,
 } from '@/app/marketplace/_components';
+import { StatCard, VerticalBadge } from '@/app/marketplace/_components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -167,6 +168,10 @@ function fmtCurrencyRonFromCents(cents: number): string {
     currency: 'RON',
     maximumFractionDigits: 0,
   }).format(cents / 100);
+}
+
+function kpiDisplay(value: number | string | null): string {
+  return value == null ? '—' : typeof value === 'number' ? String(value) : value;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -552,17 +557,17 @@ export default async function PlatformAdminMarketplacePage(props: {
       <section className="mx-auto max-w-6xl px-6 py-6">
         {/* ── KPI cards ────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <KpiCard label="Cereri deschise" value={openListings} />
-          <KpiCard label="Oferte în așteptare" value={pendingOffers} />
-          <KpiCard label="Atribuiri azi" value={matchesToday} />
-          <KpiCard
+          <StatCard label="Cereri deschise" value={kpiDisplay(openListings)} />
+          <StatCard label="Oferte în așteptare" value={kpiDisplay(pendingOffers)} />
+          <StatCard label="Atribuiri azi" value={kpiDisplay(matchesToday)} />
+          <StatCard
             label="GMV luna curentă"
-            value={monthSums ? fmtCurrencyRonFromCents(monthSums.gmvCents) : null}
+            value={kpiDisplay(monthSums ? fmtCurrencyRonFromCents(monthSums.gmvCents) : null)}
             placeholder
           />
-          <KpiCard
+          <StatCard
             label="Comision HIR luna curentă"
-            value={monthSums ? fmtCurrencyRonFromCents(monthSums.feesCents) : null}
+            value={kpiDisplay(monthSums ? fmtCurrencyRonFromCents(monthSums.feesCents) : null)}
             placeholder
           />
         </div>
@@ -688,7 +693,9 @@ export default async function PlatformAdminMarketplacePage(props: {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-300 capitalize">{l.vertical}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-300">
+                      <VerticalBadge vertical={l.vertical} />
+                    </td>
                     <td className="px-4 py-2.5 text-xs text-slate-300">
                       {l.city_id ? (cityLabels[l.city_id] ?? '—') : '—'}
                     </td>
@@ -889,35 +896,6 @@ export default async function PlatformAdminMarketplacePage(props: {
 // Sub-components.
 // ────────────────────────────────────────────────────────────
 
-function KpiCard({
-  label,
-  value,
-  placeholder,
-}: {
-  label: string;
-  value: number | string | null;
-  placeholder?: boolean;
-}): JSX.Element {
-  const display = value == null ? '—' : typeof value === 'number' ? String(value) : value;
-  return (
-    <div
-      className={`rounded-2xl border px-4 py-3 ${
-        placeholder
-          ? 'border-slate-800 bg-slate-900/40 text-slate-300'
-          : 'border-slate-800 bg-slate-900/60 text-slate-100'
-      }`}
-    >
-      <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums">{display}</div>
-      {placeholder && (
-        <div className="mt-1 text-[10px] uppercase tracking-wide text-amber-400/80">
-          se cablează post-MVP
-        </div>
-      )}
-    </div>
-  );
-}
-
 function FilterRow({
   label,
   children,
@@ -947,9 +925,9 @@ function FilterChip({
   return (
     <Link
       href={href}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8e3bb0] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
         active
-          ? 'bg-purple-600 text-white'
+          ? 'bg-[#6b1f8a] text-white'
           : 'border border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'
       }`}
     >

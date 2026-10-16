@@ -12,7 +12,8 @@
 
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@hir/ui';
+import { Card, CardContent, CardHeader, CardTitle, Input, Label } from '@hir/ui';
+import { Icon, buttonClass } from '@/app/marketplace/_components/ui';
 import {
   anafLookupAction,
   submitCasualSignupAction,
@@ -181,19 +182,21 @@ export function CasualSignupForm({
                   maxLength={12}
                   required
                 />
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-slate-500">
                   Verificăm CUI-ul la ANAF înainte de a continua. Firmele
                   radiate/inactive nu pot fi înregistrate.
                 </p>
               </div>
               {error && (
-                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {error}
+                <p role="alert" aria-live="polite" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  <Icon name="info" className="mt-0.5 shrink-0 text-rose-600" />
+                  <span>{error}</span>
                 </p>
               )}
-              <Button type="submit" disabled={isPending} className="w-full">
+              <button type="submit" disabled={isPending} className={buttonClass('primary', 'md', 'w-full')}>
+                <Icon name="search" />
                 {isPending ? 'Verific la ANAF…' : 'Verifică CUI'}
-              </Button>
+              </button>
             </form>
           </CardContent>
         </Card>
@@ -206,24 +209,28 @@ export function CasualSignupForm({
           </CardHeader>
           <CardContent>
             <form onSubmit={onBrandSubmit} className="space-y-4">
-              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-                <p className="font-medium">ANAF: firmă activă ✓</p>
-                <p className="mt-0.5 text-zinc-700">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-900">
+                <p className="flex items-center gap-1.5 font-semibold">
+                  <Icon name="check-circle" className="text-emerald-600" />
+                  ANAF: firmă activă
+                </p>
+                <p className="mt-1 text-slate-700">
                   <span className="font-semibold">{anaf.name}</span>
                   {' · CUI '}{anaf.cui}
                   {anaf.vatPayer ? ' · plătitor TVA' : ''}
                 </p>
                 {anaf.address && (
-                  <p className="text-zinc-700">{anaf.address}</p>
+                  <p className="text-slate-700">{anaf.address}</p>
                 )}
                 <button
                   type="button"
-                  className="mt-1 text-[11px] underline"
+                  className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-[#6b1f8a] underline underline-offset-2 hover:text-[#4a1063] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b1f8a] focus-visible:ring-offset-1"
                   onClick={() => {
                     resetAnaf();
                     setStep(1);
                   }}
                 >
+                  <Icon name="arrow-left" className="h-3 w-3" />
                   Schimbă CUI
                 </button>
               </div>
@@ -238,7 +245,7 @@ export function CasualSignupForm({
                   maxLength={100}
                   required
                 />
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-slate-500">
                   Implicit este denumirea ANAF. Poți alege un brand mai scurt
                   (ex: „Bakery 24/7&rdquo;).
                 </p>
@@ -270,23 +277,26 @@ export function CasualSignupForm({
               </div>
 
               {error && (
-                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {error}
+                <p role="alert" aria-live="polite" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  <Icon name="info" className="mt-0.5 shrink-0 text-rose-600" />
+                  <span>{error}</span>
                 </p>
               )}
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
+                  className={buttonClass('secondary')}
                   onClick={() => setStep(1)}
                   disabled={isPending}
                 >
+                  <Icon name="arrow-left" />
                   Înapoi
-                </Button>
-                <Button type="submit" disabled={isPending}>
+                </button>
+                <button type="submit" className={buttonClass('primary')} disabled={isPending}>
                   Continuă la abonament
-                </Button>
+                  <Icon name="arrow-right" />
+                </button>
               </div>
             </form>
           </CardContent>
@@ -300,7 +310,7 @@ export function CasualSignupForm({
           </CardHeader>
           <CardContent>
             <form onSubmit={onFinalSubmit} className="space-y-5">
-              <p className="text-sm text-zinc-600">
+              <p className="text-sm text-slate-600">
                 Toate planurile vin cu <strong>30 de zile trial</strong>. Plata
                 lunară pornește după trial; poți anula oricând din panou.
               </p>
@@ -313,20 +323,20 @@ export function CasualSignupForm({
                       key={plan.tierCode}
                       htmlFor={`tier-${plan.tierCode}`}
                       className={
-                        'flex cursor-pointer flex-col rounded-lg border p-4 transition ' +
+                        'flex cursor-pointer flex-col rounded-2xl border p-4 transition-all duration-200 focus-within:ring-2 focus-within:ring-[#6b1f8a] focus-within:ring-offset-1 ' +
                         (selected
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600'
-                          : 'border-zinc-200 bg-white hover:border-zinc-400')
+                          ? 'border-[#6b1f8a] bg-[#f7f0fb] ring-2 ring-[#6b1f8a] shadow-[0_6px_24px_rgba(107,31,138,0.12)]'
+                          : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-[#e9d5f0] hover:shadow-sm')
                       }
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-zinc-900">
+                          <p className="text-sm font-bold text-[#23093a]">
                             {plan.displayName}
                           </p>
-                          <p className="text-2xl font-bold text-zinc-900">
+                          <p className="text-2xl font-black tabular-nums text-[#23093a]">
                             {plan.monthlyPriceRon}
-                            <span className="text-sm font-normal text-zinc-500"> RON / lună</span>
+                            <span className="text-sm font-normal text-slate-500"> RON / lună</span>
                           </p>
                         </div>
                         <input
@@ -336,15 +346,13 @@ export function CasualSignupForm({
                           value={plan.tierCode}
                           checked={selected}
                           onChange={() => setTier(plan.tierCode)}
-                          className="mt-1 h-4 w-4 accent-purple-600"
+                          className="mt-1 h-4 w-4 accent-[#6b1f8a]"
                         />
                       </div>
-                      <ul className="mt-3 space-y-1 text-xs text-zinc-700">
+                      <ul className="mt-3 space-y-1 text-xs text-slate-700">
                         {planFeatureBullets(plan).map((b, i) => (
                           <li key={i} className="flex items-start gap-1.5">
-                            <span aria-hidden="true" className="mt-0.5 text-emerald-600">
-                              ✓
-                            </span>
+                            <Icon name="check-circle" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
                             <span>{b}</span>
                           </li>
                         ))}
@@ -354,33 +362,39 @@ export function CasualSignupForm({
                 })}
               </div>
 
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-700">
-                <p className="font-semibold text-zinc-900">Confirmi că:</p>
-                <ul className="mt-1 list-disc pl-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700">
+                <p className="flex items-center gap-1.5 font-semibold text-[#23093a]">
+                  <Icon name="shield" className="h-3.5 w-3.5 text-[#6b1f8a]" />
+                  Confirmi că:
+                </p>
+                <ul className="mt-1.5 list-disc pl-5">
                   <li>Brand-ul „{brandName.trim()}&rdquo; va fi vizibil public pe marketplace.</li>
                   <li>Contul devine activ după validare manuală (24h lucrătoare).</li>
-                  <li>Primești o lună trial; după aceea {plans.find((p) => p.tierCode === tier)?.monthlyPriceRon} RON/lună.</li>
+                  <li>Primești o lună trial; după aceea <span className="tabular-nums">{plans.find((p) => p.tierCode === tier)?.monthlyPriceRon}</span> RON/lună.</li>
                 </ul>
               </div>
 
               {error && (
-                <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                  {error}
+                <p role="alert" aria-live="polite" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                  <Icon name="info" className="mt-0.5 shrink-0 text-rose-600" />
+                  <span>{error}</span>
                 </p>
               )}
 
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                <Button
+                <button
                   type="button"
-                  variant="outline"
+                  className={buttonClass('secondary')}
                   onClick={() => setStep(2)}
                   disabled={isPending}
                 >
+                  <Icon name="arrow-left" />
                   Înapoi
-                </Button>
-                <Button type="submit" disabled={isPending}>
+                </button>
+                <button type="submit" className={buttonClass('primary')} disabled={isPending}>
+                  <Icon name="check-circle" />
                   {isPending ? 'Se înregistrează…' : 'Finalizează înregistrarea'}
-                </Button>
+                </button>
               </div>
             </form>
           </CardContent>
@@ -402,25 +416,23 @@ function StepIndicator({ step }: { step: WizardStep }): JSX.Element {
           <li key={label} className="flex items-center gap-2">
             <span
               className={
-                'inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ' +
+                'inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ' +
                 (active
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-gradient-to-br from-[#6b1f8a] to-[#8e3bb0] text-white shadow-[0_2px_8px_rgba(107,31,138,0.25)]'
                   : done
                     ? 'bg-emerald-600 text-white'
-                    : 'bg-zinc-200 text-zinc-600')
+                    : 'bg-slate-200 text-slate-600')
               }
             >
-              {done ? '✓' : n}
+              {done ? <Icon name="check-circle" className="h-3.5 w-3.5" /> : n}
             </span>
             <span
-              className={active || done ? 'font-medium text-zinc-900' : 'text-zinc-500'}
+              className={active || done ? 'font-medium text-[#23093a]' : 'text-slate-500'}
             >
               {label}
             </span>
             {i < labels.length - 1 && (
-              <span aria-hidden="true" className="text-zinc-300">
-                →
-              </span>
+              <Icon name="arrow-right" className="h-3.5 w-3.5 text-slate-300" />
             )}
           </li>
         );

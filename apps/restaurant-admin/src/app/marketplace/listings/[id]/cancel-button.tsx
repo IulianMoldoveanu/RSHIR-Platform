@@ -7,6 +7,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { cancelListingAction } from '../../actions';
+import { buttonClass } from '@/app/marketplace/_components/ui';
 
 type Props = {
   listingId: string;
@@ -40,12 +41,14 @@ export function CancelButtonClient({ listingId }: Props): JSX.Element {
         type="button"
         onClick={() => startTransition(() => void onCancel())}
         disabled={isPending}
-        className="inline-flex items-center justify-center rounded-md border border-rose-300 bg-white px-3 py-1.5 text-xs font-medium text-rose-700 shadow-sm transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className={buttonClass('danger', 'sm')}
       >
         {isPending ? 'Se anulează…' : 'Anulează cererea'}
       </button>
       {error ? (
-        <span className="max-w-[220px] text-right text-[11px] text-rose-700">{error}</span>
+        <span role="alert" className="max-w-[220px] text-right text-[11px] text-rose-700">
+          {error}
+        </span>
       ) : null}
     </div>
   );

@@ -23,6 +23,7 @@ import { requireFleetManager } from '@/lib/fleet-manager';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { RatingTierBadge, tierFromAvgRating } from '@/app/_components';
 import { isRatingSystemEnabled } from '@/lib/feature-flags';
+import { PageHeader, Card, StatCard, ErrorState } from '@/app/_marketplace-ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,9 +62,12 @@ export default async function FleetScorePage() {
 
   if (error) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-4">
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Scor flotă</h1>
-        <p className="text-sm text-rose-400">Eroare la încărcarea scorului: {error.message}</p>
+      <div className="mx-auto flex max-w-2xl flex-col gap-5">
+        <PageHeader variant="hero" eyebrow="MARKETPLACE FLOTĂ" title="Scor flotă" />
+        <ErrorState
+          title="Nu am putut încărca scorul."
+          description="Reîncarcă pagina sau revino mai târziu."
+        />
       </div>
     );
   }
@@ -99,13 +103,12 @@ export default async function FleetScorePage() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-hir-fg">Scor flotă</h1>
-        <p className="mt-0.5 text-sm text-hir-muted-fg">
-          Reputația flotei tale pe ultimele 30 de zile. Vendorii văd doar tier-ul
-          (Gold/Silver/Bronze), nu cifra exactă.
-        </p>
-      </div>
+      <PageHeader
+        variant="hero"
+        eyebrow="MARKETPLACE FLOTĂ"
+        title="Scor flotă"
+        description="Reputația flotei tale pe ultimele 30 de zile. Vendorii văd doar tier-ul (Gold/Silver/Bronze), nu cifra exactă."
+      />
 
       {/* Auto-pause warning band — visible above the score card if the SQL
           helper paused the fleet. Sticky pause means ops has to unpause
@@ -143,18 +146,18 @@ export default async function FleetScorePage() {
       ) : null}
 
       {/* Main score card */}
-      <section className="rounded-2xl border border-hir-border bg-hir-surface p-5">
+      <Card accent className="p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-300">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-300 ring-1 ring-inset ring-violet-500/20">
             {isPaused ? (
-              <ShieldAlert className="h-7 w-7" aria-hidden />
+              <ShieldAlert className="h-7 w-7" strokeWidth={1.75} aria-hidden />
             ) : (
-              <ShieldCheck className="h-7 w-7" aria-hidden />
+              <ShieldCheck className="h-7 w-7" strokeWidth={1.75} aria-hidden />
             )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-hir-fg">Reputație publică</h2>
+              <h2 className="text-sm font-bold text-hir-fg">Reputație publică</h2>
               <RatingTierBadge tier={tier} />
             </div>
             <p className="mt-0.5 text-xs text-hir-muted-fg">
@@ -164,65 +167,34 @@ export default async function FleetScorePage() {
         </div>
 
         <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat
+          <StatCard
             label="Medie"
             value={avgNumeric != null ? avgNumeric.toFixed(2) : '—'}
-            icon={<Star className="h-3.5 w-3.5" aria-hidden />}
+            icon={<Star className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />}
           />
-          <Stat
-            label="Curse 30z"
-            value={String(agg.total_matches)}
-          />
-          <Stat
+          <StatCard label="Curse 30z" value={agg.total_matches.toLocaleString('ro-RO')} />
+          <StatCard
             label="La timp"
             value={agg.on_time_pct != null ? `${Number(agg.on_time_pct).toFixed(0)}%` : '—'}
           />
-          <Stat
+          <StatCard
             label="Dispute"
-            value={String(agg.dispute_count)}
-            tone={agg.dispute_count > 0 ? 'warn' : 'ok'}
+            value={agg.dispute_count.toLocaleString('ro-RO')}
+            className={agg.dispute_count > 0 ? '[&_p]:text-amber-300' : undefined}
           />
         </dl>
 
         <p className="mt-4 text-[11px] text-hir-muted-fg">
-          Actualizat: {updated} · Fereastra de calcul: ultimele 30 de zile ·
-          rating-urile detectate ca anti-gaming sunt excluse.
+          Actualizat: <span className="tabular-nums">{updated}</span> · Fereastra de calcul:
+          ultimele 30 de zile · rating-urile detectate ca anti-gaming sunt excluse.
         </p>
-      </section>
+      </Card>
 
       <p className="text-[11px] leading-relaxed text-hir-muted-fg">
         Tier-uri: Gold ≥ 4,50 · Silver ≥ 4,00 · Bronze ≥ 3,50 · Probă &lt; 3,50.
         Suspendare automată: medie sub {AUTO_PAUSE_AVG_THRESHOLD} pe ≥ {AUTO_PAUSE_MIN_MATCHES} curse
         în 30 de zile.
       </p>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  icon,
-  tone = 'ok',
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-  tone?: 'ok' | 'warn';
-}) {
-  return (
-    <div className="rounded-xl border border-hir-border bg-hir-surface p-3">
-      <dt className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-hir-muted-fg">
-        {icon}
-        {label}
-      </dt>
-      <dd
-        className={`mt-1 text-lg font-semibold tabular-nums ${
-          tone === 'warn' ? 'text-amber-300' : 'text-hir-fg'
-        }`}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

@@ -18,9 +18,15 @@
 //     surface) — this page is irrelevant for them.
 
 import { notFound, redirect } from 'next/navigation';
-import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
+import {
+  PageHeader,
+  StatCard,
+  ErrorState,
+  ButtonLink,
+  Icon,
+} from '@/app/marketplace/_components/ui';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -88,9 +94,10 @@ export default async function CasualDashboardPage(props: {
   if (memberErr) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10">
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-          Eroare la încărcarea contului: {memberErr.message}
-        </div>
+        <ErrorState
+          title="Nu am putut încărca contul."
+          description="Reîncarcă pagina sau revino mai târziu."
+        />
       </main>
     );
   }
@@ -210,98 +217,112 @@ export default async function CasualDashboardPage(props: {
   const canPublish = subscriptionActive && !isSuspended && !isPendingVerification;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:py-10">
-      {/* Minimal nav — no Hepi, no analytics, no orders. */}
-      <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-            HIR Marketplace · Vendor ocazional
-          </p>
-          <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">{tenant.name}</h1>
-        </div>
-        <nav className="flex flex-wrap gap-2 text-sm">
-          <Link
-            href="/marketplace/listings"
-            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-800 hover:bg-zinc-50"
-          >
-            Cererile mele
-          </Link>
-          <Link
-            href="/dashboard/settings"
-            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 font-medium text-zinc-800 hover:bg-zinc-50"
-          >
-            Setări cont
-          </Link>
-        </nav>
-      </header>
+    <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 md:py-10">
+      {/* Branded hero header — no Hepi, no analytics, no orders. */}
+      <PageHeader
+        variant="hero"
+        eyebrow="HIR · Marketplace · Vendor ocazional"
+        title={tenant.name}
+        description="Publică cereri de livrare ad-hoc și primești oferte de la flotele HIR."
+        actions={
+          <>
+            <ButtonLink href="/marketplace/listings" variant="secondary" size="sm" className="bg-white/15 text-white ring-white/30 hover:bg-white/25">
+              <Icon name="package" />
+              Cererile mele
+            </ButtonLink>
+            <ButtonLink href="/dashboard/settings" variant="secondary" size="sm" className="bg-white/15 text-white ring-white/30 hover:bg-white/25">
+              Setări cont
+            </ButtonLink>
+          </>
+        }
+      />
 
       {justCreated && (
-        <div className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          <p className="font-semibold">Înregistrare reușită ✓</p>
-          <p className="mt-0.5">
-            Contul tău este în verificare manuală. De obicei durează sub 24h
-            lucrătoare; primești email când e gata.
-          </p>
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <Icon name="check-circle" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <div>
+            <p className="font-semibold">Înregistrare reușită</p>
+            <p className="mt-0.5">
+              Contul tău este în verificare manuală. De obicei durează sub 24h
+              lucrătoare; primești email când e gata.
+            </p>
+          </div>
         </div>
       )}
 
       {isPendingVerification && (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-semibold">Cont în verificare</p>
-          <p className="mt-0.5">
-            Echipa HIR verifică datele firmei tale. Vei putea publica cereri
-            după ce contul este aprobat.
-          </p>
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Icon name="clock" className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="font-semibold">Cont în verificare</p>
+            <p className="mt-0.5">
+              Echipa HIR verifică datele firmei tale. Vei putea publica cereri
+              după ce contul este aprobat.
+            </p>
+          </div>
         </div>
       )}
 
       {isSuspended && (
-        <div className="mb-4 rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-          <p className="font-semibold">Cont suspendat</p>
-          <p className="mt-0.5">
-            Contul tău a fost suspendat. Contactează echipa HIR pentru detalii.
-          </p>
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <Icon name="shield" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+          <div>
+            <p className="font-semibold">Cont suspendat</p>
+            <p className="mt-0.5">
+              Contul tău a fost suspendat. Contactează echipa HIR pentru detalii.
+            </p>
+          </div>
         </div>
       )}
 
       {/* ── Subscription banner ───────────────────────────────────────── */}
-      <section
-        className={
-          'mb-5 rounded-lg border p-4 sm:p-5 ' +
-          (subscriptionActive
-            ? 'border-purple-200 bg-purple-50'
-            : 'border-rose-200 bg-rose-50')
-        }
-      >
-        {subscription ? (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                Plan {subscription.planDisplayName}
-                {subscription.status === 'trial' ? ' · Trial' : ''}
-              </p>
-              <p className="mt-1 text-sm text-zinc-800">
-                Activ până la <strong>{subscription.activeUntil}</strong> ({daysUntil(subscription.activeUntil)} zile rămase)
-              </p>
-              <p className="mt-0.5 text-sm text-zinc-700">
-                Listinguri folosite luna aceasta:{' '}
-                <strong>{subscription.listingsUsedThisMonth}</strong>
-                {subscription.maxListingsPerMonth !== null && (
-                  <> / {subscription.maxListingsPerMonth}</>
-                )}
-              </p>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {subscription.planPriceRon} RON / lună după trial
-              </p>
-            </div>
-            <Link
-              href="/dashboard/settings"
-              className="inline-flex h-9 items-center justify-center rounded-md border border-purple-300 bg-white px-4 text-sm font-medium text-purple-700 hover:bg-purple-100"
-            >
-              Schimbă planul
-            </Link>
+      {subscription ? (
+        <section className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatCard
+              label="Plan abonament"
+              value={
+                <span className="text-xl">
+                  {subscription.planDisplayName}
+                  {subscription.status === 'trial' ? (
+                    <span className="ml-1.5 align-middle text-xs font-semibold uppercase tracking-wide text-[#6b1f8a]">
+                      Trial
+                    </span>
+                  ) : null}
+                </span>
+              }
+              hint={`${subscription.planPriceRon} RON / lună după trial`}
+            />
+            <StatCard
+              label="Zile rămase"
+              value={daysUntil(subscription.activeUntil)}
+              hint={`Activ până la ${subscription.activeUntil}`}
+            />
+            <StatCard
+              label="Listinguri / lună"
+              value={
+                <span>
+                  {subscription.listingsUsedThisMonth}
+                  {subscription.maxListingsPerMonth !== null && (
+                    <span className="text-base font-normal text-slate-400">
+                      {' / '}
+                      {subscription.maxListingsPerMonth}
+                    </span>
+                  )}
+                </span>
+              }
+              hint="Folosite luna aceasta"
+            />
           </div>
-        ) : (
+          <div className="flex items-center justify-end">
+            <ButtonLink href="/dashboard/settings" variant="secondary" size="sm">
+              Schimbă planul
+            </ButtonLink>
+          </div>
+        </section>
+      ) : (
+        <section className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 sm:p-5">
+          <Icon name="info" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
           <div>
             <p className="text-sm font-semibold text-rose-900">
               Niciun abonament activ
@@ -311,31 +332,30 @@ export default async function CasualDashboardPage(props: {
               Contactează echipa HIR pentru reactivare.
             </p>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* ── Primary CTA — publish new listing ─────────────────────────── */}
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
-        <h2 className="text-base font-semibold text-zinc-900">
+      <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-gradient-to-r before:from-[#6b1f8a] before:to-[#8e3bb0] before:content-['']">
+        <h2 className="flex items-center gap-2 pt-1 text-base font-bold text-[#23093a]">
+          <Icon name="package" className="text-[#6b1f8a]" />
           Publică o cerere de livrare
         </h2>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-slate-600">
           Cererea devine vizibilă pentru flotele HIR. Plătești doar atunci când
           accepți o ofertă; abonamentul îți dă acces la marketplace.
         </p>
         <div className="mt-4">
           {canPublish ? (
-            <Link
-              href="/marketplace/listings/new"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-purple-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-purple-700"
-            >
+            <ButtonLink href="/marketplace/listings/new" variant="primary">
+              <Icon name="plus" />
               Publică cerere nouă
-            </Link>
+            </ButtonLink>
           ) : (
             <button
               type="button"
               disabled
-              className="inline-flex h-10 cursor-not-allowed items-center justify-center rounded-md bg-zinc-200 px-5 text-sm font-semibold text-zinc-500"
+              className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
               title={
                 isPendingVerification
                   ? 'Disponibil după aprobarea contului'
@@ -344,11 +364,12 @@ export default async function CasualDashboardPage(props: {
                     : 'Necesită abonament activ'
               }
             >
+              <Icon name="plus" />
               Publică cerere nouă
             </button>
           )}
           {!canPublish && (
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-slate-500">
               {isPendingVerification
                 ? 'Disponibil după aprobarea contului (≤24h lucrătoare).'
                 : isSuspended
