@@ -2,7 +2,18 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient as createSsrClient, type CookieOptions } from '@supabase/ssr';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
-const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/privacy', '/terms'];
+// `/sw-push.js` has to be here: a browser refuses to register a service
+// worker whose script came back as a redirect, and without the session cookie
+// this guard sent it to /login. That silently cost us the worker — so offline
+// and installability — on every first load, and on any background update
+// check the browser makes without a live session.
+// The file is static client code with no secrets in it; the worker reads the
+// Supabase anon key from the page, never from its own source.
+//
+// `/apple-touch-icon.png` is referenced from the root layout and was being
+// redirected the same way, which is why installed iOS home-screen icons came
+// out blank.
+const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/apple-touch-icon.png', '/sw-push.js', '/privacy', '/terms'];
 
 /**
  * Auth guard for the courier PWA. /dashboard/** requires a Supabase session;
