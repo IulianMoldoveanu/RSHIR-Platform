@@ -6,19 +6,22 @@ test.describe('Marketing site (hirforyou.ro)', () => {
     expect(res?.status(), 'homepage HTTP status').toBeLessThan(400);
     // Brand strip — the visible HIR brand must appear somewhere above the fold.
     await expect(page.getByRole('heading').first()).toBeVisible();
-    // Pricing CTA is the primary conversion anchor on the homepage.
-    // Live copy uses "Tarife"; accept the historic "Prețuri" + EN fallback.
+    // The pricing CTA this used to assert was removed with /pricing itself
+    // (2026-08-01: the site stopped quoting a price). The primary conversion
+    // anchors are now the demo and the how-it-works guide.
     await expect(
-      page.getByRole('link', { name: /tarif|pre[țt]uri|pricing/i }).first(),
+      page.getByRole('link', { name: /vezi demo|cum func[țt]ioneaz[ăa]/i }).first(),
     ).toBeVisible();
   });
 
-  test('/pricing loads and shows the 2 lei/comandă tier', async ({ page }) => {
+  // /pricing was deleted on 2026-08-01 and 301s to the homepage: the site
+  // deliberately quotes no price any more. What is worth protecting is the
+  // redirect — a stray 404 here would break old inbound links — so this
+  // asserts the decision instead of the page it replaced.
+  test('/pricing still redirects to the homepage', async ({ page }) => {
     const res = await page.goto('/pricing');
     expect(res?.status()).toBeLessThan(400);
-    // The single-tier price is the locked pricing decision; if this text
-    // ever disappears something is structurally broken on the pricing page.
-    await expect(page.getByText(/2\s*lei.*comand[ăa]|comand[ăa].*2\s*lei/i).first()).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe('/');
   });
 
   test('/alternativa-gloriafood-romania landing renders', async ({ page }) => {
