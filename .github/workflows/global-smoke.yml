@@ -34,7 +34,9 @@ concurrency:
 jobs:
   smoke:
     name: Production smoke
-    runs-on: ubuntu-latest
+    # Pinned for the same reason as courier-e2e: Playwright 1.59.1 cannot
+    # install chromium on the Ubuntu 26.04 that ubuntu-latest now resolves to.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       # Overridable via workflow_dispatch inputs or repo variables.
