@@ -1,6 +1,33 @@
 import type { MetadataRoute } from 'next';
 import { resolveTenantFromHost, brandingFor } from '@/lib/tenant';
 
+// The icon `type` used to be hardcoded to 'image/png', which is true for the
+// two HIR defaults under public/ and false for most tenants: logos are
+// uploaded as-is, and Foișorul A's is a JPEG served as `image/jpeg` while the
+// manifest swore it was a PNG. A browser uses `type` to decide whether an icon
+// is worth fetching at all, so a declaration that contradicts the response is
+// a reason for it to skip the icon entirely.
+//
+// Derived from the extension instead, and simply omitted when the URL does not
+// end in one we recognise — `type` is optional, and no claim beats a wrong
+// claim, since the browser falls back to the served Content-Type.
+export function iconType(src: string): { type?: string } {
+  const ext = new URL(src, 'https://x.invalid').pathname.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'png':
+      return { type: 'image/png' };
+    case 'jpg':
+    case 'jpeg':
+      return { type: 'image/jpeg' };
+    case 'webp':
+      return { type: 'image/webp' };
+    case 'svg':
+      return { type: 'image/svg+xml' };
+    default:
+      return {};
+  }
+}
+
 // Next.js App Router special file — runs per-request (Node runtime),
 // so resolveTenantFromHost() / headers() work correctly.
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
@@ -47,13 +74,13 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     // theme_color so the splash reflects the tenant, not a HIR default.
     background_color: themeColor,
     icons: [
-      { src: iconSrc192, sizes: '192x192', type: 'image/png' },
-      { src: iconSrc512, sizes: '512x512', type: 'image/png' },
+      { src: iconSrc192, sizes: '192x192', ...iconType(iconSrc192) },
+      { src: iconSrc512, sizes: '512x512', ...iconType(iconSrc512) },
       // 'maskable' lets Android crop/scale the icon to fill the splash
       // safe-zone instead of rendering it small and centered — the same
-      // PNG doubles as both a normal and maskable icon since tenant logos
+      // image doubles as both a normal and maskable icon since tenant logos
       // are typically already square with some built-in padding.
-      { src: iconSrc512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: iconSrc512, sizes: '512x512', ...iconType(iconSrc512), purpose: 'maskable' },
     ],
   };
 }
