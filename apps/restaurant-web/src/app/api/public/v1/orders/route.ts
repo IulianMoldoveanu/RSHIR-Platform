@@ -64,6 +64,18 @@ const orderBodySchema = z.object({
 }).refine(
   (v) => v.fulfillment !== 'DELIVERY' || !!v.dropoff,
   { message: 'dropoff is required when fulfillment is DELIVERY', path: ['dropoff'] },
+).refine(
+  // Cash on delivery means the courier takes the money at the door, so it
+  // cannot already be paid. Accepting the pair would be worse than refusing
+  // it: the courier app decides whether to open the cash-collection dialog
+  // from payment_method alone, so a PAID COD order would ask for the full
+  // amount a second time. There is no safe way to guess which half the
+  // integration meant, so refuse and let it say.
+  (v) => !(v.payment.method === 'COD' && v.payment.status === 'PAID'),
+  {
+    message: 'payment.method COD cannot be combined with payment.status PAID',
+    path: ['payment', 'status'],
+  },
 );
 
 export async function POST(req: Request) {
@@ -103,10 +115,11 @@ export async function POST(req: Request) {
   // The cash ceiling is a cap on how much money rides in one courier's bag,
   // so it binds every channel — an order that reaches us over the API is
   // carried by the same person as one from our own storefront.
+  // COD always means unpaid here — the schema refuses the paid-cash pair
+  // above — so the method alone decides whether cash is coming.
   if (
     fulfillment === 'DELIVERY' &&
     payment.method === 'COD' &&
-    payment.status !== 'PAID' &&
     !codAllowedForTotal(totals.totalRon)
   ) {
     return NextResponse.json(

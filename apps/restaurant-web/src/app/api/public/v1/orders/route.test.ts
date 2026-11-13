@@ -399,6 +399,23 @@ describe('POST /api/public/v1/orders', () => {
       expect(orderInsertMock).not.toHaveBeenCalled();
     });
 
+    // Codex P1 on this PR: accepting the pair would be worse than refusing it.
+    // The courier app opens the cash-collection dialog from payment_method
+    // alone, so a PAID COD order would have asked for the money a second time.
+    it('refuses COD combined with PAID instead of guessing which half is true', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          { ...VALID_BODY, payment: { method: 'COD', status: 'PAID' } },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(400);
+      const json = (await res.json()) as { error: string };
+      expect(json.error).toBe('invalid_request');
+      expect(orderInsertMock).not.toHaveBeenCalled();
+    });
+
     it('allows a large order the vendor already took the money for', async () => {
       authed();
       const res = await POST(
