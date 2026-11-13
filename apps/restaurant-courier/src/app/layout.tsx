@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { CourierToaster } from '@/components/courier-toaster';
 import { ThemeProvider, themeScriptSource } from '@/components/theme-provider';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
+import { ServiceWorkerBootstrap } from '@/components/service-worker-bootstrap';
 import './globals.css';
 
 const inter = Inter({
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               install reaches someone the moment they sign in — which is when
               a courier decides where this app is going to live. It hides
               itself once installed. */}
+          <ServiceWorkerBootstrap />
           <PwaInstallPrompt />
         </ThemeProvider>
       </body>

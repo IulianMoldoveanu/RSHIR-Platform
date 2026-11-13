@@ -42,17 +42,6 @@ const SESSION_DELIVERED_FLAG = 'hir:first-delivered-this-session';
 export function PushBootstrap() {
   const [phase, setPhase] = useState<'idle' | 'splash' | 'asking' | 'done'>('idle');
 
-  // Register the service worker on every web load, whatever the courier
-  // decides about notifications. The effect below returns early in several
-  // cases (permission denied, banner dismissed, new-order category off), and
-  // each of those used to leave the app with no worker — so no offline shell
-  // and nothing the browser would offer to install. Notification permission is
-  // still asked for only by the flow below.
-  useEffect(() => {
-    if (Capacitor.isNativePlatform()) return;
-    void import('@/lib/push/register-sw').then((m) => m.ensureServiceWorker());
-  }, []);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
