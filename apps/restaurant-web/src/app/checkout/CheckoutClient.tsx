@@ -869,6 +869,31 @@ export function CheckoutClient(props: {
     setStep('form');
   }
 
+  // Cash ceiling (2026-09-09). Measured against what the customer would hand
+  // the courier — after delivery fee, promo and loyalty. Before a quote exists
+  // the amount is unknown, so nothing is blocked yet; /api/checkout/intent
+  // refuses it server-side either way.
+  //
+  // Both this and the effect below it have to sit above the early returns for
+  // an empty or still-loading cart: a hook that runs only on some renders
+  // changes the hook order between them (react-hooks/rules-of-hooks).
+  const payableTotalRon = quote
+    ? Math.max(
+        0,
+        Number(quote.totalRon) - (redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0),
+      )
+    : null;
+  const codBlockedByAmount = payableTotalRon !== null && !codAllowedForTotal(payableTotalRon);
+
+  // A customer can pick cash on a small cart and then add to it. Move them to
+  // card the moment the cart crosses the ceiling, rather than let them press
+  // "place order" and collect a 422 from the server.
+  useEffect(() => {
+    if (codBlockedByAmount && paymentMethod === 'COD' && cardEnabled) {
+      setPaymentMethod('CARD');
+    }
+  }, [codBlockedByAmount, paymentMethod, cardEnabled]);
+
   // ────────────────────────────────────────────────
   // Render
   // ────────────────────────────────────────────────
@@ -886,27 +911,6 @@ export function CheckoutClient(props: {
       />
     );
   }
-
-  // Cash ceiling (2026-09-09). Measured against what the customer would hand
-  // the courier — after delivery fee, promo and loyalty. Before a quote exists
-  // the amount is unknown, so nothing is blocked yet; /api/checkout/intent
-  // refuses it server-side either way.
-  const payableTotalRon = quote
-    ? Math.max(
-        0,
-        Number(quote.totalRon) - (redeemActive && loyaltyRedeem ? loyaltyRedeem.discountRon : 0),
-      )
-    : null;
-  const codBlockedByAmount = payableTotalRon !== null && !codAllowedForTotal(payableTotalRon);
-
-  // A customer can pick cash on a small cart and then add to it. Move them to
-  // card the moment the cart crosses the ceiling, rather than let them press
-  // "place order" and collect a 422 from the server.
-  useEffect(() => {
-    if (codBlockedByAmount && paymentMethod === 'COD' && cardEnabled) {
-      setPaymentMethod('CARD');
-    }
-  }, [codBlockedByAmount, paymentMethod, cardEnabled]);
 
   return (
     <div className="space-y-6">
