@@ -10,10 +10,16 @@ import { safeRedirectPath } from '@/lib/safe-redirect';
 // The file is static client code with no secrets in it; the worker reads the
 // Supabase anon key from the page, never from its own source.
 //
+// `/offline` is the service worker's offline fallback. It is pre-cached at
+// install time with `cache.add`, and the Cache API REJECTS a redirected
+// response -- so behind this guard the fallback was never cached, and the
+// failure was swallowed by the catch that treats the offline page as
+// optional. Offline mode looked implemented and did nothing.
+//
 // `/apple-touch-icon.png` is referenced from the root layout and was being
 // redirected the same way, which is why installed iOS home-screen icons came
 // out blank.
-const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/apple-touch-icon.png', '/sw-push.js', '/privacy', '/terms'];
+const PUBLIC_PATHS = ['/login', '/register', '/_next', '/favicon.ico', '/api/external', '/api/healthz', '/api/version', '/manifest.webmanifest', '/icon-', '/apple-touch-icon.png', '/sw-push.js', '/offline', '/privacy', '/terms'];
 
 /**
  * Auth guard for the courier PWA. /dashboard/** requires a Supabase session;
