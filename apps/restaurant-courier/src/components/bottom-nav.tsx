@@ -5,10 +5,8 @@ import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Map, History, Clock, Wallet, Settings } from 'lucide-react';
 
-// Hepi removed from the nav per product decision (2026-06-02): low value /
-// token-heavy; support handled by FAQ + fleet managers initially. The
-// /dashboard/hepi route stays reachable (not deleted) so it can be re-promoted
-// later if we decide to ship it.
+// Hepi was dropped from this nav in June 2026 as low value and token-heavy,
+// and the orphaned route behind it is gone now too.
 //
 // "Hartă" → /dashboard (the live map) is the FIRST tab: the map is the
 // courier's home screen, but it was only reachable via the header logo or
