@@ -115,11 +115,13 @@ function CoverageWarning({ gaps }: { gaps: ReturnType<typeof findCoverageGaps> }
             {g.cityName ? <span className="text-amber-700"> · {g.cityName}</span> : null}
             <span className="text-amber-700">
               {' — '}
-              {g.reason === 'no_fleet_assigned'
-                ? g.fleetName
-                  ? `fără flotă alocată; rezerva „${g.fleetName}” nu are curieri activi`
-                  : 'fără flotă alocată și fără flotă de rezervă'
-                : `flota „${g.fleetName ?? '—'}” nu are niciun curier activ`}
+              {g.reason === 'no_delivery_zone'
+                ? 'nicio zonă de livrare activă — storefront-ul refuză orice comandă'
+                : g.reason === 'no_fleet_assigned'
+                  ? g.fleetName
+                    ? `fără flotă alocată; rezerva „${g.fleetName}” nu are curieri activi`
+                    : 'fără flotă alocată și fără flotă de rezervă'
+                  : `flota „${g.fleetName ?? '—'}” nu are niciun curier activ`}
             </span>
           </li>
         ))}

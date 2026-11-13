@@ -24,6 +24,31 @@
 export type PaymentMode = 'cod_only' | 'card_sandbox' | 'card_live';
 export type PaymentProvider = 'netopia' | 'viva';
 
+/**
+ * The most cash a courier is asked to handle for one order.
+ *
+ * Iulian directive 2026-09-09: an order over this amount can only be paid by
+ * card. This is not a commercial price — it is a cap on how much cash rides
+ * around in one person's bag, so it is platform-wide and not per tenant.
+ *
+ * It bounds two exposures at once: the float a courier carries to pay the
+ * restaurant at pickup, and the amount at risk when a customer does not answer
+ * the door. Above the cap the money moves before the food does.
+ */
+export const COD_MAX_TOTAL_RON = 300;
+
+/**
+ * Whether cash on delivery is allowed for a given order total.
+ *
+ * Checked against the amount the customer actually pays — after delivery fee,
+ * promo and loyalty — because that is the sum the courier collects at the door.
+ * A non-finite total fails closed.
+ */
+export function codAllowedForTotal(totalRon: number): boolean {
+  if (!Number.isFinite(totalRon)) return false;
+  return totalRon <= COD_MAX_TOTAL_RON;
+}
+
 const VALID_MODES: PaymentMode[] = ['cod_only', 'card_sandbox', 'card_live'];
 const VALID_PROVIDERS: PaymentProvider[] = ['netopia', 'viva'];
 

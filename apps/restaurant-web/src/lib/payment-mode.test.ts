@@ -3,6 +3,8 @@ import {
   resolvePaymentSurface,
   readPaymentMode,
   readPaymentProvider,
+  codAllowedForTotal,
+  COD_MAX_TOTAL_RON,
 } from './payment-mode';
 
 describe('payment-mode helpers', () => {
@@ -108,5 +110,37 @@ describe('payment-mode helpers', () => {
       expect(r.cardEnabled).toBe(false);
       expect(r.codEnabled).toBe(true);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cash ceiling (Iulian directive, 2026-09-09): an order above 300 lei can only
+// be paid by card. The cap is on the amount the courier collects at the door,
+// so it is checked against the final payable total, not the cart subtotal.
+// ---------------------------------------------------------------------------
+describe('codAllowedForTotal', () => {
+  it('allows cash below the ceiling', () => {
+    expect(codAllowedForTotal(0)).toBe(true);
+    expect(codAllowedForTotal(108)).toBe(true);
+    expect(codAllowedForTotal(299.99)).toBe(true);
+  });
+
+  it('allows cash exactly at the ceiling', () => {
+    expect(codAllowedForTotal(COD_MAX_TOTAL_RON)).toBe(true);
+    expect(codAllowedForTotal(300)).toBe(true);
+  });
+
+  it('refuses cash above the ceiling', () => {
+    expect(codAllowedForTotal(300.01)).toBe(false);
+    expect(codAllowedForTotal(450)).toBe(false);
+  });
+
+  it('fails closed on a total that is not a number', () => {
+    expect(codAllowedForTotal(Number.NaN)).toBe(false);
+    expect(codAllowedForTotal(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+
+  it('the ceiling is the agreed 300 lei', () => {
+    expect(COD_MAX_TOTAL_RON).toBe(300);
   });
 });
