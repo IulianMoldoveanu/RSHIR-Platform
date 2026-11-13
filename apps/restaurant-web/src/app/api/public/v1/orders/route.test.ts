@@ -316,4 +316,120 @@ describe('POST /api/public/v1/orders', () => {
     // bucket — the key has to include the per-key id.
     expect(key).toContain(API_KEY_ID);
   });
+
+  // The vendor keeps their own payment gateway, so the only thing HIR learns
+  // about the money is what this field says. Get it wrong and the courier
+  // either collects cash a second time or hands over the food for free.
+  describe('payment', () => {
+    function authed() {
+      authMock.mockResolvedValue({
+        tenantId: TENANT_ID,
+        keyId: API_KEY_ID,
+        scopes: ['orders.write'],
+      });
+      customerInsertMock.mockReturnValue({ data: { id: 'cust-1' }, error: null });
+      orderInsertMock.mockReturnValue({
+        data: { id: 'order-1', public_track_token: 'tok-1' },
+        error: null,
+      });
+    }
+
+    const orderRow = () => orderInsertMock.mock.calls[0][0] as Record<string, unknown>;
+
+    it('defaults to CARD/UNPAID so integrations written before this field keep working', async () => {
+      authed();
+      const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+      expect(res.status).toBe(201);
+      expect(orderRow().payment_method).toBe('CARD');
+      expect(orderRow().payment_status).toBe('UNPAID');
+    });
+
+    it('carries COD through, so the courier is told to collect at the door', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          { ...VALID_BODY, payment: { method: 'COD', status: 'UNPAID' } },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(201);
+      expect(orderRow().payment_method).toBe('COD');
+      expect(orderRow().payment_status).toBe('UNPAID');
+    });
+
+    it('records "paid on the vendor site" as PAID, not as money owed to us', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          { ...VALID_BODY, payment: { method: 'CARD', status: 'PAID' } },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(201);
+      expect(orderRow().payment_status).toBe('PAID');
+    });
+
+    it('rejects an unknown payment method instead of silently defaulting', async () => {
+      authed();
+      const res = await POST(
+        makeReq({ ...VALID_BODY, payment: { method: 'BITCOIN' } }, { authorization: 'Bearer hir_x' }),
+      );
+      expect(res.status).toBe(400);
+      expect(orderInsertMock).not.toHaveBeenCalled();
+    });
+
+    // The cash ceiling bounds how much money one courier carries, so it has to
+    // bind this channel exactly as it binds our own checkout.
+    it('refuses cash over the 300 lei ceiling', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          {
+            ...VALID_BODY,
+            totals: { subtotalRon: 360, deliveryFeeRon: 18, totalRon: 378 },
+            payment: { method: 'COD', status: 'UNPAID' },
+          },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(422);
+      const json = (await res.json()) as { error: string; max_cod_total_ron: number };
+      expect(json.error).toBe('cod_over_limit');
+      expect(json.max_cod_total_ron).toBe(300);
+      expect(orderInsertMock).not.toHaveBeenCalled();
+    });
+
+    it('allows a large order the vendor already took the money for', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          {
+            ...VALID_BODY,
+            totals: { subtotalRon: 360, deliveryFeeRon: 18, totalRon: 378 },
+            payment: { method: 'CARD', status: 'PAID' },
+          },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(201);
+    });
+
+    // A pickup order never puts cash in a courier's bag.
+    it('does not apply the cash ceiling to PICKUP', async () => {
+      authed();
+      const res = await POST(
+        makeReq(
+          {
+            ...VALID_BODY,
+            fulfillment: 'PICKUP',
+            dropoff: undefined,
+            totals: { subtotalRon: 400, deliveryFeeRon: 0, totalRon: 400 },
+            payment: { method: 'COD', status: 'UNPAID' },
+          },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(201);
+    });
+  });
 });

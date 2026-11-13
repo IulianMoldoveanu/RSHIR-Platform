@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../auth';
+import { COD_MAX_TOTAL_RON, codAllowedForTotal } from '@/lib/payment-mode';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,19 @@ const orderBodySchema = z.object({
     })
     .optional(),
   notes: z.string().trim().max(500).optional().or(z.literal('')),
+  // How the customer paid on the vendor's own site. The vendor keeps their
+  // gateway, so HIR never sees the charge — but the courier still has to be
+  // told whether to collect at the door, and reconciliation has to be able to
+  // tell "already paid, just not to us" from "nobody has paid yet".
+  //
+  // The defaults reproduce the behaviour from before this field existed
+  // (CARD / UNPAID), so an integration that never sends it keeps working.
+  payment: z
+    .object({
+      method: z.enum(['CARD', 'COD']).default('CARD'),
+      status: z.enum(['PAID', 'UNPAID']).default('UNPAID'),
+    })
+    .default({ method: 'CARD', status: 'UNPAID' }),
 }).refine(
   (v) => v.fulfillment !== 'DELIVERY' || !!v.dropoff,
   { message: 'dropoff is required when fulfillment is DELIVERY', path: ['dropoff'] },
@@ -84,7 +98,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const { customer, items, totals, fulfillment, dropoff, notes } = parsed.data;
+  const { customer, items, totals, fulfillment, dropoff, notes, payment } = parsed.data;
+
+  // The cash ceiling is a cap on how much money rides in one courier's bag,
+  // so it binds every channel — an order that reaches us over the API is
+  // carried by the same person as one from our own storefront.
+  if (
+    fulfillment === 'DELIVERY' &&
+    payment.method === 'COD' &&
+    payment.status !== 'PAID' &&
+    !codAllowedForTotal(totals.totalRon)
+  ) {
+    return NextResponse.json(
+      {
+        error: 'cod_over_limit',
+        max_cod_total_ron: COD_MAX_TOTAL_RON,
+        total_ron: totals.totalRon,
+      },
+      { status: 422 },
+    );
+  }
 
   const admin = getSupabaseAdmin();
 
@@ -195,7 +228,8 @@ export async function POST(req: Request) {
       total_ron: totals.totalRon,
       notes: notes || null,
       status: 'PENDING',
-      payment_status: 'UNPAID',
+      payment_method: payment.method,
+      payment_status: payment.status,
       source: 'EXTERNAL_API',
     })
     .select('id, public_track_token')
