@@ -93,7 +93,40 @@ html, body {
      "white" flash the courier saw when panning left/right faster than tiles
      load. Paint the canvas the dark map surface instead, so any momentary gap
      reads as the dark theme, not a white gutter. */
-  background: #18181b; /* zinc-900 — matches the CARTO dark tiles */
+  background: #18181b; /* zinc-900 — matches the darkened tiles below */
+}
+
+/*
+ * Dark basemap, done here rather than by the tile provider.
+ *
+ * The map used to pull CARTO's Dark Matter tiles, which now need an API key
+ * and, without one, answer every request with a placeholder tile saying so.
+ * It serves plain OpenStreetMap tiles now — no key, and the same source the
+ * rest of the apps already use — so the dark look has to come from us.
+ *
+ * Inverting lightness and rotating hue 180deg darkens a light basemap while
+ * leaving hues roughly where they started, so water still reads blue-ish and
+ * parks green-ish instead of coming out as negatives. The brightness and
+ * saturation trims stop road casings glaring white against the app's chrome.
+ *
+ * Only the tile pane is filtered. Markers, the route polyline and the courier
+ * dot live in their own panes and keep their real colours — which is the
+ * point: the purple route has to stand out against the map, not be inverted
+ * along with it.
+ */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92)
+    saturate(0.8);
+}
+
+/* The attribution is outside the filtered pane, so it keeps its own colours —
+   and Leaflet ships it dark-on-white, which is unreadable over a dark map. */
+.leaflet-container .leaflet-control-attribution {
+  background: rgba(24, 24, 27, 0.75);
+  color: #a1a1aa;
+}
+.leaflet-container .leaflet-control-attribution a {
+  color: #c4b5fd;
 }
 
 /*

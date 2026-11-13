@@ -1,10 +1,9 @@
 import Link from 'next/link';
 import {
   Bell,
-  CalendarClock,
   Car,
   ChevronRight,
-  Info,
+  FileText,
   LifeBuoy,
   LogOut,
   Smartphone,
@@ -90,13 +89,7 @@ export default async function SettingsPage() {
         href="/dashboard/settings/notifications"
         icon={<Bell className="h-5 w-5 text-violet-400" aria-hidden />}
         label="Notificări"
-        description="Comenzi, mesaje, urgențe, anunțuri"
-      />
-      <SettingsRow
-        href="/dashboard/settings/activitate"
-        icon={<CalendarClock className="h-5 w-5 text-violet-400" aria-hidden />}
-        label="Program & curse"
-        description="Ture, istoricul curselor, fotografii livrări"
+        description="Comenzi, urgențe, anunțuri"
       />
       <SettingsRow
         href="/dashboard/support"
@@ -110,11 +103,15 @@ export default async function SettingsPage() {
         label="Aplicație"
         description="Temă, tutorial, diagnostic dispozitiv"
       />
+      {/* What is left of the old "Despre HIR Curier" page. That page went
+          away with the version blurb and the open-source credits, but the
+          legal links cannot: Google Play requires a reachable privacy policy,
+          and /terms is what carries it, along with the ANPC SAL contact. */}
       <SettingsRow
-        href="/dashboard/about"
-        icon={<Info className="h-5 w-5 text-violet-400" aria-hidden />}
-        label="Despre HIR Curier"
-        description="Versiune, termeni, confidențialitate, ANPC"
+        href="/terms"
+        icon={<FileText className="h-5 w-5 text-violet-400" aria-hidden />}
+        label="Termeni și confidențialitate"
+        description="Termeni, politica de confidențialitate, ANPC"
       />
 
       {/* ── Account actions ──────────────────────────────────────── */}

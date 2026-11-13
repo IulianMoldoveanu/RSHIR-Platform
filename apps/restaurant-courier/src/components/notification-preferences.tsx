@@ -25,12 +25,6 @@ const CATEGORIES: CategoryMeta[] = [
     icon: Bell,
   },
   {
-    key: 'dispatcher_messages',
-    label: 'Mesaje dispecer',
-    description: 'Notificări când dispecerul îți trimite un mesaj direct.',
-    icon: MessageSquare,
-  },
-  {
     key: 'urgencies',
     label: 'Urgențe și anulări',
     description: 'Alerte critice: comandă anulată, FORCE_CANCELLED sau situații de urgență.',

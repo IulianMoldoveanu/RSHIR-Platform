@@ -7,7 +7,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { updateCourierLocationAction } from './actions';
 import { EarningsBar } from '@/components/earnings-bar';
 import { PushBootstrap } from '@/components/push-bootstrap';
-import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { ProofSync } from '@/components/proof-sync';
 import { TransitionSync } from '@/components/transition-sync';
 import { OfflineBanner } from '@/components/offline-banner';
@@ -200,7 +199,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <BatteryCriticalToast />
         <CapacitorBootstrap />
         <PushBootstrap />
-        <PwaInstallPrompt />
         {/* Prominent background-location disclosure (Google Play). Mounted in
             the layout so it shows on ANY dashboard route before the watcher
             below can trigger the OS "Allow all the time" prompt. Self-gates to
