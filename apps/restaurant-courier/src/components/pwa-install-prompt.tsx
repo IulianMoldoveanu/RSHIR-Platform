@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 // Offers the courier a one-tap install instead of making them find
 // "Add to Home screen" in the browser menu. The storefront has the same
@@ -16,9 +17,12 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISS_KEY = 'hir_curier_pwa_dismissed_until';
 const DISMISS_DAYS = 14;
 
-// A courier is here to work, not to browse, so the prompt comes up sooner
-// than the storefront's 30s — but not instantly, which reads as a popup.
-const SHOW_AFTER_MS = 12_000;
+// Signing in is when someone decides where this app is going to live, so ask
+// then — after a beat, so it reads as part of the page settling rather than a
+// popup fired at them. Anywhere else the courier is mid-job, and the offer can
+// wait a good while before it interrupts anything.
+const SHOW_AFTER_SIGN_IN_MS = 2_500;
+const SHOW_AFTER_MS = 20_000;
 
 function isDismissed(): boolean {
   try {
@@ -60,15 +64,18 @@ export function PwaInstallPrompt() {
   const [visible, setVisible] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
+  const pathname = usePathname();
+  const onSignIn = pathname === '/login' || pathname === '/register';
 
   useEffect(() => {
     if (isStandalone() || isDismissed()) return;
 
+    const delay = onSignIn ? SHOW_AFTER_SIGN_IN_MS : SHOW_AFTER_MS;
     const ios = isIosSafari();
     setIsIos(ios);
 
     if (ios) {
-      const timer = setTimeout(() => setVisible(true), SHOW_AFTER_MS);
+      const timer = setTimeout(() => setVisible(true), delay);
       return () => clearTimeout(timer);
     }
 
@@ -76,7 +83,7 @@ export function PwaInstallPrompt() {
     const handler = (e: Event) => {
       e.preventDefault();
       deferredPrompt.current = e as BeforeInstallPromptEvent;
-      timer = setTimeout(() => setVisible(true), SHOW_AFTER_MS);
+      timer = setTimeout(() => setVisible(true), delay);
     };
     window.addEventListener('beforeinstallprompt', handler);
 
@@ -92,7 +99,7 @@ export function PwaInstallPrompt() {
       window.removeEventListener('appinstalled', installed);
       if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [onSignIn]);
 
   async function handleAdd() {
     const prompt = deferredPrompt.current;

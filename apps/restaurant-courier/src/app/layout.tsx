@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { CourierToaster } from '@/components/courier-toaster';
 import { ThemeProvider, themeScriptSource } from '@/components/theme-provider';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import './globals.css';
 
 const inter = Inter({
@@ -61,6 +62,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           {children}
           <CourierToaster />
+          {/* Mounted at the root, not under /dashboard, so the offer to
+              install reaches someone the moment they sign in — which is when
+              a courier decides where this app is going to live. It hides
+              itself once installed. */}
+          <PwaInstallPrompt />
         </ThemeProvider>
       </body>
     </html>

@@ -324,15 +324,29 @@ export function RiderMap({
           inertiaDeceleration: 2500,
         }).setView(FALLBACK_CENTER, FALLBACK_ZOOM);
 
-        // CARTO Dark Matter tiles — free, no API key, dark theme that matches
-        // the courier app's surface. Retina @2x for sharp rendering on phone
-        // displays. Falls back to standard tiles when @2x not available.
-        // Attribution-required per CARTO's basemap terms.
+        // Standard OpenStreetMap tiles. This used to be CARTO's Dark Matter
+        // basemap, described here as "free, no API key" — that stopped being
+        // true. CARTO now answers every basemap request without a key with one
+        // byte-identical placeholder tile carrying an "API key required"
+        // notice: three different tiles (dark_all 12/2297/1420,
+        // 14/9190/5680, 10/574/355, different subdomains) all came back as the
+        // same 2513-byte PNG. So the map was not misconfigured, it was a dead
+        // provider, and no amount of Leaflet tuning would have fixed it.
+        //
+        // OSM needs no key and is already what every other map in this repo
+        // uses (admin heatmap, live orders, zone editor, both fleet maps), so
+        // the courier app stops being the odd one out. The dark look is kept
+        // in CSS instead of by the provider — see `.leaflet-tile-pane` in
+        // globals.css.
+        //
+        // `detectRetina` is deliberately gone with CARTO: it makes Leaflet
+        // pull zoom+1 tiles, which quadruples requests, and OSM's tile usage
+        // policy asks us not to do that.
         L.tileLayer(
-          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
           {
             maxZoom: 19,
-            subdomains: 'abcd',
+            subdomains: 'abc',
             // Keep a wide ring of off-screen tiles cached around the viewport
             // (default is 2) so dragging — especially fast left/right pans —
             // doesn't reveal blank gutters at the edges before tiles load.
@@ -341,11 +355,8 @@ export function RiderMap({
             // pan ENDS, which is exactly what showed white edges + seams while
             // dragging. Load during the drag instead.
             updateWhenIdle: false,
-            // detectRetina toggles {r} between '' and '@2x' so HiDPI phones
-            // get crisp tiles without forcing them on slow networks.
-            detectRetina: true,
             attribution:
-              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
           },
         ).addTo(map);
 
