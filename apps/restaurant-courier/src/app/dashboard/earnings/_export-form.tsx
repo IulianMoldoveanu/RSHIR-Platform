@@ -43,7 +43,7 @@ export function ExportForm() {
       className="rounded-2xl border border-hir-border bg-hir-surface p-4"
     >
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">
-        Raport fiscal (PFA / autointreprinzător)
+        Raport fiscal
       </p>
 
       {/* Mode toggle */}

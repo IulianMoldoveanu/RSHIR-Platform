@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getBrowserSupabase } from '@/lib/supabase/browser';
-import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm, playMessageChime } from '@/lib/offer-sound';
+import { armOfferAudio, isOfferSoundEnabled, playOfferAlarm } from '@/lib/offer-sound';
 import * as haptics from '@/lib/haptics';
 
 const REFRESH_THROTTLE_MS = 1500;
@@ -109,31 +109,9 @@ export function OrdersRealtime({
       );
     }
 
-    // Client chat messages on this rider's active orders. The chat UI only
-    // exists on /dashboard/orders/[id] — without this, a message from the
-    // client is silent until the rider happens to open that page. Chimes +
-    // vibrates + refreshes so the home-screen badge (isClientMessageUnread)
-    // picks it up. Skipped when there are no active orders (nothing to
-    // filter on) or too many for a realtime `in.(...)` filter to stay sane.
-    type MessageRowPayload = { from_role?: string; channel?: string };
-    if (activeOrderIds.length > 0 && activeOrderIds.length <= 50) {
-      const messagesFilter = `courier_order_id=in.(${activeOrderIds.join(',')})`;
-      channel.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'order_messages', filter: messagesFilter },
-        (payload: { new: MessageRowPayload }) => {
-          const row = payload.new ?? {};
-          if (row.from_role !== 'CLIENT' || row.channel !== 'CLIENT_COURIER') return;
-          if (isOfferSoundEnabled()) playMessageChime();
-          try {
-            haptics.attention();
-          } catch {
-            // haptics unavailable — non-fatal.
-          }
-          triggerRefresh();
-        },
-      );
-    }
+    // The client-chat subscription that used to live here is gone with the
+    // chat UI: it chimed and vibrated for a message the courier then had
+    // nowhere to read, which is worse than staying quiet.
 
     channel.subscribe();
 

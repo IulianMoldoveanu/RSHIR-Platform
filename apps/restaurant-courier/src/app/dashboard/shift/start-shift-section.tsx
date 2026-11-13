@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { PreShiftChecklist } from '@/components/pre-shift-checklist';
 import { SwipeButton } from '@/components/swipe-button';
 
 type Props = {
@@ -10,22 +8,17 @@ type Props = {
 
 /**
  * Client wrapper for the "start shift" half of the shift page.
- * Shows the pre-shift checklist first; once the courier clicks through
- * (or dismisses permanently) the normal swipe button appears.
+ *
+ * This used to put a pre-shift checklist in front of the swipe button, which
+ * the courier had to click through before they could go online. Starting a
+ * shift is one gesture now. `PreShiftChecklist` is still in the tree, so
+ * restoring the gate is a two-line change if a real reason for it appears.
  */
 export function StartShiftSection({ startShiftAction }: Props) {
-  const [checklistDone, setChecklistDone] = useState(false);
-
-  if (checklistDone) {
-    return (
-      <SwipeButton
-        label="→ Glisează pentru a porni tura"
-        onConfirm={startShiftAction}
-      />
-    );
-  }
-
   return (
-    <PreShiftChecklist onContinue={() => setChecklistDone(true)} />
+    <SwipeButton
+      label="→ Glisează pentru a porni tura"
+      onConfirm={startShiftAction}
+    />
   );
 }

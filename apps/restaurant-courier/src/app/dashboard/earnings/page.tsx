@@ -6,14 +6,10 @@ import { StreakCard } from './_streak-card';
 import { ProjectionCard } from './_projection-card';
 import { BestDayCard } from './_best-day-card';
 import { PerformanceStats } from './_performance-stats';
-import { Achievements } from './_achievements';
 import { Sparkline7d } from './_sparkline-7d';
 import { DailyGoalCard } from '@/components/daily-goal-card';
 import { WeeklyGoalCard } from '@/components/weekly-goal-card';
 import { WeekKm } from './_week-km';
-import { ShiftProjectionCard } from './_shift-projection-card';
-import { PfaInfoCard } from './_pfa-info-card';
-import { CalculatorCard } from './_calculator-card';
 
 export const dynamic = 'force-dynamic';
 
@@ -354,21 +350,6 @@ export default async function EarningsPage() {
         </p>
       </section>
 
-      {/* Calculator: Brut + Bacșiș + Net per-window. Per Iulian 2026-05-22
-          ("el trebuie sa vada cat a facut brut + bacsis total"). Tips are
-          persisted in courier_tips (PR Calculator). Reserve % = 10% PFA
-          estimate; configurable later. */}
-      <CalculatorCard
-        deliveries={todayDeliveries}
-        tips={tipsAll}
-        windowLabel="Azi"
-      />
-      <CalculatorCard
-        deliveries={weekDeliveries}
-        tips={tipsAll}
-        windowLabel="Săpt."
-      />
-
       {/* Gamification cards — stacked above recent deliveries list. */}
       <DailyGoalCard todayEarnings={today.earnings} />
       <WeeklyGoalCard weekEarnings={week.earnings} />
@@ -376,21 +357,9 @@ export default async function EarningsPage() {
       <Sparkline7d rows={last30} />
       <StreakCard rows={last30} />
       <ProjectionCard todayRows={todayRows} trailing7Rows={trailing7Rows} />
-      <ShiftProjectionCard trailing7Rows={trailing7Rows} />
       <BestDayCard bestDay={bestDayData} />
 
-      {/* PFA tease — hidden for couriers cu status confirmed. TODO: read
-          pfa_status from courier_profiles when column lands. */}
-      <PfaInfoCard pfaStatus="unknown" />
-
       <PerformanceStats rows={perfRows} allAssignedRows={allAssignedRows} />
-
-      <Achievements
-        totalDeliveries={totalDeliveries}
-        nightDeliveries={nightDeliveries}
-        longestShiftHours={longestShiftHours}
-        maxConsecutiveDays={maxConsecutiveDays}
-      />
 
       <section>
         <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-hir-muted-fg">

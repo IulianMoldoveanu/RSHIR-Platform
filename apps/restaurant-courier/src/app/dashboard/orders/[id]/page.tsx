@@ -29,7 +29,6 @@ import { StopCard } from '@/components/stop-card';
 import { cardClasses } from '@/components/card';
 import { RouteStats } from '@/components/route-stats';
 import { ORDER_ROUTE_COLUMNS, resolveOrderRoute } from '@/lib/order-route';
-import { OrderChat } from './order-chat';
 
 export const dynamic = 'force-dynamic';
 
@@ -344,7 +343,6 @@ export default async function OrderDetailPage(props: { params: Promise<{ id: str
         </div>
       </section>
 
-      {isMine ? <OrderChat courierOrderId={order.id} currentUserId={user.id} /> : null}
 
       {/* Sticky action bar: stays visible at the bottom while the courier
           scrolls through pickup/dropoff/item details above. Uses
