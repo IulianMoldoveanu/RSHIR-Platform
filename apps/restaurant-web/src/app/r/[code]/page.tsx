@@ -187,6 +187,8 @@ export default async function ResellerLandingPage(
           (<img
             src={safeLogo}
             alt={partner.name}
+            width={140}
+            height={40}
             style={{ height: 40, width: 'auto', objectFit: 'contain' }}
           />)
         ) : (
