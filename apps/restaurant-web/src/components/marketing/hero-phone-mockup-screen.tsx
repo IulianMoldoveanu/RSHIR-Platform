@@ -98,6 +98,8 @@ export function HeroPhoneMockupScreen({
                 <img
                   src={item.image_url}
                   alt=""
+                  width={32}
+                  height={32}
                   className="h-8 w-8 shrink-0 rounded-md bg-[#F1F5F9] object-cover"
                 />
               ) : (
