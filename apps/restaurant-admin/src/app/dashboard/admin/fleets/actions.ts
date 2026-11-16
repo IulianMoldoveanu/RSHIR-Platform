@@ -1,8 +1,8 @@
 'use server';
 
 // HIR Command Center — fleet control levers, native. The platform admin's
-// switches over each fleet: display prefix, self-validation delegation, and the
-// KYC/KYF operate-gates. Writes courier_fleets (same Supabase project as the
+// switches over each fleet: display prefix, self-validation delegation, and
+// activation. Writes courier_fleets (same Supabase project as the
 // courier PWA) via service_role, platform-admin gated. Each control saves
 // independently (one-field update) so the UI stays simple.
 
@@ -15,8 +15,6 @@ export type FleetCtrlResult = { ok: true } | { ok: false; error: string };
 export type FleetControls = {
   display_prefix?: string | null;
   can_validate_couriers?: boolean;
-  kyc_required?: boolean;
-  kyf_required?: boolean;
   is_active?: boolean;
 };
 
@@ -43,8 +41,6 @@ export async function updateFleetControls(
     updates.display_prefix = p || null;
   }
   if (controls.can_validate_couriers !== undefined) updates.can_validate_couriers = controls.can_validate_couriers;
-  if (controls.kyc_required !== undefined) updates.kyc_required = controls.kyc_required;
-  if (controls.kyf_required !== undefined) updates.kyf_required = controls.kyf_required;
   if (controls.is_active !== undefined) updates.is_active = controls.is_active;
   if (Object.keys(updates).length === 0) return { ok: true };
 

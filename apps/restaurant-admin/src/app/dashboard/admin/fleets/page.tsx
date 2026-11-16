@@ -1,6 +1,6 @@
 // HIR Command Center — fleets (control levers), native.
-// Lists every courier fleet with courier count + KYF status + the platform
-// control switches (prefix, self-validate, KYC/KYF gates, active). Same
+// Lists every courier fleet with courier count + the platform
+// control switches (prefix, self-validate, active). Same
 // Supabase project as the courier PWA. Platform-admin gated.
 
 import Link from 'next/link';
@@ -47,7 +47,7 @@ export default async function FleetsPage() {
   const { data: fleetRows } = await db
     .from('courier_fleets')
     .select(
-      'id, name, slug, tier, allowed_verticals, is_active, display_prefix, can_validate_couriers, kyc_required, kyf_required',
+      'id, name, slug, tier, allowed_verticals, is_active, display_prefix, can_validate_couriers',
     )
     .order('name', { ascending: true });
   const fleets = (fleetRows ?? []) as Array<{
@@ -59,14 +59,9 @@ export default async function FleetsPage() {
     is_active: boolean;
     display_prefix: string | null;
     can_validate_couriers: boolean;
-    kyc_required: boolean;
-    kyf_required: boolean;
   }>;
 
-  const [{ data: profileRows }, { data: kyfRows }] = await Promise.all([
-    db.from('courier_profiles').select('fleet_id, status'),
-    db.from('fleet_kyf').select('fleet_id, kyf_status'),
-  ]);
+  const { data: profileRows } = await db.from('courier_profiles').select('fleet_id, status');
 
   const courierCount = new Map<string, { total: number; active: number }>();
   for (const p of (profileRows ?? []) as Array<{ fleet_id: string | null; status: string | null }>) {
@@ -76,11 +71,6 @@ export default async function FleetsPage() {
     if (p.status === 'ACTIVE') c.active += 1;
     courierCount.set(p.fleet_id, c);
   }
-  const kyfStatus = new Map<string, string>();
-  for (const k of (kyfRows ?? []) as Array<{ fleet_id: string; kyf_status: string }>) {
-    kyfStatus.set(k.fleet_id, k.kyf_status);
-  }
-
   const vms: FleetVM[] = fleets.map((f) => ({
     id: f.id,
     name: f.name,
@@ -90,11 +80,8 @@ export default async function FleetsPage() {
     isActive: f.is_active,
     displayPrefix: f.display_prefix,
     canValidateCouriers: f.can_validate_couriers,
-    kycRequired: f.kyc_required,
-    kyfRequired: f.kyf_required,
     courierTotal: courierCount.get(f.id)?.total ?? 0,
     courierActive: courierCount.get(f.id)?.active ?? 0,
-    kyfStatus: kyfStatus.get(f.id) ?? null,
   }));
 
   return (
@@ -104,7 +91,7 @@ export default async function FleetsPage() {
           <div>
             <h1 className="font-display text-xl font-bold">Flote — control</h1>
             <p className="text-xs text-slate-500">
-              Prefix afișat, delegare validare, porți KYC/KYF, activare — per flotă.
+              Prefix afișat, delegare validare, activare — per flotă.
             </p>
           </div>
           <Link href="/dashboard/admin/hub" className="text-sm text-slate-400 hover:text-slate-200">
