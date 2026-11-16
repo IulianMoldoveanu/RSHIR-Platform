@@ -68,7 +68,7 @@ export async function HeroShowcase({ currentLocale }: { currentLocale: Locale })
               <div className="relative h-16 w-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] sm:h-20">
                 {coverUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={coverUrl} alt="" className="h-full w-full object-cover" width={320} height={80} />
                 )}
               </div>
 

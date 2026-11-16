@@ -150,6 +150,8 @@ export function TenantHeader({
               className="absolute left-3 top-3 h-10 w-auto max-w-[140px] object-contain drop-shadow-md sm:left-4 sm:top-4"
               loading="eager"
               decoding="async"
+              width={140}
+              height={40}
             />
           </>
         )}
