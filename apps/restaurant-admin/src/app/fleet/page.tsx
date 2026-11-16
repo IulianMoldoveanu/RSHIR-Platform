@@ -18,7 +18,6 @@ export const dynamic = 'force-dynamic';
 
 type Snapshot = {
   fleet: { id: string; name: string; slug: string; is_active: boolean; primary_city_id: string | null };
-  kyf: { kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED'; cui: string | null; company_name: string | null } | null;
   cityCenter: { lat: number; lng: number; cityName: string };
 };
 
@@ -40,12 +39,6 @@ async function loadFleetMeta(): Promise<Snapshot> {
 
   if (!fleet) redirect('/fleet-signup');
 
-  const { data: kyf } = await admin
-    .from('fleet_kyf')
-    .select('kyf_status, cui, company_name')
-    .eq('fleet_id', fleet.id)
-    .maybeSingle();
-
   // City center for map default — looked up via the existing helper used by
   // /dashboard/zones. Falls back to Bucharest centroid if no city is set.
   let cityName = 'București';
@@ -61,7 +54,6 @@ async function loadFleetMeta(): Promise<Snapshot> {
 
   return {
     fleet,
-    kyf,
     cityCenter: { lat: center.lat, lng: center.lng, cityName: center.name },
   };
 }
@@ -83,14 +75,10 @@ function timeAgo(iso: string | null): string {
 }
 
 export default async function FleetHome() {
-  const { fleet, kyf, cityCenter } = await loadFleetMeta();
-  const kyfStatus = kyf?.kyf_status ?? 'PENDING';
-  const isVerified = kyfStatus === 'VERIFIED';
-  const isRejected = kyfStatus === 'REJECTED';
+  const { fleet, cityCenter } = await loadFleetMeta();
 
-  // Load dispatch snapshot only if KYF verified — unverified fleets don't
   // dispatch yet, so we save a DB round-trip and show the onboarding block.
-  const snapshot = isVerified ? await loadDispatchSnapshot(fleet.id as string) : null;
+  const snapshot = await loadDispatchSnapshot(fleet.id as string);
 
   // Build pin arrays for the map. Filter to couriers/orders that have coords.
   const courierPins: CourierPin[] =
@@ -127,50 +115,11 @@ export default async function FleetHome() {
             reîmprospătează automat la 30s.
           </p>
         </div>
-        {isVerified ? <DispatchAutoRefresh /> : null}
+        <DispatchAutoRefresh />
       </div>
 
-      {!isVerified ? (
-        <section
-          className={`rounded-xl border p-5 ${
-            isRejected ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'
-          }`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold text-zinc-900">
-                Verificare KYF necesară pentru a dispecera
-              </h2>
-              <p className="mt-1 text-sm text-zinc-700">
-                {isRejected
-                  ? 'Verificarea KYF a fost respinsă. Recontactează administratorul HIR și revizuiește documentele.'
-                  : 'Încarcă documentele firmei pentru a putea opera. De regulă sub 24h.'}
-              </p>
-              <p className="mt-2 text-xs text-zinc-500">
-                CUI: {kyf?.cui ?? '—'} · Firma: {kyf?.company_name ?? fleet.name}
-              </p>
-            </div>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-                isRejected ? 'bg-rose-600 text-white' : 'bg-amber-600 text-white'
-              }`}
-            >
-              {kyfStatus}
-            </span>
-          </div>
-          <div className="mt-4">
-            <Link
-              href="/fleet/kyf"
-              className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-            >
-              {isRejected ? 'Revizuiește documentele' : 'Încarcă documente KYF'}
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
       {/* LIVE DISPATCH BLOCK — only when verified */}
-      {isVerified && snapshot ? (
+      {snapshot ? (
         <>
           {/* KPI strip */}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -299,39 +248,33 @@ export default async function FleetHome() {
           desc="Hartă mare, accept/reasignează comenzi, swipe pickup/livrare în aplicația HIR Curier."
           href="https://courier.hirforyou.ro/fleet/orders"
           external
-          locked={!isVerified}
+          locked={false}
           badge="HIR Curier"
         />
         <FeatureCard
           title="Curierii mei"
           desc="Lista curierilor flotei + status KYC. Nume prefixat cu acronimul firmei."
           href="/fleet/couriers"
-          locked={!isVerified}
+          locked={false}
         />
         <FeatureCard
           title="Plăți"
           desc="Decontări săptămânale către HIR (factură) și către curierii tăi."
           href="https://courier.hirforyou.ro/fleet/payouts"
           external
-          locked={!isVerified}
+          locked={false}
         />
         <FeatureCard
           title="Tarife (curier + vendor)"
           desc="Pickup fix + RON/km. Auto-sync cu HIR Curier."
           href="/fleet/tariffs"
-          locked={!isVerified}
-        />
-        <FeatureCard
-          title="Verificare KYF"
-          desc="Documente firmă + ANAF sync."
-          href="/fleet/kyf"
           locked={false}
         />
         <FeatureCard
           title="Hepi — self improvements"
           desc="Asistent AI cu recomandări personalizate."
           href="/fleet/hepi"
-          locked={!isVerified}
+          locked={false}
           badge="AI"
         />
       </section>

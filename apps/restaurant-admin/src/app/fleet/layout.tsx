@@ -25,8 +25,6 @@ type FleetRow = {
   slug: string;
   name: string;
   is_active: boolean;
-  kyf_required: boolean;
-  fleet_kyf: { kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED' } | { kyf_status: 'PENDING' | 'VERIFIED' | 'REJECTED' }[] | null;
 };
 
 export default async function FleetLayout({ children }: { children: ReactNode }) {
@@ -40,7 +38,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   const admin = createAdminClientUntyped();
   const { data, error } = await admin
     .from('courier_fleets')
-    .select('id, slug, name, is_active, kyf_required, fleet_kyf:fleet_kyf(kyf_status)')
+    .select('id, slug, name, is_active')
     .eq('owner_user_id', user.id)
     .order('created_at', { ascending: true })
     .limit(1)
@@ -90,11 +88,6 @@ export default async function FleetLayout({ children }: { children: ReactNode })
     );
   }
 
-  const kyfRaw = fleet.fleet_kyf;
-  const kyfStatus =
-    (Array.isArray(kyfRaw) ? kyfRaw[0]?.kyf_status : kyfRaw?.kyf_status) ?? 'PENDING';
-  const isVerified = kyfStatus === 'VERIFIED';
-
   // Panoul de control complet (orders dispatch, couriers, payouts, live map)
   // traieste pe HIR Curier (courier.hirforyou.ro/fleet/*) — built pentru
   // fleet managers cu requireFleetManager() server-side. Linkurile externe
@@ -105,17 +98,12 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   const FLEET_OPS_HOST = 'https://courier.hirforyou.ro';
   const navLinks = [
     { href: '/fleet', label: 'Acasa', external: false, dot: false },
-    { href: '/fleet/kyf', label: 'Verificare KYF', external: false, dot: !isVerified },
-    ...(isVerified
-      ? [
-          { href: '/fleet/tariffs', label: 'Tarife (curier + vendor)', external: false, dot: false },
-          { href: '/fleet/couriers', label: 'Curierii mei', external: false, dot: false },
-          { href: `${FLEET_OPS_HOST}/fleet`, label: 'Panou de control (operare)', external: true, dot: false },
-          { href: `${FLEET_OPS_HOST}/fleet/orders`, label: 'Comenzi & dispatch', external: true, dot: false },
-          { href: `${FLEET_OPS_HOST}/fleet/payouts`, label: 'Plati', external: true, dot: false },
-          { href: '/fleet/hepi', label: 'Hepi - self improvements', external: false, dot: false },
-        ]
-      : []),
+    { href: '/fleet/tariffs', label: 'Tarife (curier + vendor)', external: false, dot: false },
+    { href: '/fleet/couriers', label: 'Curierii mei', external: false, dot: false },
+    { href: `${FLEET_OPS_HOST}/fleet`, label: 'Panou de control (operare)', external: true, dot: false },
+    { href: `${FLEET_OPS_HOST}/fleet/orders`, label: 'Comenzi & dispatch', external: true, dot: false },
+    { href: `${FLEET_OPS_HOST}/fleet/payouts`, label: 'Plati', external: true, dot: false },
+    { href: '/fleet/hepi', label: 'Hepi - self improvements', external: false, dot: false },
   ];
 
   return (
@@ -163,11 +151,6 @@ export default async function FleetLayout({ children }: { children: ReactNode })
         <header className="flex h-14 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 sm:px-6">
           <span className="text-sm font-medium text-zinc-700">
             Flota — {fleet.name}
-            {!isVerified ? (
-              <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                KYF in asteptare
-              </span>
-            ) : null}
           </span>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-500 md:inline">{user.email}</span>

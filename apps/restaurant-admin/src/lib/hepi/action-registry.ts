@@ -13,7 +13,6 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { setCityActive, activateCountyCapitals } from '@/app/dashboard/admin/cities/actions';
 import { setTenantStatus, setTenantCity } from '@/app/dashboard/admin/tenants/actions';
-import { verifyFleetKyf, verifyCourierKyc } from '@/app/dashboard/admin/verifications/actions';
 import { assignFleet, markStrike, promoteToPrimary, terminateAssignment } from '@/app/dashboard/admin/fleet-allocation/actions';
 import { createPartner } from '@/app/dashboard/admin/partners/actions';
 import { generatePreviousWeek } from '@/app/dashboard/admin/connect-billing/actions';
@@ -221,39 +220,6 @@ const ACTIONS: HepiActionDef[] = [
     },
   },
   {
-    id: 'verify_fleet_kyf',
-    label: 'Verifică flotă (KYF)',
-    risk: 'high',
-    description:
-      'Aprobă (VERIFIED) sau respinge (REJECTED) verificarea de legitimitate a unei flote (KYF). Dă numele flotei + decizia; la respingere e obligatoriu un motiv.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        fleet: { type: 'string', description: 'Nume flotă' },
-        decision: { type: 'string', enum: ['VERIFIED', 'REJECTED'] },
-        reason: { type: 'string', description: 'Motiv (obligatoriu la REJECTED)' },
-      },
-      required: ['fleet', 'decision'],
-    },
-    schema: z.object({
-      fleet: z.string().trim().min(1).max(160),
-      decision: z.enum(['VERIFIED', 'REJECTED']),
-      reason: z.string().trim().max(500).optional(),
-    }),
-    describe: (p) =>
-      p.decision === 'VERIFIED'
-        ? `Aprobă KYF pentru flota „${String(p.fleet)}".`
-        : `Respinge KYF pentru flota „${String(p.fleet)}" (motiv: ${String(p.reason ?? '—')}).`,
-    execute: async (p) => {
-      const sb = createAdminClient();
-      const f = await resolveFleet(sb, String(p.fleet));
-      if (!f) return { ok: false, message: `Flota „${String(p.fleet)}" nu a fost găsită.` };
-      const r = await verifyFleetKyf(f.id, p.decision as 'VERIFIED' | 'REJECTED', p.reason as string | undefined);
-      if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
-      return { ok: true, message: p.decision === 'VERIFIED' ? `Am aprobat KYF pentru ${f.name}.` : `Am respins KYF pentru ${f.name}.` };
-    },
-  },
-  {
     id: 'assign_fleet',
     label: 'Asignează flotă la vendor',
     risk: 'low',
@@ -358,39 +324,6 @@ const ACTIONS: HepiActionDef[] = [
       const r = await generatePreviousWeek();
       if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
       return { ok: true, message: `Facturi Connect generate${typeof r.created === 'number' ? ` (${r.created})` : ''}.` };
-    },
-  },
-  {
-    id: 'verify_courier_kyc',
-    label: 'Verifică curier (KYC)',
-    risk: 'high',
-    description:
-      'Aprobă (VERIFIED) sau respinge (REJECTED) verificarea de identitate (KYC) a unui curier. Dă numele curierului + decizia; la respingere e obligatoriu un motiv.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        courier: { type: 'string', description: 'Numele curierului' },
-        decision: { type: 'string', enum: ['VERIFIED', 'REJECTED'] },
-        reason: { type: 'string', description: 'Motiv (obligatoriu la REJECTED)' },
-      },
-      required: ['courier', 'decision'],
-    },
-    schema: z.object({
-      courier: z.string().trim().min(1).max(160),
-      decision: z.enum(['VERIFIED', 'REJECTED']),
-      reason: z.string().trim().max(500).optional(),
-    }),
-    describe: (p) =>
-      p.decision === 'VERIFIED'
-        ? `Aprobă KYC pentru curierul „${String(p.courier)}".`
-        : `Respinge KYC pentru curierul „${String(p.courier)}" (motiv: ${String(p.reason ?? '—')}).`,
-    execute: async (p) => {
-      const sb = createAdminClient();
-      const c = await resolveCourier(sb, String(p.courier));
-      if (!c) return { ok: false, message: `Curierul „${String(p.courier)}" nu a fost găsit.` };
-      const r = await verifyCourierKyc(c.user_id, p.decision as 'VERIFIED' | 'REJECTED', p.reason as string | undefined);
-      if (!r.ok) return { ok: false, message: `Eroare: ${r.error}` };
-      return { ok: true, message: p.decision === 'VERIFIED' ? `Am aprobat KYC pentru ${c.full_name}.` : `Am respins KYC pentru ${c.full_name}.` };
     },
   },
   {

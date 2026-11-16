@@ -64,7 +64,6 @@ vi.mock('@/app/dashboard/admin/cities/actions', () => ({
   activateCountyCapitals: (async () => ({ ok: true })),
 }));
 vi.mock('@/app/dashboard/admin/tenants/actions', () => ({ setTenantStatus: (async () => ({ ok: true })), setTenantCity: (async () => ({ ok: true })) }));
-vi.mock('@/app/dashboard/admin/verifications/actions', () => ({ verifyFleetKyf: (async () => ({ ok: true })), verifyCourierKyc: (async () => ({ ok: true })) }));
 vi.mock('@/app/dashboard/admin/fleet-allocation/actions', () => ({
   assignFleet: (async () => ({ ok: true })), markStrike: (async () => ({ ok: true })), promoteToPrimary: (async () => ({ ok: true })), terminateAssignment: (async () => ({ ok: true })),
 }));

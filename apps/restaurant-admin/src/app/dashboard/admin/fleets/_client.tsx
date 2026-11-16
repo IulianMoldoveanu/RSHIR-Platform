@@ -12,11 +12,8 @@ export type FleetVM = {
   isActive: boolean;
   displayPrefix: string | null;
   canValidateCouriers: boolean;
-  kycRequired: boolean;
-  kyfRequired: boolean;
   courierTotal: number;
   courierActive: number;
-  kyfStatus: string | null;
 };
 
 const VERTICAL_EMOJI: Record<string, string> = { restaurant: '🍕', pharma: '💊' };
@@ -44,8 +41,6 @@ function FleetRow({ fleet }: { fleet: FleetVM }) {
   const [savedAt, setSavedAt] = useState(0);
   const [prefix, setPrefix] = useState(fleet.displayPrefix ?? '');
   const [canValidate, setCanValidate] = useState(fleet.canValidateCouriers);
-  const [kycRequired, setKycRequired] = useState(fleet.kycRequired);
-  const [kyfRequired, setKyfRequired] = useState(fleet.kyfRequired);
   const [isActive, setIsActive] = useState(fleet.isActive);
 
   function save(controls: FleetControls) {
@@ -57,14 +52,6 @@ function FleetRow({ fleet }: { fleet: FleetVM }) {
     });
   }
 
-  const kyfBadge =
-    fleet.kyfStatus === 'VERIFIED'
-      ? { label: 'KYF ✓', tone: 'bg-emerald-500/10 text-emerald-300' }
-      : fleet.kyfStatus === 'PENDING'
-        ? { label: 'KYF în curs', tone: 'bg-violet-500/10 text-violet-300' }
-        : fleet.kyfStatus === 'REJECTED'
-          ? { label: 'KYF respins', tone: 'bg-rose-500/10 text-rose-300' }
-          : { label: 'KYF —', tone: 'bg-slate-800 text-slate-500' };
 
   return (
     <article className="rounded-2xl border border-slate-800 bg-slate-900/40 p-4">
@@ -82,7 +69,6 @@ function FleetRow({ fleet }: { fleet: FleetVM }) {
               </span>
             ))}
             <span>· {fleet.courierActive}/{fleet.courierTotal} curieri activi</span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${kyfBadge.tone}`}>{kyfBadge.label}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -126,24 +112,6 @@ function FleetRow({ fleet }: { fleet: FleetVM }) {
           onChange={(v) => {
             setCanValidate(v);
             save({ can_validate_couriers: v });
-          }}
-        />
-        <CheckCard
-          label="Impune KYC curieri"
-          hint="Doar curieri verificați"
-          checked={kycRequired}
-          onChange={(v) => {
-            setKycRequired(v);
-            save({ kyc_required: v });
-          }}
-        />
-        <CheckCard
-          label="Impune KYF firmă"
-          hint="Operează doar dacă KYF verificat"
-          checked={kyfRequired}
-          onChange={(v) => {
-            setKyfRequired(v);
-            save({ kyf_required: v });
           }}
         />
       </div>

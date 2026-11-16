@@ -17,8 +17,6 @@ const h = vi.hoisted(() => ({
   setTenantStatusResult: { ok: true, status: 'SUSPENDED' } as { ok: true; status: string } | { ok: false; error: string },
   setTenantCityResult: { ok: true, cityName: 'Cluj-Napoca' } as { ok: true; cityName: string } | { ok: false; error: string },
   capitalsResult: { ok: true, activated: 41 } as { ok: true; activated: number } | { ok: false; error: string },
-  verifyFleetKyfResult: { ok: true } as { ok: true } | { ok: false; error: string },
-  verifyCourierKycResult: { ok: true } as { ok: true } | { ok: false; error: string },
   assignFleetResult: { ok: true, assignment_id: 'a1' } as { ok: true; assignment_id?: string } | { ok: false; error: string },
   markStrikeResult: { ok: true, strike_count: 3, auto_paused: false } as { ok: true; strike_count: number; auto_paused: boolean } | { ok: false; error: string },
   promoteResult: { ok: true, assignment_id: 'a1' } as { ok: true; assignment_id?: string } | { ok: false; error: string },
@@ -38,8 +36,6 @@ const h = vi.hoisted(() => ({
   activateCountyCapitals: vi.fn(() => undefined),
   setTenantStatus: vi.fn((_a?: unknown) => undefined),
   setTenantCity: vi.fn((_a?: unknown) => undefined),
-  verifyFleetKyf: vi.fn((_a?: unknown, _b?: unknown, _c?: unknown) => undefined),
-  verifyCourierKyc: vi.fn((_a?: unknown, _b?: unknown, _c?: unknown) => undefined),
   assignFleet: vi.fn((_a?: unknown) => undefined),
   markStrike: vi.fn((_a?: unknown) => undefined),
   promoteToPrimary: vi.fn((_a?: unknown) => undefined),
@@ -60,10 +56,6 @@ vi.mock('@/app/dashboard/admin/cities/actions', () => ({
 vi.mock('@/app/dashboard/admin/tenants/actions', () => ({
   setTenantStatus: async (a: unknown) => { h.setTenantStatus(a); return h.setTenantStatusResult; },
   setTenantCity: async (a: unknown) => { h.setTenantCity(a); return h.setTenantCityResult; },
-}));
-vi.mock('@/app/dashboard/admin/verifications/actions', () => ({
-  verifyFleetKyf: async (a: unknown, b: unknown, c: unknown) => { h.verifyFleetKyf(a, b, c); return h.verifyFleetKyfResult; },
-  verifyCourierKyc: async (a: unknown, b: unknown, c: unknown) => { h.verifyCourierKyc(a, b, c); return h.verifyCourierKycResult; },
 }));
 vi.mock('@/app/dashboard/admin/fleet-allocation/actions', () => ({
   assignFleet: async (a: unknown) => { h.assignFleet(a); return h.assignFleetResult; },
@@ -119,8 +111,7 @@ import { validateAction, getAction, WRITE_TOOL_IDS, writeToolSpecs } from './act
 
 beforeEach(() => {
   for (const k of [
-    'setCityActive', 'activateCountyCapitals', 'setTenantStatus', 'setTenantCity', 'verifyFleetKyf', 'verifyCourierKyc',
-    'assignFleet', 'markStrike', 'promoteToPrimary', 'terminateAssignment', 'createPartner', 'generatePreviousWeek',
+    'setCityActive', 'activateCountyCapitals', 'setTenantStatus', 'setTenantCity',     'assignFleet', 'markStrike', 'promoteToPrimary', 'terminateAssignment', 'createPartner', 'generatePreviousWeek',
     'createIncident', 'updateIncidentStatus', 'addFleetManagerMembership', 'createTenantWithOwner', 'createSiblingLocationAction',
   ] as const) {
     h[k].mockClear();
@@ -146,16 +137,8 @@ describe('validateAction (whitelist + schema)', () => {
     expect(validateAction('set_tenant_status', { tenant: 'x', status: 'DELETE' }).ok).toBe(false);
   });
 
-  it('rejects verify_fleet_kyf with an invalid decision', () => {
-    expect(validateAction('verify_fleet_kyf', { fleet: 'Dodo', decision: 'MAYBE' }).ok).toBe(false);
-  });
-
   it('rejects create_partner with a malformed email', () => {
     expect(validateAction('create_partner', { name: 'Acme', email: 'nope', commissionPct: 10 }).ok).toBe(false);
-  });
-
-  it('rejects verify_courier_kyc with a bad decision', () => {
-    expect(validateAction('verify_courier_kyc', { courier: 'Ion', decision: 'HMM' }).ok).toBe(false);
   });
 
   it('rejects create_incident with a bad severity', () => {
@@ -172,20 +155,6 @@ describe('validateAction (whitelist + schema)', () => {
 });
 
 describe('execute wiring', () => {
-  it('verify_courier_kyc resolves the courier and calls verifyCourierKyc', async () => {
-    h.courierRow = { user_id: 'u1', full_name: 'Ion Pop' };
-    const res = await getAction('verify_courier_kyc')!.execute({ courier: 'Ion', decision: 'VERIFIED' });
-    expect(h.verifyCourierKyc).toHaveBeenCalledWith('u1', 'VERIFIED', undefined);
-    expect(res.ok).toBe(true);
-  });
-
-  it('verify_fleet_kyf resolves the fleet and calls verifyFleetKyf', async () => {
-    h.fleetRow = { id: 'f1', name: 'Dodo Courier' };
-    const res = await getAction('verify_fleet_kyf')!.execute({ fleet: 'Dodo', decision: 'VERIFIED' });
-    expect(h.verifyFleetKyf).toHaveBeenCalledWith('f1', 'VERIFIED', undefined);
-    expect(res.ok).toBe(true);
-  });
-
   it('set_incident_status resolves incident by title and calls updateIncidentStatus', async () => {
     h.incidentRow = { id: 'i1', title: 'API latency' };
     const res = await getAction('set_incident_status')!.execute({ incident: 'API', status: 'resolved' });
@@ -245,7 +214,7 @@ describe('tool specs', () => {
   });
 
   it('includes the Etapa 3 action ids', () => {
-    for (const id of ['verify_courier_kyc', 'create_incident', 'set_incident_status', 'promote_fleet_primary', 'terminate_fleet_assignment', 'grant_fleet_manager', 'onboard_vendor', 'create_sibling_location']) {
+    for (const id of ['create_incident', 'set_incident_status', 'promote_fleet_primary', 'terminate_fleet_assignment', 'grant_fleet_manager', 'onboard_vendor', 'create_sibling_location']) {
       expect(WRITE_TOOL_IDS.has(id)).toBe(true);
     }
   });
