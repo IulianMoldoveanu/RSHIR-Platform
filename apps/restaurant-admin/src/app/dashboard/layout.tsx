@@ -283,7 +283,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           items: [
             { href: '/dashboard/admin/orders', label: 'Comenzi (toate verticalele)' },
             { href: '/dashboard/admin/control-room', label: 'Control Room (live)' },
-            { href: '/dashboard/admin/verifications', label: 'Verificări (KYC/KYF)' },
             { href: '/dashboard/admin/fleets', label: 'Flote — control' },
             { href: '/dashboard/admin/fleet-allocation', label: 'Alocare flote' },
             { href: '/dashboard/admin/fleet-managers', label: 'Fleet managers' },

@@ -2,8 +2,9 @@
 //
 // 2026-06-11 — pair with /fleet-signup page. Creates (1) a Supabase auth user
 // (email confirmation sent automatically by Supabase, NO email_confirm:true),
-// and (2) a courier_fleets row owned by the new user with kyf_required=true
-// and is_active=false. Iulian approves the KYF via /dashboard/admin/verifications.
+// and (2) a courier_fleets row owned by the new user with is_active=false.
+// KYF was removed on 2026-11-16: a new fleet is checked by hand and switched
+// on from /dashboard/admin/fleets.
 //
 // Pattern mirrors /api/signup (restaurant tenant signup) for rate-limit +
 // same-origin + zod validation.
@@ -83,8 +84,8 @@ export async function POST(req: NextRequest) {
   // confirmation step. Why: Supabase's default shared email sender is rate-
   // limited (4/h) and routinely blocked by Yahoo/Outlook (no SPF/DKIM for
   // their senders). Fleet managers were getting stuck on "Email not confirmed"
-  // with no email arriving. KYF approval (Iulian reviews CUI + docs via
-  // /dashboard/admin/verifications, is_active stays false until approved) is
+  // with no email arriving. Activation by hand (is_active stays false until
+  // the fleet is switched on from /dashboard/admin/fleets) is
   // the REAL gate — confirming a Yahoo address adds friction with no real
   // verification value here.
   const { data: created, error: authErr } = await admin.auth.admin.createUser({
@@ -101,12 +102,12 @@ export async function POST(req: NextRequest) {
 
   const userId = created.user.id;
 
-  // Create the fleet row. is_active=false until KYF approval; kyf_required=true
-  // forces the user through /fleet/kyf before they can dispatch couriers.
+  // Create the fleet row. is_active=false until it is switched on by hand
+  // from /dashboard/admin/fleets — the only gate left.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   // 2026-06-15 — derive a 3-letter display_prefix from the first word of
   // the fleet name (e.g. "Els courier delivery srl" -> "ELS", "Eazy Roads"
-  // -> "EAZ"). Shows up next to courier names in /verifications and the
+  // -> "EAZ"). Shows up next to courier names in the
   // admin /fleet/couriers list so Iulian instantly sees which fleet a
   // rider belongs to. Owner can override later from /fleet/settings.
   const firstWord = name.trim().split(/\s+/)[0] ?? '';
@@ -120,7 +121,6 @@ export async function POST(req: NextRequest) {
     primary_city_id,
     display_prefix,
     is_active: false,
-    kyf_required: true,
     tier: 'partner',
     allowed_verticals: ['restaurant', 'pharma'],
     delivery_app: 'hir',
@@ -130,28 +130,6 @@ export async function POST(req: NextRequest) {
     // Best-effort rollback of the auth user so a retry can succeed.
     await admin.auth.admin.deleteUser(userId).catch(() => {});
     return NextResponse.json({ error: fleetErr.message }, { status: 500 });
-  }
-
-  // Seed fleet_kyf row with CUI so Iulian's verification queue surfaces it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: createdFleet } = await (admin as any)
-    .from('courier_fleets')
-    .select('id')
-    .eq('slug', slug)
-    .maybeSingle();
-
-  if (createdFleet?.id) {
-    // Seed fleet_kyf row. Status must be one of PENDING/VERIFIED/REJECTED per
-    // fleet_kyf_kyf_status_check constraint on prod (verified 2026-06-11 after
-    // a previous "PENDING_DOCS" value silently violated the constraint and the
-    // .catch() swallowed the error, leaving fleet_kyf with no row).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (admin as any).from('fleet_kyf').insert({
-      fleet_id: createdFleet.id,
-      cui: cui.toUpperCase().replace(/^RO/, ''),
-      company_name: name,
-      kyf_status: 'PENDING',
-    }).then(() => {}).catch(() => {});
   }
 
   return NextResponse.json({ ok: true, autoConfirmed: true }, { status: 201 });

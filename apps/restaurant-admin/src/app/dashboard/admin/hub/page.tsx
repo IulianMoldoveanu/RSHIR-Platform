@@ -73,15 +73,9 @@ const RSHIR_TILES: Tile[] = [
     tone: 'emerald',
   },
   {
-    label: 'Verificări (KYC + KYF)',
-    href: '/dashboard/admin/verifications',
-    description: 'Aprobă/respinge identitate curieri + legitimitate flote — documente + decizie.',
-    tone: 'emerald',
-  },
-  {
     label: 'Flote — control',
     href: '/dashboard/admin/fleets',
-    description: 'Per flotă: prefix afișat, delegare validare, porți KYC/KYF, activare, curieri + status KYF.',
+    description: 'Per flotă: prefix afișat, delegare validare, activare, curieri.',
     tone: 'emerald',
   },
   {
@@ -416,8 +410,6 @@ type DeliveryInfraStats = {
   ordersInProgress: number | null;
   activeFleets: number | null;
   activeCouriers: number | null;
-  pendingKyc: number | null;
-  pendingKyf: number | null;
 };
 
 async function fetchDeliveryInfraStats(): Promise<DeliveryInfraStats> {
@@ -445,16 +437,12 @@ async function fetchDeliveryInfraStats(): Promise<DeliveryInfraStats> {
     ordersInProgress,
     activeFleets,
     activeCouriers,
-    pendingKyc,
-    pendingKyf,
   ] = await Promise.all([
     count('courier_orders', (q) => q.eq('vertical', 'restaurant').gte('created_at', since)),
     count('courier_orders', (q) => q.eq('vertical', 'pharma').gte('created_at', since)),
     count('courier_orders', (q) => q.in('status', IN_PROGRESS)),
     count('courier_fleets', (q) => q.eq('is_active', true)),
     count('courier_profiles', (q) => q.eq('status', 'ACTIVE')),
-    count('courier_kyc', (q) => q.eq('kyc_status', 'PENDING')),
-    count('fleet_kyf', (q) => q.eq('kyf_status', 'PENDING')),
   ]);
 
   return {
@@ -463,8 +451,6 @@ async function fetchDeliveryInfraStats(): Promise<DeliveryInfraStats> {
     ordersInProgress,
     activeFleets,
     activeCouriers,
-    pendingKyc,
-    pendingKyf,
   };
 }
 
@@ -568,22 +554,6 @@ export default async function AdminHubPage() {
               {fmtCount(infra.activeCouriers)}
             </p>
           </div>
-          <Link
-            href="/dashboard/admin/verifications"
-            className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5 transition hover:bg-amber-500/10"
-          >
-            <p className="text-xs uppercase tracking-wide text-slate-400">Verificări</p>
-            <p className="mt-1 font-display text-2xl font-bold text-slate-100">
-              {fmtCount(
-                infra.pendingKyc === null && infra.pendingKyf === null
-                  ? null
-                  : (infra.pendingKyc ?? 0) + (infra.pendingKyf ?? 0),
-              )}
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              KYC {fmtCount(infra.pendingKyc)} · KYF {fmtCount(infra.pendingKyf)}
-            </p>
-          </Link>
         </div>
       </section>
 

@@ -29,12 +29,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             Flote
           </Link>
           <Link
-            href="/admin/verifications"
-            className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
-          >
-            Verificări
-          </Link>
-          <Link
             href="/admin/couriers"
             className="rounded-md px-2 py-1 font-medium text-hir-muted-fg hover:bg-hir-surface hover:text-hir-fg"
           >

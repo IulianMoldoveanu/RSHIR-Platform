@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ChevronLeft, Mail, Phone, Shield, User } from 'lucide-react';
+import { ChevronLeft, Mail, Phone, User } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { updateAvatarUrlAction, updateVehicleTypeAction } from '../../actions';
@@ -113,13 +113,6 @@ export default async function ProfileSettingsPage() {
         <VehicleSelector initial={profile?.vehicle_type ?? 'BIKE'} onSave={updateVehicleTypeAction} />
       </Card>
 
-      {/* Identity verification (KYC) — one-time account validation */}
-      <SettingsRow
-        href="/dashboard/kyc"
-        icon={<Shield className="h-5 w-5 text-violet-400" aria-hidden />}
-        label="Verificare identitate"
-        description="Încarci buletinul o singură dată ca să-ți validăm contul și să primești comenzi."
-      />
     </div>
   );
 }
