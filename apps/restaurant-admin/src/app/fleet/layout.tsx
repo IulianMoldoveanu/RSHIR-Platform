@@ -89,13 +89,17 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   }
 
   // Panoul de control complet (orders dispatch, couriers, payouts, live map)
-  // traieste pe HIR Curier (courier.hirforyou.ro/fleet/*) — built pentru
+  // traieste pe HIR Curier (curier.hirforyou.ro/fleet/*) — built pentru
   // fleet managers cu requireFleetManager() server-side. Linkurile externe
-  // se deschid in tab nou (target=_blank) ca sa pastram sesiunea admin
-  // intacta in timp ce fleet managerul actioneaza din cealalta tab.
-  // Single-login cross-subdomain este P1 follow-up (cookie domain
-  // .hirforyou.ro pe ambele middleware-uri).
-  const FLEET_OPS_HOST = 'https://courier.hirforyou.ro';
+  // se deschid in tab nou (target=_blank) ca sa pastram tab-ul asta intact
+  // in timp ce fleet managerul actioneaza din celalalt.
+  //
+  // Single-login cross-subdomain: REZOLVAT 2026-11-18. Cookie-ul de sesiune
+  // se scrie acum cu domain=.hirforyou.ro din browser, server si middleware
+  // (sharedAuthCookieOptions), deci tab-ul care se deschide aici e deja
+  // autenticat si nu mai cere a doua parola. Hostul e `curier`, cu i, ca sa
+  // nu mai fie un al treilea host in joc.
+  const FLEET_OPS_HOST = 'https://curier.hirforyou.ro';
   const navLinks = [
     { href: '/fleet', label: 'Acasa', external: false, dot: false },
     { href: '/fleet/tariffs', label: 'Tarife (curier + vendor)', external: false, dot: false },

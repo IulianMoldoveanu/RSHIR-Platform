@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
-import { createBrowserSupabase } from '@hir/supabase-types';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button } from '@hir/ui';
 
 // Forgot-password flow. Supabase auth.resetPasswordForEmail() emails the
@@ -26,10 +26,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
+      const supabase = getBrowserSupabase();
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${origin}/login/reset`,

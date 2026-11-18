@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { createBrowserSupabase } from '@hir/supabase-types';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage } from '@hir/ui';
 
 // /login/reset — landing page for recovery + invite links. Supabase's
@@ -24,10 +24,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     // Give Supabase a tick to consume the URL fragment + set session.
-    const supabase = createBrowserSupabase(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
+    const supabase = getBrowserSupabase();
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
@@ -58,10 +55,7 @@ export default function ResetPasswordPage() {
     }
     setSubmitting(true);
     try {
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
+      const supabase = getBrowserSupabase();
       const { error } = await supabase.auth.updateUser({ password: pwd });
       if (error) {
         setError(error.message);

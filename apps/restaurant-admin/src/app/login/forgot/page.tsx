@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { createBrowserSupabase } from '@hir/supabase-types';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage } from '@hir/ui';
 
 // /login/forgot — fleet managers / restaurant owners / resellers request
@@ -23,10 +23,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
+      const supabase = getBrowserSupabase();
       const redirectTo = `${window.location.origin}/login/reset`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) {
