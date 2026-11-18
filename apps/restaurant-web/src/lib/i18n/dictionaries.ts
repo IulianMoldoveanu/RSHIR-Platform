@@ -817,6 +817,49 @@ export const dictionaries = {
         cta_demo: 'Deschide demo-ul',
         cta_contact: 'Scrie-ne',
       },
+      courier: {
+        page_title: 'HIR Curier — aplicația de livrări',
+        page_description:
+          'Aplicația pe care o folosesc curierii tăi: tura pornește dintr-o glisare, comanda ajunge singură la cel mai apropiat curier liber, iar câștigurile se văd la zi. Capturi reale din aplicație.',
+        hero_title: 'HIR Curier',
+        hero_intro:
+          'Aplicația pe care o folosesc curierii tăi. Se instalează din browser, pe orice telefon.',
+        hero_note:
+          'Funcționează singură, pentru o flotă de curieri. Sau împreună cu comenzile online HIR, dacă le iei pe amândouă. Nu depinde una de alta.',
+        what_title: 'Ce face',
+        f1_title: 'Comanda ajunge singură la curier',
+        f1_body:
+          'O comandă nouă pleacă automat către cel mai apropiat curier liber, cu sunet și notificare. Dacă nu răspunde, trece la următorul. Sau o dai tu, din mână.',
+        f2_title: 'Tura pornește dintr-o glisare',
+        f2_body: 'Curierul intră, glisează, e online. Fără formulare și fără pași de înregistrare.',
+        f3_title: 'Ridicarea și livrarea se confirmă prin glisare',
+        f3_body:
+          'Nu se declanșează dintr-o atingere greșită, cu telefonul în buzunar sau pe ghidon.',
+        f4_title: 'Ramburs, cu plafon',
+        f4_body:
+          'Aplicația îi spune curierului exact cât are de încasat. Peste o sumă pe care o stabilești tu, comanda nu mai poate fi plătită cash.',
+        f5_title: 'Câștigurile, la zi',
+        f5_body:
+          'Azi, săptămâna, luna. Brut, comision, net — văzute înainte de plată, nu după.',
+        f6_title: 'Harta flotei, în timp real',
+        f6_body: 'Unde sunt curierii, care comenzi sunt în curs, cine e liber acum.',
+        shot1_caption:
+          'Ecranul principal al curierului: harta, poziția lui și butonul de pornit tura.',
+        shot2_caption: 'Câștigurile, cu calculul la vedere — nu o sumă apărută de nicăieri.',
+        who_title: 'Pentru cine',
+        who1_title: 'Ai o flotă de curieri',
+        who1_body:
+          'Dispecerizezi comenzile tale, de oriunde vin. Curierii au aplicația pe telefon, tu ai harta, istoricul și plățile.',
+        who2_title: 'Ai curierii tăi, la restaurant',
+        who2_body:
+          'Aceeași aplicație, fără flotă separată. Comenzile din HIR intră direct în ea.',
+        start_title: 'Cum începi',
+        start_body:
+          'Vorbim 15 minute, configurăm noi flota și curierii, și pornește când confirmi tu. Nu e nimic de instalat pe server, și nu trece prin magazinul de aplicații — curierul o adaugă pe ecranul telefonului direct din browser.',
+        cta_title: 'Ți-o arăt pe viu, pe telefonul tău',
+        cta_contact: 'Scrie-ne',
+        cta_how: 'Vezi și partea de comenzi online',
+      },
       // Homepage body (rendered at `/` on the canonical host when no tenant
       // is resolved). High-funnel — full bilingual coverage.
       home: {
@@ -1895,6 +1938,47 @@ export const dictionaries = {
         cta_title: 'Want to see it for yourself?',
         cta_demo: 'Open the demo',
         cta_contact: 'Get in touch',
+      },
+      courier: {
+        page_title: 'HIR Courier — the delivery app',
+        page_description:
+          'The app your couriers use: a shift starts with one swipe, an order finds the nearest free courier on its own, and earnings are visible as they happen. Real screenshots.',
+        hero_title: 'HIR Courier',
+        hero_intro:
+          'The app your couriers use. Installed from the browser, on any phone.',
+        hero_note:
+          'It works on its own, for a courier fleet. Or alongside HIR online ordering, if you take both. Neither depends on the other.',
+        what_title: 'What it does',
+        f1_title: 'The order finds the courier by itself',
+        f1_body:
+          'A new order goes automatically to the nearest free courier, with sound and a notification. No answer, and it moves to the next one. Or you hand it out yourself.',
+        f2_title: 'A shift starts with one swipe',
+        f2_body: 'The courier signs in, swipes, and is online. No forms, no registration steps.',
+        f3_title: 'Pickup and delivery are confirmed by swiping',
+        f3_body: 'A stray tap in a pocket or on a handlebar does not trigger anything.',
+        f4_title: 'Cash on delivery, with a ceiling',
+        f4_body:
+          'The app tells the courier exactly how much to collect. Above an amount you set, an order can no longer be paid in cash.',
+        f5_title: 'Earnings, as they happen',
+        f5_body:
+          'Today, this week, this month. Gross, commission, net — seen before the payout, not after.',
+        f6_title: 'The fleet map, live',
+        f6_body: 'Where the couriers are, which orders are running, who is free right now.',
+        shot1_caption:
+          "The courier's home screen: the map, their position, and the button that starts the shift.",
+        shot2_caption: 'Earnings, with the arithmetic in plain sight — not a number out of nowhere.',
+        who_title: 'Who it is for',
+        who1_title: 'You run a courier fleet',
+        who1_body:
+          'You dispatch your own orders, wherever they come from. Couriers have the app on their phones; you have the map, the history and the payouts.',
+        who2_title: 'You have your own riders, at the restaurant',
+        who2_body: 'The same app, without a separate fleet. HIR orders drop straight into it.',
+        start_title: 'How you start',
+        start_body:
+          'We talk for 15 minutes, we set up the fleet and the couriers, and it goes live when you say so. Nothing to install on a server, and it does not go through an app store — the courier adds it to their home screen straight from the browser.',
+        cta_title: 'I will show it to you live, on your own phone',
+        cta_contact: 'Get in touch',
+        cta_how: 'See the online ordering side too',
       },
       // Homepage body — full bilingual coverage.
       home: {
