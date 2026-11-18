@@ -837,7 +837,7 @@ export const dictionaries = {
           'Nu se declanșează dintr-o atingere greșită, cu telefonul în buzunar sau pe ghidon.',
         f4_title: 'Ramburs, cu plafon',
         f4_body:
-          'Aplicația îi spune curierului exact cât are de încasat. Peste o sumă pe care o stabilești tu, comanda nu mai poate fi plătită cash.',
+          'Aplicația îi spune curierului exact cât are de încasat. Peste 300 de lei, comanda nu mai poate fi plătită cash — banii se mișcă înaintea mâncării, așa că niciun curier nu plimbă o sumă mare prin oraș.',
         f5_title: 'Câștigurile, la zi',
         f5_body:
           'Azi, săptămâna, luna. Brut, comision, net — văzute înainte de plată, nu după.',
@@ -1958,7 +1958,7 @@ export const dictionaries = {
         f3_body: 'A stray tap in a pocket or on a handlebar does not trigger anything.',
         f4_title: 'Cash on delivery, with a ceiling',
         f4_body:
-          'The app tells the courier exactly how much to collect. Above an amount you set, an order can no longer be paid in cash.',
+          'The app tells the courier exactly how much to collect. Above 300 lei an order can no longer be paid in cash — the money moves before the food does, so no courier carries a large float around the city.',
         f5_title: 'Earnings, as they happen',
         f5_body:
           'Today, this week, this month. Gross, commission, net — seen before the payout, not after.',
