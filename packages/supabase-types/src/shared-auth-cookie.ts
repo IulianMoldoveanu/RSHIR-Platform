@@ -40,6 +40,28 @@ export function sharedAuthCookieOptions(host: string | null | undefined): { doma
 }
 
 /**
+ * Every cookie scope a sign-out has to expire, as overlays to merge onto the
+ * options `@supabase/ssr` hands us.
+ *
+ * Expiring only the shared scope is not enough. Anyone already signed in when
+ * the shared cookie shipped holds a HOST-scoped cookie, and a removal carrying
+ * `domain=.hirforyou.ro` does not touch it: their access token survives
+ * logout, the middleware still sees a valid user, and it sends them straight
+ * back into the dashboard — logout looks broken. So a removal clears the
+ * shared copy AND the host-scoped one. Expiring a cookie that is not there is
+ * a no-op, which makes this safe to keep after the migration.
+ *
+ * `domain: undefined` is deliberate rather than an omission: it overrides any
+ * domain in the incoming options so the second write really is host-scoped.
+ */
+export function authCookieRemovalScopes(
+  scope: { domain?: string } | undefined,
+): Array<{ domain?: string }> {
+  if (!scope?.domain) return [{ domain: undefined }];
+  return [{ domain: scope.domain }, { domain: undefined }];
+}
+
+/**
  * Names of the Supabase auth cookies currently present, as the browser sees
  * them. Used to clear the host-scoped leftovers from before this change.
  */

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient as createSsrClient, type CookieOptions } from '@supabase/ssr';
+import { authCookieRemovalScopes } from '@hir/supabase-types';
 import { safeRedirectPath } from '@/lib/safe-redirect';
 
 // `/sw-push.js` has to be here: a browser refuses to register a service
@@ -63,12 +64,14 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions): void {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-            ...(sharedDomain ? { domain: sharedDomain } : {}),
-          });
+          // Both scopes: a session that predates the shared cookie is
+          // host-scoped, and clearing only the shared copy would leave it
+          // alive and bounce the person back into the app.
+          for (const removal of authCookieRemovalScopes(
+            sharedDomain ? { domain: sharedDomain } : undefined,
+          )) {
+            response.cookies.set({ name, value: '', ...options, ...removal });
+          }
         },
       },
     },
