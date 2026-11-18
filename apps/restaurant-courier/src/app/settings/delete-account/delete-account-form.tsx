@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ChevronLeft, Trash2 } from 'lucide-react';
+import { clearHostScopedAuthCookies } from '@hir/supabase-types';
 import { requestAccountDeletion } from './actions';
 
 export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
@@ -17,6 +18,10 @@ export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
 
   function handleSubmit() {
     if (!canSubmit) return;
+    // Deletion signs the account out server-side, which clears the shared
+    // cookie. A pre-migration host-scoped copy can only be dropped from here
+    // — see components/logout-form.tsx for why the server cannot do both.
+    clearHostScopedAuthCookies();
     startTransition(async () => {
       const result = await requestAccountDeletion();
       if (result.ok) {

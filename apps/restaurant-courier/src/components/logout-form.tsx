@@ -19,13 +19,17 @@ import { clearHostScopedAuthCookies } from '@hir/supabase-types';
  *
  * Without JavaScript the form still posts and still signs the person out of
  * the shared session; only a pre-migration host-scoped cookie would survive.
+ *
+ * Use it for every sign-out entry point, not just the logout buttons — the
+ * account-switch on an invite page ends a session too, and it passes the
+ * invite token through FormData, hence the wider action type.
  */
 export function LogoutForm({
   action,
   className,
   children,
 }: {
-  action: () => void | Promise<void>;
+  action: ((formData: FormData) => void | Promise<void>) | (() => void | Promise<void>);
   className?: string;
   children: React.ReactNode;
 }) {
