@@ -3,7 +3,6 @@ export { createBrowserSupabase } from './client-browser';
 export { createServerSupabase } from './client-server';
 export {
   sharedAuthCookieOptions,
-  authCookieRemovalScopes,
   supabaseAuthCookieNames,
   clearHostScopedAuthCookies,
 } from './shared-auth-cookie';

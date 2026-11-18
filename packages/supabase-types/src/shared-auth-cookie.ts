@@ -39,27 +39,26 @@ export function sharedAuthCookieOptions(host: string | null | undefined): { doma
   return {};
 }
 
-/**
- * Every cookie scope a sign-out has to expire, as overlays to merge onto the
- * options `@supabase/ssr` hands us.
+/*
+ * Why a server-side removal writes ONE scope, not two.
  *
- * Expiring only the shared scope is not enough. Anyone already signed in when
- * the shared cookie shipped holds a HOST-scoped cookie, and a removal carrying
- * `domain=.hirforyou.ro` does not touch it: their access token survives
- * logout, the middleware still sees a valid user, and it sends them straight
- * back into the dashboard — logout looks broken. So a removal clears the
- * shared copy AND the host-scoped one. Expiring a cookie that is not there is
- * a no-op, which makes this safe to keep after the migration.
+ * A sign-out has to get rid of two possible cookies: the shared
+ * `.hirforyou.ro` one, and the host-scoped one anybody already signed in was
+ * carrying before the shared cookie shipped. The obvious move — expire both
+ * from the server — does not work. Next's cookie store keys entries by cookie
+ * NAME alone (next/dist/compiled/@edge-runtime/cookies, `map.set(name, ...)`),
+ * so two same-name writes collapse into a single Set-Cookie header and the
+ * second silently replaces the first. Whichever scope is written last is the
+ * only one actually cleared, and the other session stays valid until its token
+ * expires.
  *
- * `domain: undefined` is deliberate rather than an omission: it overrides any
- * domain in the incoming options so the second write really is host-scoped.
+ * So the two scopes are cleared by the two mechanisms that can each target one:
+ * the server expires the shared cookie through the normal Supabase removal,
+ * and the browser expires the host-scoped copy with clearHostScopedAuthCookies()
+ * — a `document.cookie` delete without `domain` hits the host-scoped entry and
+ * nothing else. That runs on submit of every logout form and again before a
+ * sign-in, which covers both ways out of a stale session.
  */
-export function authCookieRemovalScopes(
-  scope: { domain?: string } | undefined,
-): Array<{ domain?: string }> {
-  if (!scope?.domain) return [{ domain: undefined }];
-  return [{ domain: scope.domain }, { domain: undefined }];
-}
 
 /**
  * Names of the Supabase auth cookies currently present, as the browser sees

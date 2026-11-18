@@ -10,6 +10,7 @@ import { isPlatformAdminEmail } from '@/lib/auth/platform-admin';
 import { getUserRoleSnapshot, roleLanding } from '@/lib/auth/user-role';
 import { createServerClient } from '@/lib/supabase/server';
 import { logoutAction } from './actions';
+import { LogoutForm } from '@/components/logout-form';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
 import { MobileSidebar } from './mobile-sidebar';
@@ -370,11 +371,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               </a>
             ) : null}
             <span className="hidden md:inline">{user.email}</span>
-            <form action={logoutAction}>
+            <LogoutForm action={logoutAction}>
               <button type="submit" className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100">
                 Logout
               </button>
-            </form>
+            </LogoutForm>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6">

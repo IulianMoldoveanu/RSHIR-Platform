@@ -6,11 +6,7 @@
 // land first. These are the cases that decide the cookie's scope.
 
 import { describe, expect, it } from 'vitest';
-import {
-  sharedAuthCookieOptions,
-  supabaseAuthCookieNames,
-  authCookieRemovalScopes,
-} from '@hir/supabase-types';
+import { sharedAuthCookieOptions, supabaseAuthCookieNames } from '@hir/supabase-types';
 
 describe('sharedAuthCookieOptions', () => {
   it('shares the session across the staff hosts', () => {
@@ -85,30 +81,5 @@ describe('supabaseAuthCookieNames', () => {
 
   it('handles an empty cookie header', () => {
     expect(supabaseAuthCookieNames('')).toEqual([]);
-  });
-});
-
-describe('authCookieRemovalScopes', () => {
-  // The P1 Codex caught: expiring only the shared copy leaves a pre-migration
-  // host-scoped cookie alive, its access token still valid, so the middleware
-  // sends the person straight back into the dashboard and logout looks broken.
-  it('clears the shared copy and the host-scoped leftover', () => {
-    expect(authCookieRemovalScopes({ domain: '.hirforyou.ro' })).toEqual([
-      { domain: '.hirforyou.ro' },
-      { domain: undefined },
-    ]);
-  });
-
-  it('clears just the host-scoped cookie where nothing is shared', () => {
-    expect(authCookieRemovalScopes(undefined)).toEqual([{ domain: undefined }]);
-    expect(authCookieRemovalScopes({})).toEqual([{ domain: undefined }]);
-  });
-
-  // `domain: undefined` has to be present, not merely absent: it overrides a
-  // domain coming in with the library's own options.
-  it('states the host scope explicitly so it overrides incoming options', () => {
-    const [, hostScoped] = authCookieRemovalScopes({ domain: '.hirforyou.ro' });
-    expect('domain' in hostScoped).toBe(true);
-    expect(hostScoped.domain).toBeUndefined();
   });
 });

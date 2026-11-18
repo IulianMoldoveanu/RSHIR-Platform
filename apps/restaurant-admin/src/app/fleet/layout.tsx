@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { logoutAction } from '../dashboard/actions';
+import { LogoutForm } from '@/components/logout-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,14 +75,14 @@ export default async function FleetLayout({ children }: { children: ReactNode })
             >
               Catre restaurant
             </a>
-            <form action={logoutAction}>
+            <LogoutForm action={logoutAction}>
               <button
                 type="submit"
                 className="rounded-md border border-zinc-300 px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 Logout
               </button>
-            </form>
+            </LogoutForm>
           </div>
         </div>
       </main>
@@ -158,14 +159,14 @@ export default async function FleetLayout({ children }: { children: ReactNode })
           </span>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-500 md:inline">{user.email}</span>
-            <form action={logoutAction}>
+            <LogoutForm action={logoutAction}>
               <button
                 type="submit"
                 className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
               >
                 Logout
               </button>
-            </form>
+            </LogoutForm>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>

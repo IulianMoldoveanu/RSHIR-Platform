@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { Database } from './database.types';
-import { authCookieRemovalScopes } from './shared-auth-cookie';
 
 /**
  * Cookie store contract that the server-client expects. Next.js's `cookies()` helper
@@ -39,14 +38,13 @@ export function createServerSupabase(
         }
       },
       remove(name: string, options: CookieOptions): void {
-        // Clears the shared copy and the host-scoped leftover, so a logout
-        // during the migration actually logs the person out.
-        for (const removal of authCookieRemovalScopes(scope)) {
-          try {
-            cookies.set?.(name, '', { ...options, ...removal, maxAge: 0 });
-          } catch {
-            // server components can't mutate cookies; that's OK
-          }
+        // One write: Next's cookie store keys by name, so a second same-name
+        // write would just replace this one. The host-scoped leftover is
+        // cleared from the browser instead — see shared-auth-cookie.ts.
+        try {
+          cookies.set?.(name, '', { ...options, ...scope, maxAge: 0 });
+        } catch {
+          // server components can't mutate cookies; that's OK
         }
       },
     },

@@ -13,6 +13,7 @@ import {
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { logoutAction } from '../actions';
+import { LogoutForm } from '@/components/logout-form';
 import { SettingsRow } from '@/components/settings-row';
 
 export const dynamic = 'force-dynamic';
@@ -115,7 +116,7 @@ export default async function SettingsPage() {
       />
 
       {/* ── Account actions ──────────────────────────────────────── */}
-      <form action={logoutAction} className="mt-3">
+      <LogoutForm action={logoutAction} className="mt-3">
         <button
           type="submit"
           className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl border border-hir-border bg-hir-surface px-5 py-4 text-left transition-colors hover:border-rose-500/40 hover:bg-rose-500/5 active:scale-[0.99]"
@@ -128,7 +129,7 @@ export default async function SettingsPage() {
             <span className="mt-0.5 block truncate text-xs text-hir-muted-fg">{user.email}</span>
           </span>
         </button>
-      </form>
+      </LogoutForm>
 
       <Link
         href="/settings/delete-account"
