@@ -4,7 +4,8 @@ export const dynamic = 'force-dynamic';
 
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createBrowserSupabase } from '@hir/supabase-types';
+import { clearHostScopedAuthCookies } from '@hir/supabase-types';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label, Form, FormField, FormMessage, toast } from '@hir/ui';
 
 export default function LoginPage() {
@@ -45,10 +46,12 @@ function LoginInner() {
     setError(null);
     setSubmitting(true);
     try {
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
+      // A cookie left over from before the session was shared across
+      // app.hirforyou.ro and curier.hirforyou.ro is scoped to this host
+      // alone. Writing the shared one does not replace it — the browser
+      // keeps both and sends both — so drop the host-scoped copy first.
+      clearHostScopedAuthCookies();
+      const supabase = getBrowserSupabase();
       // Honor "keep me logged in": when unchecked, sign out at tab-close by
       // clearing the persisted session marker. Supabase persists by default
       // when storage is available; we flag the choice so a beforeunload

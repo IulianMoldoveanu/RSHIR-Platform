@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClientUntyped } from '@/lib/supabase/admin';
 import { logoutAction } from '../dashboard/actions';
+import { LogoutForm } from '@/components/logout-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,14 +75,14 @@ export default async function FleetLayout({ children }: { children: ReactNode })
             >
               Catre restaurant
             </a>
-            <form action={logoutAction}>
+            <LogoutForm action={logoutAction}>
               <button
                 type="submit"
                 className="rounded-md border border-zinc-300 px-3 py-2 font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 Logout
               </button>
-            </form>
+            </LogoutForm>
           </div>
         </div>
       </main>
@@ -89,13 +90,17 @@ export default async function FleetLayout({ children }: { children: ReactNode })
   }
 
   // Panoul de control complet (orders dispatch, couriers, payouts, live map)
-  // traieste pe HIR Curier (courier.hirforyou.ro/fleet/*) — built pentru
+  // traieste pe HIR Curier (curier.hirforyou.ro/fleet/*) — built pentru
   // fleet managers cu requireFleetManager() server-side. Linkurile externe
-  // se deschid in tab nou (target=_blank) ca sa pastram sesiunea admin
-  // intacta in timp ce fleet managerul actioneaza din cealalta tab.
-  // Single-login cross-subdomain este P1 follow-up (cookie domain
-  // .hirforyou.ro pe ambele middleware-uri).
-  const FLEET_OPS_HOST = 'https://courier.hirforyou.ro';
+  // se deschid in tab nou (target=_blank) ca sa pastram tab-ul asta intact
+  // in timp ce fleet managerul actioneaza din celalalt.
+  //
+  // Single-login cross-subdomain: REZOLVAT 2026-11-18. Cookie-ul de sesiune
+  // se scrie acum cu domain=.hirforyou.ro din browser, server si middleware
+  // (sharedAuthCookieOptions), deci tab-ul care se deschide aici e deja
+  // autenticat si nu mai cere a doua parola. Hostul e `curier`, cu i, ca sa
+  // nu mai fie un al treilea host in joc.
+  const FLEET_OPS_HOST = 'https://curier.hirforyou.ro';
   const navLinks = [
     { href: '/fleet', label: 'Acasa', external: false, dot: false },
     { href: '/fleet/tariffs', label: 'Tarife (curier + vendor)', external: false, dot: false },
@@ -154,14 +159,14 @@ export default async function FleetLayout({ children }: { children: ReactNode })
           </span>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-zinc-500 md:inline">{user.email}</span>
-            <form action={logoutAction}>
+            <LogoutForm action={logoutAction}>
               <button
                 type="submit"
                 className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
               >
                 Logout
               </button>
-            </form>
+            </LogoutForm>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6">{children}</main>

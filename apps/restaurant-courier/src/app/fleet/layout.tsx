@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { LayoutDashboard, Package, Users, Wallet, Banknote, Gavel, Settings as SettingsIcon } from 'lucide-react';
 import { logoutAction } from '../dashboard/actions';
+import { LogoutForm } from '@/components/logout-form';
 import { requireFleetManager } from '@/lib/fleet-manager';
 import { Button } from '@hir/ui';
 import { FleetNewOrderAlert } from './fleet-new-order-alert';
@@ -69,7 +70,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
         <div className="flex items-center gap-2">
           <FleetNewOrderAlert fleetId={fleet.fleetId} />
 
-          <form action={logoutAction}>
+          <LogoutForm action={logoutAction}>
             <Button
               type="submit"
               variant="outline"
@@ -78,7 +79,7 @@ export default async function FleetLayout({ children }: { children: ReactNode })
             >
               Ieșire
             </Button>
-          </form>
+          </LogoutForm>
         </div>
       </header>
 

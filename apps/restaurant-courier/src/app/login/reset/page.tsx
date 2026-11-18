@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, KeyRound, Loader2 } from 'lucide-react';
-import { createBrowserSupabase } from '@hir/supabase-types';
+import { getBrowserSupabase } from '@/lib/supabase/browser';
 import { Button } from '@hir/ui';
 
 // Password-reset landing for the link emailed by /login/forgot. Supabase
@@ -35,10 +35,7 @@ function ResetInner() {
     // Detect whether we landed here via a recovery link. The SDK populates
     // a 'PASSWORD_RECOVERY' auth state when the URL fragment has the
     // recovery hash; if not, we show a 'link expired or invalid' UI.
-    const supabase = createBrowserSupabase(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
+    const supabase = getBrowserSupabase();
     const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setHasToken(true);
@@ -67,10 +64,7 @@ function ResetInner() {
     }
     setSubmitting(true);
     try {
-      const supabase = createBrowserSupabase(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      );
+      const supabase = getBrowserSupabase();
       const { error: err } = await supabase.auth.updateUser({ password: pwd });
       if (err) {
         setError(err.message);

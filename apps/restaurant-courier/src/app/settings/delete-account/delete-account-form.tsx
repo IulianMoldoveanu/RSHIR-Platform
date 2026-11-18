@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ChevronLeft, Trash2 } from 'lucide-react';
+import { clearHostScopedAuthCookies } from '@hir/supabase-types';
 import { requestAccountDeletion } from './actions';
 
 export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
@@ -20,6 +21,15 @@ export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
     startTransition(async () => {
       const result = await requestAccountDeletion();
       if (result.ok) {
+        // AFTER the request is recorded, never before: on localhost, on a
+        // preview, or for a session predating the shared cookie, the
+        // host-scoped cookie IS the session. Clearing it first would sign the
+        // courier out and the deletion would never be requested — the server
+        // action's own getUser() guard would reject it. Deletion signs them
+        // out server-side, which handles the shared copy; this drops the
+        // host-scoped one. See components/logout-form.tsx for why the server
+        // cannot clear both.
+        clearHostScopedAuthCookies();
         setDone(true);
       } else {
         setError(result.error ?? 'Eroare necunoscută. Contactează suportul.');

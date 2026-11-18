@@ -19,7 +19,12 @@ export function createServerSupabase(
   supabaseUrl: string,
   supabaseAnonKey: string,
   cookies: CookieStore,
+  cookieOptions?: CookieOptions,
 ) {
+  // Merged into every write, including the refresh-token rotation, so a
+  // session that starts shared stays shared instead of being narrowed back to
+  // one host the first time the server touches it.
+  const scope = cookieOptions ?? {};
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string): string | undefined {
@@ -27,14 +32,17 @@ export function createServerSupabase(
       },
       set(name: string, value: string, options: CookieOptions): void {
         try {
-          cookies.set?.(name, value, options);
+          cookies.set?.(name, value, { ...options, ...scope });
         } catch {
           // server components can't mutate cookies; that's OK
         }
       },
       remove(name: string, options: CookieOptions): void {
+        // One write: Next's cookie store keys by name, so a second same-name
+        // write would just replace this one. The host-scoped leftover is
+        // cleared from the browser instead — see shared-auth-cookie.ts.
         try {
-          cookies.set?.(name, '', { ...options, maxAge: 0 });
+          cookies.set?.(name, '', { ...options, ...scope, maxAge: 0 });
         } catch {
           // server components can't mutate cookies; that's OK
         }

@@ -71,6 +71,8 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions): void {
+          // One write — same reason as the server factory: Next keys response
+          // cookies by name, so a second same-name write replaces this one.
           response.cookies.set({
             name,
             value: '',

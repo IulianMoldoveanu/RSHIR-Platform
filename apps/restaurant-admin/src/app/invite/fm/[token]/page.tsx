@@ -13,6 +13,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { acceptFleetManagerInvite } from '@/app/dashboard/settings/team/fm-invite-actions';
 import { TENANT_COOKIE } from '@/lib/tenant';
 import { cookies } from 'next/headers';
+import { LogoutForm } from '@/components/logout-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -136,7 +137,7 @@ export default async function FmInviteAcceptPage(
             Deconectați-vă și autentificați-vă din nou cu adresa corectă pentru a
             accepta invitația.
           </p>
-          <form action={signOutAndStay}>
+          <LogoutForm action={signOutAndStay}>
             <input type="hidden" name="token" value={token} />
             <button
               type="submit"
@@ -144,7 +145,7 @@ export default async function FmInviteAcceptPage(
             >
               Deconectare
             </button>
-          </form>
+          </LogoutForm>
         </div>
       </main>
     );
