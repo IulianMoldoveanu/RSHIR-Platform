@@ -10,6 +10,7 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../auth';
 import { COD_MAX_TOTAL_RON, codAllowedForTotal } from '@/lib/payment-mode';
+import { geocodeAddressRo } from '@/lib/zones/nominatim';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -173,6 +174,44 @@ export async function POST(req: Request) {
   // courier_orders row gets a NULL dropoff and can't be routed/delivered.
   let addressId: string | null = null;
   if (fulfillment === 'DELIVERY' && dropoff) {
+    // Coordinates are what the delivery gets PRICED on, and `lat`/`lng` are
+    // optional in this API because a vendor's checkout rarely has them.
+    //
+    // The chain: customer_addresses.latitude/longitude ->
+    // sync_restaurant_to_courier_order copies them to
+    // courier_orders.dropoff_lat/lng -> fn_compute_delivery_pricing returns
+    // early when either is null, so no delivery_pricings row is written ->
+    // the weekly invoice generator left-joins that table with
+    // coalesce(sum(restaurant_fee_cents), 0). The vendor is then billed the
+    // 2 RON data fee and ZERO for the delivery, while HIR still owes the
+    // fleet its payout. Measured on 2026-11-18: 6 courier orders, 0 pricing
+    // rows, all without a zone.
+    //
+    // So geocode here when the vendor did not send coordinates. Best effort
+    // on purpose, with its own deadline: an order that cannot be geocoded
+    // must still be accepted (that is today's behaviour), and the vendor's
+    // checkout is waiting on this response. A miss is logged and leaves the
+    // columns null exactly as before.
+    let lat = dropoff.lat ?? null;
+    let lng = dropoff.lng ?? null;
+    if (lat === null || lng === null) {
+      const query = [dropoff.line1, dropoff.city, 'Romania'].join(', ');
+      try {
+        const hit = await Promise.race([
+          geocodeAddressRo(query),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+        ]);
+        if (hit) {
+          lat = hit.lat;
+          lng = hit.lng;
+        } else {
+          console.warn('[public/v1/orders] dropoff not geocoded, delivery will not be priced:', query);
+        }
+      } catch (err) {
+        console.warn('[public/v1/orders] geocode threw, delivery will not be priced:', (err as Error).message);
+      }
+    }
+
     const addrSb = admin as unknown as {
       from: (t: string) => {
         insert: (row: Record<string, unknown>) => {
@@ -192,8 +231,8 @@ export async function POST(req: Request) {
         line1: dropoff.line1,
         line2: dropoff.line2 || null,
         city: dropoff.city,
-        latitude: dropoff.lat ?? null,
-        longitude: dropoff.lng ?? null,
+        latitude: lat,
+        longitude: lng,
       })
       .select('id')
       .single();
