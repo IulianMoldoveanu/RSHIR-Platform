@@ -4,11 +4,14 @@
 // Stream UI-2 — pairs with supabase/functions/casual-vendor-signup/index.ts and
 // migration 20260616_011_casual_vendor_subscriptions.sql.
 //
-// Differs from /signup (which creates FULL tenant + full KYF + onboarding
-// wizard) — this is the light-verification path: ANAF lookup + brand picker +
+// Differs from /signup (which creates a FULL tenant plus the onboarding
+// wizard) — this is the light path: ANAF lookup + brand picker +
 // subscription tier choice + confirm. Trial subscription (+30 days) issued on
 // success. Tenant lands in tenants.status='ONBOARDING' (pending manual
 // admin verification at /dashboard/admin/casual-vendors).
+//
+// KYF was removed on 2026-11-16 (#1093) — there is no automated firm check on
+// either path any more, so neither this page nor /signup may promise one.
 //
 // Feature flag gate: HIR_FEATURE_CASUAL_VENDOR_ENABLED. Page calls notFound()
 // when off so the route 404s entirely (defense in depth — the edge fn also
@@ -110,13 +113,13 @@ export default async function CasualSignupPage(): Promise<JSX.Element> {
           </h1>
           <p className="text-sm text-zinc-600">
             Pornești o cerere de livrare ad-hoc fără să treci prin onboarding-ul
-            complet. Verificare ușoară (CUI la ANAF) + abonament lunar = poți
-            publica imediat.
+            complet. Verificăm CUI-ul la ANAF, alegi abonamentul, iar contul
+            pornește după ce îl confirmăm noi.
           </p>
         </header>
         <CasualSignupForm plans={plans} prefillEmail={user.email ?? ''} />
         <p className="text-center text-xs text-zinc-500">
-          Vrei contul standard cu KYF complet?{' '}
+          Vrei contul standard de restaurant?{' '}
           <a href="/signup" className="underline">
             Înregistrare restaurant
           </a>
