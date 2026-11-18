@@ -38,11 +38,18 @@ vi.mock('@/lib/supabase-admin', () => ({
 
 // The route geocodes a dropoff the vendor sent without coordinates, so this
 // has to be mocked or every test in this file would reach out to Nominatim.
+type GuardedResult = {
+  hit: { lat: number; lng: number; displayName: string } | null;
+  cached: boolean;
+};
 const geocodeMock = vi.fn(
-  async (_q: string): Promise<{ lat: number; lng: number } | null> => null,
+  async (_a: { line1: string; city: string }): Promise<GuardedResult> => ({
+    hit: null,
+    cached: false,
+  }),
 );
-vi.mock('@/lib/zones/nominatim', () => ({
-  geocodeAddressRo: (q: string) => geocodeMock(q),
+vi.mock('@/lib/zones/geocode-guarded', () => ({
+  geocodeGuarded: (a: { line1: string; city: string }) => geocodeMock(a),
 }));
 
 const dispatchMock = vi.fn(async (..._args: unknown[]) => undefined);
@@ -85,7 +92,7 @@ describe('POST /api/public/v1/orders', () => {
     addressInsertMock.mockReturnValue({ data: { id: 'addr-1' }, error: null });
     // Default: geocoding finds nothing, which is the pre-existing behaviour
     // (null coordinates) for every test that does not care about it.
-    geocodeMock.mockResolvedValue(null);
+    geocodeMock.mockResolvedValue({ hit: null, cached: false });
   });
   afterEach(() => {
     vi.resetAllMocks();
@@ -482,14 +489,21 @@ describe('POST /api/public/v1/orders', () => {
 
     it('geocodes the address when the vendor sends no coordinates', async () => {
       authOk();
-      geocodeMock.mockResolvedValue({ lat: 44.4268, lng: 26.1025 });
+      geocodeMock.mockResolvedValue({
+        hit: { lat: 44.4268, lng: 26.1025, displayName: 'Strada Mare 10, București' },
+        cached: false,
+      });
 
       const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
       expect(res.status).toBe(201);
 
+      // Through the shared guard, not the raw helper: that is what carries the
+      // cache and the 1.1s spacing Nominatim's policy needs.
       expect(geocodeMock).toHaveBeenCalledTimes(1);
-      expect(geocodeMock.mock.calls[0][0]).toContain('Strada Mare 10');
-      expect(geocodeMock.mock.calls[0][0]).toContain('București');
+      expect(geocodeMock.mock.calls[0][0]).toMatchObject({
+        line1: 'Strada Mare 10',
+        city: 'București',
+      });
 
       const [addrRow] = addressInsertMock.mock.calls[0];
       expect(addrRow).toMatchObject({ latitude: 44.4268, longitude: 26.1025 });
@@ -513,7 +527,7 @@ describe('POST /api/public/v1/orders', () => {
 
     it('still accepts the order when geocoding finds nothing', async () => {
       authOk();
-      geocodeMock.mockResolvedValue(null);
+      geocodeMock.mockResolvedValue({ hit: null, cached: false });
 
       const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
       expect(res.status).toBe(201);

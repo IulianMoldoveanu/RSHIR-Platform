@@ -10,7 +10,7 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../auth';
 import { COD_MAX_TOTAL_RON, codAllowedForTotal } from '@/lib/payment-mode';
-import { geocodeAddressRo } from '@/lib/zones/nominatim';
+import { geocodeGuarded } from '@/lib/zones/geocode-guarded';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -187,25 +187,33 @@ export async function POST(req: Request) {
     // fleet its payout. Measured on 2026-11-18: 6 courier orders, 0 pricing
     // rows, all without a zone.
     //
-    // So geocode here when the vendor did not send coordinates. Best effort
-    // on purpose, with its own deadline: an order that cannot be geocoded
-    // must still be accepted (that is today's behaviour), and the vendor's
-    // checkout is waiting on this response. A miss is logged and leaves the
-    // columns null exactly as before.
+    // So geocode here when the vendor did not send coordinates, through
+    // geocodeGuarded -- the shared cache and the 1.1s upstream spacing. This
+    // endpoint allows a 60-request burst per API key, and Nominatim's policy
+    // is 1 req/sec per IP with bans on abuse; a ban would land on our egress
+    // IP and take storefront checkout down with it.
+    //
+    // Best effort on purpose, with its own deadline: an order that cannot be
+    // geocoded must still be accepted (that is today's behaviour), and the
+    // vendor's checkout is waiting on this response. Under a burst, a request
+    // can sit in the shared queue past the deadline -- the order is then
+    // accepted unpriced and says so in the log, rather than hanging.
     let lat = dropoff.lat ?? null;
     let lng = dropoff.lng ?? null;
     if (lat === null || lng === null) {
-      const query = [dropoff.line1, dropoff.city, 'Romania'].join(', ');
       try {
-        const hit = await Promise.race([
-          geocodeAddressRo(query),
+        const result = await Promise.race([
+          geocodeGuarded({ line1: dropoff.line1, city: dropoff.city }),
           new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
         ]);
-        if (hit) {
-          lat = hit.lat;
-          lng = hit.lng;
+        if (result?.hit) {
+          lat = result.hit.lat;
+          lng = result.hit.lng;
         } else {
-          console.warn('[public/v1/orders] dropoff not geocoded, delivery will not be priced:', query);
+          console.warn(
+            '[public/v1/orders] dropoff not geocoded, delivery will not be priced:',
+            `${dropoff.line1}, ${dropoff.city}`,
+          );
         }
       } catch (err) {
         console.warn('[public/v1/orders] geocode threw, delivery will not be priced:', (err as Error).message);
