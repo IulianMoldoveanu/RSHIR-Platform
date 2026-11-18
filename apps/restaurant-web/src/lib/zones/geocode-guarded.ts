@@ -216,7 +216,14 @@ export async function geocodeGuarded(
     expiresAt: Date.now() + CACHE_TTL_MS,
   };
   cacheSet(key, entry);
-  await persistentCacheSet(key, entry);
+  // Fire and forget. The L2 write exists to spare OTHER instances a lookup, so
+  // it must never stand between this caller and a result it already has: an
+  // awaited slow upsert could push a successful geocode past the caller's
+  // deadline and leave the delivery unpriced for the sake of an optimisation.
+  // persistentCacheSet swallows its own errors; the catch is belt and braces
+  // against an unhandled rejection. If the instance is torn down before the
+  // write lands, the next lookup for that address simply re-geocodes once.
+  void persistentCacheSet(key, entry).catch(() => undefined);
 
   return { hit, cached: false };
 }

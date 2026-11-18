@@ -20,12 +20,22 @@ vi.mock('./nominatim', () => ({
   geocodeAddressRoVerbose: (q: string) => upstream(q),
 }));
 
-// L2 is an optimisation that swallows its own errors; make it a clean miss so
-// these tests exercise the queue rather than a database.
+// L2 is an optimisation that swallows its own errors. Reads are a clean miss
+// so these tests exercise the queue rather than a database; the write delay is
+// adjustable, to prove a slow upsert cannot hold back a finished lookup.
+let upsertDelayMs = 0;
+const upsertSpy = vi.fn();
 vi.mock('@/lib/supabase-admin', () => ({
-  getSupabaseAdmin: () => {
-    throw new Error('no db in tests');
-  },
+  getSupabaseAdmin: () => ({
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
+      upsert: async (row: unknown) => {
+        upsertSpy(row);
+        if (upsertDelayMs > 0) await new Promise((r) => setTimeout(r, upsertDelayMs));
+        return { error: null };
+      },
+    }),
+  }),
 }));
 
 import { geocodeGuarded } from './geocode-guarded';
@@ -33,6 +43,8 @@ import { geocodeGuarded } from './geocode-guarded';
 describe('geocodeGuarded', () => {
   beforeEach(() => {
     upstream.mockClear();
+    upsertSpy.mockClear();
+    upsertDelayMs = 0;
     upstream.mockResolvedValue({ lat: 44.4, lng: 26.1, displayName: 'stub' });
   });
 
@@ -96,6 +108,23 @@ describe('geocodeGuarded', () => {
     );
     expect(res.expired).toBeUndefined();
     expect(res.hit).toMatchObject({ lat: 44.4, lng: 26.1 });
+  });
+
+  // The L2 write is there to spare other instances a lookup. Awaiting it could
+  // push a result the caller already has past its deadline, leaving a delivery
+  // unpriced for the sake of an optimisation.
+  it('does not let a slow cache write hold back a finished lookup', async () => {
+    upsertDelayMs = 3_000;
+
+    const started = Date.now();
+    const res = await geocodeGuarded({ line1: 'Strada Sapte 7', city: 'București' });
+    const elapsed = Date.now() - started;
+
+    expect(res.hit).toMatchObject({ lat: 44.4, lng: 26.1 });
+    // 1.1s of spacing is expected; the 3s upsert must not be added to it.
+    expect(elapsed).toBeLessThan(2_500);
+    // ...and the write was still started, not skipped.
+    expect(upsertSpy).toHaveBeenCalledTimes(1);
   });
 
   it('reports a genuine no-match differently from an expired queue slot', async () => {
