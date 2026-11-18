@@ -193,18 +193,29 @@ export async function POST(req: Request) {
     // is 1 req/sec per IP with bans on abuse; a ban would land on our egress
     // IP and take storefront checkout down with it.
     //
-    // Best effort on purpose, with its own deadline: an order that cannot be
-    // geocoded must still be accepted (that is today's behaviour), and the
-    // vendor's checkout is waiting on this response. Under a burst, a request
-    // can sit in the shared queue past the deadline -- the order is then
-    // accepted unpriced and says so in the log, rather than hanging.
+    // Best effort on purpose, and bounded: an order that cannot be geocoded
+    // must still be accepted (that is today's behaviour), and the vendor's
+    // checkout is blocked on this response.
+    //
+    // The deadline goes INTO the guard rather than only wrapping it. Racing
+    // alone would abandon the promise while its queued work carried on
+    // holding a 1.1s slot each, so a burst of 60 distinct dropoffs would park
+    // a minute of results-nobody-can-use in front of the orders that come
+    // next, and starve those too. With timeoutMs, a lookup whose caller has
+    // given up drops out of the queue instead. The race stays only as an
+    // outer bound for a fetch already in flight upstream -- that one has
+    // already paid for its slot, so abandoning it costs nothing.
     let lat = dropoff.lat ?? null;
     let lng = dropoff.lng ?? null;
     if (lat === null || lng === null) {
+      const GEOCODE_BUDGET_MS = 2500;
       try {
         const result = await Promise.race([
-          geocodeGuarded({ line1: dropoff.line1, city: dropoff.city }),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+          geocodeGuarded(
+            { line1: dropoff.line1, city: dropoff.city },
+            { timeoutMs: GEOCODE_BUDGET_MS },
+          ),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), GEOCODE_BUDGET_MS + 250)),
         ]);
         if (result?.hit) {
           lat = result.hit.lat;
@@ -213,6 +224,7 @@ export async function POST(req: Request) {
           console.warn(
             '[public/v1/orders] dropoff not geocoded, delivery will not be priced:',
             `${dropoff.line1}, ${dropoff.city}`,
+            result?.expired ? '(geocoder queue busy)' : '(no match)',
           );
         }
       } catch (err) {

@@ -28,7 +28,12 @@ import { createHash } from 'node:crypto';
 import { geocodeAddressRoVerbose, type GeocodeHit } from './nominatim';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
-export type GuardedGeocodeResult = { hit: GeocodeHit | null; cached: boolean };
+export type GuardedGeocodeResult = {
+  hit: GeocodeHit | null;
+  cached: boolean;
+  /** True when the caller's deadline passed while this sat in the queue. */
+  expired?: boolean;
+};
 
 type CacheEntry = { lat: number; lng: number; displayName: string; expiresAt: number };
 
@@ -124,10 +129,28 @@ const MIN_INTERVAL_MS = 1_100;
 let lastFetchAt = 0;
 let queue: Promise<unknown> = Promise.resolve();
 
-function serializeOsm<T>(fn: () => Promise<T>): Promise<T> {
+/** Returned instead of a result when `shouldSkip` says the work is obsolete. */
+const SKIPPED = Symbol('skipped');
+
+// `shouldSkip` is checked BEFORE the 1.1s wait, not only after. That is the
+// whole point of it: a caller that has already given up must leave the queue
+// immediately rather than hold a slot it cannot use. Without the early check,
+// a burst of 60 abandoned lookups would still be spaced out one per 1.1s —
+// about a minute of dead work sitting in front of the orders that come next,
+// which would make them time out too, long after the burst ended.
+//
+// A skipped task also must not touch `lastFetchAt`: it never reached upstream,
+// so it owes the provider nothing.
+function serializeOsm<T>(
+  fn: () => Promise<T>,
+  shouldSkip?: () => boolean,
+): Promise<T | typeof SKIPPED> {
   const next = queue.then(async () => {
+    if (shouldSkip?.()) return SKIPPED;
     const wait = lastFetchAt + MIN_INTERVAL_MS - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    // Re-check: the deadline may well have passed during that wait.
+    if (shouldSkip?.()) return SKIPPED;
     lastFetchAt = Date.now();
     return fn();
   });
@@ -141,15 +164,25 @@ function serializeOsm<T>(fn: () => Promise<T>): Promise<T> {
 /**
  * Geocode a Romanian address through the shared cache + upstream throttle.
  *
- * Returns `{ hit: null }` when Nominatim has no match. Throws only if the
- * upstream call itself throws; callers decide whether that is fatal.
+ * Returns `{ hit: null }` when Nominatim has no match, or
+ * `{ hit: null, expired: true }` when `timeoutMs` elapsed before this call
+ * reached the front of the queue. Throws only if the upstream call itself
+ * throws; callers decide whether that is fatal.
+ *
+ * Pass `timeoutMs` when the caller cannot wait indefinitely — a request
+ * serving a vendor's blocked checkout, for instance. It is what lets an
+ * abandoned lookup release its queue slot instead of starving the ones
+ * behind it. Cache hits are returned regardless, since they cost nothing.
  */
-export async function geocodeGuarded(address: {
-  line1: string;
-  city: string;
-  postalCode?: string;
-  country?: string;
-}): Promise<GuardedGeocodeResult> {
+export async function geocodeGuarded(
+  address: {
+    line1: string;
+    city: string;
+    postalCode?: string;
+    country?: string;
+  },
+  opts?: { timeoutMs?: number },
+): Promise<GuardedGeocodeResult> {
   const line1 = address.line1;
   const city = address.city;
   const postalCode = address.postalCode ?? '';
@@ -167,7 +200,13 @@ export async function geocodeGuarded(address: {
   }
 
   const q = [line1, city, postalCode, country].filter((s) => s.trim().length > 0).join(', ');
-  const hit = await serializeOsm(() => geocodeAddressRoVerbose(q));
+  const deadline = opts?.timeoutMs === undefined ? undefined : Date.now() + opts.timeoutMs;
+  const outcome = await serializeOsm(
+    () => geocodeAddressRoVerbose(q),
+    deadline === undefined ? undefined : () => Date.now() >= deadline,
+  );
+  if (outcome === SKIPPED) return { hit: null, cached: false, expired: true };
+  const hit = outcome;
   if (!hit) return { hit: null, cached: false };
 
   const entry: CacheEntry = {
