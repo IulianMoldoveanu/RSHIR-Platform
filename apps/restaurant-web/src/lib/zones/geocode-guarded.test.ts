@@ -24,11 +24,19 @@ vi.mock('./nominatim', () => ({
 // so these tests exercise the queue rather than a database; the write delay is
 // adjustable, to prove a slow upsert cannot hold back a finished lookup.
 let upsertDelayMs = 0;
+let selectDelayMs = 0;
 const upsertSpy = vi.fn();
 vi.mock('@/lib/supabase-admin', () => ({
   getSupabaseAdmin: () => ({
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }),
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => {
+            if (selectDelayMs > 0) await new Promise((r) => setTimeout(r, selectDelayMs));
+            return { data: null };
+          },
+        }),
+      }),
       upsert: async (row: unknown) => {
         upsertSpy(row);
         if (upsertDelayMs > 0) await new Promise((r) => setTimeout(r, upsertDelayMs));
@@ -45,6 +53,7 @@ describe('geocodeGuarded', () => {
     upstream.mockClear();
     upsertSpy.mockClear();
     upsertDelayMs = 0;
+    selectDelayMs = 0;
     upstream.mockResolvedValue({ lat: 44.4, lng: 26.1, displayName: 'stub' });
   });
 
@@ -125,6 +134,23 @@ describe('geocodeGuarded', () => {
     expect(elapsed).toBeLessThan(2_500);
     // ...and the write was still started, not skipped.
     expect(upsertSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // The deadline has to start at entry, not after the cache reads. Computed
+  // later it would be a fresh budget handed out after the caller gave up, and
+  // the lookup would queue upstream work nobody can use — the very thing
+  // timeoutMs exists to stop.
+  it('counts a slow cache read against the deadline, not on top of it', async () => {
+    selectDelayMs = 300;
+
+    const res = await geocodeGuarded(
+      { line1: 'Strada Opt 8', city: 'București' },
+      { timeoutMs: 100 },
+    );
+
+    expect(res).toEqual({ hit: null, cached: false, expired: true });
+    // Never reached Nominatim: no slot was taken for a result nobody wanted.
+    expect(upstream).not.toHaveBeenCalled();
   });
 
   it('reports a genuine no-match differently from an expired queue slot', async () => {

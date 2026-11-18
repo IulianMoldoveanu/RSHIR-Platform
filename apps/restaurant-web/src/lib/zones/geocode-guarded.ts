@@ -188,6 +188,13 @@ export async function geocodeGuarded(
   const postalCode = address.postalCode ?? '';
   const country = address.country ?? 'Romania';
 
+  // The deadline starts HERE, before the cache reads, not after them. Computed
+  // later it would be a fresh budget handed out after the caller had already
+  // given up: an L2 read slower than the caller's own race would let this
+  // enqueue 2.5s of upstream work whose result can no longer reach anyone --
+  // reintroducing the slot-hogging this parameter exists to prevent.
+  const deadline = opts?.timeoutMs === undefined ? undefined : Date.now() + opts.timeoutMs;
+
   const key = cacheKey(line1, city, postalCode, country);
 
   const l1 = cacheGet(key);
@@ -200,7 +207,6 @@ export async function geocodeGuarded(
   }
 
   const q = [line1, city, postalCode, country].filter((s) => s.trim().length > 0).join(', ');
-  const deadline = opts?.timeoutMs === undefined ? undefined : Date.now() + opts.timeoutMs;
   const outcome = await serializeOsm(
     () => geocodeAddressRoVerbose(q),
     deadline === undefined ? undefined : () => Date.now() >= deadline,
