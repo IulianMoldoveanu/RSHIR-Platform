@@ -10,6 +10,7 @@ import { dispatchOrderEvent } from '@/lib/integration-bus';
 import { checkLimit } from '@/lib/rate-limit';
 import { authenticateBearerKey } from '../auth';
 import { COD_MAX_TOTAL_RON, codAllowedForTotal } from '@/lib/payment-mode';
+import { geocodeGuarded } from '@/lib/zones/geocode-guarded';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -173,6 +174,64 @@ export async function POST(req: Request) {
   // courier_orders row gets a NULL dropoff and can't be routed/delivered.
   let addressId: string | null = null;
   if (fulfillment === 'DELIVERY' && dropoff) {
+    // Coordinates are what the delivery gets PRICED on, and `lat`/`lng` are
+    // optional in this API because a vendor's checkout rarely has them.
+    //
+    // The chain: customer_addresses.latitude/longitude ->
+    // sync_restaurant_to_courier_order copies them to
+    // courier_orders.dropoff_lat/lng -> fn_compute_delivery_pricing returns
+    // early when either is null, so no delivery_pricings row is written ->
+    // the weekly invoice generator left-joins that table with
+    // coalesce(sum(restaurant_fee_cents), 0). The vendor is then billed the
+    // 2 RON data fee and ZERO for the delivery, while HIR still owes the
+    // fleet its payout. Measured on 2026-11-18: 6 courier orders, 0 pricing
+    // rows, all without a zone.
+    //
+    // So geocode here when the vendor did not send coordinates, through
+    // geocodeGuarded -- the shared cache and the 1.1s upstream spacing. This
+    // endpoint allows a 60-request burst per API key, and Nominatim's policy
+    // is 1 req/sec per IP with bans on abuse; a ban would land on our egress
+    // IP and take storefront checkout down with it.
+    //
+    // Best effort on purpose, and bounded: an order that cannot be geocoded
+    // must still be accepted (that is today's behaviour), and the vendor's
+    // checkout is blocked on this response.
+    //
+    // The deadline goes INTO the guard rather than only wrapping it. Racing
+    // alone would abandon the promise while its queued work carried on
+    // holding a 1.1s slot each, so a burst of 60 distinct dropoffs would park
+    // a minute of results-nobody-can-use in front of the orders that come
+    // next, and starve those too. With timeoutMs, a lookup whose caller has
+    // given up drops out of the queue instead. The race stays only as an
+    // outer bound for a fetch already in flight upstream -- that one has
+    // already paid for its slot, so abandoning it costs nothing.
+    let lat = dropoff.lat ?? null;
+    let lng = dropoff.lng ?? null;
+    if (lat === null || lng === null) {
+      const GEOCODE_BUDGET_MS = 2500;
+      try {
+        const result = await Promise.race([
+          geocodeGuarded(
+            { line1: dropoff.line1, city: dropoff.city },
+            { timeoutMs: GEOCODE_BUDGET_MS },
+          ),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), GEOCODE_BUDGET_MS + 250)),
+        ]);
+        if (result?.hit) {
+          lat = result.hit.lat;
+          lng = result.hit.lng;
+        } else {
+          console.warn(
+            '[public/v1/orders] dropoff not geocoded, delivery will not be priced:',
+            `${dropoff.line1}, ${dropoff.city}`,
+            result?.expired ? '(geocoder queue busy)' : '(no match)',
+          );
+        }
+      } catch (err) {
+        console.warn('[public/v1/orders] geocode threw, delivery will not be priced:', (err as Error).message);
+      }
+    }
+
     const addrSb = admin as unknown as {
       from: (t: string) => {
         insert: (row: Record<string, unknown>) => {
@@ -192,8 +251,8 @@ export async function POST(req: Request) {
         line1: dropoff.line1,
         line2: dropoff.line2 || null,
         city: dropoff.city,
-        latitude: dropoff.lat ?? null,
-        longitude: dropoff.lng ?? null,
+        latitude: lat,
+        longitude: lng,
       })
       .select('id')
       .single();

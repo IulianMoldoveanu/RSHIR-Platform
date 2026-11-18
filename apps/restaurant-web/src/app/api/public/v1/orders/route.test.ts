@@ -36,6 +36,22 @@ vi.mock('@/lib/supabase-admin', () => ({
   }),
 }));
 
+// The route geocodes a dropoff the vendor sent without coordinates, so this
+// has to be mocked or every test in this file would reach out to Nominatim.
+type GuardedResult = {
+  hit: { lat: number; lng: number; displayName: string } | null;
+  cached: boolean;
+};
+const geocodeMock = vi.fn(
+  async (_a: { line1: string; city: string }): Promise<GuardedResult> => ({
+    hit: null,
+    cached: false,
+  }),
+);
+vi.mock('@/lib/zones/geocode-guarded', () => ({
+  geocodeGuarded: (a: { line1: string; city: string }) => geocodeMock(a),
+}));
+
 const dispatchMock = vi.fn(async (..._args: unknown[]) => undefined);
 vi.mock('@/lib/integration-bus', () => ({
   dispatchOrderEvent: (...args: unknown[]) => dispatchMock(...args),
@@ -74,6 +90,9 @@ describe('POST /api/public/v1/orders', () => {
     checkLimitMock.mockReturnValue({ ok: true });
     // Default: address insert succeeds. Overridden in the failure case.
     addressInsertMock.mockReturnValue({ data: { id: 'addr-1' }, error: null });
+    // Default: geocoding finds nothing, which is the pre-existing behaviour
+    // (null coordinates) for every test that does not care about it.
+    geocodeMock.mockResolvedValue({ hit: null, cached: false });
   });
   afterEach(() => {
     vi.resetAllMocks();
@@ -447,6 +466,85 @@ describe('POST /api/public/v1/orders', () => {
         ),
       );
       expect(res.status).toBe(201);
+    });
+  });
+
+  // Coordinates decide whether the delivery gets priced at all: without them
+  // fn_compute_delivery_pricing writes no delivery_pricings row, and the weekly
+  // invoice coalesces the missing delivery fee to 0 -- the vendor pays the
+  // 2 RON data fee and nothing for the delivery, while HIR still owes the fleet.
+  describe('dropoff coordinates', () => {
+    const authOk = () => {
+      authMock.mockResolvedValue({
+        tenantId: TENANT_ID,
+        keyId: API_KEY_ID,
+        scopes: ['orders.write'],
+      });
+      customerInsertMock.mockReturnValue({ data: { id: 'cust-1' }, error: null });
+      orderInsertMock.mockReturnValue({
+        data: { id: 'order-1', public_track_token: 'tok-1' },
+        error: null,
+      });
+    };
+
+    it('geocodes the address when the vendor sends no coordinates', async () => {
+      authOk();
+      geocodeMock.mockResolvedValue({
+        hit: { lat: 44.4268, lng: 26.1025, displayName: 'Strada Mare 10, București' },
+        cached: false,
+      });
+
+      const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+      expect(res.status).toBe(201);
+
+      // Through the shared guard, not the raw helper: that is what carries the
+      // cache and the 1.1s spacing Nominatim's policy needs.
+      expect(geocodeMock).toHaveBeenCalledTimes(1);
+      expect(geocodeMock.mock.calls[0][0]).toMatchObject({
+        line1: 'Strada Mare 10',
+        city: 'București',
+      });
+
+      const [addrRow] = addressInsertMock.mock.calls[0];
+      expect(addrRow).toMatchObject({ latitude: 44.4268, longitude: 26.1025 });
+    });
+
+    it('trusts the coordinates the vendor sent and does not geocode', async () => {
+      authOk();
+
+      const res = await POST(
+        makeReq(
+          { ...VALID_BODY, dropoff: { ...VALID_BODY.dropoff, lat: 45.65, lng: 25.6 } },
+          { authorization: 'Bearer hir_x' },
+        ),
+      );
+      expect(res.status).toBe(201);
+
+      expect(geocodeMock).not.toHaveBeenCalled();
+      const [addrRow] = addressInsertMock.mock.calls[0];
+      expect(addrRow).toMatchObject({ latitude: 45.65, longitude: 25.6 });
+    });
+
+    it('still accepts the order when geocoding finds nothing', async () => {
+      authOk();
+      geocodeMock.mockResolvedValue({ hit: null, cached: false });
+
+      const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+      expect(res.status).toBe(201);
+
+      const [addrRow] = addressInsertMock.mock.calls[0];
+      expect(addrRow).toMatchObject({ latitude: null, longitude: null });
+    });
+
+    it('still accepts the order when the geocoder throws', async () => {
+      authOk();
+      geocodeMock.mockRejectedValue(new Error('nominatim down'));
+
+      const res = await POST(makeReq(VALID_BODY, { authorization: 'Bearer hir_x' }));
+      expect(res.status).toBe(201);
+
+      const [addrRow] = addressInsertMock.mock.calls[0];
+      expect(addrRow).toMatchObject({ latitude: null, longitude: null });
     });
   });
 });
