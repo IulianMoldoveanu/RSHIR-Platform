@@ -18,13 +18,18 @@ export function DeleteAccountForm({ userEmail }: { userEmail: string }) {
 
   function handleSubmit() {
     if (!canSubmit) return;
-    // Deletion signs the account out server-side, which clears the shared
-    // cookie. A pre-migration host-scoped copy can only be dropped from here
-    // — see components/logout-form.tsx for why the server cannot do both.
-    clearHostScopedAuthCookies();
     startTransition(async () => {
       const result = await requestAccountDeletion();
       if (result.ok) {
+        // AFTER the request is recorded, never before: on localhost, on a
+        // preview, or for a session predating the shared cookie, the
+        // host-scoped cookie IS the session. Clearing it first would sign the
+        // courier out and the deletion would never be requested — the server
+        // action's own getUser() guard would reject it. Deletion signs them
+        // out server-side, which handles the shared copy; this drops the
+        // host-scoped one. See components/logout-form.tsx for why the server
+        // cannot clear both.
+        clearHostScopedAuthCookies();
         setDone(true);
       } else {
         setError(result.error ?? 'Eroare necunoscută. Contactează suportul.');
