@@ -23,6 +23,10 @@ export const MARKETING_ROUTES: ReadonlyArray<{
   // /pricing retired 2026-08-01 (301 to `/`, see next.config.mjs) — the
   // site no longer pitches a subscription, so it's not a sitemap entry
   // either; listing a redirect target here would be a stale SEO signal.
+  // /curier — the standalone pitch for the courier app. Sent as a link
+  // rather than reached from the nav (that stayed at four entries on
+  // purpose), so the sitemap is how it gets found.
+  { path: '/curier', priority: 0.8 },
   { path: '/clienti', priority: 0.7 },
   { path: '/migrate-from-gloriafood', priority: 0.9 },
   // /alternativa-gloriafood-romania → 301 redirect to /migrate-from-gloriafood (2026-06-02)

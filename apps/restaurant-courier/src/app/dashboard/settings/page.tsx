@@ -84,7 +84,7 @@ export default async function SettingsPage() {
         href="/dashboard/settings/profile"
         icon={<Car className="h-5 w-5 text-violet-400" aria-hidden />}
         label="Profil & vehicul"
-        description="Date personale, vehicul, verificare identitate"
+        description="Date personale și vehiculul cu care livrezi"
       />
       <SettingsRow
         href="/dashboard/settings/notifications"
