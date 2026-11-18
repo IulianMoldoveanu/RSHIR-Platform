@@ -347,10 +347,14 @@ export function RiderMap({
           {
             maxZoom: 19,
             subdomains: 'abc',
-            // Keep a wide ring of off-screen tiles cached around the viewport
-            // (default is 2) so dragging — especially fast left/right pans —
-            // doesn't reveal blank gutters at the edges before tiles load.
-            keepBuffer: 8,
+            // A ring of off-screen tiles around the viewport so dragging
+            // doesn't reveal blank gutters before tiles load. This was 8,
+            // which on a phone keeps a few hundred tiles alive instead of a
+            // few dozen — real memory and compositing cost on the one screen
+            // a courier leaves open all shift, against a public tile service
+            // that answers in ~0.35s per tile. 3 still covers a normal pan;
+            // Leaflet's own default is 2.
+            keepBuffer: 3,
             // Mobile default is updateWhenIdle:true — tiles only fetch after the
             // pan ENDS, which is exactly what showed white edges + seams while
             // dragging. Load during the drag instead.

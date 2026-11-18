@@ -71,7 +71,10 @@ const sentryWebpackOptions = {
   silent: !process.env.SENTRY_AUTH_TOKEN,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  disableLogger: true,
+  // `disableLogger` is deprecated in @sentry/nextjs 10; this is the same
+  // thing under its current name. Strips the SDK's own debug logging, which
+  // nobody reads in a browser.
+  webpack: { treeshake: { removeDebugLogging: true } },
   // The default tunnel route hides /sentry-* requests from ad-blockers.
   // We keep it on so client error reporting stays alive even for users
   // with aggressive privacy extensions.
