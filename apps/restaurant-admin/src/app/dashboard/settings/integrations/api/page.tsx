@@ -66,6 +66,49 @@ export default async function ApiIntegrationPage() {
         </p>
       </header>
 
+      {/* The field that decides whether the courier asks for money at the
+          door. It was added to the API on 13 November and the docs did not
+          follow, so a vendor reading this page had no way to know it exists —
+          and every order they sent landed as CARD/UNPAID. For a vendor
+          charging by card on their own site that is wrong in one direction
+          (reconciliation shows unpaid), and for cash it is wrong in the other
+          (the courier is never told to collect). */}
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+        <h2 className="text-sm font-semibold text-amber-900">
+          Spune-ne cum a plătit clientul
+        </h2>
+        <p className="mt-2 text-xs leading-relaxed text-amber-900">
+          Îți păstrezi gateway-ul tău de plată — noi nu vedem încasarea. Dar
+          curierul trebuie să știe dacă cere bani la ușă, iar reconcilierea
+          trebuie să deosebească {'„plătit, doar nu nouă”'} de{' '}
+          {'„încă nu a plătit nimeni”'}. Trimite{' '}
+          <code className="font-mono">payment</code> la fiecare comandă:
+        </p>
+        <ul className="mt-3 flex flex-col gap-2 text-xs text-amber-900">
+          <li>
+            <code className="rounded bg-amber-100 px-1 py-0.5 font-mono">
+              {'{ "method": "CARD", "status": "PAID" }'}
+            </code>{' '}
+            — ai încasat deja cu cardul pe site-ul tău. Curierul nu cere nimic.
+          </li>
+          <li>
+            <code className="rounded bg-amber-100 px-1 py-0.5 font-mono">
+              {'{ "method": "COD", "status": "UNPAID" }'}
+            </code>{' '}
+            — ramburs. Curierul încasează la livrare.
+          </li>
+        </ul>
+        <p className="mt-3 text-xs leading-relaxed text-amber-900">
+          <strong>COD împreună cu PAID este respins</strong> (400): ramburs
+          înseamnă că banii se iau la ușă, deci nu poate fi deja plătit —
+          curierul ar cere suma a doua oară. Ramburs peste{' '}
+          <strong>300 de lei</strong> este respins (422,{' '}
+          <code className="font-mono">cod_over_limit</code>), ca să nu plimbe
+          nimeni o sumă mare prin oraș. Dacă omiți câmpul, presupunem
+          CARD/UNPAID — ceea ce e corect doar dacă chiar nu ai încasat.
+        </p>
+      </div>
+
       {role !== 'OWNER' && (
         <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           Doar utilizatorii cu rolul <strong>OWNER</strong> pot gestiona cheile API.
@@ -90,6 +133,8 @@ export default async function ApiIntegrationPage() {
             ['dropoff.line1 *', 'obligatoriu dacă fulfillment=DELIVERY'],
             ['dropoff.city *', 'string — min 2 caractere'],
             ['notes', 'string opțional — max 500 caractere'],
+            ['payment.method', '"CARD" (implicit) | "COD" — cum a plătit clientul la tine'],
+            ['payment.status', '"UNPAID" (implicit) | "PAID" — dacă ai încasat deja'],
           ].map(([field, desc]) => (
             <div key={field} className="flex flex-col gap-0.5">
               <dt className="font-mono text-xs text-violet-700">{field}</dt>
