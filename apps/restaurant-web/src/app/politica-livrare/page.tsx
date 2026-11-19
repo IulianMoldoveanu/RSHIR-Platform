@@ -296,6 +296,8 @@ export default async function PoliticaLivrarePage() {
       <MarketingHeader currentLocale={locale} />
       <LegalShell
         locale={locale}
+        // The chrome follows the visitor; the document itself is Romanian.
+        contentLocale="ro"
         title={PAGE_TITLE}
         subtitle="Cum livrăm comenzile plasate prin platforma HIR"
         lastUpdated={PAGE_LAST_UPDATED}

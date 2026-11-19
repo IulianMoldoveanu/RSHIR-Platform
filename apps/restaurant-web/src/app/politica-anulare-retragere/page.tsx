@@ -341,6 +341,8 @@ export default async function PoliticaAnulareRetragerePage() {
       <MarketingHeader currentLocale={locale} />
       <LegalShell
         locale={locale}
+        // The chrome follows the visitor; the document itself is Romanian.
+        contentLocale="ro"
         title={PAGE_TITLE}
         subtitle="Drepturile tale conform OUG 34/2014 și Legii 140/2021"
         lastUpdated={PAGE_LAST_UPDATED}
