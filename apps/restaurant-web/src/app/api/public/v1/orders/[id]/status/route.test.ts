@@ -216,6 +216,33 @@ describe('PATCH /api/public/v1/orders/:id/status', () => {
     expect((await res.json()).error).toBe('order_closed');
   });
 
+  // Codex, #1103 P2. POST /orders accepts fulfillment: 'PICKUP', and those
+  // orders end at PICKED_UP or NO_SHOW. Neither was in RANK, so both fell to
+  // rank 0 and a late retry from the shop could have pushed an order the
+  // customer had already collected back into the kitchen queue.
+  it('refuses to reopen a finished pickup order', async () => {
+    for (const closed of ['PICKED_UP', 'NO_SHOW']) {
+      for (const push of ['PREPARING', 'READY', 'cancelled']) {
+        seed(closed);
+        const res = await PATCH(req(push), { params });
+        expect(res.status).toBe(409);
+        expect((await res.json()).error).toBe('order_closed');
+        expect(orderRow?.status).toBe(closed);
+      }
+    }
+    expect(applied).toEqual([]);
+  });
+
+  // Conservative by default: the eleventh status someone adds must not become
+  // settable merely because this file has not heard of it yet.
+  it('refuses a current status it does not know', async () => {
+    seed('SOME_FUTURE_STATUS');
+    const res = await PATCH(req('READY'), { params });
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('unknown_status');
+    expect(applied).toEqual([]);
+  });
+
   it('rejects a status it does not recognise', async () => {
     const res = await PATCH(req('banana'), { params });
     expect(res.status).toBe(400);

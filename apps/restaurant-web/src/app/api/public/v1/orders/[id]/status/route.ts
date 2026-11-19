@@ -62,8 +62,16 @@ const VENDOR_SETTABLE = ['CONFIRMED', 'PREPARING', 'READY', 'CANCELLED'] as cons
 type VendorStatus = (typeof VENDOR_SETTABLE)[number];
 
 /**
- * Order of the kitchen-side pipeline. Used to refuse backwards moves and to
- * know when READY needs to pass through PREPARING first.
+ * Order of the pipeline. Used to refuse backwards moves and to know when
+ * READY needs to pass through PREPARING first.
+ *
+ * READY forks: DISPATCHED → IN_DELIVERY → DELIVERED is the courier branch,
+ * PICKED_UP / NO_SHOW the counter-pickup one (POST /orders accepts
+ * `fulfillment: 'PICKUP'`). Both ends share a rank because the only question
+ * asked of this map is "is the target further along than the current
+ * status", and a collected pickup order is as finished as a delivered one.
+ * The authority on all ten statuses is
+ * apps/restaurant-admin/src/app/dashboard/orders/status-machine.ts.
  */
 const RANK: Record<string, number> = {
   PENDING: 0,
@@ -73,7 +81,21 @@ const RANK: Record<string, number> = {
   DISPATCHED: 4,
   IN_DELIVERY: 5,
   DELIVERED: 6,
+  PICKED_UP: 6,
+  NO_SHOW: 6,
 };
+
+/**
+ * The statuses with no outgoing transitions. A push arriving after one of
+ * these must not reopen the order.
+ *
+ * Codex caught PICKED_UP and NO_SHOW missing here (#1103, P2): a pickup
+ * order the counter had already closed was absent from RANK, defaulted to
+ * rank 0, and so accepted PREPARING, READY or CANCELLED. A late retry from
+ * the vendor's shop could have put a collected order back in the kitchen
+ * queue.
+ */
+const TERMINAL_STATUSES = ['DELIVERED', 'PICKED_UP', 'NO_SHOW', 'CANCELLED'];
 
 /**
  * A vendor's system speaks its own vocabulary. WooCommerce pushes its raw slug
@@ -266,24 +288,40 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     });
   }
 
-  if (current === 'DELIVERED' || current === 'CANCELLED') {
+  if (TERMINAL_STATUSES.includes(current)) {
     return NextResponse.json(
       { error: 'order_closed', status: current },
       { status: 409 },
     );
   }
 
+  // A status we have never heard of is not a status we may reason about. The
+  // old code reached RANK through `?? 0`, which quietly treated anything
+  // unknown as "brand new" and therefore open to every move — the exact shape
+  // of the PICKED_UP bug above. Refusing is the conservative default, and it
+  // keeps the next status someone adds from silently becoming settable.
+  if (RANK[current] === undefined) {
+    return NextResponse.json(
+      { error: 'unknown_status', status: current },
+      { status: 409 },
+    );
+  }
+
+  // Safe to index directly from here: the two guards above rejected every
+  // status that is terminal or absent from RANK.
+  const currentRank = RANK[current];
+
   if (target === 'CANCELLED') {
     // Once a rider is carrying the food, a silent API cancel would leave them
     // driving to a door nobody is waiting at. Past READY this is a phone call
     // to the fleet, not an HTTP request.
-    if ((RANK[current] ?? 0) > RANK.READY) {
+    if (currentRank > RANK.READY) {
       return NextResponse.json(
         { error: 'too_late_to_cancel', status: current },
         { status: 409 },
       );
     }
-  } else if ((RANK[target] ?? 0) <= (RANK[current] ?? 0)) {
+  } else if (RANK[target] <= currentRank) {
     return NextResponse.json(
       { error: 'invalid_transition', from: current, to: target },
       { status: 400 },
@@ -312,7 +350,7 @@ export async function PATCH(req: Request, props: { params: Promise<{ id: string 
     // updates a courier_orders row that only the PREPARING branch creates, and
     // a no-op UPDATE reports no error. A shop that only ever signals "ready"
     // (plenty do) would look fine and dispatch nobody. So walk it through.
-    if (target === 'READY' && (RANK[current] ?? 0) < RANK.PREPARING) {
+    if (target === 'READY' && currentRank < RANK.PREPARING) {
       const mid = await moveTo(current, 'PREPARING');
       if (mid === 'conflict') {
         return NextResponse.json({ error: 'conflict', status: current }, { status: 409 });
