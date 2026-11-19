@@ -32,6 +32,17 @@ const DEFAULTS: OperationsSettings = {
   location_lng: null,
 };
 
+function readCoord(
+  settings: Record<string, unknown>,
+  axis: 'lat' | 'lng',
+): number | null {
+  const flat = settings[axis === 'lat' ? 'location_lat' : 'location_lng'];
+  if (typeof flat === 'number' && Number.isFinite(flat)) return flat;
+  const nested = settings.location as Record<string, unknown> | null | undefined;
+  const value = nested && typeof nested === 'object' ? nested[axis] : undefined;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 export default async function OperationsSettingsPage() {
   const { user, tenant } = await getActiveTenant();
   const role = await getTenantRole(user.id, tenant.id);
@@ -93,14 +104,13 @@ export default async function OperationsSettingsPage() {
       typeof settings.whatsapp_phone === 'string' ? settings.whatsapp_phone : null,
     contact_phone:
       typeof settings.contact_phone === 'string' ? settings.contact_phone : null,
-    location_lat: (() => {
-      const loc = settings.location as { lat?: unknown } | null | undefined;
-      return loc && typeof loc.lat === 'number' && Number.isFinite(loc.lat) ? loc.lat : null;
-    })(),
-    location_lng: (() => {
-      const loc = settings.location as { lng?: unknown } | null | undefined;
-      return loc && typeof loc.lng === 'number' && Number.isFinite(loc.lng) ? loc.lng : null;
-    })(),
+    // Two coordinate shapes ship in production: flat `location_lat`/`lng`
+    // and nested `location.{lat,lng}`. Reading only the nested one showed an
+    // empty pickup point to every tenant onboarded before this page existed,
+    // even though their coordinates were set and dispatch was using them.
+    // Order matches apps/restaurant-web/src/lib/zones/tenant-location.ts.
+    location_lat: readCoord(settings, 'lat'),
+    location_lng: readCoord(settings, 'lng'),
   };
 
   return (
