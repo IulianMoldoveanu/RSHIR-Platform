@@ -69,7 +69,9 @@ export async function createSandboxKey(tenantId: string): Promise<SandboxKeyResu
       key_hash: hash,
       key_prefix: keyPrefix,
       label: 'Sandbox',
-      scopes: ['orders.write'],
+      // Read too: a sandbox key exists to be tried out, and the first thing
+      // anyone tries after posting an order is reading it back.
+      scopes: ['orders.write', 'orders.read'],
     })
     .select('id')
     .single();
@@ -82,7 +84,7 @@ export async function createSandboxKey(tenantId: string): Promise<SandboxKeyResu
     action: 'integration.api_key_created',
     entityType: 'tenant_api_key',
     entityId: data.id,
-    metadata: { label: 'Sandbox', scopes: ['orders.write'] },
+    metadata: { label: 'Sandbox', scopes: ['orders.write', 'orders.read'] },
   });
 
   revalidatePath(REVALIDATE);
