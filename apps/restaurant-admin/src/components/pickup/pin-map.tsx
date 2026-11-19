@@ -35,13 +35,19 @@ function ClickToPlace({ onPick }: { onPick: (p: LatLng) => void }) {
  */
 function KeepPinInView({ value }: { value: LatLng | null }) {
   const map = useMap();
+  // Depend on the numbers, not the object: one caller builds `value` inline
+  // on every render, and an object dep would re-run this on every unrelated
+  // keystroke — snapping the map back the moment the operator panned away
+  // to look at a neighbouring street.
+  const lat = value?.lat ?? null;
+  const lng = value?.lng ?? null;
   useEffect(() => {
-    if (!value) return;
-    const point = L.latLng(value.lat, value.lng);
+    if (lat === null || lng === null) return;
+    const point = L.latLng(lat, lng);
     if (!map.getBounds().contains(point)) {
       map.setView(point, Math.max(map.getZoom(), 16));
     }
-  }, [map, value]);
+  }, [map, lat, lng]);
   return null;
 }
 

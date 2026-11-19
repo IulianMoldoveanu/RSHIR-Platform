@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { geocodePickupAddressAction } from './actions';
 import { formatLatLng, parseLatLng, type LatLng } from './coords';
@@ -47,29 +47,52 @@ export function PickupPointField({
   const [query, setQuery] = useState(addressHint);
   const [coordText, setCoordText] = useState(value ? formatLatLng(value) : '');
   const [message, setMessage] = useState<string | null>(null);
-  const [searching, startSearch] = useTransition();
+  // A plain flag, not useTransition: on React 18 a transition ends at the
+  // first await, so the button would have re-enabled itself while the
+  // lookup was still in flight and a second click would have spent another
+  // of the five allowed searches.
+  const [searching, setSearching] = useState(false);
+
+  // The address lookup is a network round-trip (up to 8s), and the wizard's
+  // onChange closes over that render's draft to rebuild the whole
+  // restaurantInfo object. Calling the captured callback when the answer
+  // lands would spread a stale draft back over anything the operator typed
+  // meanwhile — phone, address, city — and the wizard autosaves it.
+  // Reading the callback out of a ref always hands the result to the
+  // current draft. Same decoupling as zones/zone-map.tsx.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   // One writer for both directions: whatever moves the pin (search, map
   // click, marker drag, pasted pair) also refreshes the text box, so the
   // two can never disagree about where the courier is being sent.
   function setPin(next: LatLng | null) {
-    onChange(next);
+    onChangeRef.current(next);
     setCoordText(next ? formatLatLng(next) : '');
   }
 
   function search() {
     const q = query.trim();
-    if (!q) return;
+    if (!q || searching) return;
     setMessage(null);
-    startSearch(async () => {
-      const res = await geocodePickupAddressAction(q);
-      if (!res.ok) {
-        setMessage(GEOCODE_ERRORS[res.error] ?? 'Căutarea a eșuat.');
-        return;
+    setSearching(true);
+    void (async () => {
+      try {
+        const res = await geocodePickupAddressAction(q);
+        if (!res.ok) {
+          setMessage(GEOCODE_ERRORS[res.error] ?? 'Căutarea a eșuat.');
+          return;
+        }
+        setPin({ lat: res.lat, lng: res.lng });
+        setMessage(res.label ? `Găsit: ${res.label}` : null);
+      } catch {
+        setMessage('Căutarea a eșuat. Mută pinul pe hartă.');
+      } finally {
+        setSearching(false);
       }
-      setPin({ lat: res.lat, lng: res.lng });
-      setMessage(res.label ? `Găsit: ${res.label}` : null);
-    });
+    })();
   }
 
   function commitCoordText(raw: string) {
@@ -80,7 +103,13 @@ export function PickupPointField({
     }
     const parsed = parseLatLng(raw);
     if (!parsed) {
-      setMessage('Coordonate invalide. Format: 45.630341, 25.623478');
+      // Snap the box back to the pin that is actually saved. Leaving the
+      // rejected text on screen was the one hole in the invariant above:
+      // the host form does not know this edit failed, so Save would report
+      // success while storing the previous pickup point — the operator
+      // would be looking at coordinates that were never saved.
+      setCoordText(value ? formatLatLng(value) : '');
+      setMessage('Coordonate invalide, am păstrat pinul anterior. Format: 45.630341, 25.623478');
       return;
     }
     setPin(parsed);
@@ -105,6 +134,7 @@ export function PickupPointField({
             }
           }}
           placeholder="Str. Republicii 12, Brașov"
+          aria-label="Caută adresa punctului de ridicare"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
         <button
