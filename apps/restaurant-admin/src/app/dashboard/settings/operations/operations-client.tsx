@@ -2,6 +2,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveOperationsAction, type OperationsSettings, type OperationsActionResult } from './actions';
+import { PickupPointField } from '@/components/pickup/pickup-point-field';
+import type { LatLng } from '@/components/pickup/coords';
 
 const DAYS: { key: keyof OperationsSettings['opening_hours']; label: string }[] = [
   { key: 'mon', label: 'Luni' },
@@ -38,8 +40,14 @@ export function OperationsClient({
   const [hours, setHours] = useState(initial.opening_hours);
   const [whatsappPhone, setWhatsappPhone] = useState(initial.whatsapp_phone ?? '');
   const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? '');
-  const [lat, setLat] = useState(initial.location_lat !== null ? String(initial.location_lat) : '');
-  const [lng, setLng] = useState(initial.location_lng !== null ? String(initial.location_lng) : '');
+  // One pin instead of two free-typed numbers: the map can only ever hand
+  // back a complete, in-range pair, which is why the submit handler below
+  // no longer has to guard against half-entered coordinates.
+  const [pin, setPin] = useState<LatLng | null>(
+    initial.location_lat !== null && initial.location_lng !== null
+      ? { lat: initial.location_lat, lng: initial.location_lng }
+      : null,
+  );
   const [feedback, setFeedback] = useState<OperationsActionResult | null>(null);
 
   function updateWindow(day: keyof OperationsSettings['opening_hours'], idx: number, field: 'open' | 'close', value: string) {
@@ -101,34 +109,6 @@ export function OperationsClient({
       setFeedback({ ok: false, error: 'invalid_input', detail: 'Estimarea maximă trebuie să fie ≥ minimă.' });
       return;
     }
-    // Lat/lng: both empty clears the pin; both filled saves the pair.
-    // Anything in between is rejected so we never coerce '' → 0 and silently
-    // store (0, lng) or (lat, 0) as the pickup origin.
-    const latRaw = lat.trim();
-    const lngRaw = lng.trim();
-    let latNum: number | null = null;
-    let lngNum: number | null = null;
-    if (latRaw === '' && lngRaw === '') {
-      // Both blank → clear coordinates.
-    } else if (latRaw === '' || lngRaw === '') {
-      setFeedback({
-        ok: false,
-        error: 'invalid_input',
-        detail: 'Completează ambele coordonate (latitudine și longitudine) sau lasă-le pe ambele goale.',
-      });
-      return;
-    } else {
-      latNum = Number(latRaw);
-      lngNum = Number(lngRaw);
-      if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
-        setFeedback({ ok: false, error: 'invalid_input', detail: 'Latitudinea trebuie să fie între -90 și 90.' });
-        return;
-      }
-      if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
-        setFeedback({ ok: false, error: 'invalid_input', detail: 'Longitudinea trebuie să fie între -180 și 180.' });
-        return;
-      }
-    }
     start(async () => {
       const result = await saveOperationsAction(
         {
@@ -146,8 +126,8 @@ export function OperationsClient({
           opening_hours: hours,
           whatsapp_phone: whatsappPhone.trim() || null,
           contact_phone: contactPhone.trim() || null,
-          location_lat: latNum,
-          location_lng: lngNum,
+          location_lat: pin?.lat ?? null,
+          location_lng: pin?.lng ?? null,
         },
         tenantId,
       );
@@ -267,8 +247,8 @@ export function OperationsClient({
         <h2 className="text-sm font-semibold text-zinc-900">Contact &amp; locație</h2>
         <p className="mt-1 text-xs text-zinc-600">
           Telefonul de WhatsApp apare ca buton verde pe storefront pentru
-          comenzi rapide. Coordonatele GPS centrează harta zonelor de livrare
-          și sunt punctul de pickup pentru curier.
+          comenzi rapide. Punctul de ridicare centrează harta zonelor de livrare
+          și e locul de unde pleacă fiecare livrare.
         </p>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -311,38 +291,20 @@ export function OperationsClient({
 
         <div className="mt-5 border-t border-zinc-100 pt-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            Coordonate GPS (pickup)
+            Punctul de ridicare
           </h3>
           <p className="mt-1 text-xs text-zinc-600">
-            Punct de pickup pentru livrări. Caută adresa pe Google Maps,
-            click dreapta pe locație → primul rând copiază lat, lng. Lasă
-            ambele goale pentru a folosi un default la nivel de oraș.
+            De aici ridică curierul comanda. Caută adresa sau pune pinul direct pe
+            hartă — se salvează odată cu restul setărilor.
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-zinc-600">Latitudine</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                disabled={!canEdit}
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                placeholder="45.6303406"
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-600">Longitudine</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                disabled={!canEdit}
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                placeholder="25.6234782"
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
-              />
-            </div>
+          <div className="mt-3">
+            <PickupPointField
+              value={pin}
+              onChange={setPin}
+              disabled={!canEdit}
+              addressHint={pickupAddress}
+              height={320}
+            />
           </div>
         </div>
       </section>

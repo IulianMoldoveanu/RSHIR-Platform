@@ -157,10 +157,14 @@ export async function saveOperationsAction(
     return { ok: false, error: 'invalid_input', detail: 'contact_phone format' };
   }
 
-  // Location: store as numbers under settings.location.{lat,lng} so it
-  // matches the shape the storefront and zones map already read. null on
-  // either side means "not configured" — both storefront and zones map
-  // fall back to a city-level default.
+  // Location: write BOTH shapes that ship in production — nested
+  // `location.{lat,lng}` (zones map, storefront) and flat
+  // `location_lat`/`location_lng` (get_public_order, the dispatch trigger's
+  // first choice). Writing only the nested pair left the flat one behind at
+  // its previous value: moving the pin here would have moved it for the
+  // zones map while dispatch and the customer's tracking map kept sending
+  // couriers to the old address, with nothing anywhere reporting a problem.
+  // null on either side means "not configured" and clears both.
   const lat = input.location_lat;
   const lng = input.location_lng;
   const safeLat =
@@ -187,6 +191,8 @@ export async function saveOperationsAction(
     whatsapp_phone: cleanWhatsapp || null,
     contact_phone: cleanContact || null,
     location: safeLat !== null && safeLng !== null ? { lat: safeLat, lng: safeLng } : null,
+    location_lat: safeLat,
+    location_lng: safeLng,
   };
 
   const admin = createAdminClient();

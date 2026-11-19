@@ -30,6 +30,8 @@ import { setIntegrationMode, type IntegrationMode } from './integration-actions'
 import { uploadBrandingAsset, setBrandColor } from '../../settings/branding/actions';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { StepCelebration } from '@/components/onboarding/StepCelebration';
+import { PickupPointField } from '@/components/pickup/pickup-point-field';
+import { lookupCityCenter } from '@/app/dashboard/zones/default-city-centers';
 
 type SourceState = {
   menu_added: boolean;
@@ -561,57 +563,37 @@ function Step1({
         </Field>
       )}
 
-      <details className="rounded-md border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-600">
-        <summary className="cursor-pointer font-medium text-zinc-700">
-          Setează coordonate exacte (opțional, recomandat)
-        </summary>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <Field label="Latitudine">
-            <input
-              type="number"
-              step="0.000001"
-              value={value.location_lat ?? ''}
-              disabled={disabled}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  location_lat: e.target.value === '' ? null : Number(e.target.value),
-                })
-              }
-              placeholder="45.6"
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
-            />
-          </Field>
-          <Field label="Longitudine">
-            <input
-              type="number"
-              step="0.000001"
-              value={value.location_lng ?? ''}
-              disabled={disabled}
-              onChange={(e) =>
-                onChange({
-                  ...value,
-                  location_lng: e.target.value === '' ? null : Number(e.target.value),
-                })
-              }
-              placeholder="25.6"
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
-            />
-          </Field>
-          <p className="col-span-2 text-xs text-zinc-500">
-            Tip: deschide{' '}
-            <a
-              href="https://www.google.com/maps"
-              target="_blank"
-              rel="noreferrer"
-              className="underline"
-            >
-              Google Maps
-            </a>
-            , click-dreapta pe locația restaurantului → primele două numere sunt lat / lng.
-          </p>
+      {/* The pickup point is what the courier is sent to, and the origin
+          every delivery distance is measured from. It used to be two
+          hand-typed numbers behind a collapsed "optional" disclosure — one
+          mistyped digit sent the rider to another county, and skipping it
+          left the order with no origin at all. */}
+      <div className="rounded-md border border-zinc-200 bg-zinc-50/60 p-3">
+        <h3 className="text-sm font-medium text-zinc-900">Punctul de ridicare</h3>
+        <p className="mt-1 text-xs text-zinc-600">
+          De aici ridică curierul comenzile. Caută adresa sau pune pinul pe hartă.
+        </p>
+        <div className="mt-3">
+          <PickupPointField
+            value={
+              value.location_lat !== null && value.location_lng !== null
+                ? { lat: value.location_lat, lng: value.location_lng }
+                : null
+            }
+            onChange={(pin) =>
+              onChange({
+                ...value,
+                location_lat: pin?.lat ?? null,
+                location_lng: pin?.lng ?? null,
+              })
+            }
+            disabled={disabled}
+            addressHint={[value.address, value.city].filter(Boolean).join(', ')}
+            cityCenter={lookupCityCenter(value.city)}
+            height={260}
+          />
         </div>
-      </details>
+      </div>
     </div>
   );
 }
