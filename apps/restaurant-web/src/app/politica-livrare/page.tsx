@@ -18,7 +18,12 @@ import { getChosenLocale } from '@/lib/i18n/server';
 import type { LegalSection } from '@/content/legal/terms';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-static';
+// A page that honours the language cookie cannot be statically generated:
+// with `force-static`, cookies() is empty at build time, so the HTML is baked
+// in Romanian and every visitor gets that file whatever they chose. This was
+// the second, separate cause of "the language button only works on some
+// pages" (the first being a hardcoded currentLocale on the homepage).
+export const dynamic = 'force-dynamic';
 
 const PAGE_PATH = '/politica-livrare';
 const PAGE_URL = `https://${PRIMARY_DOMAIN}${PAGE_PATH}`;

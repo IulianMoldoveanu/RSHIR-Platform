@@ -9,8 +9,12 @@ import { getLocale } from '@/lib/i18n/server';
 import { t } from '@/lib/i18n';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-static';
-export const revalidate = 3600;
+// A page that honours the language cookie cannot be statically generated:
+// with `force-static`, cookies() is empty at build time, so the HTML is baked
+// in Romanian and every visitor gets that file whatever they chose. This was
+// the second, separate cause of "the language button only works on some
+// pages" (the first being a hardcoded currentLocale on the homepage).
+export const dynamic = 'force-dynamic';
 
 // Public-facing help center for end customers (the people who place orders
 // on tenant storefronts).
