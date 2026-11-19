@@ -55,14 +55,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   if (!tenant) {
     // Lane H marketing landing — only on canonical hosts with no tenant.
-    // SEO audit 2026-05-10 #1 — RO is the only canonical metadata language
-    // for hirforyou.ro homepage. Visitor toggles to EN remain available via
-    // the in-page locale switcher cookie, but the SERP snippet, OpenGraph
-    // locale, and `<html lang>` are pinned to RO so Google indexes a single
-    // canonical RO version and avoids hreflang split-content penalties.
-    // Tenant storefronts (else branch below) continue to use `getLocale()`.
-    const title = t('ro', 'marketing.home.page_title');
-    const description = t('ro', 'marketing.home.page_description');
+    //
+    // SEO audit 2026-05-10 #1 — one canonical RO version, no hreflang
+    // split-content. That is preserved below: a single URL, `ro-RO` plus
+    // `x-default` both pointing at it, and every crawler (none of which sends
+    // a cookie) getting Romanian.
+    //
+    // 2026-11-19 — the title and description used to be t('ro', …) outright.
+    // Once the page body and `<html lang>` began following the visitor's
+    // choice, that left an English page whose browser tab, SERP-style snippet
+    // and share card were Romanian. getChosenLocale() keeps the crawler on RO
+    // and lets the tab match what the visitor is actually reading.
+    const metaLocale = await getChosenLocale();
+    const title = t(metaLocale, 'marketing.home.page_title');
+    const description = t(metaLocale, 'marketing.home.page_description');
     const host =
       (await headers()).get('x-hir-host') ?? (await headers()).get('host')?.split(':')[0] ?? '';
     const url = `${canonicalBaseUrl(host)}/`;
@@ -78,7 +84,9 @@ export async function generateMetadata(): Promise<Metadata> {
         description,
         url,
         type: 'website',
-        locale: 'ro_RO',
+        // og:locale describes the document being shared, so it follows the
+        // same signal as the title above.
+        locale: metaLocale === 'en' ? 'en_GB' : 'ro_RO',
       },
       twitter: {
         card: 'summary_large_image',
