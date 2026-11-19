@@ -38,6 +38,10 @@ const NAV: NavItem[] = [
   { href: '/', labelKey: 'marketing.shell.nav_home' },
   { href: '/cum-functioneaza', labelKey: 'marketing.shell.nav_how' },
   { href: '/clienti', labelKey: 'marketing.shell.nav_clients' },
+  // 2026-11-19 — the courier product gets a place in the primary nav, per
+  // Iulian. /curier is the presentation page built on 2026-11-18; until now
+  // nothing linked to it, so it could only be reached by typing the URL.
+  { href: '/curier', labelKey: 'marketing.shell.nav_courier' },
   { href: '/contact', labelKey: 'marketing.shell.nav_contact' },
 ];
 
@@ -58,7 +62,7 @@ export function MarketingHeader({
 
           WCAG 2.4.1 (Bypass Blocks) still holds without it: these pages are
           landmarked — <header>, a labelled <nav>, and <main id="main-content">
-          — which is technique ARIA11, and the primary nav is four links, so
+          — which is technique ARIA11, and the primary nav is five links, so
           there is very little to bypass in the first place. */}
       <header className="sticky top-0 z-30 border-b border-[#E2E8F0] bg-white/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">

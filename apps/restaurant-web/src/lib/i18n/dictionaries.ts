@@ -703,6 +703,9 @@ export const dictionaries = {
         nav_features: 'Funcționalități',
         nav_how: 'Cum funcționează?',
         nav_clients: 'Clienți',
+        // A product name, not a word — it stays "HIR Curier" in both
+        // dictionaries rather than becoming "Courier" in the English one.
+        nav_courier: 'HIR Curier',
         nav_connect: 'HIR Connect',
         nav_migrate: 'Migrare GloriaFood',
         nav_demo: 'Vezi demo',
@@ -1838,6 +1841,7 @@ export const dictionaries = {
         nav_features: 'Features',
         nav_how: 'How it works',
         nav_clients: 'Clients',
+        nav_courier: 'HIR Curier',
         nav_connect: 'HIR Connect',
         nav_migrate: 'GloriaFood migration',
         nav_demo: 'View demo',

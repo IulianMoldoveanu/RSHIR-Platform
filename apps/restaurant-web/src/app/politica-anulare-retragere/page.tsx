@@ -13,6 +13,7 @@ import {
 } from '@/components/marketing/marketing-shell';
 import { LegalShell } from '@/components/legal/LegalShell';
 import { marketingOgImageUrl, PRIMARY_DOMAIN } from '@/lib/seo-marketing';
+import { getChosenLocale } from '@/lib/i18n/server';
 import type { LegalSection } from '@/content/legal/terms';
 
 export const runtime = 'nodejs';
@@ -321,23 +322,32 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
   },
 ];
 
-export default function PoliticaAnulareRetragerePage() {
+// Chrome follows the chosen language, the policy text does not — same reason
+// as /politica-livrare: this one cites OUG 34/2014 and Legea 140/2021, and a
+// translated statutory right is a claim we would have to stand behind.
+export default async function PoliticaAnulareRetragerePage() {
+  const locale = await getChosenLocale();
   return (
     <main
       id="main-content"
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader currentLocale="ro" />
+      <MarketingHeader currentLocale={locale} />
       <LegalShell
-        locale="ro"
+        locale={locale}
         title={PAGE_TITLE}
         subtitle="Drepturile tale conform OUG 34/2014 și Legii 140/2021"
         lastUpdated={PAGE_LAST_UPDATED}
         version={PAGE_VERSION}
         sections={SECTIONS}
+        headerNote={
+          locale === 'en'
+            ? 'This policy is published in Romanian. The Romanian text is the legally binding version — for help in English, write to office.hir@yahoo.com.'
+            : undefined
+        }
       />
-      <MarketingFooter currentLocale="ro" />
+      <MarketingFooter currentLocale={locale} />
     </main>
   );
 }

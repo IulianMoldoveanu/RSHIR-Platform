@@ -33,7 +33,7 @@ import {
   isOpenNow,
 } from '@/lib/operations';
 import { t } from '@/lib/i18n';
-import { getLocale } from '@/lib/i18n/server';
+import { getChosenLocale, getLocale } from '@/lib/i18n/server';
 import { metaDescriptionFor } from '@/lib/seo';
 import {
   canonicalBaseUrl,
@@ -127,11 +127,18 @@ export default async function StorefrontHomePage() {
   // Tenant subdomains and custom domains continue to render the storefront
   // menu unchanged.
   if (!tenant) {
-    // SEO audit 2026-05-10 #1 — marketing landing is pinned to RO.
-    // hirforyou.ro targets RO restaurant patrons, so the canonical
-    // homepage indexed by Google is RO-only. EN remains accessible via
-    // the locale cookie + alternate marketing pages but the homepage
-    // body is no longer Accept-Language-driven.
+    // SEO audit 2026-05-10 #1 — the marketing landing does not follow
+    // Accept-Language. hirforyou.ro targets RO restaurant patrons, so the
+    // canonical homepage Google indexes is the Romanian one.
+    //
+    // 2026-11-19 — that was implemented as a hardcoded currentLocale="ro",
+    // which threw away the cookie as well: the flag in the header wrote it,
+    // the page re-rendered, and the homepage stayed Romanian. The switcher
+    // was never broken in general — it was broken here, on the first page
+    // anyone tries, which is what made it look like it "only works on some
+    // pages". getChosenLocale() reads the cookie and nothing else, so a
+    // crawler (which sends none) still gets RO, while a visitor who asked
+    // for English gets English.
     //
     // SEO audit 2026-05-10 #4 — Organization, WebSite, LocalBusiness,
     // SoftwareApplication, FAQPage JSON-LD are surfaced on the homepage
@@ -190,7 +197,7 @@ export default async function StorefrontHomePage() {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: safeJsonLd(faqPageJsonLd(homepageFaq)) }}
         />
-        <MarketingHome currentLocale="ro" />
+        <MarketingHome currentLocale={await getChosenLocale()} />
         <MobileStickyCta />
       </>
     );

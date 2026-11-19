@@ -83,7 +83,7 @@ export default async function CourierPage() {
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader currentLocale={locale} />
+      <MarketingHeader active="/curier" currentLocale={locale} />
 
       <section className="border-b border-[#E2E8F0] bg-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:py-20">
