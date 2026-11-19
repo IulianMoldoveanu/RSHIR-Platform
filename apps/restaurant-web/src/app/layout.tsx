@@ -4,7 +4,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { headers } from 'next/headers';
 import { t, type Locale } from '@/lib/i18n';
-import { getLocale } from '@/lib/i18n/server';
+import { getChosenLocale, getLocale } from '@/lib/i18n/server';
 import { isBrandIconHost, isCanonicalHost, isMarketingSurface } from '@/lib/seo-marketing';
 import { isEmbedMode } from '@/lib/embed';
 import { PwaInstallPrompt } from '@/components/storefront/pwa-install-prompt';
@@ -81,19 +81,27 @@ function supabaseHost(): string | null {
 // `@hir_solutions` once the account is registered.
 const TWITTER_SITE = process.env.NEXT_PUBLIC_TWITTER_HANDLE || '';
 
-// SEO audit 2026-05-10 follow-up — when serving the marketing host
-// (hirforyou.ro / www / Vercel canonical), pin locale to RO so the
-// `<html lang>` attribute and root metadata stay consistent with the
-// MarketingHome content (which already pins to RO per #398). Tenant
-// hosts (`*.hirforyou.ro` or custom domains) continue to honor cookie
-// + Accept-Language so EN customers see the EN storefront chrome.
+// SEO audit 2026-05-10 follow-up — on the marketing host (hirforyou.ro / www
+// / Vercel canonical) the locale must not follow Accept-Language, so that
+// `<html lang>` and the root metadata match the page Google indexed. Tenant
+// hosts (`*.hirforyou.ro` or custom domains) honour cookie + Accept-Language
+// so EN customers see EN storefront chrome.
+//
+// 2026-11-19 — this used to `return 'ro'` outright, on the stated grounds
+// that MarketingHome pinned to RO as well. It no longer does: the homepage
+// now follows the cookie, so a hard 'ro' here would label an English page
+// `lang="ro"` and hand a screen reader English words to pronounce with
+// Romanian phonetics, while the title and description stayed Romanian.
+// getChosenLocale() keeps the SEO intent exactly — a crawler sends no cookie
+// and still gets `lang="ro"` with Romanian metadata — and keeps the document
+// honest for the visitor who asked for English.
 async function currentHost(): Promise<string> {
   const h = await headers();
   return h.get('x-hir-host') ?? h.get('host')?.split(':')[0] ?? '';
 }
 
 async function rootLocale(): Promise<Locale> {
-  if (isCanonicalHost(await currentHost())) return 'ro';
+  if (isCanonicalHost(await currentHost())) return await getChosenLocale();
   return await getLocale();
 }
 

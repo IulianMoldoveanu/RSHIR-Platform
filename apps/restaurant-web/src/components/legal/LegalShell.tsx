@@ -46,12 +46,36 @@ export type LegalShellProps = {
   sections: ReadonlyArray<LegalSection>;
   /** Notă opțională deasupra TOC (de ex. avertismentul versiunii EN). */
   headerNote?: string;
-  /** Locale curent — controlează formatarea datei. */
+  /** Locale curent — controlează formatarea datei și textul din jur. */
   locale?: 'ro' | 'en';
+  /**
+   * Limba documentului propriu-zis, dacă diferă de `locale`.
+   *
+   * Politicile obligatorii rămân în română chiar și când vizitatorul a ales
+   * engleza: sunt documente care produc efecte juridice, iar o traducere
+   * automată a unui drept statutar ar fi o afirmație pe care ar trebui s-o
+   * susținem. Din momentul în care `<html lang>` urmează alegerea omului
+   * (2026-11-19), textul românesc ar moșteni `lang="en"` și un cititor de
+   * ecran l-ar pronunța cu fonetică engleză — de neînțeles. Marcăm deci
+   * titlul, cuprinsul și corpul cu limba lor reală, lăsând restul în engleză.
+   */
+  contentLocale?: 'ro' | 'en';
 };
 
 export function LegalShell(props: LegalShellProps) {
-  const { title, subtitle, lastUpdated, version, sections, headerNote, locale = 'ro' } = props;
+  const {
+    title,
+    subtitle,
+    lastUpdated,
+    version,
+    sections,
+    headerNote,
+    locale = 'ro',
+    contentLocale = locale,
+  } = props;
+  // Only emit lang where it actually differs, so the markup stays quiet in
+  // the common case of a document written in the language being displayed.
+  const bodyLang = contentLocale === locale ? undefined : contentLocale;
   const dateLabel = formatDate(lastUpdated, locale);
   const dateLeadIn = locale === 'en' ? 'Last updated' : 'Ultima actualizare';
   const versionLabel = locale === 'en' ? 'Version' : 'Versiune';
@@ -60,9 +84,13 @@ export function LegalShell(props: LegalShellProps) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 text-zinc-800">
       <header className="border-b border-zinc-200 pb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">{title}</h1>
+        <h1 lang={bodyLang} className="text-3xl font-semibold tracking-tight text-zinc-900">
+          {title}
+        </h1>
         {subtitle ? (
-          <p className="mt-2 text-base text-zinc-600">{subtitle}</p>
+          <p lang={bodyLang} className="mt-2 text-base text-zinc-600">
+            {subtitle}
+          </p>
         ) : null}
         <p className="mt-3 text-xs text-zinc-500">
           {dateLeadIn}: <time dateTime={lastUpdated}>{dateLabel}</time>
@@ -78,7 +106,7 @@ export function LegalShell(props: LegalShellProps) {
 
       <nav aria-label={tocLabel} className="mt-6 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
         <p className="font-medium text-zinc-700">{tocLabel}</p>
-        <ol className="mt-2 space-y-1 text-zinc-600">
+        <ol lang={bodyLang} className="mt-2 space-y-1 text-zinc-600">
           {sections.map((section) => (
             <li key={section.id}>
               <a className="hover:text-zinc-900 hover:underline" href={`#${section.id}`}>
@@ -89,7 +117,7 @@ export function LegalShell(props: LegalShellProps) {
         </ol>
       </nav>
 
-      <div className="mt-8 space-y-10">
+      <div lang={bodyLang} className="mt-8 space-y-10">
         {sections.map((section) => (
           <section key={section.id} id={section.id} className="scroll-mt-24">
             <h2 className="text-xl font-semibold text-zinc-900">

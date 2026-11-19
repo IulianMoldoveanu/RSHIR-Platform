@@ -14,10 +14,16 @@ import {
 } from '@/components/marketing/marketing-shell';
 import { LegalShell } from '@/components/legal/LegalShell';
 import { marketingOgImageUrl, PRIMARY_DOMAIN } from '@/lib/seo-marketing';
+import { getChosenLocale } from '@/lib/i18n/server';
 import type { LegalSection } from '@/content/legal/terms';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-static';
+// A page that honours the language cookie cannot be statically generated:
+// with `force-static`, cookies() is empty at build time, so the HTML is baked
+// in Romanian and every visitor gets that file whatever they chose. This was
+// the second, separate cause of "the language button only works on some
+// pages" (the first being a hardcoded currentLocale on the homepage).
+export const dynamic = 'force-dynamic';
 
 const PAGE_PATH = '/politica-livrare';
 const PAGE_URL = `https://${PRIMARY_DOMAIN}${PAGE_PATH}`;
@@ -274,23 +280,36 @@ const SECTIONS: ReadonlyArray<LegalSection> = [
   },
 ];
 
-export default function PoliticaLivrarePage() {
+// The chrome follows the visitor's chosen language; the policy text does not.
+// This is a binding document under Romanian consumer law, and a machine
+// translation of it would be a liability rather than a courtesy — so an
+// English visitor gets an English page that says, in English, that the
+// Romanian text below is the version that counts.
+export default async function PoliticaLivrarePage() {
+  const locale = await getChosenLocale();
   return (
     <main
       id="main-content"
       className="min-h-screen bg-[#FAFAFA] text-[#0F172A]"
       style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}
     >
-      <MarketingHeader currentLocale="ro" />
+      <MarketingHeader currentLocale={locale} />
       <LegalShell
-        locale="ro"
+        locale={locale}
+        // The chrome follows the visitor; the document itself is Romanian.
+        contentLocale="ro"
         title={PAGE_TITLE}
         subtitle="Cum livrăm comenzile plasate prin platforma HIR"
         lastUpdated={PAGE_LAST_UPDATED}
         version={PAGE_VERSION}
         sections={SECTIONS}
+        headerNote={
+          locale === 'en'
+            ? 'This policy is published in Romanian. The Romanian text is the legally binding version — for help in English, write to office.hir@yahoo.com.'
+            : undefined
+        }
       />
-      <MarketingFooter currentLocale="ro" />
+      <MarketingFooter currentLocale={locale} />
     </main>
   );
 }
