@@ -341,7 +341,10 @@ function CreateApiKeyForm({
     }
     setError(null);
     start(async () => {
-      const r = await createApiKey(tenantId, label.trim(), ['orders.write']);
+      // Both scopes. GET /orders/:id gates on orders.read, so a write-only key
+      // could post an order and then get 401 every time it asked what had
+      // happened to it — which is the next thing any integration does.
+      const r = await createApiKey(tenantId, label.trim(), ['orders.write', 'orders.read']);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -369,7 +372,9 @@ function CreateApiKeyForm({
       </div>
 
       <p className="text-xs text-zinc-500">
-        Scopuri: <code className="text-violet-700">orders.write</code> (implicit — singura opțiune MVP).
+        Scopuri: <code className="text-violet-700">orders.write</code> +{' '}
+        <code className="text-violet-700">orders.read</code> — trimitere de comenzi, schimbare de
+        status și citirea stării lor.
       </p>
 
       {error && <p className="text-xs text-rose-700">{error}</p>}
