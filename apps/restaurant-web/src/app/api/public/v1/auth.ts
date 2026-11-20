@@ -52,18 +52,35 @@ export async function authenticateBearerKey(
   if (error || !data) return null;
 
   // Best-effort: update last_used_at without blocking the response.
+  //
+  // This used to end in `.catch(() => {})` and that single call took the
+  // whole public API down for every valid key. A postgrest query builder is
+  // a *thenable*, not a Promise: it implements `then()` and nothing else, so
+  // `.catch` is undefined and calling it throws a TypeError right here —
+  // after the key has been found, before this function can return. Every
+  // authenticated request answered 500 with an empty body; an unauthenticated
+  // one returned a clean 401, because it never reached this line.
+  //
+  // Nothing caught it in review or in CI: the cast below declared `eq` as
+  // returning a Promise, which is a lie the compiler cannot see through, and
+  // every route test mocks `authenticateBearerKey` itself, so this file had
+  // no coverage at all. The type now says `PromiseLike`, which is what it
+  // really is — `.catch` on it no longer compiles.
   const adminRaw = getSupabaseAdmin() as unknown as {
     from: (t: string) => {
       update: (row: Record<string, unknown>) => {
-        eq: (col: string, val: string) => Promise<unknown>;
+        eq: (col: string, val: string) => PromiseLike<unknown>;
       };
     };
   };
-  adminRaw
+  void adminRaw
     .from('tenant_api_keys')
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', data.id)
-    .catch(() => {});
+    .then(
+      () => {},
+      () => {},
+    );
 
   return { tenantId: data.tenant_id, keyId: data.id, scopes: data.scopes };
 }
