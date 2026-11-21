@@ -13,6 +13,7 @@ import { logoutAction } from './actions';
 import { LogoutForm } from '@/components/logout-form';
 import { TenantSelector } from './tenant-selector';
 import { SidebarNav, type SidebarEntry } from './sidebar-nav';
+import { connectNavEntries } from './connect-nav';
 import { MobileSidebar } from './mobile-sidebar';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { FeedbackFab } from '@/components/feedback-fab';
@@ -102,51 +103,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // Headless (HIR Connect) nav: hide storefront-facing features, expose
   // only the service-layer surfaces (orders, courier, AI, analytics, API).
-  const connectNavEntries: SidebarEntry[] = [
-    { href: '/dashboard', label: 'Acasă', icon: 'layoutDashboard' as const },
-    { href: '/dashboard/orders', label: 'Comenzi', icon: 'receipt' as const },
-    { href: '/dashboard/orders/manual-entry', label: 'Comandă manuală' },
-    // Menu is read-only for Connect tenants — they manage their own site.
-    { href: '/dashboard/menu', label: 'Meniu (citire)', icon: 'bookOpen' as const },
-    { href: '/dashboard/ai-ceo', label: 'AI CEO', icon: 'sparkles' as const },
-    { href: '/dashboard/ai-activity', label: 'Jurnal AI' },
-    {
-      label: 'Operațiuni',
-      icon: 'sliders' as const,
-      items: [
-        { href: '/dashboard/operations/live-orders', label: 'Livrări live' },
-        { href: '/dashboard/zones', label: 'Zone livrare' },
-        { href: '/dashboard/settings/operations', label: 'Program & pickup' },
-        { href: '/dashboard/settings/notifications', label: 'Notificări' },
-        { href: '/dashboard/pre-orders', label: 'Pre-comenzi' },
-        { href: '/dashboard/voice', label: 'Apeluri vocale' },
-        { href: '/dashboard/inventory', label: 'Stocuri' },
-        { href: '/kds', label: 'Ecran bucătărie (KDS)' },
-      ],
-    },
-    {
-      label: 'Analytics',
-      icon: 'megaphone' as const,
-      items: [
-        { href: '/dashboard/analytics', label: 'Analytics' },
-        { href: '/dashboard/customer-insights', label: 'Insights clienți' },
-      ],
-    },
-    {
-      label: 'API & Integrări',
-      icon: 'settings' as const,
-      items: [
-        { href: '/dashboard/settings/integrations/api', label: 'API Settings' },
-        // Webhook config route — filled by connect-webhook PR (Task 2).
-        { href: '/dashboard/settings/integrations/webhooks', label: 'Webhook configurare' },
-        { href: '/dashboard/settings/integrations', label: 'Integrări' },
-        { href: '/dashboard/settings/aggregator-intake', label: 'Preluare comenzi (Glovo/Wolt/Bolt)' },
-        { href: '/dashboard/settings/ai-trust', label: 'Încredere AI' },
-      ],
-    },
-    { href: '/dashboard/settings/audit', label: 'Jurnal acțiuni', icon: 'sliders' as const },
-    { href: '/dashboard/help', label: 'Ajutor', icon: 'helpCircle' as const },
-  ];
 
   // Tenant-scoped nav (Comenzi / Meniu / Marketing / etc). Hidden in
   // platform-admin-only mode so Iulian doesn't see a fake "Foișorul A"
