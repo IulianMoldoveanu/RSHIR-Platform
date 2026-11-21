@@ -5,6 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { Skeleton, LiveBadge } from '@hir/ui';
 import { computeOnboardingState } from '@/lib/onboarding';
 import { getActiveTenant } from '@/lib/tenant';
+import { getTenantDeliveryMode, isHeadless } from '@/lib/tenant-mode';
 import { tenantStorefrontUrl } from '@/lib/storefront-url';
 import { PolishChecklist } from './polish-checklist';
 import { KpiCards } from './kpi-cards';
@@ -67,7 +68,17 @@ export default async function DashboardOverviewPage(
   }
   const { tenant } = active;
 
-  if (searchParams?.skipOnboarding !== '1') {
+  // A Connect tenant sells on their own site and has no HIR storefront, so
+  // the go-live wizard (menu, branding, zones, "publish your storefront")
+  // asks them to finish setting up a product they did not buy.
+  //
+  // This was not cosmetic: `went_live` is only ever written by that wizard,
+  // and the Connect onboarding route never sets it — so every Connect vendor
+  // was bounced straight back into the storefront wizard on login and could
+  // not reach their own orders at all, short of guessing ?skipOnboarding=1.
+  const connectMode = isHeadless(await getTenantDeliveryMode(tenant.id));
+
+  if (!connectMode && searchParams?.skipOnboarding !== '1') {
     const state = await computeOnboardingState(tenant.id);
     if (!state.went_live) redirect('/dashboard/onboarding');
   }
@@ -76,13 +87,20 @@ export default async function DashboardOverviewPage(
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <Suspense fallback={null}>
-        <GloriaFoodRescueBanner tenantId={tenant.id} />
-      </Suspense>
+      {/* Nags any tenant whose menu is empty to import one from GloriaFood.
+          A Connect vendor's menu is legitimately empty — their catalogue is
+          on their own site — so this would nag them forever. */}
+      {!connectMode && (
+        <Suspense fallback={null}>
+          <GloriaFoodRescueBanner tenantId={tenant.id} />
+        </Suspense>
+      )}
 
-      <Suspense fallback={null}>
-        <GoLiveCelebration tenantId={tenant.id} storefrontUrl={storefrontUrl} />
-      </Suspense>
+      {!connectMode && (
+        <Suspense fallback={null}>
+          <GoLiveCelebration tenantId={tenant.id} storefrontUrl={storefrontUrl} />
+        </Suspense>
+      )}
 
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -134,9 +152,11 @@ export default async function DashboardOverviewPage(
       </Suspense>
       <ActiveOrdersRealtime tenantId={tenant.id} />
 
-      <Suspense fallback={null}>
-        <TodayReservationsPanel tenantId={tenant.id} />
-      </Suspense>
+      {!connectMode && (
+        <Suspense fallback={null}>
+          <TodayReservationsPanel tenantId={tenant.id} />
+        </Suspense>
+      )}
 
       <Suspense fallback={null}>
         <DemandForecastWidget tenantId={tenant.id} />
@@ -154,9 +174,14 @@ export default async function DashboardOverviewPage(
         <EventsTile tenantId={tenant.id} />
       </Suspense>
 
-      <StorefrontShareTile storefrontUrl={storefrontUrl} tenantName={tenant.name} />
-
-      <PolishChecklist tenantId={tenant.id} />
+      {/* Both are about a HIR storefront: one hands out its link and QR,
+          the other nudges you to polish it. A Connect vendor has neither. */}
+      {!connectMode && (
+        <>
+          <StorefrontShareTile storefrontUrl={storefrontUrl} tenantName={tenant.name} />
+          <PolishChecklist tenantId={tenant.id} />
+        </>
+      )}
     </div>
   );
 }
