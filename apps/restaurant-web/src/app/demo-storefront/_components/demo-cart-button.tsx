@@ -112,6 +112,8 @@ export function DemoCartButton() {
                         <img
                           src={item.imageUrl}
                           alt=""
+                          width={48}
+                          height={48}
                           loading="lazy"
                           className="h-12 w-12 shrink-0 rounded-lg bg-zinc-100 object-cover"
                         />
